@@ -85,7 +85,8 @@ export function buildAssetIndex(files: readonly ContentFile[], options: AssetInd
   const partGroups = groupLevelParts(identity.levelParts);
   const levels = new Map<string, LevelFolder>();
 
-  for (const { entry, json } of identity.documents) {
+  for (const document of identity.documents) {
+    const { entry } = document;
     const file = fileLabel(entry.root, entry.path);
     if (entry.type === ActorClassAssetType.name) {
       const cls = classes.get(entry.id);
@@ -95,7 +96,7 @@ export function buildAssetIndex(files: readonly ContentFile[], options: AssetInd
       const groupKey = folder === null ? null : levelGroupKey(entry.root, folder);
       const parts = (groupKey !== null ? partGroups.get(groupKey) : undefined) ?? [];
       if (groupKey !== null) partGroups.delete(groupKey);
-      const result = indexLevelFolder(entry, json, parts, { ...options, resolveClass });
+      const result = indexLevelFolder(document, parts, { ...options, resolveClass });
       issues.push(...result.issues);
       references.push(...result.references);
       if (result.folder) levels.set(entry.id, result.folder);

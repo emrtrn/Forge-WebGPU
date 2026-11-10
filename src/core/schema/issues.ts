@@ -34,7 +34,8 @@ export type IssueCode =
   | "unrecognized-file"
   | "singleton-conflict"
   | "misplaced-actor"
-  | "orphan-part";
+  | "orphan-part"
+  | "revision-mismatch";
 
 export type IssueSeverity = "error" | "warning";
 

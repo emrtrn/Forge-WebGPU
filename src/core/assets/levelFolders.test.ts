@@ -159,3 +159,30 @@ describe("checks across the files of a level", () => {
     ]);
   });
 });
+
+describe("revisions", () => {
+  const OTHER = "fedcba9876543210";
+  const withRevisions = (files: ContentFile[], revisions: Record<string, string>): ContentFile[] =>
+    files.map((file) => (Object.hasOwn(revisions, file.path) ? { ...file, revision: revisions[file.path]! } : file));
+  const files = levelFolder("levels/main", "1", [], { "0_0": [A], "1_0": [B] });
+
+  test("files that match the index pass; without revisions nothing is compared", () => {
+    const matching = withRevisions(files, {
+      "levels/main/level.json": REV,
+      "levels/main/cells/0_0.json": REV,
+      "levels/main/cells/1_0.json": REV,
+    });
+    expect(fileSummary(build(matching).issues)).toEqual([]);
+    expect(fileSummary(build(files).issues)).toEqual([]);
+  });
+
+  test("a file written after the index, or edited by hand, is read and reported", () => {
+    const index = build(withRevisions(files, { "levels/main/level.json": OTHER, "levels/main/cells/1_0.json": OTHER }));
+    expect(fileSummary(index.issues)).toEqual([
+      "error revision-mismatch content/levels/main/cells.json persistent",
+      "error revision-mismatch content/levels/main/cells.json cells.1_0",
+    ]);
+    expect(index.issues[1]?.message).toContain("cells/1_0.json");
+    expect(index.levels.get(levelId("1"))?.cells).toEqual(["0_0", "1_0"]);
+  });
+});

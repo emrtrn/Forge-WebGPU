@@ -80,6 +80,7 @@ describe("scanContentRoots", () => {
     expect(scan.files[0]?.parseError).toBeTypeOf("string");
     expect(scan.files[5]).toEqual({ root: "content", path: "meshes/car.glb" });
     expect(scan.files[6]?.json).toMatchObject({ id: MESH });
+    expect(scan.files[6]?.revision).toMatch(/^[0-9a-f]{16}$/);
   });
 
   test("roots must not nest or repeat", async () => {
@@ -148,6 +149,17 @@ describe("verifyAssets (the gate)", () => {
       "error invalid-value content/textures/paint.png.meta.json license",
     ]);
     expect(result.lines.at(-1)).toBe("4 asset(s), 8 file(s), 1 root(s): content; 3 error(s).");
+  });
+
+  test("refuses a level file that no longer matches its index (A11)", async () => {
+    await editJson("content/levels/main/cells/0_0.json", (json) => {
+      (json.actors as { name: string }[])[0]!.name = "Edited by hand";
+    });
+    const result = await verifyAssets(project, { registry: createAssetTestRegistry() });
+    expect(result.ok).toBe(false);
+    expect(summary(result.index.issues)).toEqual([
+      "error revision-mismatch content/levels/main/cells.json cells.0_0",
+    ]);
   });
 
   test("refuses a binary without its meta file", async () => {

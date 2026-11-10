@@ -44,6 +44,11 @@ export interface ContentFile {
   readonly json?: unknown;
   /** Set when a `.json` file could not be parsed. */
   readonly parseError?: string;
+  /**
+   * Revision of the file's bytes (first 16 hex digits of SHA-256), when the
+   * reader computed it. Opaque to core: compared, never computed.
+   */
+  readonly revision?: string;
 }
 
 export interface AssetEntry {
@@ -72,7 +77,7 @@ export interface IdentityResult {
   /** Normalised meta files of the indexed binary assets, by GUID. */
   readonly metas: Map<string, AssetMetaDoc>;
   /** Raw content of the indexed document assets, in path order. */
-  readonly documents: { readonly entry: AssetEntry; readonly json: unknown }[];
+  readonly documents: { readonly entry: AssetEntry; readonly json: unknown; readonly revision?: string }[];
   /** Level cells and cell indexes, in path order; they belong to a level folder. */
   readonly levelParts: ContentFile[];
   readonly issues: FileIssue[];
@@ -206,7 +211,9 @@ function identifyDocument(
     path: file.path,
     meta: null,
   };
-  if (claim(entry, ctx, "id")) result.documents.push({ entry, json });
+  if (claim(entry, ctx, "id")) {
+    result.documents.push(file.revision === undefined ? { entry, json } : { entry, json, revision: file.revision });
+  }
 }
 
 /** Ordinal comparison: the same order on every machine and locale. */

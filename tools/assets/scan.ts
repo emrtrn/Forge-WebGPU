@@ -2,7 +2,9 @@
 // (architecture §4.6, A10). Core never touches the disk; this is the Node side.
 //
 // - Every `.json` file is read and parsed; a parse failure is kept on the file
-//   so the index reports it. Other files are listed, not read.
+//   so the index reports it. Its revision (hash of the bytes) is put on it, so
+//   the index can check a level's files against `cells.json`. Other files are
+//   listed, not read.
 // - Names starting with "." (`.forge-cache`, `.git`, editor droppings) are
 //   skipped, files and folders alike.
 // - A root that does not exist is listed as missing, not an error: a project
@@ -11,6 +13,7 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { ContentFile } from "../../src/core/index.ts";
+import { fileRevision } from "./revision.ts";
 
 export interface ScanResult {
   /** Roots that exist, in the order given. */
@@ -81,10 +84,11 @@ async function walk(directory: string, relative: string, root: string, out: Cont
 
 async function readContentFile(absolute: string, root: string, path: string): Promise<ContentFile> {
   if (!path.toLowerCase().endsWith(".json")) return { root, path };
-  const text = await readFile(absolute, "utf8");
+  const bytes = await readFile(absolute);
+  const revision = fileRevision(bytes);
   try {
-    return { root, path, json: JSON.parse(text) as unknown };
+    return { root, path, json: JSON.parse(bytes.toString("utf8")) as unknown, revision };
   } catch (error) {
-    return { root, path, parseError: error instanceof Error ? error.message : String(error) };
+    return { root, path, parseError: error instanceof Error ? error.message : String(error), revision };
   }
 }

@@ -12,7 +12,10 @@
 // here a reference to an actor in no file is dangling, an error in
 // development like a dangling asset reference.
 //
-// Revisions in the index are checked where the bytes are (`tools/assets`).
+// Revisions: the reader that has the bytes (`tools/assets`) puts each file's
+// revision on it; this pass compares them with the index. A file that does
+// not match was written after the index (a save that did not finish) or
+// edited by hand; it is still read, and reported.
 
 import type { LevelId } from "../id.ts";
 import type { ClassResolver } from "../level/actorClass.ts";
@@ -105,11 +108,11 @@ export interface LevelPassResult {
  * references. `parts` are the cell and index files of the level's folder.
  */
 export function indexLevelFolder(
-  entry: AssetEntry,
-  json: unknown,
+  level: { readonly entry: AssetEntry; readonly json: unknown; readonly revision?: string },
   parts: readonly ContentFile[],
   options: AssetIndexOptions & { readonly resolveClass: ClassResolver },
 ): LevelPassResult {
+  const { entry, json } = level;
   const { registry, resolveClass } = options;
   const levelFile = fileLabel(entry.root, entry.path);
   const issues: FileIssue[] = [];
@@ -155,6 +158,19 @@ export function indexLevelFolder(
     }
   }
 
+  const checkRevision = (given: string | undefined, listed: string, path: string, file: string): void => {
+    if (given === undefined || given === listed) return;
+    report(CELL_INDEX_FILE, (ctx) =>
+      reportLoss(
+        ctx,
+        "revision-mismatch",
+        path,
+        `${file} is not the file the index was written with (a save that did not finish, or an edit by hand). Re-save the level.`,
+      ),
+    );
+  };
+  if (index) checkRevision(level.revision, index.persistent, "persistent", LEVEL_FILE);
+
   // The cells: named right, listed in the index, of this level.
   const cells: LevelCellDoc[] = [];
   const present = new Set<string>();
@@ -187,6 +203,7 @@ export function indexLevelFolder(
         ),
       );
     } else {
+      checkRevision(file.revision, index.cells[key]!, childPath("cells", key), relative);
       cells.push(cell);
     }
   }
