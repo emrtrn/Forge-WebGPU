@@ -6,6 +6,7 @@ import {
   installFeatures,
   normalizeComponent,
   normalizeLevel,
+  openLevelSession,
 } from "../../core/index.ts";
 import { assembleLevel } from "../../runtime/assembler.ts";
 import { createWorld } from "../../runtime/world.ts";
@@ -158,5 +159,35 @@ describe("height fog end to end: schema -> level -> assembler -> world -> servic
     expect(world.context.componentsOf("forge.heightFog")[0]?.component.density).toBe(0.5);
     world.context.destroyActors([fogActor]);
     expect(state).toEqual({ fog: null, actor: null });
+  });
+});
+
+describe("skeleton acceptance (plan 2a): one folder, schema to subsystem", () => {
+  test("save round trip -> edit -> undo -> form -> world, with no shell file naming the feature", () => {
+    const registry = createSchemaRegistry();
+    installFeatures([heightFogFeature], registry);
+    const options = { strict: true, registry, resolveClass: () => undefined };
+    const level = normalizeLevel(
+      { schema: "forge.level/1", id: "lvl_22222222222222222222222222222222", actors: [{ id: "act_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", name: "Fog", components: { fog: { type: "forge.heightFog@1", density: 0.001 } } }] },
+      options,
+    ).value!;
+    const session = openLevelSession({ folder: "content/levels/main", persistent: level, persistentRevision: "0000000000000000", index: null }, options);
+    const fog = structuredClone(session.level.actors[0]!) as unknown as { components: { fog: { density: number } } };
+    fog.components.fog.density = 0.5;
+    expect(session.edit("Fog density", (tx) => tx.setActor(fog), { coalesce: "fog.density" }).ok).toBe(true);
+    session.undo();
+    const plan = session.planSave();
+    if (plan.status !== "ready") throw new Error(`expected a save plan, got ${plan.status}`);
+    const saved = JSON.parse(plan.request.writes[0]!.text!);
+    expect(saved.actors[0].components.fog.density).toBe(0.001);
+
+    expect(formOf(HeightFog).fields.map((field) => field.key)).toContain("density");
+
+    const world = createWorld({ ...options, features: [heightFogFeature] });
+    world.init();
+    assembleLevel(world, session.level, options);
+    world.beginPlay();
+    expect(world.services.require(HeightFogStateKey).fog?.density).toBe(0.001);
+    world.dispose();
   });
 });
