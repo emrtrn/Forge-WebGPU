@@ -5,6 +5,7 @@
 export * from "./assets/assetIndex.ts";
 export * from "./assets/assetType.ts";
 export * from "./assets/identity.ts";
+export * from "./assets/integrity.ts";
 export * from "./assets/jsonSchema.ts";
 export * from "./assets/meta.ts";
 export * from "./assets/references.ts";

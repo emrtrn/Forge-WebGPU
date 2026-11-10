@@ -9,7 +9,8 @@
 //    level finds its classes by GUID wherever the class file lives;
 // 3. levels are normalised against that resolver;
 // 4. asset references are collected from levels, classes and meta files by
-//    walking the schema, and a reverse index (target -> referrers) is built.
+//    walking the schema, and a reverse index (target -> referrers) is built;
+// 5. every reference is checked: dangling, or of the wrong asset type.
 //
 // Like normalisation, building never throws on data: problems are issues,
 // with the file they are in. `ok` is false when one is an error.
@@ -28,6 +29,7 @@ import {
   type ContentFile,
   type FileIssue,
 } from "./identity.ts";
+import { checkReferences } from "./integrity.ts";
 import {
   actorClassReferences,
   levelReferences,
@@ -91,6 +93,8 @@ export function buildAssetIndex(files: readonly ContentFile[], options: AssetInd
     const entry = identity.entries.get(id);
     if (entry?.meta) add(id, fileLabel(entry.root, entry.meta), metaReferences(registry, meta));
   }
+
+  issues.push(...checkReferences(identity.entries, references, options));
 
   const byTarget = new Map<string, AssetReference[]>();
   for (const reference of references) {
