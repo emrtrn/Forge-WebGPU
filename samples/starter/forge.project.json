@@ -4,6 +4,7 @@
   "name": "Starter",
   "sdkVersion": "0.1",
   "contentRoots": ["content"],
+  "contentPacks": ["starter"],
   "startLevel": "content/levels/main",
   "game": { "module": "src/game.ts" },
   "devPort": 5190

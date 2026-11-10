@@ -1,7 +1,9 @@
-// Asset gate (architecture §4.10, D16; decision A10). Scans `content/` and
-// `samples/*/content/`, builds the asset index strictly and fails on any
-// error: an asset without type, licence or source, a binary without its meta
-// file, a duplicate GUID, a dangling reference. Writes nothing.
+// Asset gate (architecture §4.10, D16; decisions A9, A10). Scans `content/`
+// (engine content and packs) and `samples/*/content/`, builds the asset index
+// strictly and fails on any error: an asset without type, licence or source,
+// a binary without its meta file, a duplicate GUID, a dangling reference, a
+// reference from engine content to a pack or from one pack to another.
+// Writes nothing.
 
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";

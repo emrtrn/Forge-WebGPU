@@ -182,6 +182,20 @@ describe("verifyAssets (the gate)", () => {
     ]);
   });
 
+  test("engine content refers to no pack, a pack to no other pack (A9)", async () => {
+    await move("content/classes/car.json", "content/engine/classes/car.json");
+    await move("content/meshes", "content/packs/vehicles/meshes");
+    await move("content/textures", "content/packs/paint/textures");
+    const result = await verifyAssets(project, { registry: createAssetTestRegistry() });
+    expect(summary(result.index.issues)).toEqual([]);
+    expect(result.ok).toBe(false);
+    expect(result.lines.slice(0, -1)).toEqual([
+      expect.stringMatching(/^error dangling-reference engine:content\/engine\/classes\/car\.json components\.body\.mesh \(engine content alone\): /),
+      expect.stringMatching(/^error dangling-reference engine:content\/engine\/classes\/car\.json components\.body\.mesh \(pack paint with engine content\): /),
+      expect.stringMatching(/^error dangling-reference engine:content\/packs\/vehicles\/meshes\/car\.glb\.meta\.json import\.textures\[0\] \(pack vehicles with engine content\): /),
+    ]);
+  });
+
   test("refuses a binary without its meta file", async () => {
     await writeFile(join(project, "content/textures/new.png"), "");
     const result = await verifyAssets(project, { registry: createAssetTestRegistry() });

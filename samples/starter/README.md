@@ -6,7 +6,10 @@ the project `npm run dev` opens when no other is named, and the template
 `npm run create-project` copies.
 
 - `content/levels/main`: a level folder (A11) with a Height Fog actor in the
-  persistent layer and a Player Start in cell `0_0`.
+  persistent layer and a Player Start in cell `0_0`. The fog is an instance of
+  the starter pack's height fog class: `"contentPacks": ["starter"]` in the
+  manifest makes the engine's `content/packs/starter/` part of this project's
+  asset index; nothing is copied (A9).
 - `src/game.ts`: the game module; it imports `@forge/sdk` only.
 
 Inside the engine repository this project is read-only: the dev server

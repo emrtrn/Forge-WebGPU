@@ -4,13 +4,16 @@
 // A new game repository from samples/starter: the starter's content and
 // configuration, a game module named after the project, the level's GUID
 // renewed (its files rewritten in canonical form with new revisions and a new
-// index). The target must be outside the engine repository and empty.
+// index). The starter's content packs stay named in the manifest and are not
+// copied (A9); its class actors are checked against them. The target must be
+// outside the engine repository and empty.
 // `--register` adds the project to forge.projects.local.json so
 // `check:projects` checks it before every engine push.
 
 import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
 import {
+  buildAssetIndex,
   CELL_INDEX_FILE,
   CELLS_DIR,
   createId,
@@ -24,9 +27,12 @@ import {
   splitLevel,
   stringifyDocument,
   type LevelCellDoc,
+  type ClassResolver,
   type PartKey,
   type SchemaRegistry,
 } from "../../src/core/index.ts";
+import { projectIndexRoots } from "../assets/engineContent.ts";
+import { scanRoots } from "../assets/scan.ts";
 import { fileRevision } from "../assets/revision.ts";
 import { loadEngineRegistry } from "../assets/engineRegistry.ts";
 import { DEFAULT_PROJECT } from "../server/devProject.ts";
@@ -65,8 +71,8 @@ async function isEmptyOrMissing(path: string): Promise<boolean> {
 }
 
 /** Gives the level in `folder` a new GUID and rewrites its files with fresh revisions. */
-async function renewLevel(folder: string, registry: SchemaRegistry): Promise<void> {
-  const options = { strict: true, registry, resolveClass: () => undefined };
+async function renewLevel(folder: string, registry: SchemaRegistry, resolveClass: ClassResolver): Promise<void> {
+  const options = { strict: true, registry, resolveClass };
   const persistent = normalizeLevel(JSON.parse(await readFile(join(folder, "level.json"), "utf8")), options);
   if (!persistent.ok || !persistent.value) throw new Error(`${folder}/level.json does not normalise: ${persistent.issues[0]?.message}`);
   const cells: LevelCellDoc[] = [];
@@ -138,8 +144,9 @@ export async function createProject(options: CreateProjectOptions): Promise<{ re
   );
 
   const registry = await loadEngineRegistry(engineRoot);
+  const index = buildAssetIndex((await scanRoots(projectIndexRoots(engineRoot, target, manifest))).files, { strict: false, registry });
   for (const root of manifest.contentRoots) {
-    for (const folder of await levelFolders(join(target, root))) await renewLevel(folder, registry);
+    for (const folder of await levelFolders(join(target, root))) await renewLevel(folder, registry, index.resolveClass);
   }
   if (options.register) await registerLocalProject(engineRoot, target);
   return { root: target };

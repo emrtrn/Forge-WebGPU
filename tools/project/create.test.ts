@@ -1,11 +1,12 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, test } from "vitest";
 import { buildAssetIndex } from "../../src/core/index.ts";
 import { loadEngineRegistry } from "../assets/engineRegistry.ts";
-import { scanContentRoots } from "../assets/scan.ts";
+import { projectIndexRoots } from "../assets/engineContent.ts";
+import { scanRoots } from "../assets/scan.ts";
 import { checkProject } from "./check.ts";
 import { createProject } from "./create.ts";
 import { LOCAL_PROJECTS_FILE, projectsToCheck, registerLocalProject } from "./localProjects.ts";
@@ -27,7 +28,8 @@ describe("create-project", () => {
     const target = join(await temp("new"), "mygame");
     await createProject({ engineRoot, target, id: "mygame", name: "My Game" });
 
-    expect(await json(join(target, "forge.project.json"))).toMatchObject({ id: "mygame", name: "My Game", sdkVersion: "0.1", startLevel: "content/levels/main" });
+    const manifest = await json(join(target, "forge.project.json"));
+    expect(manifest).toMatchObject({ id: "mygame", name: "My Game", sdkVersion: "0.1", contentPacks: ["starter"], startLevel: "content/levels/main" });
     expect(await readFile(join(target, "src/game.ts"), "utf8")).toContain('id: "mygame.main"');
 
     const starterLevel = await json(join(engineRoot, "samples/starter/content/levels/main/level.json"));
@@ -35,7 +37,9 @@ describe("create-project", () => {
     expect(level.id).not.toBe(starterLevel.id);
     expect((await json(join(target, "content/levels/main/cells/0_0.json"))).level).toBe(level.id);
 
-    const scan = await scanContentRoots(target, ["content"]);
+    // The pack is named, not copied: the project's index reads it from the engine (A9).
+    expect(await readdir(join(target, "content"))).toEqual(["levels"]);
+    const scan = await scanRoots(projectIndexRoots(engineRoot, target, { contentRoots: ["content"], contentPacks: ["starter"] }));
     const index = buildAssetIndex(scan.files, { strict: true, registry: await loadEngineRegistry(engineRoot) });
     expect(index.issues).toEqual([]);
 
