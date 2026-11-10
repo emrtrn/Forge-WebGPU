@@ -68,7 +68,9 @@ export interface MergeResult {
 
 /**
  * Merges normalised parts into one level: the persistent actors first, then
- * the cells in cell order. Nothing is shared with the inputs.
+ * the cells in cell order. The merged level takes the parts' actor objects
+ * over (no copy: a level loads tens of thousands of them); the parts are not
+ * to be changed afterwards.
  */
 export function mergeLevelParts(
   persistent: LevelDoc,
@@ -84,7 +86,7 @@ export function mergeLevelParts(
     for (const issue of ctx.issues) issues.push({ ...issue, file: ctx.file });
   };
 
-  const level: LevelDoc = { ...structuredClone(persistent), actors: [] };
+  const level: LevelDoc = { ...persistent, settings: structuredClone(persistent.settings), actors: [] };
   const fileOf = new Map<ActorId, PartKey>();
   const where: { key: PartKey; index: number }[] = [];
   const singletons = new Map<string, PartKey>();
@@ -115,7 +117,7 @@ export function mergeLevelParts(
       }
       fileOf.set(actor.id, key);
       where.push({ key, index });
-      level.actors.push(structuredClone(actor));
+      level.actors.push(actor);
     });
   };
 
@@ -181,11 +183,32 @@ function singletonNames(actor: ActorDoc, options: CellAssignOptions): string[] {
   return names;
 }
 
-/** The document of one part, built from the actors assigned to it, in level order. */
-function partDocument(level: LevelDoc, assignment: CellAssignment, key: PartKey): LevelDoc | LevelCellDoc {
-  const actors = level.actors
-    .filter((actor) => (assignment.get(actor.id) ?? null) === key)
-    .map((actor) => structuredClone(actor));
+/**
+ * The actors of the wanted parts, each list in level order, in one pass over
+ * the level (a part never scans the whole level on its own).
+ */
+function actorsByPart(
+  level: LevelDoc,
+  assignment: CellAssignment,
+  wanted: ReadonlySet<PartKey> | null,
+): Map<PartKey, ActorDoc[]> {
+  const parts = new Map<PartKey, ActorDoc[]>();
+  for (const key of wanted ?? []) parts.set(key, []);
+  for (const actor of level.actors) {
+    const key = assignment.get(actor.id) ?? null;
+    let list = parts.get(key);
+    if (!list) {
+      if (wanted) continue;
+      list = [];
+      parts.set(key, list);
+    }
+    list.push(actor);
+  }
+  return parts;
+}
+
+/** The document of one part. It shares the actor objects with the level. */
+function partDocument(level: LevelDoc, key: PartKey, actors: ActorDoc[]): LevelDoc | LevelCellDoc {
   if (key === null) {
     return { schema: level.schema, id: level.id, settings: structuredClone(level.settings), actors };
   }
@@ -200,14 +223,17 @@ export interface SplitLevel {
   readonly issues: readonly Issue[];
 }
 
-/** Splits a whole level into its part documents. */
+/**
+ * Splits a whole level into its part documents. The documents share the actor
+ * objects with the level: they are for writing, not for keeping.
+ */
 export function splitLevel(level: LevelDoc, options: CellAssignOptions): SplitLevel {
   const assignment = assignCells(level.actors, level.settings, options);
-  const keys = new Set<string>();
-  for (const key of assignment.value.values()) if (key !== null) keys.add(key);
+  const parts = actorsByPart(level, assignment.value, null);
+  const keys = [...parts.keys()].filter((key): key is string => key !== null).sort(compareCellKeys);
   return {
-    persistent: partDocument(level, assignment.value, null) as LevelDoc,
-    cells: [...keys].sort(compareCellKeys).map((key) => partDocument(level, assignment.value, key) as LevelCellDoc),
+    persistent: partDocument(level, null, parts.get(null) ?? []) as LevelDoc,
+    cells: keys.map((key) => partDocument(level, key, parts.get(key)!) as LevelCellDoc),
     assignment: assignment.value,
     issues: assignment.issues,
   };
@@ -217,6 +243,12 @@ export function splitLevel(level: LevelDoc, options: CellAssignOptions): SplitLe
  * The parts an edit touches: for every edited actor, the part it was read
  * from (absent for a new actor) and the part it belongs to now (absent for a
  * deleted one). Moving an actor across a cell edge touches both cells.
+ *
+ * An actor that was read from one part but belongs in another (a misplaced
+ * actor, or a child whose root moved) ties the two together: rewriting only
+ * the part it leaves would drop it from every file, rewriting only the part it
+ * goes to would leave it in two. So when either is touched, both are. This
+ * repeats until no new part is added.
  */
 export function partsToWrite(
   fileOf: ReadonlyMap<ActorId, PartKey>,
@@ -227,6 +259,28 @@ export function partsToWrite(
   for (const id of edited) {
     if (fileOf.has(id)) parts.add(fileOf.get(id)!);
     if (assignment.has(id)) parts.add(assignment.get(id)!);
+  }
+  // Parts tied by an actor that moves between them, both ways.
+  const ties = new Map<PartKey, PartKey[]>();
+  const tie = (a: PartKey, b: PartKey): void => {
+    const list = ties.get(a);
+    if (list) list.push(b);
+    else ties.set(a, [b]);
+  };
+  for (const [id, from] of fileOf) {
+    const to = assignment.get(id);
+    if (to === undefined || to === from) continue;
+    tie(from, to);
+    tie(to, from);
+  }
+  const pending = [...parts];
+  while (pending.length > 0) {
+    for (const other of ties.get(pending.pop()!) ?? []) {
+      if (!parts.has(other)) {
+        parts.add(other);
+        pending.push(other);
+      }
+    }
   }
   return parts;
 }
@@ -265,8 +319,9 @@ export function planLevelFiles(
   const cells = keys.filter((key): key is string => key !== null).sort(compareCellKeys);
   const plan: LevelFilePlan = { write: [], remove: [], notLoaded: cells.filter((key) => !loaded.has(key)) };
   const ordered: PartKey[] = keys.includes(null) ? [null, ...cells] : cells;
+  const actors = actorsByPart(level, assignment, new Set(ordered));
   for (const key of ordered) {
-    const document = partDocument(level, assignment, key);
+    const document = partDocument(level, key, actors.get(key)!);
     if (key !== null && document.actors.length === 0) {
       plan.remove.push({ key, path: partFileOf(key) });
     } else {

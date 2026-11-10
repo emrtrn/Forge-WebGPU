@@ -67,13 +67,17 @@ describe("split", () => {
     for (const entry of merged.value.level.actors) expect(entry).toEqual(byId.get(entry.id));
   });
 
-  test("merging shares nothing with the parts", () => {
+  test("no actor is copied: split and merge pass the same objects on", () => {
+    // A level holds tens of thousands of actors; copying them dominated load
+    // and save time (scale measurement). Settings are small and are copied.
     const split = splitLevel(WORLD, STRICT);
+    const byId = new Map(WORLD.actors.map((entry) => [entry.id, entry]));
+    for (const cell of split.cells) for (const entry of cell.actors) expect(entry).toBe(byId.get(entry.id));
     const merged = mergeLevelParts(split.persistent, split.cells, STRICT);
-    merged.value.level.actors[2]!.transform.p[0] = 1;
+    for (const entry of merged.value.level.actors) expect(entry).toBe(byId.get(entry.id));
     merged.value.level.settings.cellSize = 1;
-    expect(split.cells[1]!.actors[0]!.transform.p[0]).toBe(50);
     expect(split.persistent.settings.cellSize).toBe(100);
+    expect(WORLD.settings.cellSize).toBe(100);
   });
 });
 
@@ -160,6 +164,23 @@ describe("saving an edit", () => {
     level.actors.push(levelOf([actor("7", -10, 10)]).actors[0]!);
     const assignment = splitLevel(level, STRICT).assignment;
     expect(partsToWrite(loaded.fileOf, assignment, [actorId("e"), actorId("7")])).toEqual(new Set([null, "-1_0"]));
+  });
+
+  test("a misplaced actor ties the cell it is in to the cell it belongs in, both ways", () => {
+    // b was read from 0_0 but stands in 2_0 (written by hand, or a save that did not finish).
+    const cell = structuredClone(split.cells.find((entry) => entry.cell === "0_0")!);
+    cell.actors.find((entry) => entry.id === actorId("b"))!.transform.p = [250, 0, 50];
+    const other: LevelCellDoc = { schema: "forge.levelCell/1", level: WORLD.id, cell: "2_0", actors: levelOf([actor("8", 210, 10)]).actors };
+    const merged = mergeLevelParts(split.persistent, [cell, other], LENIENT).value;
+    const assignment = splitLevel(merged.level, STRICT).assignment;
+    // Editing f (in 0_0) rewrites 0_0 without b: 2_0 must be written with b.
+    expect(partsToWrite(merged.fileOf, assignment, [actorId("f")])).toEqual(new Set(["0_0", "2_0"]));
+    // Editing 8 (in 2_0) writes b there: 0_0 must be rewritten without it.
+    expect(partsToWrite(merged.fileOf, assignment, [actorId("8")])).toEqual(new Set(["2_0", "0_0"]));
+
+    const plan = planLevelFiles(merged.level, assignment, partsToWrite(merged.fileOf, assignment, [actorId("f")]), new Set(merged.cells));
+    const written = new Map(plan.write.map((file) => [file.key, ids((JSON.parse(file.text) as LevelCellDoc).actors)]));
+    expect(written).toEqual(new Map([["0_0", ["f"]], ["2_0", ["b", "8"]]]));
   });
 
   test("the plan writes canonical text, removes a cell left empty, and reads back the same", () => {

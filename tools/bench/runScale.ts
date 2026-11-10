@@ -133,12 +133,15 @@ async function loadWholeLevel(
   failOn("level.json", persistent.issues);
   const index = normalizeLevelCellIndex(await readJson(join(folder, "cells.json")), options);
   failOn("cells.json", index.issues);
+  // Files are read concurrently, as any loader would; normalisation is synchronous.
+  const keys = Object.keys(index.value!.cells);
+  const raw = await Promise.all(keys.map((key) => readJson(join(folder, partFileOf(key)))));
   const cells: LevelCellDoc[] = [];
-  for (const key of Object.keys(index.value!.cells)) {
-    const cell = normalizeLevelCell(await readJson(join(folder, partFileOf(key))), options);
-    failOn(partFileOf(key), cell.issues);
+  raw.forEach((json, position) => {
+    const cell = normalizeLevelCell(json, options);
+    failOn(partFileOf(keys[position]!), cell.issues);
     cells.push(cell.value!);
-  }
+  });
   const merged = mergeLevelParts(persistent.value!, cells, options);
   failOn("merge", merged.issues);
   return merged.value;

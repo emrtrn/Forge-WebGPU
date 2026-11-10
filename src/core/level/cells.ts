@@ -31,7 +31,7 @@ import {
 } from "../schema/issues.ts";
 import { componentDefOf, type SchemaRegistry } from "../schema/registry.ts";
 import type { ClassResolver } from "./actorClass.ts";
-import type { ActorDoc } from "./model.ts";
+import type { ActorDoc, ComponentMap } from "./model.ts";
 import type { LevelSettings } from "./settings.ts";
 
 export interface CellCoord {
@@ -99,7 +99,9 @@ export type CellAssignment = Map<ActorId, string | null>;
 
 /**
  * Assigns every actor of a whole level to a cell or to the persistent layer.
- * Issue paths are `actors[i]...` of the given list.
+ * Issue paths are `actors[i]...` of the given list. Linear in the number of
+ * actors, with per-index arrays instead of per-actor objects: it runs on every
+ * save of a level with tens of thousands of actors.
  */
 export function assignCells(
   actors: readonly ActorDoc[],
@@ -107,82 +109,119 @@ export function assignCells(
   options: CellAssignOptions,
 ): NormalizeResult<CellAssignment> {
   const ctx = createContext(options);
-  const byId = new Map<ActorId, { actor: ActorDoc; index: number }>();
-  actors.forEach((actor, index) => {
-    if (!byId.has(actor.id)) byId.set(actor.id, { actor, index });
-  });
+  const count = actors.length;
+  const indexOf = new Map<ActorId, number>();
+  // A repeated id: only its first actor is assigned (normalisation drops the rest).
+  const repeated = new Uint8Array(count);
+  for (let i = 0; i < count; i += 1) {
+    const id = actors[i]!.id;
+    if (indexOf.has(id)) repeated[i] = 1;
+    else indexOf.set(id, i);
+  }
 
-  // Root of each actor; null when the chain is broken (missing parent, loop).
-  const rootOf = new Map<ActorId, ActorId | null>();
-  const findRoot = (start: ActorId): ActorId | null => {
-    const known = rootOf.get(start);
-    if (known !== undefined) return known;
-    const chain: ActorId[] = [];
-    const onChain = new Set<ActorId>();
-    let current: ActorId = start;
-    let root: ActorId | null;
+  // Index of each actor's root; BROKEN when the chain does not reach one.
+  const UNKNOWN = -2;
+  const BROKEN = -1;
+  const rootOf = new Int32Array(count).fill(UNKNOWN);
+  const findRoot = (start: number): number => {
+    if (rootOf[start] !== UNKNOWN) return rootOf[start]!;
+    if (actors[start]!.parent === null) return (rootOf[start] = start);
+    const chain: number[] = [];
+    let current = start;
+    let root: number;
     for (;;) {
-      const cached = rootOf.get(current);
-      if (cached !== undefined) {
-        root = cached;
+      if (rootOf[current] !== UNKNOWN) {
+        root = rootOf[current]!;
         break;
       }
-      if (onChain.has(current)) {
-        root = null;
+      if (chain.includes(current)) {
+        root = BROKEN;
         break;
       }
       chain.push(current);
-      onChain.add(current);
-      const parent = byId.get(current)?.actor.parent ?? null;
+      const parent = actors[current]!.parent;
       if (parent === null) {
         root = current;
         break;
       }
-      if (!byId.has(parent)) {
-        root = null;
+      const next = indexOf.get(parent);
+      if (next === undefined) {
+        root = BROKEN;
         break;
       }
-      current = parent;
+      current = next;
     }
-    for (const id of chain) rootOf.set(id, root);
+    for (const index of chain) rootOf[index] = root;
     return root;
   };
 
-  const persistentRoots = new Set<ActorId>();
-  for (const { actor } of byId.values()) {
-    const root = findRoot(actor.id);
-    if (root !== null && holdsSingleton(actor, options)) persistentRoots.add(root);
+  // A root is persistent when it is not spatially loaded or its tree holds a singleton.
+  const holdsSingleton = singletonTest(options);
+  const persistent = new Uint8Array(count);
+  for (let index = 0; index < count; index += 1) {
+    if (repeated[index] === 1) continue;
+    const root = findRoot(index);
+    if (root === BROKEN) continue;
+    if (!actors[root]!.spatiallyLoaded || holdsSingleton(actors[index]!)) persistent[root] = 1;
   }
 
+  const keyOfRoot: (string | undefined)[] = [];
   const assignment: CellAssignment = new Map();
-  for (const { actor, index } of byId.values()) {
-    const root = findRoot(actor.id);
-    if (root === null) {
+  for (let index = 0; index < count; index += 1) {
+    if (repeated[index] === 1) continue;
+    const actor = actors[index]!;
+    const root = rootOf[index]!;
+    if (root === BROKEN) {
       const parent = actor.parent;
       reportLoss(
         ctx,
         "invalid-parent",
         childPath(indexPath("actors", index), "parent"),
-        parent !== null && !byId.has(parent)
+        parent !== null && !indexOf.has(parent)
           ? `Parent actor ${parent} is not in the level; the actor stays in the persistent layer.`
           : "The parent chain loops or reaches a missing actor; the actor stays in the persistent layer.",
       );
       assignment.set(actor.id, null);
-      continue;
-    }
-    const rootActor = byId.get(root)!.actor;
-    if (!rootActor.spatiallyLoaded || persistentRoots.has(root)) {
+    } else if (persistent[root] === 1) {
       assignment.set(actor.id, null);
-      continue;
+    } else {
+      let key = keyOfRoot[root];
+      if (key === undefined) {
+        const [x, , z] = actors[root]!.transform.p;
+        key = cellKey(cellAt(settings.cellSize, x, z));
+        keyOfRoot[root] = key;
+      }
+      assignment.set(actor.id, key);
     }
-    const [x, , z] = rootActor.transform.p;
-    assignment.set(actor.id, cellKey(cellAt(settings.cellSize, x, z)));
   }
   return finish(ctx, assignment);
 }
 
-function holdsSingleton(actor: ActorDoc, options: CellAssignOptions): boolean {
-  const components =
-    actor.class === null ? actor.components : (options.resolveClass(actor.class)?.components ?? {});
-  return Object.values(components).some((component) => componentDefOf(options.registry, component)?.singleton);
+/**
+ * Whether an actor holds a singleton component. Answers are remembered per
+ * type tag and per class: a level has few of either and many actors.
+ */
+function singletonTest(options: CellAssignOptions): (actor: ActorDoc) => boolean {
+  const byTag = new Map<unknown, boolean>();
+  const byClass = new Map<string, boolean>();
+  const anySingleton = (components: ComponentMap): boolean => {
+    for (const component of Object.values(components)) {
+      let singleton = byTag.get(component.type);
+      if (singleton === undefined) {
+        singleton = componentDefOf(options.registry, component)?.singleton === true;
+        byTag.set(component.type, singleton);
+      }
+      if (singleton) return true;
+    }
+    return false;
+  };
+  return (actor) => {
+    if (actor.class === null) return anySingleton(actor.components);
+    let singleton = byClass.get(actor.class);
+    if (singleton === undefined) {
+      singleton = anySingleton(options.resolveClass(actor.class)?.components ?? {});
+      byClass.set(actor.class, singleton);
+    }
+    return singleton;
+  };
 }
