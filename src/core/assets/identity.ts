@@ -36,7 +36,7 @@ import { assetPathOfMeta, metaPathOf, metaTypeOf, normalizeAssetMeta, type Asset
 
 /** One file under a content root, as the caller found it. */
 export interface ContentFile {
-  /** Content root name, e.g. `content` or `content/packs/starter`. */
+  /** Content root label, e.g. `content` or `engine:content/packs/starter`. */
   readonly root: string;
   /** Path inside the root, with forward slashes. */
   readonly path: string;

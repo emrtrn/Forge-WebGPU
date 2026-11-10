@@ -15,7 +15,7 @@ import {
   writeAssetIndexCache,
 } from "./cache.ts";
 import { loadEngineRegistry, registerExports } from "./engineRegistry.ts";
-import { scanContentRoots } from "./scan.ts";
+import { projectContentRoots, scanContentRoots, scanRoots } from "./scan.ts";
 import { defaultContentRoots, verifyAssets } from "./verify.ts";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -86,6 +86,26 @@ describe("scanContentRoots", () => {
   test("roots must not nest or repeat", async () => {
     await expect(scanContentRoots(project, ["content", "content/packs/starter"])).rejects.toThrow(/nest/);
     await expect(scanContentRoots(project, ["content", "content/"])).rejects.toThrow(/twice/);
+  });
+
+  test("a labelled root outside the project; README files are not assets", async () => {
+    const engine = await mkdtemp(join(tmpdir(), "forge-engine-"));
+    try {
+      await mkdir(join(engine, "content/packs/starter"), { recursive: true });
+      await writeFile(join(engine, "content/packs/starter/README.md"), "# Starter\n");
+      await writeFile(join(engine, "content/packs/starter/thing.json"), "{}");
+      await writeFile(join(project, "content/README.md"), "# Content\n");
+      const pack = { label: "engine:content/packs/starter", dir: join(engine, "content/packs/starter") };
+      const scan = await scanRoots([...projectContentRoots(project, ["content"]), pack]);
+      expect(scan.roots).toEqual(["content", "engine:content/packs/starter"]);
+      expect(scan.files.filter((file) => file.path.endsWith(".md"))).toEqual([]);
+      expect(scan.files.at(-1)).toMatchObject({ root: "engine:content/packs/starter", path: "thing.json", json: {} });
+      const whole = { label: "engine:content", dir: join(engine, "content") };
+      await expect(scanRoots([whole, pack])).rejects.toThrow(/"engine:content\/packs\/starter" is inside "engine:content"/);
+      await expect(scanRoots([pack, { ...pack, label: "other" }])).rejects.toThrow(/twice/);
+    } finally {
+      await rm(engine, { recursive: true, force: true });
+    }
   });
 });
 
