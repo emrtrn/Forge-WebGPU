@@ -354,6 +354,18 @@ düşen alan uyarı değil, **hatadır**.
   Eksik alan → varsayılan; sınır dışı sayı → sınıra çekilir (editör parametre UI
   kuralıyla aynı); bilinmeyen / düşen alan → geliştirmede hata, üretim build'inde
   rapor (oyun açılmaya devam eder).
+- **Normalize ayrıntıları (2a kararı, 2026-11-10):**
+  - *Tam yazım:* kayıt varsayılana eşit alanı da yazar; çıktı kanoniktir (her
+    alan var, anahtarlar tanım sırasında). Şemadaki varsayılan değişince mevcut
+    level'lar sessizce değişmez. Dosya büyürse seyrek yazıma veri geçişi
+    olmadan dönülebilir; tersi, varsayılanlar değiştiyse kayıpsız değildir.
+    Prefab `overrides` tanım gereği yalnız farkları taşır.
+  - *Yanlış tipte değer* bilinmeyen alanla aynı kuraldır: varsayılan kullanılır;
+    geliştirmede hata, üretimde rapor.
+  - *"Hata" ne demek:* normalize veri yüzünden fırlatmaz; değer + sorun listesi
+    döner. Hata varsa `ok` yanlıştır ve çağıran yüklemeyi / kaydı reddeder.
+    Sınıra çekme her ortamda yalnız uyarıdır.
+  - Ortam ayrımını çağıran verir (`strict`); çekirdek ortamı bilmez.
 - **JSON Schema dışa aktarımı:** DSL'den üretilir; level ve asset dosyaları VS
   Code'da ve ajan araçlarında motor kodu çalışmadan doğrulanır.
 - Öncül: Forge'un `engine/scene/metadataSchema.ts` dosyası (93 satır), veri olarak

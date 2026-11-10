@@ -13,6 +13,7 @@ import {
   type Transform,
 } from "./fields.ts";
 import { labelFromComponentName } from "./label.ts";
+import { assertDefaultsAreNormal } from "./normalize.ts";
 
 /** Namespaced, e.g. `forge.heightFog`; a game uses its own namespace. */
 export const COMPONENT_NAME_PATTERN = /^[a-z][A-Za-z0-9]*(\.[a-z][A-Za-z0-9]*)+$/;
@@ -82,6 +83,7 @@ export function defineComponent<M extends FieldMap>(
       );
     }
   }
+  assertDefaultsAreNormal(`defineComponent ${name}`, fields);
 
   return deepFreeze({
     kind: "component",
