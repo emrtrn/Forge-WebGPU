@@ -7,7 +7,8 @@
 // 1. identity: GUID -> file (`identifyAssets`);
 // 2. actor classes are normalised; the index is their `ClassResolver`, so a
 //    level finds its classes by GUID wherever the class file lives;
-// 3. levels are normalised against that resolver;
+// 3. levels are normalised against that resolver, each with the cells and
+//    index of its folder (A11, `levelFolders.ts`);
 // 4. asset references are collected from levels, classes and meta files by
 //    walking the schema, and a reverse index (target -> referrers) is built;
 // 5. every reference is checked: dangling, or of the wrong asset type.
@@ -18,7 +19,6 @@
 import type { AssetId } from "../id.ts";
 import { normalizeActorClass, type ClassResolver } from "../level/actorClass.ts";
 import type { ActorClassDoc } from "../level/model.ts";
-import { normalizeLevel } from "../level/normalizeLevel.ts";
 import { ActorClassAssetType, LevelAssetType } from "./assetType.ts";
 import {
   fileLabel,
@@ -31,11 +31,14 @@ import {
 } from "./identity.ts";
 import { checkReferences } from "./integrity.ts";
 import {
-  actorClassReferences,
-  levelReferences,
-  metaReferences,
-  type FoundReference,
-} from "./references.ts";
+  groupLevelParts,
+  indexLevelFolder,
+  levelFolderOf,
+  levelGroupKey,
+  reportOrphanParts,
+  type LevelFolder,
+} from "./levelFolders.ts";
+import { actorClassReferences, metaReferences, type FoundReference } from "./references.ts";
 
 /** An asset reference with the asset it is in. */
 export interface AssetReference extends FoundReference {
@@ -57,6 +60,8 @@ export interface AssetIndex {
   referrersOf(id: string): readonly AssetReference[];
   /** Normalised actor classes by GUID; what level normalisation resolves against. */
   readonly resolveClass: ClassResolver;
+  /** Every readable level, by id: where its folder is and which cells it has. */
+  readonly levels: ReadonlyMap<string, LevelFolder>;
 }
 
 export function buildAssetIndex(files: readonly ContentFile[], options: AssetIndexOptions): AssetIndex {
@@ -77,6 +82,8 @@ export function buildAssetIndex(files: readonly ContentFile[], options: AssetInd
     if (result.value) classes.set(result.value.id, result.value);
   }
   const resolveClass: ClassResolver = (id: AssetId) => classes.get(id);
+  const partGroups = groupLevelParts(identity.levelParts);
+  const levels = new Map<string, LevelFolder>();
 
   for (const { entry, json } of identity.documents) {
     const file = fileLabel(entry.root, entry.path);
@@ -84,11 +91,17 @@ export function buildAssetIndex(files: readonly ContentFile[], options: AssetInd
       const cls = classes.get(entry.id);
       if (cls) add(entry.id, file, actorClassReferences(registry, cls));
     } else if (entry.type === LevelAssetType.name) {
-      const result = normalizeLevel(json, { ...options, resolveClass });
-      withFile(file, result.issues, issues);
-      if (result.value) add(entry.id, file, levelReferences(registry, result.value, resolveClass));
+      const folder = levelFolderOf(entry.path);
+      const groupKey = folder === null ? null : levelGroupKey(entry.root, folder);
+      const parts = (groupKey !== null ? partGroups.get(groupKey) : undefined) ?? [];
+      if (groupKey !== null) partGroups.delete(groupKey);
+      const result = indexLevelFolder(entry, json, parts, { ...options, resolveClass });
+      issues.push(...result.issues);
+      references.push(...result.references);
+      if (result.folder) levels.set(entry.id, result.folder);
     }
   }
+  issues.push(...reportOrphanParts([...partGroups.values()].flat(), options));
   for (const [id, meta] of identity.metas) {
     const entry = identity.entries.get(id);
     if (entry?.meta) add(id, fileLabel(entry.root, entry.meta), metaReferences(registry, meta));
@@ -110,5 +123,6 @@ export function buildAssetIndex(files: readonly ContentFile[], options: AssetInd
     ok: issues.every((issue) => issue.severity !== "error"),
     referrersOf: (id) => byTarget.get(id) ?? [],
     resolveClass,
+    levels,
   };
 }

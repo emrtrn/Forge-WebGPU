@@ -9,7 +9,7 @@ import {
   build,
   CAR,
   fileSummary,
-  level,
+  levelFolder,
   levelId,
   MESH,
   projectFiles,
@@ -22,6 +22,11 @@ function moved(files: ContentFile[], from: string, to: string): ContentFile[] {
   return files.map((file) => (file.path === from ? { ...file, path: to } : file));
 }
 
+/** Moves every file under a folder. */
+function movedFolder(files: ContentFile[], from: string, to: string): ContentFile[] {
+  return files.map((file) => (file.path.startsWith(`${from}/`) ? { ...file, path: to + file.path.slice(from.length) } : file));
+}
+
 function without(files: ContentFile[], ...paths: string[]): ContentFile[] {
   return files.filter((file) => !paths.includes(file.path));
 }
@@ -32,7 +37,7 @@ describe("moving and renaming", () => {
     files = moved(files, "meshes/wheel.glb", "vehicles/parts/front-wheel.glb");
     files = moved(files, "meshes/wheel.glb.meta.json", "vehicles/parts/front-wheel.glb.meta.json");
     files = moved(files, "classes/car.json", "prefabs/cars/reference-car.json");
-    files = moved(files, "levels/main/level.json", "maps/test/level.json");
+    files = movedFolder(files, "levels/main", "maps/test");
     const before = build(projectFiles());
     const after = build(files);
     expect(fileSummary(after.issues)).toEqual([]);
@@ -48,8 +53,8 @@ describe("moving and renaming", () => {
     expect(fileSummary(build(files).issues)).toEqual([
       "error orphan-meta content/meshes/wheel.glb.meta.json",
       "error missing-meta content/vehicles/wheel.glb",
-      "error dangling-reference content/levels/main/level.json actors[0].overrides.body.mesh",
-      "error dangling-reference content/levels/main/level.json actors[1].components.mesh.mesh",
+      "error dangling-reference content/levels/main/cells/0_0.json actors[0].overrides.body.mesh",
+      "error dangling-reference content/levels/main/cells/0_0.json actors[1].components.mesh.mesh",
     ]);
   });
 });
@@ -72,7 +77,7 @@ describe("dangling references", () => {
   test("a missing actor class is reported once, by level normalisation", () => {
     const files = without(projectFiles(), "classes/car.json");
     expect(fileSummary(build(files).issues)).toEqual([
-      "error dangling-reference content/levels/main/level.json actors[0].class",
+      "error dangling-reference content/levels/main/cells/0_0.json actors[0].class",
     ]);
   });
 });
@@ -82,15 +87,17 @@ describe("asset type constraint", () => {
     const files = [
       ...asset("t.png", TEX, "test.texture@1"),
       ...asset("m.glb", MESH, "test.mesh@1", { import: { textures: [MESH] } }),
-      level("l.json", "a", [
-        { id: actorId("1"), components: { r: { type: "test.meshRenderer@1", parent: null, mesh: TEX } } },
-        // test.staticMesh's `mesh` takes any type.
-        { id: actorId("2"), components: { s: { type: "test.staticMesh@1", parent: null, mesh: TEX } } },
-      ]),
+      ...levelFolder("l", "a", [], {
+        "0_0": [
+          { id: actorId("1"), components: { r: { type: "test.meshRenderer@1", parent: null, mesh: TEX } } },
+          // test.staticMesh's `mesh` takes any type.
+          { id: actorId("2"), components: { s: { type: "test.staticMesh@1", parent: null, mesh: TEX } } },
+        ],
+      }),
     ];
     const index = build(files);
     expect(fileSummary(index.issues)).toEqual([
-      "error asset-type-mismatch content/l.json actors[0].components.r.mesh",
+      "error asset-type-mismatch content/l/cells/0_0.json actors[0].components.r.mesh",
       "error asset-type-mismatch content/m.glb.meta.json import.textures[0]",
     ]);
     expect(index.issues[0]?.message).toBe(`Expected a test.mesh; ${TEX} is a test.texture.`);
@@ -99,11 +106,11 @@ describe("asset type constraint", () => {
   test("an actor class link must point at an actor class", () => {
     const files = [
       ...asset("t.png", TEX, "test.texture@1"),
-      level("l.json", "a", [{ id: actorId("1"), class: TEX }]),
+      ...levelFolder("l", "a", [], { "0_0": [{ id: actorId("1"), class: TEX }] }),
     ];
     expect(fileSummary(build(files).issues)).toEqual([
-      "error dangling-reference content/l.json actors[0].class",
-      "error asset-type-mismatch content/l.json actors[0].class",
+      "error dangling-reference content/l/cells/0_0.json actors[0].class",
+      "error asset-type-mismatch content/l/cells/0_0.json actors[0].class",
     ]);
   });
 });
@@ -115,8 +122,8 @@ describe("planDelete", () => {
     expect(wheel.allowed).toBe(false);
     expect(wheel.exists).toBe(true);
     expect(wheel.referrers.map((reference) => `${reference.file} ${reference.path}`)).toEqual([
-      "content/levels/main/level.json actors[0].overrides.body.mesh",
-      "content/levels/main/level.json actors[1].components.mesh.mesh",
+      "content/levels/main/cells/0_0.json actors[0].overrides.body.mesh",
+      "content/levels/main/cells/0_0.json actors[1].components.mesh.mesh",
     ]);
     expect(planDelete(index, CAR).referrers.map((reference) => reference.via)).toEqual(["class"]);
     expect(planDelete(index, TEX).referrers.map((reference) => reference.from)).toEqual([MESH]);

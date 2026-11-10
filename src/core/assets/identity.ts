@@ -10,7 +10,9 @@
 //   does not enter the index. The meta's type must claim the file's extension.
 // - A `.json` file that is not a meta file is a document asset when its
 //   `schema` tag names a registered document type; it carries its own `id`.
-//   Any other `.json` file is `unrecognized-file`.
+//   A level cell or cell index (A11) is not an asset but a part of the level
+//   whose folder it is in; it is set aside for the level pass. Any other
+//   `.json` file is `unrecognized-file`.
 // - The same GUID in two files is `duplicate-id`: the first file in path order
 //   keeps it, the later one is left out.
 //
@@ -27,6 +29,7 @@ import {
   type NormalizeContext,
   type NormalizeOptions,
 } from "../schema/issues.ts";
+import { LEVEL_CELL_INDEX_SCHEMA, LEVEL_CELL_SCHEMA } from "../level/model.ts";
 import type { SchemaRegistry } from "../schema/registry.ts";
 import { claimsFile } from "./assetType.ts";
 import { assetPathOfMeta, metaPathOf, metaTypeOf, normalizeAssetMeta, type AssetMetaDoc } from "./meta.ts";
@@ -70,6 +73,8 @@ export interface IdentityResult {
   readonly metas: Map<string, AssetMetaDoc>;
   /** Raw content of the indexed document assets, in path order. */
   readonly documents: { readonly entry: AssetEntry; readonly json: unknown }[];
+  /** Level cells and cell indexes, in path order; they belong to a level folder. */
+  readonly levelParts: ContentFile[];
   readonly issues: FileIssue[];
 }
 
@@ -89,7 +94,7 @@ export function withFile(file: string, issues: readonly Issue[], into: FileIssue
 export function identifyAssets(files: readonly ContentFile[], options: AssetIndexOptions): IdentityResult {
   const sorted = [...files].sort((a, b) => compare(fileLabel(a.root, a.path), fileLabel(b.root, b.path)));
   const present = new Set(sorted.map((file) => fileLabel(file.root, file.path)));
-  const result: IdentityResult = { entries: new Map(), metas: new Map(), documents: [], issues: [] };
+  const result: IdentityResult = { entries: new Map(), metas: new Map(), documents: [], levelParts: [], issues: [] };
 
   const claim = (entry: AssetEntry, ctx: NormalizeContext, idPath: string): boolean => {
     const first = result.entries.get(entry.id);
@@ -180,6 +185,10 @@ function identifyDocument(
     return;
   }
   const json = file.json;
+  if (isJsonObject(json) && (json.schema === LEVEL_CELL_SCHEMA || json.schema === LEVEL_CELL_INDEX_SCHEMA)) {
+    result.levelParts.push(file);
+    return;
+  }
   const def = isJsonObject(json) ? options.registry.documentTypeForSchema(json.schema) : undefined;
   if (!isJsonObject(json) || !def) {
     reportLoss(ctx, "unrecognized-file", "schema", "Not an asset: no registered document type has this schema tag.");

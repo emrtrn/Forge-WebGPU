@@ -69,6 +69,8 @@ describe("scanContentRoots", () => {
     expect(scan.files.map((file) => file.path)).toEqual([
       "broken.json",
       "classes/car.json",
+      "levels/main/cells/0_0.json",
+      "levels/main/cells.json",
       "levels/main/level.json",
       "meshes/car.glb",
       "meshes/car.glb.meta.json",
@@ -76,8 +78,8 @@ describe("scanContentRoots", () => {
       "textures/paint.png.meta.json",
     ]);
     expect(scan.files[0]?.parseError).toBeTypeOf("string");
-    expect(scan.files[3]).toEqual({ root: "content", path: "meshes/car.glb" });
-    expect(scan.files[4]?.json).toMatchObject({ id: MESH });
+    expect(scan.files[5]).toEqual({ root: "content", path: "meshes/car.glb" });
+    expect(scan.files[6]?.json).toMatchObject({ id: MESH });
   });
 
   test("roots must not nest or repeat", async () => {
@@ -127,7 +129,7 @@ describe("verifyAssets (the gate)", () => {
   test("passes the fixture and reports what it saw", async () => {
     const result = await verifyAssets(project, { registry: createAssetTestRegistry() });
     expect(result.ok).toBe(true);
-    expect(result.lines).toEqual(["4 asset(s), 6 file(s), 1 root(s): content; 0 error(s)."]);
+    expect(result.lines).toEqual(["4 asset(s), 8 file(s), 1 root(s): content; 0 error(s)."]);
   });
 
   test("refuses an asset without type, licence or source (D16)", async () => {
@@ -145,7 +147,7 @@ describe("verifyAssets (the gate)", () => {
       "error missing-required content/meshes/car.glb.meta.json source.origin",
       "error invalid-value content/textures/paint.png.meta.json license",
     ]);
-    expect(result.lines.at(-1)).toBe("4 asset(s), 6 file(s), 1 root(s): content; 3 error(s).");
+    expect(result.lines.at(-1)).toBe("4 asset(s), 8 file(s), 1 root(s): content; 3 error(s).");
   });
 
   test("refuses a binary without its meta file", async () => {

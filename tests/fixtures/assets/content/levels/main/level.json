@@ -1,24 +1,8 @@
 {
   "schema": "forge.level/1",
   "id": "lvl_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "actors": [
-    {
-      "id": "act_11111111111111111111111111111111",
-      "name": "Car",
-      "class": "ast_33333333333333333333333333333333",
-      "parent": null,
-      "transform": { "p": [0, 0, 0], "r": [0, 0, 0, 1], "s": [1, 1, 1] },
-      "overrides": { "driver": { "type": "test.driver@1", "targetSpeed": 18 } }
-    },
-    {
-      "id": "act_22222222222222222222222222222222",
-      "name": "Car Mesh",
-      "class": null,
-      "parent": null,
-      "transform": { "p": [4, 0, 0], "r": [0, 0, 0, 1], "s": [1, 1, 1] },
-      "components": {
-        "mesh": { "type": "test.meshRenderer@1", "parent": null, "local": { "p": [0, 0, 0], "r": [0, 0, 0, 1], "s": [1, 1, 1] }, "mesh": "ast_22222222222222222222222222222222", "castShadow": true }
-      }
-    }
-  ]
+  "settings": {
+    "cellSize": 128
+  },
+  "actors": []
 }

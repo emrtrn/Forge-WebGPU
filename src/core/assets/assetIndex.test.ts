@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { normalizeLevel } from "../level/normalizeLevel.ts";
+import { normalizeLevelCell } from "../level/cellDocs.ts";
 import {
   actorId,
   assetId,
@@ -30,8 +30,8 @@ describe("buildAssetIndex", () => {
     const index = build(projectFiles());
     expect(index.resolveClass(CAR)?.name).toBe("Class");
     expect(index.resolveClass(MESH)).toBeUndefined();
-    const raw = projectFiles().find((file) => file.path.endsWith("level.json"))?.json;
-    const result = normalizeLevel(raw, { strict: true, registry: createAssetTestRegistry(), resolveClass: index.resolveClass });
+    const raw = projectFiles().find((file) => file.path.endsWith("cells/0_0.json"))?.json;
+    const result = normalizeLevelCell(raw, { strict: true, registry: createAssetTestRegistry(), resolveClass: index.resolveClass });
     expect(result.issues).toEqual([]);
     expect(result.value?.actors[0]).toMatchObject({ overrides: { body: { mesh: WHEEL }, driver: { targetSpeed: 18 } } });
   });
@@ -46,7 +46,7 @@ describe("buildAssetIndex", () => {
       `ast_2 import.textures[0] -> ast_1`,
     ]);
     const [classLink] = index.references.filter((reference) => reference.via === "class");
-    expect(classLink).toMatchObject({ assetType: "forge.actorClass", file: "content/levels/main/level.json" });
+    expect(classLink).toMatchObject({ assetType: "forge.actorClass", file: "content/levels/main/cells/0_0.json" });
     const rendererMesh = index.references.find((reference) => reference.path.endsWith("components.mesh.mesh"));
     expect(rendererMesh?.assetType).toBe("test.mesh");
   });
@@ -63,7 +63,7 @@ describe("buildAssetIndex", () => {
 
   test("document normalisation issues are reported with their file", () => {
     const files = projectFiles();
-    files.push(level("levels/broken/level.json", "b", [{ id: actorId("3"), bogus: 1 }]));
+    files.push(level("levels/broken/level.json", "b", [{ id: actorId("3"), spatiallyLoaded: false, bogus: 1 }]));
     const index = build(files);
     expect(fileSummary(index.issues)).toEqual(["error unknown-field content/levels/broken/level.json actors[0].bogus"]);
     expect(index.ok).toBe(false);

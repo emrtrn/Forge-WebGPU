@@ -33,7 +33,8 @@ export type IssueCode =
   | "orphan-meta"
   | "unrecognized-file"
   | "singleton-conflict"
-  | "misplaced-actor";
+  | "misplaced-actor"
+  | "orphan-part";
 
 export type IssueSeverity = "error" | "warning";
 
