@@ -28,6 +28,10 @@ export type IssueCode =
   | "invalid-parent"
   | "invalid-override"
   | "dangling-reference"
+  | "asset-type-mismatch"
+  | "missing-meta"
+  | "orphan-meta"
+  | "unrecognized-file"
   | "singleton-conflict";
 
 export type IssueSeverity = "error" | "warning";
