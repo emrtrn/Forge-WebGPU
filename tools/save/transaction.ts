@@ -90,11 +90,15 @@ export type DocumentCheck = (
 export interface SaveContext {
   /** Text of a project file after this save (null when absent or binary). */
   textAfter(path: string): Promise<string | null>;
+  /** The text writes of this save, as submitted (before any check rewrote them). */
+  readonly pending: readonly { readonly path: string; readonly text: string }[];
 }
 
 export interface SaveServiceOptions {
   readonly policy: WritePolicy;
   readonly check?: DocumentCheck;
+  /** Runs after a save completed, before the next one starts (e.g. to refresh caches). */
+  readonly afterSave?: (files: readonly { readonly path: string; readonly revision: string | null }[]) => Promise<void>;
   /** Tests: throw after this many journal steps, as if the process died. */
   readonly failAfterSteps?: number;
 }
@@ -138,8 +142,11 @@ export function createSaveService(options: SaveServiceOptions): SaveService {
     recover: () => serial(() => recoverJournals(policy.root)),
     commit: (request) =>
       serial(async () => {
-        await recoverJournals(policy.root);
-        return commit(request, options);
+        const recovered = await recoverJournals(policy.root);
+        if (recovered.rolledForward.length > 0) await options.afterSave?.([]);
+        const result = await commit(request, options);
+        if (result.status === "saved") await options.afterSave?.(result.files);
+        return result;
       }),
   };
 }
@@ -209,6 +216,9 @@ async function commit(request: SaveRequest, options: SaveServiceOptions): Promis
   for (const write of writes) after.set(write.relative, write.bytes);
   for (const entry of deletes) after.set(entry.relative, null);
   const context: SaveContext = {
+    pending: writes
+      .filter((write) => write.bytes !== null)
+      .map((write) => ({ path: write.relative, text: write.bytes!.toString("utf8") })),
     async textAfter(path) {
       if (after.has(path)) return after.get(path)?.toString("utf8") ?? null;
       const resolved = resolveWritablePathOrNull(policy, path);
