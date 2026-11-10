@@ -13,6 +13,7 @@ export * from "./feature.ts";
 export * from "./id.ts";
 export * from "./json.ts";
 export * from "./level/actorClass.ts";
+export * from "./level/cells.ts";
 export * from "./level/components.ts";
 export * from "./level/jsonSchema.ts";
 export * from "./level/model.ts";
