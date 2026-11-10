@@ -1,14 +1,14 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v0.3 · 2026-11-10 (v0.2'den fark: belge incelemesi — açık kararlar
-A10 asset modeli ve A11 hücre / akış modeli eklendi; A4 satırı A3'e göre
+**Sürüm:** v0.4 · 2026-11-10 (v0.3'ten fark: A10 ve A11 karara bağlandı; §4.4
+hücre kuralları ve §4.6 asset kimliği yazıldı. v0.3: belge incelemesi — açık
+kararlar A10 asset modeli ve A11 hücre / akış modeli eklendi; A4 satırı A3'e göre
 düzeltildi; §4.6'da bileşen kimliği A1'e göre düzeltildi. v0.2: A1–A9
 kararlaştırıldı; A3 katman zorlaması TS proje referansları yerine
 dependency-cruiser + öz-test oldu; bileşen hiyerarşisi, `defineSaveState`, SDK
 API snapshot'ı, içerik paketleri ve PIE'ye hazır kurallar eklendi)
-**Durum:** §8'deki A1–A9 kararları 2026-11-10'da verildi; A10 ve A11 açık, Faz
-2a'nın çekirdek işinden önce kapanmalı. Belge Forge-WebGPU deposunda;
-Forge'daki kopya donduruldu.
+**Durum:** §8'deki A1–A11 kararları 2026-11-10'da verildi. Belge Forge-WebGPU
+deposunda; Forge'daki kopya donduruldu.
 **İlişkili:** [FORGE_WEBGPU_REBUILD_PLAN.md](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
 sırası), [FORGE_GAME_PROJECT_WORKFLOW.md](file:///C:/Users/emret/Desktop/Forge/docs/planned/FORGE_GAME_PROJECT_WORKFLOW.md)
 (Model 2; Forge deposunda: `C:\Users\emret\Desktop\Forge\docs\planned\FORGE_GAME_PROJECT_WORKFLOW.md`).
@@ -275,11 +275,23 @@ features/height-fog/
   asset sidecar'larında, ikili kanalla taşınır.
 - Level = kalıcı katman + hücreler. Hücre ataması aktörün konumundan türetilir;
   "akışa katılmaz" bayrağı temel aktör şemasında **bir kez** tanımlanır (D10,
-  D4). Hücre boyutu, hücre dosya biçimi, hücreden büyük aktörler, hücreler arası
-  referans ve editörün akışla düzenleme kuralları burada tanımlı değil: **A11**
-  (açık, §8).
-- Asset'in kimliğinin nerede durduğu, manifestin şekli ve referans bütünlüğü
-  (taşıma, yeniden adlandırma, silme) de tanımlı değil: **A10** (açık, §8).
+  D4).
+- **Hücre / akış kuralları (A11 kararı, 2026-11-10):**
+  - Level başına sabit 2B ızgara; hücre boyutu level ayarındadır.
+  - Dosyalar: kalıcı katman (`level.json`) + hücre başına bir aktör dosyası +
+    hücreleri ve revizyonlarını listeleyen dizin. Dizin, atomik kayıtta en son
+    değişen dosyadır (§4.6).
+  - Aktör, kök konumunun düştüğü hücreye aittir; alt aktör ebeveyninin
+    hücresinde durur. Sınırları hücreden büyük aktör kalıcı katmana alınır
+    (editör önerir).
+  - Hücreler arası referans GUID'dir ve "henüz yüklü değil" geçerli bir durumdur;
+    runtime kodu çözülmemiş referansı ele almak zorundadır.
+  - Editör kamera çevresini akışla yükler; kirli hücre kaydedilene kadar
+    boşaltılmaz.
+  - Dünya çapı işlemler (World Builder üretimi, GUID ile arama, toplu şema
+    geçişi) yüklü World üzerinden değil, Node araçlarıyla dosyalar üzerinden
+    çalışır.
+  - Çok kademeli ızgara v1'de yok; gerekirse sonradan eklenir.
 - **Ölçek yedeği:** 2a'daki 50.000 aktörlük yükleme / kayıt ölçümü kötü çıkarsa
   önce veri modeline dokunmayan çareler denenir: hücre dosyalarında transform'ların
   sütunlu (ikili) yazımı ve runtime'da aktör nesnesi yerine yoğun depolama (2a iç
@@ -336,6 +348,18 @@ düşen alan uyarı değil, **hatadır**.
   Bileşenler GUID taşımaz: aktör içinde yerel kimlikle tutulur (A1) ve
   `aktör GUID + bileşen kimliği` ile adreslenir. Kayıt oyunu (save-game)
   anahtarları bu adreslerdir; indeks çevirisi yok (D5).
+- **Asset kimliği (A10 kararı, 2026-11-10):** kimlik asset'in yanında durur,
+  merkezî manifest doğru kaynak değildir.
+  - JSON asset'ler (level, materyal, aktör sınıfı) `id`'yi kendi içinde taşır.
+  - İkili asset'ler (GLB, doku, ses, terrain tile) yanlarında `*.meta.json`
+    taşır: GUID, tür, lisans, kaynak, içe aktarma ayarları. Tür + lisans +
+    kaynak zorunludur (D16).
+  - GUID → yol dizini dev server'ın ve build'in **ürettiği** bir önbellektir;
+    commit'lenmez, silinirse yeniden üretilir.
+  - Referanslar yalnız GUID'dir; taşıma / yeniden adlandırma referans kırmaz.
+  - Silmede ters referans dizinine bakılır; kullanılan asset uyarısız silinmez.
+    Asılı referans geliştirmede hatadır, üretim build'inde rapordur (düşen alan
+    kuralıyla aynı, §4.5).
 - **İşlem (transaction):** editördeki her düzenleme bir işlem; undo birimi ve
   kirli dosya kümesi bundan türer.
 - **Sıralı, atomik kayıt:** yeni içerik geçici dosyalara yazılır → doğrulanır →
@@ -569,5 +593,5 @@ değiştirir:
 | A7 | Oyuna özel veri | Oyunun kendi şemalı bileşenleri; `flags` yalnız serbest durum için | **Karar 2026-11-10:** üç tipli yer, tipsiz torba yok — authored veri oyunun bileşen / asset türlerinde; aktör durumu `persist` işaretli bileşen alanlarında (GUID + bileşen kimliği + alan anahtarı); oyun geneli durum `defineSaveState` ile tipli, sürümlü, aktörsüz. `flags` torbası, aktöre bağlı olmayan durumu yine tipsiz bıraktığı için reddedildi (§4.8) |
 | A8 | Oyun–motor sözleşmesi | `@forge/sdk` + `@forge/editor-sdk`, `sdkVersion` + changelog, yerel `check:projects` kapısı | **Karar 2026-11-10:** öneri + iki sıkılaştırma — üretilen tsconfig yalnız SDK takma adlarını tanır (derin import yapı gereği derlenmez, göreli kaçış AST ile yakalanır); SDK API anlık görüntüsü CI'da fark kapısı (snapshot + changelog aynı commit'te). v0'da `0.x` minor kırıcı; uyumsuz `sdkVersion` açılmaz. `exports` + `file:` paket sınırı A4 ile çakıştığı ve ikinci three kopyası riski taşıdığı için reddedildi (§4.8) |
 | A9 | Depo düzeni | `samples/` dış proje biçiminde, `content/engine/`, `tests/fixtures/projects/`; motor deposunda oyun yok | **Karar 2026-11-10:** öneri + üç netleştirme — `content/engine/` yalnız zorunlu içerik, Starter Content manifestte seçilen `content/packs/starter/` paketi, üçüncü taraf kütüphane depoya girmez; ağır referans sahneler depo dışı yerel içerik projesinde (`forge.projects.local.json`); fixture / `samples/` yazma yalıtımı kodla (testler geçici kopyada, dev server yazmayı reddeder). Ayrı örnek deposu CI sözleşme testini kaybettirdiği için reddedildi (§4.8) |
-| A10 | Asset modeli: kimlik, manifest, referans bütünlüğü | Kimlik asset'in yanında durur, merkezî manifest doğru kaynak değildir. JSON asset'ler (level, materyal, aktör sınıfı) `id`'yi kendi içinde taşır; ikili asset'ler (GLB, doku, ses, terrain tile) yanlarında `*.meta.json` taşır (GUID, tür, lisans, kaynak, içe aktarma ayarları). GUID → yol dizini dev server'ın ve build'in **ürettiği** bir önbellektir, commit'lenmez. Referanslar yalnız GUID'dir; taşıma / yeniden adlandırma referans kırmaz. Silmede ters referans dizini bakılır, kullanılan asset uyarısız silinmez; asılı referans geliştirmede hatadır (düşen alan kuralıyla aynı) | **Açık.** Seçenekler: (a) öneri — yan dosya + üretilen dizin; (b) Forge'daki gibi commit'li merkezî manifest (tek dosyada paralel oturum çakışması, taşımada elle güncelleme); (c) GUID yerine yol tabanlı referans (taşıma referans kırar; D5'in asset tarafındaki tekrarı) |
-| A11 | Hücre / akış veri modeli | Level başına sabit 2B ızgara; hücre boyutu level ayarında. Dosyalar: kalıcı katman (`level.json`) + hücre başına bir aktör dosyası + hücreleri ve revizyonlarını listeleyen dizin (atomik kayıtta en son değişen dosya, §4.6). Aktör, kök konumunun düştüğü hücreye aittir; alt aktör ebeveyninin hücresinde durur. Sınırları hücreden büyük aktör kalıcı katmana alınır (editör önerir). Hücreler arası referans GUID'dir ve "henüz yüklü değil" geçerli bir durumdur; runtime kodu çözülmemiş referansı ele almak zorundadır. Editör kamera çevresini akışla yükler; kirli hücre kaydedilene kadar boşaltılmaz; dünya çapı işlemler (World Builder üretimi, GUID ile arama, toplu geçiş) yüklü World üzerinden değil, Node araçlarıyla dosyalar üzerinden çalışır | **Açık.** Seçenekler: (a) öneri — tek ızgara + kalıcı katman; (b) Unreal'daki gibi çok kademeli ızgara (büyük aktörler kaba kademede akar; v1 için fazla karmaşık, sonradan eklenebilir); (c) editör bütün hücreleri yükler, akış yalnız runtime'da (D10'un tekrarı) |
+| A10 | Asset modeli: kimlik, manifest, referans bütünlüğü | Kimlik asset'in yanında durur, merkezî manifest doğru kaynak değildir. JSON asset'ler (level, materyal, aktör sınıfı) `id`'yi kendi içinde taşır; ikili asset'ler (GLB, doku, ses, terrain tile) yanlarında `*.meta.json` taşır (GUID, tür, lisans, kaynak, içe aktarma ayarları). GUID → yol dizini dev server'ın ve build'in **ürettiği** bir önbellektir, commit'lenmez. Referanslar yalnız GUID'dir; taşıma / yeniden adlandırma referans kırmaz. Silmede ters referans dizini bakılır, kullanılan asset uyarısız silinmez; asılı referans geliştirmede hatadır (düşen alan kuralıyla aynı) | **Karar 2026-11-10:** öneri olduğu gibi — kimlik asset'in yanında (JSON'da `id`, ikilide `*.meta.json`), GUID → yol dizini üretilen önbellek, referans yalnız GUID, silmede ters referans kontrolü, asılı referans geliştirmede hata. Commit'li merkezî manifest tek dosyada paralel oturum çakışması ve taşımada elle güncelleme getirdiği, yol tabanlı referans taşımada kırıldığı (D5'in asset tarafındaki tekrarı) için reddedildi (§4.6) |
+| A11 | Hücre / akış veri modeli | Level başına sabit 2B ızgara; hücre boyutu level ayarında. Dosyalar: kalıcı katman (`level.json`) + hücre başına bir aktör dosyası + hücreleri ve revizyonlarını listeleyen dizin (atomik kayıtta en son değişen dosya, §4.6). Aktör, kök konumunun düştüğü hücreye aittir; alt aktör ebeveyninin hücresinde durur. Sınırları hücreden büyük aktör kalıcı katmana alınır (editör önerir). Hücreler arası referans GUID'dir ve "henüz yüklü değil" geçerli bir durumdur; runtime kodu çözülmemiş referansı ele almak zorundadır. Editör kamera çevresini akışla yükler; kirli hücre kaydedilene kadar boşaltılmaz; dünya çapı işlemler (World Builder üretimi, GUID ile arama, toplu geçiş) yüklü World üzerinden değil, Node araçlarıyla dosyalar üzerinden çalışır | **Karar 2026-11-10:** öneri olduğu gibi — tek ızgara + kalıcı katman, hücre başına dosya + dizin, editör de akışla çalışır, dünya çapı işlemler Node araçlarında. Çok kademeli ızgara v1 için fazla karmaşık olduğu (sonradan eklenebilir), editörün bütün hücreleri yüklemesi D10'u geri getirdiği için reddedildi (§4.4) |

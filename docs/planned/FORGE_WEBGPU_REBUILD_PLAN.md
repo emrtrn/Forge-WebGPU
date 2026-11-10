@@ -1,17 +1,15 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v0.6 · 2026-11-10 (v0.5'ten fark: belge incelemesi işlendi — açık
+**Sürüm:** v0.7 · 2026-11-10 (v0.6'dan fark: K10, K11, A10, A11 karara
+bağlandı, dördü de öneri olduğu gibi. v0.6: belge incelemesi işlendi — açık
 kararlar K10–K11 ve A10–A11 eklendi; Faz 0'a özellik envanteri ve GO sayıları,
 Faz 1 S4'e compute culling prototipi, 2a'ya 50.000 aktör ölçümü ve DOM'suz
 Details tanımı, 2b'ye test sınıflaması ve içe aktarıcı kabulü girdi; Faz 5
 5a–5d'ye bölündü; adı geçmeyen alt sistemler fazlara atandı; §11 ilerleme kaydı
 açıldı. v0.5: K2, K4–K9 karara bağlandı. v0.4: depoya taşındı, A1–A9 işlendi,
 Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
-**Durum:** K1–K9 ve A1–A9 kapalı (2026-11-10). v0.6 incelemesiyle açılan dört
-karar bekliyor: K10 (NO-GO senaryosu), K11 (tarayıcı kapsamı), A10 (asset
-modeli), A11 (hücre / akış modeli). A10 ve A11 Faz 2a'nın çekirdek işinden önce
-kapanmalı. Hiçbir faz başlamadı; sıradaki işler bu kararlar, Faz 0 envanteri ve
-referans görüntüleri, Faz 1 spike ve Faz 2a.
+**Durum:** Bütün kararlar kapalı (K1–K11, A1–A11; 2026-11-10). Sıradaki işler:
+Faz 0 envanteri ve referans görüntüleri, Faz 1 spike ve Faz 2a (paralel).
 **Mimari:** [FORGE_WEBGPU_ARCHITECTURE.md](FORGE_WEBGPU_ARCHITECTURE.md) —
 veri modeli, katmanlar, özellik modülleri, oyun projesi sözleşmesi. Bu plan
 fazların sırasını, o rapor yapının kendisini tanımlar; çelişkide rapor geçerlidir.
@@ -193,8 +191,9 @@ iskelet (2a) taşımadan ve render'dan önce gelir, çünkü Forge WebGL'de sonr
 düzeltilen kararların çoğu (veri modeli, kimlik, kayıt, kayıt noktaları) en başta
 verilmesi gereken kararlardı. **Faz 1 ile 2a paralel yürür** (karar 2026-11-10):
 2a'nın işi (aktör modeli, şema, kayıt servisi, SDK, katman denetimi) three'siz ve
-renderer'dan bağımsızdır; spike NO-GO çıkarsa iskeletin ne olacağı K10'da karara
-bağlanır (§8). GO / NO-GO kapısı 2b'nin, yani cut-over'ın önündedir.
+renderer'dan bağımsızdır; spike NO-GO çıksa da iskelet korunur ve `render` katmanı
+klasik `WebGLRenderer` ile kurulur (K10). GO / NO-GO kapısı 2b'nin, yani
+cut-over'ın önündedir.
 Görsel
 kalite (Faz 3) editörden önce gelir, çünkü projenin amacı o. Editör (Faz 4) açık
 dünya araçlarından önce gelir, çünkü sculpt / paint / foliage / World Builder ve
@@ -203,8 +202,8 @@ görünüm ayarı onun üstünde çalışır.
 ### Faz 0 — Kararlar ve referans görüntüler
 
 - [x] §8'deki K1–K9 ve mimari raporundaki A1–A9 kararları (hepsi 2026-11-10).
-- [ ] v0.6 incelemesinin açtığı kararlar: K10, K11 (§8) ve A10, A11 (mimari
-      §8). A10 ve A11, 2a'nın çekirdek ve kayıt servisi işinden önce kapanır.
+- [x] v0.6 incelemesinin açtığı kararlar: K10, K11 (§8) ve A10, A11 (mimari
+      §8) — hepsi 2026-11-10'da, öneri olduğu gibi.
 - [ ] **Forge özellik envanteri:** Forge WebGL'in kullanıcıya görünen
       özellikleri (editör panelleri ve modları, aktör / bileşen türleri, asset
       türleri, runtime alt sistemleri, araçlar) tek tabloda; her satıra hedef
@@ -254,11 +253,12 @@ sahnede kare süresi konan sınırın içinde; S4'teki CPU maliyeti instancing v
 compute culling + indirect draw prototipiyle **ölçülerek** sınırın içine
 iniyor; terrain görseli collider ile eşleşiyor.
 
-**NO-GO:** WebGL tarafındaki kalite seçenekleri (`SSRPass`, `TAARenderPass`,
-`LightProbeGridWebGL`) değerlendirilir. Bu deponun ve 2a iskeletinin ne olacağı
-K10'da karara bağlanır (§8). Not: NO-GO'nun nedeni `WebGPURenderer`'ın nesne
-başına CPU maliyetiyse aynı renderer'ın WebGL2 backend'i çare değildir; gerçek
-seçenek yeni iskeletin üstüne klasik `WebGLRenderer` katmanıdır.
+**NO-GO (K10):** 2a kapısına kadar tamamlanır; iskelet korunur ve `render`
+katmanı Forge `render-three`'den (klasik `WebGLRenderer`) uyarlanır; 2b'ye
+~23.300 satırlık render uyarlaması eklenir. WebGL tarafındaki kalite seçenekleri
+(`SSRPass`, `TAARenderPass`, `LightProbeGridWebGL`) o katmanda değerlendirilir.
+`WebGPURenderer`'ın WebGL2 backend'i çare sayılmaz: NO-GO'nun nedeni renderer'ın
+nesne başına CPU maliyetiyse aynı maliyeti taşır.
 
 ### Faz 2a — Mimari iskelet (Faz 1 ile paralel)
 
@@ -577,8 +577,8 @@ modüle hata düzeltmesi yapılırsa buraya "port bekliyor" diye işlenir.
 | K7 | Editör UI | Mevcut paneller önce uyarlanarak taşınsın; redesign Faz 4 sonrası ayrı karar | **Kapandı** 2026-11-10: paneller vanilla DOM olarak uyarlanıp taşınır; framework yok, redesign yok (Temmuz 2026 redesign'ının bir kısmı panellerde zaten var; yenisi gerekirse Faz 4 sonrası ayrı karar). Faz 4'ün ilk işi UI kiti (token'lar + `paramFields` kuralları; şemadan üretilen Details de bunu kullanır); Outliner sanallaştırılmış (50.000 aktör); `data-testid` sözleşmesi korunur. UI framework'ü ~38.800 satırı yeniden yazıma çevirdiği, reaktiflik kazancı işlem / undo servisiyle zaten sağlandığı için reddedildi |
 | K8 | Ridgebound göç zamanı | Faz 8 kabulünden sonra (Faz 10) | **Kapandı** 2026-11-10: Faz 6 kapısından sonra pilot, Faz 10'da gerçek göç. Pilot: Ridgebound **kopyası** `check:projects`'e girer; M0 kodu `@forge/sdk`'ya, `TransportState` `defineSaveState`'e, içerik içe aktarıcıdan; deformasyon / hasar yok. SDK (A8) ve oyun verisi (A7) kararları Faz 7–8'den önce gerçek bir oyunla sınanır. Gerçek göç ve Forge WebGL bağının kesilmesi Faz 8 kabulünden sonra. Yalnız Faz 10 (SDK ilk kez geç sınanır) ve Faz 6'da tam göç (oyun Faz 7–8 boyunca hasarsız kalır) reddedildi |
 | K9 | Referans donanım | Kullanıcının GPU'su; performans hedefleri Faz 0 baseline'ından sonra konur | **Kapandı** 2026-11-10: referans **R1** = NVIDIA GeForce RTX 3060 12 GB (sürücü 610.60, 2026-11-10) / Intel i5-11400F / 16 GB RAM / 1920×1080 60 Hz ekran. 1440p ölçümleri render çözünürlüğüyle (ekran dışı hedef / DPR) alınır ve kayıtta öyle yazılır. Hedef sayılar Faz 0 baseline'ından sonra; biçim: profil × çözünürlük başına medyan / p95 kare süresi + GPU süresi, 60 Hz bütçe 16,6 ms. Sürücü değişikliği ölçüm kaydına yazılır. İkinci (düşük) referans gerekip gerekmediği K4'ün Faz 6 kararıyla birlikte. Dış hedef sınıf, ölçülemediği için reddedildi |
-| K10 | Faz 1 NO-GO çıkarsa bu depo ve 2a iskeleti | 2a kapısına kadar tamamlanır (three'siz, renderer'dan bağımsız). Sonra iskelet korunur ve `render` katmanı Forge `render-three`'den (klasik `WebGLRenderer`) uyarlanır; mimari kazançlar (veri modeli, şema, kayıt, SDK) renderer'a bağlı değil. Bedeli: 2b'ye ~23.300 satırlık render uyarlaması eklenir ve iki depo dönemi uzar | **Açık.** Seçenekler: (a) öneri — yeni iskelet + `WebGLRenderer` katmanı; (b) depo dondurulur, Forge WebGL'de devam, 2a'nın dersleri Forge'a seçici taşınır; (c) karar NO-GO anına bırakılır, 2a yine de kapısına kadar yürür. `WebGPURenderer`'ın WebGL2 backend'i seçenek değil: NO-GO nedeni renderer'ın CPU maliyetiyse aynı maliyeti taşır |
-| K11 | Tarayıcı kapsamı | Editör: yalnız masaüstü Chromium (Chrome / Edge), R1'de. Oyun: başlangıçta aynı; Firefox / Safari kapsamı Faz 6'da K4 fallback ölçümüyle birlikte karara bağlanır. Kapsam dışı tarayıcıda boot hata ekranı açık mesaj verir | **Açık.** Seçenekler: (a) öneri; (b) oyun için Firefox + Safari ilk günden hedef (her fazın kabulüne iki tarayıcı daha eklenir) |
+| K10 | Faz 1 NO-GO çıkarsa bu depo ve 2a iskeleti | 2a kapısına kadar tamamlanır (three'siz, renderer'dan bağımsız). Sonra iskelet korunur ve `render` katmanı Forge `render-three`'den (klasik `WebGLRenderer`) uyarlanır; mimari kazançlar (veri modeli, şema, kayıt, SDK) renderer'a bağlı değil. Bedeli: 2b'ye ~23.300 satırlık render uyarlaması eklenir ve iki depo dönemi uzar | **Kapandı** 2026-11-10: öneri olduğu gibi — NO-GO'da yeni iskelet + klasik `WebGLRenderer` katmanı. Depoyu dondurup Forge WebGL'de devam etmek 2a'nın mimari kazançlarını (veri modeli, şema, kayıt, SDK) Forge'a parça parça geri taşımayı gerektirdiği, kararı NO-GO anına bırakmak 2a'yı belirsiz hedefle yürüttüğü için reddedildi. `WebGPURenderer`'ın WebGL2 backend'i seçenek değil: NO-GO nedeni renderer'ın CPU maliyetiyse aynı maliyeti taşır |
+| K11 | Tarayıcı kapsamı | Editör: yalnız masaüstü Chromium (Chrome / Edge), R1'de. Oyun: başlangıçta aynı; Firefox / Safari kapsamı Faz 6'da K4 fallback ölçümüyle birlikte karara bağlanır. Kapsam dışı tarayıcıda boot hata ekranı açık mesaj verir | **Kapandı** 2026-11-10: öneri olduğu gibi — editör yalnız masaüstü Chromium; oyunun Firefox / Safari kapsamı Faz 6'da K4 ölçümüyle. Oyun için Firefox + Safari'yi ilk günden hedeflemek her fazın kabulüne iki tarayıcı daha eklediği için reddedildi |
 
 ## 9. v0.1'den korunanlar
 
@@ -595,7 +595,7 @@ silinebilir.
 ## 10. İlk adımlar
 
 1. ~~§8 kararları (K1–K9) ve mimari raporundaki A1–A9~~ — tamam (2026-11-10).
-2. Açık kararlar: A10, A11 (2a'dan önce), K10, K11.
+2. ~~Açık kararlar: A10, A11, K10, K11~~ — tamam (2026-11-10).
 3. Faz 0: Forge özellik envanteri, referans sahneler, WebGL ekran görüntüleri
    ve ölçümleri, GO ölçüt sayıları.
 4. Faz 1: spike S1 → S4 (compute culling prototipiyle), ardından GO / NO-GO.
@@ -607,4 +607,5 @@ silinebilir.
 |---|---|---|
 | 2026-11-10 | v0.4 | Plan ve mimari rapor Forge'dan bu depoya taşındı; A1–A9 karara bağlandı; Faz 1 ∥ 2a, cut-over 2b'ye kaydı (`137dbc3`) |
 | 2026-11-10 | v0.5 | K2, K4–K9 karara bağlandı (`f87bef1`) |
-| 2026-11-10 | v0.6 | Belge incelemesi: tutarsızlıklar düzeltildi; açık kararlar K10–K11, A10–A11 eklendi; Faz 0 / 1 / 2a / 2b / 3 / 4 / 6 / 8 kutuları genişledi; Faz 5 5a–5d'ye bölündü. Kod yok, hiçbir faz başlamadı |
+| 2026-11-10 | v0.6 | Belge incelemesi: tutarsızlıklar düzeltildi; açık kararlar K10–K11, A10–A11 eklendi; Faz 0 / 1 / 2a / 2b / 3 / 4 / 6 / 8 kutuları genişledi; Faz 5 5a–5d'ye bölündü. Kod yok, hiçbir faz başlamadı (`3d25f5e`) |
+| 2026-11-10 | v0.7 | K10, K11, A10, A11 karara bağlandı (dördü de öneri); bütün kararlar kapalı |
