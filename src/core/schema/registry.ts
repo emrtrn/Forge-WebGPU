@@ -1,10 +1,19 @@
 // Schema registry (architecture §4.5): the one place that knows every
-// component type of a running editor, game, dev server or tool.
+// component type and asset type of a running editor, game, dev server or tool.
+// A new registry already holds the built-in document asset types (level,
+// actor class); binary asset types come from features and game projects.
 //
 // A registry is an instance, never a module-level singleton (A6: two worlds on
 // one page must not share mutable state). Engine features and game projects
 // register into the same instance through `registerComponent`.
 
+import {
+  BUILT_IN_ASSET_TYPES,
+  claimsFile,
+  type AssetTypeDef,
+  type BinaryAssetTypeDef,
+  type DocumentAssetTypeDef,
+} from "../assets/assetType.ts";
 import { isJsonObject, type JsonObject } from "../json.ts";
 import { parseComponentTypeTag, type ComponentDef } from "./component.ts";
 import { SchemaDefinitionError } from "./fields.ts";
@@ -17,10 +26,39 @@ export interface SchemaRegistry {
   getComponent(name: string): ComponentDef | undefined;
   /** In registration order. */
   components(): readonly ComponentDef[];
+  /** Registration point. A name can be registered once; so can a document schema tag. */
+  registerAssetType(def: AssetTypeDef): void;
+  getAssetType(name: string): AssetTypeDef | undefined;
+  /** Built-in document types first, then in registration order. */
+  assetTypes(): readonly AssetTypeDef[];
+  /** The binary types whose extensions match the file name. */
+  binaryTypesForFile(fileName: string): readonly BinaryAssetTypeDef[];
+  /** The document type a JSON asset's `schema` tag names. */
+  documentTypeForSchema(schema: unknown): DocumentAssetTypeDef | undefined;
 }
 
 export function createSchemaRegistry(): SchemaRegistry {
   const byName = new Map<string, ComponentDef>();
+  const assetTypes = new Map<string, AssetTypeDef>();
+  const documentsBySchema = new Map<string, DocumentAssetTypeDef>();
+
+  const registerAssetType = (def: AssetTypeDef): void => {
+    if (def.kind !== "assetType") {
+      throw new SchemaDefinitionError("registerAssetType: not an asset type definition.");
+    }
+    if (assetTypes.has(def.name)) {
+      throw new SchemaDefinitionError(`registerAssetType: "${def.name}" is already registered.`);
+    }
+    if (def.storage === "document") {
+      if (documentsBySchema.has(def.schema)) {
+        throw new SchemaDefinitionError(`registerAssetType: schema "${def.schema}" already has a type.`);
+      }
+      documentsBySchema.set(def.schema, def);
+    }
+    assetTypes.set(def.name, def);
+  };
+  for (const def of BUILT_IN_ASSET_TYPES) registerAssetType(def);
+
   return {
     registerComponent(def) {
       if (def.kind !== "component") {
@@ -36,6 +74,21 @@ export function createSchemaRegistry(): SchemaRegistry {
     },
     components() {
       return [...byName.values()];
+    },
+    registerAssetType,
+    getAssetType(name) {
+      return assetTypes.get(name);
+    },
+    assetTypes() {
+      return [...assetTypes.values()];
+    },
+    binaryTypesForFile(fileName) {
+      return [...assetTypes.values()].filter(
+        (def): def is BinaryAssetTypeDef => def.storage === "binary" && claimsFile(def, fileName),
+      );
+    },
+    documentTypeForSchema(schema) {
+      return typeof schema === "string" ? documentsBySchema.get(schema) : undefined;
     },
   };
 }

@@ -89,7 +89,7 @@ describe("normalising by type tag", () => {
 describe("defineFeature", () => {
   test("returns a frozen definition", () => {
     const feature = defineFeature({ id: "test.weather", components: [Fog, Wind] });
-    expect(feature).toEqual({ kind: "feature", id: "test.weather", components: [Fog, Wind] });
+    expect(feature).toEqual({ kind: "feature", id: "test.weather", components: [Fog, Wind], assetTypes: [] });
     expect(Object.isFrozen(feature)).toBe(true);
     expect(Object.isFrozen(feature.components)).toBe(true);
   });

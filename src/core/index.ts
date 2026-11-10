@@ -2,6 +2,7 @@
 // (`npm run verify:node-load`), so nothing here may touch the DOM, three or
 // `import.meta.env`.
 
+export * from "./assets/assetType.ts";
 export * from "./feature.ts";
 export * from "./id.ts";
 export * from "./json.ts";
