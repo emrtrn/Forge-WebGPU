@@ -1,11 +1,14 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v0.2 · 2026-11-10 (v0.1'den fark: A1–A9 kararlaştırıldı; A3 katman
-zorlaması TS proje referansları yerine dependency-cruiser + öz-test oldu; bileşen
-hiyerarşisi, `defineSaveState`, SDK API snapshot'ı, içerik paketleri ve PIE'ye hazır
-kurallar eklendi)
-**Durum:** §8'deki A1–A9 kararları 2026-11-10'da verildi. Belge Forge-WebGPU
-deposunda; Forge'daki kopya donduruldu.
+**Sürüm:** v0.3 · 2026-11-10 (v0.2'den fark: belge incelemesi — açık kararlar
+A10 asset modeli ve A11 hücre / akış modeli eklendi; A4 satırı A3'e göre
+düzeltildi; §4.6'da bileşen kimliği A1'e göre düzeltildi. v0.2: A1–A9
+kararlaştırıldı; A3 katman zorlaması TS proje referansları yerine
+dependency-cruiser + öz-test oldu; bileşen hiyerarşisi, `defineSaveState`, SDK
+API snapshot'ı, içerik paketleri ve PIE'ye hazır kurallar eklendi)
+**Durum:** §8'deki A1–A9 kararları 2026-11-10'da verildi; A10 ve A11 açık, Faz
+2a'nın çekirdek işinden önce kapanmalı. Belge Forge-WebGPU deposunda;
+Forge'daki kopya donduruldu.
 **İlişkili:** [FORGE_WEBGPU_REBUILD_PLAN.md](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
 sırası), [FORGE_GAME_PROJECT_WORKFLOW.md](file:///C:/Users/emret/Desktop/Forge/docs/planned/FORGE_GAME_PROJECT_WORKFLOW.md)
 (Model 2; Forge deposunda: `C:\Users\emret\Desktop\Forge\docs\planned\FORGE_GAME_PROJECT_WORKFLOW.md`).
@@ -272,7 +275,11 @@ features/height-fog/
   asset sidecar'larında, ikili kanalla taşınır.
 - Level = kalıcı katman + hücreler. Hücre ataması aktörün konumundan türetilir;
   "akışa katılmaz" bayrağı temel aktör şemasında **bir kez** tanımlanır (D10,
-  D4).
+  D4). Hücre boyutu, hücre dosya biçimi, hücreden büyük aktörler, hücreler arası
+  referans ve editörün akışla düzenleme kuralları burada tanımlı değil: **A11**
+  (açık, §8).
+- Asset'in kimliğinin nerede durduğu, manifestin şekli ve referans bütünlüğü
+  (taşıma, yeniden adlandırma, silme) de tanımlı değil: **A10** (açık, §8).
 - **Ölçek yedeği:** 2a'daki 50.000 aktörlük yükleme / kayıt ölçümü kötü çıkarsa
   önce veri modeline dokunmayan çareler denenir: hücre dosyalarında transform'ların
   sütunlu (ikili) yazımı ve runtime'da aktör nesnesi yerine yoğun depolama (2a iç
@@ -325,9 +332,10 @@ düşen alan uyarı değil, **hatadır**.
 
 ### 4.6 Kimlik, referans ve kayıt servisi
 
-- Her aktör, bileşen örneği ve asset için kalıcı GUID; runtime'da doğan
-  aktörler de GUID alır. Kayıt oyunu (save-game) anahtarları GUID'dir; indeks
-  çevirisi yok (D5).
+- Her aktör ve asset için kalıcı GUID; runtime'da doğan aktörler de GUID alır.
+  Bileşenler GUID taşımaz: aktör içinde yerel kimlikle tutulur (A1) ve
+  `aktör GUID + bileşen kimliği` ile adreslenir. Kayıt oyunu (save-game)
+  anahtarları bu adreslerdir; indeks çevirisi yok (D5).
 - **İşlem (transaction):** editördeki her düzenleme bir işlem; undo birimi ve
   kirli dosya kümesi bundan türer.
 - **Sıralı, atomik kayıt:** yeni içerik geçici dosyalara yazılır → doğrulanır →
@@ -540,7 +548,7 @@ değiştirir:
 
 | Risk | Önlem |
 |---|---|
-| Şema DSL'i gereğinden büyür | 2a'da yalnız bugün kullanılan alan türleri (sayı, bool, enum, renk, vektör, asset ref, aktör ref, dizi, nesne); yenisi ihtiyaç olunca |
+| Şema DSL'i gereğinden büyür | 2a'da yalnız bugün kullanılan alan türleri (sayı, bool, enum, renk, vektör, transform, asset ref, aktör ref, dizi, nesne; §4.5); yenisi ihtiyaç olunca |
 | Tek tip modelde performans (binlerce aktör) | Instancing render katmanında otomatik; foliage kompakt dizi; Faz 1 S4 ölçümü + 2a'da 50.000 aktörlük yükleme / kayıt ölçümü |
 | SDK'yı erken dondurmak | v0 süresince SDK değişebilir; changelog zorunlu, uyumluluk kapısı kırılmayı hemen gösterir |
 | İçe aktarıcı her eski alanı taşıyamaz | Taşınamayan alan sessiz düşmez, rapor edilir; Ridgebound içeriği kopya üzerinde denenir |
@@ -555,9 +563,11 @@ değiştirir:
 | A1 | Level veri modeli | Tek tip aktör + bileşen (§4.4) + tek yönlü içe aktarıcı | **Karar 2026-11-10:** tek tip aktör + şemalı bileşen, GUID'ler; bileşenler aktör içinde yerel kimlikli ve uzamsal olanlar `parent` + yerel transform taşır (Forge sınıflarındaki bileşen hiyerarşisi alt aktörsüz taşınsın); prefab farkı `bileşen kimliği + alan`; statik mesh yerleşimi de aktör, toplu yerleşim instanced static mesh bileşeni, foliage kompakt; tek yönlü içe aktarıcı. Hibrit (ayrı yerleşim dizisi) D3'ü geri getirdiği için reddedildi. K3'ü kapatır |
 | A2 | Şema tanımı | Kendi ince DSL'imiz (UI metadata, geçiş zinciri ve Node yüklemesi için); doğrulama kütüphanesi (Zod / Valibot) yok | **Karar 2026-11-10:** kendi DSL'imiz; tanımlar gezilebilir veri; yükleme ve kayıt tek normalize fonksiyonu (eksik → varsayılan, sınır dışı → sınıra çek, bilinmeyen → geliştirmede hata / üretimde rapor); DSL'den JSON Schema dışa aktarımı. Zod / Valibot SDK yüzeyini dış sürüm döngüsüne bağladığı, JSON Schema kaynağı codegen ve kötü geliştirici deneyimi getirdiği için reddedildi (§4.5) |
 | A3 | Katman zorlaması | TypeScript proje referansları + dependency-cruiser | **Karar 2026-11-10:** dependency-cruiser tek kural kaynağı (AST + gerçek TS çözücüsü, yol ve dosya rolüne göre kurallar) + kasıtlı ihlal fixture'ıyla öz-test; iki tsconfig (uygulama + Node araçları). Katman başına TS projesi, dört katmana yayılan dikey özellik klasörüyle (§4.3) sürtüştüğü için reddedildi; A4'teki "katman başına tsconfig" buna göre düzeltildi (§4.2) |
-| A4 | Depo yapısı | Tek npm paketi, katmanlar klasör; workspaces yok | **Karar 2026-11-10:** öneri olduğu gibi — tek `package.json` / `node_modules`, katman başına `tsconfig.json`, SDK takma adı `paths` + Vite alias. Katman başına workspace paketi A3'ü tekrarladığı ve ikinci three kopyası riski taşıdığı, "workspaces'a hazır" giriş dosyası kuralı belirsiz kazanç için sürtünme getirdiği için reddedildi (§4.2) |
+| A4 | Depo yapısı | Tek npm paketi, katmanlar klasör; workspaces yok | **Karar 2026-11-10:** öneri olduğu gibi — tek `package.json` / `node_modules`, iki tsconfig (uygulama + Node araçları; katman sınırı A3'e göre dependency-cruiser'da, katman başına tsconfig yok), SDK takma adı `paths` + Vite alias. Katman başına workspace paketi A3'ü tekrarladığı ve ikinci three kopyası riski taşıdığı, "workspaces'a hazır" giriş dosyası kuralı belirsiz kazanç için sürtünme getirdiği için reddedildi (§4.2) |
 | A5 | Test koşucusu | Vitest, testler modülün yanında | **Karar 2026-11-10:** Vitest (birim + entegrasyon), testler modülün yanında, merkezi kayıt yok; uçtan uca smoke Playwright'ta; test dosyaları A3 katman kurallarına tabi; browser mode Faz 3'te ayrı karar. `node:test` takma adlar için yükleyici / bundle adımını geri getirdiği için reddedildi (§4.10) |
 | A6 | Editör Play | v1'de yeni sekme; aynı sayfada Play (PIE) sonra ayrı karar | **Karar 2026-11-10:** v1 yeni sekme + PIE'ye hazır kurallar — kayıtsız Play (anlık görüntü sekmeye verilir, Play diske yazmaz), World yalıtımı (modül düzeyinde değişebilir tekil yok; iki World testi), World'den ayrı GUID anahtarlı render kaynak önbelleği. PIE ayrı karar olarak kalır; v1'den PIE Faz 4'ü büyüttüğü ve durum sızıntısı riski taşıdığı için reddedildi (§4.7) |
 | A7 | Oyuna özel veri | Oyunun kendi şemalı bileşenleri; `flags` yalnız serbest durum için | **Karar 2026-11-10:** üç tipli yer, tipsiz torba yok — authored veri oyunun bileşen / asset türlerinde; aktör durumu `persist` işaretli bileşen alanlarında (GUID + bileşen kimliği + alan anahtarı); oyun geneli durum `defineSaveState` ile tipli, sürümlü, aktörsüz. `flags` torbası, aktöre bağlı olmayan durumu yine tipsiz bıraktığı için reddedildi (§4.8) |
 | A8 | Oyun–motor sözleşmesi | `@forge/sdk` + `@forge/editor-sdk`, `sdkVersion` + changelog, yerel `check:projects` kapısı | **Karar 2026-11-10:** öneri + iki sıkılaştırma — üretilen tsconfig yalnız SDK takma adlarını tanır (derin import yapı gereği derlenmez, göreli kaçış AST ile yakalanır); SDK API anlık görüntüsü CI'da fark kapısı (snapshot + changelog aynı commit'te). v0'da `0.x` minor kırıcı; uyumsuz `sdkVersion` açılmaz. `exports` + `file:` paket sınırı A4 ile çakıştığı ve ikinci three kopyası riski taşıdığı için reddedildi (§4.8) |
 | A9 | Depo düzeni | `samples/` dış proje biçiminde, `content/engine/`, `tests/fixtures/projects/`; motor deposunda oyun yok | **Karar 2026-11-10:** öneri + üç netleştirme — `content/engine/` yalnız zorunlu içerik, Starter Content manifestte seçilen `content/packs/starter/` paketi, üçüncü taraf kütüphane depoya girmez; ağır referans sahneler depo dışı yerel içerik projesinde (`forge.projects.local.json`); fixture / `samples/` yazma yalıtımı kodla (testler geçici kopyada, dev server yazmayı reddeder). Ayrı örnek deposu CI sözleşme testini kaybettirdiği için reddedildi (§4.8) |
+| A10 | Asset modeli: kimlik, manifest, referans bütünlüğü | Kimlik asset'in yanında durur, merkezî manifest doğru kaynak değildir. JSON asset'ler (level, materyal, aktör sınıfı) `id`'yi kendi içinde taşır; ikili asset'ler (GLB, doku, ses, terrain tile) yanlarında `*.meta.json` taşır (GUID, tür, lisans, kaynak, içe aktarma ayarları). GUID → yol dizini dev server'ın ve build'in **ürettiği** bir önbellektir, commit'lenmez. Referanslar yalnız GUID'dir; taşıma / yeniden adlandırma referans kırmaz. Silmede ters referans dizini bakılır, kullanılan asset uyarısız silinmez; asılı referans geliştirmede hatadır (düşen alan kuralıyla aynı) | **Açık.** Seçenekler: (a) öneri — yan dosya + üretilen dizin; (b) Forge'daki gibi commit'li merkezî manifest (tek dosyada paralel oturum çakışması, taşımada elle güncelleme); (c) GUID yerine yol tabanlı referans (taşıma referans kırar; D5'in asset tarafındaki tekrarı) |
+| A11 | Hücre / akış veri modeli | Level başına sabit 2B ızgara; hücre boyutu level ayarında. Dosyalar: kalıcı katman (`level.json`) + hücre başına bir aktör dosyası + hücreleri ve revizyonlarını listeleyen dizin (atomik kayıtta en son değişen dosya, §4.6). Aktör, kök konumunun düştüğü hücreye aittir; alt aktör ebeveyninin hücresinde durur. Sınırları hücreden büyük aktör kalıcı katmana alınır (editör önerir). Hücreler arası referans GUID'dir ve "henüz yüklü değil" geçerli bir durumdur; runtime kodu çözülmemiş referansı ele almak zorundadır. Editör kamera çevresini akışla yükler; kirli hücre kaydedilene kadar boşaltılmaz; dünya çapı işlemler (World Builder üretimi, GUID ile arama, toplu geçiş) yüklü World üzerinden değil, Node araçlarıyla dosyalar üzerinden çalışır | **Açık.** Seçenekler: (a) öneri — tek ızgara + kalıcı katman; (b) Unreal'daki gibi çok kademeli ızgara (büyük aktörler kaba kademede akar; v1 için fazla karmaşık, sonradan eklenebilir); (c) editör bütün hücreleri yükler, akış yalnız runtime'da (D10'un tekrarı) |
