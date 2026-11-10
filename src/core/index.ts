@@ -12,6 +12,7 @@ export * from "./assets/meta.ts";
 export * from "./assets/references.ts";
 export * from "./edit/history.ts";
 export * from "./edit/levelSession.ts";
+export * from "./edit/saveClient.ts";
 export * from "./edit/saveProtocol.ts";
 export * from "./feature.ts";
 export * from "./id.ts";
