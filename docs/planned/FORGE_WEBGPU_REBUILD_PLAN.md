@@ -8,10 +8,12 @@ Details tanımı, 2b'ye test sınıflaması ve içe aktarıcı kabulü girdi; Fa
 5a–5d'ye bölündü; adı geçmeyen alt sistemler fazlara atandı; §11 ilerleme kaydı
 açıldı. v0.5: K2, K4–K9 karara bağlandı. v0.4: depoya taşındı, A1–A9 işlendi,
 Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
-**Durum:** Bütün kararlar kapalı (K1–K11, A1–A11; 2026-11-10). Faz 2a başladı:
-depo iskeleti, katman denetimi + öz-testi ve ilk kapılar kuruldu. Sıradaki
-işler: 2a çekirdeği (aktör + bileşen modeli, şema DSL'i), Faz 0 envanteri ve
-referans görüntüleri, Faz 1 spike (paralel).
+**Durum:** Bütün kararlar kapalı (K1–K11, A1–A11; 2026-11-10). Faz 2a sürüyor:
+depo iskeleti, katman denetimi + öz-testi, kapılar ve çekirdek (şema DSL'i,
+normalize, geçiş zinciri, şema kaydı, `forge.level/1` veri modeli, form tanımı,
+JSON Schema) kuruldu. Sıradaki işler: 2a asset modeli (A10), hücre veri modeli
+(A11), kayıt servisi, uygulama kabuğu; Faz 0 envanteri ve referans görüntüleri,
+Faz 1 spike (paralel).
 **Mimari:** [FORGE_WEBGPU_ARCHITECTURE.md](FORGE_WEBGPU_ARCHITECTURE.md) —
 veri modeli, katmanlar, özellik modülleri, oyun projesi sözleşmesi. Bu plan
 fazların sırasını, o rapor yapının kendisini tanımlar; çelişkide rapor geçerlidir.
@@ -275,13 +277,21 @@ bölümünü uygular.
       yükseltmesi ayrı adım. (2026-11-10)
 - [x] Katman denetimi: dependency-cruiser kuralları (yol ve dosya rolüne göre)
       + kasıtlı ihlal fixture'ıyla öz-test; iki tsconfig (uygulama + Node
-      araçları) (mimari §4.2, A3). `.dependency-cruiser.cjs` 13 kural;
-      `tests/fixtures/layer-violations` 16 ihlal (çok satırlı import,
+      araçları) (mimari §4.2, A3). `.dependency-cruiser.cjs` 14 kural;
+      `tests/fixtures/layer-violations` 19 ihlal (çok satırlı import,
       `import type`, `export * from`, dinamik `import()`, çözülemeyen import);
       öz-test eksik ya da fazla ihlalde kırılır. (2026-11-10)
-- [ ] Çekirdek: aktör + bileşen modeli, GUID'ler, şema DSL'i ve kaydı, sürüm
+- [x] Çekirdek: aktör + bileşen modeli, GUID'ler, şema DSL'i ve kaydı, sürüm
       geçiş zinciri, özellik kayıt noktaları (`defineFeature`), dosya boyutu
-      bütçesi (mimari §4.3–4.5).
+      bütçesi (mimari §4.3–4.5). `src/core`: on alan türlü şema DSL'i
+      (tanımlar dondurulmuş düz veri, tip tanımdan türer), yükleme ve kaydın
+      ortak tek normalize fonksiyonu, geçiş zinciri, örnek tabanlı şema kaydı
+      (`registerComponent`), `defineFeature` + `installFeatures`,
+      `forge.level/1` ve `forge.actorClass/1` veri modeli (uzamsal hiyerarşi,
+      prefab override'ları, tekillik), DOM'suz Details form tanımı, JSON Schema
+      dışa aktarımı; örnek özellik `src/features/height-fog`. `subsystems`,
+      `render` ve editör kayıt noktaları kendi katmanlarıyla gelir. *Açık:*
+      override girdilerinin sürüm geçişi (mimari §4.4). (2026-11-10)
 - [ ] Asset modeli (A10): asset kimliği, manifest / dizin, referans bütünlüğü
       (taşıma, yeniden adlandırma, silme, asılı referans); içe aktarmada tür +
       lisans + kaynak zorunlu ve CI'da kapı (mimari D16, §4.10).
@@ -314,12 +324,15 @@ bölümünü uygular.
       (şemadan üretilen, DOM'suz alan listesi: ad, tür, aralık, varsayılan, TR
       ipucu; testle doğrulanır) → runtime alt sistemi. Form tanımını DOM'a
       çeviren UI kiti Faz 4'te (K7), render bağlaması Faz 3'te. Kabuk
-      dosyalarında değişiklik yok.
+      dosyalarında değişiklik yok. *Hazır (2026-11-10):* şema, kayıt / yükleme
+      turu (level düzeyinde), form tanımı ve testi. *Bekleyen:* undo (kayıt
+      servisi) ve runtime alt sistemi (uygulama kabuğu).
 - [ ] Kapılar ve CI: tip kontrolü (iki tsconfig), katman denetimi + öz-testi,
       Vitest, build, dist doğrulaması, SDK API snapshot farkı, boyut bütçesi,
       alt dizin (`base`) yayını testi (mimari §4.10, F06). *Kuruldu
       (2026-11-10):* `npm run gate` = tip kontrolü (iki tsconfig) + katman
-      denetimi + öz-test + dosya boyutu bütçesi + Vitest + build; aynı kapı
+      denetimi + öz-test + dosya boyutu bütçesi + Node yükleme kapısı
+      (`verify:node-load`) + Vitest + build; aynı kapı
       `.github/workflows/ci.yml`'de. *Bekleyen:* dist doğrulaması (editör
       gelince), SDK API snapshot'ı (SDK gelince), alt dizin yayını testi.
 - [ ] `CLAUDE.md`, `AGENTS.md`, `docs/architecture/ARCHITECTURE.md` (mimari
@@ -623,3 +636,4 @@ silinebilir.
 | 2026-11-10 | v0.6 | Belge incelemesi: tutarsızlıklar düzeltildi; açık kararlar K10–K11, A10–A11 eklendi; Faz 0 / 1 / 2a / 2b / 3 / 4 / 6 / 8 kutuları genişledi; Faz 5 5a–5d'ye bölündü. Kod yok, hiçbir faz başlamadı (`3d25f5e`) |
 | 2026-11-10 | v0.7 | K10, K11, A10, A11 karara bağlandı (dördü de öneri); bütün kararlar kapalı (`b0b8f6f`) |
 | 2026-11-10 | v0.7 | Faz 2a başladı: depo iskeleti (Vite 7, TypeScript 5.9 strict, three 0.187.0, Rapier 0.19.3, Vitest 5), katman denetimi + öz-testi, dosya boyutu bütçesi, `npm run gate`, CI, `CLAUDE.md`, `AGENTS.md`; ilk çekirdek modül `src/core/id.ts`. Kapı yeşil |
+| 2026-11-10 | v0.7 | Faz 2a çekirdek kutusu kapandı (`0b1bce0` … `67add88` ve JSON Schema commit'i): göreli import'lar depo genelinde `.ts` uzantılı + `verify:node-load`; `feature.ts` editörü anmaz (yeni katman kuralı `feature-does-not-name-editor`); şema DSL'i, tek normalize, geçiş zinciri, şema kaydı + `defineFeature`, `forge.level/1` + `forge.actorClass/1`, Details form tanımı, JSON Schema. Mimari rapora 2a kararları işlendi: tam yazım, yanlış tip kuralı, override kuralı v1. 215 test, kapı yeşil |

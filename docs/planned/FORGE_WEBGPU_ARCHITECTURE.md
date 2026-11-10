@@ -382,7 +382,12 @@ düşen alan uyarı değil, **hatadır**.
     Sınıra çekme her ortamda yalnız uyarıdır.
   - Ortam ayrımını çağıran verir (`strict`); çekirdek ortamı bilmez.
 - **JSON Schema dışa aktarımı:** DSL'den üretilir; level ve asset dosyaları VS
-  Code'da ve ajan araçlarında motor kodu çalışmadan doğrulanır.
+  Code'da ve ajan araçlarında motor kodu çalışmadan doğrulanır. Draft-07 (VS
+  Code'un tam desteklediği taslak). Şema, normalize'ın sorunsuz kabul ettiğini
+  kabul eder: alan eksik olabilir, ama bilinmeyen anahtar, yanlış tip ve sınır
+  dışı sayı reddedilir; `type` güncel sürüm olmalıdır. Override'lar sınıfa
+  bağlı olduğu için statik şemada denetlenmez. Şemaların dosyaya yazılması ve
+  VS Code'a bağlanması dev server işidir (henüz yok).
 - Öncül: Forge'un `engine/scene/metadataSchema.ts` dosyası (93 satır), veri olarak
   tutulan alan tanımlarından Details formunu zaten üretiyor; yeni DSL bu fikrin
   bütün bileşen ve asset türlerine genişletilmesidir.

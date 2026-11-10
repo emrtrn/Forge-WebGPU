@@ -19,6 +19,11 @@ export type IdOf<K extends IdKind> = `${(typeof ID_PREFIX)[K]}_${string}`;
 const HEX_LENGTH = 32; // 128 random bits
 const ID_PATTERN = /^(act|ast|lvl)_[0-9a-f]{32}$/;
 
+/** The regular expression source an id of this kind matches (JSON Schema export). */
+export function idPatternSource(kind: IdKind): string {
+  return `^${ID_PREFIX[kind]}_[0-9a-f]{${HEX_LENGTH}}$`;
+}
+
 export function createId<K extends IdKind>(kind: K): IdOf<K> {
   const bytes = new Uint8Array(HEX_LENGTH / 2);
   crypto.getRandomValues(bytes);
