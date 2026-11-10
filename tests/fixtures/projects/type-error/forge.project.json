@@ -1,0 +1,7 @@
+{
+  "schema": "forge.project/1",
+  "id": "typeerror",
+  "name": "Good",
+  "sdkVersion": "0.1",
+  "game": { "module": "src/game.ts" }
+}

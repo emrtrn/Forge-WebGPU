@@ -1,0 +1,4 @@
+{
+  "extends": "./.forge/tsconfig.json",
+  "include": ["src"]
+}

@@ -27,6 +27,7 @@ export * from "./level/model.ts";
 export * from "./level/normalizeLevel.ts";
 export * from "./level/settings.ts";
 export * from "./project/manifest.ts";
+export * from "./project/sdkVersion.ts";
 export * from "./schema/component.ts";
 export * from "./schema/fields.ts";
 export * from "./schema/form.ts";

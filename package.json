@@ -15,6 +15,7 @@
     "verify:assets": "node tools/verify-assets.ts",
     "assets:index": "node tools/asset-index.ts",
     "bench:level": "node --expose-gc tools/bench-level.ts",
+    "forge": "node tools/forge.ts",
     "sdk:snapshot": "node tools/sdk-api.ts write",
     "verify:sdk-api": "node tools/sdk-api.ts verify",
     "test": "vitest run",
