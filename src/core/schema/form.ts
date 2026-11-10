@@ -1,6 +1,7 @@
 // Details form definition (architecture §4.5; plan "İskeletin kabul testi").
 //
-// `formOf(component)` turns a component definition into a DOM-free list of
+// `formOf(component)` turns a component definition (and `formFields` any
+// field map, e.g. an asset meta file's) into a DOM-free list of
 // form fields: key, kind, range, default, English label, Turkish hint. The
 // editor UI kit (phase 4) renders this list; nothing here knows about the DOM.
 //
@@ -63,6 +64,15 @@ export interface ColorFormField extends FormFieldBase {
   readonly default: string;
 }
 
+export interface TextFormField extends FormFieldBase {
+  readonly kind: "text";
+  readonly default: string;
+  readonly required: boolean;
+  /** RegExp source a non-empty value must match; null for any text. */
+  readonly pattern: string | null;
+  readonly multiline: boolean;
+}
+
 export interface VectorFormField extends FormFieldBase {
   readonly kind: "vector";
   readonly size: VectorSize;
@@ -106,6 +116,7 @@ export type FormField =
   | BoolFormField
   | EnumFormField
   | ColorFormField
+  | TextFormField
   | VectorFormField
   | TransformFormField
   | AssetRefFormField
@@ -135,7 +146,7 @@ export function formOf(def: ComponentDef): FormDef {
   };
 }
 
-function formFields(fields: FieldMap, parentPath: string): FormField[] {
+export function formFields(fields: FieldMap, parentPath = ""): FormField[] {
   return Object.entries(fields).map(([key, field]) =>
     formField(key, field, parentPath === "" ? key : `${parentPath}.${key}`, labelFromKey(key)),
   );
@@ -186,6 +197,15 @@ function formField(key: string, field: FieldDef, path: string, derivedLabel: str
       };
     case "color":
       return { ...base, kind: "color", default: field.default };
+    case "text":
+      return {
+        ...base,
+        kind: "text",
+        default: field.default,
+        required: field.required ?? false,
+        pattern: field.pattern ?? null,
+        multiline: field.multiline ?? false,
+      };
     case "vector":
       return {
         ...base,

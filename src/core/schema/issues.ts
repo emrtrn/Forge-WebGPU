@@ -17,6 +17,7 @@
 export type IssueCode =
   | "unknown-field"
   | "invalid-value"
+  | "missing-required"
   | "clamped"
   | "unknown-component-type"
   | "unsupported-version"

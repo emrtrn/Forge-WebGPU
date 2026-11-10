@@ -72,6 +72,20 @@ export interface VectorField<N extends VectorSize = VectorSize> extends FieldUi 
   readonly step?: number;
 }
 
+export interface TextField extends FieldUi {
+  readonly kind: "text";
+  readonly default: string;
+  /**
+   * Missing or blank is a loss. A required field has no meaningful default, so
+   * a component cannot have one: its defaults must save without issues.
+   */
+  readonly required?: boolean;
+  /** RegExp source a non-empty value must match (JSON Schema semantics: unanchored). */
+  readonly pattern?: string;
+  /** Edited in a multi-line box. */
+  readonly multiline?: boolean;
+}
+
 export interface TransformField extends FieldUi {
   readonly kind: "transform";
   readonly default: Readonly<Transform>;
@@ -105,6 +119,7 @@ export type FieldDef =
   | BoolField
   | EnumField
   | ColorField
+  | TextField
   | VectorField
   | TransformField
   | AssetRefField
@@ -125,7 +140,7 @@ export type FieldValue<F> = F extends NumberField
     ? boolean
     : F extends EnumField<infer V>
       ? V
-      : F extends ColorField
+      : F extends ColorField | TextField
         ? string
         : F extends VectorField<infer N>
           ? VectorOf<N>
@@ -244,6 +259,22 @@ export function color(options: Omit<ColorField, "kind">): ColorField {
     fail(`color: default "${options.default}" must be lower-case #rrggbb.`);
   }
   return deepFreeze({ kind: "color", ...options });
+}
+
+export function text(options: Partial<Omit<TextField, "kind">> = {}): TextField {
+  const value = options.default ?? "";
+  if (options.pattern !== undefined) {
+    let pattern: RegExp;
+    try {
+      pattern = new RegExp(options.pattern);
+    } catch {
+      fail(`text: pattern "${options.pattern}" is not a valid regular expression.`);
+    }
+    if (value !== "" && !pattern.test(value)) {
+      fail(`text: default "${value}" does not match the pattern.`);
+    }
+  }
+  return deepFreeze({ kind: "text", ...options, default: value });
 }
 
 type VectorOptions<N extends VectorSize> = Omit<VectorField<N>, "kind" | "size">;

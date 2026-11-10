@@ -2,7 +2,7 @@
 //
 // Loading and saving both go through here; there is no second allowlist.
 // Rules:
-// - missing field        -> its default
+// - missing field        -> its default (a missing required text is a loss)
 // - number out of range  -> clamped to the limit (warning)
 // - unknown field        -> dropped; error under `strict`, warning otherwise
 // - wrong type           -> default; error under `strict`, warning otherwise
@@ -129,7 +129,15 @@ export function normalizeValue(
   path: string,
   ctx: NormalizeContext,
 ): unknown {
-  if (raw === undefined) return defaultValue(field);
+  if (raw === undefined) {
+    // A missing group is normalised field by field so a required field inside
+    // it is reported; the value is the same as its default.
+    if (field.kind === "object") return normalizeFieldMap(field.fields, {}, path, ctx);
+    if (field.kind === "text" && field.required) {
+      reportLoss(ctx, "missing-required", path, "A value is required.");
+    }
+    return defaultValue(field);
+  }
 
   switch (field.kind) {
     case "number":
@@ -159,6 +167,21 @@ export function normalizeValue(
         return field.default;
       }
       return raw.toLowerCase();
+
+    case "text":
+      if (typeof raw !== "string") {
+        invalid(ctx, path, "a string", raw);
+        return field.default;
+      }
+      if (field.required && raw.trim() === "") {
+        reportLoss(ctx, "missing-required", path, "A value is required; it is blank.");
+        return raw;
+      }
+      if (field.pattern !== undefined && raw !== "" && !new RegExp(field.pattern).test(raw)) {
+        reportLoss(ctx, "invalid-value", path, `"${raw}" does not match ${field.pattern}; default used.`);
+        return field.default;
+      }
+      return raw;
 
     case "vector":
       if (!isNumberList(raw, field.size)) {

@@ -12,7 +12,7 @@
 
 import { idPatternSource } from "../id.ts";
 import { componentTypeTag, type ComponentDef } from "./component.ts";
-import type { FieldDef, FieldMap } from "./fields.ts";
+import type { FieldDef, FieldMap, TextField } from "./fields.ts";
 import { labelFromKey } from "./label.ts";
 import { defaultValue } from "./normalize.ts";
 
@@ -65,6 +65,8 @@ function shapeOf(field: FieldDef): JsonSchemaObject {
       return { type: "string", enum: [...field.values] };
     case "color":
       return { type: "string", pattern: "^#[0-9a-fA-F]{6}$" };
+    case "text":
+      return textShape(field);
     case "vector":
       return numberList(field.size, field);
     case "transform":
@@ -76,12 +78,46 @@ function shapeOf(field: FieldDef): JsonSchemaObject {
     case "array":
       return { type: "array", items: fieldJsonSchema(field.item) };
     case "object":
-      return {
-        type: "object",
-        properties: propertiesOf(field.fields),
-        additionalProperties: false,
-      };
+      return fieldMapJsonSchema(field.fields);
   }
+}
+
+/** A required text must not be blank; a non-empty value must match the pattern. */
+function textShape(field: TextField): JsonSchemaObject {
+  const parts: JsonSchemaObject[] = [];
+  if (field.required) parts.push({ pattern: "\\S" });
+  if (field.pattern !== undefined) {
+    // Normalisation lets an empty optional text through without the pattern.
+    parts.push({ pattern: field.required ? field.pattern : `^$|${field.pattern}` });
+  }
+  if (parts.length === 0) return { type: "string" };
+  if (parts.length === 1) return { type: "string", ...parts[0] };
+  return { type: "string", allOf: parts };
+}
+
+/** A field normalisation reports when it is missing: a required text, or a group holding one. */
+function isRequired(field: FieldDef): boolean {
+  if (field.kind === "text") return field.required === true;
+  if (field.kind === "object") return Object.values(field.fields).some(isRequired);
+  return false;
+}
+
+/** The only keys a map must have; the rest take defaults. */
+function requiredKeysOf(fields: FieldMap): string[] {
+  return Object.entries(fields)
+    .filter(([, field]) => isRequired(field))
+    .map(([key]) => key);
+}
+
+/** The schema of a group of fields: a nested object field, or a document body. */
+export function fieldMapJsonSchema(fields: FieldMap): JsonSchemaObject {
+  const required = requiredKeysOf(fields);
+  return {
+    type: "object",
+    properties: propertiesOf(fields),
+    ...(required.length > 0 ? { required } : {}),
+    additionalProperties: false,
+  };
 }
 
 function propertiesOf(fields: FieldMap): Record<string, JsonSchema> {
