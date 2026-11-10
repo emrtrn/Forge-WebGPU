@@ -45,8 +45,11 @@ for (const file of schemaFiles) {
   const label = file.slice(repoRoot.length + 1).replaceAll("\\", "/");
   try {
     const module: Record<string, unknown> = await import(pathToFileURL(file).href);
-    if (Object.keys(module).length === 0) {
-      failures.push(`${label} loaded but exports nothing.`);
+    const definitions = Object.values(module).filter(
+      (value) => core.isJsonObject(value) && value.kind === "component",
+    );
+    if (definitions.length === 0) {
+      failures.push(`${label} loaded but exports no component definition.`);
     }
   } catch (error) {
     failures.push(`${label} does not load in Node: ${error instanceof Error ? error.message : String(error)}`);

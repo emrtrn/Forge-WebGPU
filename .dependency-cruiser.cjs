@@ -88,6 +88,14 @@ module.exports = {
       },
     },
     {
+      name: "feature-does-not-name-editor",
+      comment:
+        "feature.ts never references the editor, not even lazily: Rollup emits a chunk for every import() and the editor would land in the game build. The editor host collects features/*/editor.ts itself.",
+      severity: "error",
+      from: { path: role("feature") },
+      to: { path: ["^src/editor/", "^src/editor-sdk/", role("editor")] },
+    },
+    {
       name: "feature-runtime-no-render",
       severity: "error",
       from: { path: role("runtime") },

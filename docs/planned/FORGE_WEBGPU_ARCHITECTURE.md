@@ -215,8 +215,9 @@ features/height-fog/
   gereği editörsüzdür ve çekirdek editör tiplerini bilmek zorunda kalmaz.
   `feature.ts` içinde `editor: () => import("./editor.ts")` katman kuralından
   geçse de Rollup her `import()` için oyun build'ine parça dosyası yazdığı için
-  reddedildi. Statik import `editor-only-dynamic` kuralıyla ve fixture'daki
-  `features/fog/feature.ts` ihlaliyle yakalanır.
+  reddedildi. Statik import `editor-only-dynamic`, statik ve dinamik her
+  gönderme `feature-does-not-name-editor` kuralıyla yakalanır; ikisinin de
+  fixture'da ihlali vardır (`features/fog/feature.ts`, `features/rain/feature.ts`).
 - `defineFeature` çekirdekte yaşar ve yalnız çekirdeğin tipleyebildiği alanları
   taşır: 2a'da `id` + `components`; `subsystems` uygulama kabuğuyla, `render`
   Faz 3'te eklenir.

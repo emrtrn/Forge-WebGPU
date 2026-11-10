@@ -14,6 +14,8 @@
   { "rule": "feature-schema-is-pure", "from": "src/features/fog/schema.ts" },
   { "rule": "feature-runtime-no-render", "from": "src/features/fog/runtime.ts" },
   { "rule": "editor-only-dynamic", "from": "src/features/fog/feature.ts" },
+  { "rule": "feature-does-not-name-editor", "from": "src/features/fog/feature.ts" },
+  { "rule": "feature-does-not-name-editor", "from": "src/features/rain/feature.ts" },
   { "rule": "tools-are-node-only", "from": "tools/usesRender.ts" },
   { "rule": "src-does-not-import-tools", "from": "src/engine/usesTools.ts" }
 ]
