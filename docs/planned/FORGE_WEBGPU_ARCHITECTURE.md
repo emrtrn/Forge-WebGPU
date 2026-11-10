@@ -199,7 +199,7 @@ features/height-fog/
   runtime.ts    # alt sistem / capability — three'siz
   render.ts     # render bağlaması — three/webgpu yalnız burada
   editor.ts     # özel araç veya Details (yoksa şemadan otomatik)
-  feature.ts    # defineFeature({ components, subsystems, render, editor, addActor })
+  feature.ts    # defineFeature({ id, components, subsystems, render, addActor })
   height-fog.test.ts
   README.md     # 5–10 satır: amaç, şema, kayıt noktaları
 ```
@@ -207,6 +207,24 @@ features/height-fog/
 Çekirdek kabuk yalnız kayıt noktaları sunar: `registerComponent`,
 `registerSubsystem`, `registerRenderBinding`, `registerAssetType`,
 `registerEditorMode`, `registerDetails`, `registerAddActorEntry`.
+
+- **`feature.ts` editörü anmaz (2a kararı, 2026-11-10):** `editor.ts` kendi
+  kayıt birimidir; editör katmanındaki `defineFeatureEditor(...)` ile kendini
+  tanımlar ve editör host'u `features/*/editor.ts` dosyalarını kendisi toplar.
+  Oyunun import grafiğinde `editor.ts` hiç geçmediği için üretim çıktısı yapı
+  gereği editörsüzdür ve çekirdek editör tiplerini bilmek zorunda kalmaz.
+  `feature.ts` içinde `editor: () => import("./editor.ts")` katman kuralından
+  geçse de Rollup her `import()` için oyun build'ine parça dosyası yazdığı için
+  reddedildi. Statik import `editor-only-dynamic` kuralıyla ve fixture'daki
+  `features/fog/feature.ts` ihlaliyle yakalanır.
+- `defineFeature` çekirdekte yaşar ve yalnız çekirdeğin tipleyebildiği alanları
+  taşır: 2a'da `id` + `components`; `subsystems` uygulama kabuğuyla, `render`
+  Faz 3'te eklenir.
+- **Node'da yükleme (2a kararı, 2026-11-10):** depo genelinde göreli import'lar
+  `.ts` uzantılı yazılır (`allowImportingTsExtensions` taban tsconfig'te);
+  `src/core` ve `features/*/schema.ts` Node'da yükleyici ya da bundle adımı
+  olmadan çalışır. `npm run verify:node-load` bunu gerçek Node yüklemesiyle
+  kanıtlar. Çekirdek `import.meta.env` okumaz; ortam ayrımını çağıran verir.
 
 - **Hedef:** yeni bir özellik = bir klasör, 4–6 dosya, kabukta sıfır değişiklik.
   Bugün Height Fog: 8 alanda 16 dosya (D2).

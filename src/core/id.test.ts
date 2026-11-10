@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { createId, isId } from "./id";
+import { createId, isId } from "./id.ts";
 
 describe("createId", () => {
   test("produces a prefixed 128-bit hex id per kind", () => {

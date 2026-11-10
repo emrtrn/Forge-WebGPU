@@ -19,9 +19,10 @@ ayrı depolarda yaşar; GDD, oyun fikri ve türe özgü taksonomi buraya girmez.
 |---|---|
 | `npm run dev` | Dev server, port **5183** (`strictPort`) |
 | `npm run gate` | Push öncesi kapı: aşağıdakilerin hepsi |
-| `npm run typecheck` | `tsconfig.json` (tarayıcı, `src/`) + `tsconfig.tools.json` (Node, `tools/`) |
+| `npm run typecheck` | `tsconfig.json` (tarayıcı, `src/`) + `tsconfig.tools.json` (Node, `tools/` ve import ettiği `src` modülleri) |
 | `npm run verify:layers` | Katman denetimi + öz-testi |
 | `npm run verify:file-size` | Dosya bütçesi: 800 satırda uyarı, 1.500'de hata |
+| `npm run verify:node-load` | `src/core` ve `features/*/schema.ts` düz Node'da yüklenir |
 | `npm run test` | Vitest; testler modülün yanında (`*.test.ts`) |
 | `npm run build` | Vite üretim build'i |
 
@@ -37,12 +38,16 @@ projenin sunucusunu yeniden kullanma.
 - three (`three/webgpu`, `three/tsl`) yalnız `src/render/**` ve
   `src/features/*/render.ts` içinde. `import type` de sayılır.
 - Bir özellik tek klasördür: `src/features/<ad>/{schema,runtime,render,editor,feature}.ts`.
-  `schema.ts` Node'da da yüklenir; yalnız `core` import eder.
+  `schema.ts` Node'da da yüklenir; yalnız `core` import eder. `feature.ts`
+  `editor.ts`'i hiç anmaz (statik de dinamik de); editör host'u onu kendisi toplar.
 - Kuralların tek kaynağı `.dependency-cruiser.cjs`. Kural eklerken
   `tests/fixtures/layer-violations/` altına kasıtlı bir ihlal ve
   `expected.json`'a satırını ekle; öz-test eksik ya da fazla ihlalde kırılır.
-- `tools/` betikleri `node dosya.ts` ile çalışır; göreli import'lar `.ts`
-  uzantılı yazılır, `enum` / `namespace` gibi silinemeyen sözdizimi yok.
+- Göreli import'lar depo genelinde `.ts` uzantılı yazılır (`./id.ts`); `enum` /
+  `namespace` gibi silinemeyen sözdizimi yok. `tools/` betikleri `node dosya.ts`
+  ile çalışır; `src/core` ve şemalar da aynı yolla Node'da yüklenir.
+- `src/core` DOM'a, three'ye ve `import.meta.env`'e dokunmaz; geliştirme / üretim
+  ayrımını çağıran parametreyle verir.
 
 ## Çalışma kuralları
 

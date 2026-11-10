@@ -1,7 +1,8 @@
 name: CI
 
 # Runs the same gate as the local pre-push ritual: type check (two tsconfigs),
-# layer check + its self-test, file size budget, unit tests, build.
+# layer check + its self-test, file size budget, Node load check, unit tests,
+# build.
 # There is no GPU here: render acceptance is local, on a real WebGPU backend.
 
 on:

@@ -11,9 +11,10 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tools.json",
     "verify:layers": "node tools/verify-layers.ts",
     "verify:file-size": "node tools/verify-file-size.ts",
+    "verify:node-load": "node tools/verify-node-load.ts",
     "test": "vitest run",
     "build": "vite build",
-    "gate": "npm run typecheck && npm run verify:layers && npm run verify:file-size && npm run test && npm run build"
+    "gate": "npm run typecheck && npm run verify:layers && npm run verify:file-size && npm run verify:node-load && npm run test && npm run build"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.19.3",

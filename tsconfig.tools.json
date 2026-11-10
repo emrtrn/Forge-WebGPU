@@ -1,12 +1,12 @@
 {
   // Node tooling project: tools/ and the config files that run in Node.
-  // Tools run directly with `node file.ts` (type stripping), so relative
-  // imports carry the .ts extension.
+  // Tools run directly with `node file.ts` (type stripping). The src modules
+  // they import (core, engine, feature schemas) are checked here a second time,
+  // without the DOM lib.
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2022"],
-    "types": ["node"],
-    "allowImportingTsExtensions": true
+    "types": ["node"]
   },
   "include": ["tools", "vite.config.ts"]
 }
