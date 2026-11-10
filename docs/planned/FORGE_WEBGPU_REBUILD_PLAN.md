@@ -1,10 +1,11 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v0.4 · 2026-11-10 (v0.3'ten fark: Forge-WebGPU deposuna taşındı;
-mimari A1–A9 kararları faz maddelerine işlendi; K1 ve K3 kapandı; Faz 1 ile 2a
-paralel, cut-over ve `forge-webgl-final` etiketi 2b'ye kaydı)
-**Durum:** Taslak. K1 ve K3 kapalı, K2 ve K4–K9 onay bekliyor; hiçbir faz
-başlamadı.
+**Sürüm:** v0.5 · 2026-11-10 (v0.4'ten fark: K2, K4–K9 karara bağlandı — K6
+GO'ya kadar seçici durdurma, K7 UI kiti + sanal Outliner, K8 Faz 6'da Ridgebound
+pilotu, K9 referans R1. v0.4: depoya taşındı, A1–A9 işlendi, Faz 1 ∥ 2a,
+cut-over 2b'ye kaydı)
+**Durum:** Faz 0 kararları tamam (K1–K9, A1–A9 kapalı, 2026-11-10). Hiçbir faz
+başlamadı; sıradaki işler Faz 0 referans görüntüleri, Faz 1 spike ve Faz 2a.
 **Mimari:** [FORGE_WEBGPU_ARCHITECTURE.md](FORGE_WEBGPU_ARCHITECTURE.md) —
 veri modeli, katmanlar, özellik modülleri, oyun projesi sözleşmesi. Bu plan
 fazların sırasını, o rapor yapının kendisini tanımlar; çelişkide rapor geçerlidir.
@@ -133,9 +134,12 @@ taşınırlar; görsel parçaları ilgili fazda bağlanır.
   eklenir. Sonrasında yalnız hata düzeltmesi. Etiket, algoritmaların kopyalandığı
   Forge commit'ini işaretler; kopyalama 2b'de başladığı için etiket de orada atılır,
   böylece 2b'ye kadar Forge WebGL'de biten three'siz işler etikete girer.
-- **Hemen geçerli olması önerilen kural (K6):** `engine/render-three`'ye yeni
-  özellik yatırımı durur, yalnız hata düzeltmesi yapılır; bu katman yeniden
-  yazılacak. Three'siz sistemler (World Builder, fizik, terrain verisi,
+- **K6 kuralı (karar 2026-11-10):** Faz 1 GO'ya kadar `engine/render-three`'ye
+  yeni iş yalnız şu üç koşulla girer: oyunun şu anki bir kilometre taşı istiyor;
+  algoritma / parametre kısmı three'siz `engine/` modülünde ve shader ince; yeni
+  `onBeforeCompile` yaması ve WebGL görsel kabul cilası yok. GO'dan sonra yalnız
+  hata düzeltmesi yapılır; bu katman yeniden yazılacak. NO-GO çıkarsa kural
+  kalkar. Three'siz sistemler (World Builder, fizik, terrain verisi,
   save-game) cut-over'a kadar Forge WebGL'de gelişmeye devam edebilir;
   cut-over'da olduğu gibi taşınırlar.
 
@@ -149,7 +153,7 @@ taşınırlar; görsel parçaları ilgili fazda bağlanır.
 | Araç hasarı / Doruk K-180 form ve içerik işi | Motordan bağımsız; sürer |
 | WebGL görsel kabulleri (RDR2 su, deformable Faz 7, WES) | Kapatılır; kabul WebGPU'da verilir |
 | Adaptif kalite planı | WebGPU kalite profillerine (§2.4) devredilir |
-| Editör UI redesign planı | K7'ye bağlı |
+| Editör UI redesign planı | Plan dosyası Forge'da 2026-07-15'te kaldırıldı (`11bb20e9`); bir kısmı panellere işlendi. Forge WebGPU'da paneller bugünkü hâliyle taşınır (K7) |
 
 ---
 
@@ -166,7 +170,7 @@ Büyüklükler görelidir (S < M < L < XL); süre tahmini değildir.
 | 3 | Render çekirdeği + level görüntüleyici | L | 2b | Referans sahnelerde ilk görsel kabul |
 | 4 | Editör çekirdeği | L | 3 | Editör smoke'u (yerleştir / taşı / undo / kaydet / yeniden aç) |
 | 5 | Açık dünya: terrain, streaming, foliage, World Builder penceresi | XL | 3, 4 | Açık dünya sahnelerinde görsel + performans kabulü |
-| 6 | Oyun runtime'ı + araçlar | L | 3 (5 ile paralel yürüyebilir) | Runtime smoke'u; araç terrain üstünde sürülüyor |
+| 6 | Oyun runtime'ı + araçlar + Ridgebound pilotu (K8) | L | 3 (5 ile paralel yürüyebilir) | Runtime smoke'u; araç terrain üstünde sürülüyor; pilot kopya `check:projects`'te yeşil |
 | 7 | Su ve yansımalar | L | 5 | Su görsel kabulü |
 | 8 | Terrain deformasyonu + araç hasarı | L | 5, 6 | Ridgebound kopya sahnesinde senaryolar |
 | 9 | İleri aydınlatma (her teknik ölçümle) | M–L | 5 | Teknik başına ölçüm + kullanıcı kararı |
@@ -187,14 +191,14 @@ görünüm ayarı onun üstünde çalışır.
 
 ### Faz 0 — Kararlar ve referans görüntüler
 
-- [ ] §8'deki K1–K9 ve mimari raporundaki A1–A9 kararları. (A1–A9, K1, K3
-      kapandı 2026-11-10; K2, K4–K9 açık.)
+- [x] §8'deki K1–K9 ve mimari raporundaki A1–A9 kararları (hepsi 2026-11-10).
 - [ ] Referans sahneler seçilir: çok tile'lı bir terrain level'ı, Island, bir
       World Builder rastgele dünyası, Ridgebound'un **kopya** bir sahnesi.
 - [ ] Her sahnede sabit kamera pozlarından Forge WebGL ekran görüntüleri ve
-      `?debug` ölçümleri (kare süresi, GPU süresi, draw call); kullanıcının
-      GPU'sunda, §2.10 formatında.
-- [ ] K6 kabul edilirse render-three yatırım durdurma kuralı yürürlüğe girer.
+      `?debug` ölçümleri (kare süresi, GPU süresi, draw call); referans R1'de
+      (K9), §2.10 formatında.
+- [x] K6 kuralı yürürlükte (2026-11-10): GO'ya kadar seçici, GO'dan sonra tam
+      durdurma (§3).
 
 ### Faz 1 — Doğrulama spike'ı (GO / NO-GO)
 
@@ -314,10 +318,15 @@ bölümünü uygular.
 - [ ] Editör kabuğu ve servisleri (§2.2): viewport host, kamera, seçim (CPU
       raycast picking), `TransformControls` gizmo, pivot, grup / hiyerarşi,
       undo / redo.
-- [ ] DOM panelleri uyarlanarak taşınır: Outliner, Details (şema tabanlı),
-      Content Browser, World Settings, ortam ve post-process ayrıntıları
-      (görünüm ayarı burada yapılır), Add Actor menüsü. Parametre UI kuralları
-      (kaydırıcı + kutu, TR ipucu / EN ad) aynen geçerli.
+- [ ] **Önce UI kiti (K7):** tasarım token'ları + Forge `paramFields` mantığı
+      (kaydırıcı + kutu, sınıra çekme, %30/%70, TR ipucu / EN ad) küçük bir kit
+      olarak taşınır; şemadan üretilen Details ve taşınan paneller aynı kiti
+      kullanır.
+- [ ] DOM panelleri uyarlanarak taşınır (framework yok, redesign yok): Outliner,
+      Details (şema tabanlı), Content Browser, World Settings, ortam ve
+      post-process ayrıntıları (görünüm ayarı burada yapılır), Add Actor menüsü.
+      Outliner sanallaştırılmış liste; 50.000 aktörde akıcı (mimari A1 ölçüm
+      sahnesi). `data-testid` sözleşmesi korunur.
 - [ ] Kaydet / aç, Open Level, Play (runtime'ı yeni sekmede açar; kaydedilmemiş
       anlık görüntüyle, diske yazmadan — mimari A6).
 - [ ] Kapı: Forge'daki `editor-authoring` smoke'unun karşılığı yeşil.
@@ -348,8 +357,15 @@ bölümünü uygular.
 - [ ] Araçlar: Vehicle component, tekerlek görsel node'ları, motor sesi, yüzey
       tepkisi.
 - [ ] `templates/game-starter` karşılığı.
+- [ ] K4: oyunda WebGL2 fallback kararı — hedef kitlenin WebGPU kapsamı ve
+      compute'suz yolların maliyeti ölçülür; kullanıcı kararı.
 - [ ] Kapı: runtime smoke'ları (boot, playflow, checkpoint); araç terrain
       üstünde sürülüyor.
+- [ ] **Ridgebound pilotu (K8, kapıdan sonra):** Ridgebound'un bir **kopyası**
+      `forge.projects.local.json` ile kaydedilir ve `check:projects`'e girer. M0
+      oyun kodu `@forge/sdk`'ya, `TransportState` `defineSaveState`'e taşınır;
+      içerik içe aktarıcıdan geçer. Deformasyon / hasar kapsam dışı. Çıkan SDK
+      eksikleri Faz 7–8'den önce düzeltilir. Forge WebGL bağı kesilmez.
 
 ### Faz 7 — Su ve yansımalar
 
@@ -429,14 +445,14 @@ modüle hata düzeltmesi yapılırsa buraya "port bekliyor" diye işlenir.
 | ID | Konu | Öneri | Durum |
 |---|---|---|---|
 | K1 | Yeni deponun adı ve yeri | `Forge-WebGPU` — yerel `C:\Users\emret\Desktop\Forge-WebGPU`, GitHub `emrtrn/Forge-WebGPU` | **Kapandı** 2026-11-10: ad "Forge WebGPU", depo `Forge-WebGPU` (private) |
-| K2 | Forge WebGL'in durumu | Bakım modu; GitHub arşivi değil; `Forge` deposu ve adı kalır | Açık |
+| K2 | Forge WebGL'in durumu | Bakım modu; GitHub arşivi değil; `Forge` deposu ve adı kalır | **Kapandı** 2026-11-10: bakım modu, depo ve ad kalır. Cut-over'a (2b başı) kadar three'siz sistemlerde geliştirme sürebilir; sonrasında yalnız hata düzeltmesi, taşınmış modüle gelen düzeltme `PORT_LOG.md`'ye "port bekliyor". Ad karışıklığı yeniden adlandırmayla değil README / `CLAUDE.md` notuyla çözülür. GitHub arşivi Model 1 fork'larını ve Ridgebound'u düzeltmesiz bıraktığı, yeniden adlandırma `upstream` / `FORGE_ROOT` / `../../Forge` yollarını kırdığı için reddedildi |
 | K3 | Veri formatları | Yeni tek tip format + tek yönlü içe aktarıcı (mimari A1; v0.2'deki "aynı şema" önerisi geri çekildi) | **Kapandı** 2026-11-10 mimari A1 kararıyla: tek tip aktör + bileşen (bileşen hiyerarşili) + tek yönlü içe aktarıcı |
-| K4 | WebGPU olmayan cihaz | Editör: WebGPU zorunlu. Oyun: başlangıçta zorunlu + açık mesaj; WebGL2 backend fallback'i Faz 6'da ölçümle karara bağlanır | Açık |
-| K5 | three sürümü | 0.187.0 sabit (npm'deki en son); yükseltme ayrı adım | Açık |
-| K6 | Render-three yatırım durdurma | Hemen yürürlüğe girsin (§3) | Açık |
-| K7 | Editör UI | Mevcut paneller önce uyarlanarak taşınsın; redesign Faz 4 sonrası ayrı karar | Açık |
-| K8 | Ridgebound göç zamanı | Faz 8 kabulünden sonra (Faz 10) | Açık |
-| K9 | Referans donanım | Kullanıcının GPU'su; performans hedefleri Faz 0 baseline'ından sonra konur | Açık |
+| K4 | WebGPU olmayan cihaz | Editör: WebGPU zorunlu. Oyun: başlangıçta zorunlu + açık mesaj; WebGL2 backend fallback'i Faz 6'da ölçümle karara bağlanır | **Kapandı** 2026-11-10: öneri olduğu gibi. "WebGPU yok" mesajı renderer'dan bağımsız boot hata ekranında (mimari §4.7). Faz 6 fallback kararının ölçütleri: hedef kitlenin WebGPU kapsamı ve compute'suz yolların maliyeti; o güne kadar özelliklere WebGL2 yolu yazılmaz. `forceWebGL` yalnız CI smoke'ları için, WebGPU kabulü sayılmaz. Baştan Compatibility fallback'i compute özelliklerine (foliage culling, FFT okyanus, partikül, deformasyon) ikinci yol yükü getirdiği için reddedildi |
+| K5 | three sürümü | 0.187.0 sabit (npm'deki en son); yükseltme ayrı adım | **Kapandı** 2026-11-10: tam sabit `0.187.0` (`^` yok, lock commit'li). Yükseltme faz sınırlarında değerlendirilir, faz ortasında yapılmaz; kontrol listesi: three geçiş notları, addon sarmalayıcıları, referans sahnelerde görsel karşılaştırma + ölçüm, sonuç plana / `PORT_LOG`'a. Kritik düzeltme gerekirse ara yükseltme ayrı commit'te aynı listeyle. Forge WebGL de 0.187.0'da; 2b taşımasında eşdeğerlik testlerini sürüm farkı bulandırmaz. `^` (r sürümü kırıcı) ve aylık takip (sürekli addon kayması) reddedildi |
+| K6 | Render-three yatırım durdurma | Hemen yürürlüğe girsin (§3) | **Kapandı** 2026-11-10: GO'ya kadar seçici, GO'dan sonra tam durdurma (§3). Faz 1 GO'ya kadar `render-three`'ye yeni iş yalnız şu üç koşulla girer: (a) oyunun şu anki bir kilometre taşı istiyor; (b) algoritma / parametre kısmı three'siz `engine/` modülünde, shader ince; (c) yeni `onBeforeCompile` yaması yok, WebGL görsel kabul cilası yok. GO'dan sonra yalnız hata düzeltmesi. Kural Forge oturumları için Forge'un Claude hafızasına (`forge-webgpu-rebuild-plan`) yazıldı. Hemen tam durdurma, `render-three` hâlâ aktifken (1 Ekim'den beri 146 commit) NO-GO ihtimalinde kayıp zaman yarattığı için reddedildi |
+| K7 | Editör UI | Mevcut paneller önce uyarlanarak taşınsın; redesign Faz 4 sonrası ayrı karar | **Kapandı** 2026-11-10: paneller vanilla DOM olarak uyarlanıp taşınır; framework yok, redesign yok (Temmuz 2026 redesign'ının bir kısmı panellerde zaten var; yenisi gerekirse Faz 4 sonrası ayrı karar). Faz 4'ün ilk işi UI kiti (token'lar + `paramFields` kuralları; şemadan üretilen Details de bunu kullanır); Outliner sanallaştırılmış (50.000 aktör); `data-testid` sözleşmesi korunur. UI framework'ü ~38.800 satırı yeniden yazıma çevirdiği, reaktiflik kazancı işlem / undo servisiyle zaten sağlandığı için reddedildi |
+| K8 | Ridgebound göç zamanı | Faz 8 kabulünden sonra (Faz 10) | **Kapandı** 2026-11-10: Faz 6 kapısından sonra pilot, Faz 10'da gerçek göç. Pilot: Ridgebound **kopyası** `check:projects`'e girer; M0 kodu `@forge/sdk`'ya, `TransportState` `defineSaveState`'e, içerik içe aktarıcıdan; deformasyon / hasar yok. SDK (A8) ve oyun verisi (A7) kararları Faz 7–8'den önce gerçek bir oyunla sınanır. Gerçek göç ve Forge WebGL bağının kesilmesi Faz 8 kabulünden sonra. Yalnız Faz 10 (SDK ilk kez geç sınanır) ve Faz 6'da tam göç (oyun Faz 7–8 boyunca hasarsız kalır) reddedildi |
+| K9 | Referans donanım | Kullanıcının GPU'su; performans hedefleri Faz 0 baseline'ından sonra konur | **Kapandı** 2026-11-10: referans **R1** = NVIDIA GeForce RTX 3060 12 GB (sürücü 610.60, 2026-11-10) / Intel i5-11400F / 16 GB RAM / 1920×1080 60 Hz ekran. 1440p ölçümleri render çözünürlüğüyle (ekran dışı hedef / DPR) alınır ve kayıtta öyle yazılır. Hedef sayılar Faz 0 baseline'ından sonra; biçim: profil × çözünürlük başına medyan / p95 kare süresi + GPU süresi, 60 Hz bütçe 16,6 ms. Sürücü değişikliği ölçüm kaydına yazılır. İkinci (düşük) referans gerekip gerekmediği K4'ün Faz 6 kararıyla birlikte. Dış hedef sınıf, ölçülemediği için reddedildi |
 
 ## 9. v0.1'den korunanlar
 
