@@ -1,0 +1,12 @@
+# Normalize line endings to LF in the repo and the working tree.
+* text=auto eol=lf
+
+# Binary assets: never touch line endings.
+*.glb binary
+*.gltf binary
+*.ktx2 binary
+*.png binary
+*.jpg binary
+*.webp binary
+*.bin binary
+*.wasm binary

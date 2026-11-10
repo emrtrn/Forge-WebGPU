@@ -1,0 +1,36 @@
+name: CI
+
+# Runs the same gate as the local pre-push ritual: type check (two tsconfigs),
+# layer check + its self-test, file size budget, unit tests, build.
+# There is no GPU here: render acceptance is local, on a real WebGPU backend.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: typecheck · layers · tests · build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Gate
+        run: npm run gate

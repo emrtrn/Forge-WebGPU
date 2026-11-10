@@ -8,8 +8,10 @@ Details tanımı, 2b'ye test sınıflaması ve içe aktarıcı kabulü girdi; Fa
 5a–5d'ye bölündü; adı geçmeyen alt sistemler fazlara atandı; §11 ilerleme kaydı
 açıldı. v0.5: K2, K4–K9 karara bağlandı. v0.4: depoya taşındı, A1–A9 işlendi,
 Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
-**Durum:** Bütün kararlar kapalı (K1–K11, A1–A11; 2026-11-10). Sıradaki işler:
-Faz 0 envanteri ve referans görüntüleri, Faz 1 spike ve Faz 2a (paralel).
+**Durum:** Bütün kararlar kapalı (K1–K11, A1–A11; 2026-11-10). Faz 2a başladı:
+depo iskeleti, katman denetimi + öz-testi ve ilk kapılar kuruldu. Sıradaki
+işler: 2a çekirdeği (aktör + bileşen modeli, şema DSL'i), Faz 0 envanteri ve
+referans görüntüleri, Faz 1 spike (paralel).
 **Mimari:** [FORGE_WEBGPU_ARCHITECTURE.md](FORGE_WEBGPU_ARCHITECTURE.md) —
 veri modeli, katmanlar, özellik modülleri, oyun projesi sözleşmesi. Bu plan
 fazların sırasını, o rapor yapının kendisini tanımlar; çelişkide rapor geçerlidir.
@@ -265,12 +267,18 @@ nesne başına CPU maliyetiyse aynı maliyeti taşır.
 Bu fazın her maddesi [mimari raporun](FORGE_WEBGPU_ARCHITECTURE.md) bir
 bölümünü uygular.
 
-- [ ] Depo oluşturulur (K1): Vite + TypeScript strict, `three@0.187.0` sabit
-      sürüm (K5), Rapier, Vitest. Bu deponun dev ve smoke portları seçilir;
-      Forge WebGL (5173 / 5273) ve Ridgebound (5175) portları kullanılmaz.
-- [ ] Katman denetimi: dependency-cruiser kuralları (yol ve dosya rolüne göre)
+- [x] Depo oluşturulur (K1): Vite + TypeScript strict, `three@0.187.0` sabit
+      sürüm (K5), Rapier, Vitest. Portlar: dev **5183**, smoke **5283**
+      (`strictPort`). Araç sürümleri Forge ile aynı ana sürümde tutuldu
+      (TypeScript 5.9, Vite 7, Rapier 0.19.3 tam sabit): 2b eşdeğerlik
+      testlerini sürüm farkı bulandırmasın; TypeScript 7 / Vite 8 / Rapier
+      yükseltmesi ayrı adım. (2026-11-10)
+- [x] Katman denetimi: dependency-cruiser kuralları (yol ve dosya rolüne göre)
       + kasıtlı ihlal fixture'ıyla öz-test; iki tsconfig (uygulama + Node
-      araçları) (mimari §4.2, A3).
+      araçları) (mimari §4.2, A3). `.dependency-cruiser.cjs` 13 kural;
+      `tests/fixtures/layer-violations` 16 ihlal (çok satırlı import,
+      `import type`, `export * from`, dinamik `import()`, çözülemeyen import);
+      öz-test eksik ya da fazla ihlalde kırılır. (2026-11-10)
 - [ ] Çekirdek: aktör + bileşen modeli, GUID'ler, şema DSL'i ve kaydı, sürüm
       geçiş zinciri, özellik kayıt noktaları (`defineFeature`), dosya boyutu
       bütçesi (mimari §4.3–4.5).
@@ -309,10 +317,15 @@ bölümünü uygular.
       dosyalarında değişiklik yok.
 - [ ] Kapılar ve CI: tip kontrolü (iki tsconfig), katman denetimi + öz-testi,
       Vitest, build, dist doğrulaması, SDK API snapshot farkı, boyut bütçesi,
-      alt dizin (`base`) yayını testi (mimari §4.10, F06).
+      alt dizin (`base`) yayını testi (mimari §4.10, F06). *Kuruldu
+      (2026-11-10):* `npm run gate` = tip kontrolü (iki tsconfig) + katman
+      denetimi + öz-test + dosya boyutu bütçesi + Vitest + build; aynı kapı
+      `.github/workflows/ci.yml`'de. *Bekleyen:* dist doğrulaması (editör
+      gelince), SDK API snapshot'ı (SDK gelince), alt dizin yayını testi.
 - [ ] `CLAUDE.md`, `AGENTS.md`, `docs/architecture/ARCHITECTURE.md` (mimari
       rapordan) yazılır. (Bu plan ve rapor 2026-11-10'da yeni deponun
-      `docs/planned/` klasörüne taşındı.)
+      `docs/planned/` klasörüne taşındı.) *`CLAUDE.md` ve `AGENTS.md` yazıldı
+      (2026-11-10); `ARCHITECTURE.md` iskelet oluşunca.*
 - [ ] Plan belgesi düzeni: faz başına yaşayan plan belgesi mi, yalnız bu ana
       plan mı; biten planların arşiv yeri ve dizini (Forge'da `Forge-Archive` +
       `COMPLETED_WORK_INDEX.md` idi). `CLAUDE.md`'ye yazılır.
@@ -608,4 +621,5 @@ silinebilir.
 | 2026-11-10 | v0.4 | Plan ve mimari rapor Forge'dan bu depoya taşındı; A1–A9 karara bağlandı; Faz 1 ∥ 2a, cut-over 2b'ye kaydı (`137dbc3`) |
 | 2026-11-10 | v0.5 | K2, K4–K9 karara bağlandı (`f87bef1`) |
 | 2026-11-10 | v0.6 | Belge incelemesi: tutarsızlıklar düzeltildi; açık kararlar K10–K11, A10–A11 eklendi; Faz 0 / 1 / 2a / 2b / 3 / 4 / 6 / 8 kutuları genişledi; Faz 5 5a–5d'ye bölündü. Kod yok, hiçbir faz başlamadı (`3d25f5e`) |
-| 2026-11-10 | v0.7 | K10, K11, A10, A11 karara bağlandı (dördü de öneri); bütün kararlar kapalı |
+| 2026-11-10 | v0.7 | K10, K11, A10, A11 karara bağlandı (dördü de öneri); bütün kararlar kapalı (`b0b8f6f`) |
+| 2026-11-10 | v0.7 | Faz 2a başladı: depo iskeleti (Vite 7, TypeScript 5.9 strict, three 0.187.0, Rapier 0.19.3, Vitest 5), katman denetimi + öz-testi, dosya boyutu bütçesi, `npm run gate`, CI, `CLAUDE.md`, `AGENTS.md`; ilk çekirdek modül `src/core/id.ts`. Kapı yeşil |

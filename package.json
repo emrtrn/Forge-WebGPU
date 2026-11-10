@@ -1,0 +1,30 @@
+{
+  "name": "forge-webgpu",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tools.json",
+    "verify:layers": "node tools/verify-layers.ts",
+    "verify:file-size": "node tools/verify-file-size.ts",
+    "test": "vitest run",
+    "build": "vite build",
+    "gate": "npm run typecheck && npm run verify:layers && npm run verify:file-size && npm run test && npm run build"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "0.19.3",
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/three": "0.187.0",
+    "dependency-cruiser": "^18.7.2",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.5",
+    "vitest": "^5.1.0"
+  }
+}

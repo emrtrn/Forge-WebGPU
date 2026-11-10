@@ -1,0 +1,10 @@
+{
+  // Application (browser) project: everything under src/.
+  // Layer boundaries are not expressed here; dependency-cruiser owns them (A3).
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"]
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,18 @@
+[
+  { "rule": "core-is-foundation", "from": "src/core/multiLineImport.ts" },
+  { "rule": "three-only-in-render", "from": "src/core/typeOnlyThree.ts" },
+  { "rule": "not-to-unresolvable", "from": "src/core/unresolvable.ts" },
+  { "rule": "engine-imports-core-only", "from": "src/engine/reexportRender.ts" },
+  { "rule": "three-only-in-render", "from": "src/engine/dynamicThree.ts" },
+  { "rule": "render-imports-core-engine", "from": "src/render/usesRuntime.ts" },
+  { "rule": "runtime-imports-core-engine-render", "from": "src/runtime/usesGameplay.ts" },
+  { "rule": "gameplay-imports-core-engine-runtime", "from": "src/gameplay/dynamicRender.ts" },
+  { "rule": "editor-only-dynamic", "from": "src/main.ts" },
+  { "rule": "sdk-excludes-editor", "from": "src/sdk/index.ts" },
+  { "rule": "editor-only-dynamic", "from": "src/sdk/index.ts" },
+  { "rule": "three-only-in-render", "from": "src/features/fog/schema.ts" },
+  { "rule": "feature-schema-is-pure", "from": "src/features/fog/schema.ts" },
+  { "rule": "feature-runtime-no-render", "from": "src/features/fog/runtime.ts" },
+  { "rule": "tools-are-node-only", "from": "tools/usesRender.ts" },
+  { "rule": "src-does-not-import-tools", "from": "src/engine/usesTools.ts" }
+]
