@@ -1,6 +1,9 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v0.4 · 2026-11-10 (v0.3'ten fark: A10 ve A11 karara bağlandı; §4.4
+**Sürüm:** v0.5 · 2026-11-10 (v0.4'ten fark: 2a asset modeli kararları — §4.4
+override sürüm etiketi ve kısmi veri geçiş sözleşmesi, §4.5 metin alan türü,
+§4.6 meta dosyası, asset türü kaydı, dizin ve önbellek, §4.2 Node modülü kuralı.
+v0.4: A10 ve A11 karara bağlandı; §4.4
 hücre kuralları ve §4.6 asset kimliği yazıldı. v0.3: belge incelemesi — açık
 kararlar A10 asset modeli ve A11 hücre / akış modeli eklendi; A4 satırı A3'e göre
 düzeltildi; §4.6'da bileşen kimliği A1'e göre düzeltildi. v0.2: A1–A9
@@ -182,6 +185,8 @@ tsconfig'le yapılır: uygulama (tarayıcı) ve Node araçları (`tools/`).
   yakalanmasını bekler. F02'nin dersi: denetleyici sessizce geçerse kimse fark
   etmez.
 - İhlal IDE'de değil push öncesi kapıda ve CI'da görünür.
+- `src/**` Node modülü (`node:fs` vb.) import edemez (`src-no-node-builtins`,
+  2a): çekirdek tarayıcıda da yüklenir; diski okuyan iş `tools/`'tadır.
 
 Tek npm paketi, katmanlar klasör. npm workspaces / ayrı paket yayını yok
 (Model 2'nin "motor paket release sistemi kapsam dışı" kararıyla uyumlu).
@@ -297,9 +302,26 @@ features/height-fog/
   - Sınıf değerine eşit override yazılmaz; boş bileşen girdisi yazılmaz.
   - Sınıf bulunamazsa asılı referanstır (geliştirmede hata, üretimde rapor);
     override'lar denetlenmeden korunur.
-  - **Açık:** override girdisi sürüm etiketi taşımaz. Sınıftaki bir bileşenin
-    şeması alan yeniden adlandırırsa eski override geçiş zincirinden geçemez ve
-    bilinmeyen alan olarak raporlanır. Çözüm ayrı karardır.
+  - **Override sürüm etiketi (2a kararı, 2026-11-10):** her override girdisi
+    sınıf bileşeninin tür etiketini taşır:
+    `"overrides": { "driver": { "type": "forge.vehicleAiDriver@1", "targetSpeed": 18 } }`.
+    `type` override değil damgadır; kayıt her zaman güncel etiketi yazar,
+    etiketsiz girdi güncel sürüm sayılır. Eski sürümlü girdi bileşenin geçiş
+    zincirinden kısmi veriyle geçer; etiketteki ad sınıf bileşeninin türünden
+    farklıysa (sınıf aynı yerel kimliğe başka bileşen koymuş) girdi raporlanıp
+    düşer; daha yeni sürüm desteklenmez. Zarf (`local`, `parent`) geçişe girmez.
+  - **Kısmi veri sözleşmesi:** bir geçiş adımı alanların herhangi bir alt
+    kümesini alabilir; yalnız elindeki anahtarları dönüştürür, olmayan bir
+    anahtardan yeni anahtar üretmez (yeni alan varsayılanını normalize'da
+    alır). `defineComponent` (ve asset türlerinde `defineAssetType`) her adımı
+    `{}` ile çalıştırır; fırlatan ya da tanımlı değer döndüren adım tanımda
+    reddedilir. Sınır: iki alanı birleştiren adım, override'ın taşımadığı
+    alanın sınıf değerini göremez.
+  - Reddedilenler: bildirimsel yeniden adlandırma listesi (yalnız ad
+    değişikliğini kapsar; değer dönüşümü eski override'a sessizce yanlış
+    uygulanır) ve sınıf sürüm atlayınca override'ları Node aracıyla toplu
+    yeniden yazmak (yine eski sürümü bilmeyi gerektirir, oyun deposundaki
+    level'ları kaçırır).
 - Statik mesh yerleşimi de bir aktördür. Instancing veri türü değil, render
   katmanının otomatik toplu çizimidir. Toplu yerleşim için instanced static mesh
   bileşeni vardır; foliage kompakt örnek dizileri olarak hücre dosyalarında
@@ -364,7 +386,14 @@ düşen alan uyarı değil, **hatadır**.
   kütüphanesi (Zod / Valibot) kullanılmaz; böylece `@forge/sdk`'nın şema yüzeyi
   dış bir kütüphanenin sürüm döngüsüne bağlanmaz.
 - 2a alan türleri: sayı, bool, enum, renk, vektör, transform, asset ref, aktör
-  ref, dizi, nesne. Yenisi ihtiyaç olunca eklenir (§7).
+  ref, dizi, nesne, metin. Yenisi ihtiyaç olunca eklenir (§7).
+- **Metin alanı (2a kararı, 2026-11-10):** `text({ default, required, pattern,
+  multiline })`; ilk ihtiyaç asset meta'sındaki lisans ve kaynak. Eksik ya da
+  boş zorunlu metin `missing-required` kaybıdır (geliştirmede hata); desen
+  uymazsa geçersiz değer, varsayılan kullanılır; boş isteğe bağlı metin desene
+  bakılmadan geçer. Bileşen varsayılanlarıyla kaydedilebilmeli: bu yüzden
+  varsayılanı boş zorunlu metin bileşende tanım anında reddedilir. JSON
+  Schema'da zorunlu metin (ve onu içeren grup) `required` listesindedir.
 - **Normalize kuralları tek fonksiyon:** yükleme ve kayıt aynı fonksiyonu çağırır.
   Eksik alan → varsayılan; sınır dışı sayı → sınıra çekilir (editör parametre UI
   kuralıyla aynı); bilinmeyen / düşen alan → geliştirmede hata, üretim build'inde
@@ -410,6 +439,41 @@ düşen alan uyarı değil, **hatadır**.
   - Silmede ters referans dizinine bakılır; kullanılan asset uyarısız silinmez.
     Asılı referans geliştirmede hatadır, üretim build'inde rapordur (düşen alan
     kuralıyla aynı, §4.5).
+- **Asset modeli uygulaması (2a kararları, 2026-11-10):**
+  - *Meta dosyası:* `<dosya>.meta.json` (tam ad korunur: `car.glb.meta.json`),
+    `forge.assetMeta/1`: `schema`, `id`, `type` (`<asset türü>@<içe aktarma
+    ayarları sürümü>`), `license`, `source` (`origin` zorunlu; `author`, `url`),
+    `import`. Lisans tek bir SPDX kimliği ya da `LicenseRef-<ad>`; `Unknown` ve
+    `NOASSERTION` reddedilir (D16). Lisans ve kaynak DSL alan haritasıdır
+    (`AssetMetaFields`); normalize, form ve JSON Schema ondan türer. Lisans ve
+    kaynak yalnız ikili asset'te zorunlu; JSON asset'ler motorda üretilir.
+  - *Asset türleri:* `registerAssetType` mevcut şema kaydındadır (ikinci kayıt
+    yok); `defineFeature` `assetTypes` alır. İkili tür: iddia ettiği uzantılar
+    (birden çok tür aynı uzantıyı iddia edebilir; meta'daki tür dosyanın
+    uzantısını iddia etmeli) + sürümlü içe aktarma ayarları alan haritası +
+    geçiş zinciri. Belge türleri yerleşiktir (`forge.level`,
+    `forge.actorClass`), her kayıt onlarla başlar ve dosyanın `schema`
+    etiketinden tanınır. Oyunların DSL'le tanımlayacağı JSON asset türleri
+    SDK'yla gelir. Level kimliği `lvl_` önekini korur; dizin iki öneki de tutar,
+    `assetRef` level'ı gösteremez.
+  - *Dizin:* `src/core/assets` saftır: içerik köklerinin dosya listesini (JSON
+    içerikleri ayrıştırılmış) alır, diski `tools/assets` okur. Kurulum: kimlik
+    (meta'sız ikili, ikilisiz meta, aynı GUID iki dosyada → yol sırasında ilki
+    kalır, asset olmayan JSON) → aktör sınıfları normalize edilir ve dizin
+    level'ların `ClassResolver`'ı olur → level'lar normalize edilir →
+    referanslar şemadan yürünerek toplanır (level bileşenleri, sınıf
+    override'ları sınıf bileşeninin şemasına göre, `actor.class`, sınıf
+    bileşenleri, meta `import`'u) → ters dizin → bütünlük (asılı referans,
+    `assetRef.assetType` kısıtı). Eksik sınıf bir kez, level normalize'ında
+    raporlanır. `planDelete` başka asset'in referansı varken izin vermez.
+  - *Önbellek:* `<proje>/.forge-cache/asset-index.json`
+    (`forge.assetIndexCache/1`: kökler, GUID → konum, ters dizin); git'e girmez,
+    okunamazsa `null` döner ve yeniden üretilir (`npm run assets:index`). Dosya
+    damgası ve artımlı tarama 50.000 ölçümünden sonra.
+  - *Kapı:* `npm run verify:assets` `content/` ve `samples/*/content/`
+    köklerini sıkı kipte tarar; tür / lisans / kaynak eksikliği, meta'sız ikili,
+    çift GUID ve asılı referans kapıyı kırar. Gate'te, dolayısıyla CI'da.
+    Taramada `.` ile başlayan adlar atlanır; iç içe kök reddedilir.
 - **İşlem (transaction):** editördeki her düzenleme bir işlem; undo birimi ve
   kirli dosya kümesi bundan türer.
 - **Sıralı, atomik kayıt:** yeni içerik geçici dosyalara yazılır → doğrulanır →
@@ -622,7 +686,7 @@ değiştirir:
 
 | Risk | Önlem |
 |---|---|
-| Şema DSL'i gereğinden büyür | 2a'da yalnız bugün kullanılan alan türleri (sayı, bool, enum, renk, vektör, transform, asset ref, aktör ref, dizi, nesne; §4.5); yenisi ihtiyaç olunca |
+| Şema DSL'i gereğinden büyür | 2a'da yalnız bugün kullanılan alan türleri (sayı, bool, enum, renk, vektör, transform, asset ref, aktör ref, dizi, nesne, metin; §4.5); yenisi ihtiyaç olunca |
 | Tek tip modelde performans (binlerce aktör) | Instancing render katmanında otomatik; foliage kompakt dizi; Faz 1 S4 ölçümü + 2a'da 50.000 aktörlük yükleme / kayıt ölçümü |
 | SDK'yı erken dondurmak | v0 süresince SDK değişebilir; changelog zorunlu, uyumluluk kapısı kırılmayı hemen gösterir |
 | İçe aktarıcı her eski alanı taşıyamaz | Taşınamayan alan sessiz düşmez, rapor edilir; Ridgebound içeriği kopya üzerinde denenir |

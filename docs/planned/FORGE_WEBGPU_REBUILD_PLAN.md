@@ -11,7 +11,7 @@ Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 **Durum:** Bütün kararlar kapalı (K1–K11, A1–A11; 2026-11-10). Faz 2a sürüyor:
 depo iskeleti, katman denetimi + öz-testi, kapılar ve çekirdek (şema DSL'i,
 normalize, geçiş zinciri, şema kaydı, `forge.level/1` veri modeli, form tanımı,
-JSON Schema) kuruldu. Sıradaki işler: 2a asset modeli (A10), hücre veri modeli
+JSON Schema) ve asset modeli (A10) kuruldu. Sıradaki işler: hücre veri modeli
 (A11), kayıt servisi, uygulama kabuğu; Faz 0 envanteri ve referans görüntüleri,
 Faz 1 spike (paralel).
 **Mimari:** [FORGE_WEBGPU_ARCHITECTURE.md](FORGE_WEBGPU_ARCHITECTURE.md) —
@@ -290,11 +290,23 @@ bölümünü uygular.
       `forge.level/1` ve `forge.actorClass/1` veri modeli (uzamsal hiyerarşi,
       prefab override'ları, tekillik), DOM'suz Details form tanımı, JSON Schema
       dışa aktarımı; örnek özellik `src/features/height-fog`. `subsystems`,
-      `render` ve editör kayıt noktaları kendi katmanlarıyla gelir. *Açık:*
-      override girdilerinin sürüm geçişi (mimari §4.4). (2026-11-10)
-- [ ] Asset modeli (A10): asset kimliği, manifest / dizin, referans bütünlüğü
+      `render` ve editör kayıt noktaları kendi katmanlarıyla gelir. Override
+      girdilerinin sürüm geçişi asset modeli adımında kapandı (mimari §4.4).
+      (2026-11-10)
+- [x] Asset modeli (A10): asset kimliği, manifest / dizin, referans bütünlüğü
       (taşıma, yeniden adlandırma, silme, asılı referans); içe aktarmada tür +
-      lisans + kaynak zorunlu ve CI'da kapı (mimari D16, §4.10).
+      lisans + kaynak zorunlu ve CI'da kapı (mimari D16, §4.10). `src/core/assets`
+      (saf): `defineAssetType` + `registerAssetType` (yerleşik belge türleri
+      `forge.level`, `forge.actorClass`), `forge.assetMeta/1` normalize'ı
+      (lisans SPDX ya da `LicenseRef-…`, `Unknown` reddedilir), kimlik geçişi,
+      şemadan yürüyen referans toplama + ters dizin, bütünlük + `planDelete`,
+      dizinden beslenen `ClassResolver`. DSL'e metin alan türü eklendi. `tools/assets`:
+      içerik kökü taraması, `.forge-cache/asset-index.json` önbelleği,
+      `verify:assets` kapısı (gate + CI), `assets:index`. Yeni katman kuralı
+      `src-no-node-builtins`. Override girdileri sürüm etiketi taşır, geçişler
+      kısmi veriyle çalışır (mimari §4.4). Testler `tests/fixtures/assets`'in
+      geçici kopyasında. Bugün depoda içerik kökü yok; kapı 0 asset görür.
+      (2026-11-10)
 - [ ] Hücre / akış veri modeli (A11): hücre dosya biçimi, dizin dosyası, hücre
       ataması, hücreler arası referans kuralı. Akışın kendisi 5b'de; burada
       yalnız veri biçimi ve kayıt servisiyle bağı kurulur.
@@ -332,7 +344,8 @@ bölümünü uygular.
       alt dizin (`base`) yayını testi (mimari §4.10, F06). *Kuruldu
       (2026-11-10):* `npm run gate` = tip kontrolü (iki tsconfig) + katman
       denetimi + öz-test + dosya boyutu bütçesi + Node yükleme kapısı
-      (`verify:node-load`) + Vitest + build; aynı kapı
+      (`verify:node-load`) + asset kapısı (`verify:assets`, D16) + Vitest +
+      build; aynı kapı
       `.github/workflows/ci.yml`'de. *Bekleyen:* dist doğrulaması (editör
       gelince), SDK API snapshot'ı (SDK gelince), alt dizin yayını testi.
 - [ ] `CLAUDE.md`, `AGENTS.md`, `docs/architecture/ARCHITECTURE.md` (mimari
@@ -637,3 +650,4 @@ silinebilir.
 | 2026-11-10 | v0.7 | K10, K11, A10, A11 karara bağlandı (dördü de öneri); bütün kararlar kapalı (`b0b8f6f`) |
 | 2026-11-10 | v0.7 | Faz 2a başladı: depo iskeleti (Vite 7, TypeScript 5.9 strict, three 0.187.0, Rapier 0.19.3, Vitest 5), katman denetimi + öz-testi, dosya boyutu bütçesi, `npm run gate`, CI, `CLAUDE.md`, `AGENTS.md`; ilk çekirdek modül `src/core/id.ts`. Kapı yeşil |
 | 2026-11-10 | v0.7 | Faz 2a çekirdek kutusu kapandı (`0b1bce0` … `67add88` ve JSON Schema commit'i): göreli import'lar depo genelinde `.ts` uzantılı + `verify:node-load`; `feature.ts` editörü anmaz (yeni katman kuralı `feature-does-not-name-editor`); şema DSL'i, tek normalize, geçiş zinciri, şema kaydı + `defineFeature`, `forge.level/1` + `forge.actorClass/1`, Details form tanımı, JSON Schema. Mimari rapora 2a kararları işlendi: tam yazım, yanlış tip kuralı, override kuralı v1. 215 test, kapı yeşil |
+| 2026-11-10 | v0.7 | Faz 2a asset modeli kutusu kapandı (`d2c96c6` … `5098d05`): DSL'e metin alan türü; asset türleri ve `registerAssetType`; `forge.assetMeta/1` (tür + lisans + kaynak zorunlu, D16); saf asset dizini (kimlik, şemadan yürüyen referanslar, ters dizin, bütünlük, `planDelete`, dizinden `ClassResolver`); `tools/assets` taraması, `.forge-cache` önbelleği, `verify:assets` gate'te; `src-no-node-builtins` kuralı. Mimari §4.4'teki açık soru kapandı: override sürüm etiketi + kısmi veri geçiş sözleşmesi. Mimari rapor v0.5. 286 test, kapı yeşil |
