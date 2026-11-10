@@ -328,6 +328,17 @@ bölümünü uygular.
       zinciri süresi + bellek (mimari §4.4 "ölçek yedeği", §7). Eşik ölçümden
       önce bu maddeye yazılır; aşılırsa mimari §4.4'teki çareler sırayla
       denenir. Aynı level Faz 4'te Outliner ölçüm sahnesidir.
+      *Eşikler (R1, ölçümden önce yazıldı, 2026-11-10):* level sabit tohumlu
+      üretilir (`npm run bench:level`; 4 km × 4 km, `cellSize` 128 m, ~%80
+      düz statik mesh, ~%15 override'lı sınıf örneği, ~%5 alt aktör, birkaç
+      kalıcı aktör). Bir soğuk + 5 ılık koşu; medyan / p95.
+      S1 bütün level yükleme (disk → normalize → birleştirme) ≤ 2 s;
+      S2 tek hücre yükleme p95 ≤ 4 ms; S3 tek aktör düzenle + kayıt planı
+      (kirlenen parçalar, normalize, kanonik metin, revizyon) ≤ 50 ms;
+      S4 tam kayıt (bölme + bütün dosyalar + revizyon + diske yazma) ≤ 3 s;
+      S5 bütün bileşenler eski sürümdeyken S1 ≤ 1,5 × S1; S6 asset dizini
+      kurulumu ≤ 3 s; S7 birleşmiş level heap artışı ≤ 150 MB, diskte level
+      ≤ 50 MB.
 - [ ] Kayıt servisi: işlem / undo, sıralı atomik çok dosyalı kayıt, revizyon
       çakışma kontrolü (409), şemaya göre çalışan genel kayıt uçları, ikili
       kanal; proje kökü izolasyonu ve local-only middleware Forge'dan taşınır
