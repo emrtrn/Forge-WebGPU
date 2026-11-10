@@ -1,0 +1,293 @@
+# src/sdk/index.ts
+
+type ActorId = `act_${string}`
+
+type AssetId = `ast_${string}`
+
+interface BinaryAssetTypeDef<M>
+  readonly extensions: ReadonlyArray<string>
+  readonly hint: string | null
+  readonly importFields: M
+  readonly kind: "assetType"
+  readonly label: string
+  readonly migrations: MigrationMap
+  readonly name: string
+  readonly storage: "binary"
+  readonly version: number
+
+type ComponentData<C extends ComponentDef> = C extends ComponentDef<infer M extends FieldMap> ? FieldValues<M> : never
+
+interface ComponentDef<M>
+  readonly fields: M
+  readonly hint: string | null
+  readonly kind: "component"
+  readonly label: string
+  readonly migrations: MigrationMap
+  readonly name: string
+  readonly singleton: boolean
+  readonly spatial: boolean
+  readonly version: number
+
+interface ComponentEntry
+  readonly actor: WorldActor
+  readonly component: ComponentRecord
+  readonly key: string
+
+type EndPlayReason = "error" | "stopped"
+
+interface FeatureDef
+  readonly assetTypes: ReadonlyArray<BinaryAssetTypeDef<import("src/core/index").FieldMap>>
+  readonly components: ReadonlyArray<ComponentDef<import("src/core/index").FieldMap>>
+  readonly id: string
+  readonly kind: "feature"
+  readonly subsystems: ReadonlyArray<SubsystemDef>
+
+type FieldDef = NumberField | BoolField | ColorField | TextField | TransformField | AssetRefField | ActorRefField | EnumField<string> | VectorField<VectorSize> | ArrayField<FieldDef> | ObjectField<FieldMap>
+
+interface FieldMap
+  readonly [key: string]: FieldDef
+
+type FieldValues<M extends FieldMap> = { -readonly [K in keyof M]: FieldValue<M[K]>; }
+
+interface GameModuleDef
+  readonly features: ReadonlyArray<FeatureDef>
+  readonly id: string
+  readonly kind: "gameModule"
+  readonly onBeginPlay?: ((ctx: SubsystemContext) => void) | undefined
+  readonly onEndPlay?: ((ctx: SubsystemContext, reason: EndPlayReason) => void) | undefined
+
+type IdKind = "actor" | "asset" | "level"
+
+type LevelId = `lvl_${string}`
+
+const SDK_VERSION: "0.1.0"
+
+interface ServiceKey<T>
+  readonly kind: "serviceKey"
+  readonly name: string
+  readonly type?: T | undefined
+
+interface Services
+  get: <T>(key: ServiceKey<T>) => T | undefined
+  provide: <T>(key: ServiceKey<T>, value: T) => void
+  require: <T>(key: ServiceKey<T>) => T
+
+interface SubsystemContext
+  actor: (id: ActorId) => WorldActor | undefined
+  actors: () => Iterable<WorldActor>
+  componentsOf: (type: string) => ComponentEntry[]
+  destroyActors: (ids: readonly ActorId[]) => void
+  readonly services: Services
+  readonly state: WorldState
+  spawnActors: (actors: readonly unknown[]) => WorldActor[]
+
+interface SubsystemDef
+  readonly create: (ctx: SubsystemContext) => SubsystemInstance
+  readonly id: string
+  readonly kind: "subsystem"
+  readonly tickGroups: ReadonlyArray<"prePhysics" | "physics" | "postPhysics" | "renderSync">
+
+interface SubsystemInstance
+  actorsAdded?: ((actors: readonly WorldActor[]) => void) | undefined
+  actorsRemoved?: ((actors: readonly WorldActor[]) => void) | undefined
+  beginPlay?: (() => void) | undefined
+  dispose?: (() => void) | undefined
+  endPlay?: ((reason: EndPlayReason) => void) | undefined
+  tick?: ((group: TickGroup, dt: number) => void) | undefined
+
+const TICK_GROUPS: readonly ["prePhysics", "physics", "postPhysics", "renderSync"]
+
+type TickGroup = "prePhysics" | "physics" | "postPhysics" | "renderSync"
+
+interface Transform
+  p: Vec3
+  r: Vec4
+  s: Vec3
+
+type Vec2 = [number, number]
+
+type Vec3 = [number, number, number]
+
+type Vec4 = [number, number, number, number]
+
+interface WorldActor
+  readonly components: ComponentMap
+  readonly id: `act_${string}`
+  readonly name: string
+  readonly origin: "level" | "spawned"
+  readonly parent: `act_${string}` | null
+  transform: Transform
+
+type WorldState = "created" | "initialized" | "playing" | "ended" | "disposed"
+
+function actorRef(options?: Omit<ActorRefField, "kind" | "default">): ActorRefField
+
+function array<I extends FieldDef>(item: I, options?: FieldUi & { readonly default?: readonly FieldValue<I>[]; }): ArrayField<I>
+
+function assetRef(options?: Omit<AssetRefField, "kind" | "default">): AssetRefField
+
+function bool(options: Omit<BoolField, "kind">): BoolField
+
+function color(options: Omit<ColorField, "kind">): ColorField
+
+function createId<K extends IdKind>(kind: K): IdOf<K>
+
+function createServiceKey<T>(name: string): ServiceKey<T>
+
+function defineAssetType<M extends FieldMap>(name: string, version: number, definition: { readonly extensions: readonly string[]; readonly importFields?: M; }, options?: AssetTypeOptions): BinaryAssetTypeDef<M>
+
+function defineComponent<M extends FieldMap>(name: string, version: number, fields: M, options?: ComponentOptions): ComponentDef<M>
+
+function defineFeature(feature: { readonly id: string; readonly components?: readonly ComponentDef[]; readonly assetTypes?: readonly BinaryAssetTypeDef[]; readonly subsystems?: readonly SubsystemDef[]; }): FeatureDef
+
+function defineGameModule(module: Omit<GameModuleDef, "kind" | "features"> & { readonly features?: readonly FeatureDef[]; }): GameModuleDef
+
+function defineSubsystem(definition: { readonly id: string; readonly tickGroups?: readonly TickGroup[]; readonly create: (ctx: SubsystemContext) => SubsystemInstance; }): SubsystemDef
+
+function enumOf<const V extends string>(values: readonly V[], options: FieldUi & { readonly default: NoInfer<V>; readonly labels?: { readonly [K in NoInfer<V>]?: string; }; }): EnumField<V>
+
+function isId<K extends IdKind>(value: unknown, kind: K): value is IdOf<K>
+
+function num(options: Omit<NumberField, "kind">): NumberField
+
+function object<M extends FieldMap>(fields: M, options?: FieldUi): ObjectField<M>
+
+function text(options?: Partial<Omit<TextField, "kind">>): TextField
+
+function transform(options?: FieldUi & { readonly default?: Partial<Readonly<Transform>>; }): TransformField
+
+function vec2(options: VectorOptions<2>): VectorField<2>
+
+function vec3(options: VectorOptions<3>): VectorField<3>
+
+function vec4(options: VectorOptions<4>): VectorField<4>
+
+# src/editor-sdk/index.ts
+
+const SDK_VERSION: "0.1.0"
+
+# referenced (not exported, part of the surface)
+
+interface ActorRefField  // src/core/schema/fields.ts
+  readonly default: null
+  readonly hint?: string | undefined
+  readonly kind: "actorRef"
+  readonly label?: string | undefined
+
+interface ArrayField<I>  // src/core/schema/fields.ts
+  readonly default: ReadonlyArray<unknown>
+  readonly hint?: string | undefined
+  readonly item: I
+  readonly kind: "array"
+  readonly label?: string | undefined
+
+interface AssetRefField  // src/core/schema/fields.ts
+  readonly assetType?: string | undefined
+  readonly default: null
+  readonly hint?: string | undefined
+  readonly kind: "assetRef"
+  readonly label?: string | undefined
+
+interface AssetTypeOptions  // src/core/assets/assetType.ts
+  readonly hint?: string | undefined
+  readonly label?: string | undefined
+  readonly migrations?: MigrationMap | undefined
+
+interface BoolField  // src/core/schema/fields.ts
+  readonly default: boolean
+  readonly hint?: string | undefined
+  readonly kind: "bool"
+  readonly label?: string | undefined
+
+interface ColorField  // src/core/schema/fields.ts
+  readonly default: string
+  readonly hint?: string | undefined
+  readonly kind: "color"
+  readonly label?: string | undefined
+
+type ComponentMap = { [x: string]: ComponentRecord; }  // src/core/level/model.ts
+
+interface ComponentOptions  // src/core/schema/component.ts
+  readonly hint?: string | undefined
+  readonly label?: string | undefined
+  readonly migrations?: MigrationMap | undefined
+  readonly singleton?: boolean | undefined
+  readonly spatial?: boolean | undefined
+
+interface ComponentRecord  // src/core/level/model.ts
+  [key: string]: unknown
+  local?: Transform | undefined
+  parent?: string | null | undefined
+  type: `${string}@${number}`
+
+type ComponentTypeTag = `${string}@${number}`  // src/core/schema/component.ts
+
+interface EnumField<V>  // src/core/schema/fields.ts
+  readonly default: V
+  readonly hint?: string | undefined
+  readonly kind: "enum"
+  readonly label?: string | undefined
+  readonly labels?: { readonly [K in V]?: string; } | undefined
+  readonly values: ReadonlyArray<V>
+
+interface FieldUi  // src/core/schema/fields.ts
+  readonly hint?: string | undefined
+  readonly label?: string | undefined
+
+type FieldValue<F> = F extends NumberField ? number : F extends BoolField ? boolean : F extends EnumField<infer V extends string> ? V : F extends ColorField | TextField ? string : F extends VectorField<infer N extends VectorSize> ? VectorOf<N> : F extends TransformField ? Transform : F extends AssetRefField ? `ast_${string}` | null : F extends ActorRefField ? `act_${string}` | null : F extends ArrayField<infer I extends FieldDef> ? Array<FieldValue<I>> : F extends ObjectField<infer M extends FieldMap> ? FieldValues<M> : never  // src/core/schema/fields.ts
+
+type IdOf<K extends IdKind> = `${{ readonly actor: "act"; readonly asset: "ast"; readonly level: "lvl"; }[K]}_${string}`  // src/core/id.ts
+
+type JsonObject = { [x: string]: unknown; }  // src/core/json.ts
+
+type Migration = (data: JsonObject) => JsonObject  // src/core/schema/migrate.ts
+
+interface MigrationMap  // src/core/schema/migrate.ts
+  readonly [key: number]: Migration
+
+interface NumberField  // src/core/schema/fields.ts
+  readonly default: number
+  readonly hint?: string | undefined
+  readonly kind: "number"
+  readonly label?: string | undefined
+  readonly max?: number | undefined
+  readonly min?: number | undefined
+  readonly slider?: readonly [number, number] | undefined
+  readonly step?: number | undefined
+
+interface ObjectField<M>  // src/core/schema/fields.ts
+  readonly fields: M
+  readonly hint?: string | undefined
+  readonly kind: "object"
+  readonly label?: string | undefined
+
+interface TextField  // src/core/schema/fields.ts
+  readonly default: string
+  readonly hint?: string | undefined
+  readonly kind: "text"
+  readonly label?: string | undefined
+  readonly multiline?: boolean | undefined
+  readonly pattern?: string | undefined
+  readonly required?: boolean | undefined
+
+interface TransformField  // src/core/schema/fields.ts
+  readonly default: Readonly<Transform>
+  readonly hint?: string | undefined
+  readonly kind: "transform"
+  readonly label?: string | undefined
+
+interface VectorField<N>  // src/core/schema/fields.ts
+  readonly default: Readonly<VectorOf<N>>
+  readonly hint?: string | undefined
+  readonly kind: "vector"
+  readonly label?: string | undefined
+  readonly max?: number | undefined
+  readonly min?: number | undefined
+  readonly size: N
+  readonly step?: number | undefined
+
+type VectorOf<N extends VectorSize> = N extends 2 ? Vec2 : N extends 3 ? Vec3 : Vec4  // src/core/schema/fields.ts
+
+type VectorOptions<N extends VectorSize> = { readonly default: Readonly<VectorOf<N>>; readonly min?: number; readonly max?: number; readonly step?: number; readonly label?: string; readonly hint?: string; }  // src/core/schema/fields.ts
+
+type VectorSize = 2 | 3 | 4  // src/core/schema/fields.ts

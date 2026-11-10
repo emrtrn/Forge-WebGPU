@@ -10,5 +10,7 @@ the engine's major.minor (architecture §4.8, A8).
 
 ## 0.1.0
 
+API: 98af92859f3f882b
+
 First surface: ids, the component schema DSL, binary asset types, features,
 subsystems, typed services, world actors, game modules.
