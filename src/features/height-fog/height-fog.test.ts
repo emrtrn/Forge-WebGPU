@@ -5,8 +5,12 @@ import {
   formOf,
   installFeatures,
   normalizeComponent,
+  normalizeLevel,
 } from "../../core/index.ts";
+import { assembleLevel } from "../../runtime/assembler.ts";
+import { createWorld } from "../../runtime/world.ts";
 import heightFogFeature from "./feature.ts";
+import { HeightFogStateKey } from "./runtime.ts";
 import { HeightFog, type HeightFogData } from "./schema.ts";
 
 describe("height fog schema", () => {
@@ -115,5 +119,44 @@ describe("height fog Details form", () => {
   test("the density slider travels the span Forge used, inside the hard limits", () => {
     const density = form.fields.find((field) => field.key === "density");
     expect(density).toMatchObject({ slider: { min: 0, max: 0.002 }, range: { min: 0, max: 10 } });
+  });
+});
+
+describe("height fog end to end: schema -> level -> assembler -> world -> service", () => {
+  const registry = createSchemaRegistry();
+  installFeatures([heightFogFeature], registry);
+  const options = { strict: true, registry, resolveClass: () => undefined };
+  const fogActor = "act_ffffffffffffffffffffffffffffffff";
+
+  function play(actors: unknown[]) {
+    const level = normalizeLevel({ schema: "forge.level/1", id: "lvl_11111111111111111111111111111111", actors }, options);
+    expect(level.issues).toEqual([]);
+    const world = createWorld({ ...options, features: [heightFogFeature] });
+    world.init();
+    assembleLevel(world, level.value!, options);
+    world.beginPlay();
+    return world;
+  }
+
+  test("the level's fog reaches the state service, with its stored values", () => {
+    const world = play([{ id: fogActor, name: "Fog", components: { fog: { type: "forge.heightFog@1", density: 0.0015, color: "#AABBCC" } } }]);
+    const state = world.services.require(HeightFogStateKey);
+    expect(state.actor).toBe(fogActor);
+    expect(state.fog).toMatchObject({ density: 0.0015, color: "#aabbcc", mode: "exp" });
+    world.tick(1 / 60);
+    world.dispose();
+    expect(state.fog).toBeNull();
+  });
+
+  test("no fog in the level: null; fog spawned or destroyed at runtime follows", () => {
+    const world = play([]);
+    const state = world.services.require(HeightFogStateKey);
+    expect(state.fog).toBeNull();
+    world.context.spawnActors([{ id: fogActor, components: { fog: { type: "forge.heightFog@1" } } }]);
+    expect(state.fog?.density).toBe(0.03);
+    state.fog!.density = 0.5; // gameplay changes the live component
+    expect(world.context.componentsOf("forge.heightFog")[0]?.component.density).toBe(0.5);
+    world.context.destroyActors([fogActor]);
+    expect(state).toEqual({ fog: null, actor: null });
   });
 });

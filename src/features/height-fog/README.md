@@ -5,6 +5,9 @@ Mesafeye ve yüksekliğe bağlı atmosfer sisi. İskeletin örnek özelliği: bi
 
 - `schema.ts`: `forge.heightFog@1` bileşeni. Tekil (level başına bir tane),
   uzamsal değil. Alanlar ve aralıklar Forge WebGL'den taşındı.
-- `feature.ts`: `defineFeature({ id, components })`. Kabuk bu dosyayı kurar.
-- Henüz yok: `runtime.ts` (alt sistem, uygulama kabuğuyla), `render.ts` (Faz 3),
-  `editor.ts` (gerekirse; Details formu şemadan otomatik üretilir).
+- `runtime.ts`: `forge.heightFog` alt sistemi. World'deki sis bileşenini izler,
+  `HeightFogStateKey` servisini yayınlar (canlı bileşen; yoksa `null`).
+- `feature.ts`: `defineFeature({ id, components, subsystems })`. Kabuk bu
+  dosyayı kurar.
+- Henüz yok: `render.ts` (Faz 3; servisi okur), `editor.ts` (gerekirse;
+  Details formu şemadan otomatik üretilir).
