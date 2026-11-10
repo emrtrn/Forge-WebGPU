@@ -4,9 +4,10 @@
 // `feature.ts` default-exports `defineFeature(...)`, and the application shell
 // installs a list of features; adding a feature changes no shell file.
 //
-// `defineFeature` carries only what core can type. Today that is `components`
-// and `assetTypes` (binary asset types; document types are built in).
-// `subsystems` joins with the application shell and `render` with phase 3.
+// `defineFeature` carries only what core can type: `components`, `assetTypes`
+// (binary asset types; document types are built in) and `subsystems` (the
+// contract is in core, the world that runs them in src/runtime). `render`
+// joins with phase 3.
 // There is no `editor` slot and there never will be one here: `feature.ts`
 // does not name `editor.ts`, not even through a dynamic import. The editor
 // host collects `features/*/editor.ts` itself, so the editor stays out of the
@@ -15,6 +16,7 @@
 import type { BinaryAssetTypeDef } from "./assets/assetType.ts";
 import { COMPONENT_NAME_PATTERN, type ComponentDef } from "./schema/component.ts";
 import { deepFreeze, SchemaDefinitionError } from "./schema/fields.ts";
+import type { SubsystemDef } from "./world/subsystem.ts";
 import type { SchemaRegistry } from "./schema/registry.ts";
 
 export interface FeatureDef {
@@ -23,12 +25,15 @@ export interface FeatureDef {
   readonly id: string;
   readonly components: readonly ComponentDef[];
   readonly assetTypes: readonly BinaryAssetTypeDef[];
+  /** Run by the world in this order, after the subsystems of earlier features. */
+  readonly subsystems: readonly SubsystemDef[];
 }
 
 export function defineFeature(feature: {
   readonly id: string;
   readonly components?: readonly ComponentDef[];
   readonly assetTypes?: readonly BinaryAssetTypeDef[];
+  readonly subsystems?: readonly SubsystemDef[];
 }): FeatureDef {
   if (!COMPONENT_NAME_PATTERN.test(feature.id)) {
     throw new SchemaDefinitionError(
@@ -44,7 +49,11 @@ export function defineFeature(feature: {
   if (new Set(assetTypes.map((type) => type.name)).size !== assetTypes.length) {
     throw new SchemaDefinitionError(`defineFeature ${feature.id}: an asset type is listed twice.`);
   }
-  return deepFreeze({ kind: "feature", id: feature.id, components, assetTypes });
+  const subsystems = [...(feature.subsystems ?? [])];
+  if (new Set(subsystems.map((subsystem) => subsystem.id)).size !== subsystems.length) {
+    throw new SchemaDefinitionError(`defineFeature ${feature.id}: a subsystem is listed twice.`);
+  }
+  return deepFreeze({ kind: "feature", id: feature.id, components, assetTypes, subsystems });
 }
 
 /**

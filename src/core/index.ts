@@ -36,3 +36,5 @@ export * from "./schema/migrate.ts";
 export * from "./schema/normalize.ts";
 export * from "./schema/normalizeComponent.ts";
 export * from "./schema/registry.ts";
+export * from "./world/services.ts";
+export * from "./world/subsystem.ts";
