@@ -17,6 +17,7 @@ export * from "./level/components.ts";
 export * from "./level/jsonSchema.ts";
 export * from "./level/model.ts";
 export * from "./level/normalizeLevel.ts";
+export * from "./level/settings.ts";
 export * from "./schema/component.ts";
 export * from "./schema/fields.ts";
 export * from "./schema/form.ts";

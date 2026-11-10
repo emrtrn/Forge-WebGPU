@@ -10,12 +10,14 @@ const LENIENT = createOptions(false);
 const CANONICAL = {
   schema: "forge.level/1",
   id: levelId("1"),
+  settings: { cellSize: 128 },
   actors: [
     {
       id: actorId("a"),
       name: "Exponential Height Fog",
       class: null,
       parent: null,
+      spatiallyLoaded: true,
       transform: IDENTITY,
       components: {
         fog: { type: "test.fog@2", density: 0.05, heightFalloff: 0.2, color: "#b8c4d6" },
@@ -26,6 +28,7 @@ const CANONICAL = {
       name: "Crate",
       class: null,
       parent: actorId("a"),
+      spatiallyLoaded: true,
       transform: { p: [4, 0, -2], r: [0, 0.7071, 0, 0.7071], s: [1, 1, 1] },
       components: {
         hull: { type: "test.collider@1", parent: null, local: IDENTITY, size: [1, 1, 1] },
@@ -42,6 +45,7 @@ const CANONICAL = {
       name: "Reference Car",
       class: CAR_CLASS_ID,
       parent: null,
+      spatiallyLoaded: true,
       transform: { p: [12, 0, 4], r: [0, 0, 0, 1], s: [1, 1, 1] },
       overrides: {
         chassis: { type: "test.collider@1", local: { p: [0, 1.2, 0], r: [0, 0, 0, 1], s: [1, 1, 1] } },
@@ -56,7 +60,7 @@ function level(actors: unknown[], extra: Record<string, unknown> = {}): unknown 
 }
 
 function plain(seed: string, components: Record<string, unknown>, extra: Record<string, unknown> = {}): unknown {
-  return { id: actorId(seed), name: "A", class: null, parent: null, transform: IDENTITY, components, ...extra };
+  return { id: actorId(seed), name: "A", class: null, parent: null, spatiallyLoaded: true, transform: IDENTITY, components, ...extra };
 }
 
 function car(seed: string, overrides: unknown, extra: Record<string, unknown> = {}): unknown {
@@ -163,7 +167,7 @@ describe("actors", () => {
     const result = normalizeLevel(level([{ id: actorId("a") }]), STRICT);
     expect(result.issues).toEqual([]);
     expect(result.value?.actors).toEqual([
-      { id: actorId("a"), name: "Actor", class: null, parent: null, transform: IDENTITY, components: {} },
+      { id: actorId("a"), name: "Actor", class: null, parent: null, spatiallyLoaded: true, transform: IDENTITY, components: {} },
     ]);
   });
 
@@ -286,5 +290,43 @@ describe("singleton components", () => {
   test("components that are not singletons repeat freely", () => {
     const raw = level([plain("a", { one: { type: "test.driver@1" }, two: { type: "test.driver@1" } })]);
     expect(normalizeLevel(raw, STRICT).issues).toEqual([]);
+  });
+});
+
+describe("level settings and the streaming flag (A11)", () => {
+  test("a level without settings takes the default grid", () => {
+    const result = normalizeLevel(level([]), STRICT);
+    expect(result.issues).toEqual([]);
+    expect(result.value?.settings).toEqual({ cellSize: 128 });
+  });
+
+  test("a cell size out of range is pulled to the limit with a warning", () => {
+    const small = normalizeLevel(level([], { settings: { cellSize: 2 } }), STRICT);
+    expect(summary(small.issues)).toEqual(["warning clamped settings.cellSize"]);
+    expect(small.value?.settings.cellSize).toBe(16);
+    const large = normalizeLevel(level([], { settings: { cellSize: 1e6 } }), STRICT);
+    expect(large.value?.settings.cellSize).toBe(4096);
+  });
+
+  test("settings of the wrong shape or with unknown keys are a loss", () => {
+    expect(summary(normalizeLevel(level([], { settings: 64 }), STRICT).issues)).toEqual([
+      "error invalid-value settings",
+    ]);
+    const unknown = normalizeLevel(level([], { settings: { cellSize: 64, loadRange: 300 } }), LENIENT);
+    expect(summary(unknown.issues)).toEqual(["warning unknown-field settings.loadRange"]);
+    expect(unknown.value?.settings).toEqual({ cellSize: 64 });
+  });
+
+  test("an actor is spatially loaded unless it says otherwise", () => {
+    const raw = level([plain("a", {}), plain("b", {}, { spatiallyLoaded: false })]);
+    const result = normalizeLevel(raw, STRICT);
+    expect(result.issues).toEqual([]);
+    expect(result.value?.actors.map((actor) => actor.spatiallyLoaded)).toEqual([true, false]);
+  });
+
+  test("a flag that is not a boolean is a loss and reads as the default", () => {
+    const result = normalizeLevel(level([plain("a", {}, { spatiallyLoaded: "no" })]), LENIENT);
+    expect(summary(result.issues)).toEqual(["warning invalid-value actors[0].spatiallyLoaded"]);
+    expect(result.value?.actors[0]?.spatiallyLoaded).toBe(true);
   });
 });

@@ -221,6 +221,7 @@ describe("effective components", () => {
       name: "A",
       class: null,
       parent: null,
+      spatiallyLoaded: true,
       transform: { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] },
       components: { driver: { type: "test.driver@1", targetSpeed: 3, target: null } },
     };

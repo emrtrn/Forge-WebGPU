@@ -19,6 +19,7 @@ import type { ActorId, AssetId, LevelId } from "../id.ts";
 import type { JsonObject } from "../json.ts";
 import type { ComponentTypeTag } from "../schema/component.ts";
 import type { Transform } from "../schema/fields.ts";
+import type { LevelSettings } from "./settings.ts";
 
 export const LEVEL_SCHEMA = "forge.level/1";
 export const ACTOR_CLASS_SCHEMA = "forge.actorClass/1";
@@ -48,6 +49,8 @@ interface ActorBase {
   id: ActorId;
   name: string;
   parent: ActorId | null;
+  /** False keeps a root actor in the persistent layer; a child follows its root. */
+  spatiallyLoaded: boolean;
   transform: Transform;
 }
 
@@ -66,6 +69,7 @@ export type ActorDoc = PlainActor | ClassActor;
 export interface LevelDoc {
   schema: typeof LEVEL_SCHEMA;
   id: LevelId;
+  settings: LevelSettings;
   actors: ActorDoc[];
 }
 

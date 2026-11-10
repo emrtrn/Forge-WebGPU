@@ -9,6 +9,8 @@
 import { COMPONENT_NAME_PATTERN, componentTypeTag } from "../schema/component.ts";
 import {
   componentJsonSchema,
+  fieldJsonSchema,
+  fieldMapJsonSchema,
   idJsonSchema,
   JSON_SCHEMA_DRAFT,
   transformJsonSchema,
@@ -16,6 +18,7 @@ import {
 } from "../schema/jsonSchema.ts";
 import type { SchemaRegistry } from "../schema/registry.ts";
 import { ACTOR_CLASS_SCHEMA, LEVEL_SCHEMA, LOCAL_ID_PATTERN } from "./model.ts";
+import { ActorStreamingFields, LevelSettingsFields } from "./settings.ts";
 
 const COMPONENT_REF = { $ref: "#/definitions/component" };
 const OVERRIDE_TAG_PATTERN = `${COMPONENT_NAME_PATTERN.source.slice(0, -1)}@[1-9][0-9]*$`;
@@ -63,6 +66,7 @@ function actorSchema(): JsonSchema {
         description: "Asset id of the actor class (prefab), or null for a plain actor.",
       },
       parent: idJsonSchema("actor", true),
+      spatiallyLoaded: fieldJsonSchema(ActorStreamingFields.spatiallyLoaded, "spatiallyLoaded"),
       transform: transformJsonSchema(),
       components: componentMapSchema(),
       overrides: {
@@ -98,7 +102,8 @@ export function levelJsonSchema(registry: SchemaRegistry): JsonSchema {
     properties: {
       schema: { const: LEVEL_SCHEMA },
       id: idJsonSchema("level", false),
-      actors: { type: "array", items: { $ref: "#/definitions/actor" } },
+      settings: { title: "Settings", ...fieldMapJsonSchema(LevelSettingsFields) },
+      actors:{ type: "array", items: { $ref: "#/definitions/actor" } },
     },
     required: ["schema", "id"],
     additionalProperties: false,

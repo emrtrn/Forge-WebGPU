@@ -95,6 +95,17 @@ describe("level schema", () => {
       ["actors.0.components.has-dash: pattern"],
     ],
     [
+      "a cell size out of range",
+      level([], { settings: { cellSize: 8 } }),
+      ["settings.cellSize: minimum"],
+    ],
+    ["an unknown setting", level([], { settings: { loadRange: 1 } }), ["settings.loadRange: not allowed"]],
+    [
+      "a streaming flag that is not a boolean",
+      level([{ id: actorId("a"), spatiallyLoaded: "no" }]),
+      ["actors.0.spatiallyLoaded: type"],
+    ],
+    [
       "a malformed transform",
       level([{ id: actorId("a"), transform: { p: [0, 0], q: 1 } }]),
       ["actors.0.transform.p: minItems", "actors.0.transform.q: not allowed"],

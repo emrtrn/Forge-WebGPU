@@ -24,11 +24,12 @@ import {
   type NormalizeOptions,
   type NormalizeResult,
 } from "../schema/issues.ts";
-import { normalizeTransform } from "../schema/normalize.ts";
+import { normalizeFieldMap, normalizeTransform, normalizeValue } from "../schema/normalize.ts";
 import type { SchemaRegistry } from "../schema/registry.ts";
 import { normalizeOverrides, type ClassResolver } from "./actorClass.ts";
 import { normalizeComponentMap } from "./components.ts";
 import { LEVEL_SCHEMA, type ActorDoc, type ComponentMap, type LevelDoc } from "./model.ts";
+import { ActorStreamingFields, LevelSettingsFields, type LevelSettings } from "./settings.ts";
 
 export const DEFAULT_ACTOR_NAME = "Actor";
 
@@ -41,8 +42,8 @@ export interface LevelNormalizeOptions extends NormalizeOptions {
   readonly resolveClass: ClassResolver;
 }
 
-const LEVEL_KEYS = ["schema", "id", "actors"];
-const ACTOR_KEYS = ["id", "name", "class", "parent", "transform", "components", "overrides"];
+const LEVEL_KEYS = ["schema", "id", "settings", "actors"];
+const ACTOR_KEYS = ["id", "name", "class", "parent", "spatiallyLoaded", "transform", "components", "overrides"];
 
 /** Null when the document cannot be read as a level at all. */
 export function normalizeLevel(
@@ -63,7 +64,12 @@ export function normalizeLevel(
     return finish(ctx, null);
   }
 
-  const level: LevelDoc = { schema: LEVEL_SCHEMA, id: raw.id, actors: [] };
+  const level: LevelDoc = {
+    schema: LEVEL_SCHEMA,
+    id: raw.id,
+    settings: normalizeLevelSettings(raw.settings, ctx),
+    actors: [],
+  };
   let rawActors: unknown[] = [];
   if (Array.isArray(raw.actors)) {
     rawActors = raw.actors;
@@ -88,6 +94,16 @@ export function normalizeLevel(
 
   reportUnknownKeys(raw, LEVEL_KEYS, "", ctx, "A level has no such field; dropped.");
   return finish(ctx, level);
+}
+
+function normalizeLevelSettings(raw: unknown, ctx: NormalizeContext): LevelSettings {
+  let source: JsonObject = {};
+  if (isJsonObject(raw)) {
+    source = raw;
+  } else if (raw !== undefined) {
+    reportLoss(ctx, "invalid-value", "settings", "Expected an object of level settings; defaults used.");
+  }
+  return normalizeFieldMap(LevelSettingsFields, source, "settings", ctx) as LevelSettings;
 }
 
 function normalizeActor(
@@ -135,6 +151,12 @@ function normalizeActor(
     name,
     class: classId,
     parent,
+    spatiallyLoaded: normalizeValue(
+      ActorStreamingFields.spatiallyLoaded,
+      raw.spatiallyLoaded,
+      childPath(path, "spatiallyLoaded"),
+      ctx,
+    ) as boolean,
     transform: normalizeTransform(raw.transform, IDENTITY_TRANSFORM, childPath(path, "transform"), ctx),
   };
   reportUnknownKeys(raw, ACTOR_KEYS, path, ctx, "An actor has no such field; dropped.");
