@@ -286,6 +286,20 @@ features/height-fog/
 - Aktör sınıfları (bugünkü `*.actor.json`) prefab'dır: level'daki aktör sınıfa
   GUID ile bağlanır ve yalnız farkları (override) taşır; override kuralı şemada
   tanımlıdır.
+- **Override kuralı v1 (2a kararı, 2026-11-10):**
+  - Aktör sınıfı belgesi `forge.actorClass/1`'dir: `id` (asset GUID'i), `name`,
+    `components`. Level normalize sınıfı bir çözücü fonksiyonla alır; çözücüyü
+    asset dizini (A10) sağlar.
+  - Sınıflı aktör `components` taşımaz, yalnız `overrides`; sınıfsız aktör
+    tersine. Sınıflı aktör bileşen ekleyip çıkaramaz.
+  - Sınıf bileşeninin her alanı ve uzamsal bileşenin `local`'ı override
+    edilebilir; `type` ve `parent` edilemez. Override alanın tam değerini taşır.
+  - Sınıf değerine eşit override yazılmaz; boş bileşen girdisi yazılmaz.
+  - Sınıf bulunamazsa asılı referanstır (geliştirmede hata, üretimde rapor);
+    override'lar denetlenmeden korunur.
+  - **Açık:** override girdisi sürüm etiketi taşımaz. Sınıftaki bir bileşenin
+    şeması alan yeniden adlandırırsa eski override geçiş zincirinden geçemez ve
+    bilinmeyen alan olarak raporlanır. Çözüm ayrı karardır.
 - Statik mesh yerleşimi de bir aktördür. Instancing veri türü değil, render
   katmanının otomatik toplu çizimidir. Toplu yerleşim için instanced static mesh
   bileşeni vardır; foliage kompakt örnek dizileri olarak hücre dosyalarında

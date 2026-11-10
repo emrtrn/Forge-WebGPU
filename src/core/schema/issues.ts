@@ -4,11 +4,13 @@
 // plus a list of issues; `ok` is false when any issue is an error, and the
 // caller then refuses the load or the save.
 //
-// Two kinds of issue:
-// - loss: data could not be kept (unknown field, wrong type, unknown component
-//   type...). An error under `strict` (development, editor, tools), a warning
-//   otherwise (production build: reported, the game keeps running).
+// Three kinds of issue:
+// - loss: data could not be kept or is not valid (unknown field, wrong type,
+//   unknown component type, dangling reference...). An error under `strict`
+//   (development, editor, tools), a warning otherwise (production build:
+//   reported, the game keeps running).
 // - adjustment: the value was pulled to a limit. Always a warning.
+// - fatal: the document as a whole cannot be read. Always an error.
 //
 // Core does not know which environment it runs in; the caller passes `strict`.
 
@@ -18,7 +20,13 @@ export type IssueCode =
   | "clamped"
   | "unknown-component-type"
   | "unsupported-version"
-  | "migration-failed";
+  | "migration-failed"
+  | "invalid-document"
+  | "duplicate-id"
+  | "invalid-parent"
+  | "invalid-override"
+  | "dangling-reference"
+  | "singleton-conflict";
 
 export type IssueSeverity = "error" | "warning";
 
@@ -64,6 +72,11 @@ export function reportAdjustment(
   message: string,
 ): void {
   ctx.issues.push({ code, severity: "warning", path, message });
+}
+
+/** The document as a whole cannot be read: always an error. */
+export function reportFatal(ctx: NormalizeContext, code: IssueCode, path: string, message: string): void {
+  ctx.issues.push({ code, severity: "error", path, message });
 }
 
 export function finish<T>(ctx: NormalizeContext, value: T): NormalizeResult<T> {
