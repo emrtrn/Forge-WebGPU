@@ -49,6 +49,8 @@ import type { DocumentCheck, SaveContext, SaveIssue } from "./transaction.ts";
 /** Actor classes by id, kept in step with the files on disk. */
 export interface ClassStore {
   get(id: AssetId): ActorClassDoc | undefined;
+  /** Every class, by id order. */
+  all(): ActorClassDoc[];
   /** Re-reads the given project files: a class file is (re)loaded, a gone one dropped. */
   refresh(paths: readonly string[]): Promise<void>;
 }
@@ -69,6 +71,7 @@ export function createClassStore(
   }
   return {
     get: (id) => byId.get(id),
+    all: () => [...byId.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
     async refresh(paths) {
       for (const path of paths) {
         const previous = idOfPath.get(path);

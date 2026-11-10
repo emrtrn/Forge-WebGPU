@@ -130,10 +130,12 @@ module.exports = {
     },
     {
       name: "not-to-unresolvable",
-      comment: "An import the resolver cannot follow is an import the rules cannot judge.",
+      comment:
+        "An import the resolver cannot follow is an import the rules cannot judge. " +
+        "Exception: virtual:forge/* modules, which the engine's Vite plugin makes (the served project's game module).",
       severity: "error",
       from: {},
-      to: { couldNotResolve: true },
+      to: { couldNotResolve: true, pathNot: "^virtual:forge/" },
     },
   ],
   options: {

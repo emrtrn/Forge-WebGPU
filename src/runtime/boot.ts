@@ -14,12 +14,13 @@ import {
   type ClassResolver,
   type FeatureDef,
   type Issue,
+  type SchemaRegistry,
 } from "../core/index.ts";
 import { assembleLevel } from "./assembler.ts";
 import { gameModuleSubsystem, type GameModuleDef } from "./gameModule.ts";
 import { createWorld, WorldError, type World } from "./world.ts";
 
-export type BootStage = "features" | "level" | "world" | "frame";
+export type BootStage = "project" | "features" | "level" | "world" | "frame";
 
 export interface BootErrorView {
   readonly title: string;
@@ -53,8 +54,8 @@ export interface BootOptions {
   readonly gameModule?: GameModuleDef;
   /** True in development: data loss stops the boot. */
   readonly strict: boolean;
-  /** Null when there is nothing to open. */
-  readonly loadLevel: () => Promise<LoadedLevel | null>;
+  /** Null when there is nothing to open. Gets the registry the features were installed into. */
+  readonly loadLevel: (registry: SchemaRegistry) => Promise<LoadedLevel | null>;
   readonly screen: BootScreen;
   readonly scheduler: FrameScheduler;
   /** Warnings that did not stop the boot (a production build's data report). */
@@ -68,6 +69,7 @@ export interface RunningGame {
 }
 
 const STAGE_TITLE: Record<BootStage, string> = {
+  project: "The project cannot be opened",
   features: "The engine's features could not be installed",
   level: "The level could not be loaded",
   world: "The world could not be started",
@@ -108,7 +110,7 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
     installFeatures(features, registry);
 
     stage = "level";
-    const loaded = await options.loadLevel();
+    const loaded = await options.loadLevel(registry);
     if (loaded === null) {
       screen.info("Nothing to open", "No project is open. The project contract (samples/starter) brings the first one.");
       return null;

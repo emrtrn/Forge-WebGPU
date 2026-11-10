@@ -11,7 +11,7 @@ import type { CellAssignOptions } from "../level/cells.ts";
 import type { LevelPartIssue } from "../level/levelParts.ts";
 import { normalizeLevel } from "../level/normalizeLevel.ts";
 import { openLevelSession, type LevelSession, type LoadedCell, type SavePlan } from "./levelSession.ts";
-import { FORGE_REQUEST_HEADER, type SaveRequestBody, type SaveResponseBody } from "./saveProtocol.ts";
+import { FORGE_REQUEST_HEADER, type ForgeIdentity, type SaveRequestBody, type SaveResponseBody } from "./saveProtocol.ts";
 
 type Fetch = (input: string, init?: { method?: string; headers?: Record<string, string>; body?: string | Uint8Array }) => Promise<{
   readonly status: number;
@@ -25,6 +25,10 @@ export interface SaveClient {
   read(path: string): Promise<{ readonly text: string; readonly revision: string } | null>;
   save(request: SaveRequestBody): Promise<SaveResponseBody>;
   stageBinary(bytes: Uint8Array): Promise<{ readonly id: string; readonly size: number; readonly revision: string }>;
+  /** Which engine and project the server serves. */
+  identity(): Promise<ForgeIdentity>;
+  /** The project's actor classes as the server holds them (not normalised here). */
+  classes(): Promise<readonly unknown[]>;
 }
 
 export class SaveClientError extends Error {
@@ -62,6 +66,16 @@ export function createSaveClient(options: { readonly fetch: Fetch; readonly base
       const response = await options.fetch(`${base}/__forge/stage-binary`, { method: "POST", headers, body: bytes });
       if (response.status !== 200) throw new SaveClientError(response.status, `Staging failed: ${await response.text()}`);
       return (await response.json()) as { id: string; size: number; revision: string };
+    },
+    async identity() {
+      const response = await options.fetch(`${base}/__forge/identity`, { headers });
+      if (response.status !== 200) throw new SaveClientError(response.status, `No identity: ${await response.text()}`);
+      return (await response.json()) as ForgeIdentity;
+    },
+    async classes() {
+      const response = await options.fetch(`${base}/__forge/classes`, { headers });
+      if (response.status !== 200) throw new SaveClientError(response.status, `No classes: ${await response.text()}`);
+      return ((await response.json()) as { classes: unknown[] }).classes;
     },
   };
 }

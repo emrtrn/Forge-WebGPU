@@ -132,6 +132,32 @@ describe("only this machine may use them", () => {
   });
 });
 
+describe("a read-only project (samples, fixtures)", () => {
+  test("refuses saves and uploads, still answers reads, identity and classes", async () => {
+    await writeFile(join(project, "content/a.json"), "{}");
+    const forge = await createForgeServer({
+      root: project,
+      registry: createAssetTestRegistry(),
+      readOnly: true,
+      identity: { project: { id: "starter" } },
+    });
+    const readOnly = createServer((req, res) => forge.middleware(req, res, () => res.end()));
+    await new Promise<void>((resolve) => readOnly.listen(0, "127.0.0.1", resolve));
+    const url = `http://127.0.0.1:${(readOnly.address() as AddressInfo).port}`;
+    try {
+      const saved = await fetch(`${url}/__forge/save`, { method: "POST", headers: HEADERS, body: JSON.stringify({ writes: [] }) });
+      expect(saved.status).toBe(403);
+      expect(await saved.json()).toMatchObject({ reason: "read-only" });
+      expect((await fetch(`${url}/__forge/stage-binary`, { method: "POST", headers: HEADERS, body: "x" })).status).toBe(403);
+      expect((await fetch(`${url}/__forge/read?path=content/a.json`, { headers: HEADERS })).status).toBe(200);
+      expect(await (await fetch(`${url}/__forge/identity`, { headers: HEADERS })).json()).toEqual({ project: { id: "starter" } });
+      expect(await (await fetch(`${url}/__forge/classes`, { headers: HEADERS })).json()).toEqual({ classes: [] });
+    } finally {
+      await new Promise<void>((resolve) => readOnly.close(() => resolve()));
+    }
+  });
+});
+
 describe("start-up", () => {
   test("a staging folder from an earlier session is cleared", async () => {
     await mkdir(join(project, STAGING_DIR), { recursive: true });

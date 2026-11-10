@@ -5,6 +5,11 @@
 //                               200 saved, 409 conflict, 403 path refused, 400 bad request, 422 document refused
 //   POST /__forge/stage-binary  raw body -> { id, size, revision }; `staged: id` in a later save
 //   GET  /__forge/read?path=    the file, with its revision in `X-Forge-Revision`
+//   GET  /__forge/identity      which engine and which project this server serves (D14)
+//   GET  /__forge/classes       the project's actor classes, normalised
+//
+// A project opened read-only (the engine's samples and fixtures, A9) refuses
+// saves and uploads with 403; it can still be read.
 //
 // Every /__forge/ request must come from this machine: the socket address is
 // local (Forge's rule; forwarded headers are not trusted), the Host header
@@ -116,6 +121,10 @@ export interface ForgeServerOptions {
   readonly contentRoots?: readonly string[];
   /** Body size limit; default MAX_BODY_BYTES. */
   readonly maxBodyBytes?: number;
+  /** Refuse every save and upload (samples and fixtures, A9). */
+  readonly readOnly?: boolean;
+  /** What `/__forge/identity` answers. */
+  readonly identity?: unknown;
 }
 
 export interface ForgeServer {
@@ -143,7 +152,15 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
   });
   await saves.recover();
 
+  const READ_ONLY_MESSAGE =
+    "This project is opened read-only (the engine's samples and fixtures are changed by review, not by the editor). Create your own with npm run create-project.";
+
   const save = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    if (options.readOnly) {
+      req.resume();
+      send(res, 403, { status: "rejected", reason: "read-only", message: READ_ONLY_MESSAGE });
+      return;
+    }
     let request: SaveRequest;
     try {
       const raw = JSON.parse((await readBody(req, maxBody)).toString("utf8")) as {
@@ -172,6 +189,11 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
   };
 
   const stage = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    if (options.readOnly) {
+      req.resume();
+      send(res, 403, { status: "rejected", reason: "read-only", message: READ_ONLY_MESSAGE });
+      return;
+    }
     await mkdir(stagingDir, { recursive: true });
     const id = randomBytes(16).toString("hex");
     const path = join(stagingDir, id);
@@ -233,7 +255,11 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
           ? stage(req, res)
           : route === "GET /__forge/read"
             ? read(url, res)
-            : null;
+            : route === "GET /__forge/identity"
+              ? Promise.resolve(send(res, 200, options.identity ?? {}))
+              : route === "GET /__forge/classes"
+                ? Promise.resolve(send(res, 200, { classes: classes.all() }))
+                : null;
     if (handle === null) {
       send(res, 404, { status: "rejected", reason: "request", message: `No endpoint ${route}.` });
       return;

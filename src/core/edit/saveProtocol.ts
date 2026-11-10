@@ -42,3 +42,21 @@ export type SaveResponseBody =
 
 /** The HTTP header every `/__forge/` request carries. */
 export const FORGE_REQUEST_HEADER = "X-Forge-Request";
+
+/** What `GET /__forge/identity` answers: which engine and which project the server serves (D14). */
+export interface ForgeIdentity {
+  readonly engine: { readonly sdkVersion: string };
+  readonly project: {
+    /** Absolute path of the project root on the serving machine. */
+    readonly root: string;
+    readonly id: string | null;
+    readonly name: string | null;
+    readonly sdkVersion: string | null;
+    /** Project-relative level folder to open; "" for none. */
+    readonly startLevel: string;
+    /** Saves are refused (the engine's samples and fixtures). */
+    readonly readOnly: boolean;
+    /** Why the project cannot open (manifest, SDK version, game module); empty when it can. */
+    readonly problems: readonly string[];
+  };
+}
