@@ -13,8 +13,9 @@ depo iskeleti, katman denetimi + öz-testi, kapılar ve çekirdek (şema DSL'i,
 normalize, geçiş zinciri, şema kaydı, `forge.level/1` veri modeli, form tanımı,
 JSON Schema), asset modeli (A10), hücre veri modeli (A11) kuruldu; 50.000 aktör
 ölçümü eşik içinde; kayıt servisi, uygulama kabuğu ve oyun projesi sözleşmesi
-kuruldu. Sıradaki işler: depo düzeni (content pack'ler), kapıların bekleyenleri;
-Faz 0 envanteri ve referans görüntüleri, Faz 1 spike (paralel).
+kuruldu; depo düzeni (motor içeriği, content pack'ler) kuruldu. Sıradaki işler:
+2a'nın belge kutuları, kapıların bekleyenleri (editörle); Faz 0 envanteri ve
+referans görüntüleri, Faz 1 spike (paralel).
 **Mimari:** [FORGE_WEBGPU_ARCHITECTURE.md](FORGE_WEBGPU_ARCHITECTURE.md) —
 veri modeli, katmanlar, özellik modülleri, oyun projesi sözleşmesi. Bu plan
 fazların sırasını, o rapor yapının kendisini tanımlar; çelişkide rapor geçerlidir.
@@ -399,10 +400,23 @@ bölümünü uygular.
       old-sdk, type-error). `npm run dev` başlıksız Chrome'da starter'ı açtı,
       depo dışı bir proje `forge dev` ile kendi portunda açıldı. Content pack'ler
       depo düzeni kutusunda. (2026-11-10)
-- [ ] Depo düzeni: `content/engine/`, `content/packs/starter/` (manifestte
+- [x] Depo düzeni: `content/engine/`, `content/packs/starter/` (manifestte
       `contentPacks`), `samples/`, `tests/fixtures/projects/`; testler fixture'ın
       geçici kopyasında çalışır, dev server fixture / `samples/` köklerine yazmaz
-      (mimari A9).
+      (mimari A9). Manifestte `contentPacks` (paket kimlikleri, tekil); içerik
+      kökleri etiketli (`ContentRoot`: etiket + klasör), motor içeriği ve
+      paketler proje dizinine `engine:content/engine` ve
+      `engine:content/packs/<id>` etiketiyle girer, oyuna kopyalanmaz; dev
+      server bunları `/__forge/read?path=engine:...` ile okur, hiç yazmaz;
+      bilinmeyen paket `forge check`'i ve açılışı durdurur; `check:projects` ve
+      `create-project` sınıfları paketlerden çözer. `verify:assets` motor
+      içeriğinin hiçbir pakete, bir paketin başka bir pakete referans
+      vermediğini dar dizinlerle sınar; tarama `*.md`'yi atlar.
+      `content/engine/` şimdilik boş (README); starter paketinde bir Height Fog
+      sınıfı, `samples/starter`'ın sisi onun örneği. Fixture
+      `tests/fixtures/projects/missing-pack`. Paket / motor içeriğini düzenleyen
+      editör modu Faz 4'te karara bağlanır; build'in paketleri dist'e alması
+      dist doğrulamasıyla. (2026-11-10)
 - [x] **İskeletin kabul testi:** Height Fog özelliği tek klasörde uçtan uca:
       şema → kayıt / yükleme turu → undo → otomatik Details **form tanımı**
       (şemadan üretilen, DOM'suz alan listesi: ad, tür, aralık, varsayılan, TR
@@ -730,3 +744,4 @@ silinebilir.
 | 2026-11-10 | v0.7 | Faz 2a kayıt servisi kutusu kapandı (`c89cbfc` … `51bc7e7`): proje yolu + yazma politikası, günlüklü atomik çok dosyalı kayıt (çökme testli), sunucunun kurduğu level dizini, dosya başına temel revizyon (409), sunucuda şema doğrulaması ve kanonik yazım (422), ikili sahneleme, `/__forge/` uçları + localhost / CSRF koruması, `src/core/edit` düzenleme modeli ve kayıt istemcisi, uçtan uca test. Mimari rapor v0.7. 457 test, kapı yeşil |
 | 2026-11-10 | v0.7 | Faz 2a uygulama kabuğu kutusu kapandı (`2dc5dba` … `5f2e762`): alt sistem / servis sözleşmesi çekirdekte, World (yaşam döngüsü, tick grupları, bileşen dizini, iki World yalıtım testi), sahne kurucu, Height Fog alt sistemi ve uçtan uca test, oyun modülü host'u, renderer'sız boot ekranı, `main.ts` boot eder. Mimari rapor v0.8. 486 test, kapı yeşil |
 | 2026-11-10 | v0.7 | Faz 2a oyun projesi sözleşmesi kutusu kapandı (`2d6700c` … `6ccac78` ve kabul testi): `forge.project/1`, `@forge/sdk` 0.1.0 + changelog + API anlık görüntüsü kapısı, `forge check|dev`, dev server'da proje seçimi / salt okunur örnekler / kimlik, `samples/starter`, `create-project`, `check:projects` (gate'te, başsız açılış). İskeletin kabul testi kutusu da kapandı. Mimari rapor v0.9. 526 test, kapı yeşil |
+| 2026-11-10 | v0.7 | Faz 2a depo düzeni kutusu kapandı (`790e769` … `7b85e38`): manifestte `contentPacks`, etiketli içerik kökleri (`engine:`), motor içeriği ve paketler proje dizininde salt okunur, bilinmeyen paket `forge check`'te hata, `verify:assets`'te paket bağımlılık yönü, `content/engine/` + starter paketi (Height Fog sınıfı) ve `samples/starter` onu kullanır. Mimari rapor v1.0. 534 test, kapı yeşil |

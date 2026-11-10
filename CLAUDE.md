@@ -23,7 +23,7 @@ ayrı depolarda yaşar; GDD, oyun fikri ve türe özgü taksonomi buraya girmez.
 | `npm run verify:layers` | Katman denetimi + öz-testi |
 | `npm run verify:file-size` | Dosya bütçesi: 800 satırda uyarı, 1.500'de hata |
 | `npm run verify:node-load` | `src/core` ve `features/*/schema.ts` düz Node'da yüklenir |
-| `npm run verify:assets` | `content/` ve `samples/*/content/` asset kapısı: tür + lisans + kaynak, meta'sız ikili, çift GUID, asılı referans |
+| `npm run verify:assets` | `content/` (motor içeriği + paketler) ve `samples/*/content/` asset kapısı: tür + lisans + kaynak, meta'sız ikili, çift GUID, asılı referans, paket bağımlılık yönü |
 | `npm run assets:index` | `.forge-cache/asset-index.json` önbelleğini yeniden üretir (commit'lenmez) |
 | `npm run verify:sdk-api` | SDK yüzeyi `src/sdk/api.snapshot.txt` ile aynı ve `src/sdk/CHANGELOG.md`'nin en üst girdisi `API: <hash>` taşıyor; yüzey değişince `npm run sdk:snapshot` + changelog girdisi aynı commit'te |
 | `npm run check:projects` | `samples/*` ve `forge.projects.local.json`'daki oyun projeleri: `forge check` + proje asset kapısı + başsız açılış |
@@ -34,6 +34,9 @@ ayrı depolarda yaşar; GDD, oyun fikri ve türe özgü taksonomi buraya girmez.
 | `npm run build` | Vite üretim build'i |
 
 `npm run dev` proje verilmezse `samples/starter`'ı salt okunur açar (kayıt 403).
+Motor içeriği `content/engine/`, içerik paketleri `content/packs/<id>/`: proje
+manifestte `contentPacks` ile seçer, içerik kopyalanmaz, proje dizinine
+`engine:` etiketiyle girer ve editörden yazılmaz (mimari §4.8, A9).
 Smoke portu **5283**. Forge WebGL 5173 / 5273, Ridgebound 5175 kullanır; başka
 projenin sunucusunu yeniden kullanma.
 

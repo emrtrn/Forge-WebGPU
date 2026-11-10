@@ -1,7 +1,9 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v0.9 · 2026-11-10 (v0.8'den fark: 2a oyun projesi sözleşmesi
-kararları — §4.8 manifest, SDK yüzeyi ve sürüm kuralı, API anlık görüntüsü
+**Sürüm:** v1.0 · 2026-11-10 (v0.9'dan fark: 2a depo düzeni kararları —
+§4.8 `contentPacks`, etiketli içerik kökleri, motor içeriği ve paketlerin
+proje dizininde salt okunur yeri, paket bağımlılık yönü. v0.9: 2a oyun projesi
+sözleşmesi kararları — §4.8 manifest, SDK yüzeyi ve sürüm kuralı, API anlık görüntüsü
 aracı, başlatıcı, dev server'da proje seçimi, `create-project`,
 `check:projects`. v0.8: 2a uygulama kabuğu kararları —
 §4.3 `defineFeature.subsystems`, §4.7 alt sistem sözleşmesi çekirdekte, World
@@ -793,6 +795,32 @@ düşen alan uyarı değil, **hatadır**.
     özellikleri ve oyun modülü Vite üzerinden, level diskten, `bootGame` elle
     sürülen zamanlayıcıyla 3 kare). Gate'te; CI'da `samples/` sözleşme testi.
     Araç `src/runtime`'ı import etmez (katman kuralı), Vite'la yükler.
+- **Depo düzeni uygulaması (2a kararları, 2026-11-10):**
+  - *Manifest:* `contentPacks` (varsayılan `[]`), paket kimlikleri küçük harf,
+    rakam ve tire; tekrar eden kimlik bir kez tutulur. Şema `forge.project/1`
+    kalır. Paket kimliği `content/packs/` altındaki klasörün adıdır; paketin
+    kendi manifesti yok.
+  - *Etiketli kökler:* tarama `{ etiket, klasör }` çiftleriyle çalışır. Projenin
+    kendi kökleri projeye göreli yollarıyla (`content`), motor içeriği ve
+    paketler `engine:content/engine` ve `engine:content/packs/<id>` etiketiyle
+    gelir; `:` proje yolunda geçersiz olduğu için çakışmaz. Referanslar GUID
+    olduğundan etiket yalnız konumdur. İç içe ve tekrar eden kökler klasör
+    düzeyinde reddedilir. `*.md` dosyaları asset sayılmaz.
+  - *Proje dizini:* dev server, `forge check` / `check:projects` ve
+    `create-project` aynı kökleri görür: proje kökleri + motor içeriği +
+    seçili paketler. Seçilmemiş bir paketin asset'ine verilen referans asılı
+    referans hatasıdır; seçim böyle zorlanır. Bilinmeyen paket manifest
+    sorunu olur (`content-pack`), proje açılmaz.
+  - *Yazma:* motor içeriği ve paketler bir projenin dev server'ından salt
+    okunurdur; `/__forge/read?path=engine:...` okur (kökten kaçış, bağlantı ve
+    `.` ile başlayan ad 403), `engine:` yolu proje yolu olmadığı için kayıt onu
+    reddeder. Bunları düzenleyen editör modu Faz 4'te karara bağlanır.
+  - *Bağımlılık yönü:* motor içeriği hiçbir pakete, bir paket başka bir pakete
+    referans veremez; paket motor içeriğine verebilir. `verify:assets` motor
+    içeriğini tek başına ve her paketi motor içeriğiyle birlikte dizinleyip
+    asılı referansı hata sayar.
+  - *Build:* üretim build'i motor içeriğini ve seçili paketleri dist'e alır;
+    uygulaması dist doğrulamasıyla (editör gelince).
 - Model 1 oyunları Forge WebGL'de kalır.
 
 ### 4.9 Render mimarisi (özet)
