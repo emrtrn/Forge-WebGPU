@@ -12,8 +12,9 @@ Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 depo iskeleti, katman denetimi + öz-testi, kapılar ve çekirdek (şema DSL'i,
 normalize, geçiş zinciri, şema kaydı, `forge.level/1` veri modeli, form tanımı,
 JSON Schema), asset modeli (A10), hücre veri modeli (A11) kuruldu; 50.000 aktör
-ölçümü eşik içinde. Sıradaki işler: kayıt servisi, uygulama kabuğu; Faz 0
-envanteri ve referans görüntüleri, Faz 1 spike (paralel).
+ölçümü eşik içinde; kayıt servisi kuruldu. Sıradaki işler: uygulama kabuğu,
+oyun projesi sözleşmesi; Faz 0 envanteri ve referans görüntüleri, Faz 1 spike
+(paralel).
 **Mimari:** [FORGE_WEBGPU_ARCHITECTURE.md](FORGE_WEBGPU_ARCHITECTURE.md) —
 veri modeli, katmanlar, özellik modülleri, oyun projesi sözleşmesi. Bu plan
 fazların sırasını, o rapor yapının kendisini tanımlar; çelişkide rapor geçerlidir.
@@ -355,10 +356,23 @@ bölümünü uygular.
       hiçbir dosyada ya da iki dosyada kalıyordu). S3'teki en büyük kalem
       bütün level'ın yeniden ataması (~29 ms); kayıt servisi artımlı atamaya
       geçerse düşer. Rapor `.forge-cache/bench/level-scale/report.json`.
-- [ ] Kayıt servisi: işlem / undo, sıralı atomik çok dosyalı kayıt, revizyon
+- [x] Kayıt servisi: işlem / undo, sıralı atomik çok dosyalı kayıt, revizyon
       çakışma kontrolü (409), şemaya göre çalışan genel kayıt uçları, ikili
       kanal; proje kökü izolasyonu ve local-only middleware Forge'dan taşınır
-      (mimari §4.6).
+      (mimari §4.6). `tools/server/projectPaths.ts` (Forge'un
+      `resolveProjectPath`'i + yazma politikası: yazılabilir kökler, fixture /
+      `samples/` / `.` adları salt okunur), `tools/save` (günlük + ileri sarma,
+      dosya başına temel revizyon, sunucunun kurduğu level dizini, şemaya göre
+      doğrulama ve kanonik yazım, sınıf deposu), `tools/server/forgeServer.ts`
+      (`/__forge/save`, `/__forge/stage-binary`, `/__forge/read`; soket +
+      `Host` + `Origin` + `X-Forge-Request` koruması) ve `npm run dev`'e bağlı
+      Vite eklentisi. `src/core/edit`: işlem / undo / redo / birleştirme,
+      sürümlü kirli takibi (F01), level oturumu (kayıt planı, `needs-load`,
+      hücre yükle / boşalt), `fetch` verilen kayıt istemcisi. Çökme testi her
+      adımda kesip kurtarmanın tamamlanmış duruma eşit olduğunu doğrular;
+      uçtan uca test aç → düzenle → kaydet → oku ve iki oturumla 409.
+      Faz 4'e kalan: editör servisleri ve yeniden yükle / karşılaştır
+      arayüzü (mimari §4.6). (2026-11-10)
 - [ ] Uygulama kabuğu: World, sahne kurucu (LevelAssembler), alt sistem ana
       makinesi + yaşam döngüsü, oyun modülü ana makinesi, renderer'dan bağımsız
       boot hata ekranı (mimari §4.7). World yalıtımı (modül düzeyinde değişebilir
@@ -694,3 +708,4 @@ silinebilir.
 | 2026-11-10 | v0.7 | Faz 2a asset modeli kutusu kapandı (`d2c96c6` … `5098d05`): DSL'e metin alan türü; asset türleri ve `registerAssetType`; `forge.assetMeta/1` (tür + lisans + kaynak zorunlu, D16); saf asset dizini (kimlik, şemadan yürüyen referanslar, ters dizin, bütünlük, `planDelete`, dizinden `ClassResolver`); `tools/assets` taraması, `.forge-cache` önbelleği, `verify:assets` gate'te; `src-no-node-builtins` kuralı. Mimari §4.4'teki açık soru kapandı: override sürüm etiketi + kısmi veri geçiş sözleşmesi. Mimari rapor v0.5. 286 test, kapı yeşil |
 | 2026-11-10 | v0.7 | Faz 2a hücre veri modeli kutusu kapandı (`87821dd` … `bb91a59`): `settings.cellSize` + `spatiallyLoaded`; ızgara ve hücre ataması; `forge.levelCell/1` + `forge.levelCells/1`; split / merge, kayıt planı ve kanonik metin; asset dizininde level klasörleri ve dosyalar arası bütünlük; `tools/assets` revizyon denetimi. Mimari rapor v0.6. 383 test, kapı yeşil |
 | 2026-11-10 | v0.7 | Faz 2a ölçek ölçümü kapandı (`239abc9` … `f60f79a`): `npm run bench:level` (sabit tohumlu 50.000 aktörlük level, S1–S7), eşikler ölçümden önce yazıldı (`1bd2e6b`). İlk koşuda S1 / S3 / S4 aştı; sebep uygulama (O(hücre × aktör) bölme, aktör kopyaları), biçim değil; düzeltmeden sonra hepsi eşik içinde. Mimari §4.4 ölçek çarelerine gerek yok. Ölçümde bulunan kayıp hatası (yanlış hücredeki aktör) düzeltildi. 390 test, kapı yeşil |
+| 2026-11-10 | v0.7 | Faz 2a kayıt servisi kutusu kapandı (`c89cbfc` … `51bc7e7`): proje yolu + yazma politikası, günlüklü atomik çok dosyalı kayıt (çökme testli), sunucunun kurduğu level dizini, dosya başına temel revizyon (409), sunucuda şema doğrulaması ve kanonik yazım (422), ikili sahneleme, `/__forge/` uçları + localhost / CSRF koruması, `src/core/edit` düzenleme modeli ve kayıt istemcisi, uçtan uca test. Mimari rapor v0.7. 457 test, kapı yeşil |

@@ -1,6 +1,10 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v0.6 · 2026-11-10 (v0.5'ten fark: 2a hücre veri modeli kararları —
+**Sürüm:** v0.7 · 2026-11-10 (v0.6'dan fark: 2a kayıt servisi kararları — §4.6
+günlüklü atomik kayıt, sunucunun yazdığı dizin, dosya başına temel revizyon,
+sunucuda şema doğrulaması, ikili sahneleme, yazma yalıtımı ve localhost
+koruması, düzenleme modeli ve sürümlü kirli takibi; 50.000 aktör ölçümü.
+v0.6: 2a hücre veri modeli kararları —
 §4.4 level klasörü, ızgara ayarı, `spatiallyLoaded`, atama kuralı, dizin ve
 revizyon, dosyalar arası bütünlük; §4.6 asset dizininde level klasörleri.
 v0.5: 2a asset modeli kararları — §4.4
@@ -549,6 +553,50 @@ düşen alan uyarı değil, **hatadır**.
   (`/__forge/save`, `/__forge/save-binary`); boyut sınırı ikili kanalda sorun
   olmaz.
 - Yükleme her zaman geçiş zincirini çalıştırır; kayıt her zaman son şemayı yazar.
+- **Kayıt servisi uygulaması (2a kararları, 2026-11-10):**
+  - *Atomiklik (günlük + ileri sarma):* yeni içerik hedefin yanına `.` ile
+    başlayan geçici dosyalara yazılır. Günlük (`<proje>/.forge-journal/`)
+    önce `prepared` (geçici dosya listesi), geçici dosyalar tamamlanınca
+    `committed` (yeniden adlandırma ve silme adımları, dizinler en sonda)
+    durumuna yazıp-yeniden-adlandırmayla geçer. Kesintide `prepared` geri
+    sarılır (geçici dosyalar silinir, eski dosyalar yerinde), `committed`
+    ileri sarılır; kurtarma sunucu açılışında ve her kayıttan önce çalışır.
+    Dosya adları sabittir (git dostu). Windows'ta kilitli dosyaya yeniden
+    adlandırma kısa aralıklarla yeniden denenir.
+  - *Dizin sunucunundur:* istemci `cells.json` yazamaz; sunucu dokunulan her
+    level klasörünün dizinini yazdığı baytların revizyonundan kurar. Hücre,
+    klasöründe `level.json` olmadan kaydedilmez; `level.json` silmek bütün
+    hücreleri aynı kayıtta silmeyi ister ve dizini siler.
+  - *Eşzamanlılık:* her yazma ve silme okunan revizyonu taşır (yeni dosya
+    `null`); tek uyuşmazlık bütün işlemi reddeder (409, diskteki revizyonlarla).
+    Bir servisin kayıtları sırayla çalışır.
+  - *Doğrulama:* sunucu her JSON'u yolundan ve `schema` etiketinden tanır
+    (meta, `level.json`, hücre, aktör sınıfı; başka JSON reddedilir), sıkı
+    normalize eder ve kanonik metni yazar. Kayıp → 422, sınıra çekme yazılır
+    ve uyarı olarak döner. Sınıflı aktör sınıfına göre denetlenir: aynı
+    kayıttaki sınıf önce, sonra açılıştaki asset dizininden kurulan ve her
+    kayıttan sonra tazelenen sınıf deposu.
+  - *Uçlar:* `POST /__forge/save` (JSON), `POST /__forge/stage-binary` (ham
+    gövde → `.forge-staging/<id>`, sunucu yeniden başlayınca silinir; kayıt
+    yalnız kimliği verir, yolu değil), `GET /__forge/read` (dosya +
+    `X-Forge-Revision`). Gövde sınırı 64 MB. Durumlar: 200, 409, 403 yol,
+    400 istek, 413 boyut, 422 belge.
+  - *Yalıtım:* yazma yalnız yazılabilir köklerde (varsayılan `content/`);
+    `tests/fixtures/` ve `samples/` yapılandırmadan bağımsız salt okunur (A9);
+    `.` ile başlayan adlar yazılmaz; proje kökünden kaçış, mutlak yol ve
+    link (symlink, junction) reddedilir. `/__forge/` istekleri: soket adresi
+    yerel, `Host` localhost, `Origin` varsa localhost ve `X-Forge-Request: 1`
+    başlığı (CSRF ve DNS rebinding'e karşı; Forge'un yalnız soket kuralı
+    tarayıcıdaki başka bir sayfayı durdurmuyordu).
+  - *Düzenleme modeli (`src/core/edit`, saf):* işlem = aktör anlık
+    görüntüleri (önce / sonra) + etiket; aynı birleştirme anahtarlı ardışık
+    işlemler tek undo adımıdır; yığın 200. Sürümlü kirli takibi: her değişiklik
+    aktörün sürümünü artırır, kayıt gönderdiği sürümleri yakalar, yanıt
+    yalnız onları temiz işaretler (F01). Level oturumu yüklü hücreleri,
+    her aktörün okunduğu dosyayı ve dosya revizyonlarını tutar; yüklü olmayan
+    bir hücreye yazılacaksa plan `needs-load` döner; kirli hücre
+    boşaltılmaz. Editör servisleri (`TransactionService`, `SaveService`) ve
+    "yeniden yükle / karşılaştır" arayüzü Faz 4'te bu modelin üstüne gelir.
 
 ### 4.7 Uygulama kabuğu (SceneApp / RuntimeSceneApp yerine)
 
