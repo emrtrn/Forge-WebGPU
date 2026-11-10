@@ -12,9 +12,9 @@ Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 depo iskeleti, katman denetimi + öz-testi, kapılar ve çekirdek (şema DSL'i,
 normalize, geçiş zinciri, şema kaydı, `forge.level/1` veri modeli, form tanımı,
 JSON Schema), asset modeli (A10), hücre veri modeli (A11) kuruldu; 50.000 aktör
-ölçümü eşik içinde; kayıt servisi kuruldu. Sıradaki işler: uygulama kabuğu,
-oyun projesi sözleşmesi; Faz 0 envanteri ve referans görüntüleri, Faz 1 spike
-(paralel).
+ölçümü eşik içinde; kayıt servisi ve uygulama kabuğu kuruldu. Sıradaki işler:
+oyun projesi sözleşmesi, depo düzeni; Faz 0 envanteri ve referans görüntüleri,
+Faz 1 spike (paralel).
 **Mimari:** [FORGE_WEBGPU_ARCHITECTURE.md](FORGE_WEBGPU_ARCHITECTURE.md) —
 veri modeli, katmanlar, özellik modülleri, oyun projesi sözleşmesi. Bu plan
 fazların sırasını, o rapor yapının kendisini tanımlar; çelişkide rapor geçerlidir.
@@ -373,10 +373,18 @@ bölümünü uygular.
       uçtan uca test aç → düzenle → kaydet → oku ve iki oturumla 409.
       Faz 4'e kalan: editör servisleri ve yeniden yükle / karşılaştır
       arayüzü (mimari §4.6). (2026-11-10)
-- [ ] Uygulama kabuğu: World, sahne kurucu (LevelAssembler), alt sistem ana
+- [x] Uygulama kabuğu: World, sahne kurucu (LevelAssembler), alt sistem ana
       makinesi + yaşam döngüsü, oyun modülü ana makinesi, renderer'dan bağımsız
       boot hata ekranı (mimari §4.7). World yalıtımı (modül düzeyinde değişebilir
       tekil yok; bir sayfada iki World kurulup yok edilir testi) (mimari A6).
+      Çekirdekte alt sistem / servis sözleşmesi (`defineSubsystem`, tick
+      grupları, `createServiceKey`, `SubsystemContext`) ve
+      `defineFeature.subsystems`; `src/runtime`: `world.ts`, `assembler.ts`,
+      `gameModule.ts`, `boot.ts` + `bootScreen.ts`; `main.ts` boot eder.
+      Height Fog şema → level → kurucu → World → `HeightFogState` servisi
+      zincirinden uçtan uca geçiyor; render bağlaması Faz 3'te servisi okur.
+      Boot ekranı başlıksız Chrome'da `--dump-dom` ile görüldü (proje yokken
+      "Nothing to open"). (2026-11-10)
 - [ ] Oyun projesi sözleşmesi: `@forge/sdk` / `@forge/editor-sdk` iskeleti,
       başlatıcı (yalnız SDK takma adlarını tanıyan TypeScript ayarlarını üretir,
       `sdkVersion` uyumunu denetler), SDK API anlık görüntüsü + CI fark kapısı,
@@ -709,3 +717,4 @@ silinebilir.
 | 2026-11-10 | v0.7 | Faz 2a hücre veri modeli kutusu kapandı (`87821dd` … `bb91a59`): `settings.cellSize` + `spatiallyLoaded`; ızgara ve hücre ataması; `forge.levelCell/1` + `forge.levelCells/1`; split / merge, kayıt planı ve kanonik metin; asset dizininde level klasörleri ve dosyalar arası bütünlük; `tools/assets` revizyon denetimi. Mimari rapor v0.6. 383 test, kapı yeşil |
 | 2026-11-10 | v0.7 | Faz 2a ölçek ölçümü kapandı (`239abc9` … `f60f79a`): `npm run bench:level` (sabit tohumlu 50.000 aktörlük level, S1–S7), eşikler ölçümden önce yazıldı (`1bd2e6b`). İlk koşuda S1 / S3 / S4 aştı; sebep uygulama (O(hücre × aktör) bölme, aktör kopyaları), biçim değil; düzeltmeden sonra hepsi eşik içinde. Mimari §4.4 ölçek çarelerine gerek yok. Ölçümde bulunan kayıp hatası (yanlış hücredeki aktör) düzeltildi. 390 test, kapı yeşil |
 | 2026-11-10 | v0.7 | Faz 2a kayıt servisi kutusu kapandı (`c89cbfc` … `51bc7e7`): proje yolu + yazma politikası, günlüklü atomik çok dosyalı kayıt (çökme testli), sunucunun kurduğu level dizini, dosya başına temel revizyon (409), sunucuda şema doğrulaması ve kanonik yazım (422), ikili sahneleme, `/__forge/` uçları + localhost / CSRF koruması, `src/core/edit` düzenleme modeli ve kayıt istemcisi, uçtan uca test. Mimari rapor v0.7. 457 test, kapı yeşil |
+| 2026-11-10 | v0.7 | Faz 2a uygulama kabuğu kutusu kapandı (`2dc5dba` … `5f2e762`): alt sistem / servis sözleşmesi çekirdekte, World (yaşam döngüsü, tick grupları, bileşen dizini, iki World yalıtım testi), sahne kurucu, Height Fog alt sistemi ve uçtan uca test, oyun modülü host'u, renderer'sız boot ekranı, `main.ts` boot eder. Mimari rapor v0.8. 486 test, kapı yeşil |

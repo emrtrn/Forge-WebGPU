@@ -1,6 +1,9 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v0.7 · 2026-11-10 (v0.6'dan fark: 2a kayıt servisi kararları — §4.6
+**Sürüm:** v0.8 · 2026-11-10 (v0.7'den fark: 2a uygulama kabuğu kararları —
+§4.3 `defineFeature.subsystems`, §4.7 alt sistem sözleşmesi çekirdekte, World
+yaşam döngüsü, tick grupları, sahne kurucu, oyun modülü, boot ekranı.
+v0.7: 2a kayıt servisi kararları — §4.6
 günlüklü atomik kayıt, sunucunun yazdığı dizin, dosya başına temel revizyon,
 sunucuda şema doğrulaması, ikili sahneleme, yazma yalıtımı ve localhost
 koruması, düzenleme modeli ve sürümlü kirli takibi; 50.000 aktör ölçümü.
@@ -231,8 +234,8 @@ features/height-fog/
   gönderme `feature-does-not-name-editor` kuralıyla yakalanır; ikisinin de
   fixture'da ihlali vardır (`features/fog/feature.ts`, `features/rain/feature.ts`).
 - `defineFeature` çekirdekte yaşar ve yalnız çekirdeğin tipleyebildiği alanları
-  taşır: 2a'da `id` + `components`; `subsystems` uygulama kabuğuyla, `render`
-  Faz 3'te eklenir.
+  taşır: `id`, `components`, `assetTypes`, `subsystems` (alt sistem sözleşmesi
+  çekirdekte, onu çalıştıran World `src/runtime`'da); `render` Faz 3'te eklenir.
 - **Node'da yükleme (2a kararı, 2026-11-10):** depo genelinde göreli import'lar
   `.ts` uzantılı yazılır (`allowImportingTsExtensions` taban tsconfig'te);
   `src/core` ve `features/*/schema.ts` Node'da yükleyici ya da bundle adımı
@@ -634,6 +637,40 @@ düşen alan uyarı değil, **hatadır**.
   - Gerekçe: yeni sekme ayrı bir `GPUDevice` açar; açık dünyada VRAM iki katına
     çıkar ve her Play soğuk başlar (level yükleme + pipeline derleme). PIE kararı
     sonraya kalır, ama onu mümkün kılan kurallar 2a'da konur.
+
+- **Uygulama kabuğu uygulaması (2a kararları, 2026-11-10):**
+  - *Sözleşme çekirdekte:* `defineSubsystem({ id, tickGroups, create })`,
+    tick grupları (`prePhysics` → `physics` → `postPhysics` → `renderSync`),
+    tipli servis anahtarları (`createServiceKey<T>`, kimlikle karşılaştırılır)
+    ve alt sistemin World'ü gördüğü `SubsystemContext` (aktörler, türe göre
+    bileşenler, servisler, `spawnActors` / `destroyActors`). Bir özelliğin
+    `runtime.ts`'i yalnız çekirdeği tanır; ikinci bir "runtime özelliği"
+    tanımı yok.
+  - *World (`src/runtime/world.ts`):* durumlar oluşturuldu → başlatıldı →
+    oynuyor → bitti → yok edildi; sıra dışı çağrı hatadır. Kancalar `create`
+    (init), `actorsAdded`, `actorsRemoved`, `beginPlay`, `tick`, `endPlay`,
+    `dispose`; toplu çalışır (level, hücre, spawn aynı yol, F11); aktör başına
+    geri çağırma yok. `beginPlay` kurulum sırasıyla, `endPlay` / `dispose` ters
+    sırayla. `dt` [0, 0,1 s]'ye kırpılır. Aktör etkin bileşenleri (sınıf +
+    override) kopya olarak tutar; türe göre bileşen dizini. Alt aktör ebeveyniyle
+    silinir. Kancalar senkron; bir kancadan spawn, öteki alt sistemlere çağrı
+    dönmeden ulaşır; kanca hatası yutulmaz. Modül düzeyinde değişebilir durum
+    yok; iki World yalıtım testi (A6).
+  - *Sahne kurucu (`assembleLevel` / `assembleActors`):* editör, Play ve oyun
+    aynı fonksiyon (D7); eksik sınıf geliştirmede hata, üretimde aktör alt
+    aktörleriyle atlanır ve bir kez raporlanır.
+  - *Oyun modülü:* `defineGameModule({ id, features, onBeginPlay, onEndPlay })`;
+    host modülün özelliklerini motorunkilerden sonra kurar, kancalarını en son
+    kurulan bir alt sistem olarak çalıştırır. Modülün proje yolundan
+    yüklenmesi oyun projesi sözleşmesinde (§4.8).
+  - *Boot (`bootGame`):* özellikler → kayıt → level → normalize → World →
+    döngü. Her aşamanın hatası renderer'sız boot ekranında aşama adı, sorun
+    satırları ve yığınla gösterilir (F10); karede hata döngüyü durdurur,
+    `endPlay("error")` çalışır, aynı ekran açılır. Ekran yalnız `textContent`
+    kullanır. Zamanlayıcı ve ekran dışarıdan verilir (Node'da test edilir).
+    `main.ts` motor özelliklerini `features/*/feature.ts`'ten toplar (yeni
+    özellik kabuğa dokunmaz); proje yokken "Nothing to open" bilgi ekranı
+    (A9: motor deposunda varsayılan sahne yok).
 
 ### 4.8 Oyun projesi modeli (Model 2, ikinci sürüm)
 
