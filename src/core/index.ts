@@ -3,3 +3,6 @@
 // `import.meta.env`.
 
 export * from "./id.ts";
+export * from "./schema/component.ts";
+export * from "./schema/fields.ts";
+export * from "./schema/label.ts";
