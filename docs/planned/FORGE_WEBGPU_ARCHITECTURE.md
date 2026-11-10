@@ -1,6 +1,9 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v0.5 · 2026-11-10 (v0.4'ten fark: 2a asset modeli kararları — §4.4
+**Sürüm:** v0.6 · 2026-11-10 (v0.5'ten fark: 2a hücre veri modeli kararları —
+§4.4 level klasörü, ızgara ayarı, `spatiallyLoaded`, atama kuralı, dizin ve
+revizyon, dosyalar arası bütünlük; §4.6 asset dizininde level klasörleri.
+v0.5: 2a asset modeli kararları — §4.4
 override sürüm etiketi ve kısmi veri geçiş sözleşmesi, §4.5 metin alan türü,
 §4.6 meta dosyası, asset türü kaydı, dizin ve önbellek, §4.2 Node modülü kuralı.
 v0.4: A10 ve A11 karara bağlandı; §4.4
@@ -347,6 +350,52 @@ features/height-fog/
     geçişi) yüklü World üzerinden değil, Node araçlarıyla dosyalar üzerinden
     çalışır.
   - Çok kademeli ızgara v1'de yok; gerekirse sonradan eklenir.
+- **Hücre modeli uygulaması (2a kararları, 2026-11-10):**
+  - *Izgara:* her level'da var, kapatılamaz. `settings.cellSize` (16–4096 m,
+    varsayılan 128) level ayarıdır; X/Z düzleminde, orijin dünya orijini.
+    Hücre anahtarı `"<x>_<z>"` (negatif olabilir, `-0` ve baştaki sıfır yok);
+    kenardaki nokta, min kenarı olduğu hücreye düşer. Hücre sırası önce z,
+    sonra x. `cellSize` değişikliği bütün hücreleri yeniden yazan dünya çapı
+    işlemdir (Node aracı). `loadRange` akışla (5b) gelir.
+  - *Disk düzeni:* level bir klasördür, adlar sabit: `level.json`
+    (`forge.level/1`: kimlik, `settings`, kalıcı katman aktörleri),
+    `cells.json` (`forge.levelCells/1`: level kimliği, `level.json`'un ve her
+    hücrenin revizyonu), `cells/<x>_<z>.json` (`forge.levelCell/1`: level
+    kimliği, hücre anahtarı, aktörler). Bir klasörde tek level; yalnız dolu
+    hücrelerin dosyası vardır, boşalan hücrenin dosyası silinir. Hücre ve
+    dizin asset değildir, level'ın parçasıdır.
+  - *Akış bayrağı:* `spatiallyLoaded` (varsayılan `true`, her zaman yazılır)
+    temel aktör şemasında bir kez tanımlıdır (`ActorStreamingFields`).
+  - *Atama:* kök aktörün `transform.p` X/Z'si hücresini belirler. Alt aktör
+    kökünü izler, kendi bayrağına bakılmaz; bu yüzden `parent` her zaman
+    aynı dosyadadır ve dosya başına normalize'da denetlenir (dosyada olmayan
+    ya da döngü kuran ebeveyn kayıptır, aktör level köküne bağlanır).
+    `spatiallyLoaded: false` kök ağacıyla kalıcı katmandadır. Singleton
+    bileşen taşıyan ağaç kalıcı katmandadır; "level başına bir" denetimi böylece
+    tek dosyada kalır. Hücreden büyük aktör kuralı saf bir yüklemdir
+    (`exceedsCell`); sınırları editör verir ve taşımayı önerir.
+  - *Revizyon:* dosya baytlarının SHA-256'sının ilk 16 hex hanesi. Baytları
+    gören taraf hesaplar (`tools/assets`, kayıt servisi); çekirdek opak taşır,
+    yalnız karşılaştırır. Kanonik metin `stringifyDocument`: iki boşluk girinti,
+    düz değer dizileri tek satırda, sonda satır sonu; aynı belge her zaman aynı
+    baytlar. Depoda `eol=lf` bu baytları korur.
+  - *Bellekte level:* bir `LevelDoc` (kalıcı katman + şimdiye kadar okunan
+    hücreler) ve her aktörün okunduğu dosya. `mergeLevelParts` dosyalardan,
+    `splitLevel` bütün level'dan parçalara; `partsToWrite` bir düzenlemenin
+    dokunduğu parçaları verir (hücre sınırını geçen aktör iki hücreyi
+    kirletir), `planLevelFiles` yeni kanonik metni ve silinecek boş hücreleri;
+    yüklü olmayan bir hücreye yazılacaksa plan `notLoaded` döner ve hiçbir şey
+    yazılmaz. `nextCellIndex` son yazılan dizindir. Yarım kalan kaydın
+    kurtarılması kayıt servisi kutusundadır.
+  - *Bütünlük (bütün dosyaları gören geçiş, asset dizini):* hata — iki dosyada
+    aynı aktör kimliği, iki dosyada aynı singleton, dizinde olmayan hücre
+    dosyası (yarım kalan kayıt ya da kopya; okunmaz), dizinde olup dosyası
+    olmayan hücre, adı ile anahtarı uyuşmayan hücre, başka level'ın hücresi ya
+    da dizini, klasörü olmayan parça, `level.json` adı taşımayan level,
+    revizyonu dizinle uyuşmayan dosya (okunur, raporlanır), level'ın hiçbir
+    dosyasında olmayan aktöre `actorRef`. Uyarı — yanlış hücredeki aktör
+    (yüklemede yerinde kalır, sonraki kayıt taşır). Runtime'da "henüz yüklü
+    değil" geçerli durumdur; asılı aktör referansı yalnız bu geçişte aranır.
 - **Ölçek yedeği:** 2a'daki 50.000 aktörlük yükleme / kayıt ölçümü kötü çıkarsa
   önce veri modeline dokunmayan çareler denenir: hücre dosyalarında transform'ların
   sütunlu (ikili) yazımı ve runtime'da aktör nesnesi yerine yoğun depolama (2a iç
@@ -459,9 +508,12 @@ düşen alan uyarı değil, **hatadır**.
   - *Dizin:* `src/core/assets` saftır: içerik köklerinin dosya listesini (JSON
     içerikleri ayrıştırılmış) alır, diski `tools/assets` okur. Kurulum: kimlik
     (meta'sız ikili, ikilisiz meta, aynı GUID iki dosyada → yol sırasında ilki
-    kalır, asset olmayan JSON) → aktör sınıfları normalize edilir ve dizin
-    level'ların `ClassResolver`'ı olur → level'lar normalize edilir →
-    referanslar şemadan yürünerek toplanır (level bileşenleri, sınıf
+    kalır, asset olmayan JSON; level hücresi ve dizini ayrılır) → aktör
+    sınıfları normalize edilir ve dizin level'ların `ClassResolver`'ı olur →
+    her level klasörüyle (dizin + hücreler) normalize edilip birleştirilir ve
+    dosyalar arası kurallar denetlenir (§4.4 hücre modeli uygulaması) →
+    referanslar şemadan yürünerek toplanır, hücredeki referansın dosyası hücre
+    dosyasıdır (level bileşenleri, sınıf
     override'ları sınıf bileşeninin şemasına göre, `actor.class`, sınıf
     bileşenleri, meta `import`'u) → ters dizin → bütünlük (asılı referans,
     `assetRef.assetType` kısıtı). Eksik sınıf bir kez, level normalize'ında
@@ -472,8 +524,10 @@ düşen alan uyarı değil, **hatadır**.
     damgası ve artımlı tarama 50.000 ölçümünden sonra.
   - *Kapı:* `npm run verify:assets` `content/` ve `samples/*/content/`
     köklerini sıkı kipte tarar; tür / lisans / kaynak eksikliği, meta'sız ikili,
-    çift GUID ve asılı referans kapıyı kırar. Gate'te, dolayısıyla CI'da.
-    Taramada `.` ile başlayan adlar atlanır; iç içe kök reddedilir.
+    çift GUID, asılı referans ve level dosyası bütünlüğü (revizyon dahil)
+    kapıyı kırar. Gate'te, dolayısıyla CI'da. Taramada `.` ile başlayan adlar
+    atlanır; iç içe kök reddedilir. Tarayıcı her JSON dosyasına bayt
+    revizyonunu koyar.
 - **İşlem (transaction):** editördeki her düzenleme bir işlem; undo birimi ve
   kirli dosya kümesi bundan türer.
 - **Sıralı, atomik kayıt:** yeni içerik geçici dosyalara yazılır → doğrulanır →

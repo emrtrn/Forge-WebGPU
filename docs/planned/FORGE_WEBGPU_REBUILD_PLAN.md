@@ -11,9 +11,9 @@ Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 **Durum:** Bütün kararlar kapalı (K1–K11, A1–A11; 2026-11-10). Faz 2a sürüyor:
 depo iskeleti, katman denetimi + öz-testi, kapılar ve çekirdek (şema DSL'i,
 normalize, geçiş zinciri, şema kaydı, `forge.level/1` veri modeli, form tanımı,
-JSON Schema) ve asset modeli (A10) kuruldu. Sıradaki işler: hücre veri modeli
-(A11), kayıt servisi, uygulama kabuğu; Faz 0 envanteri ve referans görüntüleri,
-Faz 1 spike (paralel).
+JSON Schema), asset modeli (A10) ve hücre veri modeli (A11) kuruldu. Sıradaki
+işler: 50.000 aktör ölçümü, kayıt servisi, uygulama kabuğu; Faz 0 envanteri ve
+referans görüntüleri, Faz 1 spike (paralel).
 **Mimari:** [FORGE_WEBGPU_ARCHITECTURE.md](FORGE_WEBGPU_ARCHITECTURE.md) —
 veri modeli, katmanlar, özellik modülleri, oyun projesi sözleşmesi. Bu plan
 fazların sırasını, o rapor yapının kendisini tanımlar; çelişkide rapor geçerlidir.
@@ -307,9 +307,23 @@ bölümünü uygular.
       kısmi veriyle çalışır (mimari §4.4). Testler `tests/fixtures/assets`'in
       geçici kopyasında. Bugün depoda içerik kökü yok; kapı 0 asset görür.
       (2026-11-10)
-- [ ] Hücre / akış veri modeli (A11): hücre dosya biçimi, dizin dosyası, hücre
+- [x] Hücre / akış veri modeli (A11): hücre dosya biçimi, dizin dosyası, hücre
       ataması, hücreler arası referans kuralı. Akışın kendisi 5b'de; burada
-      yalnız veri biçimi ve kayıt servisiyle bağı kurulur.
+      yalnız veri biçimi ve kayıt servisiyle bağı kurulur. Level bir klasör:
+      `level.json` (kalıcı katman + `settings.cellSize`, varsayılan 128 m,
+      ızgara kapatılamaz), `cells.json` (`forge.levelCells/1`, dosya
+      revizyonları), `cells/<x>_<z>.json` (`forge.levelCell/1`). Aktör bayrağı
+      `spatiallyLoaded`; atama kök konumundan, alt aktör kökünü izler, singleton
+      ağacı kalıcı katmanda; `parent` artık dosya başına denetlenir.
+      `src/core/level`: `cells.ts` (ızgara + `assignCells`), `cellDocs.ts`
+      (normalize + JSON Schema), `levelParts.ts` (`mergeLevelParts`,
+      `splitLevel`, `partsToWrite`, `planLevelFiles`, `nextCellIndex`,
+      kanonik `stringifyDocument`). Asset dizini level klasörlerini birleştirip
+      dosyalar arası kuralları denetler (çift kimlik / singleton, dizin ↔ dosya,
+      yanlış hücre uyarısı, asılı `actorRef`); `tools/assets` JSON dosyalarına
+      bayt revizyonu koyar, dizinle uyuşmayan dosya kapıyı kırar. Fixture level'ı
+      klasör düzeninde. Yarım kalan kaydın kurtarılması kayıt servisinde
+      (mimari §4.4 hücre modeli uygulaması). (2026-11-10)
 - [ ] **Ölçek ölçümü:** 50.000 aktörlük level'da yükleme, kayıt ve geçiş
       zinciri süresi + bellek (mimari §4.4 "ölçek yedeği", §7). Eşik ölçümden
       önce bu maddeye yazılır; aşılırsa mimari §4.4'teki çareler sırayla
@@ -651,3 +665,4 @@ silinebilir.
 | 2026-11-10 | v0.7 | Faz 2a başladı: depo iskeleti (Vite 7, TypeScript 5.9 strict, three 0.187.0, Rapier 0.19.3, Vitest 5), katman denetimi + öz-testi, dosya boyutu bütçesi, `npm run gate`, CI, `CLAUDE.md`, `AGENTS.md`; ilk çekirdek modül `src/core/id.ts`. Kapı yeşil |
 | 2026-11-10 | v0.7 | Faz 2a çekirdek kutusu kapandı (`0b1bce0` … `67add88` ve JSON Schema commit'i): göreli import'lar depo genelinde `.ts` uzantılı + `verify:node-load`; `feature.ts` editörü anmaz (yeni katman kuralı `feature-does-not-name-editor`); şema DSL'i, tek normalize, geçiş zinciri, şema kaydı + `defineFeature`, `forge.level/1` + `forge.actorClass/1`, Details form tanımı, JSON Schema. Mimari rapora 2a kararları işlendi: tam yazım, yanlış tip kuralı, override kuralı v1. 215 test, kapı yeşil |
 | 2026-11-10 | v0.7 | Faz 2a asset modeli kutusu kapandı (`d2c96c6` … `5098d05`): DSL'e metin alan türü; asset türleri ve `registerAssetType`; `forge.assetMeta/1` (tür + lisans + kaynak zorunlu, D16); saf asset dizini (kimlik, şemadan yürüyen referanslar, ters dizin, bütünlük, `planDelete`, dizinden `ClassResolver`); `tools/assets` taraması, `.forge-cache` önbelleği, `verify:assets` gate'te; `src-no-node-builtins` kuralı. Mimari §4.4'teki açık soru kapandı: override sürüm etiketi + kısmi veri geçiş sözleşmesi. Mimari rapor v0.5. 286 test, kapı yeşil |
+| 2026-11-10 | v0.7 | Faz 2a hücre veri modeli kutusu kapandı (`87821dd` … `bb91a59`): `settings.cellSize` + `spatiallyLoaded`; ızgara ve hücre ataması; `forge.levelCell/1` + `forge.levelCells/1`; split / merge, kayıt planı ve kanonik metin; asset dizininde level klasörleri ve dosyalar arası bütünlük; `tools/assets` revizyon denetimi. Mimari rapor v0.6. 383 test, kapı yeşil |
