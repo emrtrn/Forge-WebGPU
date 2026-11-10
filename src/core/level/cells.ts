@@ -47,7 +47,7 @@ export interface CellBounds {
 }
 
 /** `-0` and leading zeros are not keys: one cell, one spelling. */
-const CELL_KEY_PATTERN = /^(0|-?[1-9][0-9]*)_(0|-?[1-9][0-9]*)$/;
+export const CELL_KEY_PATTERN = /^(0|-?[1-9][0-9]*)_(0|-?[1-9][0-9]*)$/;
 
 export function cellKey(coord: CellCoord): string {
   // `+ 0` turns -0 into 0.

@@ -68,12 +68,27 @@ export function normalizeLevel(
     schema: LEVEL_SCHEMA,
     id: raw.id,
     settings: normalizeLevelSettings(raw.settings, ctx),
-    actors: [],
+    actors: normalizeActorList(raw.actors, ctx, options),
   };
+  reportUnknownKeys(raw, LEVEL_KEYS, "", ctx, "A level has no such field; dropped.");
+  return finish(ctx, level);
+}
+
+/**
+ * The `actors` array of a level part (the persistent layer or a cell file).
+ * Ids and singletons are checked within the part; across parts, the whole
+ * level check does it.
+ */
+export function normalizeActorList(
+  raw: unknown,
+  ctx: NormalizeContext,
+  options: LevelNormalizeOptions,
+): ActorDoc[] {
+  const actors: ActorDoc[] = [];
   let rawActors: unknown[] = [];
-  if (Array.isArray(raw.actors)) {
-    rawActors = raw.actors;
-  } else if (raw.actors !== undefined) {
+  if (Array.isArray(raw)) {
+    rawActors = raw;
+  } else if (raw !== undefined) {
     reportLoss(ctx, "invalid-value", "actors", "Expected an array of actors; none kept.");
   }
 
@@ -89,11 +104,9 @@ export function normalizeLevel(
     }
     seenIds.add(actor.id);
     checkSingletons(actor, path, ctx, options, singletons);
-    level.actors.push(actor);
+    actors.push(actor);
   });
-
-  reportUnknownKeys(raw, LEVEL_KEYS, "", ctx, "A level has no such field; dropped.");
-  return finish(ctx, level);
+  return actors;
 }
 
 function normalizeLevelSettings(raw: unknown, ctx: NormalizeContext): LevelSettings {
@@ -250,7 +263,7 @@ function checkSingletons(
   }
 }
 
-function reportUnknownKeys(
+export function reportUnknownKeys(
   raw: JsonObject,
   known: readonly string[],
   path: string,

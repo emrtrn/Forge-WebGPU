@@ -23,6 +23,14 @@ import type { LevelSettings } from "./settings.ts";
 
 export const LEVEL_SCHEMA = "forge.level/1";
 export const ACTOR_CLASS_SCHEMA = "forge.actorClass/1";
+export const LEVEL_CELL_SCHEMA = "forge.levelCell/1";
+export const LEVEL_CELL_INDEX_SCHEMA = "forge.levelCells/1";
+
+/**
+ * A file revision: the first 16 hex digits of the SHA-256 of the file's
+ * bytes. Core carries it as an opaque value; whoever has the bytes computes it.
+ */
+export const REVISION_PATTERN = /^[0-9a-f]{16}$/;
 
 /** Local component ids are map keys and part of override and save-game addresses. */
 export const LOCAL_ID_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;
@@ -71,6 +79,32 @@ export interface LevelDoc {
   id: LevelId;
   settings: LevelSettings;
   actors: ActorDoc[];
+}
+
+/**
+ * One cell of a level (A11): the actors whose root stands in cell `cell`.
+ * Not an asset of its own: it belongs to level `level` and lives in its folder.
+ */
+export interface LevelCellDoc {
+  schema: typeof LEVEL_CELL_SCHEMA;
+  level: LevelId;
+  /** `"<x>_<z>"` grid coordinates. */
+  cell: string;
+  actors: ActorDoc[];
+}
+
+/**
+ * The index of a level's files (A11): the revision of the persistent layer
+ * and of every cell. Written last in an atomic save (§4.6), so it names the
+ * set of files that belong together.
+ */
+export interface LevelCellIndexDoc {
+  schema: typeof LEVEL_CELL_INDEX_SCHEMA;
+  level: LevelId;
+  /** Revision of `level.json`. */
+  persistent: string;
+  /** Cell key -> revision of its file, in cell order. */
+  cells: Record<string, string>;
 }
 
 /** An actor class (prefab): a named, GUID'd set of components. */

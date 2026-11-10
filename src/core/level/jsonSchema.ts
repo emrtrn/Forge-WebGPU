@@ -1,4 +1,4 @@
-// JSON Schema export for level and actor class documents (architecture §4.5).
+// JSON Schema export for level, level cell, cell index and actor class documents (architecture §4.5).
 //
 // One schema per document kind, generated from a schema registry, so it covers
 // the components of the engine and of the game project that registered them.
@@ -17,7 +17,15 @@ import {
   type JsonSchema,
 } from "../schema/jsonSchema.ts";
 import type { SchemaRegistry } from "../schema/registry.ts";
-import { ACTOR_CLASS_SCHEMA, LEVEL_SCHEMA, LOCAL_ID_PATTERN } from "./model.ts";
+import { CELL_KEY_PATTERN } from "./cells.ts";
+import {
+  ACTOR_CLASS_SCHEMA,
+  LEVEL_CELL_INDEX_SCHEMA,
+  LEVEL_CELL_SCHEMA,
+  LEVEL_SCHEMA,
+  LOCAL_ID_PATTERN,
+  REVISION_PATTERN,
+} from "./model.ts";
 import { ActorStreamingFields, LevelSettingsFields } from "./settings.ts";
 
 const COMPONENT_REF = { $ref: "#/definitions/component" };
@@ -125,5 +133,44 @@ export function actorClassJsonSchema(registry: SchemaRegistry): JsonSchema {
     required: ["schema", "id"],
     additionalProperties: false,
     definitions: componentDefinitions(registry),
+  };
+}
+
+export function levelCellJsonSchema(registry: SchemaRegistry): JsonSchema {
+  return {
+    $schema: JSON_SCHEMA_DRAFT,
+    title: "Forge level cell",
+    type: "object",
+    properties: {
+      schema: { const: LEVEL_CELL_SCHEMA },
+      level: idJsonSchema("level", false),
+      cell: { type: "string", pattern: CELL_KEY_PATTERN.source, description: 'Grid coordinates, "<x>_<z>".' },
+      actors: { type: "array", items: { $ref: "#/definitions/actor" } },
+    },
+    required: ["schema", "level", "cell"],
+    additionalProperties: false,
+    definitions: { actor: actorSchema(), ...componentDefinitions(registry) },
+  };
+}
+
+export function levelCellIndexJsonSchema(): JsonSchema {
+  const revision = { type: "string", pattern: REVISION_PATTERN.source };
+  return {
+    $schema: JSON_SCHEMA_DRAFT,
+    title: "Forge level cell index",
+    type: "object",
+    properties: {
+      schema: { const: LEVEL_CELL_INDEX_SCHEMA },
+      level: idJsonSchema("level", false),
+      persistent: { ...revision, description: "Revision of level.json." },
+      cells: {
+        type: "object",
+        propertyNames: { pattern: CELL_KEY_PATTERN.source },
+        additionalProperties: revision,
+        description: "Cell key -> revision of its file.",
+      },
+    },
+    required: ["schema", "level", "persistent"],
+    additionalProperties: false,
   };
 }
