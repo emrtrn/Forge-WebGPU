@@ -15,6 +15,7 @@ describe("normalizeProjectManifest", () => {
       name: "Starter",
       sdkVersion: "0.1",
       contentRoots: ["content"],
+      contentPacks: [],
       startLevel: "",
       game: { module: "" },
       devPort: 5190,
@@ -31,6 +32,7 @@ describe("normalizeProjectManifest", () => {
         startLevel: "../other/level",
         game: { module: "C:/game.ts" },
         contentRoots: ["content", "/abs"],
+        contentPacks: ["starter", "Starter", "../x"],
         devPort: 80,
       },
       STRICT,
@@ -39,6 +41,8 @@ describe("normalizeProjectManifest", () => {
       "error missing-required name",
       "error invalid-value sdkVersion",
       "error invalid-value contentRoots[1]",
+      "error invalid-value contentPacks[1]",
+      "error invalid-value contentPacks[2]",
       "error invalid-value startLevel",
       "error invalid-value game.module",
       "warning clamped devPort",
@@ -60,6 +64,12 @@ describe("normalizeProjectManifest", () => {
     const result = normalizeProjectManifest({ ...GOOD, contentRoots: [], engine: "../Forge" }, { strict: false });
     expect(summary(result.issues)).toEqual(["warning invalid-value contentRoots", "warning unknown-field engine"]);
     expect(result.value?.contentRoots).toEqual(["content"]);
+  });
+
+  test("content packs: ids, listed once", () => {
+    const result = normalizeProjectManifest({ ...GOOD, contentPacks: ["starter", "test-range", "starter"] }, { strict: false });
+    expect(summary(result.issues)).toEqual(["warning invalid-value contentPacks"]);
+    expect(result.value?.contentPacks).toEqual(["starter", "test-range"]);
   });
 });
 

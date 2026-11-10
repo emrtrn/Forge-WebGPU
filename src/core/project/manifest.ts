@@ -1,7 +1,8 @@
 // The game project manifest, `forge.project.json` (architecture §4.8; project
 // contract decision 1A). A game project is a repository of its own: this file
 // at its root tells the engine who it is, which SDK it was written against,
-// where its content is, which level to open and which module is its game.
+// where its content is, which engine content packs it uses, which level to
+// open and which module is its game.
 //
 // Loading and saving both call `normalizeProjectManifest`, like every other
 // document. The fields are a field map, so the form and the JSON Schema come
@@ -25,6 +26,9 @@ export const PROJECT_FILE = "forge.project.json";
 /** A project id: lower case, the namespace of its components (`ridgebound.contract`). */
 export const PROJECT_ID_PATTERN = /^[a-z][a-z0-9]*$/;
 
+/** A content pack id: the folder name under the engine's `content/packs/` (A9). */
+export const CONTENT_PACK_ID_PATTERN = "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$";
+
 /** A project-relative path: forward slashes, no `..`, no drive, not absolute. */
 export const PROJECT_PATH_PATTERN = "^(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9_][A-Za-z0-9_./-]*$";
 
@@ -42,6 +46,10 @@ export const ProjectManifestFields = {
   contentRoots: array(text({ pattern: PROJECT_PATH_PATTERN }), {
     default: ["content"],
     hint: "Projenin içerik kökleri, projeye göre. Asset dizini ve kayıt servisi bunları görür.",
+  }),
+  contentPacks: array(text({ pattern: CONTENT_PACK_ID_PATTERN }), {
+    label: "Content Packs",
+    hint: "Motorun content/packs/ altından seçilen içerik paketleri (ör. starter). İçerik oyuna kopyalanmaz, motordan okunur; salt okunurdur.",
   }),
   startLevel: text({
     pattern: PROJECT_PATH_PATTERN,
@@ -97,6 +105,13 @@ export function normalizeProjectManifest(raw: unknown, options: NormalizeOptions
     reportLoss(ctx, "invalid-value", "contentRoots", "A project has at least one content root; content used.");
     data.contentRoots = ["content"];
   }
+  // An invalid id is already reported and normalised to ""; it names no pack.
+  const named = data.contentPacks.filter((pack) => pack !== "");
+  const packs = [...new Set(named)];
+  if (packs.length !== named.length) {
+    reportLoss(ctx, "invalid-value", "contentPacks", "A content pack is listed twice; listed once.");
+  }
+  data.contentPacks = packs;
   for (const key of Object.keys(raw)) {
     if (!KEYS.includes(key)) reportLoss(ctx, "unknown-field", key, "A project manifest has no such field; dropped.");
   }
