@@ -1,7 +1,8 @@
 // `forge check` (architecture §4.8, A8; project contract decision 1E).
 //
 // A game project is checked against this engine:
-// 1. its manifest normalises and its `sdkVersion` fits the engine's SDK;
+// 1. its manifest normalises, its `sdkVersion` fits the engine's SDK and the
+//    content packs it names exist in the engine (A9);
 // 2. `.forge/tsconfig.json` is (re)written: the engine's own compiler options,
 //    and paths for `@forge/sdk` and `@forge/editor-sdk` only, resolved from
 //    the engine root (no fixed `../../Forge`);
@@ -24,6 +25,7 @@ import {
   type Issue,
   type ProjectManifest,
 } from "../../src/core/index.ts";
+import { contentPackProblems } from "../assets/engineContent.ts";
 
 export const SDK_SPECIFIER = "@forge/sdk";
 export const EDITOR_SDK_SPECIFIER = "@forge/editor-sdk";
@@ -45,8 +47,15 @@ export interface LoadedProject {
 
 const slashes = (path: string): string => path.split(sep).join("/");
 
-/** Reads and checks `forge.project.json`, including the SDK version. */
-export async function loadProject(root: string, engineSdk = SDK_VERSION): Promise<LoadedProject> {
+export interface LoadProjectOptions {
+  /** When given, the content packs the manifest names must exist in this engine. */
+  readonly engineRoot?: string;
+  readonly engineSdk?: string;
+}
+
+/** Reads and checks `forge.project.json`, including the SDK version and the content packs. */
+export async function loadProject(root: string, options: LoadProjectOptions = {}): Promise<LoadedProject> {
+  const engineSdk = options.engineSdk ?? SDK_VERSION;
   const problems: ProjectProblem[] = [];
   let raw: unknown;
   try {
@@ -63,6 +72,11 @@ export async function loadProject(root: string, engineSdk = SDK_VERSION): Promis
   if (manifest) {
     const fit = checkSdkCompatibility(engineSdk, manifest.sdkVersion);
     if (!fit.ok) problems.push({ file: PROJECT_FILE, line: 0, code: "sdk-version", message: fit.reason });
+    if (options.engineRoot !== undefined) {
+      for (const message of await contentPackProblems(options.engineRoot, manifest.contentPacks)) {
+        problems.push({ file: PROJECT_FILE, line: 0, code: "content-pack", message: `contentPacks: ${message}` });
+      }
+    }
   }
   return { root, manifest, problems };
 }
@@ -156,7 +170,7 @@ export interface CheckResult {
 /** Manifest, SDK version, generated tsconfig, compile, import boundary. */
 export async function checkProject(projectRoot: string, engineRoot: string, engineSdk = SDK_VERSION): Promise<CheckResult> {
   const root = resolve(projectRoot);
-  const loaded = await loadProject(root, engineSdk);
+  const loaded = await loadProject(root, { engineRoot: resolve(engineRoot), engineSdk });
   const problems = [...loaded.problems];
   if (!loaded.manifest || problems.some((problem) => problem.code === "sdk-version")) {
     return { ok: false, manifest: loaded.manifest, problems };

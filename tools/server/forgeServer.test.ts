@@ -1,8 +1,9 @@
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, request, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { createAssetTestRegistry } from "../../src/core/assets/testKit.ts";
 import { fileRevision } from "../assets/revision.ts";
@@ -10,6 +11,7 @@ import { createForgeServer, isLocalRequest, refuseReason, STAGING_DIR } from "./
 
 const LEVEL = "lvl_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const HEADERS = { "X-Forge-Request": "1" };
+const fixtures = join(resolve(dirname(fileURLToPath(import.meta.url)), "../.."), "tests/fixtures/assets");
 
 let project: string;
 let server: Server;
@@ -154,6 +156,47 @@ describe("a read-only project (samples, fixtures)", () => {
       expect(await (await fetch(`${url}/__forge/classes`, { headers: HEADERS })).json()).toEqual({ classes: [] });
     } finally {
       await new Promise<void>((resolve) => readOnly.close(() => resolve()));
+    }
+  });
+});
+
+describe("read-only roots outside the project (engine content and packs, A9)", () => {
+  test("indexed and readable under their label, never written, nothing outside them", async () => {
+    const engine = await mkdtemp(join(tmpdir(), "forge-engine-"));
+    const packDir = join(engine, "content/packs/starter");
+    await cp(join(fixtures, "content"), packDir, { recursive: true });
+    await mkdir(join(packDir, ".hidden"), { recursive: true });
+    await writeFile(join(packDir, ".hidden/x.json"), "{}");
+    await writeFile(join(engine, "secret.json"), "{}");
+    const label = "engine:content/packs/starter";
+    const forge = await createForgeServer({
+      root: project,
+      registry: createAssetTestRegistry(),
+      readOnlyRoots: [{ label, dir: packDir }],
+    });
+    const withPack = createServer((req, res) => forge.middleware(req, res, () => res.end()));
+    await new Promise<void>((resolve) => withPack.listen(0, "127.0.0.1", resolve));
+    const url = `http://127.0.0.1:${(withPack.address() as AddressInfo).port}`;
+    const read = (path: string) => fetch(`${url}/__forge/read?path=${encodeURIComponent(path)}`, { headers: HEADERS });
+    try {
+      const cls = await read(`${label}/classes/car.json`);
+      expect(cls.status).toBe(200);
+      expect(cls.headers.get("x-forge-revision")).toBe(fileRevision(await readFile(join(packDir, "classes/car.json"))));
+      expect((await read(`${label}/../../../secret.json`)).status).toBe(403);
+      expect((await read(`${label}/.hidden/x.json`)).status).toBe(403);
+      expect((await read(`${label}/none.json`)).status).toBe(404);
+      const classes = (await (await fetch(`${url}/__forge/classes`, { headers: HEADERS })).json()) as { classes: { id: string }[] };
+      expect(classes.classes.map((one) => one.id)).toEqual(["ast_33333333333333333333333333333333"]);
+      const saved = await fetch(`${url}/__forge/save`, {
+        method: "POST",
+        headers: HEADERS,
+        body: JSON.stringify({ writes: [{ path: `${label}/classes/new.json`, base: null, text: "{}" }] }),
+      });
+      expect(saved.status).toBe(403);
+      expect(await readdir(join(packDir, "classes"))).toEqual(["car.json"]);
+    } finally {
+      await new Promise<void>((resolve) => withPack.close(() => resolve()));
+      await rm(engine, { recursive: true, force: true });
     }
   });
 });

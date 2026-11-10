@@ -4,12 +4,16 @@
 //   POST /__forge/save          JSON: { writes: [{ path, base, text | staged }], deletes: [{ path, base }] }
 //                               200 saved, 409 conflict, 403 path refused, 400 bad request, 422 document refused
 //   POST /__forge/stage-binary  raw body -> { id, size, revision }; `staged: id` in a later save
-//   GET  /__forge/read?path=    the file, with its revision in `X-Forge-Revision`
+//   GET  /__forge/read?path=    the file, with its revision in `X-Forge-Revision`; a path under
+//                               a read-only root (`engine:content/packs/starter/...`) reads the
+//                               engine's content and packs (A9)
 //   GET  /__forge/identity      which engine and which project this server serves (D14)
 //   GET  /__forge/classes       the project's actor classes, normalised
 //
 // A project opened read-only (the engine's samples and fixtures, A9) refuses
-// saves and uploads with 403; it can still be read.
+// saves and uploads with 403; it can still be read. The engine's content and
+// packs are never written from a project: an `engine:` path is not a project
+// path, so a save naming one is refused like any path outside the project.
 //
 // Every /__forge/ request must come from this machine: the socket address is
 // local (Forge's rule; forwarded headers are not trusted), the Host header
@@ -26,11 +30,18 @@ import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
 import { buildAssetIndex, type SchemaRegistry } from "../../src/core/index.ts";
 import { fileRevision } from "../assets/revision.ts";
-import { scanContentRoots } from "../assets/scan.ts";
+import { projectContentRoots, scanRoots, type ContentRoot } from "../assets/scan.ts";
 import { defaultContentRoots } from "../assets/verify.ts";
 import { createClassStore, createDocumentCheck } from "../save/documentCheck.ts";
 import { createSaveService, type SaveRequest, type SaveResult, type SaveService } from "../save/transaction.ts";
-import { createWritePolicy, ProjectPathError, resolveWritablePath, type WritePolicy } from "./projectPaths.ts";
+import {
+  createWritePolicy,
+  normalizeProjectPath,
+  ProjectPathError,
+  resolveProjectPath,
+  resolveWritablePath,
+  type WritePolicy,
+} from "./projectPaths.ts";
 
 export const STAGING_DIR = ".forge-staging";
 /** One staged binary, and one JSON save request (a full save of a 50.000-actor level is ~38 MB). */
@@ -119,12 +130,23 @@ export interface ForgeServerOptions {
   readonly writableRoots?: readonly string[];
   /** Content roots scanned for the class store; default `content/` and `samples/*\/content/`. */
   readonly contentRoots?: readonly string[];
+  /** Roots outside the project, indexed and readable, never written: the engine's content and packs. */
+  readonly readOnlyRoots?: readonly ContentRoot[];
   /** Body size limit; default MAX_BODY_BYTES. */
   readonly maxBodyBytes?: number;
   /** Refuse every save and upload (samples and fixtures, A9). */
   readonly readOnly?: boolean;
   /** What `/__forge/identity` answers. */
   readonly identity?: unknown;
+}
+
+/** A file under a read-only root: inside it, no links, no hidden names. */
+function resolveReadOnlyPath(root: ContentRoot, path: string): string {
+  const normalized = normalizeProjectPath(path);
+  if (normalized.split("/").some((part) => part.startsWith("."))) {
+    throw new ProjectPathError("hidden", `Names starting with "." are not read: ${root.label}/${path}`);
+  }
+  return resolveProjectPath(root.dir, normalized);
 }
 
 export interface ForgeServer {
@@ -142,7 +164,11 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
   // Uploads do not outlive the server: a save names them within one session.
   await rm(stagingDir, { recursive: true, force: true });
 
-  const scan = await scanContentRoots(policy.root, options.contentRoots ?? defaultContentRoots(policy.root));
+  const readOnlyRoots = options.readOnlyRoots ?? [];
+  const scan = await scanRoots([
+    ...projectContentRoots(policy.root, options.contentRoots ?? defaultContentRoots(policy.root)),
+    ...readOnlyRoots,
+  ]);
   const index = buildAssetIndex(scan.files, { strict: false, registry: options.registry });
   const classes = createClassStore(policy.root, options.registry, index);
   const saves = createSaveService({
@@ -215,7 +241,8 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
     const path = url.searchParams.get("path") ?? "";
     let absolute: string;
     try {
-      absolute = resolveWritablePath(policy, path).absolute;
+      const outside = readOnlyRoots.find((root) => path.startsWith(`${root.label}/`));
+      absolute = outside ? resolveReadOnlyPath(outside, path.slice(outside.label.length + 1)) : resolveWritablePath(policy, path).absolute;
     } catch (error) {
       if (!(error instanceof ProjectPathError)) throw error;
       send(res, 403, { status: "rejected", reason: "path", message: error.message });

@@ -10,6 +10,7 @@
 import { resolve } from "node:path";
 import type { Plugin, ViteDevServer } from "vite";
 import { defineFeature, installFeatures, isJsonObject, type FeatureDef } from "../../src/core/index.ts";
+import { engineContentRoots, listContentPacks } from "../assets/engineContent.ts";
 import { loadEngineRegistry } from "../assets/engineRegistry.ts";
 import { writeProjectTsconfig } from "../project/check.ts";
 import { resolveDevProject, identityOf, type DevProject } from "./devProject.ts";
@@ -83,11 +84,18 @@ export function forgeServerPlugin(options: ForgeServerPluginOptions = {}): Plugi
         }
       }
       const roots = current.manifest?.contentRoots ?? ["content"];
+      // Unknown packs are among the problems already; the known ones are read.
+      const packs = await listContentPacks(server.config.root);
+      const readOnlyRoots = engineContentRoots(
+        server.config.root,
+        (current.manifest?.contentPacks ?? []).filter((pack) => packs.includes(pack)),
+      );
       const forge = await createForgeServer({
         root: current.root,
         registry,
         writableRoots: roots,
         contentRoots: roots,
+        readOnlyRoots,
         readOnly: current.readOnly,
         identity: identityOf({ ...current, problems }),
       });

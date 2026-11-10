@@ -61,7 +61,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const loaded = await loadProject(root);
+  const loaded = await loadProject(root, { engineRoot });
   if (!loaded.manifest || loaded.problems.length > 0) {
     for (const problem of loaded.problems) console.error(`forge dev: ${formatProblem(problem)}`);
     if (loaded.manifest && loaded.problems.some((problem) => problem.code === "sdk-version")) {

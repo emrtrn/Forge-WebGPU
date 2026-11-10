@@ -57,6 +57,14 @@ describe("forge check", () => {
     ]);
   });
 
+  test("a content pack the engine does not have fails the check", async () => {
+    const result = await checkProject(await copy("missing-pack"), engineRoot);
+    expect(lines(result)).toEqual([
+      expect.stringMatching(/^forge\.project\.json content-pack: contentPacks: Unknown content pack "nope"; the engine has: /),
+    ]);
+    expect(result.ok).toBe(false);
+  });
+
   test("a type error against the SDK fails the check with its place", async () => {
     const result = await checkProject(await copy("type-error"), engineRoot);
     expect(result.ok).toBe(false);

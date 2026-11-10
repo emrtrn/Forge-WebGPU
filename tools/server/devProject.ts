@@ -26,7 +26,7 @@ export function isReadOnlyProject(engineRoot: string, projectRoot: string): bool
 export async function resolveDevProject(engineRoot: string, env: Readonly<Record<string, string | undefined>> = process.env): Promise<DevProject> {
   const given = env.FORGE_PROJECT_ROOT;
   const root = resolve(engineRoot, given === undefined || given === "" ? DEFAULT_PROJECT : given);
-  const loaded = await loadProject(root);
+  const loaded = await loadProject(root, { engineRoot });
   return {
     root,
     manifest: loaded.manifest,
