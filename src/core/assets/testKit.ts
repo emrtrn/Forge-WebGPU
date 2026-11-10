@@ -9,6 +9,7 @@ import { defineComponent } from "../schema/component.ts";
 import { array, assetRef, bool } from "../schema/fields.ts";
 import type { SchemaRegistry } from "../schema/registry.ts";
 import { defineAssetType } from "./assetType.ts";
+import { buildAssetIndex } from "./assetIndex.ts";
 import type { ContentFile, FileIssue } from "./identity.ts";
 import { ASSET_META_SCHEMA } from "./meta.ts";
 
@@ -80,4 +81,40 @@ export function level(path: string, seed: string, actors: unknown[]): ContentFil
 
 export function fileSummary(issues: readonly FileIssue[]): string[] {
   return issues.map((issue) => `${issue.severity} ${issue.code} ${issue.file} ${issue.path}`.trimEnd());
+}
+
+export const TEX = assetId("1");
+export const MESH = assetId("2");
+export const CAR = assetId("3");
+export const WHEEL = assetId("4");
+
+/** A small project: textures, meshes, a car class and a level using both. */
+export function projectFiles(): ContentFile[] {
+  return [
+    ...asset("textures/paint.png", TEX, "test.texture@1"),
+    ...asset("meshes/car.glb", MESH, "test.mesh@1", { import: { textures: [TEX] } }),
+    ...asset("meshes/wheel.glb", WHEEL, "test.mesh@1"),
+    actorClass("classes/car.json", CAR, {
+      chassis: { type: "test.collider@1", parent: null },
+      body: { type: "test.staticMesh@1", parent: "chassis", mesh: MESH },
+      driver: { type: "test.driver@1" },
+    }),
+    level("levels/main/level.json", "a", [
+      {
+        id: actorId("1"),
+        name: "Car",
+        class: CAR,
+        overrides: { body: { mesh: WHEEL }, driver: { targetSpeed: 18 } },
+      },
+      {
+        id: actorId("2"),
+        name: "Wheel",
+        components: { mesh: { type: "test.meshRenderer@1", parent: null, mesh: WHEEL } },
+      },
+    ]),
+  ];
+}
+
+export function build(files: readonly ContentFile[], strict = true) {
+  return buildAssetIndex(files, { strict, registry: createAssetTestRegistry() });
 }
