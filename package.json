@@ -17,11 +17,12 @@
     "bench:level": "node --expose-gc tools/bench-level.ts",
     "forge": "node tools/forge.ts",
     "create-project": "node tools/create-project.ts",
+    "check:projects": "node tools/check-projects.ts",
     "sdk:snapshot": "node tools/sdk-api.ts write",
     "verify:sdk-api": "node tools/sdk-api.ts verify",
     "test": "vitest run",
     "build": "vite build",
-    "gate": "npm run typecheck && npm run verify:layers && npm run verify:file-size && npm run verify:node-load && npm run verify:assets && npm run verify:sdk-api && npm run test && npm run build"
+    "gate": "npm run typecheck && npm run verify:layers && npm run verify:file-size && npm run verify:node-load && npm run verify:assets && npm run verify:sdk-api && npm run check:projects && npm run test && npm run build"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.19.3",
