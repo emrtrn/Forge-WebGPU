@@ -3,14 +3,21 @@
 // Override rule, v1:
 // - The address is component id + field. An override holds the whole value of
 //   that field; `local` counts as a field of a spatial component.
-// - Every field of a class component can be overridden. `type` and `parent`
-//   cannot. An instance cannot add or remove components.
+// - Every field of a class component can be overridden. `parent` cannot. An
+//   instance cannot add or remove components.
 // - Only differences are stored: an override equal to the class value is
 //   dropped, an empty component entry is dropped.
+// - Version tag: a component entry carries `type`, the class component's type
+//   tag at the time it was written. It is a stamp, not an override. A save
+//   always writes the current tag; a missing tag reads as current. An older
+//   version runs the component's migration chain on the partial data (every
+//   step is partial-safe, see migrate.ts); a tag naming another component
+//   type means the class swapped the component under this id, and the entry
+//   is dropped with a report.
 
 import { isId, type AssetId } from "../id.ts";
 import { isJsonObject, jsonEquals, type JsonObject } from "../json.ts";
-import { parseComponentTypeTag, type ComponentDef } from "../schema/component.ts";
+import { componentTypeTag, parseComponentTypeTag, type ComponentDef } from "../schema/component.ts";
 import { IDENTITY_TRANSFORM } from "../schema/fields.ts";
 import {
   childPath,
@@ -22,6 +29,7 @@ import {
   type NormalizeOptions,
   type NormalizeResult,
 } from "../schema/issues.ts";
+import { runMigrations } from "../schema/migrate.ts";
 import { normalizeTransform, normalizeValue } from "../schema/normalize.ts";
 import type { SchemaRegistry } from "../schema/registry.ts";
 import { normalizeComponentMap } from "./components.ts";
@@ -124,9 +132,11 @@ export function normalizeOverrides(
       );
       continue;
     }
-    const kept = normalizeComponentOverrides(given, classComponent, def, componentPath, ctx);
+    const current = currentOverrideData(given, def, componentPath, ctx);
+    if (!current) continue;
+    const kept = normalizeComponentOverrides(current, classComponent, def, componentPath, ctx);
     if (Object.keys(kept).length > 0) {
-      overrides[componentId] = kept;
+      overrides[componentId] = { type: componentTypeTag(def), ...kept };
     }
   }
 
@@ -141,6 +151,60 @@ export function normalizeOverrides(
     }
   }
   return overrides;
+}
+
+/**
+ * Reads the entry's version tag and brings its fields to the current version.
+ * Null when the entry cannot be used; the reason is reported.
+ */
+function currentOverrideData(
+  given: JsonObject,
+  def: ComponentDef,
+  path: string,
+  ctx: NormalizeContext,
+): JsonObject | null {
+  const { type, ...rest } = given;
+  if (type === undefined) return rest;
+  const typePath = childPath(path, "type");
+  const tag = parseComponentTypeTag(type);
+  if (!tag) {
+    reportLoss(ctx, "invalid-value", typePath, 'Expected a "<name>@<version>" type tag; overrides dropped.');
+    return null;
+  }
+  if (tag.name !== def.name) {
+    reportLoss(
+      ctx,
+      "invalid-override",
+      typePath,
+      `Written for ${tag.name}; the class component is a ${def.name} now. Overrides dropped.`,
+    );
+    return null;
+  }
+  if (tag.version > def.version) {
+    reportLoss(
+      ctx,
+      "unsupported-version",
+      typePath,
+      `Version ${tag.version} of ${def.name} is newer than this build (${def.version}); overrides dropped.`,
+    );
+    return null;
+  }
+  if (tag.version === def.version) return rest;
+
+  // The envelope does not go through migrations, as for a stored component.
+  const { local, parent, ...fields } = rest;
+  const outcome = runMigrations(def.migrations, tag.version, def.version, fields);
+  if (!outcome.ok) {
+    reportLoss(ctx, "migration-failed", path, `${def.name}: ${outcome.reason}; overrides dropped.`);
+    return null;
+  }
+  const migrated: JsonObject = {};
+  for (const [key, value] of Object.entries(outcome.data)) {
+    if (value !== undefined) migrated[key] = value;
+  }
+  if (local !== undefined) migrated.local = local;
+  if (parent !== undefined) migrated.parent = parent;
+  return migrated;
 }
 
 function normalizeComponentOverrides(
@@ -173,7 +237,7 @@ function normalizeComponentOverrides(
   }
 
   for (const key of Object.keys(given)) {
-    if (key === "type" || key === "parent") {
+    if (key === "parent") {
       reportLoss(ctx, "invalid-override", childPath(path, key), `"${key}" cannot be overridden; dropped.`);
     } else if (!(Object.hasOwn(def.fields, key) || (key === "local" && def.spatial))) {
       reportLoss(ctx, "unknown-field", childPath(path, key), "The schema has no such field; dropped.");

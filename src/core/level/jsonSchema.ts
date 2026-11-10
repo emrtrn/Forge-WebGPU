@@ -6,7 +6,7 @@
 // Overrides are the one part a static schema cannot check: their valid keys
 // depend on the class the actor points at. They are checked by `normalizeLevel`.
 
-import { componentTypeTag } from "../schema/component.ts";
+import { COMPONENT_NAME_PATTERN, componentTypeTag } from "../schema/component.ts";
 import {
   componentJsonSchema,
   idJsonSchema,
@@ -18,6 +18,7 @@ import type { SchemaRegistry } from "../schema/registry.ts";
 import { ACTOR_CLASS_SCHEMA, LEVEL_SCHEMA, LOCAL_ID_PATTERN } from "./model.ts";
 
 const COMPONENT_REF = { $ref: "#/definitions/component" };
+const OVERRIDE_TAG_PATTERN = `${COMPONENT_NAME_PATTERN.source.slice(0, -1)}@[1-9][0-9]*$`;
 
 /** Definitions shared by both document kinds: one per component type, plus their union. */
 function componentDefinitions(registry: SchemaRegistry): Record<string, JsonSchema> {
@@ -67,8 +68,17 @@ function actorSchema(): JsonSchema {
       overrides: {
         type: "object",
         propertyNames: { pattern: LOCAL_ID_PATTERN.source },
-        additionalProperties: { type: "object" },
-        description: "Component id -> the fields that differ from the class.",
+        additionalProperties: {
+          type: "object",
+          properties: {
+            type: {
+              type: "string",
+              pattern: OVERRIDE_TAG_PATTERN,
+              description: "Type tag of the class component the entry was written at (a version stamp).",
+            },
+          },
+        },
+        description: "Component id -> the fields that differ from the class, stamped with the component's type tag.",
       },
     },
     required: ["id"],

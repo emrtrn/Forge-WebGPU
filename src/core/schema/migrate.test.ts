@@ -75,8 +75,10 @@ describe("migration chain", () => {
     const Mutating = defineComponent("test.mutating", 2, fields, {
       migrations: {
         1: (data) => {
-          (data.nested as { value: number }).value = 2;
-          delete data.nested;
+          if (data.nested) {
+            (data.nested as { value: number }).value = 2;
+            delete data.nested;
+          }
           return data;
         },
       },
@@ -102,6 +104,7 @@ describe("migration chain", () => {
         },
       },
     );
+    seen.length = 0; // the definition-time check already ran the step on {}
     const result = normalizeComponent(
       Box,
       { type: "test.box@1", parent: "chassis", local: { p: [0, 1, 0] }, extent: [2, 2, 2] },
@@ -119,17 +122,23 @@ describe("migration chain", () => {
 });
 
 describe("migration failures", () => {
+  // Each step is partial-safe on {} (the definition-time check) and fails only
+  // on the data that triggers it.
   test.each([
-    ["throws", (): never => { throw new Error("boom"); }],
-    ["returns something that is not an object", () => [] as never],
+    ["throws", (data: Record<string, unknown>) => {
+      if (data.legacy !== undefined) throw new Error("boom");
+      return data;
+    }],
+    ["returns something that is not an object", (data: Record<string, unknown>) =>
+      (data.legacy !== undefined ? [] : data) as never],
   ])("a step that %s drops the component with a loss issue", (_name, step) => {
     const Broken = defineComponent("test.broken", 2, fields, { migrations: { 1: step } });
-    const strict = normalizeComponent(Broken, { type: "test.broken@1" }, STRICT);
+    const strict = normalizeComponent(Broken, { type: "test.broken@1", legacy: 1 }, STRICT);
     expect(strict.value).toBeNull();
     expect(summary(strict.issues)).toEqual(["error migration-failed "]);
     expect(strict.ok).toBe(false);
 
-    const lenient = normalizeComponent(Broken, { type: "test.broken@1" }, { strict: false });
+    const lenient = normalizeComponent(Broken, { type: "test.broken@1", legacy: 1 }, { strict: false });
     expect(lenient.value).toBeNull();
     expect(summary(lenient.issues)).toEqual(["warning migration-failed "]);
     expect(lenient.ok).toBe(true);
@@ -154,6 +163,23 @@ describe("definition-time checks", () => {
     expect(() => defineComponent("test.fog", version, fields, { migrations: given })).toThrow(
       SchemaDefinitionError,
     );
+  });
+
+  test("a step must accept partial data: it may not throw on {} or invent keys", () => {
+    const cases: [string, MigrationMap, RegExp][] = [
+      ["throws", { 1: (data) => ({ ...data, heightFalloff: (data.falloff as number[]).length }) }, /threw/],
+      ["invents a key", { 1: (data) => ({ ...data, sunColor: "#ffffff" }) }, /only change the keys/],
+      ["returns a non-object", { 1: () => null as never }, /only change the keys/],
+    ];
+    for (const [name, given, message] of cases) {
+      expect(() => defineComponent("test.fog", 2, fields, { migrations: given }), name).toThrow(message);
+    }
+    // Renaming a key that may be absent leaves an undefined value: allowed.
+    expect(() =>
+      defineComponent("test.fog", 2, fields, {
+        migrations: { 1: ({ falloff, ...rest }) => ({ ...rest, heightFalloff: falloff }) },
+      }),
+    ).not.toThrow();
   });
 
   test("version 1 needs no migrations", () => {

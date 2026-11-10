@@ -104,8 +104,8 @@ describe("overrides", () => {
     expect(result.issues).toEqual([]);
     expect(JSON.stringify(overridesOf(result))).toBe(
       JSON.stringify({
-        chassis: { local: { p: [0, 1, -0.04], r: [0, 0, 0, 1], s: [2, 2, 2] } },
-        driver: { targetSpeed: 18 },
+        chassis: { type: "test.collider@1", local: { p: [0, 1, -0.04], r: [0, 0, 0, 1], s: [2, 2, 2] } },
+        driver: { type: "test.driver@1", targetSpeed: 18 },
       }),
     );
   });
@@ -119,19 +119,18 @@ describe("overrides", () => {
   test("a number out of range is clamped like anywhere else", () => {
     const result = normalizeLevel(carLevel({ driver: { targetSpeed: 500 } }), STRICT);
     expect(summary(result.issues)).toEqual(["warning clamped actors[0].overrides.driver.targetSpeed"]);
-    expect(overridesOf(result)).toEqual({ driver: { targetSpeed: 50 } });
+    expect(overridesOf(result)).toEqual({ driver: { type: "test.driver@1", targetSpeed: 50 } });
   });
 
-  test("type and parent cannot be overridden; a component cannot be added", () => {
+  test("parent cannot be overridden; a component cannot be added", () => {
     const result = normalizeLevel(
       carLevel({
-        body: { type: "test.collider@1", parent: null },
+        body: { type: "test.staticMesh@1", parent: null },
         trailer: { size: [1, 1, 1] },
       }),
       STRICT,
     );
     expect(summary(result.issues)).toEqual([
-      "error invalid-override actors[0].overrides.body.type",
       "error invalid-override actors[0].overrides.body.parent",
       "error invalid-override actors[0].overrides.trailer",
     ]);

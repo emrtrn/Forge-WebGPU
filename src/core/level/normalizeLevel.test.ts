@@ -44,8 +44,8 @@ const CANONICAL = {
       parent: null,
       transform: { p: [12, 0, 4], r: [0, 0, 0, 1], s: [1, 1, 1] },
       overrides: {
-        chassis: { local: { p: [0, 1.2, 0], r: [0, 0, 0, 1], s: [1, 1, 1] } },
-        driver: { targetSpeed: 18 },
+        chassis: { type: "test.collider@1", local: { p: [0, 1.2, 0], r: [0, 0, 0, 1], s: [1, 1, 1] } },
+        driver: { type: "test.driver@1", targetSpeed: 18 },
       },
     },
   ],

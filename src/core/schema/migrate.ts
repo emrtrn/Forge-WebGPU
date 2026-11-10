@@ -9,6 +9,15 @@
 // `local`) is not its business. It gets its own copy of the data and returns
 // the data of the next version; what it returns is then normalised like any
 // other input, so a key it forgets to rename shows up as an unknown field.
+//
+// Partial data (architecture §4.4, override version tag): a prefab override
+// holds only the fields that differ from the class, and it runs through the
+// same chain. So a migration must accept any subset of its fields: it changes
+// only the keys it is given and never invents a key from one that is absent
+// (a new field takes its default in normalisation, not in a migration). The
+// definition-time check runs every step on `{}` and refuses one that throws
+// or returns a defined value. A step that combines two fields cannot see the
+// class value of the one an override leaves out; it sees only what is there.
 
 import { isJsonObject, type JsonObject } from "../json.ts";
 import { SchemaDefinitionError } from "./fields.ts";
@@ -28,6 +37,9 @@ export function checkMigrations(what: string, version: number, migrations: Migra
       );
     }
   }
+  for (let from = 1; from < version; from += 1) {
+    checkPartialSafe(what, from, migrations[from] as Migration);
+  }
   for (const key of Object.keys(migrations)) {
     const from = Number(key);
     if (!Number.isInteger(from) || from < 1 || from >= version) {
@@ -35,6 +47,23 @@ export function checkMigrations(what: string, version: number, migrations: Migra
         `${what}: migration "${key}" does not belong to a version below ${version}.`,
       );
     }
+  }
+}
+
+function checkPartialSafe(what: string, from: number, step: Migration): void {
+  let result: unknown;
+  try {
+    result = step({});
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new SchemaDefinitionError(
+      `${what}: migration from version ${from} must accept partial data (an override holds only some fields); on {} it threw: ${detail}`,
+    );
+  }
+  if (!isJsonObject(result) || Object.values(result).some((value) => value !== undefined)) {
+    throw new SchemaDefinitionError(
+      `${what}: migration from version ${from} must only change the keys it is given; on {} it returned ${JSON.stringify(result)}.`,
+    );
   }
 }
 

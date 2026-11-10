@@ -7,7 +7,8 @@
 // - A plain actor (`class: null`) owns its `components`.
 // - A class actor (`class: <asset id>`) is an instance of an actor class
 //   (prefab): its components come from the class and it stores only the
-//   differences, in `overrides`, addressed by component id + field.
+//   differences, in `overrides`, addressed by component id + field. Each
+//   entry carries the component's type tag so it can be migrated.
 // - A spatial component carries `parent` (the local id of another spatial
 //   component of the same actor, null for the actor root) and `local`.
 //
@@ -37,7 +38,10 @@ export interface ComponentRecord {
 
 export type ComponentMap = Record<string, ComponentRecord>;
 
-/** Component id -> the fields (and `local`) that differ from the class. */
+/**
+ * Component id -> the fields (and `local`) that differ from the class, plus
+ * `type`: the component's type tag the entry was written at (a version stamp).
+ */
 export type OverrideMap = Record<string, JsonObject>;
 
 interface ActorBase {
