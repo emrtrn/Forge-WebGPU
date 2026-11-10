@@ -6,6 +6,10 @@ dist/
 # Derived caches (asset index); rebuilt when missing
 .forge-cache/
 
+# Save service: journal of a save in progress, staged binary uploads
+.forge-journal/
+.forge-staging/
+
 # Test output
 test-results/
 playwright-report/
