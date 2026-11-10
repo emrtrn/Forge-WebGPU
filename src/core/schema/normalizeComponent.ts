@@ -2,14 +2,14 @@
 // `parent` + `local`) plus field values. Loading and saving both call this.
 //
 // Output key order is fixed: type, parent, local, then fields in definition
-// order. `type` is always the definition's current version: a save writes the
-// latest schema.
+// order. A component stored at an older version is migrated first; `type` in
+// the output is always the definition's current version, so a load always runs
+// the chain and a save always writes the latest schema.
 
 import { isJsonObject, type JsonObject } from "../json.ts";
 import {
   componentTypeTag,
   parseComponentTypeTag,
-  RESERVED_COMPONENT_KEYS,
   type ComponentDef,
   type StoredComponent,
 } from "./component.ts";
@@ -23,6 +23,7 @@ import {
   type NormalizeOptions,
   type NormalizeResult,
 } from "./issues.ts";
+import { runMigrations } from "./migrate.ts";
 import { normalizeFieldMap, normalizeTransform } from "./normalize.ts";
 
 /**
@@ -50,23 +51,37 @@ export function normalizeComponentInto(
     );
     return null;
   }
-  if (tag.version !== def.version) {
+  if (tag.version > def.version) {
     reportLoss(
       ctx,
       "unsupported-version",
       childPath(path, "type"),
-      `Version ${tag.version} of ${def.name} is not supported (current is ${def.version}); component dropped.`,
+      `Version ${tag.version} of ${def.name} is newer than this build (${def.version}); component dropped.`,
     );
     return null;
   }
 
+  const { type: _type, parent, local, ...stored } = raw;
+  let data: JsonObject = stored;
+  if (tag.version < def.version) {
+    const outcome = runMigrations(def.migrations, tag.version, def.version, stored);
+    if (!outcome.ok) {
+      reportLoss(ctx, "migration-failed", path, `${def.name}: ${outcome.reason}; component dropped.`);
+      return null;
+    }
+    data = outcome.data;
+  }
+
   const value: JsonObject = { type: componentTypeTag(def) };
   if (def.spatial) {
-    value.parent = normalizeParent(raw.parent, childPath(path, "parent"), ctx);
-    value.local = normalizeTransform(raw.local, IDENTITY_TRANSFORM, childPath(path, "local"), ctx);
+    value.parent = normalizeParent(parent, childPath(path, "parent"), ctx);
+    value.local = normalizeTransform(local, IDENTITY_TRANSFORM, childPath(path, "local"), ctx);
+  } else {
+    // Not envelope keys here: let them be reported as unknown fields.
+    if (parent !== undefined) data = { ...data, parent };
+    if (local !== undefined) data = { ...data, local };
   }
-  const envelope = def.spatial ? RESERVED_COMPONENT_KEYS : ["type"];
-  return Object.assign(value, normalizeFieldMap(def.fields, raw, path, ctx, envelope));
+  return Object.assign(value, normalizeFieldMap(def.fields, data, path, ctx));
 }
 
 /** The local id of the parent component, or null for the actor root. */

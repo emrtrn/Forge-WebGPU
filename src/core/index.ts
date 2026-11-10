@@ -8,5 +8,6 @@ export * from "./schema/component.ts";
 export * from "./schema/fields.ts";
 export * from "./schema/issues.ts";
 export * from "./schema/label.ts";
+export * from "./schema/migrate.ts";
 export * from "./schema/normalize.ts";
 export * from "./schema/normalizeComponent.ts";

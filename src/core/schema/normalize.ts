@@ -209,23 +209,19 @@ export function normalizeValue(
   }
 }
 
-/**
- * Normalises the keys of `raw` against a field map. Keys in `envelope` belong
- * to the caller (a component's `type`, `parent`, `local`) and are skipped.
- */
+/** Normalises the keys of `raw` against a field map. */
 export function normalizeFieldMap(
   fields: FieldMap,
   raw: JsonObject,
   path: string,
   ctx: NormalizeContext,
-  envelope: readonly string[] = [],
 ): JsonObject {
   const value: JsonObject = {};
   for (const [key, field] of Object.entries(fields)) {
     value[key] = normalizeValue(field, raw[key], childPath(path, key), ctx);
   }
   for (const key of Object.keys(raw)) {
-    if (!Object.hasOwn(fields, key) && !envelope.includes(key)) {
+    if (!Object.hasOwn(fields, key)) {
       reportLoss(ctx, "unknown-field", childPath(path, key), "The schema has no such field; dropped.");
     }
   }

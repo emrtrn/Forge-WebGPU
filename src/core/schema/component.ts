@@ -2,7 +2,8 @@
 //
 // `defineComponent(name, version, fields)` is the single source for a
 // component type. The definition is frozen data; its TypeScript type is
-// `ComponentData<typeof Def>`.
+// `ComponentData<typeof Def>`. The one part that is code by nature is the
+// migration chain (`migrations`), kept apart from the walkable `fields`.
 
 import {
   checkFieldMap,
@@ -13,6 +14,7 @@ import {
   type Transform,
 } from "./fields.ts";
 import { labelFromComponentName } from "./label.ts";
+import { checkMigrations, type MigrationMap } from "./migrate.ts";
 import { assertDefaultsAreNormal } from "./normalize.ts";
 
 /** Namespaced, e.g. `forge.heightFog`; a game uses its own namespace. */
@@ -33,6 +35,8 @@ export interface ComponentOptions {
   readonly spatial?: boolean;
   /** At most one component of this type per level (architecture §4.4). */
   readonly singleton?: boolean;
+  /** One step per earlier version, keyed by the version it migrates from. */
+  readonly migrations?: MigrationMap;
 }
 
 export interface ComponentDef<M extends FieldMap = FieldMap> {
@@ -44,6 +48,7 @@ export interface ComponentDef<M extends FieldMap = FieldMap> {
   readonly spatial: boolean;
   readonly singleton: boolean;
   readonly fields: M;
+  readonly migrations: MigrationMap;
 }
 
 /** `forge.heightFog@1`: the `type` tag a stored component carries. */
@@ -84,6 +89,8 @@ export function defineComponent<M extends FieldMap>(
     }
   }
   assertDefaultsAreNormal(`defineComponent ${name}`, fields);
+  const migrations = { ...options.migrations };
+  checkMigrations(`defineComponent ${name}`, version, migrations);
 
   return deepFreeze({
     kind: "component",
@@ -94,6 +101,7 @@ export function defineComponent<M extends FieldMap>(
     spatial: options.spatial ?? false,
     singleton: options.singleton ?? false,
     fields: { ...fields },
+    migrations,
   }) as ComponentDef<M>;
 }
 

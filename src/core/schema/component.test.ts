@@ -28,11 +28,11 @@ describe("defineComponent", () => {
   });
 
   test("fills the options it was not given", () => {
-    const Plain = defineComponent("test.plainThing", 3, { on: bool({ default: false }) });
+    const Plain = defineComponent("test.plainThing", 1, { on: bool({ default: false }) });
     expect(Plain).toMatchObject({
       kind: "component",
       name: "test.plainThing",
-      version: 3,
+      version: 1,
       label: "Plain Thing",
       hint: null,
       spatial: false,
