@@ -1,6 +1,9 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v0.8 · 2026-11-10 (v0.7'den fark: 2a uygulama kabuğu kararları —
+**Sürüm:** v0.9 · 2026-11-10 (v0.8'den fark: 2a oyun projesi sözleşmesi
+kararları — §4.8 manifest, SDK yüzeyi ve sürüm kuralı, API anlık görüntüsü
+aracı, başlatıcı, dev server'da proje seçimi, `create-project`,
+`check:projects`. v0.8: 2a uygulama kabuğu kararları —
 §4.3 `defineFeature.subsystems`, §4.7 alt sistem sözleşmesi çekirdekte, World
 yaşam döngüsü, tick grupları, sahne kurucu, oyun modülü, boot ekranı.
 v0.7: 2a kayıt servisi kararları — §4.6
@@ -745,6 +748,51 @@ düşen alan uyarı değil, **hatadır**.
   ile hangi projeyi sunduğunu söyler, smoke testleri bunu doğrular (D14).
 - **Proje oluşturma:** `create-project` aracı `samples/starter`'dan yeni oyun
   deposu üretir (Model 2'nin açık kalan boşluğu).
+- **Oyun projesi sözleşmesi uygulaması (2a kararları, 2026-11-10):**
+  - *Manifest:* oyun deposunun kökünde `forge.project.json`
+    (`forge.project/1`): `id` (küçük harf + rakam; bileşen ad alanı), `name`,
+    `sdkVersion` (`<ana>.<ara>`), `contentRoots` (varsayılan `["content"]`),
+    `startLevel`, `game.module`, `devPort` (varsayılan 5190). Yollar projeye
+    göreli, `..` ve sürücü yok. Normalize çekirdek DSL'iyle.
+  - *SDK:* `@forge/sdk` adları tek tek dışa aktarır (toptan yeniden dışa aktarım
+    yok): kimlikler, şema DSL'i, ikili asset türleri, özellik / alt sistem /
+    servis, World tipleri, `defineGameModule`. Asset ve kayıt iç işleri, araçlar,
+    editör dışarıda. `@forge/editor-sdk` Faz 4'e kadar iskelet. `SDK_VERSION`
+    çekirdekte (araçlar da okur), SDK onu yeniden dışa aktarır.
+  - *Sürüm kuralı:* v0'da ana + ara sürüm eşit olmalı; 1.0'dan sonra ana eşit,
+    projenin ara sürümü motorunkinden büyük olamaz. Uyumsuz proje açılmaz,
+    aradaki changelog girdileri gösterilir.
+  - *API anlık görüntüsü:* TypeScript derleyici API'siyle (ek bağımlılık yok)
+    dışa aktarımlar ve onların ulaştığı, `src/` içinde tanımlı her tip
+    (sözdizimsel yürüyüş; denetleyicinin örneklenmiş tipleri DSL'in eşlemeli
+    generic'lerinde bitmiyor) sıralı metne yazılır. `verify:sdk-api` kapıda:
+    üretilen metin commit'lenene eşit ve changelog'un en üst girdisi
+    `API: <hash>` taşıyor; yüzey changelog'suz değişemez.
+  - *Başlatıcı (`npm run forge`):* `check` → manifest, sürüm,
+    `.forge/tsconfig.json` (motorun taban derleyici ayarları + yalnız iki SDK
+    takma adı, motor kökü çözülerek), tsc, AST import sınırı (proje içi göreli,
+    `@forge/sdk`, `@forge/editor-sdk` yalnız `editor.ts` / `src/editor/`;
+    `three`, motor yolları, Node modülleri, başka paketler reddedilir;
+    `samples/` motorun `node_modules`'unu bulabildiği için çözümleme tek başına
+    yetmez). `dev` → projenin `devPort`'unda motorun dev server'ı.
+  - *Dev server:* proje `FORGE_PROJECT_ROOT`'tan, yoksa `samples/starter`.
+    Motor deposundaki `samples/` ve `tests/fixtures/` projeleri salt okunur
+    (kayıt / yükleme 403). Yazılabilir ve taranan kökler manifestin
+    `contentRoots`'u. Oyun modülü `ssrLoadModule` ile yüklenir, şemaları
+    kayda girer (oyun bileşenleri kayıtta doğrulanır). `/__forge/identity`
+    (motor SDK sürümü, proje kimliği, başlangıç level'ı, salt okunurluk,
+    açılmama nedenleri), `/__forge/classes`. Oyun modülü tarayıcıya
+    `virtual:forge/game-module` ile gelir (build'de ve projesiz `null`);
+    katman denetimi `virtual:forge/*`'ı çözülemez saymaz.
+  - *`create-project`:* starter'ı depo dışında boş bir hedefe kopyalar,
+    manifesti ve oyun modülünü yeni kimlikle yazar, level GUID'ini yeniler
+    (kanonik metin + revizyon + dizin), `--register` ile
+    `forge.projects.local.json`'a (git dışı) ekler.
+  - *`check:projects`:* `samples/*` + yerel kayıtlı projeler; her biri için
+    `forge check`, proje kaydıyla asset kapısı ve başsız açılış (motor
+    özellikleri ve oyun modülü Vite üzerinden, level diskten, `bootGame` elle
+    sürülen zamanlayıcıyla 3 kare). Gate'te; CI'da `samples/` sözleşme testi.
+    Araç `src/runtime`'ı import etmez (katman kuralı), Vite'la yükler.
 - Model 1 oyunları Forge WebGL'de kalır.
 
 ### 4.9 Render mimarisi (özet)

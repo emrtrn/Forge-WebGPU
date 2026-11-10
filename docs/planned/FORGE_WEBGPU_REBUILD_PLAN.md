@@ -12,9 +12,9 @@ Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 depo iskeleti, katman denetimi + öz-testi, kapılar ve çekirdek (şema DSL'i,
 normalize, geçiş zinciri, şema kaydı, `forge.level/1` veri modeli, form tanımı,
 JSON Schema), asset modeli (A10), hücre veri modeli (A11) kuruldu; 50.000 aktör
-ölçümü eşik içinde; kayıt servisi ve uygulama kabuğu kuruldu. Sıradaki işler:
-oyun projesi sözleşmesi, depo düzeni; Faz 0 envanteri ve referans görüntüleri,
-Faz 1 spike (paralel).
+ölçümü eşik içinde; kayıt servisi, uygulama kabuğu ve oyun projesi sözleşmesi
+kuruldu. Sıradaki işler: depo düzeni (content pack'ler), kapıların bekleyenleri;
+Faz 0 envanteri ve referans görüntüleri, Faz 1 spike (paralel).
 **Mimari:** [FORGE_WEBGPU_ARCHITECTURE.md](FORGE_WEBGPU_ARCHITECTURE.md) —
 veri modeli, katmanlar, özellik modülleri, oyun projesi sözleşmesi. Bu plan
 fazların sırasını, o rapor yapının kendisini tanımlar; çelişkide rapor geçerlidir.
@@ -385,32 +385,43 @@ bölümünü uygular.
       zincirinden uçtan uca geçiyor; render bağlaması Faz 3'te servisi okur.
       Boot ekranı başlıksız Chrome'da `--dump-dom` ile görüldü (proje yokken
       "Nothing to open"). (2026-11-10)
-- [ ] Oyun projesi sözleşmesi: `@forge/sdk` / `@forge/editor-sdk` iskeleti,
+- [x] Oyun projesi sözleşmesi: `@forge/sdk` / `@forge/editor-sdk` iskeleti,
       başlatıcı (yalnız SDK takma adlarını tanıyan TypeScript ayarlarını üretir,
       `sdkVersion` uyumunu denetler), SDK API anlık görüntüsü + CI fark kapısı,
       `samples/starter`, `create-project`, `check:projects`, `/__forge/identity`
-      (mimari §4.8, A8).
+      (mimari §4.8, A8). `forge.project/1` manifest + sürüm uyumu çekirdekte;
+      SDK 0.1.0 ve changelog; `verify:sdk-api` (snapshot + changelog hash'i);
+      `npm run forge -- check|dev`; dev server'da proje seçimi, salt okunur
+      `samples/` / fixture, `/__forge/identity`, `/__forge/classes`, sanal oyun
+      modülü, oyun şemalarıyla kayıt doğrulaması; `samples/starter` (sis +
+      Player Start, SDK'lı oyun modülü); `create-project`; `check:projects`
+      (gate'te; başsız açılış). `tests/fixtures/projects/` (good, bad-imports,
+      old-sdk, type-error). `npm run dev` başlıksız Chrome'da starter'ı açtı,
+      depo dışı bir proje `forge dev` ile kendi portunda açıldı. Content pack'ler
+      depo düzeni kutusunda. (2026-11-10)
 - [ ] Depo düzeni: `content/engine/`, `content/packs/starter/` (manifestte
       `contentPacks`), `samples/`, `tests/fixtures/projects/`; testler fixture'ın
       geçici kopyasında çalışır, dev server fixture / `samples/` köklerine yazmaz
       (mimari A9).
-- [ ] **İskeletin kabul testi:** Height Fog özelliği tek klasörde uçtan uca:
+- [x] **İskeletin kabul testi:** Height Fog özelliği tek klasörde uçtan uca:
       şema → kayıt / yükleme turu → undo → otomatik Details **form tanımı**
       (şemadan üretilen, DOM'suz alan listesi: ad, tür, aralık, varsayılan, TR
       ipucu; testle doğrulanır) → runtime alt sistemi. Form tanımını DOM'a
       çeviren UI kiti Faz 4'te (K7), render bağlaması Faz 3'te. Kabuk
       dosyalarında değişiklik yok. *Hazır (2026-11-10):* şema, kayıt / yükleme
-      turu (level düzeyinde), form tanımı ve testi. *Bekleyen:* undo (kayıt
-      servisi) ve runtime alt sistemi (uygulama kabuğu).
+      turu (level düzeyinde), form tanımı ve testi; undo (düzenleme modeli) ve
+      runtime alt sistemi (uygulama kabuğu); `height-fog.test.ts`'teki kabul
+      testi zinciri tek testte kurar; `main.ts` özellikleri klasörden toplar.
+      Render bağlaması Faz 3'te, UI kiti Faz 4'te.
 - [ ] Kapılar ve CI: tip kontrolü (iki tsconfig), katman denetimi + öz-testi,
       Vitest, build, dist doğrulaması, SDK API snapshot farkı, boyut bütçesi,
       alt dizin (`base`) yayını testi (mimari §4.10, F06). *Kuruldu
       (2026-11-10):* `npm run gate` = tip kontrolü (iki tsconfig) + katman
       denetimi + öz-test + dosya boyutu bütçesi + Node yükleme kapısı
-      (`verify:node-load`) + asset kapısı (`verify:assets`, D16) + Vitest +
-      build; aynı kapı
-      `.github/workflows/ci.yml`'de. *Bekleyen:* dist doğrulaması (editör
-      gelince), SDK API snapshot'ı (SDK gelince), alt dizin yayını testi.
+      (`verify:node-load`) + asset kapısı (`verify:assets`, D16) + SDK API
+      kapısı (`verify:sdk-api`) + proje uyumluluğu (`check:projects`) +
+      Vitest + build; aynı kapı `.github/workflows/ci.yml`'de. *Bekleyen:*
+      dist doğrulaması (editör gelince), alt dizin yayını testi.
 - [ ] `CLAUDE.md`, `AGENTS.md`, `docs/architecture/ARCHITECTURE.md` (mimari
       rapordan) yazılır. (Bu plan ve rapor 2026-11-10'da yeni deponun
       `docs/planned/` klasörüne taşındı.) *`CLAUDE.md` ve `AGENTS.md` yazıldı
@@ -718,3 +729,4 @@ silinebilir.
 | 2026-11-10 | v0.7 | Faz 2a ölçek ölçümü kapandı (`239abc9` … `f60f79a`): `npm run bench:level` (sabit tohumlu 50.000 aktörlük level, S1–S7), eşikler ölçümden önce yazıldı (`1bd2e6b`). İlk koşuda S1 / S3 / S4 aştı; sebep uygulama (O(hücre × aktör) bölme, aktör kopyaları), biçim değil; düzeltmeden sonra hepsi eşik içinde. Mimari §4.4 ölçek çarelerine gerek yok. Ölçümde bulunan kayıp hatası (yanlış hücredeki aktör) düzeltildi. 390 test, kapı yeşil |
 | 2026-11-10 | v0.7 | Faz 2a kayıt servisi kutusu kapandı (`c89cbfc` … `51bc7e7`): proje yolu + yazma politikası, günlüklü atomik çok dosyalı kayıt (çökme testli), sunucunun kurduğu level dizini, dosya başına temel revizyon (409), sunucuda şema doğrulaması ve kanonik yazım (422), ikili sahneleme, `/__forge/` uçları + localhost / CSRF koruması, `src/core/edit` düzenleme modeli ve kayıt istemcisi, uçtan uca test. Mimari rapor v0.7. 457 test, kapı yeşil |
 | 2026-11-10 | v0.7 | Faz 2a uygulama kabuğu kutusu kapandı (`2dc5dba` … `5f2e762`): alt sistem / servis sözleşmesi çekirdekte, World (yaşam döngüsü, tick grupları, bileşen dizini, iki World yalıtım testi), sahne kurucu, Height Fog alt sistemi ve uçtan uca test, oyun modülü host'u, renderer'sız boot ekranı, `main.ts` boot eder. Mimari rapor v0.8. 486 test, kapı yeşil |
+| 2026-11-10 | v0.7 | Faz 2a oyun projesi sözleşmesi kutusu kapandı (`2d6700c` … `6ccac78` ve kabul testi): `forge.project/1`, `@forge/sdk` 0.1.0 + changelog + API anlık görüntüsü kapısı, `forge check|dev`, dev server'da proje seçimi / salt okunur örnekler / kimlik, `samples/starter`, `create-project`, `check:projects` (gate'te, başsız açılış). İskeletin kabul testi kutusu da kapandı. Mimari rapor v0.9. 526 test, kapı yeşil |

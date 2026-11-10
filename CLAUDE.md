@@ -25,9 +25,15 @@ ayrı depolarda yaşar; GDD, oyun fikri ve türe özgü taksonomi buraya girmez.
 | `npm run verify:node-load` | `src/core` ve `features/*/schema.ts` düz Node'da yüklenir |
 | `npm run verify:assets` | `content/` ve `samples/*/content/` asset kapısı: tür + lisans + kaynak, meta'sız ikili, çift GUID, asılı referans |
 | `npm run assets:index` | `.forge-cache/asset-index.json` önbelleğini yeniden üretir (commit'lenmez) |
+| `npm run verify:sdk-api` | SDK yüzeyi `src/sdk/api.snapshot.txt` ile aynı ve `src/sdk/CHANGELOG.md`'nin en üst girdisi `API: <hash>` taşıyor; yüzey değişince `npm run sdk:snapshot` + changelog girdisi aynı commit'te |
+| `npm run check:projects` | `samples/*` ve `forge.projects.local.json`'daki oyun projeleri: `forge check` + proje asset kapısı + başsız açılış |
+| `npm run forge -- check --project <yol>` | Oyun projesi sözleşme denetimi (sürüm, derleme, import sınırı); `dev` aynı projeyi `devPort`'unda açar |
+| `npm run create-project -- <hedef> --id <ad>` | `samples/starter`'dan depo dışında yeni oyun projesi (`--register` yerel listeye ekler) |
+| `npm run bench:level` | 50.000 aktörlük ölçek ölçümü (kapıda değil) |
 | `npm run test` | Vitest; testler modülün yanında (`*.test.ts`) |
 | `npm run build` | Vite üretim build'i |
 
+`npm run dev` proje verilmezse `samples/starter`'ı salt okunur açar (kayıt 403).
 Smoke portu **5283**. Forge WebGL 5173 / 5273, Ridgebound 5175 kullanır; başka
 projenin sunucusunu yeniden kullanma.
 
