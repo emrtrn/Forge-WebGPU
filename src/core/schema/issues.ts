@@ -20,6 +20,7 @@ export type IssueCode =
   | "missing-required"
   | "clamped"
   | "unknown-component-type"
+  | "unknown-asset-type"
   | "unsupported-version"
   | "migration-failed"
   | "invalid-document"

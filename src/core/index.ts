@@ -3,6 +3,8 @@
 // `import.meta.env`.
 
 export * from "./assets/assetType.ts";
+export * from "./assets/jsonSchema.ts";
+export * from "./assets/meta.ts";
 export * from "./feature.ts";
 export * from "./id.ts";
 export * from "./json.ts";
