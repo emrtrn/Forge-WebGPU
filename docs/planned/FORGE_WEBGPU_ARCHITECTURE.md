@@ -386,7 +386,13 @@ features/height-fog/
     kirletir), `planLevelFiles` yeni kanonik metni ve silinecek boş hücreleri;
     yüklü olmayan bir hücreye yazılacaksa plan `notLoaded` döner ve hiçbir şey
     yazılmaz. `nextCellIndex` son yazılan dizindir. Yarım kalan kaydın
-    kurtarılması kayıt servisi kutusundadır.
+    kurtarılması kayıt servisi kutusundadır. Okunduğu dosya ile ait olduğu
+    parça farklı olan aktör (yanlış hücrede ya da kökü taşınmış) iki parçayı
+    birbirine bağlar: biri yazılırsa öteki de yazılır, yoksa aktör ya hiçbir
+    dosyada ya da iki dosyada kalır. Birleştirme ve bölme aktör nesnelerini
+    kopyalamaz (50.000 aktörde kopya, yükleme ve kayıt süresine egemendi);
+    parçalar birleştirmeden sonra değiştirilmez, bölmenin çıktısı yazmak
+    içindir.
   - *Bütünlük (bütün dosyaları gören geçiş, asset dizini):* hata — iki dosyada
     aynı aktör kimliği, iki dosyada aynı singleton, dizinde olmayan hücre
     dosyası (yarım kalan kayıt ya da kopya; okunmaz), dizinde olup dosyası
@@ -396,6 +402,10 @@ features/height-fog/
     dosyasında olmayan aktöre `actorRef`. Uyarı — yanlış hücredeki aktör
     (yüklemede yerinde kalır, sonraki kayıt taşır). Runtime'da "henüz yüklü
     değil" geçerli durumdur; asılı aktör referansı yalnız bu geçişte aranır.
+- **Ölçek ölçümü (2a, 2026-11-10):** 50.000 aktörlük level R1'de eşik içinde
+  (bütün level yükleme ~0,9 s, hücre yükleme p95 ~1,5 ms, tek aktör kaydı
+  ~40 ms, tam kayıt ~2,2 s, heap ~58 MB; plan Faz 2a). Aşağıdaki çarelere
+  gerek görülmedi.
 - **Ölçek yedeği:** 2a'daki 50.000 aktörlük yükleme / kayıt ölçümü kötü çıkarsa
   önce veri modeline dokunmayan çareler denenir: hücre dosyalarında transform'ların
   sütunlu (ikili) yazımı ve runtime'da aktör nesnesi yerine yoğun depolama (2a iç

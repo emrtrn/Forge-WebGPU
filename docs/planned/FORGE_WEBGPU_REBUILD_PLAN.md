@@ -11,9 +11,9 @@ Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 **Durum:** Bütün kararlar kapalı (K1–K11, A1–A11; 2026-11-10). Faz 2a sürüyor:
 depo iskeleti, katman denetimi + öz-testi, kapılar ve çekirdek (şema DSL'i,
 normalize, geçiş zinciri, şema kaydı, `forge.level/1` veri modeli, form tanımı,
-JSON Schema), asset modeli (A10) ve hücre veri modeli (A11) kuruldu. Sıradaki
-işler: 50.000 aktör ölçümü, kayıt servisi, uygulama kabuğu; Faz 0 envanteri ve
-referans görüntüleri, Faz 1 spike (paralel).
+JSON Schema), asset modeli (A10), hücre veri modeli (A11) kuruldu; 50.000 aktör
+ölçümü eşik içinde. Sıradaki işler: kayıt servisi, uygulama kabuğu; Faz 0
+envanteri ve referans görüntüleri, Faz 1 spike (paralel).
 **Mimari:** [FORGE_WEBGPU_ARCHITECTURE.md](FORGE_WEBGPU_ARCHITECTURE.md) —
 veri modeli, katmanlar, özellik modülleri, oyun projesi sözleşmesi. Bu plan
 fazların sırasını, o rapor yapının kendisini tanımlar; çelişkide rapor geçerlidir.
@@ -324,7 +324,7 @@ bölümünü uygular.
       bayt revizyonu koyar, dizinle uyuşmayan dosya kapıyı kırar. Fixture level'ı
       klasör düzeninde. Yarım kalan kaydın kurtarılması kayıt servisinde
       (mimari §4.4 hücre modeli uygulaması). (2026-11-10)
-- [ ] **Ölçek ölçümü:** 50.000 aktörlük level'da yükleme, kayıt ve geçiş
+- [x] **Ölçek ölçümü:** 50.000 aktörlük level'da yükleme, kayıt ve geçiş
       zinciri süresi + bellek (mimari §4.4 "ölçek yedeği", §7). Eşik ölçümden
       önce bu maddeye yazılır; aşılırsa mimari §4.4'teki çareler sırayla
       denenir. Aynı level Faz 4'te Outliner ölçüm sahnesidir.
@@ -339,6 +339,22 @@ bölümünü uygular.
       S5 bütün bileşenler eski sürümdeyken S1 ≤ 1,5 × S1; S6 asset dizini
       kurulumu ≤ 3 s; S7 birleşmiş level heap artışı ≤ 150 MB, diskte level
       ≤ 50 MB.
+      *Sonuç (R1, Node 24.19, 2026-11-10, `f60f79a`):* 50.000 aktör (21 kalıcı),
+      1.024 hücre. İlk koşuda S1 2.066 ms, S3 109 ms, S4 6.365 ms eşiği aştı;
+      sebep veri biçimi değil uygulamaydı (`splitLevel` her hücre için bütün
+      aktörleri tarıyordu, birleştirme / bölme her aktörü kopyalıyordu,
+      `assignCells` aktör başına nesne ayırıyordu, bench yükleyicisi dosyaları
+      sırayla okuyordu). Düzeltmeden sonra iki koşu, medyan (p95):
+      S1 816–897 ms (929–956); S2 hücre başına 1,13–1,16 ms (p95 1,43–1,58,
+      en büyük hücre 74 aktör); S3 38,5–41,4 ms (49–54; eşik medyana
+      uygulandı, p95 sınırda); S4 2.219–2.225 ms; S5 1,11–1,26 × S1;
+      S6 1.702–1.743 ms; S7 heap 57,6 MB, disk 37,8 MB. Hepsi eşik içinde;
+      mimari §4.4'teki ölçek çarelerine (sütunlu transform, yoğun depolama)
+      gerek yok. Ölçüm sırasında bulunan hata düzeltildi: yanlış hücredeki
+      aktörün iki hücresi kayıtta birlikte yazılır (aksi halde aktör ya
+      hiçbir dosyada ya da iki dosyada kalıyordu). S3'teki en büyük kalem
+      bütün level'ın yeniden ataması (~29 ms); kayıt servisi artımlı atamaya
+      geçerse düşer. Rapor `.forge-cache/bench/level-scale/report.json`.
 - [ ] Kayıt servisi: işlem / undo, sıralı atomik çok dosyalı kayıt, revizyon
       çakışma kontrolü (409), şemaya göre çalışan genel kayıt uçları, ikili
       kanal; proje kökü izolasyonu ve local-only middleware Forge'dan taşınır
@@ -677,3 +693,4 @@ silinebilir.
 | 2026-11-10 | v0.7 | Faz 2a çekirdek kutusu kapandı (`0b1bce0` … `67add88` ve JSON Schema commit'i): göreli import'lar depo genelinde `.ts` uzantılı + `verify:node-load`; `feature.ts` editörü anmaz (yeni katman kuralı `feature-does-not-name-editor`); şema DSL'i, tek normalize, geçiş zinciri, şema kaydı + `defineFeature`, `forge.level/1` + `forge.actorClass/1`, Details form tanımı, JSON Schema. Mimari rapora 2a kararları işlendi: tam yazım, yanlış tip kuralı, override kuralı v1. 215 test, kapı yeşil |
 | 2026-11-10 | v0.7 | Faz 2a asset modeli kutusu kapandı (`d2c96c6` … `5098d05`): DSL'e metin alan türü; asset türleri ve `registerAssetType`; `forge.assetMeta/1` (tür + lisans + kaynak zorunlu, D16); saf asset dizini (kimlik, şemadan yürüyen referanslar, ters dizin, bütünlük, `planDelete`, dizinden `ClassResolver`); `tools/assets` taraması, `.forge-cache` önbelleği, `verify:assets` gate'te; `src-no-node-builtins` kuralı. Mimari §4.4'teki açık soru kapandı: override sürüm etiketi + kısmi veri geçiş sözleşmesi. Mimari rapor v0.5. 286 test, kapı yeşil |
 | 2026-11-10 | v0.7 | Faz 2a hücre veri modeli kutusu kapandı (`87821dd` … `bb91a59`): `settings.cellSize` + `spatiallyLoaded`; ızgara ve hücre ataması; `forge.levelCell/1` + `forge.levelCells/1`; split / merge, kayıt planı ve kanonik metin; asset dizininde level klasörleri ve dosyalar arası bütünlük; `tools/assets` revizyon denetimi. Mimari rapor v0.6. 383 test, kapı yeşil |
+| 2026-11-10 | v0.7 | Faz 2a ölçek ölçümü kapandı (`239abc9` … `f60f79a`): `npm run bench:level` (sabit tohumlu 50.000 aktörlük level, S1–S7), eşikler ölçümden önce yazıldı (`1bd2e6b`). İlk koşuda S1 / S3 / S4 aştı; sebep uygulama (O(hücre × aktör) bölme, aktör kopyaları), biçim değil; düzeltmeden sonra hepsi eşik içinde. Mimari §4.4 ölçek çarelerine gerek yok. Ölçümde bulunan kayıp hatası (yanlış hücredeki aktör) düzeltildi. 390 test, kapı yeşil |
