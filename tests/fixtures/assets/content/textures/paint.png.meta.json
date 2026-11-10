@@ -1,0 +1,8 @@
+{
+  "schema": "forge.assetMeta/1",
+  "id": "ast_11111111111111111111111111111111",
+  "type": "test.texture@1",
+  "license": "CC0-1.0",
+  "source": { "origin": "authored", "author": "Forge WebGPU tests", "url": "" },
+  "import": { "srgb": true }
+}

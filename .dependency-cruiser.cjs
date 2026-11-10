@@ -115,6 +115,14 @@ module.exports = {
       },
     },
     {
+      name: "src-no-node-builtins",
+      comment:
+        "src/ runs in the browser and core also in Node: no fs, path or other Node module. Reading the disk is tools/ work (e.g. tools/assets scans content roots and hands core a file list).",
+      severity: "error",
+      from: { path: "^src/" },
+      to: { dependencyTypes: ["core"] },
+    },
+    {
       name: "src-does-not-import-tools",
       severity: "error",
       from: { path: "^src/" },

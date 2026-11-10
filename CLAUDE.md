@@ -23,6 +23,8 @@ ayrı depolarda yaşar; GDD, oyun fikri ve türe özgü taksonomi buraya girmez.
 | `npm run verify:layers` | Katman denetimi + öz-testi |
 | `npm run verify:file-size` | Dosya bütçesi: 800 satırda uyarı, 1.500'de hata |
 | `npm run verify:node-load` | `src/core` ve `features/*/schema.ts` düz Node'da yüklenir |
+| `npm run verify:assets` | `content/` ve `samples/*/content/` asset kapısı: tür + lisans + kaynak, meta'sız ikili, çift GUID, asılı referans |
+| `npm run assets:index` | `.forge-cache/asset-index.json` önbelleğini yeniden üretir (commit'lenmez) |
 | `npm run test` | Vitest; testler modülün yanında (`*.test.ts`) |
 | `npm run build` | Vite üretim build'i |
 

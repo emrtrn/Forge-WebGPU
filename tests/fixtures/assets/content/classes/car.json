@@ -1,0 +1,10 @@
+{
+  "schema": "forge.actorClass/1",
+  "id": "ast_33333333333333333333333333333333",
+  "name": "Test Car",
+  "components": {
+    "chassis": { "type": "test.collider@1", "parent": null, "local": { "p": [0, 0, 0], "r": [0, 0, 0, 1], "s": [1, 1, 1] }, "size": [2, 1.5, 4] },
+    "body": { "type": "test.staticMesh@1", "parent": "chassis", "local": { "p": [0, 0, 0], "r": [0, 0, 0, 1], "s": [1, 1, 1] }, "mesh": "ast_22222222222222222222222222222222" },
+    "driver": { "type": "test.driver@1", "targetSpeed": 14, "target": null }
+  }
+}

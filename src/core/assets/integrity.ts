@@ -28,7 +28,8 @@ export function checkReferences(
       if (reference.via !== "class") {
         reportLoss(ctx, "dangling-reference", reference.path, `Asset ${reference.target} is in no indexed file.`);
       }
-    } else if (reference.assetType !== null && target.type !== reference.assetType) {
+    } else if (reference.assetType !== null && target.type !== "" && target.type !== reference.assetType) {
+      // A target without a type has its own `missing-required` issue in its meta file.
       reportLoss(
         ctx,
         "asset-type-mismatch",

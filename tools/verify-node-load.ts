@@ -8,31 +8,12 @@
 // The static import below also pulls src/core into the tools TypeScript
 // project, so core is type-checked a second time without the DOM lib.
 
-import { readdirSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as core from "../src/core/index.ts";
+import { findFeatureSchemaFiles } from "./assets/engineRegistry.ts";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const featuresRoot = join(repoRoot, "src/features");
-
-function findSchemaFiles(): string[] {
-  let entries;
-  try {
-    entries = readdirSync(featuresRoot, { withFileTypes: true });
-  } catch {
-    return []; // no feature yet
-  }
-  const files: string[] = [];
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const names = readdirSync(join(featuresRoot, entry.name));
-    if (names.includes("schema.ts")) {
-      files.push(join(featuresRoot, entry.name, "schema.ts"));
-    }
-  }
-  return files.sort();
-}
 
 const failures: string[] = [];
 
@@ -40,7 +21,7 @@ if (Object.keys(core).length === 0) {
   failures.push("src/core/index.ts loaded but exports nothing.");
 }
 
-const schemaFiles = findSchemaFiles();
+const schemaFiles = findFeatureSchemaFiles(repoRoot);
 for (const file of schemaFiles) {
   const label = file.slice(repoRoot.length + 1).replaceAll("\\", "/");
   try {

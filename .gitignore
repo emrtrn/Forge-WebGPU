@@ -3,6 +3,9 @@ node_modules/
 dist/
 *.local
 
+# Derived caches (asset index); rebuilt when missing
+.forge-cache/
+
 # Test output
 test-results/
 playwright-report/
