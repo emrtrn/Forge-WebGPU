@@ -5,9 +5,10 @@
 // The output is the canonical document. Normalising it again returns the same
 // document with no issues, so load -> save writes back what was read.
 //
-// Not checked here, because a level is loaded cell by cell (A11) and a
-// reference to something not loaded yet is a valid state: that an actor's
-// `parent` or an actor-ref field points at an actor present in this document.
+// A level is loaded cell by cell (A11). An actor's `parent` is always in the
+// same file (a child is saved with its root), so it is checked here. An
+// actor-ref field may point into a cell that is not loaded, a valid state at
+// runtime; it is checked by the whole-level pass over every file.
 
 import { isId, type ActorId } from "../id.ts";
 import { isJsonObject, type JsonObject } from "../json.ts";
@@ -94,6 +95,7 @@ export function normalizeActorList(
 
   const seenIds = new Set<string>();
   const singletons = new Map<string, string>();
+  const paths: string[] = [];
   rawActors.forEach((rawActor, index) => {
     const path = indexPath("actors", index);
     const actor = normalizeActor(rawActor, path, ctx, options);
@@ -105,8 +107,41 @@ export function normalizeActorList(
     seenIds.add(actor.id);
     checkSingletons(actor, path, ctx, options, singletons);
     actors.push(actor);
+    paths.push(path);
   });
+  checkActorParents(actors, paths, ctx);
   return actors;
+}
+
+/**
+ * A child actor is saved in the same file as its parent (A11), so `parent`
+ * must name an actor of the same list and must not loop back. A broken link
+ * is reported and the actor is attached to the level root.
+ */
+function checkActorParents(actors: ActorDoc[], paths: readonly string[], ctx: NormalizeContext): void {
+  const byId = new Map<ActorId, ActorDoc>(actors.map((actor) => [actor.id, actor]));
+  actors.forEach((actor, index) => {
+    if (actor.parent === null) return;
+    let problem: string | null = null;
+    if (!byId.has(actor.parent)) {
+      problem = `Actor ${actor.parent} is not in this file; a child actor is saved with its parent`;
+    } else {
+      const visited = new Set<ActorId>();
+      let cursor: ActorId | null = actor.parent;
+      while (cursor !== null && !visited.has(cursor)) {
+        if (cursor === actor.id) {
+          problem = "The parent chain loops back to this actor";
+          break;
+        }
+        visited.add(cursor);
+        cursor = byId.get(cursor)?.parent ?? null;
+      }
+    }
+    if (problem) {
+      reportLoss(ctx, "invalid-parent", childPath(paths[index]!, "parent"), `${problem}; attached to the level root.`);
+      actor.parent = null;
+    }
+  });
 }
 
 function normalizeLevelSettings(raw: unknown, ctx: NormalizeContext): LevelSettings {

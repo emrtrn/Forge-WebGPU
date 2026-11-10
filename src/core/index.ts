@@ -17,6 +17,7 @@ export * from "./level/cellDocs.ts";
 export * from "./level/cells.ts";
 export * from "./level/components.ts";
 export * from "./level/jsonSchema.ts";
+export * from "./level/levelParts.ts";
 export * from "./level/model.ts";
 export * from "./level/normalizeLevel.ts";
 export * from "./level/settings.ts";

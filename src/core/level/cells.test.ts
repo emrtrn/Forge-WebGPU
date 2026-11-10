@@ -115,13 +115,12 @@ describe("assignment", () => {
   });
 
   test("a missing parent or a loop keeps the actor persistent and is reported", () => {
-    const actors = actorsOf([
-      actor("a", 10, 10, { parent: actorId("9") }),
-      actor("b", 10, 10, { parent: actorId("a") }),
-      actor("c", 10, 10, { parent: actorId("d") }),
-      actor("d", 10, 10, { parent: actorId("c") }),
-      actor("e", 10, 10),
-    ]);
+    // Normalisation repairs these links; assignment must not rely on that.
+    const actors = actorsOf([actor("a", 10, 10), actor("b", 10, 10), actor("c", 10, 10), actor("d", 10, 10), actor("e", 10, 10)]);
+    const parents = [actorId("9"), actorId("a"), actorId("d"), actorId("c")];
+    parents.forEach((parent, index) => {
+      actors[index]!.parent = parent;
+    });
     const strict = assignCells(actors, SETTINGS, STRICT);
     expect(summary(strict.issues)).toEqual([
       "error invalid-parent actors[0].parent",

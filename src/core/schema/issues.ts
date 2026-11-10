@@ -32,7 +32,8 @@ export type IssueCode =
   | "missing-meta"
   | "orphan-meta"
   | "unrecognized-file"
-  | "singleton-conflict";
+  | "singleton-conflict"
+  | "misplaced-actor";
 
 export type IssueSeverity = "error" | "warning";
 

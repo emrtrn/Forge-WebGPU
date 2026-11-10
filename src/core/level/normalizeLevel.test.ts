@@ -192,11 +192,32 @@ describe("actors", () => {
     expect(result.value?.actors.map((actor) => actor.name)).toEqual(["First"]);
   });
 
-  test("an actor cannot be its own parent; a parent outside this document is fine", () => {
-    const raw = level([plain("a", {}, { parent: actorId("a") }), plain("b", {}, { parent: actorId("f") })]);
+  test("a parent is another actor of the same file, without a loop", () => {
+    const raw = level([
+      plain("a", {}, { parent: actorId("c") }),
+      plain("b", {}, { parent: actorId("f") }),
+      plain("c", {}, { parent: actorId("d") }),
+      plain("d", {}, { parent: actorId("a") }),
+      plain("e", {}, { parent: actorId("d") }),
+    ]);
+    const result = normalizeLevel(raw, STRICT);
+    expect(summary(result.issues)).toEqual(["error invalid-parent actors[0].parent", "error invalid-parent actors[1].parent"]);
+    expect(result.issues[1]?.message).toContain("not in this file");
+    // Only the link that closes the loop is cut.
+    expect(result.value?.actors.map((actor) => actor.parent)).toEqual([
+      null,
+      null,
+      actorId("d"),
+      actorId("a"),
+      actorId("d"),
+    ]);
+  });
+
+  test("an actor cannot be its own parent", () => {
+    const raw = level([plain("a", {}, { parent: actorId("a") }), plain("b", {}, { parent: actorId("a") })]);
     const result = normalizeLevel(raw, STRICT);
     expect(summary(result.issues)).toEqual(["error invalid-value actors[0].parent"]);
-    expect(result.value?.actors.map((actor) => actor.parent)).toEqual([null, actorId("f")]);
+    expect(result.value?.actors.map((actor) => actor.parent)).toEqual([null, actorId("a")]);
   });
 
   test("components and overrides do not mix", () => {
