@@ -114,6 +114,16 @@ export function normalizeActorList(
 }
 
 /**
+ * One actor on its own, as an edit hands it in. Its `parent` is not checked
+ * here (there is no list); the caller checks it against the level.
+ */
+export function normalizeActorDoc(raw: unknown, options: LevelNormalizeOptions): NormalizeResult<ActorDoc | null> {
+  const ctx = createContext(options);
+  const actor = normalizeActor(raw, "", ctx, options);
+  return finish(ctx, actor);
+}
+
+/**
  * A child actor is saved in the same file as its parent (A11), so `parent`
  * must name an actor of the same list and must not loop back. A broken link
  * is reported and the actor is attached to the level root.
