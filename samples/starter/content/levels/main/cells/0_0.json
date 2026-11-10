@@ -1,0 +1,20 @@
+{
+  "schema": "forge.levelCell/1",
+  "level": "lvl_367e04c7be7167bcccf382b722f7a1c6",
+  "cell": "0_0",
+  "actors": [
+    {
+      "id": "act_b2bc7613de278eda86fc46d58b4aa9ac",
+      "name": "Player Start",
+      "class": null,
+      "parent": null,
+      "spatiallyLoaded": true,
+      "transform": {
+        "p": [0, 0, 0],
+        "r": [0, 0, 0, 1],
+        "s": [1, 1, 1]
+      },
+      "components": {}
+    }
+  ]
+}

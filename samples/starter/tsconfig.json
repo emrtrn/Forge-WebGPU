@@ -1,0 +1,5 @@
+{
+  // Generated settings: @forge/sdk and @forge/editor-sdk from the engine (forge check writes them).
+  "extends": "./.forge/tsconfig.json",
+  "include": ["src"]
+}

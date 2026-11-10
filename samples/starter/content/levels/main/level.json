@@ -1,0 +1,37 @@
+{
+  "schema": "forge.level/1",
+  "id": "lvl_367e04c7be7167bcccf382b722f7a1c6",
+  "settings": {
+    "cellSize": 128
+  },
+  "actors": [
+    {
+      "id": "act_651958edcc8a5a19f805a02affafe0de",
+      "name": "Exponential Height Fog",
+      "class": null,
+      "parent": null,
+      "spatiallyLoaded": true,
+      "transform": {
+        "p": [0, 0, 0],
+        "r": [0, 0, 0, 1],
+        "s": [1, 1, 1]
+      },
+      "components": {
+        "fog": {
+          "type": "forge.heightFog@1",
+          "mode": "exp",
+          "color": "#bcc6d1",
+          "density": 0.0008,
+          "heightFalloff": 0,
+          "baseHeight": 0,
+          "startDistance": 0,
+          "maxOpacity": 1,
+          "sunColor": "#ffe2bd",
+          "sunStrength": 0,
+          "start": 5,
+          "end": 60
+        }
+      }
+    }
+  ]
+}

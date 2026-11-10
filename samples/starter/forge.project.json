@@ -1,0 +1,10 @@
+{
+  "schema": "forge.project/1",
+  "id": "starter",
+  "name": "Starter",
+  "sdkVersion": "0.1",
+  "contentRoots": ["content"],
+  "startLevel": "content/levels/main",
+  "game": { "module": "src/game.ts" },
+  "devPort": 5190
+}
