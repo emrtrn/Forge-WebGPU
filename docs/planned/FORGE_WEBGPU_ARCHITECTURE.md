@@ -1,7 +1,11 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v0.1 · 2026-11-10
-**Durum:** Öneri; §8'deki kararlar onay bekliyor.
+**Sürüm:** v0.2 · 2026-11-10 (v0.1'den fark: A1–A9 kararlaştırıldı; A3 katman
+zorlaması TS proje referansları yerine dependency-cruiser + öz-test oldu; bileşen
+hiyerarşisi, `defineSaveState`, SDK API snapshot'ı, içerik paketleri ve PIE'ye hazır
+kurallar eklendi)
+**Durum:** §8'deki A1–A9 kararları 2026-11-10'da verildi. Belge Forge-WebGPU
+deposunda; Forge'daki kopya donduruldu.
 **İlişkili:** [FORGE_WEBGPU_REBUILD_PLAN.md](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
 sırası), [FORGE_GAME_PROJECT_WORKFLOW.md](file:///C:/Users/emret/Desktop/Forge/docs/planned/FORGE_GAME_PROJECT_WORKFLOW.md)
 (Model 2; Forge deposunda: `C:\Users\emret\Desktop\Forge\docs\planned\FORGE_GAME_PROJECT_WORKFLOW.md`).
@@ -24,8 +28,9 @@ tanımlamak. Yeni deponun `ARCHITECTURE.md` belgesi bu rapordan türetilir.
    büyümez.
 5. **Tek sahne kurma yolu.** Editör viewport'u, editör Play'i ve bağımsız oyun
    aynı kurucuyu kullanır.
-6. **Katman sınırları derleyiciyle zorlanır** (TypeScript proje referansları +
-   AST denetimi), regex taramasıyla değil.
+6. **Katman sınırları gerçek AST ve TypeScript çözücüsüyle zorlanır**
+   (dependency-cruiser + kasıtlı ihlal fixture'ıyla öz-test), regex taramasıyla
+   değil.
 7. **İşlemsel kayıt servisi:** sürümlü kirli takibi, sıralı ve atomik çok dosyalı
    kayıt, temel sürüm çakışma kontrolü.
 8. **Genel SDK.** Oyun projeleri motorun yalnız `@forge/sdk` yüzeyini import
@@ -157,14 +162,31 @@ kaydedebilmesi ve uyumluluk kapısı (§4.8).
 | `sdk`, `editor-sdk` | oyun projelerinin import edebildiği tek yüzey (yeniden dışa aktarım) | ilgili katmanlar | — |
 | `tools` (Node) | dev server, kayıt uçları, build, World Builder CLI, içe aktarıcı | core, engine | yok |
 
-**Zorlama:** her katman ayrı bir TypeScript projesi (`composite`, `references`
-yalnız izin verilen katmanlara). `tsc -b` izinsiz import'ta derleme hatası verir;
-regex taraması yok (D13). Klasör içi ince kurallar (ör. bir özelliğin `schema.ts`
-dosyası three import edemez) AST tabanlı bir denetimle (dependency-cruiser)
-ölçülür.
+**Zorlama (A3 kararı, 2026-11-10):** katman kurallarının tek kaynağı
+dependency-cruiser'dır; AST ve gerçek TypeScript çözücüsüyle çalışır, regex
+taraması yok (D13). Kurallar yola ve dosya rolüne göre yazılır (ör. `core/**` ve
+`features/*/schema.ts` three, render ve editör import edemez; `three/webgpu` /
+`three/tsl` yalnız `render/**` ve `features/*/render.ts`'te). Tip kontrolü iki
+tsconfig'le yapılır: uygulama (tarayıcı) ve Node araçları (`tools/`).
+
+- **Neden katman başına TS projesi değil:** dikey özellik klasörü (§4.3) dört
+  katmana yayılır; katman başına composite proje, her rolü glob'la projelere
+  dağıtmayı, projeler arası `.d.ts` çözümünü ve declaration çıktısını gerektirir.
+  Yeni bir dosya rolü eklemek tsconfig düzenlemeye dönüşür; kabuk dosyasının yerini
+  tsconfig'ler alır.
+- **Öz-test:** kapı, kasıtlı ihlaller içeren bir fixture'a karşı da çalışır (çok
+  satırlı import, `export * from`, dinamik `import()`, `import type`) ve hepsinin
+  yakalanmasını bekler. F02'nin dersi: denetleyici sessizce geçerse kimse fark
+  etmez.
+- İhlal IDE'de değil push öncesi kapıda ve CI'da görünür.
 
 Tek npm paketi, katmanlar klasör. npm workspaces / ayrı paket yayını yok
 (Model 2'nin "motor paket release sistemi kapsam dışı" kararıyla uyumlu).
+**A4 kararı (2026-11-10):** kökte tek `package.json` ve tek `node_modules`;
+iki tsconfig (uygulama + Node araçları; katman sınırı A3'e göre dependency-cruiser'da);
+`@forge/sdk` takma adı tsconfig `paths` ve Vite alias'ıyla. Tek `node_modules`, A8'deki "her şey motorun bağımlılıklarından
+çözülür, ikinci three kopyası yok" kuralını doğal olarak sağlar. İleride paketleme
+gerekirse paketlenecek sınır katmanlar değil, SDK yüzeyidir (A8 API snapshot'ı).
 
 ### 4.3 Dikey özellik modülü
 
@@ -205,11 +227,38 @@ features/height-fog/
       "components": {
         "fog": { "type": "forge.heightFog@1", "density": 0.02, "falloff": 0.2 }
       }
+    },
+    {
+      "id": "act_c204…",
+      "name": "Reference Car",
+      "class": "ast_5e1d…",           // aktör sınıfı (prefab) GUID'i
+      "parent": null,
+      "transform": { "p": [12, 0, 4], "r": [0, 0, 0, 1], "s": [1, 1, 1] },
+      "overrides": { "driver": { "targetSpeed": 18 } }  // yalnız farklar
     }
   ]
 }
 ```
 
+```jsonc
+// aktör sınıfı içinde bileşen hiyerarşisi (Unreal SceneComponent karşılığı)
+"components": {
+  "chassis": { "type": "forge.collider@1", "parent": null,
+               "local": { "p": [0, 1, -0.04] }, "shape": "box", "size": [2.08, 1.52, 4.08] },
+  "body":    { "type": "forge.staticMesh@1", "parent": "chassis",
+               "local": { "s": [1.6, 1.6, 1.6] }, "mesh": "ast_…" },
+  "driver":  { "type": "forge.vehicleAiDriver@1", "targetSpeed": 14 }
+}
+```
+
+- **Bileşen hiyerarşisi (A1 kararı):** bileşenler aktör içinde yerel kimlikle
+  (haritanın anahtarı) tutulur. Uzamsal bileşenler `parent` (aynı aktördeki
+  başka bir bileşenin yerel kimliği; `null` = aktör kökü) ve yerel transform
+  (`local`) taşır; uzamsal olmayan bileşenlerde bu alanlar yoktur. Forge'un
+  `*.actor.json` sınıflarındaki `root → chassis → body` zinciri böylece alt aktör
+  gerektirmeden taşınır.
+- Override yolu `bileşen kimliği + alan`dır; kimlik yerel olduğu için sınıfa
+  bileşen eklemek / sıralamak override'ları kaydırmaz.
 - Işık, su, landscape, spline, blocking volume, ortam tekilleri: hepsi aktör.
   Tekillik (level başına bir WES gibi) şemada bir bayrakla ifade edilir.
 - Aktör sınıfları (bugünkü `*.actor.json`) prefab'dır: level'daki aktör sınıfa
@@ -224,6 +273,11 @@ features/height-fog/
 - Level = kalıcı katman + hücreler. Hücre ataması aktörün konumundan türetilir;
   "akışa katılmaz" bayrağı temel aktör şemasında **bir kez** tanımlanır (D10,
   D4).
+- **Ölçek yedeği:** 2a'daki 50.000 aktörlük yükleme / kayıt ölçümü kötü çıkarsa
+  önce veri modeline dokunmayan çareler denenir: hücre dosyalarında transform'ların
+  sütunlu (ikili) yazımı ve runtime'da aktör nesnesi yerine yoğun depolama (2a iç
+  kararı). Statik mesh yerleşimlerini ayrı bir diziye almak (D3'ün geri dönüşü)
+  bir çare sayılmaz.
 
 ### 4.5 Şema kaydı — tek doğru kaynak
 
@@ -250,6 +304,24 @@ Bu tek tanımdan türeyenler:
 Dev server (Node) aynı şemaları yükler; bu yüzden şema dosyaları three'siz
 olmak zorundadır. Oyun projesinin kaydettiği şemalar da yüklenir. Geliştirmede
 düşen alan uyarı değil, **hatadır**.
+
+**A2 kararı (2026-11-10) — kendi DSL'imiz, tanımlar veri olarak:**
+
+- Alan tanımları düz, gezilebilir nesnelerdir (kapalı fonksiyon değil); editör,
+  Node dev server'ı, araçlar ve oyun projeleri aynı tanımı okur. Doğrulama
+  kütüphanesi (Zod / Valibot) kullanılmaz; böylece `@forge/sdk`'nın şema yüzeyi
+  dış bir kütüphanenin sürüm döngüsüne bağlanmaz.
+- 2a alan türleri: sayı, bool, enum, renk, vektör, transform, asset ref, aktör
+  ref, dizi, nesne. Yenisi ihtiyaç olunca eklenir (§7).
+- **Normalize kuralları tek fonksiyon:** yükleme ve kayıt aynı fonksiyonu çağırır.
+  Eksik alan → varsayılan; sınır dışı sayı → sınıra çekilir (editör parametre UI
+  kuralıyla aynı); bilinmeyen / düşen alan → geliştirmede hata, üretim build'inde
+  rapor (oyun açılmaya devam eder).
+- **JSON Schema dışa aktarımı:** DSL'den üretilir; level ve asset dosyaları VS
+  Code'da ve ajan araçlarında motor kodu çalışmadan doğrulanır.
+- Öncül: Forge'un `engine/scene/metadataSchema.ts` dosyası (93 satır), veri olarak
+  tutulan alan tanımlarından Details formunu zaten üretiyor; yeni DSL bu fikrin
+  bütün bileşen ve asset türlerine genişletilmesidir.
 
 ### 4.6 Kimlik, referans ve kayıt servisi
 
@@ -291,6 +363,19 @@ düşen alan uyarı değil, **hatadır**.
   renderer kurulmadan önce de gösterilir (F10).
 - **Editör Play:** v1'de bugünkü gibi yeni sekme (karar A6). Tek kurucu, editör
   ile oyun eşdeğerliğini zaten garanti ediyor.
+- **A6 kararı (2026-11-10) — yeni sekme, PIE'ye hazır kurallarla:**
+  - **Kayıtsız Play:** editör kaydedilmemiş level anlık görüntüsünü oyun sekmesine
+    verir (dev server'da geçici oturum dosyası ya da `BroadcastChannel`); Play diske
+    yazmaz. Forge'da `playTest()` önce `saveLayout()` çağırıyor, yani Play = Kaydet.
+  - **World yalıtımı:** runtime durumu yalnız `World` örneğinde tutulur; modül
+    düzeyinde değişebilir tekil yoktur. Bir sayfada iki World kurulup yok
+    edilebildiğini bir test doğrular.
+  - **Render kaynak önbelleği World'den ayrı:** geometri, doku ve pipeline
+    önbelleği asset GUID'iyle anahtarlanır ve renderer'a aittir. İleride PIE'de iki
+    World aynı önbelleği paylaşır.
+  - Gerekçe: yeni sekme ayrı bir `GPUDevice` açar; açık dünyada VRAM iki katına
+    çıkar ve her Play soğuk başlar (level yükleme + pipeline derleme). PIE kararı
+    sonraya kalır, ama onu mümkün kılan kurallar 2a'da konur.
 
 ### 4.8 Oyun projesi modeli (Model 2, ikinci sürüm)
 
@@ -306,18 +391,61 @@ düşen alan uyarı değil, **hatadır**.
 - **Oyun özellikleri:** oyun, motorla aynı `defineFeature` / `defineComponent`
   API'siyle kendi bileşenlerini tanımlar; dev server bunları yükleyip doğrular.
   Görev ve kargo gibi veriler tipli ve doğrulanmış olur (§3.2-6).
+- **Oyuna özel verinin üç tipli yeri (A7 kararı, 2026-11-10); tipsiz torba yok:**
+  1. **Authored veri** → oyunun bileşenleri ve asset türleri
+     (ör. `ridgebound.contract` asset'i, `ridgebound.depotPoint` bileşeni).
+  2. **Aktör durumu** → şemada `persist` işaretli bileşen alanları; kayıt oyunu
+     bunları `aktör GUID + bileşen kimliği + alan` anahtarıyla saklar. Actor Script
+     sınıf değişkenleri de bu yoldan tipli saklanır (değişken listesi bir şemadır).
+  3. **Oyun geneli durum** → `defineSaveState("ridgebound.transport", 1, {...})`:
+     tipli, sürümlü, geçiş zincirli, hiçbir aktöre bağlı değil (Unreal SaveGame /
+     GameInstance subsystem karşılığı). Aynı DSL ve normalize fonksiyonu (A2).
+
+  SDK'da Forge'daki `ScriptState.persist` → `flags` gibi tipsiz bir anahtar–değer
+  torbası yoktur. Kanıt: Ridgebound m0 kodu bugün durumu
+  `as unknown as SceneJsonValue` ile `flags`'e yazıyor, elle `schema: 1` ve elle
+  doğrulama tutuyor, konumsal kimliğe karşı kendi korumasını yazıyor ve oyun geneli
+  bakiyeyi görev panosu aktörüne bağlıyor.
 - **Uyumluluk kapısı:** motor deposunda `npm run check:projects`: yerelde kayıtlı
   oyun projelerini (git dışı `forge.projects.local.json`) mevcut motora karşı
   derler ve başsız açar; motor push'undan önce çalışır. CI'da `samples/`
   sözleşme testi görevi görür (§3.2-3).
 - **SDK sürümü:** `sdk/CHANGELOG.md` + manifestte `sdkVersion`; kırıcı
   değişiklik changelog'a yazılır, mümkünse bir tur kullanımdan kaldırma
-  (deprecate) ile geçilir.
+  (deprecate) ile geçilir. v0 süresince `0.x` minor artışı kırıcı sayılır;
+  başlatıcı uyumsuz `sdkVersion`'lı oyunu açmaz ve ilgili changelog girdisini
+  gösterir (A8).
 - **Bağlantı:** başlatıcı oyunun TypeScript ayarlarını çözülmüş motor kökünden
   üretir; sabit `../../Forge` yolu yok (§3.2-5).
+- **Yapı gereği sınır (A8):** üretilen tsconfig yalnız `@forge/sdk` ve
+  `@forge/editor-sdk` takma adlarını tanır; `@engine/*` gibi iç takma adlar hiç
+  yoktur, derin import derlenmez. Oyun kökünden dışarı çıkan göreli import'u
+  `check` AST denetimi yakalar. Her şey motorun `node_modules`'undan çözülür; oyunda
+  ikinci bir three kopyası oluşmaz.
+- **SDK API anlık görüntüsü (A8):** SDK'nın dışa aktardığı tip yüzeyi bir dosyaya
+  üretilir ve CI'da farkı denetlenir; yüzey değişirse aynı commit'te snapshot ve
+  `CHANGELOG` güncellenmek zorundadır. Yerel `check:projects` CI'da çalışamadığı
+  için kırıcı değişikliği motorun kendi commit'inde görünür kılan kapı budur.
+  Araç (api-extractor ya da `tsc --declaration` özeti) 2a'da seçilir.
 - **Motor deposunda oyun yok:** `samples/` altında dış proje biçiminde örnekler
   (starter, test-range, open-world); motorun kendi içeriği `content/engine/`;
   testler `tests/fixtures/projects/` altındaki değişmez projelerle (D14, D15).
+- **Depo düzeni netleştirmeleri (A9 kararı, 2026-11-10):**
+  - **İçerik paketleri:** `content/engine/` yalnız motorun açılması ve editör için
+    zorunlu olanı içerir (varsayılan materyal, gizmo, editör ikonları, gökyüzü
+    varsayılanları). Starter Content `content/packs/starter/` altında bir pakettir;
+    proje manifestinde `contentPacks: ["starter"]` ile seçilir, oyuna kopyalanmaz.
+    Üçüncü taraf kütüphaneler (Kenney vb.) motor deposuna girmez.
+  - **Ağır referans içerik depo dışında:** içe aktarılmış referans sahneler
+    (çok tile'lı terrain, Island, Ridgebound kopyası) ayrı bir yerel içerik
+    projesinde durur ve `forge.projects.local.json` ile kaydedilir
+    (`check:projects` ile aynı mekanizma). `samples/` küçük ve CI'da çalışabilir
+    kalır; render kabulü zaten yerelde, gerçek GPU'da.
+  - **Yazma yalıtımı kodla:** testler fixture'ı geçici bir klasöre kopyalayıp
+    onun üstünde çalışır; dev server fixture ve `samples/` köklerine yazma isteğini
+    reddeder. "Değişmez" kuralı belgeyle değil kodla zorlanır (D14, D18).
+  - Proje verilmeden `npm run dev` `samples/starter`'ı açar; motor deposunda
+    "varsayılan sahne" yoktur.
 - **Dev server kimliği:** her proje kendi portunda; sunucu `/__forge/identity`
   ile hangi projeyi sunduğunu söyler, smoke testleri bunu doğrular (D14).
 - **Proje oluşturma:** `create-project` aracı `samples/starter`'dan yeni oyun
@@ -340,8 +468,16 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
 - **Test koşucusu:** Vitest; testler modülün yanında, merkezi kayıt dosyası yok
   (D1: `engine-tests.ts` 29.975 satır). Yavaş testler dosya adıyla
   (`*.slow.test.ts`) ayrılır; bugünkü `--filter` / `--slow` alışkanlığı korunur.
+  **A5 kararı (2026-11-10):** Vitest yalnız birim ve entegrasyon testleri için;
+  editör / runtime uçtan uca smoke'ları Playwright'ta kalır. Vitest uygulamayla
+  aynı Vite çözümünü kullanır (`@forge/sdk` takma adı testte de geçerli, A4).
+  Test dosyası test ettiği dosyanın katman kuralına uyar (A3; ör. `schema.test.ts`
+  three import edemez). Forge karşılıkları: `--filter` → dosya / `-t` filtresi,
+  `--slow` → `slow` Vitest projesi, `--timing` → Vitest süre raporu. Forge'un 873
+  `check()` çağrısı + 174 test dosyası 2b'de `test()`'e mekanik olarak çevrilir.
+  Vitest browser mode 2a'da yok; Faz 3'te ihtiyaç ölçülürse ayrı karar.
 - **Fixture'lar değişmez**; smoke testleri örnek projelere yazmaz (D14).
-- **CI:** `tsc -b`, birim testleri, build, dist doğrulaması (editör sızıntısı),
+- **CI:** tip kontrolü (iki tsconfig), katman denetimi + öz-testi (A3), birim testleri, build, dist doğrulaması (editör sızıntısı),
   boyut / performans bütçeleri kapı olarak (F07). CI'da GPU yok: UI ve veri akışı
   smoke'ları açıkça etiketli `forceWebGL` test kipiyle çalışır (TSL WebGL2
   backend'inde de çalışır); render kabulü yerelde, gerçek GPU'da. Bu kip hiçbir
@@ -408,7 +544,7 @@ değiştirir:
 | Tek tip modelde performans (binlerce aktör) | Instancing render katmanında otomatik; foliage kompakt dizi; Faz 1 S4 ölçümü + 2a'da 50.000 aktörlük yükleme / kayıt ölçümü |
 | SDK'yı erken dondurmak | v0 süresince SDK değişebilir; changelog zorunlu, uyumluluk kapısı kırılmayı hemen gösterir |
 | İçe aktarıcı her eski alanı taşıyamaz | Taşınamayan alan sessiz düşmez, rapor edilir; Ridgebound içeriği kopya üzerinde denenir |
-| Mimari iskelet uzar, görsel değer gecikir | Faz 1 spike'ı iskeletten bağımsız ve önce; 2a dar kapsamlı, ilk özellik (Height Fog) iskeletin kabul testi |
+| Mimari iskelet uzar, görsel değer gecikir | Faz 1 spike'ı iskeletten bağımsız ve 2a ile paralel (plan kararı 2026-11-10); 2a dar kapsamlı, ilk özellik (Height Fog) iskeletin kabul testi |
 
 ---
 
@@ -416,12 +552,12 @@ değiştirir:
 
 | ID | Konu | Öneri | Durum |
 |---|---|---|---|
-| A1 | Level veri modeli | Tek tip aktör + bileşen (§4.4) + tek yönlü içe aktarıcı | Açık |
-| A2 | Şema tanımı | Kendi ince DSL'imiz (UI metadata, geçiş zinciri ve Node yüklemesi için); doğrulama kütüphanesi (Zod / Valibot) yok | Açık |
-| A3 | Katman zorlaması | TypeScript proje referansları + dependency-cruiser | Açık |
-| A4 | Depo yapısı | Tek npm paketi, katmanlar klasör; workspaces yok | Açık |
-| A5 | Test koşucusu | Vitest, testler modülün yanında | Açık |
-| A6 | Editör Play | v1'de yeni sekme; aynı sayfada Play (PIE) sonra ayrı karar | Açık |
-| A7 | Oyuna özel veri | Oyunun kendi şemalı bileşenleri; `flags` yalnız serbest durum için | Açık |
-| A8 | Oyun–motor sözleşmesi | `@forge/sdk` + `@forge/editor-sdk`, `sdkVersion` + changelog, yerel `check:projects` kapısı | Açık |
-| A9 | Depo düzeni | `samples/` dış proje biçiminde, `content/engine/`, `tests/fixtures/projects/`; motor deposunda oyun yok | Açık |
+| A1 | Level veri modeli | Tek tip aktör + bileşen (§4.4) + tek yönlü içe aktarıcı | **Karar 2026-11-10:** tek tip aktör + şemalı bileşen, GUID'ler; bileşenler aktör içinde yerel kimlikli ve uzamsal olanlar `parent` + yerel transform taşır (Forge sınıflarındaki bileşen hiyerarşisi alt aktörsüz taşınsın); prefab farkı `bileşen kimliği + alan`; statik mesh yerleşimi de aktör, toplu yerleşim instanced static mesh bileşeni, foliage kompakt; tek yönlü içe aktarıcı. Hibrit (ayrı yerleşim dizisi) D3'ü geri getirdiği için reddedildi. K3'ü kapatır |
+| A2 | Şema tanımı | Kendi ince DSL'imiz (UI metadata, geçiş zinciri ve Node yüklemesi için); doğrulama kütüphanesi (Zod / Valibot) yok | **Karar 2026-11-10:** kendi DSL'imiz; tanımlar gezilebilir veri; yükleme ve kayıt tek normalize fonksiyonu (eksik → varsayılan, sınır dışı → sınıra çek, bilinmeyen → geliştirmede hata / üretimde rapor); DSL'den JSON Schema dışa aktarımı. Zod / Valibot SDK yüzeyini dış sürüm döngüsüne bağladığı, JSON Schema kaynağı codegen ve kötü geliştirici deneyimi getirdiği için reddedildi (§4.5) |
+| A3 | Katman zorlaması | TypeScript proje referansları + dependency-cruiser | **Karar 2026-11-10:** dependency-cruiser tek kural kaynağı (AST + gerçek TS çözücüsü, yol ve dosya rolüne göre kurallar) + kasıtlı ihlal fixture'ıyla öz-test; iki tsconfig (uygulama + Node araçları). Katman başına TS projesi, dört katmana yayılan dikey özellik klasörüyle (§4.3) sürtüştüğü için reddedildi; A4'teki "katman başına tsconfig" buna göre düzeltildi (§4.2) |
+| A4 | Depo yapısı | Tek npm paketi, katmanlar klasör; workspaces yok | **Karar 2026-11-10:** öneri olduğu gibi — tek `package.json` / `node_modules`, katman başına `tsconfig.json`, SDK takma adı `paths` + Vite alias. Katman başına workspace paketi A3'ü tekrarladığı ve ikinci three kopyası riski taşıdığı, "workspaces'a hazır" giriş dosyası kuralı belirsiz kazanç için sürtünme getirdiği için reddedildi (§4.2) |
+| A5 | Test koşucusu | Vitest, testler modülün yanında | **Karar 2026-11-10:** Vitest (birim + entegrasyon), testler modülün yanında, merkezi kayıt yok; uçtan uca smoke Playwright'ta; test dosyaları A3 katman kurallarına tabi; browser mode Faz 3'te ayrı karar. `node:test` takma adlar için yükleyici / bundle adımını geri getirdiği için reddedildi (§4.10) |
+| A6 | Editör Play | v1'de yeni sekme; aynı sayfada Play (PIE) sonra ayrı karar | **Karar 2026-11-10:** v1 yeni sekme + PIE'ye hazır kurallar — kayıtsız Play (anlık görüntü sekmeye verilir, Play diske yazmaz), World yalıtımı (modül düzeyinde değişebilir tekil yok; iki World testi), World'den ayrı GUID anahtarlı render kaynak önbelleği. PIE ayrı karar olarak kalır; v1'den PIE Faz 4'ü büyüttüğü ve durum sızıntısı riski taşıdığı için reddedildi (§4.7) |
+| A7 | Oyuna özel veri | Oyunun kendi şemalı bileşenleri; `flags` yalnız serbest durum için | **Karar 2026-11-10:** üç tipli yer, tipsiz torba yok — authored veri oyunun bileşen / asset türlerinde; aktör durumu `persist` işaretli bileşen alanlarında (GUID + bileşen kimliği + alan anahtarı); oyun geneli durum `defineSaveState` ile tipli, sürümlü, aktörsüz. `flags` torbası, aktöre bağlı olmayan durumu yine tipsiz bıraktığı için reddedildi (§4.8) |
+| A8 | Oyun–motor sözleşmesi | `@forge/sdk` + `@forge/editor-sdk`, `sdkVersion` + changelog, yerel `check:projects` kapısı | **Karar 2026-11-10:** öneri + iki sıkılaştırma — üretilen tsconfig yalnız SDK takma adlarını tanır (derin import yapı gereği derlenmez, göreli kaçış AST ile yakalanır); SDK API anlık görüntüsü CI'da fark kapısı (snapshot + changelog aynı commit'te). v0'da `0.x` minor kırıcı; uyumsuz `sdkVersion` açılmaz. `exports` + `file:` paket sınırı A4 ile çakıştığı ve ikinci three kopyası riski taşıdığı için reddedildi (§4.8) |
+| A9 | Depo düzeni | `samples/` dış proje biçiminde, `content/engine/`, `tests/fixtures/projects/`; motor deposunda oyun yok | **Karar 2026-11-10:** öneri + üç netleştirme — `content/engine/` yalnız zorunlu içerik, Starter Content manifestte seçilen `content/packs/starter/` paketi, üçüncü taraf kütüphane depoya girmez; ağır referans sahneler depo dışı yerel içerik projesinde (`forge.projects.local.json`); fixture / `samples/` yazma yalıtımı kodla (testler geçici kopyada, dev server yazmayı reddeder). Ayrı örnek deposu CI sözleşme testini kaybettirdiği için reddedildi (§4.8) |
