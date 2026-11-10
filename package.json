@@ -14,6 +14,7 @@
     "verify:node-load": "node tools/verify-node-load.ts",
     "verify:assets": "node tools/verify-assets.ts",
     "assets:index": "node tools/asset-index.ts",
+    "bench:level": "node --expose-gc tools/bench-level.ts",
     "test": "vitest run",
     "build": "vite build",
     "gate": "npm run typecheck && npm run verify:layers && npm run verify:file-size && npm run verify:node-load && npm run verify:assets && npm run test && npm run build"
