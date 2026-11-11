@@ -18,7 +18,7 @@ Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 [arşiv](../archive/PHASE_0.md)): envanter, referans sahneler, WebGL baseline,
 GO sayıları. Faz 1 spike'ı S1–S4 ile tamamlandı; **GO (koşullu, kullanıcı kararı
 2026-11-11):** GPU güdümlü foliage 5c'de zorunlu, G6 orada yeniden ölçülür. S5
-isteğe bağlı, kullanıcı kararında. Sırada 2b.
+yapılmadı (Faz 9'a, kullanıcı kararı). Sırada Faz 1'in arşive taşınması, sonra 2b.
 **Belge düzeni:** tek ana plan; biten fazın ayrıntısı faz kapanınca
 [`docs/archive/`](../archive/INDEX.md)'e taşınır. Kısa mimari harita:
 [`docs/architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md);
@@ -529,8 +529,11 @@ dışındaki `Games/ForgeReference`'tadır.
       Kayıtlar `ForgeReference/baseline/spike/s4-measure/` (`summary.json`),
       `spike/s4-g6-capped/`, WebGL `measure/webgl-s4-long-*`, prob
       `tools/s4-webgl-probe.mjs`.
-- [ ] **S5 (isteğe bağlı):** `LightProbeGrid` bake süresi ve görsel etkisi;
-      `ClusteredLighting` ile N nokta ışık.
+- [x] **S5 (isteğe bağlı):** `LightProbeGrid` bake süresi ve görsel etkisi;
+      `ClusteredLighting` ile N nokta ışık. *Yapılmadı (kullanıcı kararı
+      2026-11-11):* ikisi de Faz 9'da ayrı ölçümle karara bağlanır.
+      `LightProbeGrid` hücre başına bake edilip akışla yüklenecekse verisinin
+      hücre formatındaki yeri Faz 5b tasarımında ele alınır.
 - [x] Sonuç tablosu + yan yana ekran görüntüleri bu plana yazılır (aşağıda;
       görüntüler `ForgeReference/baseline/spike/s4-measure/s4-g9-grid.jpg`).
 
@@ -915,3 +918,4 @@ silinebilir.
 | 2026-11-11 | v0.9 | S3 kapandı (Forge `e0e64051`, `a4286990`): Balanced = TRAA + GTAO + bloom (level yazmışsa) + SSR yarım çözünürlük (level seçmişse); Cinematic SSGI + SSR tam (kullanıcı kararı). G2 / G3 terrain-only geçer: en kötü Derekavak P2, SSR açık 1080p 5,5 / p95 6,4 ms, 1440p 9,7 / p95 10,6 ms; kesin okuma S4'te. Yansıma kararı: genel yansıma SSR (Post Process `reflection: off \| ssr`, Faz 3), düz yüzeyler planar (Faz 7), sphere reflection capture taşınmaz (PORT_LOG INV-D12, G09). S4'e planar yansıma ölçümü eklendi (rapor) |
 | 2026-11-11 | v0.9 | Faz 1 S4 ölçüldü (Forge `2a135526` … `46986836`): Derekavak ve WbPilotValley'nin gerçek içeriği Forge'un yükleme kurallarıyla (cell'ler, materyal slotları, bellekteki tile'larla foliage halkası, uzak billboard'lar); içerik WebGL'le sayılarak doğrulandı. G1 6 / 6 (kare oranı 0,54–0,68), G2 / G3 kesin (≤ 6,83 / ≤ 11,51 ms), G5 (327 / 212), G7 geçer; G6 render gönderimi 3,9 ms (sınır 3) aşar, foliage draw call'ları toplanınca 2,2 ms. G5 tabanı eşdeğer kopyaya göre (kullanıcı kararı). G9 ve GO / NO-GO kullanıcıda |
 | 2026-11-11 | v0.9 | Faz 1 GO (kullanıcı kararı, koşullu): WebGPU yolu sürer, K10'un NO-GO yolu kapanır. Koşul: GPU güdümlü foliage bütün türlerde ve gölge kaskatlarında zorunlu (5c), G6 render gönderimi 5c kapısında yeniden ölçülür. Risk tablosu S4 sonuçlarıyla güncellendi |
+| 2026-11-11 | v0.9 | S5 yapılmadı (kullanıcı kararı): `LightProbeGrid` ve `ClusteredLighting` Faz 9'da ölçülür; probe verisinin hücre formatındaki yeri 5b tasarımında |
