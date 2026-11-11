@@ -16,8 +16,9 @@ Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 **Durum:** Bütün kararlar kapalı (K1–K11, A1–A11; 2026-11-10). Faz 2a kapandı
 (2026-11-11; [arşiv](../archive/PHASE_2A.md)). Faz 0 kapandı (2026-11-11;
 [arşiv](../archive/PHASE_0.md)): envanter, referans sahneler, WebGL baseline,
-GO sayıları. Faz 1 spike sürüyor: S1 ve S2 tamam (G1 terrain 18 / 18, G8
-geçer); S3 pipeline kapandı (Balanced tanımlandı); S4 ölçüldü. G1–G9 sonuç tablosu Faz 1'de; G6'nın render gönderimi sınırı 0,9 ms aşıyor, G9 ve GO / NO-GO kararı kullanıcıda. 2b ve sonrası Faz 1 GO'suna bağlı.
+GO sayıları. Faz 1 spike'ı S1–S4 ile tamamlandı; **GO (koşullu, kullanıcı kararı
+2026-11-11):** GPU güdümlü foliage 5c'de zorunlu, G6 orada yeniden ölçülür. S5
+isteğe bağlı, kullanıcı kararında. Sırada 2b.
 **Belge düzeni:** tek ana plan; biten fazın ayrıntısı faz kapanınca
 [`docs/archive/`](../archive/INDEX.md)'e taşınır. Kısa mimari harita:
 [`docs/architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md);
@@ -223,6 +224,14 @@ call), Island CPU'ya bağlı (~6 ms); tablo arşivde. GO sayıları (G1–G9) Fa
 bölümünde.
 
 ### Faz 1 — Doğrulama spike'ı (GO / NO-GO)
+
+**Karar (kullanıcı, 2026-11-11): GO, koşullu.** WebGPU yolu (`three/webgpu` +
+TSL) sürer; K10'un NO-GO yolu kapanır. Koşul: GPU güdümlü foliage (compute
+culling + indirect draw) bütün foliage türlerinde ve gölge kaskatlarında
+zorunludur (Faz 5c); G6'nın render gönderimi sınırı (Derekavak P2, 60 Hz,
+≤ 3 ms) 5c kapısında yeniden ölçülür. Gerekçe: G6'yı yalnız render gönderimi
+0,9 ms aşıyor, foliage draw call'ları toplanınca 2,2 ms'ye iniyor; kare
+bütçesinde geniş pay var (G2 ≤ 6,83 / 14 ms).
 
 Yer: Forge `spikes/webgpu/`. Mevcut spike düzeni geçerli: uygulama build'ine,
 kök `tsc`'ye ve `verify:imports`'a girmez; tip kontrolü `npx tsc -p spikes`.
@@ -553,10 +562,10 @@ sonra, spike ölçümünden önce kondu (kullanıcı onayı 2026-11-11). Bütçe
 | G3 | 1440p: ortalama kare ≤ 11,51 ms, p95 ≤ 12,4 ms | Geçer |
 | G4 | Cinematic yalnız S3'te (terrain): 1080p 8,8–19,1, 1440p 18,6–41,2 ms; S4'te ölçülmedi | Rapor |
 | G5 | Kip (b): Derekavak P2 327 (≤ 766), WbPilotValley P3 212 (≤ 227) | Geçer |
-| G6 | Derekavak P2, 60 Hz, kip (b): ana iş parçacığı 3,9 ms (≤ 6) geçer; render gönderimi 3,9 ms (≤ 3) **0,9 ms aşar**. Foliage draw call'ları toplanınca 2,2 ms (GPU +0,6 ms, culling'siz) | Ana iş parçacığı geçer, render gönderimi kalır |
+| G6 | Derekavak P2, 60 Hz, kip (b): ana iş parçacığı 3,9 ms (≤ 6) geçer; render gönderimi 3,9 ms (≤ 3) **0,9 ms aşar**. Foliage draw call'ları toplanınca 2,2 ms (GPU +0,6 ms, culling'siz) | Ana iş parçacığı geçer; render gönderimi GO koşuluna bağlandı (5c kapısında yeniden ölçülür) |
 | G7 | Örnek sayısı GPU = CPU, görüntü aynı; GPU −0,02 … −0,11 ms (≤ +0,5); CPU kazancı ölçülemiyor (çim az) | Geçer |
 | G8 | Tam çözünürlüklü bölgede ≤ 4,9 mm | Geçer |
-| G9 | Yan yana görüntüler hazır | Kullanıcı kararı |
+| G9 | Yan yana görüntüler (`s4-g9-grid.jpg`) | Kullanıcı GO kararını görüntülerle birlikte verdi; G9'a ayrı not düşülmedi |
 
 Ölçüm kuralı: baseline düzeneğiyle aynı — `ForgeReference` sahneleri ve
 pozları, 10 s ısınma + 15 s ölçüm, sınırsız kare hızı, başlıklı Chrome, R1;
@@ -707,8 +716,11 @@ Dört alt faz; her birinin kendi kapısı var, görsel kabul sonda toplu istenir
       yükle / boşalt döngüsünde sızıntı yok (bellek ve GPU kaynağı ölçümü);
       akış sırasında kare süresi sıçraması sınırın içinde.
 - [ ] **5c Foliage:** instancing + compute culling + indirect draw; impostor /
-      billboard, rüzgâr, fade; foliage hücreleri. *Kapı:* referans level'ın
-      gerçek foliage sayılarıyla S4 ölçümünün üretim karşılığı.
+      billboard, rüzgâr, fade; foliage hücreleri. GPU güdümlü yol bütün foliage
+      türlerinde ve gölge kaskatlarında zorunlu (Faz 1 GO koşulu; S4: kip (b)'de
+      Derekavak P2'nin 327 draw call'unun 260'ı foliage). *Kapı:* referans
+      level'ın gerçek foliage sayılarıyla S4 ölçümünün üretim karşılığı; G6
+      Derekavak P2'de 60 Hz'de render gönderimi ≤ 3 ms, ana iş parçacığı ≤ 6 ms.
 - [ ] **5d Editör araçları + World Builder:** sculpt, paint, foliage paint,
       landscape spline; World Builder penceresi + `/__world-random` endpoint'i
       + önizleme worker'ı. *Kapı:* araç başına editör smoke'u (düzenle → kaydet
@@ -813,7 +825,7 @@ kararı.
 
 | Risk | Önlem |
 |---|---|
-| WebGPURenderer'ın nesne başına CPU maliyeti açık dünyada yüksek çıkar | Faz 1 S4'te ölçülür; instancing, `BatchedMesh`, indirect draw |
+| WebGPURenderer'ın nesne başına CPU maliyeti açık dünyada yüksek çıkar | Faz 1 S4'te ölçüldü: ~1,3 ms sabit + draw call başına ~8 µs; instancing ile Derekavak P2 render gönderimi 3,9 ms (sınır 3). Çare GPU güdümlü foliage (5c, GO koşulu) |
 | Deneysel addon API'leri sürümle değişir | three sabit sürüm; addon'lar kendi sarmalayıcılarımızın arkasında; yükseltme ayrı, planlı adım |
 | Akışla gelen yeni materyallerde shader derleme takılması | `compileAsync` ile ön ısıtma; materyal varyant sayısını sınırlama |
 | Geçiş döneminde iki motorun bakımı | Cut-over sonrası Forge WebGL'de yeni özellik yok; taşınmış modüllere sonradan gelen hata düzeltmeleri port günlüğünde izlenir |
@@ -824,7 +836,7 @@ kararı.
 | Kabul edilmiş görüntü sonraki fazlarda fark edilmeden bozulur | Faz 3'teki render regresyon smoke'u (yerel, başlıklı, boş görüntü kontrollü) |
 | Test taşıması "mekanik" sanılır; eski veri modeline dayanan testler çevrilemez | 2b'nin ilk işi test sınıflaması; kapının paydası sınıflanmış sayılar |
 | Forge'daki bir özellik sessizce taşınmadan kalır | Faz 0 özellik envanteri; her satırda hedef faz ya da "taşınmayacak" |
-| Compute yolu (culling + indirect draw) r187'de beklenen kazancı vermez | Faz 1 S4 prototipi; GO ölçütünün parçası |
+| Compute yolu (culling + indirect draw) r187'de beklenen kazancı vermez | Faz 1 S4: tek türde doğru çiziyor, GPU maliyeti yok (G7); bütün türler + gölge kaskatları 5c'de ölçülür |
 | NO-GO'da 2a iskeleti ve bu depo sahipsiz kalır | K10 |
 | İçe aktarıcı hatası ancak görsel kabulde fark edilir | 2b'de fixture testleri + tür başına sayım karşılaştırması |
 
@@ -902,3 +914,4 @@ silinebilir.
 | 2026-11-11 | v0.9 | Faz 1 S3 Pipeline ölçüldü (Forge `33c0c00d` … `407720e1`): tek `RenderPipeline`, MRT → GTAO / SSGI / SSR → TRAA → bloom; efekt maliyeti 3 sahne × 3 poz × 1080p / 1440p. 1080p medyan: GTAO 1,6, TRAA 0,4, bloom 0,1, SSR 6,2 (üst sınır), SSGI 7,3 ms; yarım çözünürlükte SSR 1,1, SSGI 2,0, GTAO 0,5 ms. Balanced adayı (TRAA + GTAO + bloom) terrain-only kare ≤ 4,4 ms (1080p) / ≤ 7,2 ms (1440p). Beş MRT hedefi WebGPU'nun varsayılan renk eki sınırını (32 bayt) aşıyor. Balanced profil kararı kullanıcıda. CI `f2b29cf`, `0519c3b`, `4ed6381` (Forge `517961b1` … `4cc0d5b9`) yeşil (kullanıcı teyidi) |
 | 2026-11-11 | v0.9 | S3 kapandı (Forge `e0e64051`, `a4286990`): Balanced = TRAA + GTAO + bloom (level yazmışsa) + SSR yarım çözünürlük (level seçmişse); Cinematic SSGI + SSR tam (kullanıcı kararı). G2 / G3 terrain-only geçer: en kötü Derekavak P2, SSR açık 1080p 5,5 / p95 6,4 ms, 1440p 9,7 / p95 10,6 ms; kesin okuma S4'te. Yansıma kararı: genel yansıma SSR (Post Process `reflection: off \| ssr`, Faz 3), düz yüzeyler planar (Faz 7), sphere reflection capture taşınmaz (PORT_LOG INV-D12, G09). S4'e planar yansıma ölçümü eklendi (rapor) |
 | 2026-11-11 | v0.9 | Faz 1 S4 ölçüldü (Forge `2a135526` … `46986836`): Derekavak ve WbPilotValley'nin gerçek içeriği Forge'un yükleme kurallarıyla (cell'ler, materyal slotları, bellekteki tile'larla foliage halkası, uzak billboard'lar); içerik WebGL'le sayılarak doğrulandı. G1 6 / 6 (kare oranı 0,54–0,68), G2 / G3 kesin (≤ 6,83 / ≤ 11,51 ms), G5 (327 / 212), G7 geçer; G6 render gönderimi 3,9 ms (sınır 3) aşar, foliage draw call'ları toplanınca 2,2 ms. G5 tabanı eşdeğer kopyaya göre (kullanıcı kararı). G9 ve GO / NO-GO kullanıcıda |
+| 2026-11-11 | v0.9 | Faz 1 GO (kullanıcı kararı, koşullu): WebGPU yolu sürer, K10'un NO-GO yolu kapanır. Koşul: GPU güdümlü foliage bütün türlerde ve gölge kaskatlarında zorunlu (5c), G6 render gönderimi 5c kapısında yeniden ölçülür. Risk tablosu S4 sonuçlarıyla güncellendi |
