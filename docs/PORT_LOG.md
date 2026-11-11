@@ -368,6 +368,8 @@ taşınır.
 | `src/engine/audio/` (`audioBus`, `audioEventTable`, `musicDirector`, `audioClips`, `audioTypes`) | `engine/audio/{audioBus,audioEventTable,musicDirector}.ts`; `engine/assets/audio.ts` → `audioClips`; `audioSubsystem.ts`'in tipleri ve saf yardımcıları → `audioTypes` | `04b5fb23` | uyarlandı: dosya bölündü, import yolları; algoritma aynı | 27 taşındı (`audio.test.ts`) | yeşil (2026-11-11) |
 | `src/runtime/audio/audioSubsystem.ts` | `engine/audio/audioSubsystem.ts` (Web Audio ve DOM kısmı) | `04b5fb23` | uyarlandı: `runtime` katmanına (engine DOM'suz); eski `Subsystem` sözleşmesi yerine yerel `AudioUpdateContext`; parametre özelliği açık alan (silinebilir sözdizimi). World'e bağlanması Faz 6'da ses özelliğiyle | 10 taşındı (`audioSubsystem.test.ts`) | yeşil (2026-11-11) |
 | Sound Cue | `engine/audio/soundCue{Evaluator,Types}.ts` | `04b5fb23` | taşınmadı (K12, INV-E15) | 13 düştü (D) | — |
+| `src/engine/ui/` (`uiWidget`, `uiRenderer`, `uiBinding`, `uiTheme`, `uiLocale`, `uiTransition`, `uiA11y`, `uiViewModel`, `uiWorldWidget`) | `engine/ui/*.ts` | `04b5fb23` | uyarlandı: `uiRenderer` / `uiBinding` / `uiTheme`'in DOM'lu işlevleri ayrıldı; eski modelin `SceneJsonValue` tipi yerine aynı biçimde yerel `UiJsonValue`; import yolları | 50 taşındı (`ui.test.ts`); 5 M bırakıldı (kayıt doğrulayıcı 1, `?debug` biçimlendirici 4) | yeşil (2026-11-11) |
+| `src/runtime/ui/uiDom.ts` | `engine/ui/{uiRenderer,uiBinding,uiTheme}.ts`'in DOM kısmı: `mountUiRenderNode`, `renderUiWidget`, `bindUiWidget`, `bindUiLocale`, `applyUiTheme` | `04b5fb23` | uyarlandı: `runtime` katmanına (engine DOM'suz) | Forge'da testi yok | derleniyor; ekran smoke'u Faz 6'da oyun UI'ıyla |
 
 İşlem: taşındı / uyarlandı / yeniden yazıldı. Testler: taşınan / yeniden yazılan
 / düşen sayısı (2b test sınıflamasına göre).
@@ -401,7 +403,7 @@ birden çok koşu üretir.
 
 **İlerleme:** `npm run port:forge-tests` bu deponun `src/**/*.test.ts`
 dosyalarındaki etiketleri Forge kontrolleriyle eşler; TSV'nin `ported`
-sütunu kontrolü taşıyan dosyayı gösterir. 2026-11-11: **A 37 / 927** (ses).
+sütunu kontrolü taşıyan dosyayı gösterir. 2026-11-11: **A 87 / 927** (ses 37, UI 50).
 
 **Sınıflar.** Her kontrol, değer düzeyinde ulaştığı Forge modüllerine göre
 sınıflanır. Ulaşım sözcüksel kapsamla izlenir: kontrolün gövdesi ve onun

@@ -1184,61 +1184,61 @@ tests/engine/timeControl.test.ts	52	check	A			engine/core			time scale survives 
 tests/engine/timeControl.test.ts	64	check	A			engine/core			time scale clamps, and refuses a value that would poison every delta
 tests/engine/timeControl.test.ts	80	check	A			engine/core,engine/perf			frame metrics keep reading real time whatever the simulation is told
 tests/engine/timeControl.test.ts	105	check	A			engine/core			resumeAll is for teardown, and a scale of 1 is the identity
-tests/engine/uiFramework.test.ts	47	check	A			engine/ui			normalizeUiWidgetDef upgrades the legacy empty-root stub to a Canvas
-tests/engine/uiFramework.test.ts	56	check	A			engine/ui			normalizeUiWidgetDef coerces garbage into a valid Canvas-rooted def
-tests/engine/uiFramework.test.ts	62	check	A			engine/ui			normalizeUiWidgetDef maps unknown kinds to Panel and drops leaf children
-tests/engine/uiFramework.test.ts	82	check	A			engine/ui			normalizeUiWidgetDef mints unique ids and dedupes collisions
-tests/engine/uiFramework.test.ts	101	check	A			engine/ui			defaultUiWidgetDef is a minimal empty Canvas asset
-tests/engine/uiFramework.test.ts	111	check	A			engine/ui			readUiAction parses message + back actions and rejects malformed ones
-tests/engine/uiFramework.test.ts	128	check	A			engine/ui			readUiBindingPath extracts a binding path but not a literal
-tests/engine/uiFramework.test.ts	143	check	A			engine/ui			buildUiRenderTree maps the menu widget set to tags/classes/actions
-tests/engine/uiFramework.test.ts	176	check	A			engine/ui			resolveInlineStyle allowlists tokens (px, flex aliases, passthrough)
-tests/engine/uiFramework.test.ts	192	check	A			engine/ui			ProgressBar renders a clamped inline-width fill child
-tests/engine/uiFramework.test.ts	212	check	A			engine/ui			Stack direction sets the modifier class; default is column
-tests/engine/uiFramework.test.ts	223	check	A			engine/ui			createUiNode seeds default props per kind; containers start empty
-tests/engine/uiFramework.test.ts	230	check	A			engine/ui			findUiNode + findUiNodeParent walk the widget tree
+tests/engine/uiFramework.test.ts	47	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeUiWidgetDef upgrades the legacy empty-root stub to a Canvas
+tests/engine/uiFramework.test.ts	56	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeUiWidgetDef coerces garbage into a valid Canvas-rooted def
+tests/engine/uiFramework.test.ts	62	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeUiWidgetDef maps unknown kinds to Panel and drops leaf children
+tests/engine/uiFramework.test.ts	82	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeUiWidgetDef mints unique ids and dedupes collisions
+tests/engine/uiFramework.test.ts	101	check	A			engine/ui		src/engine/ui/ui.test.ts	defaultUiWidgetDef is a minimal empty Canvas asset
+tests/engine/uiFramework.test.ts	111	check	A			engine/ui		src/engine/ui/ui.test.ts	readUiAction parses message + back actions and rejects malformed ones
+tests/engine/uiFramework.test.ts	128	check	A			engine/ui		src/engine/ui/ui.test.ts	readUiBindingPath extracts a binding path but not a literal
+tests/engine/uiFramework.test.ts	143	check	A			engine/ui		src/engine/ui/ui.test.ts	buildUiRenderTree maps the menu widget set to tags/classes/actions
+tests/engine/uiFramework.test.ts	176	check	A			engine/ui		src/engine/ui/ui.test.ts	resolveInlineStyle allowlists tokens (px, flex aliases, passthrough)
+tests/engine/uiFramework.test.ts	192	check	A			engine/ui		src/engine/ui/ui.test.ts	ProgressBar renders a clamped inline-width fill child
+tests/engine/uiFramework.test.ts	212	check	A			engine/ui		src/engine/ui/ui.test.ts	Stack direction sets the modifier class; default is column
+tests/engine/uiFramework.test.ts	223	check	A			engine/ui		src/engine/ui/ui.test.ts	createUiNode seeds default props per kind; containers start empty
+tests/engine/uiFramework.test.ts	230	check	A			engine/ui		src/engine/ui/ui.test.ts	findUiNode + findUiNodeParent walk the widget tree
 tests/engine/uiFramework.test.ts	248	check	M			tools/saveValidator	model:tools/saveValidator		validateSaveUiPayload requires a .ui.json path and normalizes the body
-tests/engine/uiFramework.test.ts	260	check	A			engine/ui			UiViewModelStore notifies only changed fields and dedups unchanged writes
-tests/engine/uiFramework.test.ts	277	check	A			engine/ui			UiViewModelStore fires a multi-path listener once per flush (batched)
-tests/engine/uiFramework.test.ts	289	check	A			engine/ui			UiViewModelStore unsubscribe stops notifications
-tests/engine/uiFramework.test.ts	301	check	A			engine/ui			collectUiBindings + resolveUiBoundValue resolve bound vs static props
-tests/engine/uiFramework.test.ts	323	check	A			engine/ui			normalizeUiThemeDef keeps scalar tokens and drops the rest
-tests/engine/uiFramework.test.ts	335	check	A			engine/ui			themeToCssVariables maps tokens to --forge-ui vars (px for numbers)
-tests/engine/uiFramework.test.ts	344	check	A			engine/ui			resolveInlineStyle resolves $token refs to CSS variables
-tests/engine/uiFramework.test.ts	358	check	A			engine/ui			Include node normalizes to a valid UiNode (not a container)
-tests/engine/uiFramework.test.ts	365	check	A			engine/ui			buildUiRenderNode renders Include placeholder when resolveWidget is absent
-tests/engine/uiFramework.test.ts	382	check	A			engine/ui			buildUiRenderNode inlines referenced widget when resolveWidget returns a def
-tests/engine/uiFramework.test.ts	405	check	A			engine/ui			buildUiRenderNode guards against Include cycles (depth limit)
-tests/engine/uiFramework.test.ts	424	check	A			engine/ui			UiViewModelStore.snapshot returns path-sorted [path, value] pairs
+tests/engine/uiFramework.test.ts	260	check	A			engine/ui		src/engine/ui/ui.test.ts	UiViewModelStore notifies only changed fields and dedups unchanged writes
+tests/engine/uiFramework.test.ts	277	check	A			engine/ui		src/engine/ui/ui.test.ts	UiViewModelStore fires a multi-path listener once per flush (batched)
+tests/engine/uiFramework.test.ts	289	check	A			engine/ui		src/engine/ui/ui.test.ts	UiViewModelStore unsubscribe stops notifications
+tests/engine/uiFramework.test.ts	301	check	A			engine/ui		src/engine/ui/ui.test.ts	collectUiBindings + resolveUiBoundValue resolve bound vs static props
+tests/engine/uiFramework.test.ts	323	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeUiThemeDef keeps scalar tokens and drops the rest
+tests/engine/uiFramework.test.ts	335	check	A			engine/ui		src/engine/ui/ui.test.ts	themeToCssVariables maps tokens to --forge-ui vars (px for numbers)
+tests/engine/uiFramework.test.ts	344	check	A			engine/ui		src/engine/ui/ui.test.ts	resolveInlineStyle resolves $token refs to CSS variables
+tests/engine/uiFramework.test.ts	358	check	A			engine/ui		src/engine/ui/ui.test.ts	Include node normalizes to a valid UiNode (not a container)
+tests/engine/uiFramework.test.ts	365	check	A			engine/ui		src/engine/ui/ui.test.ts	buildUiRenderNode renders Include placeholder when resolveWidget is absent
+tests/engine/uiFramework.test.ts	382	check	A			engine/ui		src/engine/ui/ui.test.ts	buildUiRenderNode inlines referenced widget when resolveWidget returns a def
+tests/engine/uiFramework.test.ts	405	check	A			engine/ui		src/engine/ui/ui.test.ts	buildUiRenderNode guards against Include cycles (depth limit)
+tests/engine/uiFramework.test.ts	424	check	A			engine/ui		src/engine/ui/ui.test.ts	UiViewModelStore.snapshot returns path-sorted [path, value] pairs
 tests/engine/uiFramework.test.ts	436	check	M			src	model:src		formatUiDebug renders the HUD, screen stack, locale and bound fields
 tests/engine/uiFramework.test.ts	460	check	M			src	model:src		formatUiDebug shows placeholders when nothing is mounted
 tests/engine/uiFramework.test.ts	479	check	M			src	model:src		formatUiDebug clips long string values
 tests/engine/uiFramework.test.ts	492	check	M			src	model:src		formatUiDebug lists accessibility audit findings
-tests/engine/uiFramework.test.ts	507	check	A			engine/ui			normalizeUiTransition: shorthand string expands to enter+exit
-tests/engine/uiFramework.test.ts	515	check	A			engine/ui			normalizeUiTransition: object form keeps valid presets, clamps duration
-tests/engine/uiFramework.test.ts	523	check	A			engine/ui			normalizeUiTransition: invalid preset falls back to none on that end
-tests/engine/uiFramework.test.ts	531	check	A			engine/ui			normalizeUiTransition: both ends none (or junk) → null (no-op)
-tests/engine/uiFramework.test.ts	538	check	A			engine/ui			transitionClasses: preset maps to base + offset, none/reduced → null
-tests/engine/uiFramework.test.ts	547	check	A			engine/ui			normalizeUiWidgetDef carries a valid transition and drops a no-op one
-tests/engine/uiFramework.test.ts	562	check	A			engine/ui			normalizeUiLocaleTable keeps string entries and drops the rest
-tests/engine/uiFramework.test.ts	577	check	A			engine/ui			applyLocParams substitutes {name} and leaves unknown placeholders intact
-tests/engine/uiFramework.test.ts	583	check	A			engine/ui			LocaleRegistry.resolve uses the active locale, params, and key fallback
-tests/engine/uiFramework.test.ts	599	check	A			engine/ui			LocaleRegistry notifies subscribers only on a real locale change
-tests/engine/uiFramework.test.ts	615	check	A			engine/ui			readUiTextKey reads a localized text prop and sanitizes params
-tests/engine/uiFramework.test.ts	634	check	A			engine/ui			buildUiRenderTree resolves localized text via resolveLoc (key fallback)
-tests/engine/uiFramework.test.ts	661	check	A			engine/ui			collectUiLocBindings finds only Text/Button nodes with localized text
-tests/engine/uiFramework.test.ts	684	check	A			engine/ui			normalizeUiA11y keeps valid fields and drops empty/garbage
-tests/engine/uiFramework.test.ts	696	check	A			engine/ui			normalizeUiWidgetDef round-trips node a11y + initialFocus, dropping no-ops
-tests/engine/uiFramework.test.ts	719	check	A			engine/ui			resolveUiA11yAttrs maps widget kinds + a11y overrides to ARIA
-tests/engine/uiFramework.test.ts	755	check	A			engine/ui			collectFocusables + isUiNodeFocusable follow the focusable rules
-tests/engine/uiFramework.test.ts	775	check	A			engine/ui			nextFocusIndex wraps both ways and seeds from an empty selection
-tests/engine/uiFramework.test.ts	784	check	A			engine/ui			buildUiRenderTree attaches ARIA attrs to render nodes
-tests/engine/uiFramework.test.ts	800	check	A			engine/ui			auditUiA11y flags nameless Button + Image, passes named ones
-tests/engine/uiFramework.test.ts	824	check	A			engine/ui			normalizeWorldWidget keeps valid fields, defaults the anchor, drops junk
-tests/engine/uiFramework.test.ts	839	check	A			engine/ui			normalizeWorldWidget reads an entity anchor + world offset
-tests/engine/uiFramework.test.ts	851	check	A			engine/ui			normalizeWorldWidgets drops unusable entries
-tests/engine/uiFramework.test.ts	862	check	A			engine/ui			resolveWorldWidgetVisibility fades + scales by distance
-tests/engine/uiFramework.test.ts	880	check	A			engine/ui			ndcToScreen maps clip space to viewport pixels + front/back
+tests/engine/uiFramework.test.ts	507	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeUiTransition: shorthand string expands to enter+exit
+tests/engine/uiFramework.test.ts	515	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeUiTransition: object form keeps valid presets, clamps duration
+tests/engine/uiFramework.test.ts	523	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeUiTransition: invalid preset falls back to none on that end
+tests/engine/uiFramework.test.ts	531	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeUiTransition: both ends none (or junk) → null (no-op)
+tests/engine/uiFramework.test.ts	538	check	A			engine/ui		src/engine/ui/ui.test.ts	transitionClasses: preset maps to base + offset, none/reduced → null
+tests/engine/uiFramework.test.ts	547	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeUiWidgetDef carries a valid transition and drops a no-op one
+tests/engine/uiFramework.test.ts	562	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeUiLocaleTable keeps string entries and drops the rest
+tests/engine/uiFramework.test.ts	577	check	A			engine/ui		src/engine/ui/ui.test.ts	applyLocParams substitutes {name} and leaves unknown placeholders intact
+tests/engine/uiFramework.test.ts	583	check	A			engine/ui		src/engine/ui/ui.test.ts	LocaleRegistry.resolve uses the active locale, params, and key fallback
+tests/engine/uiFramework.test.ts	599	check	A			engine/ui		src/engine/ui/ui.test.ts	LocaleRegistry notifies subscribers only on a real locale change
+tests/engine/uiFramework.test.ts	615	check	A			engine/ui		src/engine/ui/ui.test.ts	readUiTextKey reads a localized text prop and sanitizes params
+tests/engine/uiFramework.test.ts	634	check	A			engine/ui		src/engine/ui/ui.test.ts	buildUiRenderTree resolves localized text via resolveLoc (key fallback)
+tests/engine/uiFramework.test.ts	661	check	A			engine/ui		src/engine/ui/ui.test.ts	collectUiLocBindings finds only Text/Button nodes with localized text
+tests/engine/uiFramework.test.ts	684	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeUiA11y keeps valid fields and drops empty/garbage
+tests/engine/uiFramework.test.ts	696	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeUiWidgetDef round-trips node a11y + initialFocus, dropping no-ops
+tests/engine/uiFramework.test.ts	719	check	A			engine/ui		src/engine/ui/ui.test.ts	resolveUiA11yAttrs maps widget kinds + a11y overrides to ARIA
+tests/engine/uiFramework.test.ts	755	check	A			engine/ui		src/engine/ui/ui.test.ts	collectFocusables + isUiNodeFocusable follow the focusable rules
+tests/engine/uiFramework.test.ts	775	check	A			engine/ui		src/engine/ui/ui.test.ts	nextFocusIndex wraps both ways and seeds from an empty selection
+tests/engine/uiFramework.test.ts	784	check	A			engine/ui		src/engine/ui/ui.test.ts	buildUiRenderTree attaches ARIA attrs to render nodes
+tests/engine/uiFramework.test.ts	800	check	A			engine/ui		src/engine/ui/ui.test.ts	auditUiA11y flags nameless Button + Image, passes named ones
+tests/engine/uiFramework.test.ts	824	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeWorldWidget keeps valid fields, defaults the anchor, drops junk
+tests/engine/uiFramework.test.ts	839	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeWorldWidget reads an entity anchor + world offset
+tests/engine/uiFramework.test.ts	851	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeWorldWidgets drops unusable entries
+tests/engine/uiFramework.test.ts	862	check	A			engine/ui		src/engine/ui/ui.test.ts	resolveWorldWidgetVisibility fades + scales by distance
+tests/engine/uiFramework.test.ts	880	check	A			engine/ui		src/engine/ui/ui.test.ts	ndcToScreen maps clip space to viewport pixels + front/back
 tests/engine/vehicleAi.test.ts	103	check	R			engine/physics,engine/scene,src	three-via:src,three:three		incremental vehicle AI preserves driver progress and releases only its own pedals
 tests/engine/vehicleAi.test.ts	145	check	R			engine/physics,engine/scene,src	three-via:src,three:three		removing vehicle AI releases its parked handbrake and respects possession before the next tick
 tests/engine/vehicleAi.test.ts	166	check	M			engine/scene	model:engine/scene		vehicle AI driver component reads tolerant props and needs a spline to drive
