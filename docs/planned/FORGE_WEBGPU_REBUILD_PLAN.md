@@ -17,7 +17,7 @@ Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 (2026-11-11; [arşiv](../archive/PHASE_2A.md)). Faz 0 kapandı (2026-11-11;
 [arşiv](../archive/PHASE_0.md)): envanter, referans sahneler, WebGL baseline,
 GO sayıları. Faz 1 spike sürüyor: S1 ve S2 tamam (G1 terrain 18 / 18, G8
-geçer); S3 pipeline ölçüldü, Balanced profil kararı bekliyor; sonra S4 ve GO / NO-GO. 2b ve sonrası Faz 1 GO'suna bağlı.
+geçer); S3 pipeline kapandı (Balanced tanımlandı, G2 / G3 terrain-only geçer); sırada S4 ve GO / NO-GO. 2b ve sonrası Faz 1 GO'suna bağlı.
 **Belge düzeni:** tek ana plan; biten fazın ayrıntısı faz kapanınca
 [`docs/archive/`](../archive/INDEX.md)'e taşınır. Kısa mimari harita:
 [`docs/architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md);
@@ -311,11 +311,12 @@ dışındaki `Games/ForgeReference`'tadır.
         `?debug`'lı 15,2 ms; draw call 1.785 / 1.800).
       Kayıtlar `ForgeReference/baseline/spike/` (G8) ve `spike/s2-measure/`
       (G1, `summary.json`), WebGL tarafı `measure/webgl-terrain-*`.
-- [ ] **S3 Pipeline:** MRT + TRAA + GTAO + SSR + SSGI + bloom; her efektin GPU
+- [x] **S3 Pipeline:** MRT + TRAA + GTAO + SSR + SSGI + bloom; her efektin GPU
       maliyeti ayrı ölçülür (1080p ve 1440p).
-      *Ölçüldü (2026-11-11, Forge `33c0c00d` … `407720e1`
-      `spikes/webgpu/s3-pipeline`); Balanced profil kararı kullanıcıda, G2 / G3
-      ondan sonra.*
+      *Kapandı (2026-11-11, Forge `33c0c00d` … `a4286990`
+      `spikes/webgpu/s3-pipeline`): Balanced profil kullanıcı kararıyla
+      tanımlandı, G2 / G3 terrain-only sahnede geçer (geçici; kesin okuma
+      S4'te, aşağıda).*
       **Yapılan:** S2 sahnesi tek `RenderPipeline`'dan geçer: MRT'li sahne
       pass'i → GTAO / SSGI / SSR birleştirmesi → TRAA (HDR) → bloom → çıkış
       dönüşümü (S2'nin ACES'i ve pozlaması). MRT hedefleri yalnız onları okuyan
@@ -328,7 +329,8 @@ dışındaki `Games/ForgeReference`'tadır.
       ışığa); SSGI orta ayar (`sliceCount` 2, `stepCount` 8, zamansal filtre),
       AO'su GTAO'nun yerini alır; SSR klasik kip, `quality` 0,5,
       `reflectNonMetals` açık (terrain'in metalness'i 0, kapalıyken her piksel
-      erken çıkar; yani satır **üst sınır**, SSR'nin asıl yeri su, Faz 7);
+      erken çıkar; yani satır **üst sınır**; SSR genel yansımadır, Post
+      Process'te `reflection: off | ssr`, Faz 3);
       bloom level'ın değerleri, yoksa 1 / 1 / 1.
       **Yöntem:** efekt maliyeti tek sayfa açılışında taranır (yapılandırma
       başına 4 s ısınma + 10 s pencere; G yöntemi değil). 3 sahne × P1–P3 ×
@@ -382,6 +384,31 @@ dışındaki `Games/ForgeReference`'tadır.
         kullanıcıda; spike değiştirmedi.
       Kayıtlar `ForgeReference/baseline/spike/s3-sweep/` (`summary.json`),
       P2 görüntüleri `spike/s3-shots/` (`s3-p2-grid.jpg`).
+      **Profiller (kullanıcı kararı 2026-11-11):**
+      - **Balanced:** TRAA + GTAO (tam çözünürlük, birleştirmede çarpılır) +
+        bloom (level yazmışsa) + SSR yarım çözünürlükte (level
+        `reflection: ssr` seçmişse). Profil efekti zorla açmaz, izin verir
+        (Forge ilkesi; spike'ta bloom buna göre düzeltildi, `e0e64051`).
+        GTAO yarım çözünürlük S4'te Derekavak G2'yi aşarsa ilk kol; o zaman
+        kullanıcıya sorulur.
+      - **Cinematic:** SSGI + SSR tam çözünürlükte (+ TRAA, bloom).
+      - Su ve düz yüzey yansıması planar (Faz 7); sphere reflection capture
+        taşınmaz.
+      **G2 / G3 (geçici, terrain-only):** Balanced, baseline penceresiyle
+      (her tekrarda yeni context, 10 s ısınma + 15 s; 1080p × 3, 1440p × 1),
+      9 poz, her koşuda `isWebGPUBackend` true, hata yok. En kötü durum SSR
+      açık (`reflectNonMetals` açık, her piksel iz sürer).
+
+      | Balanced | 1080p ortalama kare / p95 en kötü / GPU | 1440p ortalama kare / p95 en kötü / GPU |
+      |---|---|---|
+      | SSR kapalı | 2,36–4,25 / 5,1 / 1,96–3,48 | 3,97–6,88 / 7,7 / 3,35–5,79 |
+      | SSR yarım çözünürlük | 2,94–5,54 / 6,4 / 2,40–4,36 | 5,12–9,71 / 10,6 / 4,28–7,83 |
+
+      En kötü poz iki tanımda da Derekavak P2. G2 (≤ 14 / p95 ≤ 16,6) ve G3
+      (≤ 16,6 / p95 ≤ 20) **terrain-only sahnede geçer**; bütçenin geri kalanı
+      S4'ün gerçek içeriğine kalır (Faz 0'da Derekavak `high` WebGL GPU'su
+      ~15–17 ms). Kesin okuma S4'te aynı profille. Kayıtlar
+      `spike/s3-g2/` ve `spike/s3-g2-ssr/`.
 - [ ] **S4 Açık dünya stresi:** referans level'ın gerçek yerleşim ve foliage
       sayılarıyla draw call ve CPU kare süresi; WebGL baseline'ıyla
       karşılaştırma. WebGPURenderer'ın nesne başına CPU maliyeti burada ölçülür.
@@ -389,6 +416,12 @@ dışındaki `Games/ForgeReference`'tadır.
       (tek foliage türü yeter) kurulur ve aynı formatta ölçülür: §2.5'in ve
       K4'teki "fallback yok" kararının dayandığı yol r187'de çalışıyor mu,
       kazancı ne kadar?
+      **Planar yansıma ölçümü (kullanıcı kararı 2026-11-11, rapor, G ölçütü
+      değil):** gerçek içerikli S4 sahnesinde su seviyesine tek `reflector()`
+      düzlemi, çözünürlük Forge `high`'daki göl yansımasıyla aynı; yansımalı /
+      yansımasız fark olarak draw call, CPU ve GPU. Planar sahneyi ikinci
+      kameradan yeniden çizdiği için nesne başına CPU maliyetini doğrudan
+      katlar.
 - [ ] **S5 (isteğe bağlı):** `LightProbeGrid` bake süresi ve görsel etkisi;
       `ClusteredLighting` ile N nokta ışık.
 - [ ] Sonuç tablosu + yan yana ekran görüntüleri bu plana yazılır.
@@ -403,7 +436,7 @@ sonra, spike ölçümünden önce kondu (kullanıcı onayı 2026-11-11). Bütçe
 | # | Ölçüt | Sınır |
 |---|---|---|
 | G1 | Eşdeğer içerik, regresyon yok: S2 / S4 sahnelerinde WebGL `high`'a eşdeğer efekt seti, aynı pozlar, 1080p | Poz başına ortalama kare ≤ WebGL × 1,10 ve GPU ≤ WebGL × 1,10 |
-| G2 | Balanced profil, 1080p (S3 pipeline: TRAA + GTAO + bloom; SSR / SSGI profil kararına göre) | Bütün pozlarda ortalama kare ≤ 14 ms, p95 ≤ 16,6 ms (2,6 ms oynanış payı; Derekavak'ta S4 iyileştirmesini şart koşar) |
+| G2 | Balanced profil, 1080p (S3'te tanımlandı: TRAA + GTAO + bloom; SSR yarım çözünürlükte, ölçümde açık) | Bütün pozlarda ortalama kare ≤ 14 ms, p95 ≤ 16,6 ms (2,6 ms oynanış payı; Derekavak'ta S4 iyileştirmesini şart koşar) |
 | G3 | Balanced profil, 1440p | Ortalama kare ≤ 16,6 ms, p95 ≤ 20 ms |
 | G4 | Cinematic profil | Sınır yok, yalnız rapor (teknik kararları Faz 9'da ölçümle) |
 | G5 | S4 draw call: Derekavak ve WbPilotValley, gerçek yerleşim ve foliage sayılarıyla, instancing / `BatchedMesh` | WebGL'in %50'si: Derekavak P2 ≤ 940, WbPilotValley P3 ≤ 390 |
@@ -495,13 +528,18 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
 - [ ] Işık ve gölge: `CSMShadowNode`, reversed-Z (`reversedDepthBuffer` yapıcı
       seçeneği; WebGL'deki `EXT_clip_control` hilesi gerekmez), view distance.
 - [ ] Çevre: sky atmosphere, height fog, cloud layer, WES bağlantısı
-      (`engine/environment` three'siz), sky light / IBL (PMREM), reflection
-      capture.
+      (`engine/environment` three'siz), sky light / IBL (PMREM). Sphere
+      reflection capture taşınmaz (kullanıcı kararı 2026-11-11): genel yansıma
+      SSR, düz yüzeyler planar (Faz 7).
 - [ ] Olay bazlı gün saati: level'da saat varsayılan olarak durur; gün / gece
       değişimi zamanlı bir geçiştir (süre parametreli), sonra saat yine durur.
       Geçiş sırasında sky light / IBL yeniden yakalama sıklığı ölçülerek
       seçilir. (Forge'da `setHour` anlık atlıyordu.)
-- [ ] `RenderPipeline` + kalite profilleri (§2.4).
+- [ ] `RenderPipeline` + kalite profilleri (§2.4). Profil tanımı S3'te
+      (Faz 1). Post Process'te yansıma seçeneği `reflection: off | ssr`
+      (kullanıcı kararı 2026-11-11); profil izin verir, zorla açmaz. MRT
+      beş hedefte WebGPU'nun varsayılan renk eki sınırını (32 bayt / örnek)
+      aşar: sıkıştırma ya da adaptörden `requiredLimits` (S3 bulgusu).
 - [ ] Level görüntüleyici: level.json → statik mesh'ler, instancing, HLOD;
       runtime route'unda salt görüntüleme.
 - [ ] **Render regresyon smoke'u:** kabul edilen referans pozlar yerelde,
@@ -603,8 +641,10 @@ Dört alt faz; her birinin kendi kapısı var, görsel kabul sonda toplu istenir
 - [ ] Okyanus: FFT compute shader'a (bugün `RawShaderMaterial` ping-pong'u);
       yüzey, köpük, ada girintileri (inlet), kostik, kıyı.
 - [ ] Göl ve nehir (TSL), sualtı, su–terrain bağlantıları.
-- [ ] Yansımalar: önce SSR; gereken yerlerde `reflector()` ile planar yansıma;
-      reflection capture / probe.
+- [ ] Yansımalar (kullanıcı kararı 2026-11-11): düz yüzeyler (su, mirror
+      plane, reflective surface, su birikintisi) `reflector()` ile planar;
+      genel yansıma Post Process'teki SSR (Faz 3). Suda SSR kullanılmaz;
+      sphere reflection capture yok. Planar'ın maliyet ilk okuması S4'te.
 - [ ] Kapı: su görsel kabulü ve ölçüm.
 
 ### Faz 8 — Terrain deformasyonu ve araç hasarı
@@ -747,3 +787,4 @@ silinebilir.
 | 2026-11-11 | v0.9 | Faz 1 S2 Terrain ölçüldü (Forge `6818d201` … `4cc0d5b9`): CDLOD terrain'in TSL karşılığı, `high` gölgesi, sky + sis. G8: tam çözünürlüklü bölgede fark ≤ 4,9 mm; morph bandı ve ötesinde CDLOD'un kendi sapması (≤ 2,2 m), ölçütün yorumu kullanıcı kararında. G1 (yalnız terrainli WebGL kopyalarına karşı): 18 / 18 geçer, kare oranı 0,26–0,86. Faz 0 baseline'ının navmesh hata ayıklama çiziminden etkilenmediği A/B ile doğrulandı |
 | 2026-11-11 | v0.9 | S2 kapandı: G8 kullanıcı kararıyla tam çözünürlüklü bölgeye uygulanır (≤ 4,9 mm, geçer); GO tablosundaki G8 satırı buna göre netleşti |
 | 2026-11-11 | v0.9 | Faz 1 S3 Pipeline ölçüldü (Forge `33c0c00d` … `407720e1`): tek `RenderPipeline`, MRT → GTAO / SSGI / SSR → TRAA → bloom; efekt maliyeti 3 sahne × 3 poz × 1080p / 1440p. 1080p medyan: GTAO 1,6, TRAA 0,4, bloom 0,1, SSR 6,2 (üst sınır), SSGI 7,3 ms; yarım çözünürlükte SSR 1,1, SSGI 2,0, GTAO 0,5 ms. Balanced adayı (TRAA + GTAO + bloom) terrain-only kare ≤ 4,4 ms (1080p) / ≤ 7,2 ms (1440p). Beş MRT hedefi WebGPU'nun varsayılan renk eki sınırını (32 bayt) aşıyor. Balanced profil kararı kullanıcıda. CI `f2b29cf`, `0519c3b`, `4ed6381` (Forge `517961b1` … `4cc0d5b9`) yeşil (kullanıcı teyidi) |
+| 2026-11-11 | v0.9 | S3 kapandı (Forge `e0e64051`, `a4286990`): Balanced = TRAA + GTAO + bloom (level yazmışsa) + SSR yarım çözünürlük (level seçmişse); Cinematic SSGI + SSR tam (kullanıcı kararı). G2 / G3 terrain-only geçer: en kötü Derekavak P2, SSR açık 1080p 5,5 / p95 6,4 ms, 1440p 9,7 / p95 10,6 ms; kesin okuma S4'te. Yansıma kararı: genel yansıma SSR (Post Process `reflection: off \| ssr`, Faz 3), düz yüzeyler planar (Faz 7), sphere reflection capture taşınmaz (PORT_LOG INV-D12, G09). S4'e planar yansıma ölçümü eklendi (rapor) |
