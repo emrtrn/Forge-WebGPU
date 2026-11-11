@@ -369,6 +369,101 @@ taşınır.
 İşlem: taşındı / uyarlandı / yeniden yazıldı. Testler: taşınan / yeniden yazılan
 / düşen sayısı (2b test sınıflamasına göre).
 
+### 2.1 Test sınıflaması
+
+2b'nin ilk işi (plan Faz 2b). Kaynak Forge `forge-webgl-final` (`04b5fb23`).
+Araç `npm run port:forge-tests -- --forge <Forge checkout>`. Etiketli commit'te
+temiz checkout ister. Kontrol başına satırlar
+[`docs/port/forge-engine-tests.tsv`](port/forge-engine-tests.tsv)'de.
+
+**Kapsam:** `tests/engine/` altındaki 176 dosya ve `tools/engine-tests.ts`
+içindeki satır içi kontroller. Hepsi `test:engine` koşucusuna bağlı; üç dosya
+başka bir test dosyası üzerinden. Birim, bir kontrol yeridir: bir `check`,
+`checkAsync` ya da `checkSlow` çağrısı. 2.588 yerin 13'ünün etiketi koşuda
+üretilir (döngü). Forge koşusunda (`test:engine`, etikette) 2.600 kontrol
+geçer, 10 yavaş kontrol atlanır: toplam 2.610 koşu, çünkü döngüdeki 13 yer
+birden çok koşu üretir.
+
+**Sınıflar.** Her kontrol, değer düzeyinde ulaştığı Forge modüllerine göre
+sınıflanır. Ulaşım sözcüksel kapsamla izlenir: kontrolün gövdesi ve onun
+kullandığı yerel yardımcılar. `import type` sayılmaz. Bir kontrol birden çok
+sınıfa uyuyorsa R, M'nin; M de A'nın önüne geçer.
+
+| Sınıf | Ne | Kontrol yeri | Ne olur |
+|---|---|---|---|
+| **A** algoritma | Yalnız three'siz ve eski modele ait olmayan modüllere ulaşır | **1.010** | 2b'de mekanik çevrilir (`check()` → `test()`). **"Taşınan testler yeşil" kapısının paydası** |
+| **M** eski veri modeli | `engine/scene`, `engine/persistence`, `engine/world`, `src`, `editor`, `game`, `project`, `templates`, `tools/saveValidator`, `tools/droppedFields` modüllerine ya da eski biçimli level / layout verisine ulaşır | 959 | Alt sistemi taşınırken yeni modele göre yeniden yazılır ya da düşer; karar alt sistemin §2 satırında |
+| **R** render | three'ye render için ulaşır: `engine/render-three`, `src` uygulama katmanı ya da testin kendisinin kurduğu three nesnesi | 619 | 2b'de taşınmaz; render'ı yeniden yazan fazla (3, 5–8) birlikte yeniden yazılır ya da düşer |
+
+- **A'nın 471'i sınırda uyarlama ister.** Bunların 469'unda test edilen modül
+  daha aşağıda eski modele iniyor. 88'inde three'yi matematik için kullanan
+  bir motor modülüne iniyor; bazı kontroller iki gruba birden giriyor. Bu
+  matematik kullanımının tek kaynağı `engine/physics/ragdoll.ts`
+  (`Vector3` / `Quaternion`). `physicsSubsystem`, `behaviorSubsystem` ve
+  `defaultInputBindings` ona bağlı. Bu depoda three yalnız render'da
+  olabildiği için `ragdoll` taşınırken matematiği değiştirilir; algoritma
+  aynı kalır (§2.11).
+- **`engine/scene` yalnız veri modeli değil.** İçinde algoritmik parçalar da
+  var: landscape, waterBody, collision, spline doğrulama. Mimari raporda
+  `scene` yeniden tasarlandığı için bu parçaların testleri M sayıldı.
+  Algoritmalar o tasarımda korunur.
+- **Sınır.** Yardımcıya argümanla geçen veri ve sonradan atanan paylaşımlı
+  `let` durumu izlenmez. Bu yüzden bir kontrol olduğundan temiz (A) görünebilir.
+  Taşımada sınıfı yanlış çıkan kontrol, alt sistemin §2 satırında not edilir.
+- **Kapsam dışı:** `tests/builder/*.test.mjs` (8 dosya, `node:test`; build
+  hattı Faz 4 dist doğrulaması ve Faz 6 oyun build'iyle gelir) ve Playwright
+  smoke spec'leri (§1'de özellik başına) bu paydaya girmez.
+
+Alan başına dağılım (bir kontrol, ulaştığı ilk `engine/*` alanında sayılır;
+yoksa ilk alanında):
+
+| Alan | A | M | R |
+|---|---|---|---|
+| engine/physics | 212 | 56 | 68 |
+| engine/render-three | 0 | 0 | 300 |
+| engine/scene | 0 | 258 | 31 |
+| engine/terrain | 188 | 40 | 4 |
+| src | 0 | 133 | 88 |
+| engine/world | 0 | 185 | 5 |
+| engine/worldbuilder | 143 | 23 | 0 |
+| engine/core | 57 | 6 | 32 |
+| engine/ai | 45 | 24 | 0 |
+| tools/saveValidator | 0 | 68 | 0 |
+| engine/input | 28 | 6 | 32 |
+| engine/perf | 40 | 11 | 14 |
+| engine/behavior | 33 | 29 | 0 |
+| engine/audio | 52 | 8 | 0 |
+| engine/movement | 53 | 0 | 1 |
+| engine/ui | 50 | 1 | 0 |
+| engine/assets | 14 | 22 | 11 |
+| engine/environment | 23 | 8 | 14 |
+| editor | 0 | 16 | 11 |
+| engine/navigation | 23 | 1 | 2 |
+| engine/persistence | 0 | 20 | 0 |
+| tools/droppedFields | 0 | 19 | 0 |
+| engine/dialogue | 18 | 0 | 0 |
+| engine/vfx | 4 | 8 | 0 |
+| (none) | 6 | 2 | 2 |
+| engine/gameplay | 4 | 4 | 0 |
+| tools/world/randomWorldRequest | 0 | 5 | 0 |
+| tools/worldDataCheck | 1 | 4 | 0 |
+| engine/loading | 4 | 0 | 0 |
+| engine/animation | 2 | 0 | 1 |
+| engine/perception | 3 | 0 | 0 |
+| tools/assetPerfReport | 3 | 0 | 0 |
+| tools/dialoguePipeline | 2 | 0 | 0 |
+| tools/world/hlodBuild | 0 | 0 | 2 |
+| tests | 0 | 0 | 1 |
+| tools/terrainOrphans | 1 | 0 | 0 |
+| tools/world/randomWorldRun | 0 | 1 | 0 |
+| tools/world/testWorld | 1 | 0 | 0 |
+| tools/world/wbTestValley | 0 | 1 | 0 |
+
+Dosya düzeyinde: yalnız A 42, yalnız M 30, yalnız R 27; karışık A+M 31,
+M+R 20, A+M+R 19, A+R 7. `tools/engine-tests.ts` içinde 909 kontrol var
+(A 338, M 375, R 196). Taşımada bunlar modül başına test dosyalarına
+dağıtılır.
+
 ## 3. Port bekleyenler
 
 | Tarih | Forge commit | Modül | Ne | Durum |

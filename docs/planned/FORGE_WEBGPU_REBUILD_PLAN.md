@@ -274,11 +274,20 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       hata düzeltmesi" aldı). Envanter tabanından (`b3fa0c1a`) bu yana fark
       yalnız spike + not; envanter değişmedi.
 
-- [ ] **Test sınıflaması (ilk iş):** Forge'un 176 test dosyası iki kümeye
+- [x] **Test sınıflaması (ilk iş):** Forge'un 176 test dosyası iki kümeye
       ayrılır: algoritma testleri (mekanik `check()` → `test()` çevirisi) ve
       eski `scene` / `persistence` / `world` veri modeline dayananlar (yeni
       modele göre yeniden yazılır ya da düşer). Sayılar `PORT_LOG`'a yazılır;
       "taşınan testler yeşil" kapısının paydası budur.
+      *Yapıldı (2026-11-11):* kontrol yeri başına, araçla
+      (`npm run port:forge-tests`; satırlar `docs/port/forge-engine-tests.tsv`,
+      özet `PORT_LOG` §2.1). 2.588 kontrol yeri (176 dosya + `tools/engine-tests.ts`
+      içi). Kümeler ikiden üçe çıktı: **A algoritma 1.010 (paydası bu)**,
+      M eski veri modeli 959, R render 619. R kümesi three'ye render için
+      ulaşan kontrollerdir (`render-three`, `src` uygulama katmanı); 2b'de
+      taşınmaz, render'ı yeniden yazan fazla gelir. A'nın 471'i sınırda
+      uyarlama ister; 88'i `engine/physics/ragdoll.ts`'in three matematiği
+      yüzünden (bu depoda three yalnız render'da).
 - [ ] **Taşıma:** `engine/*` three'siz alt sistemleri (ai, physics, terrain
       verisi, navigation, movement, audio, dialogue, behavior, worldbuilder
       algoritmaları, environment, perf, animation, input, loading, perception,
@@ -595,3 +604,4 @@ silinebilir.
 | 2026-11-11 | v0.9 | S5 yapılmadı (kullanıcı kararı): `LightProbeGrid` ve `ClusteredLighting` Faz 9'da ölçülür; probe verisinin hücre formatındaki yeri 5b tasarımında |
 | 2026-11-11 | v0.9 | Faz 1 kapandı (GO, koşullu): ayrıntı `docs/archive/PHASE_1.md`'ye taşındı; planda özet, koşul 5c'de |
 | 2026-11-11 | v0.9 | Faz 2b başladı, cut-over: Forge `forge-webgl-final` = `04b5fb23` (bakım modu notu `CLAUDE.md` / `README.md` / `AGENTS.md`); Forge WebGL'de bundan sonra yalnız hata düzeltmesi, taşınmış modüle gelen düzeltme `PORT_LOG` §3'e. Envanter farkı yok |
+| 2026-11-11 | v0.9 | 2b test sınıflaması kapandı: `npm run port:forge-tests` (TypeScript AST, değer düzeyinde ve sözcüksel kapsamlı ulaşım), 2.588 kontrol yeri → A algoritma 1.010 (kapı paydası), M eski model 959, R render 619; satırlar `docs/port/forge-engine-tests.tsv`, özet `PORT_LOG` §2.1 |

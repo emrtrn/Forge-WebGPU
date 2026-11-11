@@ -1,0 +1,174 @@
+import { describe, expect, test } from "vitest";
+import { analyzeSource, areaOf, classifyCheck, isMathOnlyThreeArea, isOldLevelData, type ModuleFacts } from "./forgeTests.ts";
+
+const analyze = (text: string) => analyzeSource("tests/engine/sample.test.ts", text);
+
+describe("analyzeSource: what a check reaches", () => {
+  test("type-only imports and type positions do not count; value uses do", () => {
+    const result = analyze(`
+      import type { RoomLayout } from "../../engine/scene/layout";
+      import { type Grid, makeGrid } from "../../engine/terrain/grid";
+      import { normalize } from "../../engine/environment/wind";
+      export function registerTests(check: Check): void {
+        check("grid", () => {
+          const layout: RoomLayout = { schema: 1 } as RoomLayout;
+          const grid: Grid = makeGrid(4);
+          void layout; void grid;
+        });
+      }
+    `);
+    expect(result.checks).toHaveLength(1);
+    expect(result.checks[0]!.specifiers).toEqual(["../../engine/terrain/grid"]);
+    expect(result.valueSpecifiers).toEqual(["../../engine/terrain/grid"]);
+  });
+
+  test("a helper's imports reach the check that calls it, transitively", () => {
+    const result = analyze(`
+      import { validateLayout } from "../../tools/saveValidator";
+      import { resolveWind } from "../../engine/environment/wind";
+      function level() { return validateLayout({}); }
+      const fixture = () => level();
+      export function registerTests(check: Check): void {
+        check("wind alone", () => resolveWind(1));
+        check("through the validator", () => fixture());
+      }
+    `);
+    expect(result.checks.map((found) => found.specifiers)).toEqual([
+      ["../../engine/environment/wind"],
+      ["../../tools/saveValidator"],
+    ]);
+  });
+
+  test("a name declared in one check does not leak into another (lexical scope)", () => {
+    const result = analyze(`
+      import { loadLevel } from "../../engine/scene/level";
+      import { bake } from "../../engine/terrain/bake";
+      export function registerTests(check: Check): void {
+        check("scene", () => { const result = loadLevel(); void result; });
+        check("terrain", () => { const result = bake(); void result; });
+      }
+    `);
+    expect(result.checks.map((found) => found.specifiers)).toEqual([
+      ["../../engine/scene/level"],
+      ["../../engine/terrain/bake"],
+    ]);
+  });
+
+  test("a parameter shadows an import of the same name", () => {
+    const result = analyze(`
+      import { terrain } from "../../engine/terrain/terrain";
+      const measure = (terrain: number) => terrain * 2;
+      export function registerTests(check: Check): void {
+        check("shadowed", () => measure(3));
+      }
+    `);
+    expect(result.checks[0]!.specifiers).toEqual([]);
+  });
+
+  test("a loop variable carries the iterable; the label is not followed", () => {
+    const result = analyze(`
+      import { CASES } from "../../engine/ai/cases";
+      import { describeCase } from "../../engine/scene/describe";
+      export function registerTests(check: Check): void {
+        for (const item of CASES) {
+          check(\`case \${describeCase(item)}\`, () => { void item; });
+        }
+      }
+    `);
+    expect(result.checks[0]!.dynamicLabel).toBe(true);
+    expect(result.checks[0]!.specifiers).toEqual(["../../engine/ai/cases"]);
+  });
+
+  test("string literals and dynamic imports in the body are recorded", () => {
+    const result = analyze(`
+      import { readFileSync } from "node:fs";
+      export async function registerTests(checkAsync: CheckAsync): Promise<void> {
+        await checkAsync("level fixture", async () => {
+          readFileSync("tests/smoke/fixtures/levels/LandscapeTest.json", "utf8");
+          await import("../../engine/world/streaming");
+        });
+      }
+    `);
+    const [found] = result.checks;
+    expect(found!.kind).toBe("checkAsync");
+    expect(found!.specifiers).toEqual(["../../engine/world/streaming", "node:fs"]);
+    expect(found!.literals).toContain("tests/smoke/fixtures/levels/LandscapeTest.json");
+  });
+
+  test("class extends is a value use; implements is not", () => {
+    const result = analyzeSource(
+      "engine/x/y.ts",
+      `
+      import { Base } from "./base";
+      import { Shape } from "./shape";
+      export class Box extends Base implements Shape {}
+    `,
+    );
+    expect(result.valueSpecifiers).toEqual(["./base"]);
+  });
+
+  test("side-effect imports and value re-exports count for the module graph", () => {
+    const result = analyzeSource(
+      "engine/x/index.ts",
+      `
+      import "./register";
+      export { a } from "./a";
+      export type { B } from "./b";
+      export * from "./c";
+    `,
+    );
+    expect(result.valueSpecifiers).toEqual(["./a", "./c", "./register"]);
+  });
+});
+
+describe("classifyCheck", () => {
+  const local = (path: string, facts: Partial<ModuleFacts> = {}): ModuleFacts => ({
+    path,
+    specifier: path,
+    three: false,
+    threeMath: false,
+    oldModel: false,
+    ...facts,
+  });
+
+  test("three, directly or through a module, makes a render check", () => {
+    expect(classifyCheck([{ path: null, specifier: "three", three: true, threeMath: false, oldModel: false }], []).cls).toBe("R");
+    const verdict = classifyCheck([local("engine/terrain/lod.ts", { three: true })], []);
+    expect(verdict.cls).toBe("R");
+    expect(verdict.reasons).toEqual(["three-via:engine/terrain"]);
+  });
+
+  test("an old-model area or old level data makes a model check", () => {
+    expect(classifyCheck([local("engine/scene/layout.ts")], []).cls).toBe("M");
+    expect(classifyCheck([local("tools/saveValidator.ts")], []).cls).toBe("M");
+    expect(classifyCheck([local("engine/ai/path.ts")], ["tests/smoke/fixtures/levels/Offroad.json"]).cls).toBe("M");
+  });
+
+  test("otherwise algorithm; a model dependency further down marks the boundary", () => {
+    expect(classifyCheck([local("engine/ai/path.ts")], ["x"])).toEqual({ cls: "A", boundary: false, areas: ["engine/ai"], reasons: [] });
+    expect(classifyCheck([local("engine/ai/path.ts", { oldModel: true })], [])).toMatchObject({
+      cls: "A",
+      boundary: true,
+      reasons: ["boundary-model:engine/ai"],
+    });
+    expect(classifyCheck([local("engine/physics/world.ts", { threeMath: true })], [])).toMatchObject({
+      cls: "A",
+      reasons: ["boundary-three-math:engine/physics"],
+    });
+  });
+
+  test("three in an engine module outside render-three is math, not render", () => {
+    expect(isMathOnlyThreeArea("engine/physics")).toBe(true);
+    expect(isMathOnlyThreeArea("engine/render-three")).toBe(false);
+    expect(isMathOnlyThreeArea("src")).toBe(false);
+  });
+
+  test("areas and level data", () => {
+    expect(areaOf("engine/render-three/water/ocean.ts")).toBe("engine/render-three");
+    expect(areaOf("tools/saveValidator.ts")).toBe("tools/saveValidator");
+    expect(areaOf("editor/core/selection.ts")).toBe("editor");
+    expect(isOldLevelData("public/assets/levels/demo.level.json")).toBe(true);
+    expect(isOldLevelData("LandscapeTest.cells/main/0_0.json")).toBe(true);
+    expect(isOldLevelData("landscape-1.tiles/0_0.bin")).toBe(false);
+  });
+});
