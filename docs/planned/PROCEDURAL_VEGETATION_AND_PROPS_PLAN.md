@@ -1,7 +1,7 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.2 · 2026-11-11 (v0.1'den fark: tarifin türü ve çıktının
-saklanışı karara bağlandı; bake yolunda hız karşılaştırması eklendi)
+**Sürüm:** v0.3 · 2026-11-11 (v0.2'den fark: bake CPU'da; dokular da
+prosedürel, materyal tarifi ve doku üretimi seçenekleri §6.6'da)
 **Durum:** Plan. Uygulama başlamadı; kod, bağımlılık ya da ana plan kutusu
 değişmedi. Başlama koşulu §2'de.
 **İlgili belgeler:** [yeniden inşa planı](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
@@ -282,16 +282,57 @@ profilinde, yani oyun verisinde kalır.
 
 ### 6.6 Dokular
 
-Geometri prosedürel olsa da doku gerekir; lisans sorunu burada geri gelmemeli.
+Geometri prosedürel olsa da yüzey gerekir; lisans sorunu burada geri
+gelmemeli. **Dokular da prosedürel üretilir (kullanıcı kararı 2026-11-11).**
+Bu yetenek yalnız bitki ve kaya için değildir: terrain boya katmanları ve
+ileride prosedürel binalar aynı altyapıyı kullanır. Bu yüzden genel bir
+**materyal tarifi** olarak kurulur.
 
-| Doku | Önerilen kaynak |
-|---|---|
-| Yaprak (renk, alfa, normal) | Prosedürel: parametrik yaprak dış hattı + damar; CPU'da atlasa çizilir |
-| Dal ucu kartı, impostor | Üretilen geometriden bake (§6.7) |
-| Kabuk, kaya yüzeyi | Prosedürel döşenebilir karo (gürültü tabanlı); yetmezse PK4 |
+**Seçenekler.**
 
-Prosedürel kabuk ve kaya yüzeyi yakın planda fotoğraf dokusu kadar zengin
-olmayabilir. Bu risk PK4'te ele alınır.
+| Yol | Nasıl çalışır | Artı | Eksi |
+|---|---|---|---|
+| A. Gölgelendiricide | Renk, pürüz ve normal her karede, her pikselde gürültüden hesaplanır; doku dosyası yok | İndirme sıfır; çözünürlük sınırı ve döşeme tekrarı yok; parametre anında değişir; her yüzey benzersiz | Piksel başına sürekli GPU maliyeti; uzakta kırpışma (mip yok); alfa kartlarına uymaz |
+| B. Pişirilmiş | Aynı tarif bir kez çalışır, döşenebilir doku dosyaları yazılır (renk, normal, ORM) | Oyunda sıradan doku maliyeti; mip ve KTX2; her materyalde çalışır | Sabit çözünürlük; döşeme tekrarı; bellek ve indirme |
+| C. Karma | Ayrıntı pişirilmiş karodan; büyük ölçekli değişim (renk kayması, kir, yosun, pas, ıslaklık) gölgelendiricide az sayıda düşük frekanslı örnekle | B'nin maliyeti + A'nın çeşitliliği; tekrar gizlenir | İki parça birlikte tasarlanır |
+| D. Yüklemede üretim | Tarif oyunla gider, doku oyuncunun cihazında açılışta üretilir | İndirme çok küçük | Sıkıştırılamaz (bellek ≈ 4 kat), açılış uzar; "kalıcı dosya" kararına ters |
+
+Saltline (bkz. [referans notu](../reference/SALTLINE_FPS_REFERENCE.md) §8) A
+yolunu kullanıyor: voronoi ve fraktal gürültüden boya / pas hasar modeli, doku
+dosyası yok. `three 0.187.0` da aynı yolu destekliyor: TSL'de hazır gürültü
+düğümleri var (`mx_noise`, `mx_fractal_noise`, `mx_worley_noise`,
+`mx_cell_noise`) ve `examples/jsm/generators/` altındaki şehir üreticileri
+materyallerini böyle kuruyor.
+
+**Öneri: C (PK4).** A yolu küçük ve kapalı bir sahnede iyi çalışır; açık
+dünyada GPU zaten dar boğazdır (Faz 0 baseline'ında Derekavak GPU'ya bağlı) ve
+ekranı dolduran yüzeylerde çok oktavlı gürültü her kare ödenir. Bu bir
+ölçüm değil, beklentidir; PG1'de aynı kaya materyali A ve C ile R1'de
+ölçülür ve ayrım sayıyla kesinleşir.
+
+**Materyal tarifi.** Bitki tarifiyle aynı kurallara uyar: A13 veri asset'i,
+kalıcı çıktı, CPU'da üretim (Node ve worker), `generatorVersion`.
+
+| Doku üreticisi | Kapsadığı yüzeyler | İlk tüketici |
+|---|---|---|
+| **Gürültü yığını** | Taş, kaya, kabuk, toprak, kum, sıva, beton, paslı / boyalı metal | Kaya (PG1), kabuk (PG2), terrain katmanları |
+| **Yaprak** | Parametrik dış hat + damar; renk, alfa, normal | Dallanan üretici (PG2) |
+| **Desen** | Tuğla, taş duvar, kiremit, tahta, karo, oluklu sac | Prosedürel binalar (bu planın dışında) |
+
+- Çıktı: döşenebilir renk, normal ve ORM dokuları; yükseklik ara üründür
+  (normal ve oyukluk ondan türer).
+- Tarifin katmanları şemalı bir listedir (gürültü türü, ölçek, karışım,
+  renk rampası); görsel graf editörü yoktur (§1).
+- Gölgelendirici tarafı, mimari §4.9'daki materyal katkısı olarak kurulur:
+  büyük ölçekli renk değişimi ve yıpranma maskeleri. Maskeler köşe verisinden
+  (oyukluk, üst yüz, yükseklik) ve düşük frekanslı dünya uzayı gürültüsünden
+  beslenir.
+- Dal ucu kartı ve impostor dokuları üretilen geometriden bake edilir (§6.7).
+
+**Beklenti.** Gürültü tabanlı yüzeyler (taş, sıva, beton, pas, boyalı metal,
+toprak) prosedürel üretime en uygun sınıftır. Organik ince ayrıntı (kabuk,
+yaprak yüzeyi) fotoğraf dokusu kadar zengin olmayabilir; görsel kabul
+kullanıcıdadır.
 
 ### 6.7 Bake yolu
 
@@ -302,7 +343,7 @@ Kart ve impostor atlası için bitkinin çizilmesi gerekir. İki yol var:
 | **CPU rasterleyici** (saf kod, `engine`) | Node'da ve worker'da çalışır; World Builder CLI'ı tek başına tam asset üretir; CI'da sınanır; deterministik | Küçük bir rasterleyici yazılır (renk, alfa, normal, derinlik; ışık yok) |
 | GPU bake (`render`) | Gerçek materyallerle çizer | Yalnız başlıklı tarayıcıda; CLI ve CI üretemez |
 
-Öneri CPU rasterleyicidir (PK3). Atlaslar ışıksız G-buffer verisidir; görüş
+Karar CPU rasterleyicidir (kullanıcı, 2026-11-11). Atlaslar ışıksız G-buffer verisidir; görüş
 başına 128–256 px ve 64 görüş, worker'da saniyeler mertebesinde bir iştir.
 Bu tahmindir, PG3'te ölçülür.
 
@@ -453,13 +494,16 @@ Her adım dikey bir dilimdir ve kendi kapısıyla biter. Görsel beğeni kullan�
 kabulüdür; kapılar işlevsel ve ölçülebilirdir.
 
 - [ ] **PG0 Hazırlık.** §2'deki ana plan çıktıları ve üç nokta kodla
-      doğrulanır; PK3–PK6 kapanır; ana plana bağlantı satırı eklenir.
+      doğrulanır; PK4–PK6 kapanır; ana plana bağlantı satırı eklenir.
 - [ ] **PG1 Kaya, uçtan uca ince dilim.** Saf çekirdek (rastgele akışlar,
       mesh yazımı, LOD örneklemesi, collider, istatistik) + kaya üreticisi +
-      tarif şeması + triplanar materyal + tarif paneli + CLI + World Builder'da
+      tarif şeması + taş yüzeyi materyal tarifi (§6.6) + triplanar materyal +
+      tarif paneli + CLI + World Builder'da
       `generated` kaynağı. *Kapı:* `world:random` dünyasında `prop.rock`
       rolleri hazır model olmadan doluyor; `verify:assets` yeşil; aynı tarif
-      iki koşuda aynı sayıları veriyor; gerçek WebGPU'da tek kontrol çekimi.
+      iki koşuda aynı sayıları veriyor; gerçek WebGPU'da tek kontrol çekimi;
+      aynı kaya materyali gölgelendiricide (A) ve karma (C) yolla R1'de
+      ölçüldü, PK4 sayıyla kapandı.
 - [ ] **PG2 Dallanan üretici: geniş yapraklı ağaç.** İskelet, tüp mesh,
       prosedürel yaprak, kabuk materyali, rüzgâr ağırlıkları, LOD0. *Kapı:*
       bütçe içinde sonlanma; düzenle → kaydet → yeniden aç aynı çıktı; rüzgâr
@@ -498,13 +542,14 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 | Üçüncü taraf hazır kitaplık | Kenney / Quaternius yok (kullanıcı, 2026-11-11) |
 | Tarifin türü (eski PK1) | Genel veri editörünün (A13) şemalı veri asset'i; onun formuyla düzenlenir (kullanıcı, 2026-11-11) |
 | Çıktının saklanışı (eski PK2) | Kalıcı dosya: projeye yazılır, commit'lenir; önbellek değil (kullanıcı, 2026-11-11) |
+| Bake yolu (eski PK3) | CPU rasterleyici; Node'da ve worker'da çalışır (kullanıcı, 2026-11-11; §6.7) |
+| Dokuların kaynağı | Dokular da prosedürel üretilir; genel materyal tarifi, ileride binalar da kullanır (kullanıcı, 2026-11-11; §6.6) |
 
 **Açık (PG0'da kapanır):**
 
 | ID | Soru | Öneri |
 |---|---|---|
-| PK3 | Kart ve impostor bake'i CPU'da mı, GPU'da mı? | CPU rasterleyici (§6.7) |
-| PK4 | Kabuk ve kaya yüzeyi dokusu yetmezse kaynak ne? | Önce prosedürel karo; yetmezse Codex'e ürettirilen doku, kaynağı meta'da kayıtlı |
+| PK4 | Prosedürel doku hangi yolla üretilir: gölgelendiricide (A), pişirilmiş (B), karma (C), yüklemede (D)? (§6.6) | C, karma. PG1'de A ile C aynı kaya materyalinde R1'de ölçülür |
 | PK5 | İnsan yapımı basit prop'lar (çit direği, sandık, varil) bu işe dahil mi? | PG7'ye kadar ertele; World Builder'ın çit ve donatı yerleşimi ihtiyaç doğurursa aç |
 | PK6 | Başlangıç ön ayarları nerede durur? | `content/packs/starter/`: birkaç nötr ön ayar (geniş yapraklı, iğne yapraklı, çalı, ot, köşeli ve yuvarlak kaya); bölgeye özgü türler oyun projesinde |
 
@@ -514,10 +559,11 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 
 | Risk | Karşılık |
 |---|---|
-| Prosedürel görünüm hazır modelin kalitesine ulaşmaz | Kaya ve ağaç ilk iki adımda kullanıcı kabulüne çıkar; yetmezse PK4 ve hazır model yolu açık kalır |
+| Prosedürel görünüm hazır modelin kalitesine ulaşmaz | Kaya ve ağaç ilk iki adımda kullanıcı kabulüne çıkar; yetmezse Codex'e ürettirilen doku (kaynağı meta'da kayıtlı) ve hazır model yolu açık kalır |
 | Yaprak kartlarının overdraw'ı GPU'yu doldurur | Kart sayısı ve alanı bütçede; alfa boşluğu az kesim; PG3'te ölçüm |
 | Doku belleği prototip sayısıyla çarpılır | Tür başına ortak atlas, KTX2, impostor yalnız büyük ağaçta (§8) |
 | CPU rasterleyici kalitesi (alfa kenarı, mip) yetmez | Üst örnekleme; yetmezse GPU bake yedek yol olarak eklenir |
+| Gölgelendirici tarafındaki gürültü GPU bütçesini yer | Yalnız düşük frekanslı, az örnekli katkılar; PG1 ölçümü; kalite profiline bağlanabilir |
 | 5c sözleşmesi üreticinin çıktısıyla uyuşmaz | PG0'da kodla doğrulama; üretici 5c'ye uyar, tersi değil |
 | Kapsam türden türe büyür | Üretici ailesi başına ayrı adım; PG7 yalnız oyun isteyince |
 | Üretici değişince eski tarifler başka görünür | `generatorVersion` + çıktının kalıcı dosya olması |
@@ -577,3 +623,4 @@ kurallarına göre yeniden yazılır.
 |---|---|---|
 | 2026-11-11 | v0.1 | Plan yazıldı; prosedürel üretim kararı ve zamanlama (kullanıcı). Eski araştırma raporu ve kapsam envanteri kaldırıldı. Uygulama yok |
 | 2026-11-11 | v0.2 | Tarif A13 veri asset'i, çıktı kalıcı dosya (kullanıcı kararları; PK1 ve PK2 kapandı). §6.7'ye CPU / GPU bake hız karşılaştırması eklendi; PK3 açık |
+| 2026-11-11 | v0.3 | Bake CPU'da (PK3 kapandı). Dokular da prosedürel (kullanıcı kararı): §6.6 materyal tarifi, dört yol, öneri karma; PK4 yeniden yazıldı, açık |
