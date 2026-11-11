@@ -18,7 +18,8 @@ Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 [arşiv](../archive/PHASE_0.md)): envanter, referans sahneler, WebGL baseline,
 GO sayıları. Faz 1 spike'ı S1–S4 ile tamamlandı; **GO (koşullu, kullanıcı kararı
 2026-11-11):** GPU güdümlü foliage 5c'de zorunlu, G6 orada yeniden ölçülür. S5
-yapılmadı (Faz 9'a, kullanıcı kararı). Faz 1 [arşivde](../archive/PHASE_1.md); sırada 2b.
+yapılmadı (Faz 9'a, kullanıcı kararı). Faz 1 [arşivde](../archive/PHASE_1.md). Faz 2b
+başladı: cut-over yapıldı (`forge-webgl-final` = Forge `04b5fb23`, 2026-11-11).
 **Belge düzeni:** tek ana plan; biten fazın ayrıntısı faz kapanınca
 [`docs/archive/`](../archive/INDEX.md)'e taşınır. Kısa mimari harita:
 [`docs/architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md);
@@ -265,8 +266,13 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
 
 Ön koşul: Faz 1 GO.
 
-- [ ] Forge WebGL'e `forge-webgl-final` etiketi ve bakım modu notu (§3);
+- [x] Forge WebGL'e `forge-webgl-final` etiketi ve bakım modu notu (§3);
       taşıma bu SHA'dan yapılır ve `docs/PORT_LOG.md`'ye yazılır.
+      *Yapıldı (2026-11-11, kullanıcı onayı):* etiket Forge `04b5fb23`'te
+      (açıklamalı, push'lu); bakım modu notu Forge `CLAUDE.md`, `README.md`,
+      `AGENTS.md` başında; Forge hafızası güncellendi (K6'nın yerini "yalnız
+      hata düzeltmesi" aldı). Envanter tabanından (`b3fa0c1a`) bu yana fark
+      yalnız spike + not; envanter değişmedi.
 
 - [ ] **Test sınıflaması (ilk iş):** Forge'un 176 test dosyası iki kümeye
       ayrılır: algoritma testleri (mekanik `check()` → `test()` çevirisi) ve
@@ -588,3 +594,4 @@ silinebilir.
 | 2026-11-11 | v0.9 | Faz 1 GO (kullanıcı kararı, koşullu): WebGPU yolu sürer, K10'un NO-GO yolu kapanır. Koşul: GPU güdümlü foliage bütün türlerde ve gölge kaskatlarında zorunlu (5c), G6 render gönderimi 5c kapısında yeniden ölçülür. Risk tablosu S4 sonuçlarıyla güncellendi |
 | 2026-11-11 | v0.9 | S5 yapılmadı (kullanıcı kararı): `LightProbeGrid` ve `ClusteredLighting` Faz 9'da ölçülür; probe verisinin hücre formatındaki yeri 5b tasarımında |
 | 2026-11-11 | v0.9 | Faz 1 kapandı (GO, koşullu): ayrıntı `docs/archive/PHASE_1.md`'ye taşındı; planda özet, koşul 5c'de |
+| 2026-11-11 | v0.9 | Faz 2b başladı, cut-over: Forge `forge-webgl-final` = `04b5fb23` (bakım modu notu `CLAUDE.md` / `README.md` / `AGENTS.md`); Forge WebGL'de bundan sonra yalnız hata düzeltmesi, taşınmış modüle gelen düzeltme `PORT_LOG` §3'e. Envanter farkı yok |

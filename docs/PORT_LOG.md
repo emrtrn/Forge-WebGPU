@@ -14,7 +14,9 @@ geldiğinin kaydı (plan §7). Üç bölüm:
 ## 1. Özellik envanteri
 
 Kaynak: Forge `main` @ `b3fa0c1a` (2026-11-11). Cut-over'da
-(`forge-webgl-final`) aradaki fark yeniden taranır.
+(`forge-webgl-final` = `04b5fb23`) aradaki fark yeniden tarandı: yalnız
+`spikes/webgpu/` (Faz 1 spike'ı) ve bakım modu notu; yeni özellik yok,
+envanter değişmedi.
 
 Satır birimi kullanıcıya görünen bir özelliktir (panel, mod, editör, aktör /
 bileşen / asset türü, runtime alt sistemi, araç); modül düzeyindeki kayıt
@@ -357,7 +359,9 @@ girmez, plan Faz 3 ve 9'dadır.
 
 ## 2. Taşıma günlüğü
 
-Forge SHA: _(cut-over'da `forge-webgl-final`)_.
+Forge SHA: `forge-webgl-final` = `04b5fb23` (cut-over 2026-11-11; etiket
+nesnesi `253e01f0`, açıklamalı). Aksi yazılmadıkça her satır bu SHA'dan
+taşınır.
 
 | Modül | Kaynak yol | Forge SHA | İşlem | Testler | Durum |
 |---|---|---|---|---|---|
