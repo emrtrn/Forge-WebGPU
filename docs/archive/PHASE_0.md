@@ -3,7 +3,7 @@
 **Kapandı:** 2026-11-11. [Yeniden inşa planından](../planned/FORGE_WEBGPU_REBUILD_PLAN.md)
 kapanışta olduğu gibi taşındı; planda kısa özet ve §11 ilerleme kaydı kalır.
 Kararlar plan §8 (K1–K11) ve [mimari rapor](../planned/FORGE_WEBGPU_ARCHITECTURE.md)
-§8'de (A1–A11); GO ölçütleri plandaki Faz 1 bölümünde. Bölüm numaraları
+§8'de (A1–A11); GO ölçütleri [Faz 1 arşivinde](PHASE_1.md). Bölüm numaraları
 (§2.10, §3…) plana, "mimari §…" rapora göndermedir.
 
 - [x] §8'deki K1–K9 ve mimari raporundaki A1–A9 kararları (hepsi 2026-11-10).
