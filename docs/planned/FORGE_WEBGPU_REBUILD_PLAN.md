@@ -1,6 +1,9 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v0.7 · 2026-11-10 (v0.6'dan fark: K10, K11, A10, A11 karara
+**Sürüm:** v0.8 · 2026-11-11 (v0.7'den fark: Faz 2a kapandı, ayrıntısı
+`docs/archive/PHASE_2A.md`'ye taşındı; dist doğrulaması ve alt dizin yayını
+testi Faz 4'e; plan belgesi düzeni: tek ana plan + faz kapanınca arşiv. v0.7:
+K10, K11, A10, A11 karara
 bağlandı, dördü de öneri olduğu gibi. v0.6: belge incelemesi işlendi — açık
 kararlar K10–K11 ve A10–A11 eklendi; Faz 0'a özellik envanteri ve GO sayıları,
 Faz 1 S4'e compute culling prototipi, 2a'ya 50.000 aktör ölçümü ve DOM'suz
@@ -8,14 +11,14 @@ Details tanımı, 2b'ye test sınıflaması ve içe aktarıcı kabulü girdi; Fa
 5a–5d'ye bölündü; adı geçmeyen alt sistemler fazlara atandı; §11 ilerleme kaydı
 açıldı. v0.5: K2, K4–K9 karara bağlandı. v0.4: depoya taşındı, A1–A9 işlendi,
 Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
-**Durum:** Bütün kararlar kapalı (K1–K11, A1–A11; 2026-11-10). Faz 2a sürüyor:
-depo iskeleti, katman denetimi + öz-testi, kapılar ve çekirdek (şema DSL'i,
-normalize, geçiş zinciri, şema kaydı, `forge.level/1` veri modeli, form tanımı,
-JSON Schema), asset modeli (A10), hücre veri modeli (A11) kuruldu; 50.000 aktör
-ölçümü eşik içinde; kayıt servisi, uygulama kabuğu ve oyun projesi sözleşmesi
-kuruldu; depo düzeni (motor içeriği, content pack'ler) kuruldu. Sıradaki işler:
-2a'nın belge kutuları, kapıların bekleyenleri (editörle); Faz 0 envanteri ve
-referans görüntüleri, Faz 1 spike (paralel).
+**Durum:** Bütün kararlar kapalı (K1–K11, A1–A11; 2026-11-10). Faz 2a kapandı
+(2026-11-11; [arşiv](../archive/PHASE_2A.md)). Sıradaki işler: Faz 0 özellik
+envanteri, referans sahneler ve görüntüleri, GO sayıları; ardından Faz 1 spike.
+2b ve sonrası Faz 1 GO'suna bağlı.
+**Belge düzeni:** tek ana plan; biten fazın ayrıntısı faz kapanınca
+[`docs/archive/`](../archive/INDEX.md)'e taşınır. Kısa mimari harita:
+[`docs/architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md);
+taşıma günlüğü: [`docs/PORT_LOG.md`](../PORT_LOG.md).
 **Mimari:** [FORGE_WEBGPU_ARCHITECTURE.md](FORGE_WEBGPU_ARCHITECTURE.md) —
 veri modeli, katmanlar, özellik modülleri, oyun projesi sözleşmesi. Bu plan
 fazların sırasını, o rapor yapının kendisini tanımlar; çelişkide rapor geçerlidir.
@@ -87,8 +90,8 @@ taşınırlar; görsel parçaları ilgili fazda bağlanır.
    ve `three/tsl` import eden tek yerdir; editör dinamik import arkasındadır ve
    oyun bundle'ına girmez; yeniden kullanılabilir oyun çatısı `gameplay`
    katmanındadır, oyuna özel kod oyunun deposunda (mimari §4.2, §4.8). Katman
-   denetimi (dependency-cruiser + öz-test, mimari A3) ve `verify:dist --strict`
-   ilk commit'te kurulur.
+   denetimi (dependency-cruiser + öz-test, mimari A3) ilk commit'te kurulur;
+   `verify:dist --strict` editör build'iyle (Faz 4).
 2. **Tanrı nesnesi yok.** `SceneApp` ve `RuntimeSceneApp` yeniden üretilmez.
    Editör küçük servislere bölünür: viewport host, seçim, transform aracı,
    kayıt, içerik. Runtime, `FORGE_LAYERED_RUNTIME_PLAN`'daki LevelRuntime +
@@ -266,185 +269,16 @@ katmanı Forge `render-three`'den (klasik `WebGLRenderer`) uyarlanır; 2b'ye
 `WebGPURenderer`'ın WebGL2 backend'i çare sayılmaz: NO-GO'nun nedeni renderer'ın
 nesne başına CPU maliyetiyse aynı maliyeti taşır.
 
-### Faz 2a — Mimari iskelet (Faz 1 ile paralel)
+### Faz 2a — Mimari iskelet (kapandı 2026-11-11)
 
-Bu fazın her maddesi [mimari raporun](FORGE_WEBGPU_ARCHITECTURE.md) bir
-bölümünü uygular.
-
-- [x] Depo oluşturulur (K1): Vite + TypeScript strict, `three@0.187.0` sabit
-      sürüm (K5), Rapier, Vitest. Portlar: dev **5183**, smoke **5283**
-      (`strictPort`). Araç sürümleri Forge ile aynı ana sürümde tutuldu
-      (TypeScript 5.9, Vite 7, Rapier 0.19.3 tam sabit): 2b eşdeğerlik
-      testlerini sürüm farkı bulandırmasın; TypeScript 7 / Vite 8 / Rapier
-      yükseltmesi ayrı adım. (2026-11-10)
-- [x] Katman denetimi: dependency-cruiser kuralları (yol ve dosya rolüne göre)
-      + kasıtlı ihlal fixture'ıyla öz-test; iki tsconfig (uygulama + Node
-      araçları) (mimari §4.2, A3). `.dependency-cruiser.cjs` 14 kural;
-      `tests/fixtures/layer-violations` 19 ihlal (çok satırlı import,
-      `import type`, `export * from`, dinamik `import()`, çözülemeyen import);
-      öz-test eksik ya da fazla ihlalde kırılır. (2026-11-10)
-- [x] Çekirdek: aktör + bileşen modeli, GUID'ler, şema DSL'i ve kaydı, sürüm
-      geçiş zinciri, özellik kayıt noktaları (`defineFeature`), dosya boyutu
-      bütçesi (mimari §4.3–4.5). `src/core`: on alan türlü şema DSL'i
-      (tanımlar dondurulmuş düz veri, tip tanımdan türer), yükleme ve kaydın
-      ortak tek normalize fonksiyonu, geçiş zinciri, örnek tabanlı şema kaydı
-      (`registerComponent`), `defineFeature` + `installFeatures`,
-      `forge.level/1` ve `forge.actorClass/1` veri modeli (uzamsal hiyerarşi,
-      prefab override'ları, tekillik), DOM'suz Details form tanımı, JSON Schema
-      dışa aktarımı; örnek özellik `src/features/height-fog`. `subsystems`,
-      `render` ve editör kayıt noktaları kendi katmanlarıyla gelir. Override
-      girdilerinin sürüm geçişi asset modeli adımında kapandı (mimari §4.4).
-      (2026-11-10)
-- [x] Asset modeli (A10): asset kimliği, manifest / dizin, referans bütünlüğü
-      (taşıma, yeniden adlandırma, silme, asılı referans); içe aktarmada tür +
-      lisans + kaynak zorunlu ve CI'da kapı (mimari D16, §4.10). `src/core/assets`
-      (saf): `defineAssetType` + `registerAssetType` (yerleşik belge türleri
-      `forge.level`, `forge.actorClass`), `forge.assetMeta/1` normalize'ı
-      (lisans SPDX ya da `LicenseRef-…`, `Unknown` reddedilir), kimlik geçişi,
-      şemadan yürüyen referans toplama + ters dizin, bütünlük + `planDelete`,
-      dizinden beslenen `ClassResolver`. DSL'e metin alan türü eklendi. `tools/assets`:
-      içerik kökü taraması, `.forge-cache/asset-index.json` önbelleği,
-      `verify:assets` kapısı (gate + CI), `assets:index`. Yeni katman kuralı
-      `src-no-node-builtins`. Override girdileri sürüm etiketi taşır, geçişler
-      kısmi veriyle çalışır (mimari §4.4). Testler `tests/fixtures/assets`'in
-      geçici kopyasında. Bugün depoda içerik kökü yok; kapı 0 asset görür.
-      (2026-11-10)
-- [x] Hücre / akış veri modeli (A11): hücre dosya biçimi, dizin dosyası, hücre
-      ataması, hücreler arası referans kuralı. Akışın kendisi 5b'de; burada
-      yalnız veri biçimi ve kayıt servisiyle bağı kurulur. Level bir klasör:
-      `level.json` (kalıcı katman + `settings.cellSize`, varsayılan 128 m,
-      ızgara kapatılamaz), `cells.json` (`forge.levelCells/1`, dosya
-      revizyonları), `cells/<x>_<z>.json` (`forge.levelCell/1`). Aktör bayrağı
-      `spatiallyLoaded`; atama kök konumundan, alt aktör kökünü izler, singleton
-      ağacı kalıcı katmanda; `parent` artık dosya başına denetlenir.
-      `src/core/level`: `cells.ts` (ızgara + `assignCells`), `cellDocs.ts`
-      (normalize + JSON Schema), `levelParts.ts` (`mergeLevelParts`,
-      `splitLevel`, `partsToWrite`, `planLevelFiles`, `nextCellIndex`,
-      kanonik `stringifyDocument`). Asset dizini level klasörlerini birleştirip
-      dosyalar arası kuralları denetler (çift kimlik / singleton, dizin ↔ dosya,
-      yanlış hücre uyarısı, asılı `actorRef`); `tools/assets` JSON dosyalarına
-      bayt revizyonu koyar, dizinle uyuşmayan dosya kapıyı kırar. Fixture level'ı
-      klasör düzeninde. Yarım kalan kaydın kurtarılması kayıt servisinde
-      (mimari §4.4 hücre modeli uygulaması). (2026-11-10)
-- [x] **Ölçek ölçümü:** 50.000 aktörlük level'da yükleme, kayıt ve geçiş
-      zinciri süresi + bellek (mimari §4.4 "ölçek yedeği", §7). Eşik ölçümden
-      önce bu maddeye yazılır; aşılırsa mimari §4.4'teki çareler sırayla
-      denenir. Aynı level Faz 4'te Outliner ölçüm sahnesidir.
-      *Eşikler (R1, ölçümden önce yazıldı, 2026-11-10):* level sabit tohumlu
-      üretilir (`npm run bench:level`; 4 km × 4 km, `cellSize` 128 m, ~%80
-      düz statik mesh, ~%15 override'lı sınıf örneği, ~%5 alt aktör, birkaç
-      kalıcı aktör). Bir soğuk + 5 ılık koşu; medyan / p95.
-      S1 bütün level yükleme (disk → normalize → birleştirme) ≤ 2 s;
-      S2 tek hücre yükleme p95 ≤ 4 ms; S3 tek aktör düzenle + kayıt planı
-      (kirlenen parçalar, normalize, kanonik metin, revizyon) ≤ 50 ms;
-      S4 tam kayıt (bölme + bütün dosyalar + revizyon + diske yazma) ≤ 3 s;
-      S5 bütün bileşenler eski sürümdeyken S1 ≤ 1,5 × S1; S6 asset dizini
-      kurulumu ≤ 3 s; S7 birleşmiş level heap artışı ≤ 150 MB, diskte level
-      ≤ 50 MB.
-      *Sonuç (R1, Node 24.19, 2026-11-10, `f60f79a`):* 50.000 aktör (21 kalıcı),
-      1.024 hücre. İlk koşuda S1 2.066 ms, S3 109 ms, S4 6.365 ms eşiği aştı;
-      sebep veri biçimi değil uygulamaydı (`splitLevel` her hücre için bütün
-      aktörleri tarıyordu, birleştirme / bölme her aktörü kopyalıyordu,
-      `assignCells` aktör başına nesne ayırıyordu, bench yükleyicisi dosyaları
-      sırayla okuyordu). Düzeltmeden sonra iki koşu, medyan (p95):
-      S1 816–897 ms (929–956); S2 hücre başına 1,13–1,16 ms (p95 1,43–1,58,
-      en büyük hücre 74 aktör); S3 38,5–41,4 ms (49–54; eşik medyana
-      uygulandı, p95 sınırda); S4 2.219–2.225 ms; S5 1,11–1,26 × S1;
-      S6 1.702–1.743 ms; S7 heap 57,6 MB, disk 37,8 MB. Hepsi eşik içinde;
-      mimari §4.4'teki ölçek çarelerine (sütunlu transform, yoğun depolama)
-      gerek yok. Ölçüm sırasında bulunan hata düzeltildi: yanlış hücredeki
-      aktörün iki hücresi kayıtta birlikte yazılır (aksi halde aktör ya
-      hiçbir dosyada ya da iki dosyada kalıyordu). S3'teki en büyük kalem
-      bütün level'ın yeniden ataması (~29 ms); kayıt servisi artımlı atamaya
-      geçerse düşer. Rapor `.forge-cache/bench/level-scale/report.json`.
-- [x] Kayıt servisi: işlem / undo, sıralı atomik çok dosyalı kayıt, revizyon
-      çakışma kontrolü (409), şemaya göre çalışan genel kayıt uçları, ikili
-      kanal; proje kökü izolasyonu ve local-only middleware Forge'dan taşınır
-      (mimari §4.6). `tools/server/projectPaths.ts` (Forge'un
-      `resolveProjectPath`'i + yazma politikası: yazılabilir kökler, fixture /
-      `samples/` / `.` adları salt okunur), `tools/save` (günlük + ileri sarma,
-      dosya başına temel revizyon, sunucunun kurduğu level dizini, şemaya göre
-      doğrulama ve kanonik yazım, sınıf deposu), `tools/server/forgeServer.ts`
-      (`/__forge/save`, `/__forge/stage-binary`, `/__forge/read`; soket +
-      `Host` + `Origin` + `X-Forge-Request` koruması) ve `npm run dev`'e bağlı
-      Vite eklentisi. `src/core/edit`: işlem / undo / redo / birleştirme,
-      sürümlü kirli takibi (F01), level oturumu (kayıt planı, `needs-load`,
-      hücre yükle / boşalt), `fetch` verilen kayıt istemcisi. Çökme testi her
-      adımda kesip kurtarmanın tamamlanmış duruma eşit olduğunu doğrular;
-      uçtan uca test aç → düzenle → kaydet → oku ve iki oturumla 409.
-      Faz 4'e kalan: editör servisleri ve yeniden yükle / karşılaştır
-      arayüzü (mimari §4.6). (2026-11-10)
-- [x] Uygulama kabuğu: World, sahne kurucu (LevelAssembler), alt sistem ana
-      makinesi + yaşam döngüsü, oyun modülü ana makinesi, renderer'dan bağımsız
-      boot hata ekranı (mimari §4.7). World yalıtımı (modül düzeyinde değişebilir
-      tekil yok; bir sayfada iki World kurulup yok edilir testi) (mimari A6).
-      Çekirdekte alt sistem / servis sözleşmesi (`defineSubsystem`, tick
-      grupları, `createServiceKey`, `SubsystemContext`) ve
-      `defineFeature.subsystems`; `src/runtime`: `world.ts`, `assembler.ts`,
-      `gameModule.ts`, `boot.ts` + `bootScreen.ts`; `main.ts` boot eder.
-      Height Fog şema → level → kurucu → World → `HeightFogState` servisi
-      zincirinden uçtan uca geçiyor; render bağlaması Faz 3'te servisi okur.
-      Boot ekranı başlıksız Chrome'da `--dump-dom` ile görüldü (proje yokken
-      "Nothing to open"). (2026-11-10)
-- [x] Oyun projesi sözleşmesi: `@forge/sdk` / `@forge/editor-sdk` iskeleti,
-      başlatıcı (yalnız SDK takma adlarını tanıyan TypeScript ayarlarını üretir,
-      `sdkVersion` uyumunu denetler), SDK API anlık görüntüsü + CI fark kapısı,
-      `samples/starter`, `create-project`, `check:projects`, `/__forge/identity`
-      (mimari §4.8, A8). `forge.project/1` manifest + sürüm uyumu çekirdekte;
-      SDK 0.1.0 ve changelog; `verify:sdk-api` (snapshot + changelog hash'i);
-      `npm run forge -- check|dev`; dev server'da proje seçimi, salt okunur
-      `samples/` / fixture, `/__forge/identity`, `/__forge/classes`, sanal oyun
-      modülü, oyun şemalarıyla kayıt doğrulaması; `samples/starter` (sis +
-      Player Start, SDK'lı oyun modülü); `create-project`; `check:projects`
-      (gate'te; başsız açılış). `tests/fixtures/projects/` (good, bad-imports,
-      old-sdk, type-error). `npm run dev` başlıksız Chrome'da starter'ı açtı,
-      depo dışı bir proje `forge dev` ile kendi portunda açıldı. Content pack'ler
-      depo düzeni kutusunda. (2026-11-10)
-- [x] Depo düzeni: `content/engine/`, `content/packs/starter/` (manifestte
-      `contentPacks`), `samples/`, `tests/fixtures/projects/`; testler fixture'ın
-      geçici kopyasında çalışır, dev server fixture / `samples/` köklerine yazmaz
-      (mimari A9). Manifestte `contentPacks` (paket kimlikleri, tekil); içerik
-      kökleri etiketli (`ContentRoot`: etiket + klasör), motor içeriği ve
-      paketler proje dizinine `engine:content/engine` ve
-      `engine:content/packs/<id>` etiketiyle girer, oyuna kopyalanmaz; dev
-      server bunları `/__forge/read?path=engine:...` ile okur, hiç yazmaz;
-      bilinmeyen paket `forge check`'i ve açılışı durdurur; `check:projects` ve
-      `create-project` sınıfları paketlerden çözer. `verify:assets` motor
-      içeriğinin hiçbir pakete, bir paketin başka bir pakete referans
-      vermediğini dar dizinlerle sınar; tarama `*.md`'yi atlar.
-      `content/engine/` şimdilik boş (README); starter paketinde bir Height Fog
-      sınıfı, `samples/starter`'ın sisi onun örneği. Fixture
-      `tests/fixtures/projects/missing-pack`. Paket / motor içeriğini düzenleyen
-      editör modu Faz 4'te karara bağlanır; build'in paketleri dist'e alması
-      dist doğrulamasıyla. (2026-11-10)
-- [x] **İskeletin kabul testi:** Height Fog özelliği tek klasörde uçtan uca:
-      şema → kayıt / yükleme turu → undo → otomatik Details **form tanımı**
-      (şemadan üretilen, DOM'suz alan listesi: ad, tür, aralık, varsayılan, TR
-      ipucu; testle doğrulanır) → runtime alt sistemi. Form tanımını DOM'a
-      çeviren UI kiti Faz 4'te (K7), render bağlaması Faz 3'te. Kabuk
-      dosyalarında değişiklik yok. *Hazır (2026-11-10):* şema, kayıt / yükleme
-      turu (level düzeyinde), form tanımı ve testi; undo (düzenleme modeli) ve
-      runtime alt sistemi (uygulama kabuğu); `height-fog.test.ts`'teki kabul
-      testi zinciri tek testte kurar; `main.ts` özellikleri klasörden toplar.
-      Render bağlaması Faz 3'te, UI kiti Faz 4'te.
-- [ ] Kapılar ve CI: tip kontrolü (iki tsconfig), katman denetimi + öz-testi,
-      Vitest, build, dist doğrulaması, SDK API snapshot farkı, boyut bütçesi,
-      alt dizin (`base`) yayını testi (mimari §4.10, F06). *Kuruldu
-      (2026-11-10):* `npm run gate` = tip kontrolü (iki tsconfig) + katman
-      denetimi + öz-test + dosya boyutu bütçesi + Node yükleme kapısı
-      (`verify:node-load`) + asset kapısı (`verify:assets`, D16) + SDK API
-      kapısı (`verify:sdk-api`) + proje uyumluluğu (`check:projects`) +
-      Vitest + build; aynı kapı `.github/workflows/ci.yml`'de. *Bekleyen:*
-      dist doğrulaması (editör gelince), alt dizin yayını testi.
-- [ ] `CLAUDE.md`, `AGENTS.md`, `docs/architecture/ARCHITECTURE.md` (mimari
-      rapordan) yazılır. (Bu plan ve rapor 2026-11-10'da yeni deponun
-      `docs/planned/` klasörüne taşındı.) *`CLAUDE.md` ve `AGENTS.md` yazıldı
-      (2026-11-10); `ARCHITECTURE.md` iskelet oluşunca.*
-- [ ] Plan belgesi düzeni: faz başına yaşayan plan belgesi mi, yalnız bu ana
-      plan mı; biten planların arşiv yeri ve dizini (Forge'da `Forge-Archive` +
-      `COMPLETED_WORK_INDEX.md` idi). `CLAUDE.md`'ye yazılır.
-- [ ] `docs/PORT_LOG.md`: Faz 0 envanterinin üstüne taşıma günlüğü bölümü
-      açılır (§7).
+Ayrıntı: [docs/archive/PHASE_2A.md](../archive/PHASE_2A.md); kararlar mimari
+raporda (§4.3–4.8). Kuruldu: depo + katman denetimi ve öz-testi, şema DSL'i ve
+kaydı, `forge.level/1` aktör + bileşen modeli, asset modeli (A10), hücre
+modeli (A11), kayıt servisi, uygulama kabuğu, oyun projesi sözleşmesi ve SDK,
+depo düzeni (motor içeriği, content pack'ler), `npm run gate` + CI. Kapı:
+Height Fog iskeletten uçtan uca geçiyor; 50.000 aktör ölçümü eşik içinde
+(R1); CI yeşil (`860db59`'da; sonraki push'lar kullanıcıdan teyitle). Dist
+doğrulaması ve alt dizin (`base`) yayını testi Faz 4'e taşındı.
 
 ### Faz 2b — Cut-over, alt sistemlerin taşınması ve içe aktarıcı
 
@@ -545,6 +379,10 @@ bölümünü uygular.
       sahnesi). `data-testid` sözleşmesi korunur.
 - [ ] Kaydet / aç, Open Level, Play (runtime'ı yeni sekmede açar; kaydedilmemiş
       anlık görüntüyle, diske yazmadan — mimari A6).
+- [ ] Dist doğrulaması (`verify:dist --strict`: editör sızıntısı yok; motor
+      içeriği ve seçili paketler dist'te) ve alt dizin (`base`) yayını testi
+      kapıya ve CI'a girer (mimari §4.8 build, §4.10, F06). 2a'dan taşındı
+      (2026-11-11).
 - [ ] Kapı: Forge'daki `editor-authoring` smoke'unun karşılığı yeşil.
 
 ### Faz 5 — Açık dünya
@@ -745,3 +583,4 @@ silinebilir.
 | 2026-11-10 | v0.7 | Faz 2a uygulama kabuğu kutusu kapandı (`2dc5dba` … `5f2e762`): alt sistem / servis sözleşmesi çekirdekte, World (yaşam döngüsü, tick grupları, bileşen dizini, iki World yalıtım testi), sahne kurucu, Height Fog alt sistemi ve uçtan uca test, oyun modülü host'u, renderer'sız boot ekranı, `main.ts` boot eder. Mimari rapor v0.8. 486 test, kapı yeşil |
 | 2026-11-10 | v0.7 | Faz 2a oyun projesi sözleşmesi kutusu kapandı (`2d6700c` … `6ccac78` ve kabul testi): `forge.project/1`, `@forge/sdk` 0.1.0 + changelog + API anlık görüntüsü kapısı, `forge check|dev`, dev server'da proje seçimi / salt okunur örnekler / kimlik, `samples/starter`, `create-project`, `check:projects` (gate'te, başsız açılış). İskeletin kabul testi kutusu da kapandı. Mimari rapor v0.9. 526 test, kapı yeşil |
 | 2026-11-10 | v0.7 | Faz 2a depo düzeni kutusu kapandı (`790e769` … `7b85e38`): manifestte `contentPacks`, etiketli içerik kökleri (`engine:`), motor içeriği ve paketler proje dizininde salt okunur, bilinmeyen paket `forge check`'te hata, `verify:assets`'te paket bağımlılık yönü, `content/engine/` + starter paketi (Height Fog sınıfı) ve `samples/starter` onu kullanır. Mimari rapor v1.0. 534 test, kapı yeşil |
+| 2026-11-11 | v0.8 | Faz 2a kapandı: belge kutuları (`docs/architecture/ARCHITECTURE.md` rapordan kısa harita, `docs/PORT_LOG.md` iskeleti, plan belgesi düzeni `CLAUDE.md`'de: tek ana plan, faz kapanınca `docs/archive/` + `INDEX.md`). Dist doğrulaması ve alt dizin yayını testi Faz 4'e taşındı (kullanıcı kararı). 2a ayrıntısı `docs/archive/PHASE_2A.md`'de. Mimari rapor v1.1 |

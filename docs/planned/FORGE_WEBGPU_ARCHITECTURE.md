@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.0 · 2026-11-10 (v0.9'dan fark: 2a depo düzeni kararları —
+**Sürüm:** v1.1 · 2026-11-11 (v1.0'dan fark: §4.10 belge düzeni —
+`docs/architecture/ARCHITECTURE.md` bu rapordan kısa harita, rapor karar kaynağı
+kalır; Faz 2a kapandı, plan ayrıntısı arşivde. v1.0: 2a depo düzeni kararları —
 §4.8 `contentPacks`, etiketli içerik kökleri, motor içeriği ve paketlerin
 proje dizininde salt okunur yeri, paket bağımlılık yönü. v0.9: 2a oyun projesi
 sözleşmesi kararları — §4.8 manifest, SDK yüzeyi ve sürüm kuralı, API anlık görüntüsü
@@ -32,7 +34,8 @@ sırası), [FORGE_GAME_PROJECT_WORKFLOW.md](file:///C:/Users/emret/Desktop/Forge
 (Model 2; Forge deposunda: `C:\Users\emret\Desktop\Forge\docs\planned\FORGE_GAME_PROJECT_WORKFLOW.md`).
 **Amaç:** Forge WebGL'de sonradan fark edilip düzeltilen kararları kanıtlarıyla
 çıkarmak ve yeni motorun başlangıcını bunları baştan doğru yapacak şekilde
-tanımlamak. Yeni deponun `ARCHITECTURE.md` belgesi bu rapordan türetilir.
+tanımlamak. Kısa harita [`docs/architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md)
+bu rapordan türetildi (2026-11-11).
 
 ---
 
@@ -416,7 +419,7 @@ features/height-fog/
     değil" geçerli durumdur; asılı aktör referansı yalnız bu geçişte aranır.
 - **Ölçek ölçümü (2a, 2026-11-10):** 50.000 aktörlük level R1'de eşik içinde
   (bütün level yükleme ~0,9 s, hücre yükleme p95 ~1,5 ms, tek aktör kaydı
-  ~40 ms, tam kayıt ~2,2 s, heap ~58 MB; plan Faz 2a). Aşağıdaki çarelere
+  ~40 ms, tam kayıt ~2,2 s, heap ~58 MB; [Faz 2a arşivi](../archive/PHASE_2A.md)). Aşağıdaki çarelere
   gerek görülmedi.
 - **Ölçek yedeği:** 2a'daki 50.000 aktörlük yükleme / kayıt ölçümü kötü çıkarsa
   önce veri modeline dokunmayan çareler denenir: hücre dosyalarında transform'ların
@@ -859,7 +862,12 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   (D16).
 - **Hata yüzeyi:** şema / yükleme hataları editörde görünür; boot hata ekranı
   renderer'dan bağımsız (D17).
-- **Belgeler:** `ARCHITECTURE.md` sözleşmedir ve kodla aynı commit'te güncellenir.
+- **Belgeler:** bu rapor mimari sözleşmedir; mimariyi değiştiren karar rapora
+  kodla aynı ya da hemen sonraki docs commit'inde yazılır.
+  `docs/architecture/ARCHITECTURE.md` rapordan kısa haritadır, kararları
+  tekrar yazmaz; haritadaki bir şey değişirse aynı commit'te güncellenir
+  (2a kararı, 2026-11-11). Yeniden inşa planı tek ana plandır; biten fazın
+  ayrıntısı faz kapanınca `docs/archive/`'e taşınır (`INDEX.md`).
   `CLAUDE.md` kısa kurallar içerir; bir tuzak not edilecek hâle geldiyse önce
   tasarımla kaldırılması düşünülür (D18).
 

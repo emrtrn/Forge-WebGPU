@@ -11,7 +11,22 @@ ayrı depolarda yaşar; GDD, oyun fikri ve türe özgü taksonomi buraya girmez.
   doğrula.
 - [Mimari rapor](docs/planned/FORGE_WEBGPU_ARCHITECTURE.md): katmanlar, veri
   modeli, şema kaydı, kayıt servisi, SDK, A kararları. Çelişkide rapor geçerli.
+- [Mimari harita](docs/architecture/ARCHITECTURE.md): rapordan kısa özet;
+  kararları tekrar yazmaz, haritadaki bir şey değişirse aynı commit'te güncellenir.
+- [Taşıma günlüğü](docs/PORT_LOG.md): Forge özellik envanteri, taşınan
+  modüller, port bekleyen düzeltmeler (plan §7).
+- [Arşiv](docs/archive/INDEX.md): biten fazların ayrıntısı.
 - Kararların hepsi kapalı. Yeni bir mimari soru çıkarsa varsayma, sor.
+
+### Plan belgesi düzeni
+
+- Tek ana plan. Faz başına ayrı yaşayan plan belgesi açılmaz.
+- Kutu kapanınca plan kutusu, mimari rapor ve plan §11 ayrı bir docs
+  commit'inde güncellenir.
+- Faz kapanınca (kapısı geçti, bütün kutuları işaretli) o fazın plan bölümü
+  kapanış docs commit'inde olduğu gibi `docs/archive/PHASE_<faz>.md`'ye taşınır;
+  planda kısa özet + bağlantı kalır, §11 planda kalır, `docs/archive/INDEX.md`'ye
+  satır eklenir. Kararlar raporda kalır, arşive gitmez.
 
 ## Komutlar
 
