@@ -13,8 +13,8 @@ açıldı. v0.5: K2, K4–K9 karara bağlandı. v0.4: depoya taşındı, A1–A9
 Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 **Durum:** Bütün kararlar kapalı (K1–K11, A1–A11; 2026-11-10). Faz 2a kapandı
 (2026-11-11; [arşiv](../archive/PHASE_2A.md)). Faz 0 özellik envanteri çıktı
-(2026-11-11). Sıradaki işler: Faz 0 referans sahneler ve görüntüleri, GO
-sayıları; ardından Faz 1 spike.
+(2026-11-11); referans sahneler ve pozlar seçildi. Sıradaki işler: Faz 0 WebGL
+baseline ölçümü, GO sayıları; ardından Faz 1 spike.
 2b ve sonrası Faz 1 GO'suna bağlı.
 **Belge düzeni:** tek ana plan; biten fazın ayrıntısı faz kapanınca
 [`docs/archive/`](../archive/INDEX.md)'e taşınır. Kısa mimari harita:
@@ -229,8 +229,28 @@ görünüm ayarı onun üstünde çalışır.
       geçmeyen 27 satırın fazı kullanıcı onayıyla verildi (asset editörleri,
       Mesh Paint 5d, `loadGroups` taşınmaz, rts-starter Faz 6'da ikinci
       örnek…). Cut-over'da Forge farkı yeniden taranır.
-- [ ] Referans sahneler seçilir: çok tile'lı bir terrain level'ı, Island, bir
+- [x] Referans sahneler seçilir: çok tile'lı bir terrain level'ı, Island, bir
       World Builder rastgele dünyası, Ridgebound'un **kopya** bir sahnesi.
+      *Seçim (2026-11-11, kullanıcı onayı):* sahneler depo dışındaki yerel
+      referans projesinde, `C:\Users\emret\Desktop\Games\ForgeReference` (A9;
+      README kaynakları ve kopyalardaki değişiklikleri yazar). Forge WebGL'de
+      Model 2 projesi olarak `FORGE_PROJECT_ROOT` ile açılır; Forge ve
+      Ridgebound'a yazılmaz.
+      **OpenWorldTest:** 4 × 4 km, 256 tile, Forge `world:test`; dokusuz renk
+      katmanları, foliage yok; değeri terrain akışı yükü.
+      **Island:** 2 × 2 km, 64 tile, okyanus + kıyı, 28 greybox bina; Forge
+      rastgele dünya (tohum 39863, medium, island).
+      **WbPilotValley:** World Builder brief çıktısı; 1 × 1 km, 64 tile, 45
+      hücre, nehir, kulübeler, foliage kuralları.
+      **Derekavak:** Ridgebound `f68d369` kopyası; 2 × 2 km, 64 tile, depo,
+      köy, yollar.
+      Sahne başına üç sabit poz: **P1** yer (göz 1,7 m), **P2** 60 m yükseklik
+      ve 20° aşağı, **P3** yakın plan (OpenWorldTest dik yamaç, Island kumsal,
+      WbPilotValley kulübe, Derekavak köy evi). Pozlar `baseline/poses.json`'da
+      (konum + bakış noktası + quaternion) ve runtime'a
+      `localStorage["forge.play.cameraPose"]` ile verilir. Bu yüzden kopyalarda
+      game mode `forge.defaultCamera`; araç / karakter spawn olmaz. Aday
+      görüntüler ve kontak sayfası `baseline/poses/`'ta.
 - [ ] Her sahnede sabit kamera pozlarından Forge WebGL ekran görüntüleri ve
       `?debug` ölçümleri (kare süresi, GPU süresi, draw call); referans R1'de
       (K9), §2.10 formatında.
@@ -596,3 +616,4 @@ silinebilir.
 | 2026-11-10 | v0.7 | Faz 2a depo düzeni kutusu kapandı (`790e769` … `7b85e38`): manifestte `contentPacks`, etiketli içerik kökleri (`engine:`), motor içeriği ve paketler proje dizininde salt okunur, bilinmeyen paket `forge check`'te hata, `verify:assets`'te paket bağımlılık yönü, `content/engine/` + starter paketi (Height Fog sınıfı) ve `samples/starter` onu kullanır. Mimari rapor v1.0. 534 test, kapı yeşil |
 | 2026-11-11 | v0.8 | Faz 2a kapandı: belge kutuları (`docs/architecture/ARCHITECTURE.md` rapordan kısa harita, `docs/PORT_LOG.md` iskeleti, plan belgesi düzeni `CLAUDE.md`'de: tek ana plan, faz kapanınca `docs/archive/` + `INDEX.md`). Dist doğrulaması ve alt dizin yayını testi Faz 4'e taşındı (kullanıcı kararı). 2a ayrıntısı `docs/archive/PHASE_2A.md`'de. Mimari rapor v1.1 |
 | 2026-11-11 | v0.8 | Faz 0 özellik envanteri kutusu kapandı (`e2c20e6` … `a77587a` ve bu commit): `docs/PORT_LOG.md` §1, Forge `b3fa0c1a`'dan 234 satır (A–H), her satırda faz ya da "taşınmaz"; planda adı geçmeyen 27 satırın fazı kullanıcı onayıyla. CI `a77587a`'ya kadar yeşil (kullanıcı teyidi). 534 test, kapı yeşil |
+| 2026-11-11 | v0.8 | Faz 0 referans sahneler kutusu kapandı: depo dışı referans projesi (`Games/ForgeReference`), dört sahne (OpenWorldTest, Island, WbPilotValley, Derekavak kopyası), sahne başına üç sabit poz; aday görüntüler R1'de gerçek WebGL'de alındı, kullanıcı onayladı |
