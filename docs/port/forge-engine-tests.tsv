@@ -5,8 +5,8 @@ tests/engine/aiCharacterAnimationModule.test.ts	136	checkAsync	R			src	three-via
 tests/engine/aiCharacterAnimationModule.test.ts	149	checkAsync	R			src	three-via:src,three:three	an attack intent plays once and releases after its clip
 tests/engine/aiCharacterAnimationModule.test.ts	167	checkAsync	R			src	three-via:src,three:three	unloading a level drops the subscriptions and the animators
 tests/engine/aiCharacterAnimationModule.test.ts	183	checkAsync	R			src	three-via:src	with no animation host the module registers nothing at all
-tests/engine/aiModule.test.ts	160	checkAsync	M			engine/ai,engine/scene	model:engine/scene	incremental AI creates only new runners and preserves behavior and StateTree memory
-tests/engine/aiModule.test.ts	240	checkAsync	A	yes		engine/ai	boundary-model:engine/ai	incremental smart objects preserve other reservations and release removed owners and slots
+tests/engine/aiModule.test.ts	160	checkAsync	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	incremental AI creates only new runners and preserves behavior and StateTree memory
+tests/engine/aiModule.test.ts	240	checkAsync	D			engine/ai	dropped:K12 AI authoring stack	incremental smart objects preserve other reservations and release removed owners and slots
 tests/engine/aiModule.test.ts	261	checkAsync	R			engine/scene,src	three-via:src	AI module forwards incremental entities without resetting an existing controller
 tests/engine/aiModule.test.ts	279	checkAsync	R			engine/scene,src	three-via:src	ai module ticks in the decision slot and derives controllers from the level
 tests/engine/aiModule.test.ts	322	checkAsync	R			engine/scene,src	three-via:src	ai module loads AI query assets so behavior trees can run them
@@ -1776,30 +1776,30 @@ tools/engine-tests.ts	3785	check	A			engine/audio		sound cue evaluator returns n
 tools/engine-tests.ts	3790	check	A			engine/audio		validateSoundCueGraph accepts a well-formed cue
 tools/engine-tests.ts	3801	check	A			engine/audio		validateSoundCueGraph reports structural problems
 tools/engine-tests.ts	3842	check	A			engine/audio		starter SC_Footstep_Stone cue validates and evaluates to one clip
-tools/engine-tests.ts	3875	check	A			engine/dialogue		resolveDialogueLine picks locale/speaker context and falls back to subtitle-only
-tools/engine-tests.ts	3888	check	A			engine/dialogue		resolveDialogueLine prefers a directed-target mapping and honors subtitle override
-tools/engine-tests.ts	3907	check	A			engine/dialogue		estimateSubtitleDurationSeconds scales with length and clamps
-tools/engine-tests.ts	3913	check	A			engine/dialogue		validateDialogueVoice/Line flag structural problems
-tools/engine-tests.ts	3955	check	A			engine/dialogue		DialogueSubsystem.playLine shows a subtitle and ends after the audio duration
-tools/engine-tests.ts	3988	check	A			engine/dialogue		DialogueSubsystem estimates subtitle duration when a line has no audio
-tools/engine-tests.ts	4011	check	A			engine/dialogue		DialogueSubsystem.stopLine interrupts audio and hides the subtitle
-tools/engine-tests.ts	4032	check	A			engine/dialogue		DialogueSubsystem.playLine returns not-played for an unknown line
-tools/engine-tests.ts	4041	check	A			engine/assets,engine/dialogue		starter dialogue assets classify, validate, and resolve
-tools/engine-tests.ts	4068	check	A			engine/dialogue		resolveDialogueLine localizes the subtitle by localizationKey with authored fallback
-tools/engine-tests.ts	4089	check	A			engine/dialogue		resolveDialogueLine applies a per-locale recording override, else keeps the mapping audio
-tools/engine-tests.ts	4112	check	A			engine/dialogue		DialogueSubsystem.playLine localizes the subtitle and setLocalization(undefined) reverts
-tools/engine-tests.ts	4137	check	A			engine/dialogue,engine/ui		LocaleRegistry.resolveOptional feeds the runtime dialogue localization adapter
-tools/engine-tests.ts	4158	check	A			tools/dialoguePipeline		dialogue pipeline builds a recording sheet and round-trips CSV/JSON
-tools/engine-tests.ts	4199	check	A			tools/dialoguePipeline		dialogue pipeline reports missing recordings, directions, and missing localized subtitles
-tools/engine-tests.ts	4239	check	A			engine/assets,engine/dialogue,engine/ui		starter localization tables classify as ui and localize the welcome line
-tools/engine-tests.ts	4294	check	A			engine/dialogue		ConversationRunner walks lines, fires en-route events, and branches on choice
-tools/engine-tests.ts	4341	check	A			engine/dialogue		ConversationRunner takes the second branch and ends after a terminal line
-tools/engine-tests.ts	4353	check	A			engine/dialogue		ConversationRunner ends instead of looping on an event cycle
-tools/engine-tests.ts	4369	check	A			engine/dialogue		validateConversation accepts a sound graph and flags structural problems
-tools/engine-tests.ts	4445	check	A			engine/dialogue		ConversationDirector plays lines, shows choices, emits events, and ends
-tools/engine-tests.ts	4484	check	A			engine/dialogue		ConversationDirector ignores interrupted lines, and stop() halts a running line
+tools/engine-tests.ts	3875	check	D			engine/dialogue	dropped:K12 dialogue	resolveDialogueLine picks locale/speaker context and falls back to subtitle-only
+tools/engine-tests.ts	3888	check	D			engine/dialogue	dropped:K12 dialogue	resolveDialogueLine prefers a directed-target mapping and honors subtitle override
+tools/engine-tests.ts	3907	check	D			engine/dialogue	dropped:K12 dialogue	estimateSubtitleDurationSeconds scales with length and clamps
+tools/engine-tests.ts	3913	check	D			engine/dialogue	dropped:K12 dialogue	validateDialogueVoice/Line flag structural problems
+tools/engine-tests.ts	3955	check	D			engine/dialogue	dropped:K12 dialogue	DialogueSubsystem.playLine shows a subtitle and ends after the audio duration
+tools/engine-tests.ts	3988	check	D			engine/dialogue	dropped:K12 dialogue	DialogueSubsystem estimates subtitle duration when a line has no audio
+tools/engine-tests.ts	4011	check	D			engine/dialogue	dropped:K12 dialogue	DialogueSubsystem.stopLine interrupts audio and hides the subtitle
+tools/engine-tests.ts	4032	check	D			engine/dialogue	dropped:K12 dialogue	DialogueSubsystem.playLine returns not-played for an unknown line
+tools/engine-tests.ts	4041	check	D			engine/assets,engine/dialogue	dropped:K12 dialogue	starter dialogue assets classify, validate, and resolve
+tools/engine-tests.ts	4068	check	D			engine/dialogue	dropped:K12 dialogue	resolveDialogueLine localizes the subtitle by localizationKey with authored fallback
+tools/engine-tests.ts	4089	check	D			engine/dialogue	dropped:K12 dialogue	resolveDialogueLine applies a per-locale recording override, else keeps the mapping audio
+tools/engine-tests.ts	4112	check	D			engine/dialogue	dropped:K12 dialogue	DialogueSubsystem.playLine localizes the subtitle and setLocalization(undefined) reverts
+tools/engine-tests.ts	4137	check	D			engine/dialogue,engine/ui	dropped:K12 dialogue	LocaleRegistry.resolveOptional feeds the runtime dialogue localization adapter
+tools/engine-tests.ts	4158	check	D			tools/dialoguePipeline	dropped:K12 dialogue	dialogue pipeline builds a recording sheet and round-trips CSV/JSON
+tools/engine-tests.ts	4199	check	D			tools/dialoguePipeline	dropped:K12 dialogue	dialogue pipeline reports missing recordings, directions, and missing localized subtitles
+tools/engine-tests.ts	4239	check	D			engine/assets,engine/dialogue,engine/ui	dropped:K12 dialogue	starter localization tables classify as ui and localize the welcome line
+tools/engine-tests.ts	4294	check	D			engine/dialogue	dropped:K12 dialogue	ConversationRunner walks lines, fires en-route events, and branches on choice
+tools/engine-tests.ts	4341	check	D			engine/dialogue	dropped:K12 dialogue	ConversationRunner takes the second branch and ends after a terminal line
+tools/engine-tests.ts	4353	check	D			engine/dialogue	dropped:K12 dialogue	ConversationRunner ends instead of looping on an event cycle
+tools/engine-tests.ts	4369	check	D			engine/dialogue	dropped:K12 dialogue	validateConversation accepts a sound graph and flags structural problems
+tools/engine-tests.ts	4445	check	D			engine/dialogue	dropped:K12 dialogue	ConversationDirector plays lines, shows choices, emits events, and ends
+tools/engine-tests.ts	4484	check	D			engine/dialogue	dropped:K12 dialogue	ConversationDirector ignores interrupted lines, and stop() halts a running line
 tools/engine-tests.ts	4509	check	M			engine/behavior,engine/input,src	model:src	begin-conversation behavior emits start-conversation from its param
-tools/engine-tests.ts	4533	check	A			engine/assets,engine/dialogue		starter conversation asset classifies, validates, and runs end to end
+tools/engine-tests.ts	4533	check	D			engine/assets,engine/dialogue	dropped:K12 dialogue	starter conversation asset classifies, validates, and runs end to end
 tools/engine-tests.ts	4576	check	A			engine/audio		createDefaultBusVolumes seeds every bus at unity
 tools/engine-tests.ts	4588	check	A			engine/audio		normalizeBusVolume clamps to non-negative, defaults junk to 1
 tools/engine-tests.ts	4596	check	A			engine/audio		effectiveBusGain folds a sub-bus through master, master stands alone
@@ -2297,10 +2297,10 @@ tools/engine-tests.ts	19938	check	R			src	three-via:src	ragdoll spec: bone rotat
 tools/engine-tests.ts	19960	check	R			src	three-via:src	ragdoll spec: sphere/capsule mass from volume; degenerate body hits the mass floor
 tools/engine-tests.ts	19979	check	R			src	three-via:src	ragdoll spec: joint anchors at the child body and converts limits to radians
 tools/engine-tests.ts	20001	check	R			src	three-via:src	ragdoll spec: skips unknown-bone bodies and joints with a missing endpoint
-tools/engine-tests.ts	20019	check	A	yes		engine/physics	boundary-three-math:engine/physics	ragdoll joint: world anchor → body-local frame (translation + inverse rotation)
+tools/engine-tests.ts	20019	check	D			engine/physics	dropped:K12 ragdoll	ragdoll joint: world anchor → body-local frame (translation + inverse rotation)
 tools/engine-tests.ts	20027	check	R			src	three-via:src	ragdoll group desc: bodies map 1:1; joint anchors lower to per-body local frames
-tools/engine-tests.ts	20053	check	R			engine/physics,src	three-via:src,three:three	ragdoll bone driving: boneWorldFromBodyPose inverts buildRagdollSpec placement
-tools/engine-tests.ts	20080	check	A	yes		engine/physics	boundary-three-math:engine/physics	ragdoll joint limits: authored kept when bodies align; widened past the rest angle
+tools/engine-tests.ts	20053	check	D			engine/physics,src	dropped:K12 ragdoll	ragdoll bone driving: boneWorldFromBodyPose inverts buildRagdollSpec placement
+tools/engine-tests.ts	20080	check	D			engine/physics	dropped:K12 ragdoll	ragdoll joint limits: authored kept when bodies align; widened past the rest angle
 tools/engine-tests.ts	20097	check	M			src	model:src	get-up blend factor: clamps, smoothsteps, and snaps on a zero window
 tools/engine-tests.ts	20111	check	M			engine/behavior,engine/input,src	model:src	BehaviorSubsystem.subscribeScriptMessage delivers target-scoped events then unsubscribes
 tools/engine-tests.ts	20139	check	R			src	three-via:src	asset skeleton sidecar normalizes animation metadata
@@ -2317,7 +2317,7 @@ tools/engine-tests.ts	21002	check	M			tools/saveValidator	model:tools/saveValida
 tools/engine-tests.ts	21032	check	R			engine/environment,engine/render-three,engine/scene,tools/saveValidator	three-via:engine/render-three	default level preserves the starter scene and independent environment creation presets
 tools/engine-tests.ts	21083	check	M			engine/scene,engine/vfx,tools/saveValidator	level-data:Main.level.json,model:engine/scene,model:tools/saveValidator	content-new resolves to typed stub files and folders
 tools/engine-tests.ts	21183	check	M			tools/saveValidator	model:tools/saveValidator	content-new dialogue kinds create typed stubs with the right extension
-tools/engine-tests.ts	21201	check	M			engine/ai,tools/saveValidator	model:tools/saveValidator	content-new AI kinds create behavior tree, blackboard, and query stubs
+tools/engine-tests.ts	21201	check	D			engine/ai,tools/saveValidator	dropped:K12 AI authoring stack	content-new AI kinds create behavior tree, blackboard, and query stubs
 tools/engine-tests.ts	21230	check	M			tools/saveValidator	model:tools/saveValidator	validateDialogueVoiceAsset keeps allowed fields and rejects bad ones
 tools/engine-tests.ts	21253	check	M			tools/saveValidator	model:tools/saveValidator	validateDialogueLineAsset normalizes contexts and drops empty optionals
 tools/engine-tests.ts	21291	check	M			tools/saveValidator	model:tools/saveValidator	dialogue save payloads enforce their file extensions and reject traversal
@@ -2486,79 +2486,79 @@ tools/engine-tests.ts	26019	check	M			src	model:src	readGamepadCodes exposes the
 tools/engine-tests.ts	26037	check	M			src	model:src	firstConnectedGamepad returns the first non-null pad
 tools/engine-tests.ts	26043	check	M			src	model:src	joystickVector clamps magnitude to the radius and normalizes
 tools/engine-tests.ts	26055	check	M			src	model:src	joystickMoveCodes thresholds a stick vector into move codes
-tools/engine-tests.ts	26066	check	A			engine/ai		Blackboard applies declared defaults and rejects unknown/mistyped writes
-tools/engine-tests.ts	26095	check	A			engine/ai		Blackboard clones vec3 in/out (no aliasing) and reset restores defaults
-tools/engine-tests.ts	26118	check	A			engine/ai		normalizeBlackboardKeys keeps valid keys, drops malformed, dedupes
-tools/engine-tests.ts	26136	check	A			engine/ai		AI blackboard asset normalizer validates schema, kinds, defaults, and duplicates
-tools/engine-tests.ts	26174	check	A			engine/ai		AI behavior tree asset normalizer canonicalizes supported node shapes
-tools/engine-tests.ts	26224	check	A			engine/ai		AI behavior tree normalizer canonicalizes distance/cooldown/perception decorators
-tools/engine-tests.ts	26276	check	A			engine/ai		AI state tree asset normalizer canonicalizes hierarchical states
-tools/engine-tests.ts	26319	check	A			engine/ai		AI state tree normalizer rejects malformed assets
-tools/engine-tests.ts	26351	check	A			engine/ai,engine/assets		starter Boss Phase StateTree asset classifies and normalizes
-tools/engine-tests.ts	26374	check	A			engine/ai		AI query asset normalizer canonicalizes generators, contexts, and tests
-tools/engine-tests.ts	26426	check	A	yes		engine/ai	boundary-model:engine/ai	AI query runner resolves all-actor tag and interface contexts
+tools/engine-tests.ts	26066	check	D			engine/ai	dropped:K12 AI authoring stack	Blackboard applies declared defaults and rejects unknown/mistyped writes
+tools/engine-tests.ts	26095	check	D			engine/ai	dropped:K12 AI authoring stack	Blackboard clones vec3 in/out (no aliasing) and reset restores defaults
+tools/engine-tests.ts	26118	check	D			engine/ai	dropped:K12 AI authoring stack	normalizeBlackboardKeys keeps valid keys, drops malformed, dedupes
+tools/engine-tests.ts	26136	check	D			engine/ai	dropped:K12 AI authoring stack	AI blackboard asset normalizer validates schema, kinds, defaults, and duplicates
+tools/engine-tests.ts	26174	check	D			engine/ai	dropped:K12 AI authoring stack	AI behavior tree asset normalizer canonicalizes supported node shapes
+tools/engine-tests.ts	26224	check	D			engine/ai	dropped:K12 AI authoring stack	AI behavior tree normalizer canonicalizes distance/cooldown/perception decorators
+tools/engine-tests.ts	26276	check	D			engine/ai	dropped:K12 AI authoring stack	AI state tree asset normalizer canonicalizes hierarchical states
+tools/engine-tests.ts	26319	check	D			engine/ai	dropped:K12 AI authoring stack	AI state tree normalizer rejects malformed assets
+tools/engine-tests.ts	26351	check	D			engine/ai,engine/assets	dropped:K12 AI authoring stack	starter Boss Phase StateTree asset classifies and normalizes
+tools/engine-tests.ts	26374	check	D			engine/ai	dropped:K12 AI authoring stack	AI query asset normalizer canonicalizes generators, contexts, and tests
+tools/engine-tests.ts	26426	check	D			engine/ai	dropped:K12 AI authoring stack	AI query runner resolves all-actor tag and interface contexts
 tools/engine-tests.ts	26482	check	M			engine/scene	model:engine/scene	readSmartObjectComponent parses authored tags, slots, cooldown, and enabled state
-tools/engine-tests.ts	26509	check	M			engine/ai,engine/scene	model:engine/scene	SmartObjectReservationStore claims, blocks, uses, releases, and expires slots
-tools/engine-tests.ts	26535	check	M			engine/ai,engine/scene	model:engine/scene	AI query runner gathers smart objects by tag and filters reserved slots
-tools/engine-tests.ts	26588	check	A	yes		engine/ai	boundary-model:engine/ai	AI query runner gathers actors by interface and classRef and supports target context
-tools/engine-tests.ts	26637	check	A	yes		engine/ai	boundary-model:engine/ai	AI query runner filters candidates and picks the best scored actor
-tools/engine-tests.ts	26680	check	A	yes		engine/ai	boundary-model:engine/ai	AI query runner asks the host nav mesh whether each candidate is reachable
-tools/engine-tests.ts	26716	check	A	yes		engine/ai	boundary-model:engine/ai	AI query runner asks blockersNear for each trace's square instead of a full list
-tools/engine-tests.ts	26749	check	A	yes		engine/ai	boundary-model:engine/ai	AiBehaviorRunner executes selector/sequence/decorator/wait task and messages
-tools/engine-tests.ts	26803	check	A	yes		engine/ai	boundary-model:engine/ai	AiBehaviorRunner sendMessage cooldown throttles repeated task ticks
-tools/engine-tests.ts	26835	check	A	yes		engine/ai	boundary-model:engine/ai	AiBehaviorRunner distance/cooldown/perception decorators gate their branches
-tools/engine-tests.ts	26905	check	A	yes		engine/ai	boundary-model:engine/ai	AiStateTreeRunner drives a patrol -> alert -> chase -> search -> patrol flow
-tools/engine-tests.ts	26982	check	A	yes		engine/ai	boundary-model:engine/ai	AiStateTreeRunner selects nested child states, runs evaluators, and shares the task registry
-tools/engine-tests.ts	27055	check	A	yes		engine/ai	boundary-model:engine/ai	AiStateTreeRunner merges StateTree parameters and context into tasks and evaluators
-tools/engine-tests.ts	27107	check	A	yes		engine/ai	boundary-model:engine/ai	AiBehaviorRunner selector rechecks higher priority branches while a lower branch is running
-tools/engine-tests.ts	27163	check	A	yes		engine/ai	boundary-model:engine/ai	AiBehaviorRunner ticks services on interval and resolves subtree assets
-tools/engine-tests.ts	27204	check	A	yes		engine/ai	boundary-model:engine/ai	AiBehaviorRunner default perception service writes sight and hearing to blackboard
-tools/engine-tests.ts	27268	check	A	yes		engine/ai	boundary-model:engine/ai	AiBehaviorRunner target distance service writes range state and live target position
-tools/engine-tests.ts	27315	check	A	yes		engine/ai	boundary-model:engine/ai	AiBehaviorRunner move tasks forward authored speed to runtime movement
-tools/engine-tests.ts	27347	check	A	yes		engine/ai	boundary-model:engine/ai	targetPointEntriesFromLayout maps authored points and skips id-less entries
-tools/engine-tests.ts	27383	check	A	yes		engine/ai	boundary-model:engine/ai	createTargetPointIndex resolves get/byTag/next/first/nearest
-tools/engine-tests.ts	27407	check	A	yes		engine/ai	boundary-model:engine/ai	createTargetPointIndex.start returns the flagged start scoped by tag
-tools/engine-tests.ts	27418	check	A	yes		engine/ai	boundary-model:engine/ai	forge.setPatrolTarget prefers the authored start-flagged point over the first
-tools/engine-tests.ts	27438	check	A	yes		engine/ai	boundary-model:engine/ai	forge.setPatrolTarget seeds first route point and preserves a valid one
-tools/engine-tests.ts	27470	check	A	yes		engine/ai	boundary-model:engine/ai	forge.moveToPatrolTarget uses authored speed/acceptance and fails safely on broken ref
-tools/engine-tests.ts	27502	check	M			engine/ai,engine/scene	model:engine/scene	forge.moveAlongPatrolRoute approaches the nearest spline point before following look-ahead targets
+tools/engine-tests.ts	26509	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	SmartObjectReservationStore claims, blocks, uses, releases, and expires slots
+tools/engine-tests.ts	26535	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AI query runner gathers smart objects by tag and filters reserved slots
+tools/engine-tests.ts	26588	check	D			engine/ai	dropped:K12 AI authoring stack	AI query runner gathers actors by interface and classRef and supports target context
+tools/engine-tests.ts	26637	check	D			engine/ai	dropped:K12 AI authoring stack	AI query runner filters candidates and picks the best scored actor
+tools/engine-tests.ts	26680	check	D			engine/ai	dropped:K12 AI authoring stack	AI query runner asks the host nav mesh whether each candidate is reachable
+tools/engine-tests.ts	26716	check	D			engine/ai	dropped:K12 AI authoring stack	AI query runner asks blockersNear for each trace's square instead of a full list
+tools/engine-tests.ts	26749	check	D			engine/ai	dropped:K12 AI authoring stack	AiBehaviorRunner executes selector/sequence/decorator/wait task and messages
+tools/engine-tests.ts	26803	check	D			engine/ai	dropped:K12 AI authoring stack	AiBehaviorRunner sendMessage cooldown throttles repeated task ticks
+tools/engine-tests.ts	26835	check	D			engine/ai	dropped:K12 AI authoring stack	AiBehaviorRunner distance/cooldown/perception decorators gate their branches
+tools/engine-tests.ts	26905	check	D			engine/ai	dropped:K12 AI authoring stack	AiStateTreeRunner drives a patrol -> alert -> chase -> search -> patrol flow
+tools/engine-tests.ts	26982	check	D			engine/ai	dropped:K12 AI authoring stack	AiStateTreeRunner selects nested child states, runs evaluators, and shares the task registry
+tools/engine-tests.ts	27055	check	D			engine/ai	dropped:K12 AI authoring stack	AiStateTreeRunner merges StateTree parameters and context into tasks and evaluators
+tools/engine-tests.ts	27107	check	D			engine/ai	dropped:K12 AI authoring stack	AiBehaviorRunner selector rechecks higher priority branches while a lower branch is running
+tools/engine-tests.ts	27163	check	D			engine/ai	dropped:K12 AI authoring stack	AiBehaviorRunner ticks services on interval and resolves subtree assets
+tools/engine-tests.ts	27204	check	D			engine/ai	dropped:K12 AI authoring stack	AiBehaviorRunner default perception service writes sight and hearing to blackboard
+tools/engine-tests.ts	27268	check	D			engine/ai	dropped:K12 AI authoring stack	AiBehaviorRunner target distance service writes range state and live target position
+tools/engine-tests.ts	27315	check	D			engine/ai	dropped:K12 AI authoring stack	AiBehaviorRunner move tasks forward authored speed to runtime movement
+tools/engine-tests.ts	27347	check	D			engine/ai	dropped:K12 AI authoring stack	targetPointEntriesFromLayout maps authored points and skips id-less entries
+tools/engine-tests.ts	27383	check	D			engine/ai	dropped:K12 AI authoring stack	createTargetPointIndex resolves get/byTag/next/first/nearest
+tools/engine-tests.ts	27407	check	D			engine/ai	dropped:K12 AI authoring stack	createTargetPointIndex.start returns the flagged start scoped by tag
+tools/engine-tests.ts	27418	check	D			engine/ai	dropped:K12 AI authoring stack	forge.setPatrolTarget prefers the authored start-flagged point over the first
+tools/engine-tests.ts	27438	check	D			engine/ai	dropped:K12 AI authoring stack	forge.setPatrolTarget seeds first route point and preserves a valid one
+tools/engine-tests.ts	27470	check	D			engine/ai	dropped:K12 AI authoring stack	forge.moveToPatrolTarget uses authored speed/acceptance and fails safely on broken ref
+tools/engine-tests.ts	27502	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	forge.moveAlongPatrolRoute approaches the nearest spline point before following look-ahead targets
 tools/engine-tests.ts	27561	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	AI spline patrol move speed stays stable at 30 and 120 FPS through CharacterMovement
-tools/engine-tests.ts	27608	check	M			engine/ai,engine/scene	model:engine/scene	AI spline patrol wrap modes advance deterministically at route boundaries
-tools/engine-tests.ts	27646	check	M			engine/ai,engine/scene	model:engine/scene	AI spline patrol reports a missing spline without requesting movement
-tools/engine-tests.ts	27675	check	A	yes		engine/ai	boundary-model:engine/ai	forge.moveAlongPatrolRoute uses Target Point source explicitly when configured
-tools/engine-tests.ts	27694	check	A	yes		engine/ai	boundary-model:engine/ai	forge.moveToPatrolTarget can advance the route after arrival
-tools/engine-tests.ts	27724	check	A	yes		engine/ai	boundary-model:engine/ai	forge.waitAtPatrolTarget waits the current point's authored waitTime
-tools/engine-tests.ts	27753	check	A	yes		engine/ai	boundary-model:engine/ai	forge.stopMovement requests the pawn's current position
-tools/engine-tests.ts	27778	check	A	yes		engine/ai	boundary-model:engine/ai	forge.advancePatrolTarget follows next links then loops deterministically
-tools/engine-tests.ts	27815	check	A	yes		engine/ai	boundary-model:engine/ai	forge.advancePatrolTarget honors stop/failure modes and broken refs
-tools/engine-tests.ts	27848	check	A	yes		engine/ai	boundary-model:engine/ai	AiBehaviorRunner built-in startConversation emits the conversation trigger message
-tools/engine-tests.ts	27872	check	A	yes		engine/ai	boundary-model:engine/ai	AiBehaviorRunner moveToBlackboard follows an entity key to the entity's current position
-tools/engine-tests.ts	27907	check	A	yes		engine/ai	boundary-model:engine/ai	AiBehaviorRunner runQueryToBlackboard stores the winning query entity
-tools/engine-tests.ts	27938	check	M			engine/ai,engine/scene	model:engine/scene	AiBehaviorRunner Smart Object tasks claim, use, and emit a targeted message
-tools/engine-tests.ts	28025	check	A	yes		engine/ai	boundary-model:engine/ai	AiBehaviorRunner refreshQueryBlackboard service keeps the winner fresh and clears on none
-tools/engine-tests.ts	28068	check	A	yes		engine/ai	boundary-model:engine/ai	AiBehaviorRunner runQueryToBlackboard throttles repeated query runs
-tools/engine-tests.ts	28111	check	M			engine/ai,engine/scene	model:engine/scene	AISubsystem hands queries the host nav mesh reachability for the querying pawn
-tools/engine-tests.ts	28163	check	M			engine/ai,engine/scene	model:engine/scene	AISubsystem records last query result in controller debug snapshots
+tools/engine-tests.ts	27608	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AI spline patrol wrap modes advance deterministically at route boundaries
+tools/engine-tests.ts	27646	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AI spline patrol reports a missing spline without requesting movement
+tools/engine-tests.ts	27675	check	D			engine/ai	dropped:K12 AI authoring stack	forge.moveAlongPatrolRoute uses Target Point source explicitly when configured
+tools/engine-tests.ts	27694	check	D			engine/ai	dropped:K12 AI authoring stack	forge.moveToPatrolTarget can advance the route after arrival
+tools/engine-tests.ts	27724	check	D			engine/ai	dropped:K12 AI authoring stack	forge.waitAtPatrolTarget waits the current point's authored waitTime
+tools/engine-tests.ts	27753	check	D			engine/ai	dropped:K12 AI authoring stack	forge.stopMovement requests the pawn's current position
+tools/engine-tests.ts	27778	check	D			engine/ai	dropped:K12 AI authoring stack	forge.advancePatrolTarget follows next links then loops deterministically
+tools/engine-tests.ts	27815	check	D			engine/ai	dropped:K12 AI authoring stack	forge.advancePatrolTarget honors stop/failure modes and broken refs
+tools/engine-tests.ts	27848	check	D			engine/ai	dropped:K12 AI authoring stack	AiBehaviorRunner built-in startConversation emits the conversation trigger message
+tools/engine-tests.ts	27872	check	D			engine/ai	dropped:K12 AI authoring stack	AiBehaviorRunner moveToBlackboard follows an entity key to the entity's current position
+tools/engine-tests.ts	27907	check	D			engine/ai	dropped:K12 AI authoring stack	AiBehaviorRunner runQueryToBlackboard stores the winning query entity
+tools/engine-tests.ts	27938	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AiBehaviorRunner Smart Object tasks claim, use, and emit a targeted message
+tools/engine-tests.ts	28025	check	D			engine/ai	dropped:K12 AI authoring stack	AiBehaviorRunner refreshQueryBlackboard service keeps the winner fresh and clears on none
+tools/engine-tests.ts	28068	check	D			engine/ai	dropped:K12 AI authoring stack	AiBehaviorRunner runQueryToBlackboard throttles repeated query runs
+tools/engine-tests.ts	28111	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AISubsystem hands queries the host nav mesh reachability for the querying pawn
+tools/engine-tests.ts	28163	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AISubsystem records last query result in controller debug snapshots
 tools/engine-tests.ts	28227	check	M			tools/saveValidator	model:tools/saveValidator	AI save payloads enforce compound extensions, traversal guard, and normalizers
-tools/engine-tests.ts	28284	check	A	yes		engine/ai	boundary-model:engine/ai	AIController exposes goal + blackboard in its debug snapshot
+tools/engine-tests.ts	28284	check	D			engine/ai	dropped:K12 AI authoring stack	AIController exposes goal + blackboard in its debug snapshot
 tools/engine-tests.ts	28303	check	M			engine/scene	model:engine/scene	readAIControllerComponent parses props and marks empty components
 tools/engine-tests.ts	28361	check	A			engine/perception		AI perception sight respects radius, horizontal FOV, and blocker LOS
 tools/engine-tests.ts	28395	check	A			engine/perception		AI perception hearing applies loudness-scaled radius
 tools/engine-tests.ts	28412	check	A			engine/perception		AI perception dominant stimulus uses sense priority before strength
-tools/engine-tests.ts	28452	check	M			engine/ai,engine/scene	model:engine/scene	AISubsystem derives one controller per AIController entity, ticks safely, and gates
-tools/engine-tests.ts	28495	check	M			engine/ai,engine/scene	model:engine/scene	AISubsystem runs a StateTree when the AIController references a stateTree asset
-tools/engine-tests.ts	28574	check	M			engine/ai,engine/scene	model:engine/scene	AISubsystem derives perception listeners from AIController props and consumes noise events
-tools/engine-tests.ts	28605	check	M			engine/ai,engine/scene	model:engine/scene	AISubsystem perception reads blockersNear around each listener and never the full list
-tools/engine-tests.ts	28632	check	M			engine/ai,engine/scene	model:engine/scene	AISubsystem sight traces from character height so floor blockers do not hide targets
-tools/engine-tests.ts	28661	check	M			engine/ai,engine/scene	model:engine/scene	AISubsystem sight height uses the Collider capsule over legacy movement size
-tools/engine-tests.ts	28699	check	M			engine/ai,engine/scene	model:engine/scene	AISubsystem updates perception source positions from live transform syncs
-tools/engine-tests.ts	28731	check	M			engine/ai,engine/scene	model:engine/scene	AISubsystem perception source filter can exclude static props from sight targets
-tools/engine-tests.ts	28761	check	M			engine/ai,engine/scene	model:engine/scene	AISubsystem debug snapshot exposes perception pose and authored ranges
-tools/engine-tests.ts	28784	check	M			engine/ai,engine/scene	model:engine/scene	AISubsystem perception service writes a noise event to last heard blackboard position
-tools/engine-tests.ts	28853	check	M			engine/ai,engine/scene	model:engine/scene	AISubsystem bridges script damage messages into gameplay perception blackboard keys
-tools/engine-tests.ts	28941	check	M			engine/ai,engine/scene	model:engine/scene	AISubsystem sight target-lost grace keeps last target briefly without line of sight
-tools/engine-tests.ts	29021	check	M			engine/ai,engine/scene	model:engine/scene	AISubsystem resolves blackboard and behavior assets, ticks runner, and emits messages
-tools/engine-tests.ts	29081	check	M			engine/ai,engine/scene	model:engine/scene	AISubsystem Phase 7 cadence slows only far decision and perception ticks
+tools/engine-tests.ts	28452	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AISubsystem derives one controller per AIController entity, ticks safely, and gates
+tools/engine-tests.ts	28495	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AISubsystem runs a StateTree when the AIController references a stateTree asset
+tools/engine-tests.ts	28574	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AISubsystem derives perception listeners from AIController props and consumes noise events
+tools/engine-tests.ts	28605	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AISubsystem perception reads blockersNear around each listener and never the full list
+tools/engine-tests.ts	28632	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AISubsystem sight traces from character height so floor blockers do not hide targets
+tools/engine-tests.ts	28661	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AISubsystem sight height uses the Collider capsule over legacy movement size
+tools/engine-tests.ts	28699	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AISubsystem updates perception source positions from live transform syncs
+tools/engine-tests.ts	28731	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AISubsystem perception source filter can exclude static props from sight targets
+tools/engine-tests.ts	28761	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AISubsystem debug snapshot exposes perception pose and authored ranges
+tools/engine-tests.ts	28784	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AISubsystem perception service writes a noise event to last heard blackboard position
+tools/engine-tests.ts	28853	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AISubsystem bridges script damage messages into gameplay perception blackboard keys
+tools/engine-tests.ts	28941	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AISubsystem sight target-lost grace keeps last target briefly without line of sight
+tools/engine-tests.ts	29021	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AISubsystem resolves blackboard and behavior assets, ticks runner, and emits messages
+tools/engine-tests.ts	29081	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack	AISubsystem Phase 7 cadence slows only far decision and perception ticks
 tools/engine-tests.ts	29122	check	M			src	model:src	formatAiDebug renders controller count, goal + blackboard size, tagging disabled
 tools/engine-tests.ts	29142	check	M			src	model:src	formatAiDebug exposes a missing spline patrol route
 tools/engine-tests.ts	29171	check	M			src	model:src	formatAiDebug includes behavior runner status when present

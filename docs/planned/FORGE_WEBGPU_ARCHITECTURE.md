@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.1 · 2026-11-11 (v1.0'dan fark: §4.10 belge düzeni —
+**Sürüm:** v1.2 · 2026-11-11 (v1.1'den fark: ürün tezi ve kapsam ölçütü
+(§0.0, kullanıcı kararı); A12 ajan düzenleme komutları, A13 genel veri editörü;
+§4.11 ajan ve insan yüzeyi. v1.1: §4.10 belge düzeni —
 `docs/architecture/ARCHITECTURE.md` bu rapordan kısa harita, rapor karar kaynağı
 kalır; Faz 2a kapandı, plan ayrıntısı arşivde. v1.0: 2a depo düzeni kararları —
 §4.8 `contentPacks`, etiketli içerik kökleri, motor içeriği ve paketlerin
@@ -27,8 +29,8 @@ düzeltildi; §4.6'da bileşen kimliği A1'e göre düzeltildi. v0.2: A1–A9
 kararlaştırıldı; A3 katman zorlaması TS proje referansları yerine
 dependency-cruiser + öz-test oldu; bileşen hiyerarşisi, `defineSaveState`, SDK
 API snapshot'ı, içerik paketleri ve PIE'ye hazır kurallar eklendi)
-**Durum:** §8'deki A1–A11 kararları 2026-11-10'da verildi. Belge Forge-WebGPU
-deposunda; Forge'daki kopya donduruldu.
+**Durum:** §8'deki A1–A11 kararları 2026-11-10'da, A12–A13 2026-11-11'de
+verildi. Belge Forge-WebGPU deposunda; Forge'daki kopya donduruldu.
 **İlişkili:** [FORGE_WEBGPU_REBUILD_PLAN.md](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
 sırası), [FORGE_GAME_PROJECT_WORKFLOW.md](file:///C:/Users/emret/Desktop/Forge/docs/planned/FORGE_GAME_PROJECT_WORKFLOW.md)
 (Model 2; Forge deposunda: `C:\Users\emret\Desktop\Forge\docs\planned\FORGE_GAME_PROJECT_WORKFLOW.md`).
@@ -38,6 +40,37 @@ tanımlamak. Kısa harita [`docs/architecture/ARCHITECTURE.md`](../architecture/
 bu rapordan türetildi (2026-11-11).
 
 ---
+
+## 0.0 Ürün tezi ve kapsam ölçütü (kullanıcı kararı, 2026-11-11)
+
+Forge WebGPU, bir AI ajanıyla **büyük** oyun yapmak için kurulan bir motordur.
+Tek istemle üretilen oyunlar devam ettirilemez: sahne değiştirilemez, bağlam
+büyür, token tükenir. Bu motor iki şeyi birlikte sağlar:
+
+1. **İnsan, istem yazmadan müdahale eder.** Level editörü, aktör / prefab
+   editörü, Details, Content Browser, terrain / foliage / boya araçları, ortam
+   ve görünüm ayarları; oyunun kendi verisi (ekonomi, denge, tablolar) için
+   genel veri editörü (A13). Oyuna özel düzenleme arayüzü yazdırılmaz.
+2. **Ajana hazır sistem verilir, daha az token harcar.** Kanonik ve küçük
+   dosyalar, şemadan JSON Schema, alan yolu gösteren hatalar, `forge check`, SDK
+   yüzeyi ve özellik README'leri; yapılandırılmış düzenleme komutları (A12).
+   İnsanın editörde yaptığı değişiklik kanonik dosyada küçük bir diff olarak
+   görünür; ajan bütün sahneyi değil diff'i okur.
+
+**Kapsam ölçütü.** Bir özellik motora yalnız şu durumda girer:
+
+- insanın istemsiz, görsel olarak düzenleyeceği bir şeyse (ayak 1), ya da
+- hedef türdeki (açık dünya) oyunların çoğunun ihtiyaç duyduğu, ajanın her
+  oyunda sıfırdan yazmasının pahalı ya da hataya açık olduğu bir runtime
+  sistemiyse (ayak 2);
+- ve her durumda ayarları şemalıysa (insan formdan, ajan JSON'dan değiştirir).
+
+Girmeyenler: yalnız Unreal'de olduğu için var olan, insan tasarımcının grafik
+üzerinde yazdığı araçlar (ajan için doğru ortam kod, insan için ayar formu);
+tek bir oyuna özgü sistemler (oyun deposunda kalır); "ileride lazım olur" diye
+taşınan kod (Forge `forge-webgl-final` etiketinde durur, bir oyun isteyince
+dikey özellik modülü olarak gelir). Eski oyunların (ThreeAges vb.) kullanımı
+ölçüt değildir. Bu ölçütle verilen kapsam kararları plan §8 K12'de.
 
 ## 0. Özet — on doğru düğme
 
@@ -873,6 +906,18 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
 
 ### 4.11 Ajanlarla çalışma düzeni
 
+- **İki yüzey (§0.0):** insan editörden, ajan dosya ve komutlardan aynı
+  kanonik veriye yazar. İkisi de aynı düzenleme modelinden (`src/core/edit`) ve
+  kayıt servisinden geçer; doğrulama, undo ve çakışma kuralı tektir.
+- **Ajan düzenleme komutları (A12):** ajan büyük bir level ya da hücre
+  dosyasını okuyup yeniden yazmak yerine yapılandırılmış komutla değiştirir
+  (aktör ekle / taşı / sil, bileşen alanı yaz, sınıf override'ı). Komutlar
+  editörün kullandığı işlemlerdir, CLI'den çağrılır; çıktı kısa (yeni kimlik,
+  değişen dosyalar, doğrulama hataları). Faz 4.
+- **Genel veri editörü (A13):** oyun kendi veri türünü şemayla tanımlar
+  (`registerAssetType`, A7); Content Browser'dan açılan asset, Details ile aynı
+  form kitiyle şemadan üretilen bir formla düzenlenir (tablo görünümü dahil).
+  Oyuna özel düzenleme arayüzü yazılmaz. Faz 4.
 - **Özellik "bitti" tanımı:** şema + runtime + render bağlaması + editör yüzeyi
   (otomatik ya da özel) + kayıt turu testi + özellik README'si.
 - Özellik README'leri, Ridgebound'daki `FORGE_INTEGRATION.md` gibi elle tutulan
@@ -942,3 +987,5 @@ değiştirir:
 | A9 | Depo düzeni | `samples/` dış proje biçiminde, `content/engine/`, `tests/fixtures/projects/`; motor deposunda oyun yok | **Karar 2026-11-10:** öneri + üç netleştirme — `content/engine/` yalnız zorunlu içerik, Starter Content manifestte seçilen `content/packs/starter/` paketi, üçüncü taraf kütüphane depoya girmez; ağır referans sahneler depo dışı yerel içerik projesinde (`forge.projects.local.json`); fixture / `samples/` yazma yalıtımı kodla (testler geçici kopyada, dev server yazmayı reddeder). Ayrı örnek deposu CI sözleşme testini kaybettirdiği için reddedildi (§4.8) |
 | A10 | Asset modeli: kimlik, manifest, referans bütünlüğü | Kimlik asset'in yanında durur, merkezî manifest doğru kaynak değildir. JSON asset'ler (level, materyal, aktör sınıfı) `id`'yi kendi içinde taşır; ikili asset'ler (GLB, doku, ses, terrain tile) yanlarında `*.meta.json` taşır (GUID, tür, lisans, kaynak, içe aktarma ayarları). GUID → yol dizini dev server'ın ve build'in **ürettiği** bir önbellektir, commit'lenmez. Referanslar yalnız GUID'dir; taşıma / yeniden adlandırma referans kırmaz. Silmede ters referans dizini bakılır, kullanılan asset uyarısız silinmez; asılı referans geliştirmede hatadır (düşen alan kuralıyla aynı) | **Karar 2026-11-10:** öneri olduğu gibi — kimlik asset'in yanında (JSON'da `id`, ikilide `*.meta.json`), GUID → yol dizini üretilen önbellek, referans yalnız GUID, silmede ters referans kontrolü, asılı referans geliştirmede hata. Commit'li merkezî manifest tek dosyada paralel oturum çakışması ve taşımada elle güncelleme getirdiği, yol tabanlı referans taşımada kırıldığı (D5'in asset tarafındaki tekrarı) için reddedildi (§4.6) |
 | A11 | Hücre / akış veri modeli | Level başına sabit 2B ızgara; hücre boyutu level ayarında. Dosyalar: kalıcı katman (`level.json`) + hücre başına bir aktör dosyası + hücreleri ve revizyonlarını listeleyen dizin (atomik kayıtta en son değişen dosya, §4.6). Aktör, kök konumunun düştüğü hücreye aittir; alt aktör ebeveyninin hücresinde durur. Sınırları hücreden büyük aktör kalıcı katmana alınır (editör önerir). Hücreler arası referans GUID'dir ve "henüz yüklü değil" geçerli bir durumdur; runtime kodu çözülmemiş referansı ele almak zorundadır. Editör kamera çevresini akışla yükler; kirli hücre kaydedilene kadar boşaltılmaz; dünya çapı işlemler (World Builder üretimi, GUID ile arama, toplu geçiş) yüklü World üzerinden değil, Node araçlarıyla dosyalar üzerinden çalışır | **Karar 2026-11-10:** öneri olduğu gibi — tek ızgara + kalıcı katman, hücre başına dosya + dizin, editör de akışla çalışır, dünya çapı işlemler Node araçlarında. Çok kademeli ızgara v1 için fazla karmaşık olduğu (sonradan eklenebilir), editörün bütün hücreleri yüklemesi D10'u geri getirdiği için reddedildi (§4.4) |
+| A12 | Ajan düzenleme komutları | Editörün düzenleme modeli (`src/core/edit`) üzerinden CLI komutları: aktör ekle / taşı / sil, bileşen alanı yaz, sınıf override'ı; kısa çıktı | **Karar 2026-11-11 (kullanıcı):** öneri olduğu gibi, Faz 4. Gerekçe §0.0: ajan büyük JSON'u okuyup yeniden yazmaz, token harcamaz; insan ile ajan aynı işlemlerden ve doğrulamadan geçer |
+| A13 | Genel veri editörü | Oyunun şemalı veri asset'leri (ekonomi, denge, tablolar) şemadan üretilen formla, Details ile aynı kitle düzenlenir; tablo görünümü | **Karar 2026-11-11 (kullanıcı):** öneri olduğu gibi, Faz 4. Forge'daki Data Table editörünün (INV-C12) yerini alır; oyuna özel düzenleme arayüzü yazılmaz (§0.0) |

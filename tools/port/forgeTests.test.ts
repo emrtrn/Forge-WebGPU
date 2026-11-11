@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { analyzeSource, areaOf, classifyCheck, isMathOnlyThreeArea, isOldLevelData, type ModuleFacts } from "./forgeTests.ts";
+import { analyzeSource, areaOf, classifyCheck, droppedBy, isMathOnlyThreeArea, isOldLevelData, type ModuleFacts } from "./forgeTests.ts";
 
 const analyze = (text: string) => analyzeSource("tests/engine/sample.test.ts", text);
 
@@ -141,20 +141,30 @@ describe("classifyCheck", () => {
   test("an old-model area or old level data makes a model check", () => {
     expect(classifyCheck([local("engine/scene/layout.ts")], []).cls).toBe("M");
     expect(classifyCheck([local("tools/saveValidator.ts")], []).cls).toBe("M");
-    expect(classifyCheck([local("engine/ai/path.ts")], ["tests/smoke/fixtures/levels/Offroad.json"]).cls).toBe("M");
+    expect(classifyCheck([local("engine/navigation/path.ts")], ["tests/smoke/fixtures/levels/Offroad.json"]).cls).toBe("M");
   });
 
   test("otherwise algorithm; a model dependency further down marks the boundary", () => {
-    expect(classifyCheck([local("engine/ai/path.ts")], ["x"])).toEqual({ cls: "A", boundary: false, areas: ["engine/ai"], reasons: [] });
-    expect(classifyCheck([local("engine/ai/path.ts", { oldModel: true })], [])).toMatchObject({
+    expect(classifyCheck([local("engine/navigation/path.ts")], ["x"])).toEqual({ cls: "A", boundary: false, areas: ["engine/navigation"], reasons: [] });
+    expect(classifyCheck([local("engine/navigation/path.ts", { oldModel: true })], [])).toMatchObject({
       cls: "A",
       boundary: true,
-      reasons: ["boundary-model:engine/ai"],
+      reasons: ["boundary-model:engine/navigation"],
     });
     expect(classifyCheck([local("engine/physics/world.ts", { threeMath: true })], [])).toMatchObject({
       cls: "A",
       reasons: ["boundary-three-math:engine/physics"],
     });
+  });
+
+  test("a check reaching a dropped module directly is dropped, ahead of every other class (K12)", () => {
+    const verdict = classifyCheck([local("engine/dialogue/dialogueSubsystem.ts"), local("engine/scene/layout.ts")], []);
+    expect(verdict).toMatchObject({ cls: "D", reasons: ["dropped:K12 dialogue"] });
+    expect(classifyCheck([local("engine/physics/ragdoll.ts", { threeMath: true })], []).cls).toBe("D");
+    // Importing a dropped module further down does not drop the check: the import is cut when ported.
+    expect(classifyCheck([local("engine/physics/physicsSubsystem.ts", { threeMath: true })], []).cls).toBe("A");
+    expect(droppedBy("engine/ai/behaviorRunner.ts")).toBe("K12 AI authoring stack");
+    expect(droppedBy("engine/perception/perception.ts")).toBeNull();
   });
 
   test("three in an engine module outside render-three is math, not render", () => {

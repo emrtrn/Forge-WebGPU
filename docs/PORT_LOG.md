@@ -69,7 +69,7 @@ Paneller vanilla DOM olarak uyarlanır, redesign yok (K7); ilk iş UI kiti.
 | INV-A21 | Details: su birikintisi (çamur, önizleme, yansıma, dalgacık, rüzgâr) | `panels/details/puddle*.ts` | 5a | uyarla | terrain-puddle, wet-mud | Plan 5a "su birikintisi" | |
 | INV-A22 | Details: kırılma | `panels/details/fractureDetails.ts` | 8 | uyarla | fracture-editor | | |
 | INV-A23 | Content Browser (Content Drawer): klasör ağacı, filtre, arama, küçük resim boyutu, geri / ileri, son klasör | `panels/content/contentPanel.ts`, `EditorUi.ts` | 4 | uyarla | content-drawer-redesign, content-drawer-state, content-loading | Motor içeriği ve paketler salt okunur görünür (2a depo düzeni) | |
-| INV-A24 | Content Browser işlemleri: yeni asset (Level, Material, Particle, Script, Sound Cue, Dialogue Voice / Line, UI, AI alt menüsü), yeni klasör, yeniden adlandır, kes / yapıştır, yol kopyala, sil | `EditorUi.ts`, `tools/levelContentDelete.ts` | 4 | yeniden tasarla | content-transfer, content-new-ai | GUID referans; taşıma referans kırmaz; silmede ters referans (`planDelete` 2a) | |
+| INV-A24 | Content Browser işlemleri: yeni asset (Level, Material, Particle, Script, Sound Cue, Dialogue Voice / Line, UI, AI alt menüsü), yeni klasör, yeniden adlandır, kes / yapıştır, yol kopyala, sil | `EditorUi.ts`, `tools/levelContentDelete.ts` | 4 | yeniden tasarla | content-transfer, content-new-ai | GUID referans; taşıma referans kırmaz; silmede ters referans (`planDelete` 2a). Sound Cue, Dialogue ve AI alt menüleri K12 ile düşer | |
 | INV-A25 | Asset içe aktarma ve yeniden içe aktarma (GLB, doku, ses) | `EditorUi.ts` Import… / Reimport…, `vite.config.ts` uçları | 4 | yeniden tasarla | — | Tür + lisans + kaynak zorunlu meta (A10, D16) | |
 | INV-A26 | Küçük resim üretimi | `src/editor/ThumbnailRenderer.ts` | 4 | yeniden yaz | content-drawer-redesign | | |
 | INV-A27 | Level aç (Open Level…), varsayılan level | `EditorUi.ts` | 4 | uyarla | editor-authoring | Varsayılan level manifestte `startLevel` (2a) | |
@@ -111,15 +111,15 @@ fazına göre verildi (onaylandı 2026-11-11).
 | INV-C04 | Skeletal Mesh editörü (Persona): iskelet, soketler | `src/editor/SkeletalMeshEditor.ts`, `assetSkeletonStore.ts` | 6 | uyarla | — | Tek kabuk + mod değiştirici | |
 | INV-C05 | Skeletal Mesh editörü: animasyon modu | `SkeletalMeshEditor.ts` | 6 | uyarla | — | | |
 | INV-C06 | Skeletal Mesh editörü: fizik modu (ragdoll gövdeleri) | `SkeletalMeshEditor.ts` | 6 | uyarla | — | | |
-| INV-C07 | Actor Script editörü: bileşen ağacı, Add Component, değişkenler, olay bağlamaları, sınıf varsayılanları, viewport | `src/editor/ActorScript{Editor,Viewport}.ts` | 4 / 6 | yeniden tasarla | — | Prefab düzenleme Faz 4 (`forge.actorClass/1` 2a'da), script / olay Faz 6 | |
+| INV-C07 | Actor Script editörü: bileşen ağacı, Add Component, değişkenler, olay bağlamaları, sınıf varsayılanları, viewport | `src/editor/ActorScript{Editor,Viewport}.ts` | 4 | yeniden tasarla | — | Yalnız prefab: bileşen ağacı, Add Component, sınıf varsayılanları, viewport (`forge.actorClass/1` 2a'da). Değişkenler ve olay bağlamaları taşınmaz (K12) | |
 | INV-C08 | Material editörü: önayarlar, katman karışımı, anizotropi, UV tiling, ORM, maske, önizleme | `src/editor/MaterialEditor.ts`, `materialStore.ts` | 3 / 4 | yeniden yaz | — | `ForgeMaterialDef` → node material Faz 3, editör Faz 4 | |
 | INV-C09 | Particle Effect editörü: önayarlar, doku, SubUV flipbook, önizleme viewport'u | `src/editor/ParticleEffect{Editor,PreviewViewport}.ts` | 6 | yeniden yaz | — | VFX TSL'de (plan Faz 6) | |
-| INV-C10 | Sound Cue editörü | `src/editor/SoundCueEditor.ts` | 6 | uyarla | — | | |
-| INV-C11 | Dialogue editörü: voice / line, altyazı | `src/editor/DialogueEditor.ts` | 6 | uyarla | — | | |
-| INV-C12 | Data Table editörü | `src/editor/DataTable{Editor,Layout}.ts` | 6 | uyarla | — | | |
-| INV-C13 | UI Widget editörü | `src/editor/UiWidgetEditor.ts` | 6 | uyarla | — | Oyun UI'ı Faz 6 | |
-| INV-C14 | Behavior Tree editörü (+ Blackboard) | `src/editor/BehaviorTreeEditor.ts` | 6 | uyarla | behavior-tree-editor | | |
-| INV-C15 | State Tree editörü | `src/editor/StateTreeEditor.ts` | 6 | uyarla | state-tree-editor | | |
+| INV-C10 | Sound Cue editörü | `src/editor/SoundCueEditor.ts` | — | taşınmaz | — | K12: ses ayarları oyunun şemalı verisi, genel veri editöründe (A13) | |
+| INV-C11 | Dialogue editörü: voice / line, altyazı | `src/editor/DialogueEditor.ts` | — | taşınmaz | — | K12: diyalog taşınmaz | |
+| INV-C12 | Data Table editörü | `src/editor/DataTable{Editor,Layout}.ts` | 4 | yeniden tasarla | — | Genel şema güdümlü veri editörü (mimari A13); oyuna özel düzenleme arayüzü yok | |
+| INV-C13 | UI Widget editörü | `src/editor/UiWidgetEditor.ts` | 6 (açık) | uyarla | — | K12: Faz 6 başında kullanıcı kararı; o güne kadar widget'lar şemalı JSON | |
+| INV-C14 | Behavior Tree editörü (+ Blackboard) | `src/editor/BehaviorTreeEditor.ts` | — | taşınmaz | behavior-tree-editor | K12: AI mantığı oyun kodunda | |
+| INV-C15 | State Tree editörü | `src/editor/StateTreeEditor.ts` | — | taşınmaz | state-tree-editor | K12: AI mantığı oyun kodunda | |
 | INV-C16 | Vehicle Asset editörü: tekerlek ekle / çoğalt / aynala, süspansiyon, motor | `src/editor/VehicleAsset{Editor,EditorModel}.ts`, `vehicleComponentFields.ts` | 6 | uyarla | vehicle-asset-editor, e:vehicleEditorFields | | |
 
 ### D. Aktör ve bileşen türleri
@@ -153,9 +153,9 @@ türün çalışır hâle geldiği fazdır.
 | INV-D20 | Göl (su kütlesi) | `RoomLayout.waterBodies`, `engine/scene/waterBody.ts` | 7 | yeniden tasarla | lake-underwater, terrain-water-runtime, e:terrainLakeWater | | |
 | INV-D21 | Su birikintisi | `RoomLayout.puddleWaters`, `engine/scene/puddleWater.ts` | 5a | yeniden tasarla | terrain-puddle, puddle-deformation, e:terrainPuddle | | |
 | INV-D22 | Okyanus | `RoomLayout.oceanWaters`, `engine/scene/oceanWater.ts` | 7 | yeniden tasarla | ocean-atlas, ocean-caustics, ocean-inlets, ocean-planar, ocean-reference, ocean-shallow-profile, e:oceanWater | FFT compute'a (plan Faz 7) | |
-| INV-D23 | Ambient Sound | Add Actor → Sounds | 6 | yeniden tasarla | — | | |
+| INV-D23 | Ambient Sound | Add Actor → Sounds | — | taşınmaz | — | K12: ses koddan ve şemalı olay tablosundan çalınır | |
 | INV-D24 | World Widget (dünyada UI) | `RoomLayout.worldWidgets` | 6 | yeniden tasarla | — | | |
-| INV-D25 | Player Start | Add Actor → Gameplay | 6 | yeniden tasarla | runtime-playflow | `samples/starter`'da bileşensiz bir "Player Start" aktörü var; bileşeni Faz 6'da | |
+| INV-D25 | Player Start | Add Actor → Gameplay | 6 | yeniden tasarla | runtime-playflow | K12: taşınır. `samples/starter`'da bileşensiz bir "Player Start" aktörü var; bileşeni Faz 6'da | |
 | INV-D26 | Target Point | `RoomLayout.targetPoints` | 6 | yeniden tasarla | target-point | | |
 | INV-D27 | Spline aktörü (oynanış yolu) | `RoomLayout.splines`, `engine/scene/splineActor.ts` | 6 | yeniden tasarla | — | Landscape spline'ı ayrı (INV-B06) | |
 | INV-D28 | Araç aktörleri (Vehicle bileşenli sınıflar) | Add Actor → Vehicles | 6 | yeniden tasarla | vehicle, doruk-k180 | Araç sınıfları proje içeriği | |
@@ -168,18 +168,18 @@ türün çalışır hâle geldiği fazdır.
 | INV-D41 | Skeletal Mesh bileşeni | `SkeletalMeshComponent` | 6 | yeniden tasarla | e:skeletalAnimationModule | | |
 | INV-D42 | MeshRenderer (eski tek mesh bileşeni) | `MeshRenderer` | — | taşınmaz | — | İçe aktarıcı Static / Skeletal Mesh'e çevirir (D11) | |
 | INV-D43 | Collider | `ColliderComponent` | 6 | yeniden tasarla | e:physicsContacts | | |
-| INV-D44 | Audio | `AudioComponent` | 6 | yeniden tasarla | e:audioModule | | |
+| INV-D44 | Audio | `AudioComponent` | — | taşınmaz | e:audioModule | K12: ses koddan ve şemalı olay tablosundan çalınır | |
 | INV-D45 | Particle Emitter | `ParticleEmitterComponent` | 6 | yeniden tasarla | e:vfxModule | | |
 | INV-D46 | Light (sınıf içinde ışık) | `LightComponent` | 3 | yeniden tasarla | actor-lights | | |
 | INV-D47 | Interaction | `InteractionComponent` | 6 | yeniden tasarla | — | | |
-| INV-D48 | Behavior + olay / mesaj bağlamaları, script arayüzleri, referanslar, dispatcher'lar | `Behavior`, `EventBindings`, `MessageBindings`, `Script*` bileşenleri | 6 | yeniden tasarla | runtime-script-message, e:behaviorSubsystem | Tipsiz `flags` torbası yok (A7) | |
+| INV-D48 | Behavior + olay / mesaj bağlamaları, script arayüzleri, referanslar, dispatcher'lar | `Behavior`, `EventBindings`, `MessageBindings`, `Script*` bileşenleri | 6 | yeniden tasarla | runtime-script-message, e:behaviorSubsystem | Yalnız koddan kayıtlı davranış ve script mesajları; olay / mesaj bağlamaları, arayüz, referans, dispatcher taşınmaz (K12). Tipsiz `flags` torbası yok (A7) | |
 | INV-D49 | Character Movement | `CharacterMovementComponent` | 6 | yeniden tasarla | runtime-locomotion, e:characterMovementModule | Kapsül ölçüsünün tek kaynağı (D8) | |
-| INV-D50 | Spline Path Follower | `SplinePathFollowerComponent` | 6 | yeniden tasarla | — | | |
-| INV-D51 | Moving Platform | `MovingPlatformComponent` | 6 | yeniden tasarla | — | | |
+| INV-D50 | Spline Path Follower | `SplinePathFollowerComponent` | — | taşınmaz | — | K12: oyuna özgü | |
+| INV-D51 | Moving Platform | `MovingPlatformComponent` | — | taşınmaz | — | K12: oyuna özgü | |
 | INV-D52 | Spring Arm | `SpringArmComponent` | 6 | yeniden tasarla | — | | |
 | INV-D53 | Camera | `CameraComponent` | 6 | yeniden tasarla | e:cameraFarOverride | | |
-| INV-D54 | AI Controller (algı dahil) | `AIControllerComponent` | 6 | yeniden tasarla | ai-patrol, e:aiModule | | |
-| INV-D55 | Smart Object | `SmartObjectComponent` | 6 | yeniden tasarla | — | | |
+| INV-D54 | AI Controller (algı dahil) | `AIControllerComponent` | — | taşınmaz | ai-patrol, e:aiModule | K12: AI controller oyun kodunda; algı INV-F15'te | |
+| INV-D55 | Smart Object | `SmartObjectComponent` | — | taşınmaz | — | K12: AI yazım yığını taşınmaz | |
 | INV-D56 | Vehicle | `Vehicle` bileşeni | 6 | yeniden tasarla | vehicle, e:vehicleRuntime, e:vehicleDrivetrain | | |
 | INV-D57 | Vehicle AI Driver | `VehicleAiDriverComponent` | 6 | yeniden tasarla | e:vehicleAi | | |
 | INV-D58 | Fracturable | `FracturableComponent` | 8 | yeniden tasarla | fracture-runtime, e:fracture* | | |
@@ -208,14 +208,14 @@ kaydedildiği / kullanıldığı fazdır.
 | INV-E12 | Asset vertex color | `*.vertexcolors.json` | 3 | yeniden tasarla | — | | |
 | INV-E13 | Çarpışma şekilleri | `*.collision.json` | 6 | yeniden tasarla | — | | |
 | INV-E14 | Ses dosyası | `*.wav`, `*.ogg`, `engine/assets/audio.ts` | 6 | uyarla | — | | |
-| INV-E15 | Sound Cue | `*.soundcue.json` | 6 | yeniden tasarla | — | | |
-| INV-E16 | Diyalog: voice, line, conversation; yerelleştirme tablosu | `*.dialoguevoice.json`, `*.dialogue.json`, `*.conversation.json`, `*.loc.json` | 6 | yeniden tasarla | e:dialogueModule | | |
-| INV-E17 | AI: Blackboard, Behavior Tree, EQS sorgusu, State Tree | `*.blackboard.json`, `*.behavior.json`, `*.query.json`, `*.stateTree.json` | 6 | yeniden tasarla | behavior-tree-editor, state-tree-editor, content-new-ai | | |
+| INV-E15 | Sound Cue | `*.soundcue.json` | — | taşınmaz | — | K12: ses ayarları oyunun şemalı verisi (A13) | |
+| INV-E16 | Diyalog: voice, line, conversation; yerelleştirme tablosu | `*.dialoguevoice.json`, `*.dialogue.json`, `*.conversation.json`, `*.loc.json` | — | taşınmaz | e:dialogueModule | K12: diyalog taşınmaz | |
+| INV-E17 | AI: Blackboard, Behavior Tree, EQS sorgusu, State Tree | `*.blackboard.json`, `*.behavior.json`, `*.query.json`, `*.stateTree.json` | — | taşınmaz | behavior-tree-editor, state-tree-editor, content-new-ai | K12: AI yazım yığını taşınmaz | |
 | INV-E18 | Animasyon | asset türü `animation` | 6 | uyarla | e:skeletalAnimationModule | | |
 | INV-E19 | Efekt (partikül) | `*.effect.json` | 6 | yeniden tasarla | e:vfxModule | | |
 | INV-E20 | Araç | `*.vehicle.json` | 6 | yeniden tasarla | vehicle-asset-editor, e:vehicleAssets | | |
 | INV-E21 | Foliage Type | `*.foliagetype.json` | 5c | yeniden tasarla | foliage-type-save | | |
-| INV-E22 | UI widget; data table | `*.ui.json`, data table JSON (`/__save-gamedata`) | 6 | yeniden tasarla | e:uiFramework | | |
+| INV-E22 | UI widget; data table | `*.ui.json`, data table JSON (`/__save-gamedata`) | 6 | yeniden tasarla | e:uiFramework | UI widget şemalı JSON; data table genel veri editöründe (A13) | |
 | INV-E23 | Fracture | `*.fracture.json` | 8 | yeniden tasarla | e:fractureAsset | | |
 | INV-E24 | Deformable | `*.deformable.json` | 8 | yeniden tasarla | e:deformableAsset | | |
 | INV-E25 | Terrain: belge, tile'lar, global harita | `*.terrain.json`, `*.tile.bin`, `*.global.bin` | 5a | uyarla | terrain-endpoints, e:terrainDocument, e:terrainGlobalMapFile | İkili tile'lar olduğu gibi (plan §2.7) | |
@@ -239,20 +239,20 @@ Faz sütunu özelliğin oyunda çalıştığı fazdır. Oyun çatısı (`src/gam
 | INV-F05 | Oyun modları: TPS karakter, araç, RTS kamera, varsayılan kamera, proje game mode kataloğu | `src/game/gameModes/` | 6 | uyarla | game-starter, rts-starter, e:rtsCameraGameMode | `gameplay` katmanı | |
 | INV-F06 | Oyuncu kontrolcüsü, kamera yöneticisi, spring arm, takip kamerası, kamera devri | `src/game/{playerController,playerCameraManager,springArmCamera,followCamera}.ts`, `src/play/cameraHandoff.ts` | 6 | uyarla | runtime-locomotion | | |
 | INV-F07 | Araca binme / inme | `src/game/gameModes/vehicleEntry.ts` | 6 | uyarla | vehicle, e:vehicleEntry | | |
-| INV-F08 | Ragdoll ve kalkma karışımı | `src/game/{ragdollDriver,ragdollSpec,getUpBlender}.ts`, `engine/physics/ragdoll.ts` | 6 | uyarla | — | | |
-| INV-F09 | Oyun kuralları, etkileşim, davranış kataloğu, animasyon notify'ları, montage girişleri | `src/game/{gameRules*,interaction,behaviors,animationNotifies,montageInputBindings,editorCatalog}.ts` | 6 | uyarla | runtime-checkpoint | | |
+| INV-F08 | Ragdoll ve kalkma karışımı | `src/game/{ragdollDriver,ragdollSpec,getUpBlender}.ts`, `engine/physics/ragdoll.ts` | — | taşınmaz | — | K12: cila, oyun isterse etiketten. `engine/physics/ragdoll.ts`'e bağ taşımada kesilir | |
+| INV-F09 | Oyun kuralları, etkileşim, davranış kataloğu, animasyon notify'ları, montage girişleri | `src/game/{gameRules*,interaction,behaviors,animationNotifies,montageInputBindings,editorCatalog}.ts` | 6 | uyarla | runtime-checkpoint | Montage girişleri taşınmaz (K12) | |
 | INV-F10 | Başlangıç şablonları: game-starter, rts-starter | `templates/` | 6 | yeniden tasarla | game-starter, rts-starter | game-starter plan Faz 6'da; rts-starter `samples/` altında ikinci örnek (karar 2026-11-11) | |
 | INV-F11 | Girdi: action map, klavye, fare, gamepad, dokunmatik, sanal joystick | `engine/input`, `src/input/` | 6 | taşı | — | | |
 | INV-F12 | Fizik (Rapier): sabit adım, statik çarpışma, heightfield, darbe olayları, yüzeyler, hareketli platform | `engine/physics` | 6 | taşı | e:physicsContacts, e:physicsImpacts, e:terrainHeightfieldPhysics | Kod 2b'de | |
-| INV-F13 | Karakter hareketi: düzlemsel, eğim, dikey, yokuş yavaşlaması, lokomasyon | `engine/movement` | 6 | taşı | runtime-locomotion, e:characterMovementModule | | |
-| INV-F14 | Navigasyon: Recast / Detour, tile worker'ları, yerel kaçınma, ajan profili | `engine/navigation` | 6 | taşı | ai-navigation-volume, ai-navigation-clearance, e:recastNavMesh | | |
-| INV-F15 | AI: controller, Behavior Tree, State Tree, EQS, blackboard, smart object, algı, AI karakter animasyonu | `engine/ai`, `engine/perception`, `src/game/ai` | 6 | taşı | ai-patrol, e:aiModule, e:aiCharacterAnimationModule | | |
+| INV-F13 | Karakter hareketi: düzlemsel, eğim, dikey, yokuş yavaşlaması, lokomasyon | `engine/movement` | 6 | taşı | runtime-locomotion, e:characterMovementModule | K12: taşınır (ajanın her oyunda yeniden yazması pahalı, hataya açık); kod 2b'de | |
+| INV-F14 | Navigasyon: Recast / Detour, tile worker'ları, yerel kaçınma, ajan profili | `engine/navigation` | 6 | taşı | ai-navigation-volume, ai-navigation-clearance, e:recastNavMesh | K12: taşınır (açık arazide yol bulma); kod 2b'de | |
+| INV-F15 | AI: controller, Behavior Tree, State Tree, EQS, blackboard, smart object, algı, AI karakter animasyonu | `engine/ai`, `engine/perception`, `src/game/ai` | 6 | taşı | ai-patrol, e:aiModule, e:aiCharacterAnimationModule | K12: yalnız algı (`engine/perception`) ve AI karakter animasyonu; `engine/ai` (controller, BT, State Tree, EQS, blackboard, smart object) taşınmaz, AI mantığı oyun kodunda | |
 | INV-F16 | Davranış host'u ve script mesajları | `engine/behavior` | 6 | taşı | runtime-script-message, e:behaviorSubsystem | | |
 | INV-F17 | Ses: bus, olay tablosu, Sound Cue değerlendirme, müzik yöneticisi | `engine/audio` | 6 | taşı | e:audioModule | | |
-| INV-F18 | Diyalog: konuşma yöneticisi, altyazı, konuşma overlay'i | `engine/dialogue`, `src/scene/{subtitleOverlay,conversationOverlay}.ts` | 6 | taşı | e:dialogueModule | | |
+| INV-F18 | Diyalog: konuşma yöneticisi, altyazı, konuşma overlay'i | `engine/dialogue`, `src/scene/{subtitleOverlay,conversationOverlay}.ts` | — | taşınmaz | e:dialogueModule | K12: diyalog taşınmaz | |
 | INV-F19 | Oyun UI'ı: widget, bağlama, tema, geçiş, erişilebilirlik, yerelleştirme, dünya widget'ı | `engine/ui`, `src/ui/` | 6 | taşı | e:uiFramework, e:runtimeUiModule | | |
 | INV-F20 | Kayıt oyunu: slotlar, durum, kullanıcı ayarları | `engine/persistence` | 6 | yeniden tasarla | runtime-checkpoint, e:saveGameModule, e:saveEntityKeys | 2b'de yeniden kurulur: GUID anahtarlı, `persist` alanları + `defineSaveState` (A7); `saveEntityKeys` çevirisi düşer (D5) | |
-| INV-F21 | Level geçişi ve portallar | `src/scene/{levelTravel,runtimeTravelCoordinator}.ts` | 6 | uyarla | runtime-portal | | |
+| INV-F21 | Level geçişi ve portallar | `src/scene/{levelTravel,runtimeTravelCoordinator}.ts` | — | taşınmaz | runtime-portal | K12: oyuna özgü | |
 | INV-F22 | Yükleme ekranı ve ilerleme | `engine/loading`, `src/scene/loadingOverlay.ts` | 6 | uyarla | content-loading, e:contentLoading | | |
 | INV-F23 | Runtime'da aktör doğurma | `src/scene/runtimeActorSpawnCoordinator.ts` | 2a ✓ / 6 | yeniden tasarla | — | `spawnActors` / `destroyActors` 2a'da, authored aktörlerle aynı yaşam döngüsü (F11) | spawn (2a) |
 | INV-F24 | World Partition runtime akışı, asset residency, akış politikası | `engine/world`, `capabilities/world{Partition,Streaming}Module.ts` | 5b | taşı | world-partition-streaming, open-world, e:worldPartitionStreaming, e:assetResidency, e:streamingPolicy | | |
@@ -329,7 +329,7 @@ girmez, plan Faz 3 ve 9'dadır.
 | INV-H20 | Perf raporları: asset, tarayıcı, WES, göl, okyanus bütçesi, kalite matrisi | `tools/*report*.{mjs,ts}`, `tools/perf/` | 3 / 7 | uyarla | tests/builder/wes-acceptance-report | Su raporları Faz 7 | |
 | INV-H21 | Ses araçları: manifest senkronu, loudness denetimi, codec yoklaması | `tools/{sync-audio-manifest,audit-audio-loudness,probe-audio-codecs}.mjs` | 6 | taşı | — | Manifest senkronu A10 meta'ya göre yeniden yazılır | |
 | INV-H22 | GLB optimizasyonu, gömülü doku ayıklama | `tools/{optimize-mesh-glb,strip-embedded-textures}.mjs` | 4 | taşı | — | İçe aktarma hattıyla (INV-A25) | |
-| INV-H23 | Diyalog raporu ve hattı | `tools/{dialogueReport,dialoguePipeline}.ts`, `dialogue-report.mjs` | 6 | taşı | — | | |
+| INV-H23 | Diyalog raporu ve hattı | `tools/{dialogueReport,dialoguePipeline}.ts`, `dialogue-report.mjs` | — | taşınmaz | — | K12: diyalog taşınmaz | |
 | INV-H24 | Su köpüğü bake, göl bench'leri | `tools/{bake-water-foam,bench-lake-bed,bench-lake-water}.mjs` | 7 | taşı | — | | |
 | INV-H25 | Asset kütüphanesi dizinleri: Kenney, Quaternius | `tools/{asset-library-index,quaternius-library-index}.mjs`, `tools/kenney/` | — | taşınmaz | — | Kullanıcı kararı (2026-11-11): bu projede Kenney / Quaternius yok. Dizin ve üreticiler GameDesign klasörüne taşındı, Forge'dan kaldırıldı (Forge `92a709aa`) | |
 | INV-H26 | Model 1 fork senkronu | `tools/sync-forge-to-games.{bat,ps1}` | — | taşınmaz | — | Model 1 oyunları Forge WebGL'de kalır (§3) | |
@@ -372,8 +372,10 @@ taşınır.
 ### 2.1 Test sınıflaması
 
 2b'nin ilk işi (plan Faz 2b). Kaynak Forge `forge-webgl-final` (`04b5fb23`).
-Araç `npm run port:forge-tests -- --forge <Forge checkout>`. Etiketli commit'te
-temiz checkout ister. Kontrol başına satırlar
+Araç `npm run port:forge-tests -- --forge <Forge checkout>`. Taranan
+ağaçlarda yerel değişiklik olmamalı; etiketten sonraki commit'ler taranan
+TypeScript / JSON dosyalarına dokunmamalı (yoksa etiket checkout edilir).
+Kontrol başına satırlar
 [`docs/port/forge-engine-tests.tsv`](port/forge-engine-tests.tsv)'de.
 
 **Kapsam:** `tests/engine/` altındaki 176 dosya ve `tools/engine-tests.ts`
@@ -387,22 +389,24 @@ birden çok koşu üretir.
 **Sınıflar.** Her kontrol, değer düzeyinde ulaştığı Forge modüllerine göre
 sınıflanır. Ulaşım sözcüksel kapsamla izlenir: kontrolün gövdesi ve onun
 kullandığı yerel yardımcılar. `import type` sayılmaz. Bir kontrol birden çok
-sınıfa uyuyorsa R, M'nin; M de A'nın önüne geçer.
+sınıfa uyuyorsa öncelik D, R, M, A sırasıyla.
 
 | Sınıf | Ne | Kontrol yeri | Ne olur |
 |---|---|---|---|
-| **A** algoritma | Yalnız three'siz ve eski modele ait olmayan modüllere ulaşır | **1.010** | 2b'de mekanik çevrilir (`check()` → `test()`). **"Taşınan testler yeşil" kapısının paydası** |
-| **M** eski veri modeli | `engine/scene`, `engine/persistence`, `engine/world`, `src`, `editor`, `game`, `project`, `templates`, `tools/saveValidator`, `tools/droppedFields` modüllerine ya da eski biçimli level / layout verisine ulaşır | 959 | Alt sistemi taşınırken yeni modele göre yeniden yazılır ya da düşer; karar alt sistemin §2 satırında |
-| **R** render | three'ye render için ulaşır: `engine/render-three`, `src` uygulama katmanı ya da testin kendisinin kurduğu three nesnesi | 619 | 2b'de taşınmaz; render'ı yeniden yazan fazla (3, 5–8) birlikte yeniden yazılır ya da düşer |
+| **A** algoritma | Yalnız three'siz, eski modele ait olmayan ve taşınan modüllere ulaşır | **940** | 2b'de mekanik çevrilir (`check()` → `test()`). **"Taşınan testler yeşil" kapısının paydası** |
+| **M** eski veri modeli | `engine/scene`, `engine/persistence`, `engine/world`, `src`, `editor`, `game`, `project`, `templates`, `tools/saveValidator`, `tools/droppedFields` modüllerine ya da eski biçimli level / layout verisine ulaşır | 935 | Alt sistemi taşınırken yeni modele göre yeniden yazılır ya da düşer; karar alt sistemin §2 satırında |
+| **R** render | three'ye render için ulaşır: `engine/render-three`, `src` uygulama katmanı ya da testin kendisinin kurduğu three nesnesi | 618 | 2b'de taşınmaz; render'ı yeniden yazan fazla (3, 5–8) birlikte yeniden yazılır ya da düşer |
+| **D** taşınmaz | Plan K12 ile taşınmayan bir modüle doğrudan ulaşır: `engine/dialogue`, `tools/dialogue*`, `engine/ai`, `engine/physics/ragdoll.ts` | 95 | Düşer. Kod `forge-webgl-final` etiketinde durur |
 
-- **A'nın 471'i sınırda uyarlama ister.** Bunların 469'unda test edilen modül
-  daha aşağıda eski modele iniyor. 88'inde three'yi matematik için kullanan
-  bir motor modülüne iniyor; bazı kontroller iki gruba birden giriyor. Bu
-  matematik kullanımının tek kaynağı `engine/physics/ragdoll.ts`
-  (`Vector3` / `Quaternion`). `physicsSubsystem`, `behaviorSubsystem` ve
-  `defaultInputBindings` ona bağlı. Bu depoda three yalnız render'da
-  olabildiği için `ragdoll` taşınırken matematiği değiştirilir; algoritma
-  aynı kalır (§2.11).
+- **K12'nin etkisi (2026-11-11):** ilk sınıflamada A 1.010, M 959, R 619
+  idi. Taşınmayan modüllere doğrudan ulaşan 95 kontrol D oldu; payda
+  1.010'dan 940'a indi. Taşınmayan bir modülü yalnız daha aşağıda import eden
+  kontrol sınıfını korur, çünkü o import taşımada kesilir.
+- **A'nın 434'ü sınırda uyarlama ister.** Hepsinde test edilen modül daha
+  aşağıda eski modele iniyor. 86'sı ayrıca `engine/physics/ragdoll.ts`'e
+  (three'nin `Vector3` / `Quaternion`'ı) iniyor: `physicsSubsystem`,
+  `behaviorSubsystem` ve `defaultInputBindings` ona bağlı. Ragdoll K12 ile
+  taşınmadığı için bu bağ taşımada kesilir.
 - **`engine/scene` yalnız veri modeli değil.** İçinde algoritmik parçalar da
   var: landscape, waterBody, collision, spline doğrulama. Mimari raporda
   `scene` yeniden tasarlandığı için bu parçaların testleri M sayıldı.
@@ -417,52 +421,52 @@ sınıfa uyuyorsa R, M'nin; M de A'nın önüne geçer.
 Alan başına dağılım (bir kontrol, ulaştığı ilk `engine/*` alanında sayılır;
 yoksa ilk alanında):
 
-| Alan | A | M | R |
-|---|---|---|---|
-| engine/physics | 212 | 56 | 68 |
-| engine/render-three | 0 | 0 | 300 |
-| engine/scene | 0 | 258 | 31 |
-| engine/terrain | 188 | 40 | 4 |
-| src | 0 | 133 | 88 |
-| engine/world | 0 | 185 | 5 |
-| engine/worldbuilder | 143 | 23 | 0 |
-| engine/core | 57 | 6 | 32 |
-| engine/ai | 45 | 24 | 0 |
-| tools/saveValidator | 0 | 68 | 0 |
-| engine/input | 28 | 6 | 32 |
-| engine/perf | 40 | 11 | 14 |
-| engine/behavior | 33 | 29 | 0 |
-| engine/audio | 52 | 8 | 0 |
-| engine/movement | 53 | 0 | 1 |
-| engine/ui | 50 | 1 | 0 |
-| engine/assets | 14 | 22 | 11 |
-| engine/environment | 23 | 8 | 14 |
-| editor | 0 | 16 | 11 |
-| engine/navigation | 23 | 1 | 2 |
-| engine/persistence | 0 | 20 | 0 |
-| tools/droppedFields | 0 | 19 | 0 |
-| engine/dialogue | 18 | 0 | 0 |
-| engine/vfx | 4 | 8 | 0 |
-| (none) | 6 | 2 | 2 |
-| engine/gameplay | 4 | 4 | 0 |
-| tools/world/randomWorldRequest | 0 | 5 | 0 |
-| tools/worldDataCheck | 1 | 4 | 0 |
-| engine/loading | 4 | 0 | 0 |
-| engine/animation | 2 | 0 | 1 |
-| engine/perception | 3 | 0 | 0 |
-| tools/assetPerfReport | 3 | 0 | 0 |
-| tools/dialoguePipeline | 2 | 0 | 0 |
-| tools/world/hlodBuild | 0 | 0 | 2 |
-| tests | 0 | 0 | 1 |
-| tools/terrainOrphans | 1 | 0 | 0 |
-| tools/world/randomWorldRun | 0 | 1 | 0 |
-| tools/world/testWorld | 1 | 0 | 0 |
-| tools/world/wbTestValley | 0 | 1 | 0 |
+| Alan | A | M | R | D |
+|---|---|---|---|---|
+| engine/physics | 210 | 56 | 67 | 3 |
+| engine/render-three | 0 | 0 | 300 | 0 |
+| engine/scene | 0 | 258 | 31 | 0 |
+| engine/terrain | 188 | 40 | 4 | 0 |
+| src | 0 | 133 | 88 | 0 |
+| engine/world | 0 | 185 | 5 | 0 |
+| engine/worldbuilder | 143 | 23 | 0 | 0 |
+| engine/core | 57 | 6 | 32 | 0 |
+| engine/ai | 0 | 0 | 0 | 69 |
+| tools/saveValidator | 0 | 68 | 0 | 0 |
+| engine/input | 28 | 6 | 32 | 0 |
+| engine/perf | 40 | 11 | 14 | 0 |
+| engine/behavior | 33 | 29 | 0 | 0 |
+| engine/audio | 52 | 8 | 0 | 0 |
+| engine/movement | 53 | 0 | 1 | 0 |
+| engine/ui | 50 | 1 | 0 | 0 |
+| engine/assets | 11 | 22 | 11 | 3 |
+| engine/environment | 23 | 8 | 14 | 0 |
+| editor | 0 | 16 | 11 | 0 |
+| engine/navigation | 23 | 1 | 2 | 0 |
+| engine/persistence | 0 | 20 | 0 | 0 |
+| tools/droppedFields | 0 | 19 | 0 | 0 |
+| engine/dialogue | 0 | 0 | 0 | 18 |
+| engine/vfx | 4 | 8 | 0 | 0 |
+| (none) | 6 | 2 | 2 | 0 |
+| engine/gameplay | 4 | 4 | 0 | 0 |
+| tools/world/randomWorldRequest | 0 | 5 | 0 | 0 |
+| tools/worldDataCheck | 1 | 4 | 0 | 0 |
+| engine/loading | 4 | 0 | 0 | 0 |
+| engine/animation | 2 | 0 | 1 | 0 |
+| engine/perception | 3 | 0 | 0 | 0 |
+| tools/assetPerfReport | 3 | 0 | 0 | 0 |
+| tools/dialoguePipeline | 0 | 0 | 0 | 2 |
+| tools/world/hlodBuild | 0 | 0 | 2 | 0 |
+| tests | 0 | 0 | 1 | 0 |
+| tools/terrainOrphans | 1 | 0 | 0 | 0 |
+| tools/world/randomWorldRun | 0 | 1 | 0 | 0 |
+| tools/world/testWorld | 1 | 0 | 0 | 0 |
+| tools/world/wbTestValley | 0 | 1 | 0 | 0 |
 
 Dosya düzeyinde: yalnız A 42, yalnız M 30, yalnız R 27; karışık A+M 31,
-M+R 20, A+M+R 19, A+R 7. `tools/engine-tests.ts` içinde 909 kontrol var
-(A 338, M 375, R 196). Taşımada bunlar modül başına test dosyalarına
-dağıtılır.
+M+R 20, A+M+R 18, A+R 7, D+R 1. `tools/engine-tests.ts` içinde 909 kontrol
+var (A 269, M 352, R 195, D 93). Taşımada bunlar modül başına test
+dosyalarına dağıtılır.
 
 ## 3. Port bekleyenler
 

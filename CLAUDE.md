@@ -4,6 +4,12 @@ Açık dünya oyunları için WebGPU tabanlı oyun motoru + editörü. Forge'un 
 `C:\Users\emret\Desktop\Forge`) yerini alır. Bu depo yalnız motordur: oyunlar
 ayrı depolarda yaşar; GDD, oyun fikri ve türe özgü taksonomi buraya girmez.
 
+**Ürün tezi** ([mimari §0.0](docs/planned/FORGE_WEBGPU_ARCHITECTURE.md)): AI
+ajanıyla büyük oyun yapmak için. İnsan istem yazmadan editörden düzenler; ajan
+az token harcayan hazır sistemle çalışır. Bir özellik yalnız bu iki yüzeyden
+birine hizmet ediyorsa girer; eski oyunların kullanımı ölçüt değil. Kapsam
+kararları plan K12'de; taşınmayan Forge kodu `forge-webgl-final` etiketinde.
+
 ## Belgeler
 
 - [Yeniden inşa planı](docs/planned/FORGE_WEBGPU_REBUILD_PLAN.md): faz sırası,

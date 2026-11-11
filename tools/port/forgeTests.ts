@@ -380,7 +380,24 @@ export function isOldLevelData(literal: string): boolean {
   return /(^|[\\/])(levels|layouts)[\\/]|\.(level|layout)\.json$|\.cells[\\/]/.test(literal);
 }
 
-export type CheckClass = "A" | "M" | "R";
+/**
+ * Forge modules not ported at all (plan K12, scope by the product thesis in
+ * architecture §0.0). A check that reaches one directly is dropped with it;
+ * a module that merely imports one keeps its class (the import is cut when ported).
+ */
+export const DROPPED_MODULES: ReadonlyArray<{ readonly prefix: string; readonly why: string }> = [
+  { prefix: "engine/dialogue/", why: "K12 dialogue" },
+  { prefix: "tools/dialogue", why: "K12 dialogue" },
+  { prefix: "engine/ai/", why: "K12 AI authoring stack" },
+  { prefix: "engine/physics/ragdoll.ts", why: "K12 ragdoll" },
+];
+
+export function droppedBy(path: string): string | null {
+  return DROPPED_MODULES.find((entry) => path.startsWith(entry.prefix))?.why ?? null;
+}
+
+/** A algorithm, M old data model, R render, D not ported (K12). */
+export type CheckClass = "A" | "M" | "R" | "D";
 
 export interface ModuleFacts {
   /** Repo-relative path of a resolved local module, or null for a package. */
@@ -412,6 +429,11 @@ export interface CheckVerdict {
 export function classifyCheck(modules: readonly ModuleFacts[], literals: readonly string[]): CheckVerdict {
   const areas = sorted(modules.flatMap((module) => (module.path ? [areaOf(module.path)] : [])));
   const reasons: string[] = [];
+  for (const module of modules) {
+    const why = module.path === null ? null : droppedBy(module.path);
+    if (why !== null) reasons.push(`dropped:${why}`);
+  }
+  if (reasons.length > 0) return { cls: "D", boundary: false, areas, reasons: sorted(reasons) };
   for (const module of modules) {
     if (module.path === null && isThreePackage(module.specifier)) reasons.push(`three:${module.specifier}`);
     else if (module.path !== null && module.three) reasons.push(`three-via:${areaOf(module.path)}`);

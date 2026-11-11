@@ -8,7 +8,8 @@
  *
  * Classes: A algorithm (ported mechanically, the 2b gate's denominator),
  * M old data model (rewritten against the new model or dropped), R render
- * (reaches three; goes with the TSL rewrite in its phase). See tools/port/forgeTests.ts.
+ * (reaches three; goes with the TSL rewrite in its phase), D not ported (plan
+ * K12). See tools/port/forgeTests.ts.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync, mkdirSync } from "node:fs";
@@ -45,13 +46,24 @@ function parseArgs(argv: readonly string[]): Options {
 
 const git = (cwd: string, ...args: string[]): string => execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
-/** The checkout must be the tagged commit with no local change under the scanned trees. */
+const SCANNED_TREES = ["engine", "tests", "tools", "editor", "src", "game", "project", "builder"];
+const SCANNED_SOURCE = /\.(ts|tsx|mts|json)$/;
+
+/**
+ * The checkout must read as the tagged commit: no local change under the scanned
+ * trees, and any commit after the tag (maintenance mode) touches no TypeScript or
+ * JSON there. Otherwise check out the tag first.
+ */
 function assertAtRef(forge: string, ref: string): string {
-  const head = git(forge, "rev-parse", "HEAD");
   const tagged = git(forge, "rev-parse", `${ref}^{commit}`);
-  if (head !== tagged) throw new Error(`Forge HEAD ${head} is not ${ref} (${tagged}); check out the tag first.`);
-  const dirty = git(forge, "status", "--porcelain", "--", "engine", "tests", "tools", "editor", "src", "game", "project", "builder");
+  const dirty = git(forge, "status", "--porcelain", "--", ...SCANNED_TREES);
   if (dirty) throw new Error(`Forge has local changes under the scanned trees:\n${dirty}`);
+  const changed = git(forge, "diff", "--name-only", tagged, "HEAD", "--", ...SCANNED_TREES)
+    .split("\n")
+    .filter((path) => SCANNED_SOURCE.test(path));
+  if (changed.length > 0) {
+    throw new Error(`Forge HEAD differs from ${ref} in scanned sources; check out the tag first:\n${changed.join("\n")}`);
+  }
   return tagged;
 }
 
@@ -220,7 +232,7 @@ function summary(rows: readonly Row[], files: readonly string[], unregistered: r
   out.push("");
   out.push(`| Sınıf | Kontrol yeri | Dinamik etiketli |`);
   out.push(`|---|---|---|`);
-  for (const cls of ["A", "M", "R"]) {
+  for (const cls of ["A", "M", "R", "D"]) {
     const dynamic = rows.filter((row) => row.verdict.cls === cls && row.check.dynamicLabel).length;
     out.push(`| ${cls} | ${n(cls)} | ${dynamic} |`);
   }
@@ -232,16 +244,17 @@ function summary(rows: readonly Row[], files: readonly string[], unregistered: r
     `A içinde sınır uyarlaması gereken: ${boundary.length} (eski modele inen ${via("boundary-model")}, three'yi matematik için kullanan motor modülüne inen ${via("boundary-three-math")}).`,
   );
   const harness = rows.filter((row) => row.file === ENGINE_HARNESS);
-  out.push(`\`${ENGINE_HARNESS}\` içi: ${harness.length} (A ${harness.filter((r) => r.verdict.cls === "A").length}, M ${harness.filter((r) => r.verdict.cls === "M").length}, R ${harness.filter((r) => r.verdict.cls === "R").length}).`);
+  const inHarness = (cls: string): number => harness.filter((row) => row.verdict.cls === cls).length;
+  out.push(`\`${ENGINE_HARNESS}\` içi: ${harness.length} (A ${inHarness("A")}, M ${inHarness("M")}, R ${inHarness("R")}, D ${inHarness("D")}).`);
   if (unregistered.length > 0) out.push(`Koşucuya bağlı olmayan dosyalar: ${unregistered.join(", ")}.`);
   out.push("");
-  out.push("| Alan | A | M | R |");
-  out.push("|---|---|---|---|");
+  out.push("| Alan | A | M | R | D |");
+  out.push("|---|---|---|---|---|");
   const areas = count(rows, primaryArea);
   for (const area of areas.keys()) {
     const inArea = rows.filter((row) => primaryArea(row) === area);
     const c = (cls: string): number => inArea.filter((row) => row.verdict.cls === cls).length;
-    out.push(`| ${area} | ${c("A")} | ${c("M")} | ${c("R")} |`);
+    out.push(`| ${area} | ${c("A")} | ${c("M")} | ${c("R")} | ${c("D")} |`);
   }
   out.push("");
   out.push("| Dosya sınıfı | Dosya |");

@@ -5,6 +5,12 @@ Kısa harita. Kararlar, gerekçeleri ve uygulama ayrıntıları
 kararları" bölümleri); burada tekrar yazılmaz. Çelişkide rapor geçerlidir. Faz
 sırası [yeniden inşa planında](../planned/FORGE_WEBGPU_REBUILD_PLAN.md).
 
+**Ürün tezi (rapor §0.0):** AI ajanıyla büyük oyun yapmak için motor. İnsan
+istem yazmadan editörden düzenler (level, aktör, Details, genel veri editörü
+A13); ajan az token harcayan hazır sistemle çalışır (kanonik küçük dosyalar,
+şemalar, düzenleme komutları A12). Bir özellik ancak bu iki yüzeyden birine
+hizmet ediyorsa girer; kapsam kararları plan K12'de.
+
 ## Katmanlar
 
 `src/` altında, aşağıdan yukarı. Kuralların tek kaynağı
@@ -14,7 +20,7 @@ kendini de sınar (rapor §4.2, A3).
 | Katman | İçerik | three |
 |---|---|---|
 | `core` | aktör / bileşen modeli, şema DSL'i ve kaydı, kimlik, level ve hücre modeli, asset modeli, düzenleme modeli, alt sistem sözleşmesi, proje manifesti | yok; DOM ve `import.meta.env` de yok |
-| `engine` | three'siz alt sistemler (fizik, terrain verisi, AI, nav…; 2b'de taşınır) | yok |
+| `engine` | three'siz alt sistemler (fizik, terrain verisi, nav, hareket, ses…; 2b'de taşınır, kapsam K12) | yok |
 | `render` | renderer, render bağlamaları, materyaller, pipeline (Faz 3) | tek sahip (`three/webgpu`, `three/tsl`) |
 | `runtime` | World, sahne kurucu, oyun modülü host'u, boot | dolaylı |
 | `gameplay` | yeniden kullanılabilir oyun çatısı (Faz 6) | yok |

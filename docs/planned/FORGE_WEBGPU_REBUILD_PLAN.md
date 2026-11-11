@@ -1,6 +1,12 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v0.9 · 2026-11-11 (v0.8'den fark: Faz 0 kapandı ve arşivlendi —
+**Sürüm:** v1.0 · 2026-11-11 (v0.9'dan fark: ürün tezi ve kapsam ölçütü
+(mimari §0.0) — K12 kapsam kararları: diyalog, AI yazım yığını (BT / State
+Tree / EQS / Blackboard / Smart Object), Actor Script'in betik yüzeyi, ragdoll,
+Sound Cue / ses bileşeni, hareketli platform, spline takipçisi, portallar
+taşınmaz; karakter hareketi, takip kamerası, Recast navigasyonu, Player Start
+taşınır; Faz 4'e genel veri editörü (A13) ve ajan düzenleme komutları (A12);
+Faz 2b'de cut-over, test sınıflaması, Kenney kararı. v0.9: Faz 0 kapandı ve arşivlendi —
 özellik envanteri, referans sahneler, WebGL baseline; Faz 1 GO ölçüt sayıları
 G1–G9 kondu. v0.8: Faz 2a kapandı, ayrıntısı
 `docs/archive/PHASE_2A.md`'ye taşındı; dist doğrulaması ve alt dizin yayını
@@ -20,6 +26,8 @@ GO sayıları. Faz 1 spike'ı S1–S4 ile tamamlandı; **GO (koşullu, kullanıc
 2026-11-11):** GPU güdümlü foliage 5c'de zorunlu, G6 orada yeniden ölçülür. S5
 yapılmadı (Faz 9'a, kullanıcı kararı). Faz 1 [arşivde](../archive/PHASE_1.md). Faz 2b
 başladı: cut-over yapıldı (`forge-webgl-final` = Forge `04b5fb23`, 2026-11-11).
+**Ürün tezi ve kapsam ölçütü:** [mimari §0.0](FORGE_WEBGPU_ARCHITECTURE.md);
+kapsam kararları §8 K12.
 **Belge düzeni:** tek ana plan; biten fazın ayrıntısı faz kapanınca
 [`docs/archive/`](../archive/INDEX.md)'e taşınır. Kısa mimari harita:
 [`docs/architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md);
@@ -282,18 +290,24 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       *Yapıldı (2026-11-11):* kontrol yeri başına, araçla
       (`npm run port:forge-tests`; satırlar `docs/port/forge-engine-tests.tsv`,
       özet `PORT_LOG` §2.1). 2.588 kontrol yeri (176 dosya + `tools/engine-tests.ts`
-      içi). Kümeler ikiden üçe çıktı: **A algoritma 1.010 (paydası bu)**,
-      M eski veri modeli 959, R render 619. R kümesi three'ye render için
+      içi). Kümeler ikiden üçe çıktı: A algoritma 1.010, M eski veri modeli
+      959, R render 619. K12'den sonra (2026-11-11) dördüncü küme D taşınmaz
+      95; **A 940 (paydası bu)**, M 935, R 618. R kümesi three'ye render için
       ulaşan kontrollerdir (`render-three`, `src` uygulama katmanı); 2b'de
       taşınmaz, render'ı yeniden yazan fazla gelir. A'nın 471'i sınırda
       uyarlama ister; 88'i `engine/physics/ragdoll.ts`'in three matematiği
       yüzünden (bu depoda three yalnız render'da).
-- [ ] **Taşıma:** `engine/*` three'siz alt sistemleri (ai, physics, terrain
-      verisi, navigation, movement, audio, dialogue, behavior, worldbuilder
+- [ ] **Taşıma:** `engine/*` three'siz alt sistemleri (physics, terrain
+      verisi, navigation, movement, audio, behavior, worldbuilder
       algoritmaları, environment, perf, animation, input, loading, perception,
       ui, vfx, gameplay, core) ve ilgili testleri: kopyala → sınırda yeni
       aktör / şema modeline bağla → testler yeşil. Algoritmalar değiştirilmez
-      (§2.11). `engine/assets` A10 modeline göre yeniden kurulur.
+      (§2.11). `engine/assets` A10 modeline göre yeniden kurulur. K12 gereği
+      `engine/dialogue`, `engine/ai` ve `engine/physics/ragdoll.ts` taşınmaz;
+      `physicsSubsystem`, `behaviorSubsystem` ve `defaultInputBindings`'in
+      ragdoll bağı taşımada kesilir (ragdoll'un three matematiği de onunla
+      gider). Ses ve UI'da yalnız kod kütüphanesi taşınır; editörleri ve
+      Sound Cue / ses bileşeni yüzeyi yok.
 - [ ] Kayıt oyunu (`engine/persistence`) ve World Partition (`engine/world`)
       yeni modele göre yeniden kurulur; GUID anahtarlı. Kayıt oyunu `persist`
       işaretli bileşen alanlarını ve `defineSaveState` bölümlerini saklar;
@@ -388,6 +402,14 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       içeriği ve seçili paketler dist'te) ve alt dizin (`base`) yayını testi
       kapıya ve CI'a girer (mimari §4.8 build, §4.10, F06). 2a'dan taşındı
       (2026-11-11).
+- [ ] **Genel veri editörü (mimari A13):** oyunun şemalı veri asset'leri
+      (ekonomi, denge, tablolar) Content Browser'dan açılır, Details ile aynı
+      kitle şemadan üretilen formda ve tablo görünümünde düzenlenir. Forge'daki
+      Data Table editörünün yerini alır; oyuna özel düzenleme arayüzü yazılmaz.
+- [ ] **Ajan düzenleme komutları (mimari A12):** editörün düzenleme modeli
+      üzerinden CLI: aktör ekle / taşı / sil, bileşen alanı yaz, sınıf
+      override'ı. Kayıt servisinden geçer (doğrulama, çakışma); çıktı kısa.
+      Kabul: aynı değişiklik editörden ve komuttan aynı kanonik dosyayı yazar.
 - [ ] Kapı: Forge'daki `editor-authoring` smoke'unun karşılığı yeşil.
 
 ### Faz 5 — Açık dünya
@@ -422,15 +444,22 @@ Dört alt faz; her birinin kendi kapısı var, görsel kabul sonda toplu istenir
 
 - [ ] Runtime alt sistemleri (bugünkü capability modülleri), oyun çatısı
       (`gameplay` katmanı: bugünkü `src/game`'in yeniden kullanılabilir kısmı —
-      TPS / araç / RTS modları, kamera yöneticisi, ragdoll), actor
-      script'leri, input (`engine/input`), karakter + kamera, Rapier fizik,
-      ses, oyun UI'ı (`engine/ui`: widget, bağlama, tema, yerelleştirme, dünya
-      widget'ı), yükleme ilerlemesi (`engine/loading`), save-game, AI + algı
-      (`engine/perception`) + Recast/Detour nav, diyalog.
+      TPS / araç / RTS modları, kamera yöneticisi, takip kamerası, spring arm),
+      koddan kayıtlı davranışlar (betik yüzeyi yok, K12), input
+      (`engine/input`), karakter hareketi + kamera, Player Start, Rapier fizik,
+      ses (kod kütüphanesi; ayarları şemalı veri, A13), oyun UI'ı (`engine/ui`:
+      widget, bağlama, tema, yerelleştirme, dünya widget'ı), yükleme ilerlemesi
+      (`engine/loading`), save-game, algı (`engine/perception`) + Recast/Detour
+      nav. AI mantığı oyun kodunda; BT / State Tree / EQS / Blackboard / Smart
+      Object, diyalog, ragdoll, hareketli platform, spline takipçisi, portallar
+      yok (K12).
+- [ ] **UI widget editörü (açık karar, K12):** görsel widget düzenleyici
+      mimari §0.0'ın "istemsiz müdahale" ayağına uyar (HUD yerleşimi); Faz 6
+      başında kullanıcı kararı. O güne kadar widget'lar şemalı JSON.
 - [ ] Skeletal mesh ve animasyon: skinning'li mesh'in WebGPU'da çizimi (MRT /
       hız vektörü sözleşmesine uygun), klip oynatma, blend space
-      (`engine/animation`), animasyon–ragdoll geçişi. Faz 3 yalnız statik
-      mesh'i kapsar; karakter görseli burada gelir.
+      (`engine/animation`). Faz 3 yalnız statik mesh'i kapsar; karakter görseli
+      burada gelir. Animasyon–ragdoll geçişi yok (K12).
 - [ ] VFX: partikül efektleri TSL'de. WebGPU'da nokta boyutu yok; büyük
       noktalar `Sprite` + instancing ile `PointsNodeMaterial`'a çevrilir.
       Mümkünse compute partikül.
@@ -554,6 +583,7 @@ modüle hata düzeltmesi yapılırsa buraya "port bekliyor" diye işlenir.
 | K9 | Referans donanım | Kullanıcının GPU'su; performans hedefleri Faz 0 baseline'ından sonra konur | **Kapandı** 2026-11-10: referans **R1** = NVIDIA GeForce RTX 3060 12 GB (sürücü 610.60, 2026-11-10) / Intel i5-11400F / 16 GB RAM / 1920×1080 60 Hz ekran. 1440p ölçümleri render çözünürlüğüyle (ekran dışı hedef / DPR) alınır ve kayıtta öyle yazılır. Hedef sayılar Faz 0 baseline'ından sonra; biçim: profil × çözünürlük başına medyan / p95 kare süresi + GPU süresi, 60 Hz bütçe 16,6 ms. Sürücü değişikliği ölçüm kaydına yazılır. İkinci (düşük) referans gerekip gerekmediği K4'ün Faz 6 kararıyla birlikte. Dış hedef sınıf, ölçülemediği için reddedildi |
 | K10 | Faz 1 NO-GO çıkarsa bu depo ve 2a iskeleti | 2a kapısına kadar tamamlanır (three'siz, renderer'dan bağımsız). Sonra iskelet korunur ve `render` katmanı Forge `render-three`'den (klasik `WebGLRenderer`) uyarlanır; mimari kazançlar (veri modeli, şema, kayıt, SDK) renderer'a bağlı değil. Bedeli: 2b'ye ~23.300 satırlık render uyarlaması eklenir ve iki depo dönemi uzar | **Kapandı** 2026-11-10: öneri olduğu gibi — NO-GO'da yeni iskelet + klasik `WebGLRenderer` katmanı. Depoyu dondurup Forge WebGL'de devam etmek 2a'nın mimari kazançlarını (veri modeli, şema, kayıt, SDK) Forge'a parça parça geri taşımayı gerektirdiği, kararı NO-GO anına bırakmak 2a'yı belirsiz hedefle yürüttüğü için reddedildi. `WebGPURenderer`'ın WebGL2 backend'i seçenek değil: NO-GO nedeni renderer'ın CPU maliyetiyse aynı maliyeti taşır |
 | K11 | Tarayıcı kapsamı | Editör: yalnız masaüstü Chromium (Chrome / Edge), R1'de. Oyun: başlangıçta aynı; Firefox / Safari kapsamı Faz 6'da K4 fallback ölçümüyle birlikte karara bağlanır. Kapsam dışı tarayıcıda boot hata ekranı açık mesaj verir | **Kapandı** 2026-11-10: öneri olduğu gibi — editör yalnız masaüstü Chromium; oyunun Firefox / Safari kapsamı Faz 6'da K4 ölçümüyle. Oyun için Firefox + Safari'yi ilk günden hedeflemek her fazın kabulüne iki tarayıcı daha eklediği için reddedildi |
+| K12 | Kapsam: hangi Forge özellikleri taşınmaz | Ürün tezinin ölçütüne göre (mimari §0.0); eski oyunların kullanımı ölçüt değil | **Kapandı** 2026-11-11 (kullanıcı, öneri olduğu gibi). **Taşınmaz:** diyalog (`engine/dialogue`, editör, asset'ler, rapor hattı); AI yazım yığını (`engine/ai`: controller, BT, State Tree, EQS, Blackboard, Smart Object ve editörleri; AI mantığı oyun kodunda); Actor Script'in betik yüzeyi (değişkenler, olay / mesaj bağlamaları, dispatcher, arayüz, referans, construction; sınıf parametreleri şemalı bileşen alanlarıyla); ragdoll ve kalkma karışımı, montage girişleri; Sound Cue editörü, ses bileşeni ve Ambient Sound; hareketli platform, spline takipçisi, level geçişi / portallar. **Taşınır:** ses ve UI kod kütüphaneleri, karakter hareketi, takip kamerası ve spring arm, Recast / Detour navigasyonu, algı, Player Start. **Yeni:** genel veri editörü (A13) ve ajan düzenleme komutları (A12), Faz 4. **Açık:** UI widget editörü, Faz 6 başında. Taşınmayan kod `forge-webgl-final` etiketinde durur; bir oyun isterse dikey özellik modülü olarak gelir |
 
 ## 9. v0.1'den korunanlar
 
@@ -610,3 +640,4 @@ silinebilir.
 | 2026-11-11 | v0.9 | Faz 2b başladı, cut-over: Forge `forge-webgl-final` = `04b5fb23` (bakım modu notu `CLAUDE.md` / `README.md` / `AGENTS.md`); Forge WebGL'de bundan sonra yalnız hata düzeltmesi, taşınmış modüle gelen düzeltme `PORT_LOG` §3'e. Envanter farkı yok |
 | 2026-11-11 | v0.9 | 2b test sınıflaması kapandı: `npm run port:forge-tests` (TypeScript AST, değer düzeyinde ve sözcüksel kapsamlı ulaşım), 2.588 kontrol yeri → A algoritma 1.010 (kapı paydası), M eski model 959, R render 619; satırlar `docs/port/forge-engine-tests.tsv`, özet `PORT_LOG` §2.1 |
 | 2026-11-11 | v0.9 | 2b Kenney kararı (kullanıcı): bu projede Kenney / Quaternius yok; dizin üreticileri ve Kenney dizini GameDesign klasörüne taşındı, Forge'dan kaldırıldı (Forge `92a709aa`); INV-H25 taşınmaz |
+| 2026-11-11 | v1.0 | Ürün tezi ve kapsam ölçütü (mimari §0.0, v1.2): K12 kapsam kararları, A12 ajan düzenleme komutları ve A13 genel veri editörü Faz 4'e; 2b taşıma listesinden dialogue ve ai çıktı, ragdoll bağı kesilir; test paydası yeniden hesaplandı (`PORT_LOG` §2.1) |
