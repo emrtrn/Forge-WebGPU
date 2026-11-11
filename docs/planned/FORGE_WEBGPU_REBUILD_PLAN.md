@@ -315,7 +315,9 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       *Ses taşındı (2026-11-11):* `src/engine/audio` + `src/runtime/audio`,
       37 kontrol yeşil; kalıp ve kayıt `PORT_LOG` §2.
       *UI taşındı (2026-11-11):* `src/engine/ui` + `src/runtime/ui/uiDom.ts`,
-      50 kontrol yeşil. İlerleme A 87 / 927.
+      50 kontrol yeşil. *Input, zaman kontrolü, iş bölme, kare ölçümü
+      taşındı (2026-11-11):* `src/engine/{input,time,work,perf}`, 13 kontrol.
+      İlerleme A 100 / 927.
 - [ ] Kayıt oyunu (`engine/persistence`) ve World Partition (`engine/world`)
       yeni modele göre yeniden kurulur; GUID anahtarlı. Kayıt oyunu `persist`
       işaretli bileşen alanlarını ve `defineSaveState` bölümlerini saklar;
@@ -651,3 +653,4 @@ silinebilir.
 | 2026-11-11 | v1.0 | Ürün tezi ve kapsam ölçütü (mimari §0.0, v1.2): K12 kapsam kararları, A12 ajan düzenleme komutları ve A13 genel veri editörü Faz 4'e; 2b taşıma listesinden dialogue ve ai çıktı, ragdoll bağı kesilir; test paydası yeniden hesaplandı (`PORT_LOG` §2.1) |
 | 2026-11-11 | v1.0 | 2b ilk taşıma: ses (`src/engine/audio`, `src/runtime/audio`), 37 Forge kontrolü birebir Vitest'te yeşil; `engine` DOM'suz (kullanıcı kararı; `tsconfig.tools.json` + `verify:node-load` zorlar), `src` testlerine yalnız `node:assert` (`src-tests-node-assert-only`), testler ayrı `tsconfig.tests.json`; Sound Cue D, payda 927; `port:forge-tests` taşınanı etiketle sayar (37 / 927) |
 | 2026-11-11 | v1.0 | 2b: UI kütüphanesi taşındı (`src/engine/ui`, DOM kısmı `src/runtime/ui/uiDom.ts`), 50 Forge kontrolü yeşil; 5 M kontrol bırakıldı. A 87 / 927 |
+| 2026-11-11 | v1.0 | 2b: input (eylem haritası, varsayılan bağlamalar; ragdoll tuşu yok), zaman kontrolü, işbirlikçi iş bölme, kare ölçümü taşındı (`src/engine/{input,time,work,perf}`), 13 kontrol yeşil. A 100 / 927 |

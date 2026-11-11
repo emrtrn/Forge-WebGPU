@@ -520,7 +520,7 @@ tests/engine/lakeQuality.test.ts	105	check	R			engine/perf,engine/render-three,s
 tests/engine/lakeQuality.test.ts	123	check	A	yes		engine/terrain	boundary-model:engine/terrain		lake quality: ripple caps retain recent waves and continuous wheel-contact history
 tests/engine/lakeQuality.test.ts	134	check	R			engine/perf,engine/scene,src,tests	three-via:src,three:three		lake quality: low skips baked foam reads, releases uploaded foam, preserves editor undo artifacts and survives travel
 tests/engine/lakeQuality.test.ts	158	check	R			engine/perf,engine/scene,src,tests	three-via:src,three:three		lake quality: a late aborted foam response cannot repopulate the low-profile cache or publish stale textures
-tests/engine/lakeScheduling.test.ts	14	check	A			engine/core			Lake scheduling: bounded batches start separate tasks and cancellation closes unfinished work
+tests/engine/lakeScheduling.test.ts	14	check	A			engine/core		src/engine/work/cooperativeWork.test.ts	Lake scheduling: bounded batches start separate tasks and cancellation closes unfinished work
 tests/engine/lakeScheduling.test.ts	27	check	R			engine/core,engine/render-three,engine/terrain,tests	three-via:engine/render-three,three:three		Lake scheduling: sliced shore masks, normals, bounds and exact interaction queries match synchronous output
 tests/engine/lakeScheduling.test.ts	47	check	R			src,tests	three-via:src,three:three		Lake scheduling: cancel during staged masks keeps the old mesh and disposes unpublished resources exactly once
 tests/engine/lakeScheduling.test.ts	69	check	R			engine/perf,src,tests	three-via:src,three:three		Lake scheduling: a quality change during staging cannot publish obsolete masks or rebuild the published geometry again
@@ -1179,11 +1179,11 @@ tests/engine/terrainWorldRenderer.test.ts	580	check	R			engine/render-three,engi
 tests/engine/testWorld.test.ts	14	check	A	yes		engine/terrain,tools/world/testWorld	boundary-model:engine/terrain,boundary-model:tools/world/testWorld		test world: valid definition, decodable u16 tiles and global map, summaries from decoded heights
 tests/engine/testWorld.test.ts	29	check	A	yes		engine/terrain,tools/world/testWorld	boundary-model:tools/world/testWorld		test world: shared tile edges are identical, weights sum to 255, and the terrain has valley and peaks
 tests/engine/testWorld.test.ts	54	check	A	yes		tools/world/testWorld	boundary-model:tools/world/testWorld		test world: deterministic per seed, and the level wires terrain, Player Start and Game Mode
-tests/engine/timeControl.test.ts	22	check	A			engine/core			a pause is held, so releasing one hold never resumes someone else's
-tests/engine/timeControl.test.ts	52	check	A			engine/core			time scale survives a pause instead of collapsing into it
-tests/engine/timeControl.test.ts	64	check	A			engine/core			time scale clamps, and refuses a value that would poison every delta
-tests/engine/timeControl.test.ts	80	check	A			engine/core,engine/perf			frame metrics keep reading real time whatever the simulation is told
-tests/engine/timeControl.test.ts	105	check	A			engine/core			resumeAll is for teardown, and a scale of 1 is the identity
+tests/engine/timeControl.test.ts	22	check	A			engine/core		src/engine/time/timeControl.test.ts	a pause is held, so releasing one hold never resumes someone else's
+tests/engine/timeControl.test.ts	52	check	A			engine/core		src/engine/time/timeControl.test.ts	time scale survives a pause instead of collapsing into it
+tests/engine/timeControl.test.ts	64	check	A			engine/core		src/engine/time/timeControl.test.ts	time scale clamps, and refuses a value that would poison every delta
+tests/engine/timeControl.test.ts	80	check	A			engine/core,engine/perf		src/engine/time/timeControl.test.ts	frame metrics keep reading real time whatever the simulation is told
+tests/engine/timeControl.test.ts	105	check	A			engine/core		src/engine/time/timeControl.test.ts	resumeAll is for teardown, and a scale of 1 is the identity
 tests/engine/uiFramework.test.ts	47	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeUiWidgetDef upgrades the legacy empty-root stub to a Canvas
 tests/engine/uiFramework.test.ts	56	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeUiWidgetDef coerces garbage into a valid Canvas-rooted def
 tests/engine/uiFramework.test.ts	62	check	A			engine/ui		src/engine/ui/ui.test.ts	normalizeUiWidgetDef maps unknown kinds to Panel and drops leaf children
@@ -1741,9 +1741,9 @@ tools/engine-tests.ts	2813	checkAsync	A			engine/core			engine core initializes 
 tools/engine-tests.ts	2863	check	R			engine/core,engine/render-three	three-via:engine/render-three		animation subsystem ticks mixers with engine deltaSeconds
 tools/engine-tests.ts	2885	check	R			engine/core,engine/perf,engine/render-three	three-via:engine/render-three		Phase 7 distance update cadence preserves near updates and batches far work
 tools/engine-tests.ts	2939	check	A			engine/core,engine/input			input subsystem maps raw codes to named action edges per tick
-tools/engine-tests.ts	2985	check	A			engine/input			action map keeps a tap shorter than one tick as a one-tick press
-tools/engine-tests.ts	3005	check	A			engine/input			action map resolves analog axes with deadzone scale invert and delta input
-tools/engine-tests.ts	3029	check	A			engine/input			action map rescales a stick past its deadzone so the value starts from zero
+tools/engine-tests.ts	2985	check	A			engine/input		src/engine/input/actionMap.test.ts	action map keeps a tap shorter than one tick as a one-tick press
+tools/engine-tests.ts	3005	check	A			engine/input		src/engine/input/actionMap.test.ts	action map resolves analog axes with deadzone scale invert and delta input
+tools/engine-tests.ts	3029	check	A			engine/input		src/engine/input/actionMap.test.ts	action map rescales a stick past its deadzone so the value starts from zero
 tools/engine-tests.ts	3044	check	M			engine/scene	model:engine/scene		layout behavior maps to a readable behavior component
 tools/engine-tests.ts	3081	check	M			engine/scene	model:engine/scene		layout materialSlot maps to the mesh renderer component
 tools/engine-tests.ts	3095	check	M			engine/scene	model:engine/scene		layout collision flags map to readable collider components
@@ -2171,10 +2171,10 @@ tools/engine-tests.ts	16673	check	A			engine/core			subsystem profiler: window d
 tools/engine-tests.ts	16707	check	A			engine/core			subsystem profiler: registry times each subsystem with an injected clock
 tools/engine-tests.ts	16757	check	A			engine/perf			perf budget: flags over-budget metrics and keeps a stable row order
 tools/engine-tests.ts	16776	check	A			engine/perf			perf budget: formatByteSize renders decimal units with a placeholder for bad input
-tools/engine-tests.ts	16785	check	A			engine/perf			frame metrics: windowed average and spike counts over raw deltas
-tools/engine-tests.ts	16811	check	A			engine/perf			frame metrics: P95 uses nearest-rank over the window
-tools/engine-tests.ts	16822	check	A			engine/perf			frame metrics: window is time-bounded and estimates refresh from the low percentile
-tools/engine-tests.ts	16846	check	A			engine/perf			frame metrics: clamps skew and drops non-finite deltas
+tools/engine-tests.ts	16785	check	A			engine/perf		src/engine/perf/frameMetrics.test.ts	frame metrics: windowed average and spike counts over raw deltas
+tools/engine-tests.ts	16811	check	A			engine/perf		src/engine/perf/frameMetrics.test.ts	frame metrics: P95 uses nearest-rank over the window
+tools/engine-tests.ts	16822	check	A			engine/perf		src/engine/perf/frameMetrics.test.ts	frame metrics: window is time-bounded and estimates refresh from the low percentile
+tools/engine-tests.ts	16846	check	A			engine/perf		src/engine/perf/frameMetrics.test.ts	frame metrics: clamps skew and drops non-finite deltas
 tools/engine-tests.ts	16858	check	A			engine/perf			quality profiles: resolve returns fresh copies and layers custom over a base
 tools/engine-tests.ts	16887	check	A			engine/perf			quality profiles: effective pixel ratio caps the DPR then folds in render scale
 tools/engine-tests.ts	16901	check	R			engine/perf,engine/render-three	three-via:engine/render-three		quality profiles: post-process merge only gates off, never re-authors (Principle #2)

@@ -370,6 +370,10 @@ taşınır.
 | Sound Cue | `engine/audio/soundCue{Evaluator,Types}.ts` | `04b5fb23` | taşınmadı (K12, INV-E15) | 13 düştü (D) | — |
 | `src/engine/ui/` (`uiWidget`, `uiRenderer`, `uiBinding`, `uiTheme`, `uiLocale`, `uiTransition`, `uiA11y`, `uiViewModel`, `uiWorldWidget`) | `engine/ui/*.ts` | `04b5fb23` | uyarlandı: `uiRenderer` / `uiBinding` / `uiTheme`'in DOM'lu işlevleri ayrıldı; eski modelin `SceneJsonValue` tipi yerine aynı biçimde yerel `UiJsonValue`; import yolları | 50 taşındı (`ui.test.ts`); 5 M bırakıldı (kayıt doğrulayıcı 1, `?debug` biçimlendirici 4) | yeşil (2026-11-11) |
 | `src/runtime/ui/uiDom.ts` | `engine/ui/{uiRenderer,uiBinding,uiTheme}.ts`'in DOM kısmı: `mountUiRenderNode`, `renderUiWidget`, `bindUiWidget`, `bindUiLocale`, `applyUiTheme` | `04b5fb23` | uyarlandı: `runtime` katmanına (engine DOM'suz) | Forge'da testi yok | derleniyor; ekran smoke'u Faz 6'da oyun UI'ıyla |
+| `src/engine/input/` (`actionMap`, `defaultInputBindings`) | `engine/input/{actionMap,defaultInputBindings}.ts` | `04b5fb23` | taşındı; varsayılan bağlamalardan ragdoll hata ayıklama tuşu (`KeyR`) çıktı (K12). `inputSubsystem.ts` (eski sözleşme kabuğu) Faz 6'da input özelliğiyle | 3 taşındı (`actionMap.test.ts`) | yeşil (2026-11-11) |
+| `src/engine/time/timeControl.ts` | `engine/core/timeControl.ts` | `04b5fb23` | taşındı | 5 taşındı (`timeControl.test.ts`, dosyanın tamamı) | yeşil (2026-11-11) |
+| `src/engine/work/cooperativeWork.ts` | `engine/core/cooperativeWork.ts` | `04b5fb23` | uyarlandı: parametre özelliği açık alan | 1 taşındı (`lakeScheduling.test.ts`'in yalnız `CooperativeWork` kontrolü; göl kontrolleri Faz 7) | yeşil (2026-11-11) |
+| `src/engine/perf/frameMetrics.ts` | `engine/perf/frameMetrics.ts` | `04b5fb23` | taşındı | 4 taşındı (`frameMetrics.test.ts`) | yeşil (2026-11-11) |
 
 İşlem: taşındı / uyarlandı / yeniden yazıldı. Testler: taşınan / yeniden yazılan
 / düşen sayısı (2b test sınıflamasına göre).
@@ -403,7 +407,7 @@ birden çok koşu üretir.
 
 **İlerleme:** `npm run port:forge-tests` bu deponun `src/**/*.test.ts`
 dosyalarındaki etiketleri Forge kontrolleriyle eşler; TSV'nin `ported`
-sütunu kontrolü taşıyan dosyayı gösterir. 2026-11-11: **A 87 / 927** (ses 37, UI 50).
+sütunu kontrolü taşıyan dosyayı gösterir. 2026-11-11: **A 100 / 927** (ses 37, UI 50, input 3, zaman 5, iş bölme 1, kare ölçümü 4).
 
 **Sınıflar.** Her kontrol, değer düzeyinde ulaştığı Forge modüllerine göre
 sınıflanır. Ulaşım sözcüksel kapsamla izlenir: kontrolün gövdesi ve onun
