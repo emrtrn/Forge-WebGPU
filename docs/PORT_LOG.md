@@ -221,6 +221,85 @@ kaydedildiği / kullanıldığı fazdır.
 | INV-E28 | Bölge profili | `*.regionprofile.json` | 2b | uyarla | e:regionProfile | Oyun verisi; motor deposuna girmez, türü motorda (plan 2b) | |
 | INV-E29 | Eski `model` asset türü | `LegacyAssetType` | — | taşınmaz | — | İçe aktarıcı güncel türe çevirir | |
 
+### F. Runtime ve oyun çatısı
+
+Three'siz `engine/*` alt sistemlerinin kodu 2b'de olduğu gibi taşınır (§2.11);
+Faz sütunu özelliğin oyunda çalıştığı fazdır. Oyun çatısı (`src/game`)
+`gameplay` katmanına girer (mimari §3.2-2).
+
+| ID | Özellik | Forge yeri | Faz | İşlem | Forge testleri | Not | WebGPU |
+|---|---|---|---|---|---|---|---|
+| INV-F01 | Boot ve hata ekranı (renderer'dan bağımsız) | `src/bootError.ts` | 2a ✓ | yeniden tasarla | boot-errors, production/boot-errors | "WebGPU yok" mesajı da burada (K4) | boot ekranı (2a) |
+| INV-F02 | Level runtime: capability modülleri, yaşam döngüsü, tipli servis anahtarları | `src/scene/{LevelRuntime,RuntimeSceneApp}.ts`, `src/scene/capabilities/` | 2a ✓ / 6 | yeniden tasarla | runtime-parity, e:levelRuntime, e:capabilityRegistry, e:runtimeCapabilityModules | World + alt sistem sözleşmesi 2a'da; capability modülleri alt sistem olarak Faz 6 | World (2a) |
+| INV-F03 | Oyun modülü, hatalı modülün karantinası | `src/scene/ForgeGameModule.ts`, `src/game/gameModule.ts` | 2a ✓ / 6 | yeniden tasarla | e:forgeGameModule | `defineGameModule` 2a'da; karantina davranışı (mimari §5) Faz 6'da doğrulanır | oyun modülü (2a) |
+| INV-F04 | Oyun projesi başlatıcısı (Model 2) | `tools/{run-game-project.mjs,projectPaths.ts}`, `src/project/` | 2a ✓ | yeniden tasarla | tests/project | `forge check` / `forge dev`, `create-project`, `check:projects` | sözleşme (2a) |
+| INV-F05 | Oyun modları: TPS karakter, araç, RTS kamera, varsayılan kamera, proje game mode kataloğu | `src/game/gameModes/` | 6 | uyarla | game-starter, rts-starter, e:rtsCameraGameMode | `gameplay` katmanı | |
+| INV-F06 | Oyuncu kontrolcüsü, kamera yöneticisi, spring arm, takip kamerası, kamera devri | `src/game/{playerController,playerCameraManager,springArmCamera,followCamera}.ts`, `src/play/cameraHandoff.ts` | 6 | uyarla | runtime-locomotion | | |
+| INV-F07 | Araca binme / inme | `src/game/gameModes/vehicleEntry.ts` | 6 | uyarla | vehicle, e:vehicleEntry | | |
+| INV-F08 | Ragdoll ve kalkma karışımı | `src/game/{ragdollDriver,ragdollSpec,getUpBlender}.ts`, `engine/physics/ragdoll.ts` | 6 | uyarla | — | | |
+| INV-F09 | Oyun kuralları, etkileşim, davranış kataloğu, animasyon notify'ları, montage girişleri | `src/game/{gameRules*,interaction,behaviors,animationNotifies,montageInputBindings,editorCatalog}.ts` | 6 | uyarla | runtime-checkpoint | | |
+| INV-F10 | Başlangıç şablonları: game-starter, rts-starter | `templates/` | 6 | yeniden tasarla | game-starter, rts-starter | Plan `templates/game-starter` karşılığını anıyor; rts-starter'ın yeri karar listesinde | |
+| INV-F11 | Girdi: action map, klavye, fare, gamepad, dokunmatik, sanal joystick | `engine/input`, `src/input/` | 6 | taşı | — | | |
+| INV-F12 | Fizik (Rapier): sabit adım, statik çarpışma, heightfield, darbe olayları, yüzeyler, hareketli platform | `engine/physics` | 6 | taşı | e:physicsContacts, e:physicsImpacts, e:terrainHeightfieldPhysics | Kod 2b'de | |
+| INV-F13 | Karakter hareketi: düzlemsel, eğim, dikey, yokuş yavaşlaması, lokomasyon | `engine/movement` | 6 | taşı | runtime-locomotion, e:characterMovementModule | | |
+| INV-F14 | Navigasyon: Recast / Detour, tile worker'ları, yerel kaçınma, ajan profili | `engine/navigation` | 6 | taşı | ai-navigation-volume, ai-navigation-clearance, e:recastNavMesh | | |
+| INV-F15 | AI: controller, Behavior Tree, State Tree, EQS, blackboard, smart object, algı, AI karakter animasyonu | `engine/ai`, `engine/perception`, `src/game/ai` | 6 | taşı | ai-patrol, e:aiModule, e:aiCharacterAnimationModule | | |
+| INV-F16 | Davranış host'u ve script mesajları | `engine/behavior` | 6 | taşı | runtime-script-message, e:behaviorSubsystem | | |
+| INV-F17 | Ses: bus, olay tablosu, Sound Cue değerlendirme, müzik yöneticisi | `engine/audio` | 6 | taşı | e:audioModule | | |
+| INV-F18 | Diyalog: konuşma yöneticisi, altyazı, konuşma overlay'i | `engine/dialogue`, `src/scene/{subtitleOverlay,conversationOverlay}.ts` | 6 | taşı | e:dialogueModule | | |
+| INV-F19 | Oyun UI'ı: widget, bağlama, tema, geçiş, erişilebilirlik, yerelleştirme, dünya widget'ı | `engine/ui`, `src/ui/` | 6 | taşı | e:uiFramework, e:runtimeUiModule | | |
+| INV-F20 | Kayıt oyunu: slotlar, durum, kullanıcı ayarları | `engine/persistence` | 6 | yeniden tasarla | runtime-checkpoint, e:saveGameModule, e:saveEntityKeys | 2b'de yeniden kurulur: GUID anahtarlı, `persist` alanları + `defineSaveState` (A7); `saveEntityKeys` çevirisi düşer (D5) | |
+| INV-F21 | Level geçişi ve portallar | `src/scene/{levelTravel,runtimeTravelCoordinator}.ts` | 6 † | uyarla | runtime-portal | | |
+| INV-F22 | Yükleme ekranı ve ilerleme | `engine/loading`, `src/scene/loadingOverlay.ts` | 6 | uyarla | content-loading, e:contentLoading | | |
+| INV-F23 | Runtime'da aktör doğurma | `src/scene/runtimeActorSpawnCoordinator.ts` | 2a ✓ / 6 | yeniden tasarla | — | `spawnActors` / `destroyActors` 2a'da, authored aktörlerle aynı yaşam döngüsü (F11) | spawn (2a) |
+| INV-F24 | World Partition runtime akışı, asset residency, akış politikası | `engine/world`, `capabilities/world{Partition,Streaming}Module.ts` | 5b | taşı | world-partition-streaming, open-world, e:worldPartitionStreaming, e:assetResidency, e:streamingPolicy | | |
+| INV-F25 | Terrain runtime akışı ve worker havuzu | `capabilities/terrainWorkerPool.ts`, `engine/terrain` | 5a | taşı | terrain-streaming, e:terrainRuntimeStreaming | | |
+| INV-F26 | Ortam runtime'ı: dünya saati, güneş yolu, hava önayarları, rüzgâr | `engine/environment`, `capabilities/worldEnvironmentModule.ts` | 3 | taşı | e:worldEnvironmentModule, e:wind | Olay bazlı gün saati (plan Faz 3) | |
+| INV-F27 | Araç runtime'ı: süspansiyon, aktarma, tekerlek yüzey tepkisi, telemetri, araç AI | `engine/physics/vehicle`, `capabilities/vehicle*.ts`, `wheelSurfacePresentation.ts` | 6 | taşı | vehicle, vehicle-soft-ground, water-wheels, e:vehicle*, e:wheel* | | |
+| INV-F28 | Terrain deformasyonu runtime'ı: iz, kazma, berm, kalıcılık | `capabilities/terrainDeformationModule.ts`, `engine/scene/deformation*.ts` | 8 | taşı | puddle-deformation, wet-trail-runtime, e:deformationField, e:deformationPersistence | | |
+| INV-F29 | Kırılma ve deformable runtime'ı, debris / VFX / ses | `engine/physics/{fracture,deformable}`, `capabilities/{fracture,deformable}Module.ts` | 8 | taşı | fracture-runtime, deformable-runtime, e:fracture*, e:impactDeform | | |
+| INV-F30 | VFX runtime'ı | `capabilities/vfxModule.ts`, `engine/vfx` | 6 | taşı | e:vfxModule | | |
+| INV-F31 | Zaman kontrolü: yavaşlatma, duraklatma | `engine/core/timeControl.ts`, `src/scene/debugSpeedControl.ts` | 6 † | taşı | e:timeControl | | |
+
+### G. Render
+
+`engine/render-three` (WebGL, 42 dosyası WebGL'e özgü) TSL / WebGPU'da yeniden
+yazılır ya da uyarlanır (plan §1); Faz 1 GO'suna bağlıdır, NO-GO'da K10.
+Forge'da olmayan yeni teknikler (TRAA, SSR, SSGI, LightProbeGrid…) envantere
+girmez, plan Faz 3 ve 9'dadır.
+
+| ID | Özellik | Forge yeri | Faz | İşlem | Forge testleri | Not | WebGPU |
+|---|---|---|---|---|---|---|---|
+| INV-G01 | Renderer host: init, resize, DPR, backend | `render-three/renderer.ts` | 3 | yeniden yaz | — | Gerçek backend rozeti (plan §2.6) | |
+| INV-G02 | Materyaller, dokular, AO yüzey materyalleri | `render-three/{materials,textures,textureConfig,aoSurfaceMaterials}.ts` | 3 | yeniden yaz | ao-surface, ao-water | Node material slotları (plan §2.3) | |
+| INV-G03 | GLTF yükleme ve model önbelleği | `render-three/{gltfLoader,gltfModelLoader,models}.ts` | 3 | uyarla | — | GUID anahtarlı render kaynak önbelleği (A6) | |
+| INV-G04 | Işıklar ve gölgeler: güneş kaskatları (CSM), takipli gölge | `render-three/{lights,sunCascadeShadow,sunFollowShadow}.ts` | 3 | yeniden yaz | sun-cascaded-shadows, e:sunCascades, e:followShadow | `CSMShadowNode` | |
+| INV-G05 | Reversed-Z derinlik | `render-three/depthMode.ts` | 3 | yeniden yaz | — | `reversedDepthBuffer` (plan Faz 3) | |
+| INV-G06 | Gökyüzü: atmosfer, ay diski, yıldızlar | `render-three/{skyAtmosphere,moonDisc,starField}.ts` | 3 | yeniden yaz | world-environment-moon, world-environment-stars | | |
+| INV-G07 | Height fog (görüş mesafesine uyum) | `render-three/heightFog.ts` | 3 | yeniden yaz | fog-fit-view-distance | | |
+| INV-G08 | Cloud layer | `render-three/cloudLayer.ts` | 3 | yeniden yaz | — | | |
+| INV-G09 | Reflection environment, sphere reflection capture | `render-three/{reflection,reflectionCapture}.ts` | 3 | yeniden yaz | sky-light-capture, reflection-capture | | |
+| INV-G10 | Planar yansıma: mirror, reflective surface | `render-three/{reflectionPlane,reflectiveSurface,planarReflectionSource}.ts` | 7 | yeniden yaz | — | | |
+| INV-G11 | Post process | `render-three/postProcess.ts` | 3 | yeniden yaz | — | Tek `RenderPipeline` | |
+| INV-G12 | Mesafe LOD, statik detay culling | `render-three/{distanceLod,staticDetailCulling}.ts` | 5b | yeniden yaz | detail-culling, far-view, e:detailCulling | | |
+| INV-G13 | Terrain renderer: CDLOD, katman dizisi, materyal, doku havuzu, statik detay | `render-three/terrain/`, `render-three/landscape.ts` | 5a | yeniden yaz | terrain-renderer, terrain-static-detail, e:terrainRenderer, e:terrainLayerArray | Faz 1 S2'de spike | |
+| INV-G14 | Terrain yüzeyi: su birikintisi (planar yansıma dahil), kıyı ıslaklığı, kostik | `render-three/terrain/{terrainPuddle*,terrainShoreWetness,terrainCaustics}.ts`, `puddlePlanarReflections.ts` | 5a | yeniden yaz | terrain-puddle, wet-mud, e:terrainCaustics | | |
+| INV-G15 | Terrain ıslak izi ve deformasyon shader'ı | `render-three/terrain/{terrainWetTrail,terrainDeformation}.ts` | 8 | yeniden yaz | wet-trail-runtime, e:terrainWetTrail | GLSL 556 satır → TSL / compute | |
+| INV-G16 | Foliage: instancing, fade, impostor / billboard, rüzgâr salınımı | `render-three/{foliage,foliageFade,foliageImpostor,windSway}.ts` | 5c | yeniden yaz | foliage-fade, foliage-far-billboards, wind-sway, material-wind-sway | Compute culling + indirect draw (S4, 5c) | |
+| INV-G17 | Okyanus: FFT, spektrum, ızgara, kostik, kapsama, girintiler, optik, yansıma | `render-three/ocean/` | 7 | yeniden yaz | ocean-* | FFT compute shader'a | |
+| INV-G18 | Göl: yüzey, dalga, dalgacık, kırılma, sualtı pass'i ve hacmi, köpük bake | `render-three/lake*.ts` | 7 | yeniden yaz | lake-underwater, e:lake* | | |
+| INV-G19 | Nehir: akış, dalga, kırılma, planar yansıma, güneş gölgesi, tekerlek yüzeyi | `render-three/river*.ts` | 7 | yeniden yaz | river-*, e:riverPlanarReflection | | |
+| INV-G20 | Ortak su: köpük, tepe köpüğü, tekerlek köpüğü, optik, güneş parıltısı, su ortamı | `render-three/water*.ts` | 7 | yeniden yaz | water-contact-foam, water-crest-foam, e:waterFoam | Forge'da RDR2 su görünümünün görsel kabulü açıktı; kabul WebGPU'da (plan §3.1) | |
+| INV-G21 | Spline mesh deformasyonu, yol mesh'leri | `render-three/{spline,splineDeformMesh}.ts` | 5d | yeniden yaz | landscape-spline-bake, e:terrainSplineMeshes | | |
+| INV-G22 | Partikül efektleri (sprite, mesh partikül) | `render-three/{particleEffect,meshParticleEffect,vfxSubsystem}.ts` | 6 | yeniden yaz | — | Nokta boyutu yok → `Sprite` + instancing (plan Faz 6) | |
+| INV-G23 | Skeletal animasyon çizimi: animatör, katmanlı klip, gövde maskesi, root motion, soket | `render-three/{animationSubsystem,characterAnimator,layered*,bodyMask,rootMotion,skeletalSocket}.ts` | 6 | uyarla | e:skeletalAnimationModule | | |
+| INV-G24 | Deformable mesh senkronu, göçük aşınması, parça node'ları | `render-three/{deformableMeshSync,dentWear,deformablePartNodes}.ts` | 8 | yeniden yaz | deformable-runtime, e:deformableMeshSync | `dentWear` GLSL → TSL | |
+| INV-G25 | Kırılma geometrisi | `render-three/fractureGeometry.ts` | 8 | uyarla | e:fractureGeometry | | |
+| INV-G26 | World mask yaması | `render-three/worldMaskPatch.ts` | 3 † | yeniden yaz | e:worldMasks | Materyal bileşimine katkı, `onBeforeCompile` yok (D12) | |
+| INV-G27 | Editör yardımcı çizimleri: aktör ikonları, kamera, target point, blocking / nav volume, çarpışma görünümü | `render-three/{actorIcon,camera,targetPoint,blockingVolume,aiNavigationVolume,collisionView,picking,transforms}.ts` | 4 | yeniden yaz | target-point, ai-navigation-volume | Editör çizim katmanı, TRAA'dan sonra (plan Faz 4) | |
+| INV-G28 | Navmesh görünümü | `render-three/{aiNavigationView,recastNavMeshView}.ts` | 6 | yeniden yaz | ai-navigation-clearance | | |
+| INV-G29 | Kalite profilleri, adaptif kalite | `engine/perf/{qualityProfiles,adaptiveQuality}.ts` | 3 | uyarla | editor-quality | Compatibility / Balanced / Cinematic (plan §2.4) | |
+
 ## 2. Taşıma günlüğü
 
 Forge SHA: _(cut-over'da `forge-webgl-final`)_.
