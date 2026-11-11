@@ -1,7 +1,7 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.3 · 2026-11-11 (v0.2'den fark: bake CPU'da; dokular da
-prosedürel, materyal tarifi ve doku üretimi seçenekleri §6.6'da)
+**Sürüm:** v0.4 · 2026-11-11 (v0.3'ten fark: doku yolu karma (C); yedek
+kaynaklar Codex ve Poly Haven)
 **Durum:** Plan. Uygulama başlamadı; kod, bağımlılık ya da ana plan kutusu
 değişmedi. Başlama koşulu §2'de.
 **İlgili belgeler:** [yeniden inşa planı](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
@@ -304,11 +304,11 @@ düğümleri var (`mx_noise`, `mx_fractal_noise`, `mx_worley_noise`,
 `mx_cell_noise`) ve `examples/jsm/generators/` altındaki şehir üreticileri
 materyallerini böyle kuruyor.
 
-**Öneri: C (PK4).** A yolu küçük ve kapalı bir sahnede iyi çalışır; açık
+**Karar: C, karma (kullanıcı, 2026-11-11).** A yolu küçük ve kapalı bir sahnede iyi çalışır; açık
 dünyada GPU zaten dar boğazdır (Faz 0 baseline'ında Derekavak GPU'ya bağlı) ve
 ekranı dolduran yüzeylerde çok oktavlı gürültü her kare ödenir. Bu bir
 ölçüm değil, beklentidir; PG1'de aynı kaya materyali A ve C ile R1'de
-ölçülür ve ayrım sayıyla kesinleşir.
+ölçülür; gölgelendiricide ne kadar iş kalacağı o sayıyla ayarlanır.
 
 **Materyal tarifi.** Bitki tarifiyle aynı kurallara uyar: A13 veri asset'i,
 kalıcı çıktı, CPU'da üretim (Node ve worker), `generatorVersion`.
@@ -328,6 +328,19 @@ kalıcı çıktı, CPU'da üretim (Node ve worker), `generatorVersion`.
   (oyukluk, üst yüz, yükseklik) ve düşük frekanslı dünya uzayı gürültüsünden
   beslenir.
 - Dal ucu kartı ve impostor dokuları üretilen geometriden bake edilir (§6.7).
+
+**Yedek kaynaklar (kullanıcı kararı 2026-11-11).** Prosedürel doku bir yüzeyde
+yetmezse iki kaynak kullanılır; ikisi de karma yolun pişirilmiş karosunun
+yerine geçer, gölgelendirici tarafındaki değişim katmanı aynı kalır:
+
+- **Codex'e ürettirilen doku.** Kaynağı ve üretim istemi meta'da kayıtlıdır.
+- **[Poly Haven](https://polyhaven.com/textures) dokuları.** Bütün varlıkları
+  CC0'dır; atıf gerekmez, ticari kullanım ve yeniden dağıtım serbesttir
+  (lisans sayfası, 2026-11-11). Meta'ya `CC0-1.0` ve kaynak adresi yazılır.
+  Otomatik indirme yalnız resmî API ile yapılır (`api.polyhaven.com`: ücretsiz,
+  ticari kullanıma açık, isteklerde yazılımı tanıtan bir User-Agent ister);
+  site kazınmaz. Yalnız kullanılan doku projeye ya da içerik paketine girer;
+  kitaplığın kendisi depoya alınmaz (A9).
 
 **Beklenti.** Gürültü tabanlı yüzeyler (taş, sıva, beton, pas, boyalı metal,
 toprak) prosedürel üretime en uygun sınıftır. Organik ince ayrıntı (kabuk,
@@ -494,7 +507,7 @@ Her adım dikey bir dilimdir ve kendi kapısıyla biter. Görsel beğeni kullan�
 kabulüdür; kapılar işlevsel ve ölçülebilirdir.
 
 - [ ] **PG0 Hazırlık.** §2'deki ana plan çıktıları ve üç nokta kodla
-      doğrulanır; PK5–PK6 kapanır (PK4 PG1 ölçümüyle); ana plana bağlantı satırı eklenir.
+      doğrulanır; PK5–PK6 kapanır; ana plana bağlantı satırı eklenir.
 - [ ] **PG1 Kaya, uçtan uca ince dilim.** Saf çekirdek (rastgele akışlar,
       mesh yazımı, LOD örneklemesi, collider, istatistik) + kaya üreticisi +
       tarif şeması + taş yüzeyi materyal tarifi (§6.6) + triplanar materyal +
@@ -503,7 +516,7 @@ kabulüdür; kapılar işlevsel ve ölçülebilirdir.
       rolleri hazır model olmadan doluyor; `verify:assets` yeşil; aynı tarif
       iki koşuda aynı sayıları veriyor; gerçek WebGPU'da tek kontrol çekimi;
       aynı kaya materyali gölgelendiricide (A) ve karma (C) yolla R1'de
-      ölçüldü, PK4 sayıyla kapandı.
+      ölçüldü, karma yolun gölgelendirici payı sayıyla ayarlandı.
 - [ ] **PG2 Dallanan üretici: geniş yapraklı ağaç.** İskelet, tüp mesh,
       prosedürel yaprak, kabuk materyali, rüzgâr ağırlıkları, LOD0. *Kapı:*
       bütçe içinde sonlanma; düzenle → kaydet → yeniden aç aynı çıktı; rüzgâr
@@ -544,12 +557,13 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 | Çıktının saklanışı (eski PK2) | Kalıcı dosya: projeye yazılır, commit'lenir; önbellek değil (kullanıcı, 2026-11-11) |
 | Bake yolu (eski PK3) | CPU rasterleyici; Node'da ve worker'da çalışır (kullanıcı, 2026-11-11; §6.7) |
 | Dokuların kaynağı | Dokular da prosedürel üretilir; genel materyal tarifi, ileride binalar da kullanır (kullanıcı, 2026-11-11; §6.6) |
+| Doku yolu (eski PK4) | Karma (C): pişirilmiş karo + gölgelendiricide büyük ölçekli değişim (kullanıcı, 2026-11-11; §6.6) |
+| Prosedürel doku yetmezse | Codex'e ürettirilen doku ve Poly Haven (CC0) dokuları (kullanıcı, 2026-11-11; §6.6) |
 
-**Açık (PK4 PG1 ölçümüyle, diğerleri PG0'da kapanır):**
+**Açık (PG0'da kapanır):**
 
 | ID | Soru | Öneri |
 |---|---|---|
-| PK4 | Prosedürel doku hangi yolla üretilir: gölgelendiricide (A), pişirilmiş (B), karma (C), yüklemede (D)? (§6.6) | C, karma. PG1'de A ile C aynı kaya materyalinde R1'de ölçülür |
 | PK5 | İnsan yapımı basit prop'lar (çit direği, sandık, varil) bu işe dahil mi? | PG7'ye kadar ertele; World Builder'ın çit ve donatı yerleşimi ihtiyaç doğurursa aç |
 | PK6 | Başlangıç ön ayarları nerede durur? | `content/packs/starter/`: birkaç nötr ön ayar (geniş yapraklı, iğne yapraklı, çalı, ot, köşeli ve yuvarlak kaya); bölgeye özgü türler oyun projesinde |
 
@@ -559,7 +573,7 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 
 | Risk | Karşılık |
 |---|---|
-| Prosedürel görünüm hazır modelin kalitesine ulaşmaz | Kaya ve ağaç ilk iki adımda kullanıcı kabulüne çıkar; yetmezse Codex'e ürettirilen doku (kaynağı meta'da kayıtlı) ve hazır model yolu açık kalır |
+| Prosedürel görünüm hazır modelin kalitesine ulaşmaz | Kaya ve ağaç ilk iki adımda kullanıcı kabulüne çıkar; dokuda yedek kaynaklar (§6.6), modelde hazır model yolu açık kalır |
 | Yaprak kartlarının overdraw'ı GPU'yu doldurur | Kart sayısı ve alanı bütçede; alfa boşluğu az kesim; PG3'te ölçüm |
 | Doku belleği prototip sayısıyla çarpılır | Tür başına ortak atlas, KTX2, impostor yalnız büyük ağaçta (§8) |
 | CPU rasterleyici kalitesi (alfa kenarı, mip) yetmez | Üst örnekleme; yetmezse GPU bake yedek yol olarak eklenir |
@@ -624,3 +638,4 @@ kurallarına göre yeniden yazılır.
 | 2026-11-11 | v0.1 | Plan yazıldı; prosedürel üretim kararı ve zamanlama (kullanıcı). Eski araştırma raporu ve kapsam envanteri kaldırıldı. Uygulama yok |
 | 2026-11-11 | v0.2 | Tarif A13 veri asset'i, çıktı kalıcı dosya (kullanıcı kararları; PK1 ve PK2 kapandı). §6.7'ye CPU / GPU bake hız karşılaştırması eklendi; PK3 açık |
 | 2026-11-11 | v0.3 | Bake CPU'da (PK3 kapandı). Dokular da prosedürel (kullanıcı kararı): §6.6 materyal tarifi, dört yol, öneri karma; PK4 yeniden yazıldı, açık |
+| 2026-11-11 | v0.4 | Doku yolu karma (C), yedek kaynaklar Codex ve Poly Haven (kullanıcı kararı; PK4 kapandı). Poly Haven lisansı ve API koşulları aynı gün sitesinden doğrulandı |
