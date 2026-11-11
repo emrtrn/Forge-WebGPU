@@ -16,8 +16,8 @@ Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 **Durum:** Bütün kararlar kapalı (K1–K11, A1–A11; 2026-11-10). Faz 2a kapandı
 (2026-11-11; [arşiv](../archive/PHASE_2A.md)). Faz 0 kapandı (2026-11-11;
 [arşiv](../archive/PHASE_0.md)): envanter, referans sahneler, WebGL baseline,
-GO sayıları. Sıradaki iş: Faz 1 spike (S1–S5) ve GO / NO-GO. 2b ve sonrası
-Faz 1 GO'suna bağlı.
+GO sayıları. Faz 1 spike sürüyor: S1 tamam; sıradaki S2 terrain, sonra S3,
+S4 ve GO / NO-GO. 2b ve sonrası Faz 1 GO'suna bağlı.
 **Belge düzeni:** tek ana plan; biten fazın ayrıntısı faz kapanınca
 [`docs/archive/`](../archive/INDEX.md)'e taşınır. Kısa mimari harita:
 [`docs/architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md);
@@ -227,10 +227,28 @@ bölümünde.
 Yer: Forge `spikes/webgpu/`. Mevcut spike düzeni geçerli: uygulama build'ine,
 kök `tsc`'ye ve `verify:imports`'a girmez; tip kontrolü `npx tsc -p spikes`.
 Forge'un three'siz terrain / level yükleyicilerini olduğu gibi kullanır. Kod
-atılabilir; sonuçlar bu plana yazılır.
+atılabilir; sonuçlar bu plana yazılır. Yer kullanıcı kararıyla kesinleşti
+(2026-11-11): Forge'a yalnız `spikes/webgpu/` yazılır (`CLAUDE.md` istisnası).
+Sayfalar three'yi yalnız `three/webgpu` / `three/tsl` üzerinden, Forge'u
+yalnız three'siz katmanlardan import eder. İçerik ve ölçüm düzeneği depo
+dışındaki `Games/ForgeReference`'tadır.
 
-- [ ] **S1 Boot:** `WebGPURenderer` + `await renderer.init()`, gerçek backend
+- [x] **S1 Boot:** `WebGPURenderer` + `await renderer.init()`, gerçek backend
       kanıtı, GPU timestamp (`trackTimestamp`), adaptör / cihaz bilgisi.
+      *Sonuç (2026-11-11, R1, Chrome 157.0.8103.39, three r187, Forge
+      `517961b1` `spikes/webgpu/s1-boot`):* `isWebGPUBackend` true, çekirdek
+      kip (`core-features-and-limits` var, compatibility değil); adaptör
+      NVIDIA Ampere. `timestamp-query`, `shader-f16`, `subgroups`,
+      `indirect-first-instance`, `float32-filterable` dahil 17 özellik.
+      GPU süresi `resolveTimestampsAsync` ile her kare okunuyor (test
+      sahnesinde 0,36 ms). Sınırsız kare hızı WebGPU'da da açılıyor: test
+      sahnesinde 0,47 ms; 60 Hz sınırında ~19 ms. three cihazı varsayılan
+      WebGPU sınırlarıyla istiyor (storage binding 128 MB, buffer 256 MB, dizi
+      katmanı 256); büyük compute buffer'ları gerekirse S4'te
+      `requiredLimits` ile yükseltilir. Ortak düzenek: sayfalar Forge'un
+      `data-forge-perf` kaydını aynı alanlarla yazar; koşucu
+      `spikes/webgpu/run.mjs` (port 4174, başlıklı Chrome); WebGPU olmayan
+      koşu başarısız sayılır.
 - [ ] **S2 Terrain:** referans terrain'in tile'ları TSL CDLOD malzemesiyle:
       `positionNode` ile displacement, `sampler2DArray` boya katmanları, normal;
       `CSMShadowNode` gölgesi; `SkyMesh` + sis. Görsel yükseklik Rapier
@@ -598,3 +616,4 @@ silinebilir.
 | 2026-11-11 | v0.8 | Faz 0 referans sahneler kutusu kapandı: depo dışı referans projesi (`Games/ForgeReference`), dört sahne (OpenWorldTest, Island, WbPilotValley, Derekavak kopyası), sahne başına üç sabit poz; aday görüntüler R1'de gerçek WebGL'de alındı, kullanıcı onayladı |
 | 2026-11-11 | v0.8 | Faz 0 WebGL baseline kutusu kapandı: 4 sahne × 3 poz × high / ultra × 1080p / 1440p, 96 koşu, sınırsız kare hızı, adaptif kapalı; kare (1/fps), p95, GPU, draw call, üçgen; soğuk / sıcak yükleme ayrı ölçüldü. Derekavak GPU'ya bağlı (~15–17 ms, ~1.800 draw call), Island CPU'ya bağlı (~6 ms) |
 | 2026-11-11 | v0.9 | Faz 0 kapandı: GO ölçüt sayıları G1–G9 Faz 1'e yazıldı (kullanıcı onayı, öneri olduğu gibi: G2 Balanced 1080p ortalama ≤ 14 / p95 ≤ 16,6 ms, G5 draw call ≤ WebGL'in %50'si, G6 Derekavak CPU ≤ 6 ms…); Faz 0 ayrıntısı `docs/archive/PHASE_0.md`'ye taşındı |
+| 2026-11-11 | v0.9 | Faz 1 başladı: spike yeri Forge `spikes/webgpu/` (kullanıcı kararı; `CLAUDE.md` istisnası `6ba3b26`). S1 Boot kapandı (Forge `517961b1`): gerçek WebGPU, çekirdek kip, NVIDIA Ampere, timestamp query çalışıyor, sınırsız kare hızı açılıyor |
