@@ -17,7 +17,7 @@ Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 (2026-11-11; [arşiv](../archive/PHASE_2A.md)). Faz 0 kapandı (2026-11-11;
 [arşiv](../archive/PHASE_0.md)): envanter, referans sahneler, WebGL baseline,
 GO sayıları. Faz 1 spike sürüyor: S1 ve S2 tamam (G1 terrain 18 / 18, G8
-geçer); sıradaki S3 pipeline, sonra S4 ve GO / NO-GO. 2b ve sonrası Faz 1 GO'suna bağlı.
+geçer); S3 pipeline ölçüldü, Balanced profil kararı bekliyor; sonra S4 ve GO / NO-GO. 2b ve sonrası Faz 1 GO'suna bağlı.
 **Belge düzeni:** tek ana plan; biten fazın ayrıntısı faz kapanınca
 [`docs/archive/`](../archive/INDEX.md)'e taşınır. Kısa mimari harita:
 [`docs/architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md);
@@ -313,6 +313,75 @@ dışındaki `Games/ForgeReference`'tadır.
       (G1, `summary.json`), WebGL tarafı `measure/webgl-terrain-*`.
 - [ ] **S3 Pipeline:** MRT + TRAA + GTAO + SSR + SSGI + bloom; her efektin GPU
       maliyeti ayrı ölçülür (1080p ve 1440p).
+      *Ölçüldü (2026-11-11, Forge `33c0c00d` … `407720e1`
+      `spikes/webgpu/s3-pipeline`); Balanced profil kararı kullanıcıda, G2 / G3
+      ondan sonra.*
+      **Yapılan:** S2 sahnesi tek `RenderPipeline`'dan geçer: MRT'li sahne
+      pass'i → GTAO / SSGI / SSR birleştirmesi → TRAA (HDR) → bloom → çıkış
+      dönüşümü (S2'nin ACES'i ve pozlaması). MRT hedefleri yalnız onları okuyan
+      efekt açıkken eklenir: `output` RGBA16F, `normal` RGBA8 (paketli görüş
+      normali), `velocity` RGBA16F, `metalrough` ve `diffuseColor` RGBA8.
+      Terrain materyali slotlarda (`colorNode` / `normalNode` / `roughnessNode`
+      / `positionNode`), MRT'ye sorunsuz düşüyor (§2.3). Ayarlar: GTAO
+      birleştirmede çarpılır ("ön pass" satırı three'nin belgelediği yol:
+      normal / derinlik ön pass'i + `builtinAOContext`, AO yalnız dolaylı
+      ışığa); SSGI orta ayar (`sliceCount` 2, `stepCount` 8, zamansal filtre),
+      AO'su GTAO'nun yerini alır; SSR klasik kip, `quality` 0,5,
+      `reflectNonMetals` açık (terrain'in metalness'i 0, kapalıyken her piksel
+      erken çıkar; yani satır **üst sınır**, SSR'nin asıl yeri su, Faz 7);
+      bloom level'ın değerleri, yoksa 1 / 1 / 1.
+      **Yöntem:** efekt maliyeti tek sayfa açılışında taranır (yapılandırma
+      başına 4 s ısınma + 10 s pencere; G yöntemi değil). 3 sahne × P1–P3 ×
+      1080p / 1440p, sınırsız, R1, her koşuda `isWebGPUBackend` true, hata yok.
+      Maliyet = yapılandırmanın GPU süresi − efektsiz pipeline (`pass`). GPU
+      süresi karenin bütün render pass'lerinin timestamp toplamı (efektlerin
+      hiçbiri compute kullanmıyor). Kayma denetimi: taramanın başındaki ve
+      sonundaki doğrudan çizim arası fark ≤ 0,2 ms. Maliyetler toplanabilir
+      (Balanced + SSR ve Cinematic satırları tek tek maliyetlerin toplamını
+      1080p'de 0,6 ms, 1440p'de 1,1 ms içinde tutuyor).
+
+      | Efekt (GPU maliyeti, ms) | 1080p medyan (9 poz aralığı) | 1440p medyan (aralık) |
+      |---|---|---|
+      | Pipeline'ın kendisi (`pass` − doğrudan) | 0,0 (0–0,07) | 0,06 (0–0,07) |
+      | Tam MRT, 5 hedef, efektsiz | 0,06 (0–0,13) | 0,13 (0,06–0,20) |
+      | GTAO | 1,61 (0,92–1,83) | 2,82 (1,64–3,27) |
+      | GTAO yarım çözünürlük | 0,46 (0,32–0,52) | 0,85 (0,52–0,98) |
+      | GTAO, ön pass + `builtinAOContext` | 1,71 (0,98–2,03) | 3,01 (1,83–3,54) |
+      | SSR (her piksel, üst sınır) | 6,20 (2,62–7,93) | 14,29 (6,06–17,89) |
+      | SSR yarım | 1,05 (0,53–1,24) | 2,36 (1,11–2,91) |
+      | SSGI orta | 7,27 (4,20–10,49) | 16,38 (9,50–22,87) |
+      | SSGI yarım | 2,03 (1,24–2,95) | 4,59 (2,65–6,36) |
+      | TRAA | 0,40 (0,32–0,49) | 0,72 (0,59–0,85) |
+      | Bloom | 0,13 (0–0,13) | 0,26 (0,13–0,33) |
+
+      | Profil adayı (terrain-only, 9 poz) | 1080p ortalama kare / p95 en kötü | 1440p ortalama kare / p95 en kötü |
+      |---|---|---|
+      | Doğrudan çizim (S2) | 0,56–1,46 / 1,8 | 0,84–2,31 / 2,7 |
+      | Balanced adayı: TRAA + GTAO + bloom | 2,78–4,39 / 5,3 | 4,64–7,15 / 8,0 |
+      | + SSR | 5,49–12,39 / 13,2 | 10,71–25,0 / 47,6 |
+      | TRAA + SSGI + bloom | 6,05–12,58 / 13,2 | 12,29–26,39 / 47,8 |
+      | Cinematic: TRAA + SSGI + SSR + bloom | 8,84–19,12 / 37,3 | 18,62–41,15 / 48,8 |
+
+      **Okuma:** Balanced adayının yükü 1080p'de 1,4–2,3 ms, 1440p'de
+      2,7–4,1 ms. Tam çözünürlüklü SSR ve SSGI tek başına 1080p'de 6–7 ms;
+      1440p'de piksel oranından (1,78×) hızlı büyüyor (~2,3×); bunları içeren
+      adaylarda p95 çoğu pozda 35–48 ms'ye sıçrıyor. Yarım çözünürlük ikisini 1–2 ms'ye (1080p) indiriyor. GTAO'nun
+      iki yolu terrain-only sahnede neredeyse aynı (+0,1 ms); ön pass sahneyi
+      bir kez daha çizdiği için gerçek içerikte farkı draw call ile büyür.
+      **Bulgular:**
+      - Beş MRT hedefi örnek başına 40 bayt; WebGPU'nun varsayılan
+        `maxColorAttachmentBytesPerSample` sınırı 32, pipeline kurulmuyor. Spike
+        64 istiyor (R1 128 veriyor). Faz 3 `render` katmanı ya MRT'yi
+        sıkıştırır ya bu sınırı `requiredLimits` ile adaptörden ister.
+      - Post-process yazılmamış level'lara (OpenWorldTest, Island) spike
+        varsayılan bloom'u uyguladı. Eşiği aşan gökyüzü yaygın pus veriyor;
+        Forge WebGL bu level'larda bloom çizmiyor. G1 eşdeğerliğinde (S4)
+        bloom yalnız level yazmışsa açılır.
+      - Cinematic görüntüsü belirgin daha parlak: SSGI'nin `giIntensity`
+        varsayılanı 10, SSR metal olmayanları da yansıtıyor. Görsel ayar
+        kullanıcıda; spike değiştirmedi.
+      Kayıtlar `ForgeReference/baseline/spike/s3-sweep/` (`summary.json`),
+      P2 görüntüleri `spike/s3-shots/` (`s3-p2-grid.jpg`).
 - [ ] **S4 Açık dünya stresi:** referans level'ın gerçek yerleşim ve foliage
       sayılarıyla draw call ve CPU kare süresi; WebGL baseline'ıyla
       karşılaştırma. WebGPURenderer'ın nesne başına CPU maliyeti burada ölçülür.
@@ -677,3 +746,4 @@ silinebilir.
 | 2026-11-11 | v0.9 | Faz 1 başladı: spike yeri Forge `spikes/webgpu/` (kullanıcı kararı; `CLAUDE.md` istisnası `6ba3b26`). S1 Boot kapandı (Forge `517961b1`): gerçek WebGPU, çekirdek kip, NVIDIA Ampere, timestamp query çalışıyor, sınırsız kare hızı açılıyor |
 | 2026-11-11 | v0.9 | Faz 1 S2 Terrain ölçüldü (Forge `6818d201` … `4cc0d5b9`): CDLOD terrain'in TSL karşılığı, `high` gölgesi, sky + sis. G8: tam çözünürlüklü bölgede fark ≤ 4,9 mm; morph bandı ve ötesinde CDLOD'un kendi sapması (≤ 2,2 m), ölçütün yorumu kullanıcı kararında. G1 (yalnız terrainli WebGL kopyalarına karşı): 18 / 18 geçer, kare oranı 0,26–0,86. Faz 0 baseline'ının navmesh hata ayıklama çiziminden etkilenmediği A/B ile doğrulandı |
 | 2026-11-11 | v0.9 | S2 kapandı: G8 kullanıcı kararıyla tam çözünürlüklü bölgeye uygulanır (≤ 4,9 mm, geçer); GO tablosundaki G8 satırı buna göre netleşti |
+| 2026-11-11 | v0.9 | Faz 1 S3 Pipeline ölçüldü (Forge `33c0c00d` … `407720e1`): tek `RenderPipeline`, MRT → GTAO / SSGI / SSR → TRAA → bloom; efekt maliyeti 3 sahne × 3 poz × 1080p / 1440p. 1080p medyan: GTAO 1,6, TRAA 0,4, bloom 0,1, SSR 6,2 (üst sınır), SSGI 7,3 ms; yarım çözünürlükte SSR 1,1, SSGI 2,0, GTAO 0,5 ms. Balanced adayı (TRAA + GTAO + bloom) terrain-only kare ≤ 4,4 ms (1080p) / ≤ 7,2 ms (1440p). Beş MRT hedefi WebGPU'nun varsayılan renk eki sınırını (32 bayt) aşıyor. Balanced profil kararı kullanıcıda. CI `f2b29cf`, `0519c3b`, `4ed6381` (Forge `517961b1` … `4cc0d5b9`) yeşil (kullanıcı teyidi) |
