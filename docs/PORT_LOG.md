@@ -27,8 +27,9 @@ Sütunlar:
 - **ID:** kalıcı; kapsama matrisinin anahtarı. Satır silinmez, "taşınmayacak"
   olur.
 - **Faz:** hedef faz. `2a ✓` bu depoda kuruldu; `—` taşınmayacak (Not'ta
-  gerekçe). `†` planda adı geçmeyen satır için önerilen fazdır, kullanıcı
-  onayı bekler (bölüm sonundaki liste).
+  gerekçe). Planda adı geçmeyen satırların fazı önerildi ve kullanıcı
+  onayladı (2026-11-11; bölüm sonundaki liste). Sonradan eklenen satırın
+  fazı da onaydan geçer.
 - **İşlem:** taşı (olduğu gibi) · uyarla (renderer / servis sınırı değişir) ·
   yeniden yaz (GLSL / WebGL → TSL / WebGPU) · yeniden tasarla (mimari rapora
   göre yeni model; algoritma korunur).
@@ -89,7 +90,7 @@ Paneller vanilla DOM olarak uyarlanır, redesign yok (K7); ilk iş UI kiti.
 | INV-B07 | Landscape su modu: nehir / göl yazımı, radyal köpük noktaları | `SceneApp` (`LandscapeEditMode` "water") | 7 | uyarla | terrain-water, terrain-lake-editor | | |
 | INV-B08 | Heightmap içe / dışa aktarma | `engine/terrain` (heightmap PNG, import) | 5d | taşı | terrain-heightmap, e:heightmapPng, e:terrainImport | | |
 | INV-B09 | Foliage Mode: select, lasso, paint, erase, single, fill, remove; yüzey filtreleri | `panels/foliage/foliagePanel.ts`, `engine/scene/foliagePaint.ts` | 5d | uyarla | foliage-type-save, foliage-cells | | |
-| INV-B10 | Mesh Paint (yerleştirilmiş örneklere vertex color) | `src/editor/meshPaintStore.ts`, `engine/scene/meshPaint.ts` | 5d † | uyarla | — | Inspector'da ayrı sekme | |
+| INV-B10 | Mesh Paint (yerleştirilmiş örneklere vertex color) | `src/editor/meshPaintStore.ts`, `engine/scene/meshPaint.ts` | 5d | uyarla | — | Inspector'da ayrı sekme | |
 | INV-B11 | World Partition paneli: hücre ızgarası, yükle / boşalt, residency | `panels/world/worldPartitionPanel.ts` | 5b | uyarla | world-partition-panel, world-partition-persistence, world-partition-residency | Editör de akışla çalışır (A11) | |
 | INV-B12 | Editör terrain akışı (kamera çevresi tile'lar, düzenlenen tile sabit) | `editor/scene/keptTerrainTiles.ts` | 5a | uyarla | terrain-editor-streaming, e:keptTerrainTiles, e:terrainEditorStreaming | | |
 | INV-B13 | World Builder penceresi: rastgele dünya, önizleme worker'ı | `panels/world/{randomWorldPanel,worldBuilderWindow}.ts` | 5d | uyarla | world-builder-random, e:randomWorld* | Algoritmalar ve CLI 2b; üretilen level Content Browser'da | |
@@ -98,26 +99,26 @@ Paneller vanilla DOM olarak uyarlanır, redesign yok (K7); ilk iş UI kiti.
 ### C. Asset editörleri
 
 Planda asset editörlerinin adı tek tek geçmiyor; fazlar, ilgili alt sistemin
-fazına göre önerildi (`†`).
+fazına göre verildi (onaylandı 2026-11-11).
 
 | ID | Özellik | Forge yeri | Faz | İşlem | Forge testleri | Not | WebGPU |
 |---|---|---|---|---|---|---|---|
-| INV-C01 | Static Mesh editörü: önizleme, çarpışma şekilleri, materyal slotları, UVW, vertex color | `src/editor/StaticMeshEditor.ts`, `asset{Collision,MaterialSlots,Uvw,VertexColors}Store.ts` | 4 † | uyarla | — | Çarpışma çalışması Faz 6; sidecar'lar 2b içe aktarıcısında | |
+| INV-C01 | Static Mesh editörü: önizleme, çarpışma şekilleri, materyal slotları, UVW, vertex color | `src/editor/StaticMeshEditor.ts`, `asset{Collision,MaterialSlots,Uvw,VertexColors}Store.ts` | 4 | uyarla | — | Çarpışma çalışması Faz 6; sidecar'lar 2b içe aktarıcısında | |
 | INV-C02 | Static Mesh editörü: Deformable parçaları | `src/editor/staticMeshDeformable*.ts` | 8 | uyarla | deformable-editor, deformable-parts | | |
 | INV-C03 | Static Mesh editörü: Fracture (Voronoi bake, destek grafiği) | `src/editor/staticMeshFracture.ts` | 8 | uyarla | fracture-editor | | |
-| INV-C04 | Skeletal Mesh editörü (Persona): iskelet, soketler | `src/editor/SkeletalMeshEditor.ts`, `assetSkeletonStore.ts` | 6 † | uyarla | — | Tek kabuk + mod değiştirici | |
-| INV-C05 | Skeletal Mesh editörü: animasyon modu | `SkeletalMeshEditor.ts` | 6 † | uyarla | — | | |
-| INV-C06 | Skeletal Mesh editörü: fizik modu (ragdoll gövdeleri) | `SkeletalMeshEditor.ts` | 6 † | uyarla | — | | |
-| INV-C07 | Actor Script editörü: bileşen ağacı, Add Component, değişkenler, olay bağlamaları, sınıf varsayılanları, viewport | `src/editor/ActorScript{Editor,Viewport}.ts` | 4 / 6 † | yeniden tasarla | — | Prefab düzenleme Faz 4 (`forge.actorClass/1` 2a'da), script / olay Faz 6 | |
-| INV-C08 | Material editörü: önayarlar, katman karışımı, anizotropi, UV tiling, ORM, maske, önizleme | `src/editor/MaterialEditor.ts`, `materialStore.ts` | 3 / 4 † | yeniden yaz | — | `ForgeMaterialDef` → node material Faz 3, editör Faz 4 | |
+| INV-C04 | Skeletal Mesh editörü (Persona): iskelet, soketler | `src/editor/SkeletalMeshEditor.ts`, `assetSkeletonStore.ts` | 6 | uyarla | — | Tek kabuk + mod değiştirici | |
+| INV-C05 | Skeletal Mesh editörü: animasyon modu | `SkeletalMeshEditor.ts` | 6 | uyarla | — | | |
+| INV-C06 | Skeletal Mesh editörü: fizik modu (ragdoll gövdeleri) | `SkeletalMeshEditor.ts` | 6 | uyarla | — | | |
+| INV-C07 | Actor Script editörü: bileşen ağacı, Add Component, değişkenler, olay bağlamaları, sınıf varsayılanları, viewport | `src/editor/ActorScript{Editor,Viewport}.ts` | 4 / 6 | yeniden tasarla | — | Prefab düzenleme Faz 4 (`forge.actorClass/1` 2a'da), script / olay Faz 6 | |
+| INV-C08 | Material editörü: önayarlar, katman karışımı, anizotropi, UV tiling, ORM, maske, önizleme | `src/editor/MaterialEditor.ts`, `materialStore.ts` | 3 / 4 | yeniden yaz | — | `ForgeMaterialDef` → node material Faz 3, editör Faz 4 | |
 | INV-C09 | Particle Effect editörü: önayarlar, doku, SubUV flipbook, önizleme viewport'u | `src/editor/ParticleEffect{Editor,PreviewViewport}.ts` | 6 | yeniden yaz | — | VFX TSL'de (plan Faz 6) | |
-| INV-C10 | Sound Cue editörü | `src/editor/SoundCueEditor.ts` | 6 † | uyarla | — | | |
-| INV-C11 | Dialogue editörü: voice / line, altyazı | `src/editor/DialogueEditor.ts` | 6 † | uyarla | — | | |
-| INV-C12 | Data Table editörü | `src/editor/DataTable{Editor,Layout}.ts` | 6 † | uyarla | — | | |
-| INV-C13 | UI Widget editörü | `src/editor/UiWidgetEditor.ts` | 6 † | uyarla | — | Oyun UI'ı Faz 6 | |
-| INV-C14 | Behavior Tree editörü (+ Blackboard) | `src/editor/BehaviorTreeEditor.ts` | 6 † | uyarla | behavior-tree-editor | | |
-| INV-C15 | State Tree editörü | `src/editor/StateTreeEditor.ts` | 6 † | uyarla | state-tree-editor | | |
-| INV-C16 | Vehicle Asset editörü: tekerlek ekle / çoğalt / aynala, süspansiyon, motor | `src/editor/VehicleAsset{Editor,EditorModel}.ts`, `vehicleComponentFields.ts` | 6 † | uyarla | vehicle-asset-editor, e:vehicleEditorFields | | |
+| INV-C10 | Sound Cue editörü | `src/editor/SoundCueEditor.ts` | 6 | uyarla | — | | |
+| INV-C11 | Dialogue editörü: voice / line, altyazı | `src/editor/DialogueEditor.ts` | 6 | uyarla | — | | |
+| INV-C12 | Data Table editörü | `src/editor/DataTable{Editor,Layout}.ts` | 6 | uyarla | — | | |
+| INV-C13 | UI Widget editörü | `src/editor/UiWidgetEditor.ts` | 6 | uyarla | — | Oyun UI'ı Faz 6 | |
+| INV-C14 | Behavior Tree editörü (+ Blackboard) | `src/editor/BehaviorTreeEditor.ts` | 6 | uyarla | behavior-tree-editor | | |
+| INV-C15 | State Tree editörü | `src/editor/StateTreeEditor.ts` | 6 | uyarla | state-tree-editor | | |
+| INV-C16 | Vehicle Asset editörü: tekerlek ekle / çoğalt / aynala, süspansiyon, motor | `src/editor/VehicleAsset{Editor,EditorModel}.ts`, `vehicleComponentFields.ts` | 6 | uyarla | vehicle-asset-editor, e:vehicleEditorFields | | |
 
 ### D. Aktör ve bileşen türleri
 
@@ -160,7 +161,7 @@ türün çalışır hâle geldiği fazdır.
 | INV-D30 | Prosedürel foliage: halka, ground cover | `engine/scene/proceduralFoliage.ts`, `src/scene/proceduralFoliageRing.ts` | 5c | uyarla | e:proceduralFoliage, e:foliageRing, e:groundCover | | |
 | INV-D31 | HLOD proxy'leri | `src/scene/hlodProxies.ts` | 5b | yeniden yaz | hlod, e:hlod | | |
 | INV-D32 | Dünya hücreleri | `RoomLayout.worldCells`, `*.cell.json` | 2a ✓ / 5b | yeniden tasarla | world-partition-streaming, world-partition-statics, e:worldPartition* | Hücre veri modeli 2a'da (A11); akış 5b | veri modeli (2a) |
-| INV-D33 | Yükleme grupları (`loadGroups`) | `RoomLayout.loadGroups`, `engine/assets/manifest.ts` | — † | taşınmaz | — | Asset yükleme gruplarının bayt toplamı; hücre akışıyla yer değiştirir (öneri) | |
+| INV-D33 | Yükleme grupları (`loadGroups`) | `RoomLayout.loadGroups`, `engine/assets/manifest.ts` | — | taşınmaz | — | Asset yükleme gruplarının bayt toplamı; hücre akışıyla yer değiştirir (öneri) | |
 | INV-D40 | Static Mesh bileşeni | `StaticMeshComponent` | 3 | yeniden tasarla | — | | |
 | INV-D41 | Skeletal Mesh bileşeni | `SkeletalMeshComponent` | 6 | yeniden tasarla | e:skeletalAnimationModule | | |
 | INV-D42 | MeshRenderer (eski tek mesh bileşeni) | `MeshRenderer` | — | taşınmaz | — | İçe aktarıcı Static / Skeletal Mesh'e çevirir (D11) | |
@@ -201,8 +202,8 @@ kaydedildiği / kullanıldığı fazdır.
 | INV-E08 | Doku | `*.png`, `*.jpg`, `*.webp` | 3 | uyarla | — | KTX2 Faz 3 | |
 | INV-E09 | Materyal | `*.material.json`, `engine/assets/material.ts` | 3 | yeniden tasarla | — | `ForgeMaterialDef` → node material | |
 | INV-E10 | Materyal slotları | `*.materials.json` | 3 | yeniden tasarla | — | | |
-| INV-E11 | UVW projeksiyonu | `*.uvw.json` | 3 † | yeniden tasarla | — | | |
-| INV-E12 | Asset vertex color | `*.vertexcolors.json` | 3 † | yeniden tasarla | — | | |
+| INV-E11 | UVW projeksiyonu | `*.uvw.json` | 3 | yeniden tasarla | — | | |
+| INV-E12 | Asset vertex color | `*.vertexcolors.json` | 3 | yeniden tasarla | — | | |
 | INV-E13 | Çarpışma şekilleri | `*.collision.json` | 6 | yeniden tasarla | — | | |
 | INV-E14 | Ses dosyası | `*.wav`, `*.ogg`, `engine/assets/audio.ts` | 6 | uyarla | — | | |
 | INV-E15 | Sound Cue | `*.soundcue.json` | 6 | yeniden tasarla | — | | |
@@ -216,7 +217,7 @@ kaydedildiği / kullanıldığı fazdır.
 | INV-E23 | Fracture | `*.fracture.json` | 8 | yeniden tasarla | e:fractureAsset | | |
 | INV-E24 | Deformable | `*.deformable.json` | 8 | yeniden tasarla | e:deformableAsset | | |
 | INV-E25 | Terrain: belge, tile'lar, global harita | `*.terrain.json`, `*.tile.bin`, `*.global.bin` | 5a | uyarla | terrain-endpoints, e:terrainDocument, e:terrainGlobalMapFile | İkili tile'lar olduğu gibi (plan §2.7) | |
-| INV-E26 | Mesh paint verisi | `<level>.meshpaint.json` | 5d † | yeniden tasarla | — | INV-B10 ile | |
+| INV-E26 | Mesh paint verisi | `<level>.meshpaint.json` | 5d | yeniden tasarla | — | INV-B10 ile | |
 | INV-E27 | World Builder girdileri: recipe, world brief, ground cover, referans görsel | `*.worldrecipe.json`, `*.worldbrief.json`, `*.cover.json`, `*.reference.png` | 2b | uyarla | world-brief, e:worldRecipe, e:worldBrief* | Recipe ve referans görsel level'ın yanında (plan 2b) | |
 | INV-E28 | Bölge profili | `*.regionprofile.json` | 2b | uyarla | e:regionProfile | Oyun verisi; motor deposuna girmez, türü motorda (plan 2b) | |
 | INV-E29 | Eski `model` asset türü | `LegacyAssetType` | — | taşınmaz | — | İçe aktarıcı güncel türe çevirir | |
@@ -238,7 +239,7 @@ Faz sütunu özelliğin oyunda çalıştığı fazdır. Oyun çatısı (`src/gam
 | INV-F07 | Araca binme / inme | `src/game/gameModes/vehicleEntry.ts` | 6 | uyarla | vehicle, e:vehicleEntry | | |
 | INV-F08 | Ragdoll ve kalkma karışımı | `src/game/{ragdollDriver,ragdollSpec,getUpBlender}.ts`, `engine/physics/ragdoll.ts` | 6 | uyarla | — | | |
 | INV-F09 | Oyun kuralları, etkileşim, davranış kataloğu, animasyon notify'ları, montage girişleri | `src/game/{gameRules*,interaction,behaviors,animationNotifies,montageInputBindings,editorCatalog}.ts` | 6 | uyarla | runtime-checkpoint | | |
-| INV-F10 | Başlangıç şablonları: game-starter, rts-starter | `templates/` | 6 | yeniden tasarla | game-starter, rts-starter | Plan `templates/game-starter` karşılığını anıyor; rts-starter'ın yeri karar listesinde | |
+| INV-F10 | Başlangıç şablonları: game-starter, rts-starter | `templates/` | 6 | yeniden tasarla | game-starter, rts-starter | game-starter plan Faz 6'da; rts-starter `samples/` altında ikinci örnek (karar 2026-11-11) | |
 | INV-F11 | Girdi: action map, klavye, fare, gamepad, dokunmatik, sanal joystick | `engine/input`, `src/input/` | 6 | taşı | — | | |
 | INV-F12 | Fizik (Rapier): sabit adım, statik çarpışma, heightfield, darbe olayları, yüzeyler, hareketli platform | `engine/physics` | 6 | taşı | e:physicsContacts, e:physicsImpacts, e:terrainHeightfieldPhysics | Kod 2b'de | |
 | INV-F13 | Karakter hareketi: düzlemsel, eğim, dikey, yokuş yavaşlaması, lokomasyon | `engine/movement` | 6 | taşı | runtime-locomotion, e:characterMovementModule | | |
@@ -249,7 +250,7 @@ Faz sütunu özelliğin oyunda çalıştığı fazdır. Oyun çatısı (`src/gam
 | INV-F18 | Diyalog: konuşma yöneticisi, altyazı, konuşma overlay'i | `engine/dialogue`, `src/scene/{subtitleOverlay,conversationOverlay}.ts` | 6 | taşı | e:dialogueModule | | |
 | INV-F19 | Oyun UI'ı: widget, bağlama, tema, geçiş, erişilebilirlik, yerelleştirme, dünya widget'ı | `engine/ui`, `src/ui/` | 6 | taşı | e:uiFramework, e:runtimeUiModule | | |
 | INV-F20 | Kayıt oyunu: slotlar, durum, kullanıcı ayarları | `engine/persistence` | 6 | yeniden tasarla | runtime-checkpoint, e:saveGameModule, e:saveEntityKeys | 2b'de yeniden kurulur: GUID anahtarlı, `persist` alanları + `defineSaveState` (A7); `saveEntityKeys` çevirisi düşer (D5) | |
-| INV-F21 | Level geçişi ve portallar | `src/scene/{levelTravel,runtimeTravelCoordinator}.ts` | 6 † | uyarla | runtime-portal | | |
+| INV-F21 | Level geçişi ve portallar | `src/scene/{levelTravel,runtimeTravelCoordinator}.ts` | 6 | uyarla | runtime-portal | | |
 | INV-F22 | Yükleme ekranı ve ilerleme | `engine/loading`, `src/scene/loadingOverlay.ts` | 6 | uyarla | content-loading, e:contentLoading | | |
 | INV-F23 | Runtime'da aktör doğurma | `src/scene/runtimeActorSpawnCoordinator.ts` | 2a ✓ / 6 | yeniden tasarla | — | `spawnActors` / `destroyActors` 2a'da, authored aktörlerle aynı yaşam döngüsü (F11) | spawn (2a) |
 | INV-F24 | World Partition runtime akışı, asset residency, akış politikası | `engine/world`, `capabilities/world{Partition,Streaming}Module.ts` | 5b | taşı | world-partition-streaming, open-world, e:worldPartitionStreaming, e:assetResidency, e:streamingPolicy | | |
@@ -259,7 +260,7 @@ Faz sütunu özelliğin oyunda çalıştığı fazdır. Oyun çatısı (`src/gam
 | INV-F28 | Terrain deformasyonu runtime'ı: iz, kazma, berm, kalıcılık | `capabilities/terrainDeformationModule.ts`, `engine/scene/deformation*.ts` | 8 | taşı | puddle-deformation, wet-trail-runtime, e:deformationField, e:deformationPersistence | | |
 | INV-F29 | Kırılma ve deformable runtime'ı, debris / VFX / ses | `engine/physics/{fracture,deformable}`, `capabilities/{fracture,deformable}Module.ts` | 8 | taşı | fracture-runtime, deformable-runtime, e:fracture*, e:impactDeform | | |
 | INV-F30 | VFX runtime'ı | `capabilities/vfxModule.ts`, `engine/vfx` | 6 | taşı | e:vfxModule | | |
-| INV-F31 | Zaman kontrolü: yavaşlatma, duraklatma | `engine/core/timeControl.ts`, `src/scene/debugSpeedControl.ts` | 6 † | taşı | e:timeControl | | |
+| INV-F31 | Zaman kontrolü: yavaşlatma, duraklatma | `engine/core/timeControl.ts`, `src/scene/debugSpeedControl.ts` | 6 | taşı | e:timeControl | | |
 
 ### G. Render
 
@@ -295,7 +296,7 @@ girmez, plan Faz 3 ve 9'dadır.
 | INV-G23 | Skeletal animasyon çizimi: animatör, katmanlı klip, gövde maskesi, root motion, soket | `render-three/{animationSubsystem,characterAnimator,layered*,bodyMask,rootMotion,skeletalSocket}.ts` | 6 | uyarla | e:skeletalAnimationModule | | |
 | INV-G24 | Deformable mesh senkronu, göçük aşınması, parça node'ları | `render-three/{deformableMeshSync,dentWear,deformablePartNodes}.ts` | 8 | yeniden yaz | deformable-runtime, e:deformableMeshSync | `dentWear` GLSL → TSL | |
 | INV-G25 | Kırılma geometrisi | `render-three/fractureGeometry.ts` | 8 | uyarla | e:fractureGeometry | | |
-| INV-G26 | World mask yaması | `render-three/worldMaskPatch.ts` | 3 † | yeniden yaz | e:worldMasks | Materyal bileşimine katkı, `onBeforeCompile` yok (D12) | |
+| INV-G26 | World mask yaması | `render-three/worldMaskPatch.ts` | 3 | yeniden yaz | e:worldMasks | Materyal bileşimine katkı, `onBeforeCompile` yok (D12) | |
 | INV-G27 | Editör yardımcı çizimleri: aktör ikonları, kamera, target point, blocking / nav volume, çarpışma görünümü | `render-three/{actorIcon,camera,targetPoint,blockingVolume,aiNavigationVolume,collisionView,picking,transforms}.ts` | 4 | yeniden yaz | target-point, ai-navigation-volume | Editör çizim katmanı, TRAA'dan sonra (plan Faz 4) | |
 | INV-G28 | Navmesh görünümü | `render-three/{aiNavigationView,recastNavMeshView}.ts` | 6 | yeniden yaz | ai-navigation-clearance | | |
 | INV-G29 | Kalite profilleri, adaptif kalite | `engine/perf/{qualityProfiles,adaptiveQuality}.ts` | 3 | uyarla | editor-quality | Compatibility / Balanced / Cinematic (plan §2.4) | |
@@ -317,29 +318,28 @@ girmez, plan Faz 3 ve 9'dadır.
 | INV-H11 | Terrain onarımı, öksüz tile temizliği | `tools/world/repair-terrain.mjs`, `tools/terrainOrphans.ts` | 5a | taşı | terrain-orphan-cleanup, e:terrainRepair, e:terrainOrphans | Atomik kayıt (2a) özet bayatlamasını önler; aracın gerekliliği 5a'da yeniden değerlendirilir | |
 | INV-H12 | World Builder CLI: rastgele dünya, brief, test dünyaları | `tools/world/{build-random-world,build-world-brief,generate-*}.mjs` | 2b | taşı | e:testWorld, e:wbTestValley, e:wbPilotValley, e:offroadTestWorld | `npm run world:random` 2b'de çalışır (plan 2b) | |
 | INV-H13 | HLOD build | `tools/world/{build-hlod.mjs,hlodBuild.ts}` | 5b | taşı | hlod | | |
-| INV-H14 | Kıyı ve ada şekli ölçüm araçları | `tools/world/{measure-*,run-*-measurement,compare-island-shapes}.*` | 2b † | taşı | — | World Builder algoritmalarıyla | |
+| INV-H14 | Kıyı ve ada şekli ölçüm araçları | `tools/world/{measure-*,run-*-measurement,compare-island-shapes}.*` | 2b | taşı | — | World Builder algoritmalarıyla | |
 | INV-H15 | Üretim build'i ve sürüm: release content, starter content, profiller | `builder/web/{build-release,release-content,starter-content}.mjs`, `builder/web/profiles/` | 6 | uyarla | production/release, tests/builder/release-content | Editörsüz çıktı (plan Faz 6) | |
 | INV-H16 | Oyun projesi build'i, yeniden üretme, build kaydı | `builder/web/game-project-{build,reproduce}.mjs` | 6 | uyarla | tests/builder/game-project-build | `build-record.json`, `verify:build` (mimari §5) | |
 | INV-H17 | Alt dizin yayını (public URL tabanı) | `src/project/publicUrl.ts` | 4 | yeniden tasarla | tests/builder/public-url | `base` testi 2a'dan Faz 4'e taşındı (F06) | |
 | INV-H18 | `?debug` paneli: kare süresi, GPU süresi, istatistik tabloları, terrain haritası, hız kontrolü | `src/scene/{debugPanel,debugStats,debugTableModal,debugTerrainMap}.ts`, `engine/perf` | 3 | uyarla | debug-panel, e:perfReadout | Plan Faz 3 renderer host | |
 | INV-H19 | Perf teşhisi: GPU taraması, kare yakalama, kare bölgeleri, darboğaz sınıflandırma, perf bütçesi, alt sistem profiler | `engine/perf`, `engine/core/subsystemProfiler.ts`, `src/scene/gpuSweepSession.ts` | 3 | uyarla | e:gpuSweep, e:gpuSweepSession, e:frameCapture, e:frameRegions, e:perfWitness | §2.10 ölçüm formatı | |
-| INV-H20 | Perf raporları: asset, tarayıcı, WES, göl, okyanus bütçesi, kalite matrisi | `tools/*report*.{mjs,ts}`, `tools/perf/` | 3 / 7 † | uyarla | tests/builder/wes-acceptance-report | Su raporları Faz 7 | |
-| INV-H21 | Ses araçları: manifest senkronu, loudness denetimi, codec yoklaması | `tools/{sync-audio-manifest,audit-audio-loudness,probe-audio-codecs}.mjs` | 6 † | taşı | — | Manifest senkronu A10 meta'ya göre yeniden yazılır | |
-| INV-H22 | GLB optimizasyonu, gömülü doku ayıklama | `tools/{optimize-mesh-glb,strip-embedded-textures}.mjs` | 4 † | taşı | — | İçe aktarma hattıyla (INV-A25) | |
+| INV-H20 | Perf raporları: asset, tarayıcı, WES, göl, okyanus bütçesi, kalite matrisi | `tools/*report*.{mjs,ts}`, `tools/perf/` | 3 / 7 | uyarla | tests/builder/wes-acceptance-report | Su raporları Faz 7 | |
+| INV-H21 | Ses araçları: manifest senkronu, loudness denetimi, codec yoklaması | `tools/{sync-audio-manifest,audit-audio-loudness,probe-audio-codecs}.mjs` | 6 | taşı | — | Manifest senkronu A10 meta'ya göre yeniden yazılır | |
+| INV-H22 | GLB optimizasyonu, gömülü doku ayıklama | `tools/{optimize-mesh-glb,strip-embedded-textures}.mjs` | 4 | taşı | — | İçe aktarma hattıyla (INV-A25) | |
 | INV-H23 | Diyalog raporu ve hattı | `tools/{dialogueReport,dialoguePipeline}.ts`, `dialogue-report.mjs` | 6 | taşı | — | | |
 | INV-H24 | Su köpüğü bake, göl bench'leri | `tools/{bake-water-foam,bench-lake-bed,bench-lake-water}.mjs` | 7 | taşı | — | | |
-| INV-H25 | Asset kütüphanesi dizinleri: Kenney, Quaternius | `tools/{asset-library-index,quaternius-library-index}.mjs`, `tools/kenney/` | † | — | — | Plan 2b'de açık karar (Kenney); kütüphaneler depoya girmez (A9) | |
+| INV-H25 | Asset kütüphanesi dizinleri: Kenney, Quaternius | `tools/{asset-library-index,quaternius-library-index}.mjs`, `tools/kenney/` | 2b | — | — | Taşınıp taşınmayacağı plan 2b'deki Kenney kararıyla; kütüphaneler depoya girmez (A9) | |
 | INV-H26 | Model 1 fork senkronu | `tools/sync-forge-to-games.{bat,ps1}` | — | taşınmaz | — | Model 1 oyunları Forge WebGL'de kalır (§3) | |
-| INV-H27 | Dev server başlat / durdur betikleri (Windows) | `tools/{open,stop}-dev-server.ps1` | — † | taşınmaz | — | Öneri: gerekirse sahipsiz Vite sürecini kapatan küçük bir araç olarak Faz 4'te yeniden yazılır | |
+| INV-H27 | Dev server başlat / durdur betikleri (Windows) | `tools/{open,stop}-dev-server.ps1` | — | taşınmaz | — | Öneri: gerekirse sahipsiz Vite sürecini kapatan küçük bir araç olarak Faz 4'te yeniden yazılır | |
 | INV-H28 | Forge spike'ları: cell-activation, far-view, grass-ring | `spikes/` | — | taşınmaz | — | Sonuçları Forge planlarına işlendi; Faz 1 spike'ının yeri ayrı karar | |
 | INV-H29 | CI iş akışı | `.github/workflows/` | 2a ✓ | yeniden tasarla | — | `npm run gate` ile aynı | CI (2a) |
 
-### Onay bekleyen fazlar (`†`)
+### Planda adı geçmeyen satırların fazları
 
-Planda adı geçmeyen satırlar için önerilen fazlar. Kullanıcı onayından sonra
-`†` kaldırılır.
+Öneri olduğu gibi kullanıcı tarafından onaylandı (2026-11-11).
 
-| Konu | Satırlar | Öneri |
+| Konu | Satırlar | Karar |
 |---|---|---|
 | Asset editörleri | INV-C01, C04–C08, C10–C16 | İlgili alt sistemin fazı: Static Mesh 4, Material 3 / 4, Actor Script 4 / 6, geri kalanı 6 |
 | Mesh Paint | INV-B10, E26 | 5d (öteki boyama araçlarıyla) |

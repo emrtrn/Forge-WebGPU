@@ -12,8 +12,9 @@ Details tanımı, 2b'ye test sınıflaması ve içe aktarıcı kabulü girdi; Fa
 açıldı. v0.5: K2, K4–K9 karara bağlandı. v0.4: depoya taşındı, A1–A9 işlendi,
 Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 **Durum:** Bütün kararlar kapalı (K1–K11, A1–A11; 2026-11-10). Faz 2a kapandı
-(2026-11-11; [arşiv](../archive/PHASE_2A.md)). Sıradaki işler: Faz 0 özellik
-envanteri, referans sahneler ve görüntüleri, GO sayıları; ardından Faz 1 spike.
+(2026-11-11; [arşiv](../archive/PHASE_2A.md)). Faz 0 özellik envanteri çıktı
+(2026-11-11). Sıradaki işler: Faz 0 referans sahneler ve görüntüleri, GO
+sayıları; ardından Faz 1 spike.
 2b ve sonrası Faz 1 GO'suna bağlı.
 **Belge düzeni:** tek ana plan; biten fazın ayrıntısı faz kapanınca
 [`docs/archive/`](../archive/INDEX.md)'e taşınır. Kısa mimari harita:
@@ -213,11 +214,21 @@ görünüm ayarı onun üstünde çalışır.
 - [x] §8'deki K1–K9 ve mimari raporundaki A1–A9 kararları (hepsi 2026-11-10).
 - [x] v0.6 incelemesinin açtığı kararlar: K10, K11 (§8) ve A10, A11 (mimari
       §8) — hepsi 2026-11-10'da, öneri olduğu gibi.
-- [ ] **Forge özellik envanteri:** Forge WebGL'in kullanıcıya görünen
+- [x] **Forge özellik envanteri:** Forge WebGL'in kullanıcıya görünen
       özellikleri (editör panelleri ve modları, aktör / bileşen türleri, asset
       türleri, runtime alt sistemleri, araçlar) tek tabloda; her satıra hedef
       faz ya da "taşınmayacak" + gerekçe yazılır. Tablo `docs/PORT_LOG.md`
       kapsama matrisinin paydasıdır (§7); fazı olmayan satır kalmaz.
+      *Çıktı (2026-11-11, Forge `b3fa0c1a`):* [`docs/PORT_LOG.md`](../PORT_LOG.md)
+      §1, 234 satır, sekiz bölüm (A editör kabuğu ve paneller 32, B editör
+      modları 14, C asset editörleri 16, D aktör ve bileşen türleri 54,
+      E asset türleri 29, F runtime ve oyun çatısı 31, G render 29, H araçlar
+      ve kapılar 29). Sütunlar: kalıcı ID, Forge yeri, faz, işlem (taşı /
+      uyarla / yeniden yaz / yeniden tasarla), Forge testleri, not, WebGPU
+      kapsama durumu. 21 satır 2a'da kuruldu, 7'si taşınmaz; planda adı
+      geçmeyen 27 satırın fazı kullanıcı onayıyla verildi (asset editörleri,
+      Mesh Paint 5d, `loadGroups` taşınmaz, rts-starter Faz 6'da ikinci
+      örnek…). Cut-over'da Forge farkı yeniden taranır.
 - [ ] Referans sahneler seçilir: çok tile'lı bir terrain level'ı, Island, bir
       World Builder rastgele dünyası, Ridgebound'un **kopya** bir sahnesi.
 - [ ] Her sahnede sabit kamera pozlarından Forge WebGL ekran görüntüleri ve
@@ -277,8 +288,8 @@ kaydı, `forge.level/1` aktör + bileşen modeli, asset modeli (A10), hücre
 modeli (A11), kayıt servisi, uygulama kabuğu, oyun projesi sözleşmesi ve SDK,
 depo düzeni (motor içeriği, content pack'ler), `npm run gate` + CI. Kapı:
 Height Fog iskeletten uçtan uca geçiyor; 50.000 aktör ölçümü eşik içinde
-(R1); CI yeşil (`860db59`'da; sonraki push'lar kullanıcıdan teyitle). Dist
-doğrulaması ve alt dizin (`base`) yayını testi Faz 4'e taşındı.
+(R1); CI yeşil (`a77587a`'ya kadar, kullanıcı teyidi). Dist doğrulaması ve
+alt dizin (`base`) yayını testi Faz 4'e taşındı.
 
 ### Faz 2b — Cut-over, alt sistemlerin taşınması ve içe aktarıcı
 
@@ -584,3 +595,4 @@ silinebilir.
 | 2026-11-10 | v0.7 | Faz 2a oyun projesi sözleşmesi kutusu kapandı (`2d6700c` … `6ccac78` ve kabul testi): `forge.project/1`, `@forge/sdk` 0.1.0 + changelog + API anlık görüntüsü kapısı, `forge check|dev`, dev server'da proje seçimi / salt okunur örnekler / kimlik, `samples/starter`, `create-project`, `check:projects` (gate'te, başsız açılış). İskeletin kabul testi kutusu da kapandı. Mimari rapor v0.9. 526 test, kapı yeşil |
 | 2026-11-10 | v0.7 | Faz 2a depo düzeni kutusu kapandı (`790e769` … `7b85e38`): manifestte `contentPacks`, etiketli içerik kökleri (`engine:`), motor içeriği ve paketler proje dizininde salt okunur, bilinmeyen paket `forge check`'te hata, `verify:assets`'te paket bağımlılık yönü, `content/engine/` + starter paketi (Height Fog sınıfı) ve `samples/starter` onu kullanır. Mimari rapor v1.0. 534 test, kapı yeşil |
 | 2026-11-11 | v0.8 | Faz 2a kapandı: belge kutuları (`docs/architecture/ARCHITECTURE.md` rapordan kısa harita, `docs/PORT_LOG.md` iskeleti, plan belgesi düzeni `CLAUDE.md`'de: tek ana plan, faz kapanınca `docs/archive/` + `INDEX.md`). Dist doğrulaması ve alt dizin yayını testi Faz 4'e taşındı (kullanıcı kararı). 2a ayrıntısı `docs/archive/PHASE_2A.md`'de. Mimari rapor v1.1 |
+| 2026-11-11 | v0.8 | Faz 0 özellik envanteri kutusu kapandı (`e2c20e6` … `a77587a` ve bu commit): `docs/PORT_LOG.md` §1, Forge `b3fa0c1a`'dan 234 satır (A–H), her satırda faz ya da "taşınmaz"; planda adı geçmeyen 27 satırın fazı kullanıcı onayıyla. CI `a77587a`'ya kadar yeşil (kullanıcı teyidi). 534 test, kapı yeşil |
