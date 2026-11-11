@@ -16,8 +16,8 @@ Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 **Durum:** Bütün kararlar kapalı (K1–K11, A1–A11; 2026-11-10). Faz 2a kapandı
 (2026-11-11; [arşiv](../archive/PHASE_2A.md)). Faz 0 kapandı (2026-11-11;
 [arşiv](../archive/PHASE_0.md)): envanter, referans sahneler, WebGL baseline,
-GO sayıları. Faz 1 spike sürüyor: S1 tamam; sıradaki S2 terrain, sonra S3,
-S4 ve GO / NO-GO. 2b ve sonrası Faz 1 GO'suna bağlı.
+GO sayıları. Faz 1 spike sürüyor: S1 tamam; S2 ölçüldü (G8 yorumu
+kullanıcıda); sıradaki S3 pipeline, sonra S4 ve GO / NO-GO. 2b ve sonrası Faz 1 GO'suna bağlı.
 **Belge düzeni:** tek ana plan; biten fazın ayrıntısı faz kapanınca
 [`docs/archive/`](../archive/INDEX.md)'e taşınır. Kısa mimari harita:
 [`docs/architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md);
@@ -253,6 +253,62 @@ dışındaki `Games/ForgeReference`'tadır.
       `positionNode` ile displacement, `sampler2DArray` boya katmanları, normal;
       `CSMShadowNode` gölgesi; `SkyMesh` + sis. Görsel yükseklik Rapier
       heightfield ile aynı mı?
+      *Ölçüldü (2026-11-11, Forge `6818d201` … `4cc0d5b9`
+      `spikes/webgpu/s2-terrain`); kapanış G8 yorumunu bekliyor (aşağıda).*
+      **Yapılan:** Forge'un CDLOD terrain materyalinin TSL karşılığı. Yükseklik
+      tile yuvası (R32F dizi, `textureLoad`, collider köşegeni) ya da global
+      haritadan (bilinear); morph, etek, 64 yuvalık havuz; normal + 8 katmanlı
+      splat + uzak tekrar kırma. Gölge Forge `high`'la aynı:
+      `cascadedShadows` güneşte 3 × 1024 `CSMShadowNode` (Forge'un bölmeleri),
+      ötekilerde kamerayı izleyen tek harita. `SkyMesh` ve sis level'dan.
+      Veri Forge'un three'siz modüllerinden değişmeden geliyor (tile çözücü,
+      render source, normaller, global harita, CDLOD seçici).
+      **Yapılmayan (Faz 3 / 7):** gökyüzü ışığı yakalaması (IBL), su,
+      terrain spline yol mesh'leri.
+      **G8 (görsel = collider):** terrain yukarıdan ortografik kamerayla, ana
+      kameranın LOD seçimi ve morph'uyla float hedefe çizildi. Her piksel kendi
+      dünya X / Y / Z'sini taşıyor (512 × 512 m, 1 m). Fark, aynı noktaya
+      Forge'un Rapier heightfield'ına (`terrainTileHeightfieldShape`) atılan
+      ışınla ölçüldü. 3 sahne × P1 / P3, bölge başına 262 bin örnek.
+
+      | Bant (kameraya 3B uzaklık) | En büyük fark | p99 |
+      |---|---|---|
+      | 0. seviye, morph öncesi (1 m'de 0–89 m, Island 2 m'de 0–177 m) | 0–4,9 mm | ≤ 1 mm |
+      | 0. seviye morph bandı | 6 mm – 0,89 m | 4 mm – 13 cm |
+      | 1. seviye ve ötesi | 0,15 – 2,2 m | 1 – 69 cm |
+
+      Tam çözünürlüklü bölgede port Forge'un yüzeyini birebir çiziyor. Morph
+      bandı ve ötesi CDLOD'un kendi sapması (kabalaşan mesh); Forge WebGL aynı
+      formülle aynı sapmayı veriyor. G8'in "(CDLOD morph sınırında da)"
+      ifadesi bu bandı kapsıyorsa ölçüt kalıyor. **Kullanıcı kararı bekliyor:**
+      G8 tam çözünürlüklü bölgeye mi uygulanır, yoksa morph bandı da
+      ≤ 5 cm mi olmalı (LOD aralıkları büyür, üçgen artar)?
+      **G1 (terrain, eşdeğer içerik):** WebGL tarafı yalnız terrainli level
+      kopyalarıyla ölçüldü (`*-terrain.level.json`: yerleşim, foliage, su,
+      bulut, post-process, gökyüzü ışığı yakalaması çıkarıldı; `high`,
+      `?debug`). WebGPU aynı pozlar ve pencereyle (sınırsız, 1080p × 3,
+      1440p × 1). Her pozda `isWebGPUBackend` true.
+
+      | Sahne | WebGL kare / GPU (1080p, P1–P3) | WebGPU kare / GPU | Oran (kare) |
+      |---|---|---|---|
+      | OpenWorldTest | 1,0–2,1 / 1,0–2,0 | 0,55–0,79 / 0,44–0,69 | 0,26–0,76 |
+      | Island | 1,0–3,0 / 1,0–2,8 | 0,82–1,11 / 0,72–1,00 | 0,38–0,79 |
+      | Derekavak | 4,8–5,0 / 4,8–5,5 | 1,33–1,52 / 1,08–1,28 | 0,28–0,32 |
+
+      1440p'de oranlar 0,29–0,86. **G1: 18 / 18 poz × çözünürlük geçer**
+      (sınır ≤ 1,10). Çekince: içerik yaklaşık eşdeğer. WebGL bu pozlarda
+      0,13–1,8 M, WebGPU 0,1–0,76 M üçgen çiziyor, yani WebGL tarafında
+      spike'ın çizmediği küçük kalemler kalmış olabilir; oranlar WebGPU lehine
+      biraz iyimser olabilir.
+      **Yöntem notları:**
+      - `CSMShadowNode`'a kamera elle verilirse kaskat ışıkları hiç kurulmuyor
+        ve gölge alan mesh düşüyor; kamerayı düğüm kendi `setup()`'ında alır.
+      - Renk çıkışı negatif değerleri 0'a kırpıyor; G8 geri okuması ofsetle.
+      - Faz 0 baseline'ının `?debug`'da çizilen navmesh görünümünden
+        etkilenmediği A/B ile doğrulandı (Derekavak P1 `?debug`'sız GPU 15,33,
+        `?debug`'lı 15,2 ms; draw call 1.785 / 1.800).
+      Kayıtlar `ForgeReference/baseline/spike/` (G8) ve `spike/s2-measure/`
+      (G1, `summary.json`), WebGL tarafı `measure/webgl-terrain-*`.
 - [ ] **S3 Pipeline:** MRT + TRAA + GTAO + SSR + SSGI + bloom; her efektin GPU
       maliyeti ayrı ölçülür (1080p ve 1440p).
 - [ ] **S4 Açık dünya stresi:** referans level'ın gerçek yerleşim ve foliage
@@ -617,3 +673,4 @@ silinebilir.
 | 2026-11-11 | v0.8 | Faz 0 WebGL baseline kutusu kapandı: 4 sahne × 3 poz × high / ultra × 1080p / 1440p, 96 koşu, sınırsız kare hızı, adaptif kapalı; kare (1/fps), p95, GPU, draw call, üçgen; soğuk / sıcak yükleme ayrı ölçüldü. Derekavak GPU'ya bağlı (~15–17 ms, ~1.800 draw call), Island CPU'ya bağlı (~6 ms) |
 | 2026-11-11 | v0.9 | Faz 0 kapandı: GO ölçüt sayıları G1–G9 Faz 1'e yazıldı (kullanıcı onayı, öneri olduğu gibi: G2 Balanced 1080p ortalama ≤ 14 / p95 ≤ 16,6 ms, G5 draw call ≤ WebGL'in %50'si, G6 Derekavak CPU ≤ 6 ms…); Faz 0 ayrıntısı `docs/archive/PHASE_0.md`'ye taşındı |
 | 2026-11-11 | v0.9 | Faz 1 başladı: spike yeri Forge `spikes/webgpu/` (kullanıcı kararı; `CLAUDE.md` istisnası `6ba3b26`). S1 Boot kapandı (Forge `517961b1`): gerçek WebGPU, çekirdek kip, NVIDIA Ampere, timestamp query çalışıyor, sınırsız kare hızı açılıyor |
+| 2026-11-11 | v0.9 | Faz 1 S2 Terrain ölçüldü (Forge `6818d201` … `4cc0d5b9`): CDLOD terrain'in TSL karşılığı, `high` gölgesi, sky + sis. G8: tam çözünürlüklü bölgede fark ≤ 4,9 mm; morph bandı ve ötesinde CDLOD'un kendi sapması (≤ 2,2 m), ölçütün yorumu kullanıcı kararında. G1 (yalnız terrainli WebGL kopyalarına karşı): 18 / 18 geçer, kare oranı 0,26–0,86. Faz 0 baseline'ının navmesh hata ayıklama çiziminden etkilenmediği A/B ile doğrulandı |
