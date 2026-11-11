@@ -292,7 +292,8 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       özet `PORT_LOG` §2.1). 2.588 kontrol yeri (176 dosya + `tools/engine-tests.ts`
       içi). Kümeler ikiden üçe çıktı: A algoritma 1.010, M eski veri modeli
       959, R render 619. K12'den sonra (2026-11-11) dördüncü küme D taşınmaz
-      95; **A 940 (paydası bu)**, M 935, R 618. R kümesi three'ye render için
+      95; A 940, M 935, R 618. Ses taşınırken Sound Cue D'ye geçti:
+      **A 927 (paydası bu)**, D 108. R kümesi three'ye render için
       ulaşan kontrollerdir (`render-three`, `src` uygulama katmanı); 2b'de
       taşınmaz, render'ı yeniden yazan fazla gelir. A'nın 471'i sınırda
       uyarlama ister; 88'i `engine/physics/ragdoll.ts`'in three matematiği
@@ -307,7 +308,12 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       `physicsSubsystem`, `behaviorSubsystem` ve `defaultInputBindings`'in
       ragdoll bağı taşımada kesilir (ragdoll'un three matematiği de onunla
       gider). Ses ve UI'da yalnız kod kütüphanesi taşınır; editörleri ve
-      Sound Cue / ses bileşeni yüzeyi yok.
+      Sound Cue / ses bileşeni yüzeyi yok. `src/engine` DOM'suz ve Web
+      Audio'suz (kullanıcı kararı 2026-11-11); tarayıcı API'si gereken dosyalar
+      `src/runtime/<alt sistem>/`'e. İlerleme `npm run port:forge-tests`
+      (A taşınan / 927).
+      *Ses taşındı (2026-11-11):* `src/engine/audio` + `src/runtime/audio`,
+      37 kontrol yeşil; kalıp ve kayıt `PORT_LOG` §2.
 - [ ] Kayıt oyunu (`engine/persistence`) ve World Partition (`engine/world`)
       yeni modele göre yeniden kurulur; GUID anahtarlı. Kayıt oyunu `persist`
       işaretli bileşen alanlarını ve `defineSaveState` bölümlerini saklar;
@@ -641,3 +647,4 @@ silinebilir.
 | 2026-11-11 | v0.9 | 2b test sınıflaması kapandı: `npm run port:forge-tests` (TypeScript AST, değer düzeyinde ve sözcüksel kapsamlı ulaşım), 2.588 kontrol yeri → A algoritma 1.010 (kapı paydası), M eski model 959, R render 619; satırlar `docs/port/forge-engine-tests.tsv`, özet `PORT_LOG` §2.1 |
 | 2026-11-11 | v0.9 | 2b Kenney kararı (kullanıcı): bu projede Kenney / Quaternius yok; dizin üreticileri ve Kenney dizini GameDesign klasörüne taşındı, Forge'dan kaldırıldı (Forge `92a709aa`); INV-H25 taşınmaz |
 | 2026-11-11 | v1.0 | Ürün tezi ve kapsam ölçütü (mimari §0.0, v1.2): K12 kapsam kararları, A12 ajan düzenleme komutları ve A13 genel veri editörü Faz 4'e; 2b taşıma listesinden dialogue ve ai çıktı, ragdoll bağı kesilir; test paydası yeniden hesaplandı (`PORT_LOG` §2.1) |
+| 2026-11-11 | v1.0 | 2b ilk taşıma: ses (`src/engine/audio`, `src/runtime/audio`), 37 Forge kontrolü birebir Vitest'te yeşil; `engine` DOM'suz (kullanıcı kararı; `tsconfig.tools.json` + `verify:node-load` zorlar), `src` testlerine yalnız `node:assert` (`src-tests-node-assert-only`), testler ayrı `tsconfig.tests.json`; Sound Cue D, payda 927; `port:forge-tests` taşınanı etiketle sayar (37 / 927) |

@@ -211,9 +211,9 @@ kaydedebilmesi ve uyumluluk kapısı (§4.8).
 | Katman | İçerik | Import edebileceği | three |
 |---|---|---|---|
 | `core` | aktör/bileşen modeli, şema kaydı, serileştirme, kimlik, olaylar, özellik kayıt noktaları | — | yok |
-| `engine` | fizik (Rapier), terrain verisi, World Partition, AI, nav, hareket, ses, kalıcılık, World Builder algoritmaları | core | yok |
+| `engine` | fizik (Rapier), terrain verisi, World Partition, nav, hareket, ses, kalıcılık, World Builder algoritmaları; DOM ve Web Audio yok, düz Node'da yüklenir (2b kararı 2026-11-11) | core | yok |
 | `render` | WebGPU renderer, render bağlamaları, materyaller, pipeline, teşhis | core, engine | **tek sahip** (`three/webgpu`, `three/tsl`) |
-| `runtime` | World, sahne kurucu, alt sistem ana makinesi, oyun modülü ana makinesi, boot | core, engine, render | dolaylı |
+| `runtime` | World, sahne kurucu, alt sistem ana makinesi, oyun modülü ana makinesi, boot; tarayıcı API'si gereken alt sistem kodu (ör. Web Audio, DOM UI) | core, engine, render | dolaylı |
 | `gameplay` | oyun çatısı: game mode tabanları, player controller, kamera yöneticisi, araç girişi, ragdoll (bugünkü `src/game`'in çoğu) | core, engine, runtime | yok |
 | `editor` | editör uygulaması; yalnız dinamik import; oyun bundle'ına girmez | hepsi | dolaylı |
 | `sdk`, `editor-sdk` | oyun projelerinin import edebildiği tek yüzey (yeniden dışa aktarım) | ilgili katmanlar | — |

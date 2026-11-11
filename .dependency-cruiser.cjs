@@ -119,8 +119,16 @@ module.exports = {
       comment:
         "src/ runs in the browser and core also in Node: no fs, path or other Node module. Reading the disk is tools/ work (e.g. tools/assets scans content roots and hands core a file list).",
       severity: "error",
-      from: { path: "^src/" },
+      from: { path: "^src/", pathNot: "\\.test\\.ts$" },
       to: { dependencyTypes: ["core"] },
+    },
+    {
+      name: "src-tests-node-assert-only",
+      comment:
+        "A test under src/ runs in Node (Vitest) and never ships, so it may use node:assert: tests ported from Forge WebGL keep their assertions word for word (plan 2b). Every other Node module stays out of src/, tests included.",
+      severity: "error",
+      from: { path: "^src/.*\\.test\\.ts$" },
+      to: { dependencyTypes: ["core"], pathNot: "^(node:)?assert(/strict)?$" },
     },
     {
       name: "src-does-not-import-tools",

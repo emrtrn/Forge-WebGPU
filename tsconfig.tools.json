@@ -2,11 +2,12 @@
   // Node tooling project: tools/ and the config files that run in Node.
   // Tools run directly with `node file.ts` (type stripping). The src modules
   // they import (core, engine, feature schemas) are checked here a second time,
-  // without the DOM lib.
+  // without the DOM lib. src/engine is included outright: the engine layer
+  // has no DOM and no Web Audio, and this project is where that is enforced.
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2022"],
     "types": ["node"]
   },
-  "include": ["tools", "vite.config.ts"]
+  "include": ["tools", "src/engine", "vite.config.ts"]
 }

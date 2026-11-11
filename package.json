@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tools.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tests.json && tsc --noEmit -p tsconfig.tools.json",
     "verify:layers": "node tools/verify-layers.ts",
     "verify:file-size": "node tools/verify-file-size.ts",
     "verify:node-load": "node tools/verify-node-load.ts",

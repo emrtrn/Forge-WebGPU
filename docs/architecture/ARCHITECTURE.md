@@ -20,9 +20,9 @@ kendini de sınar (rapor §4.2, A3).
 | Katman | İçerik | three |
 |---|---|---|
 | `core` | aktör / bileşen modeli, şema DSL'i ve kaydı, kimlik, level ve hücre modeli, asset modeli, düzenleme modeli, alt sistem sözleşmesi, proje manifesti | yok; DOM ve `import.meta.env` de yok |
-| `engine` | three'siz alt sistemler (fizik, terrain verisi, nav, hareket, ses…; 2b'de taşınır, kapsam K12) | yok |
+| `engine` | three'siz alt sistemler (fizik, terrain verisi, nav, hareket, ses…; 2b'de taşınır, kapsam K12); DOM ve Web Audio yok, düz Node'da yüklenir | yok |
 | `render` | renderer, render bağlamaları, materyaller, pipeline (Faz 3) | tek sahip (`three/webgpu`, `three/tsl`) |
-| `runtime` | World, sahne kurucu, oyun modülü host'u, boot | dolaylı |
+| `runtime` | World, sahne kurucu, oyun modülü host'u, boot; tarayıcı API'si gereken alt sistem kodu (`runtime/audio`) | dolaylı |
 | `gameplay` | yeniden kullanılabilir oyun çatısı (Faz 6) | yok |
 | `editor` | editör; yalnız dinamik import, oyun bundle'ına girmez (Faz 4) | dolaylı |
 | `sdk`, `editor-sdk` | oyun projelerinin import edebildiği tek yüzey | — |

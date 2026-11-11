@@ -1,10 +1,11 @@
 {
-  // Application (browser) project: everything under src/.
+  // Application (browser) project: everything under src/ except the tests.
   // Layer boundaries are not expressed here; dependency-cruiser owns them (A3).
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["vite/client"]
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
 }

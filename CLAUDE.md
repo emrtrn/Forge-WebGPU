@@ -40,7 +40,7 @@ kararları plan K12'de; taşınmayan Forge kodu `forge-webgl-final` etiketinde.
 |---|---|
 | `npm run dev` | Dev server, port **5183** (`strictPort`) |
 | `npm run gate` | Push öncesi kapı: aşağıdakilerin hepsi |
-| `npm run typecheck` | `tsconfig.json` (tarayıcı, `src/`) + `tsconfig.tools.json` (Node, `tools/` ve import ettiği `src` modülleri) |
+| `npm run typecheck` | `tsconfig.json` (tarayıcı, `src/`, testler hariç) + `tsconfig.tests.json` (`src` testleri, Node tipleriyle) + `tsconfig.tools.json` (Node, `tools/`, `src/engine` ve import ettiği `src` modülleri; DOM yok) |
 | `npm run verify:layers` | Katman denetimi + öz-testi |
 | `npm run verify:file-size` | Dosya bütçesi: 800 satırda uyarı, 1.500'de hata |
 | `npm run verify:node-load` | `src/core` ve `features/*/schema.ts` düz Node'da yüklenir |
@@ -80,6 +80,10 @@ projenin sunucusunu yeniden kullanma.
   ile çalışır; `src/core` ve şemalar da aynı yolla Node'da yüklenir.
 - `src/core` DOM'a, three'ye ve `import.meta.env`'e dokunmaz; geliştirme / üretim
   ayrımını çağıran parametreyle verir.
+- `src/engine` de DOM'suz ve Web Audio'suz, düz Node'da yüklenir; tarayıcı API'si
+  gereken kod `src/runtime`'da (ör. `runtime/audio`). `src` altındaki testler
+  yalnız `node:assert` import edebilir; Forge'dan taşınan kontroller birebir
+  kalır (`check` = Vitest `test`).
 
 ## Çalışma kuralları
 

@@ -13,7 +13,8 @@
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync, mkdirSync } from "node:fs";
-import { dirname, join, posix } from "node:path";
+import { dirname, join, posix, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   analyzeSource,
   areaOf,
@@ -173,6 +174,30 @@ interface Row {
   readonly file: string;
   readonly check: FoundCheck;
   readonly verdict: CheckVerdict;
+  /** This repo's test file that carries the check (same label), if ported. */
+  readonly ported: string | null;
+}
+
+/**
+ * Labels of the checks this repo already carries: every `check(...)` with a
+ * literal label in a `*.test.ts` under src/. A ported Forge check keeps its
+ * label word for word, so a label match is the port record.
+ */
+function collectPortedLabels(repoRoot: string): Map<string, string> {
+  const labels = new Map<string, string>();
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(join(repoRoot, dir), { withFileTypes: true })) {
+      const path = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) walk(path);
+      else if (entry.name.endsWith(".test.ts")) {
+        for (const check of analyzeSource(path, readFileSync(join(repoRoot, path), "utf8")).checks) {
+          if (!check.dynamicLabel && !labels.has(check.label)) labels.set(check.label, path);
+        }
+      }
+    }
+  };
+  walk("src");
+  return labels;
 }
 
 const ENGINE_HARNESS = "tools/engine-tests.ts";
@@ -184,19 +209,19 @@ function listEngineTests(forge: string): string[] {
     .map((name) => `tests/engine/${name}`);
 }
 
-function classifyFile(graph: ForgeGraph, file: string): Row[] {
+function classifyFile(graph: ForgeGraph, file: string, ported: ReadonlyMap<string, string>): Row[] {
   return graph.analysis(file).checks.map((check) => {
     const modules = check.specifiers.map((specifier) => graph.moduleFacts(file, specifier));
     const dataPaths = modules.flatMap((module) => (module.path && module.path.endsWith(".json") ? [module.path] : []));
     const verdict = classifyCheck(modules, [...check.literals, ...dataPaths]);
-    return { file, check, verdict };
+    return { file, check, verdict, ported: check.dynamicLabel ? null : (ported.get(check.label) ?? null) };
   });
 }
 
 const cell = (text: string): string => text.replace(/[\t\r\n]+/g, " ").trim();
 
 function toTsv(rows: readonly Row[]): string {
-  const header = ["file", "line", "kind", "class", "boundary", "dynamicLabel", "areas", "reasons", "label"].join("\t");
+  const header = ["file", "line", "kind", "class", "boundary", "dynamicLabel", "areas", "reasons", "ported", "label"].join("\t");
   const lines = rows.map((row) =>
     [
       row.file,
@@ -207,6 +232,7 @@ function toTsv(rows: readonly Row[]): string {
       row.check.dynamicLabel ? "yes" : "",
       row.verdict.areas.join(","),
       row.verdict.reasons.map((reason) => reason.slice(0, 120)).join(","),
+      row.ported ?? "",
       cell(row.check.label).slice(0, 240),
     ].join("\t"),
   );
@@ -237,6 +263,10 @@ function summary(rows: readonly Row[], files: readonly string[], unregistered: r
     out.push(`| ${cls} | ${n(cls)} | ${dynamic} |`);
   }
   out.push(`| Toplam | ${rows.length} | ${rows.filter((row) => row.check.dynamicLabel).length} |`);
+  const portedA = rows.filter((row) => row.verdict.cls === "A" && row.ported !== null).length;
+  const portedOther = rows.filter((row) => row.verdict.cls !== "A" && row.ported !== null).length;
+  out.push("");
+  out.push(`**Taşınan:** A ${portedA} / ${n("A")}; A dışından etiketiyle taşınan ${portedOther}.`);
   const boundary = rows.filter((row) => row.verdict.boundary);
   const via = (kind: string): number => boundary.filter((row) => row.verdict.reasons.some((reason) => reason.startsWith(kind))).length;
   out.push("");
@@ -289,7 +319,8 @@ function main(): void {
   }
   const unregistered = files.filter((file) => !registered.has(file));
 
-  const rows = [...files, ENGINE_HARNESS].flatMap((file) => classifyFile(graph, file));
+  const ported = collectPortedLabels(resolve(dirname(fileURLToPath(import.meta.url)), ".."));
+  const rows = [...files, ENGINE_HARNESS].flatMap((file) => classifyFile(graph, file, ported));
   mkdirSync(dirname(options.out), { recursive: true });
   writeFileSync(options.out, toTsv(rows), "utf8");
   console.log(summary(rows, files, unregistered, sha, options.ref));

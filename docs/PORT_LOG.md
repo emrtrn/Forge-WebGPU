@@ -365,9 +365,22 @@ taşınır.
 
 | Modül | Kaynak yol | Forge SHA | İşlem | Testler | Durum |
 |---|---|---|---|---|---|
+| `src/engine/audio/` (`audioBus`, `audioEventTable`, `musicDirector`, `audioClips`, `audioTypes`) | `engine/audio/{audioBus,audioEventTable,musicDirector}.ts`; `engine/assets/audio.ts` → `audioClips`; `audioSubsystem.ts`'in tipleri ve saf yardımcıları → `audioTypes` | `04b5fb23` | uyarlandı: dosya bölündü, import yolları; algoritma aynı | 27 taşındı (`audio.test.ts`) | yeşil (2026-11-11) |
+| `src/runtime/audio/audioSubsystem.ts` | `engine/audio/audioSubsystem.ts` (Web Audio ve DOM kısmı) | `04b5fb23` | uyarlandı: `runtime` katmanına (engine DOM'suz); eski `Subsystem` sözleşmesi yerine yerel `AudioUpdateContext`; parametre özelliği açık alan (silinebilir sözdizimi). World'e bağlanması Faz 6'da ses özelliğiyle | 10 taşındı (`audioSubsystem.test.ts`) | yeşil (2026-11-11) |
+| Sound Cue | `engine/audio/soundCue{Evaluator,Types}.ts` | `04b5fb23` | taşınmadı (K12, INV-E15) | 13 düştü (D) | — |
 
 İşlem: taşındı / uyarlandı / yeniden yazıldı. Testler: taşınan / yeniden yazılan
 / düşen sayısı (2b test sınıflamasına göre).
+
+**Taşıma kalıbı (ses ile kuruldu, 2026-11-11):** kod `src/engine/<alt sistem>/`
+(DOM'suz, düz Node'da yüklenir; `tsconfig.tools.json` ve `verify:node-load`
+zorlar), tarayıcı API'si gereken kısım `src/runtime/<alt sistem>/`. Forge
+kontrolleri gövdeleri değişmeden modülün yanındaki `*.test.ts`'e kopyalanır;
+`const check = test` (Vitest), assertion'lar `node:assert` ile aynı kalır
+(`src-tests-node-assert-only`). Bir kontrol etiketiyle taşınır;
+`npm run port:forge-tests` etiketleri eşleyip ilerlemeyi sayar (§2.1).
+Ses alanında kalanlar: 2 A `perfReadout` (perf ile), 1 A çarpışma davranışı
+(behavior ile), 8 M (behavior / scene ile yeniden yazılır).
 
 ### 2.1 Test sınıflaması
 
@@ -386,6 +399,10 @@ başka bir test dosyası üzerinden. Birim, bir kontrol yeridir: bir `check`,
 geçer, 10 yavaş kontrol atlanır: toplam 2.610 koşu, çünkü döngüdeki 13 yer
 birden çok koşu üretir.
 
+**İlerleme:** `npm run port:forge-tests` bu deponun `src/**/*.test.ts`
+dosyalarındaki etiketleri Forge kontrolleriyle eşler; TSV'nin `ported`
+sütunu kontrolü taşıyan dosyayı gösterir. 2026-11-11: **A 37 / 927** (ses).
+
 **Sınıflar.** Her kontrol, değer düzeyinde ulaştığı Forge modüllerine göre
 sınıflanır. Ulaşım sözcüksel kapsamla izlenir: kontrolün gövdesi ve onun
 kullandığı yerel yardımcılar. `import type` sayılmaz. Bir kontrol birden çok
@@ -393,14 +410,15 @@ sınıfa uyuyorsa öncelik D, R, M, A sırasıyla.
 
 | Sınıf | Ne | Kontrol yeri | Ne olur |
 |---|---|---|---|
-| **A** algoritma | Yalnız three'siz, eski modele ait olmayan ve taşınan modüllere ulaşır | **940** | 2b'de mekanik çevrilir (`check()` → `test()`). **"Taşınan testler yeşil" kapısının paydası** |
+| **A** algoritma | Yalnız three'siz, eski modele ait olmayan ve taşınan modüllere ulaşır | **927** | 2b'de mekanik çevrilir (`check()` → `test()`). **"Taşınan testler yeşil" kapısının paydası** |
 | **M** eski veri modeli | `engine/scene`, `engine/persistence`, `engine/world`, `src`, `editor`, `game`, `project`, `templates`, `tools/saveValidator`, `tools/droppedFields` modüllerine ya da eski biçimli level / layout verisine ulaşır | 935 | Alt sistemi taşınırken yeni modele göre yeniden yazılır ya da düşer; karar alt sistemin §2 satırında |
 | **R** render | three'ye render için ulaşır: `engine/render-three`, `src` uygulama katmanı ya da testin kendisinin kurduğu three nesnesi | 618 | 2b'de taşınmaz; render'ı yeniden yazan fazla (3, 5–8) birlikte yeniden yazılır ya da düşer |
-| **D** taşınmaz | Plan K12 ile taşınmayan bir modüle doğrudan ulaşır: `engine/dialogue`, `tools/dialogue*`, `engine/ai`, `engine/physics/ragdoll.ts` | 95 | Düşer. Kod `forge-webgl-final` etiketinde durur |
+| **D** taşınmaz | Plan K12 ile taşınmayan bir modüle doğrudan ulaşır: `engine/dialogue`, `tools/dialogue*`, `engine/ai`, `engine/physics/ragdoll.ts`, `engine/audio/soundCue*` | 108 | Düşer. Kod `forge-webgl-final` etiketinde durur |
 
 - **K12'nin etkisi (2026-11-11):** ilk sınıflamada A 1.010, M 959, R 619
   idi. Taşınmayan modüllere doğrudan ulaşan 95 kontrol D oldu; payda
-  1.010'dan 940'a indi. Taşınmayan bir modülü yalnız daha aşağıda import eden
+  1.010'dan 940'a indi. Ses taşınırken Sound Cue'nun (INV-E15) 13 kontrolü de
+  D'ye geçti: payda **927**. Taşınmayan bir modülü yalnız daha aşağıda import eden
   kontrol sınıfını korur, çünkü o import taşımada kesilir.
 - **A'nın 434'ü sınırda uyarlama ister.** Hepsinde test edilen modül daha
   aşağıda eski modele iniyor. 86'sı ayrıca `engine/physics/ragdoll.ts`'e
@@ -436,7 +454,7 @@ yoksa ilk alanında):
 | engine/input | 28 | 6 | 32 | 0 |
 | engine/perf | 40 | 11 | 14 | 0 |
 | engine/behavior | 33 | 29 | 0 | 0 |
-| engine/audio | 52 | 8 | 0 | 0 |
+| engine/audio | 39 | 8 | 0 | 13 |
 | engine/movement | 53 | 0 | 1 | 0 |
 | engine/ui | 50 | 1 | 0 | 0 |
 | engine/assets | 11 | 22 | 11 | 3 |
@@ -465,7 +483,7 @@ yoksa ilk alanında):
 
 Dosya düzeyinde: yalnız A 42, yalnız M 30, yalnız R 27; karışık A+M 31,
 M+R 20, A+M+R 18, A+R 7, D+R 1. `tools/engine-tests.ts` içinde 909 kontrol
-var (A 269, M 352, R 195, D 93). Taşımada bunlar modül başına test
+var (A 256, M 352, R 195, D 106). Taşımada bunlar modül başına test
 dosyalarına dağıtılır.
 
 ## 3. Port bekleyenler
