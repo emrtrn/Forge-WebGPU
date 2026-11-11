@@ -16,8 +16,8 @@ Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 **Durum:** Bütün kararlar kapalı (K1–K11, A1–A11; 2026-11-10). Faz 2a kapandı
 (2026-11-11; [arşiv](../archive/PHASE_2A.md)). Faz 0 kapandı (2026-11-11;
 [arşiv](../archive/PHASE_0.md)): envanter, referans sahneler, WebGL baseline,
-GO sayıları. Faz 1 spike sürüyor: S1 tamam; S2 ölçüldü (G8 yorumu
-kullanıcıda); sıradaki S3 pipeline, sonra S4 ve GO / NO-GO. 2b ve sonrası Faz 1 GO'suna bağlı.
+GO sayıları. Faz 1 spike sürüyor: S1 ve S2 tamam (G1 terrain 18 / 18, G8
+geçer); sıradaki S3 pipeline, sonra S4 ve GO / NO-GO. 2b ve sonrası Faz 1 GO'suna bağlı.
 **Belge düzeni:** tek ana plan; biten fazın ayrıntısı faz kapanınca
 [`docs/archive/`](../archive/INDEX.md)'e taşınır. Kısa mimari harita:
 [`docs/architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md);
@@ -249,12 +249,13 @@ dışındaki `Games/ForgeReference`'tadır.
       `data-forge-perf` kaydını aynı alanlarla yazar; koşucu
       `spikes/webgpu/run.mjs` (port 4174, başlıklı Chrome); WebGPU olmayan
       koşu başarısız sayılır.
-- [ ] **S2 Terrain:** referans terrain'in tile'ları TSL CDLOD malzemesiyle:
+- [x] **S2 Terrain:** referans terrain'in tile'ları TSL CDLOD malzemesiyle:
       `positionNode` ile displacement, `sampler2DArray` boya katmanları, normal;
       `CSMShadowNode` gölgesi; `SkyMesh` + sis. Görsel yükseklik Rapier
       heightfield ile aynı mı?
-      *Ölçüldü (2026-11-11, Forge `6818d201` … `4cc0d5b9`
-      `spikes/webgpu/s2-terrain`); kapanış G8 yorumunu bekliyor (aşağıda).*
+      *Kapandı (2026-11-11, Forge `6818d201` … `4cc0d5b9`
+      `spikes/webgpu/s2-terrain`); G8 kullanıcı kararıyla tam çözünürlüklü
+      bölgeye uygulanır ve geçer (aşağıda).*
       **Yapılan:** Forge'un CDLOD terrain materyalinin TSL karşılığı. Yükseklik
       tile yuvası (R32F dizi, `textureLoad`, collider köşegeni) ya da global
       haritadan (bilinear); morph, etek, 64 yuvalık havuz; normal + 8 katmanlı
@@ -280,9 +281,10 @@ dışındaki `Games/ForgeReference`'tadır.
       Tam çözünürlüklü bölgede port Forge'un yüzeyini birebir çiziyor. Morph
       bandı ve ötesi CDLOD'un kendi sapması (kabalaşan mesh); Forge WebGL aynı
       formülle aynı sapmayı veriyor. G8'in "(CDLOD morph sınırında da)"
-      ifadesi bu bandı kapsıyorsa ölçüt kalıyor. **Kullanıcı kararı bekliyor:**
-      G8 tam çözünürlüklü bölgeye mi uygulanır, yoksa morph bandı da
-      ≤ 5 cm mi olmalı (LOD aralıkları büyür, üçgen artar)?
+      ifadesi bu bandı kapsıyorsa ölçüt kalıyordu. **Kullanıcı kararı
+      (2026-11-11):** G8 tam çözünürlüklü bölgeye (0. seviye, morph öncesi)
+      uygulanır: **geçer** (≤ 4,9 mm). Morph bandı ve ötesi bilgi olarak
+      raporlanır; LOD aralıkları değişmez.
       **G1 (terrain, eşdeğer içerik):** WebGL tarafı yalnız terrainli level
       kopyalarıyla ölçüldü (`*-terrain.level.json`: yerleşim, foliage, su,
       bulut, post-process, gökyüzü ışığı yakalaması çıkarıldı; `high`,
@@ -338,7 +340,7 @@ sonra, spike ölçümünden önce kondu (kullanıcı onayı 2026-11-11). Bütçe
 | G5 | S4 draw call: Derekavak ve WbPilotValley, gerçek yerleşim ve foliage sayılarıyla, instancing / `BatchedMesh` | WebGL'in %50'si: Derekavak P2 ≤ 940, WbPilotValley P3 ≤ 390 |
 | G6 | S4 CPU kare süresi (`performance.now` işaretleri) | Derekavak P2'de ana iş parçacığı ≤ 6 ms, render gönderimi ≤ 3 ms |
 | G7 | Compute culling + indirect draw prototipi (tek foliage türü) | r187'de doğru çiziyor (görsel kontrol + örnek sayısı); culling'siz instancing'e göre GPU ≤ +0,5 ms; CPU kazancı ölçülüp raporlanır |
-| G8 | Terrain = collider | Görsel yükseklik ile Rapier heightfield arasında 1 m'lik örnek ızgarasında azami fark ≤ 5 cm (CDLOD morph sınırında da) |
+| G8 | Terrain = collider | Görsel yükseklik ile Rapier heightfield arasında 1 m'lik örnek ızgarasında azami fark ≤ 5 cm, tam çözünürlüklü bölgede (0. seviye, morph öncesi; kullanıcı kararı 2026-11-11). Morph bandı ve ötesi CDLOD'un kendi sapması, bilgi olarak raporlanır |
 | G9 | Görsel fark | Yan yana görüntülerle kullanıcı kararı |
 
 Ölçüm kuralı: baseline düzeneğiyle aynı — `ForgeReference` sahneleri ve
@@ -674,3 +676,4 @@ silinebilir.
 | 2026-11-11 | v0.9 | Faz 0 kapandı: GO ölçüt sayıları G1–G9 Faz 1'e yazıldı (kullanıcı onayı, öneri olduğu gibi: G2 Balanced 1080p ortalama ≤ 14 / p95 ≤ 16,6 ms, G5 draw call ≤ WebGL'in %50'si, G6 Derekavak CPU ≤ 6 ms…); Faz 0 ayrıntısı `docs/archive/PHASE_0.md`'ye taşındı |
 | 2026-11-11 | v0.9 | Faz 1 başladı: spike yeri Forge `spikes/webgpu/` (kullanıcı kararı; `CLAUDE.md` istisnası `6ba3b26`). S1 Boot kapandı (Forge `517961b1`): gerçek WebGPU, çekirdek kip, NVIDIA Ampere, timestamp query çalışıyor, sınırsız kare hızı açılıyor |
 | 2026-11-11 | v0.9 | Faz 1 S2 Terrain ölçüldü (Forge `6818d201` … `4cc0d5b9`): CDLOD terrain'in TSL karşılığı, `high` gölgesi, sky + sis. G8: tam çözünürlüklü bölgede fark ≤ 4,9 mm; morph bandı ve ötesinde CDLOD'un kendi sapması (≤ 2,2 m), ölçütün yorumu kullanıcı kararında. G1 (yalnız terrainli WebGL kopyalarına karşı): 18 / 18 geçer, kare oranı 0,26–0,86. Faz 0 baseline'ının navmesh hata ayıklama çiziminden etkilenmediği A/B ile doğrulandı |
+| 2026-11-11 | v0.9 | S2 kapandı: G8 kullanıcı kararıyla tam çözünürlüklü bölgeye uygulanır (≤ 4,9 mm, geçer); GO tablosundaki G8 satırı buna göre netleşti |
