@@ -17,7 +17,7 @@ Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 (2026-11-11; [arşiv](../archive/PHASE_2A.md)). Faz 0 kapandı (2026-11-11;
 [arşiv](../archive/PHASE_0.md)): envanter, referans sahneler, WebGL baseline,
 GO sayıları. Faz 1 spike sürüyor: S1 ve S2 tamam (G1 terrain 18 / 18, G8
-geçer); S3 pipeline kapandı (Balanced tanımlandı, G2 / G3 terrain-only geçer); sırada S4 ve GO / NO-GO. 2b ve sonrası Faz 1 GO'suna bağlı.
+geçer); S3 pipeline kapandı (Balanced tanımlandı); S4 ölçüldü. G1–G9 sonuç tablosu Faz 1'de; G6'nın render gönderimi sınırı 0,9 ms aşıyor, G9 ve GO / NO-GO kararı kullanıcıda. 2b ve sonrası Faz 1 GO'suna bağlı.
 **Belge düzeni:** tek ana plan; biten fazın ayrıntısı faz kapanınca
 [`docs/archive/`](../archive/INDEX.md)'e taşınır. Kısa mimari harita:
 [`docs/architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md);
@@ -409,7 +409,7 @@ dışındaki `Games/ForgeReference`'tadır.
       S4'ün gerçek içeriğine kalır (Faz 0'da Derekavak `high` WebGL GPU'su
       ~15–17 ms). Kesin okuma S4'te aynı profille. Kayıtlar
       `spike/s3-g2/` ve `spike/s3-g2-ssr/`.
-- [ ] **S4 Açık dünya stresi:** referans level'ın gerçek yerleşim ve foliage
+- [x] **S4 Açık dünya stresi:** referans level'ın gerçek yerleşim ve foliage
       sayılarıyla draw call ve CPU kare süresi; WebGL baseline'ıyla
       karşılaştırma. WebGPURenderer'ın nesne başına CPU maliyeti burada ölçülür.
       Aynı sahnede küçük bir **compute culling + indirect draw** prototipi
@@ -422,9 +422,108 @@ dışındaki `Games/ForgeReference`'tadır.
       yansımasız fark olarak draw call, CPU ve GPU. Planar sahneyi ikinci
       kameradan yeniden çizdiği için nesne başına CPU maliyetini doğrudan
       katlar.
+      *Ölçüldü (2026-11-11, Forge `2a135526` … `46986836`
+      `spikes/webgpu/s4-world`); GO / NO-GO kararı kullanıcıda (aşağıdaki
+      sonuç tablosu).*
+      **Yapılan:** S2 sahnesi + S3 pipeline + Derekavak ve WbPilotValley'nin
+      gerçek içeriği, Forge'un çalışma anındaki gibi yüklenir: level
+      yerleşimleri (yerleşimsiz listelenen asset'in boş batch'i dahil),
+      yükleme yarıçapındaki World Partition cell'leri, GLB + `*.materials.json`
+      slotları + `*.material.json` materyalleri, Landscape foliage kuralları
+      Forge'un three'siz modülleriyle (halka; yalnız Forge'un bellekte tuttuğu
+      tile'lar, 2 × tile boyu; uzak billboard blokları), küçük nesnelerin
+      mesafe solması ve batch atlaması, foliage rüzgâr sallanması ve dither
+      solması (TSL). Kipler: **(a)** Forge WebGL'in çizim yapısı (asset × mesh
+      `InstancedMesh`, cell batch'i görüş alanına göre ayıklanır; foliage ring
+      hücresi × mesh), **(a')** yerleşim başına Mesh, **(b)** asset'in mesh'leri
+      materyale göre birleşik, asset × materyal başına tek `InstancedMesh`,
+      foliage 256 m blok × kural; `BatchedMesh` satırı (aynı materyal imzalı
+      statikler); **(c)** çim kuralı compute culling + `drawIndexedIndirect`.
+      **Eşdeğerlik:** WebGL tarafı suyu, bulutu, araç actor'lerini (cell'lerdeki
+      dahil) ve gökyüzü ışığı yakalamasını çıkarılmış `*-s4` level kopyalarıyla
+      ölçüldü (`high`, `?debug`, 60 s ısınma; 10 s ile aynı draw call, sınırsız
+      kipte foliage halkası 10 s içinde doluyor). İçerik WebGL sahnesinde three
+      devtools kancasıyla sayılarak doğrulandı: Derekavak P2 foliage 370 hücre /
+      1.640 örnek ve statikler 118 `InstancedMesh` / 1.764 örnek, ikisi de
+      birebir; WbPilotValley P3 foliage 300'e 305 hücre, statik örnek 155'e 162
+      (Forge'un cell akış payı); uzak billboard 4 blok / 314 örnek, birebir.
+      Draw call farkının kalanı: gölge kaskatlarında foliage (WbPilotValley
+      +40, Derekavak +66; CSM sığdırma) ve WebGL `GTAOPass`'inin normal için
+      sahneyi ve gölge haritalarını ikinci kez çizmesi (Derekavak'ta WebGL
+      draw call'larının yarısı). WebGPU MRT'den okuduğu için tek geçiş.
+
+      | G1: kip (a), WebGL'in efekt seti (Derekavak GTAO + bloom + SMAA, WbPilotValley yok), 1080p × 3 | WebGPU kare / GPU (draw call) | WebGL kare / GPU (draw call) | Oran kare / GPU |
+      |---|---|---|---|
+      | Derekavak P1 | 6,70 / 3,09 (795) | 12,35 / 12,14 (1.441) | 0,54 / 0,25 |
+      | Derekavak P2 | 7,31 / 3,92 (871) | 13,53 / 13,31 (1.531) | 0,54 / 0,29 |
+      | Derekavak P3 | 6,50 / 3,20 (726) | 11,79 / 11,60 (1.367) | 0,55 / 0,28 |
+      | WbPilotValley P1 | 4,74 / 1,31 (310) | 6,94 / 6,74 (304) | 0,68 / 0,19 |
+      | WbPilotValley P2 | 4,31 / 1,39 (303) | 6,47 / 6,25 (269) | 0,67 / 0,22 |
+      | WbPilotValley P3 | 5,27 / 1,71 (475) | 8,00 / 5,96 (454) | 0,66 / 0,29 |
+
+      WebGL bu sahnelerde GPU'ya bağlı; WebGPU kip (a)'da CPU'ya bağlı (kare ≈
+      render gönderimi).
+
+      | Kipler, 1080p (Derekavak P2 / WbPilotValley P3) | Kare | GPU | Draw call |
+      |---|---|---|---|
+      | (a) Forge yapısı | 7,31 / 5,27 | 3,92 / 1,71 | 871 / 475 |
+      | (a') yerleşim başına Mesh | 12,47 / 5,04 | 3,82 / 1,73 | 2.166 / 651 |
+      | (b) instancing | 4,96 / 2,58 | 4,25 / 2,14 | 327 / 212 |
+      | `BatchedMesh` | 4,90 / 2,97 | 4,04 / 2,20 | 329 / 212 |
+      | (c) çimde GPU culling | 5,02 / 2,78 | 4,24 / 2,05 | 319 / 208 |
+
+      `BatchedMesh` kazandırmıyor: bu sahnelerde asset'ler materyal
+      paylaşmıyor, birleştirilecek imza yok.
+      **G6 (CPU):** sınırsız kipte GPU darboğazken `render()` swapchain'i
+      beklediği için CPU süresi GPU beklemesini de içeriyor; G6 bu yüzden 60 Hz
+      sınırında ölçüldü (Derekavak P2 × 3; GPU kareye sığıyor, bekleme yok).
+      Spike'ta oyun mantığı yok, ana iş parçacığı ≈ render gönderimi.
+
+      | Derekavak P2, 60 Hz | Draw call | Render gönderimi (CPU) | GPU |
+      |---|---|---|---|
+      | (a) Forge yapısı | 871 | 6,9 | 3,8 |
+      | (b) instancing | 327 | **3,9** | 4,1 |
+      | (c) çimde GPU culling | 319 | 3,9 | 4,1 |
+      | (b) + Balanced + SSR yarım | 331 | 4,7 | 5,5 |
+      | Teşhis: her foliage kuralı tek batch, culling yok (`noCull=*`) | 111 | **2,2** | 4,7 |
+
+      CPU maliyeti draw call sayısıyla büyüyor: ~1,3 ms sabit + draw call başına
+      ~8 µs. Kip (b)'nin 327 draw call'unun 260'ı foliage (gölge kaskatları
+      dahil). Foliage draw call'ları toplanınca gönderim 2,2 ms'ye iniyor;
+      karşılığı culling'siz çizimin +0,6 ms GPU'su. Compute culling (G7) bu
+      GPU'yu geri almanın yolu; bütün türlerde ve gölge kaskatlarında
+      ölçülmedi.
+      **G7:** çim kuralı (Derekavak 291, WbPilotValley 346 örnek) compute
+      pass'te görüş alanı + mesafe culling, atomik sayaçla indirect
+      argümanları, tek `drawIndexedIndirect`; sallanma ve solma korunuyor.
+      Görünen örnek sayısı aynı testin CPU karşılığıyla 6 pozda birebir (71,
+      45, 74, 338, 150, 190); görüntü kip (b) ile aynı (≤ %0,003 piksel).
+      Culling'siz tek `InstancedMesh`'e göre GPU −0,02 … −0,11 ms. CPU
+      kazancı ölçülemiyor (60 Hz'de 3,9 / 3,9 ms): çim bu sahnelerde az (39
+      hücre → 1 draw).
+      **G2 / G3 (kesin, kip (b), Balanced + SSR yarım = en kötü):** 1080p
+      ortalama kare 5,41–6,83, p95 ≤ 10,4 ms; 1440p 9,57–11,51, p95 ≤ 12,4 ms.
+      SSR kapalı: 1080p 3,93–5,41, 1440p 6,38–8,27. En kötü poz 1080p'de
+      Derekavak P2, 1440p'de WbPilotValley P3.
+      **Planar yansıma (kip (b), WebGL'in efekt seti, 1080p):** Forge
+      `medium` gibi (256 px, en sık 32 ms'de bir) ortalama kare +0,2–0,5 ms,
+      p95 en çok +3,4 ms (yansıma karelerinde); her karede +1,5–2,7 ms kare,
+      +0,5–1,0 ms GPU, draw call × 2 (Derekavak). WbPilotValley P1'de düzlem
+      görüş alanında değil, çizilmedi.
+      **G9 için görüntüler:** `spike/s4-measure/s4-g9-grid.jpg` (6 poz; WebGL
+      `high` kopyası `?debug`'sız, WebGPU kip (a), WebGPU Balanced + SSR
+      yarım). Gözlenen: WebGPU sahneleri belirgin daha koyu ve sıcak tonlu
+      (yollar, duvarlar), WebGPU gökyüzünde `SkyMesh` bulutları var. Nedeni
+      doğrulanmadı (S2'den beri spike'ta gökyüzü ışığı / IBL yok); ayar
+      yapılmadı. Faz 1'de spike'ın taşımadığı: impostor atlası (dal dokusuyla
+      dörtgen), terrain uzak karartması, IBL.
+      Kayıtlar `ForgeReference/baseline/spike/s4-measure/` (`summary.json`),
+      `spike/s4-g6-capped/`, WebGL `measure/webgl-s4-long-*`, prob
+      `tools/s4-webgl-probe.mjs`.
 - [ ] **S5 (isteğe bağlı):** `LightProbeGrid` bake süresi ve görsel etkisi;
       `ClusteredLighting` ile N nokta ışık.
-- [ ] Sonuç tablosu + yan yana ekran görüntüleri bu plana yazılır.
+- [x] Sonuç tablosu + yan yana ekran görüntüleri bu plana yazılır (aşağıda;
+      görüntüler `ForgeReference/baseline/spike/s4-measure/s4-g9-grid.jpg`).
 
 **GO ölçütleri** (görsel fark kullanıcıya göre anlamlı; referans sahnede kare
 süresi konan sınırın içinde; S4'teki CPU maliyeti instancing ve compute
@@ -439,11 +538,25 @@ sonra, spike ölçümünden önce kondu (kullanıcı onayı 2026-11-11). Bütçe
 | G2 | Balanced profil, 1080p (S3'te tanımlandı: TRAA + GTAO + bloom; SSR yarım çözünürlükte, ölçümde açık) | Bütün pozlarda ortalama kare ≤ 14 ms, p95 ≤ 16,6 ms (2,6 ms oynanış payı; Derekavak'ta S4 iyileştirmesini şart koşar) |
 | G3 | Balanced profil, 1440p | Ortalama kare ≤ 16,6 ms, p95 ≤ 20 ms |
 | G4 | Cinematic profil | Sınır yok, yalnız rapor (teknik kararları Faz 9'da ölçümle) |
-| G5 | S4 draw call: Derekavak ve WbPilotValley, gerçek yerleşim ve foliage sayılarıyla, instancing / `BatchedMesh` | WebGL'in %50'si: Derekavak P2 ≤ 940, WbPilotValley P3 ≤ 390 |
+| G5 | S4 draw call: Derekavak ve WbPilotValley, gerçek yerleşim ve foliage sayılarıyla, instancing / `BatchedMesh` | WebGL eşdeğer kopyasının %50'si (kullanıcı kararı 2026-11-11; spike'ın çizmediği su, araç ve bulut tabana girmez): Derekavak P2 ≤ 766, WbPilotValley P3 ≤ 227 |
 | G6 | S4 CPU kare süresi (`performance.now` işaretleri) | Derekavak P2'de ana iş parçacığı ≤ 6 ms, render gönderimi ≤ 3 ms |
 | G7 | Compute culling + indirect draw prototipi (tek foliage türü) | r187'de doğru çiziyor (görsel kontrol + örnek sayısı); culling'siz instancing'e göre GPU ≤ +0,5 ms; CPU kazancı ölçülüp raporlanır |
 | G8 | Terrain = collider | Görsel yükseklik ile Rapier heightfield arasında 1 m'lik örnek ızgarasında azami fark ≤ 5 cm, tam çözünürlüklü bölgede (0. seviye, morph öncesi; kullanıcı kararı 2026-11-11). Morph bandı ve ötesi CDLOD'un kendi sapması, bilgi olarak raporlanır |
 | G9 | Görsel fark | Yan yana görüntülerle kullanıcı kararı |
+
+**Sonuç (2026-11-11, S1–S4):**
+
+| # | Sonuç | Durum |
+|---|---|---|
+| G1 | Terrain (S2) 18 / 18; S4 kip (a) 6 / 6: kare oranı 0,54–0,68, GPU oranı 0,19–0,29 | Geçer |
+| G2 | Kip (b), Balanced + SSR yarım: ortalama kare ≤ 6,83 ms, p95 ≤ 10,4 ms | Geçer |
+| G3 | 1440p: ortalama kare ≤ 11,51 ms, p95 ≤ 12,4 ms | Geçer |
+| G4 | Cinematic yalnız S3'te (terrain): 1080p 8,8–19,1, 1440p 18,6–41,2 ms; S4'te ölçülmedi | Rapor |
+| G5 | Kip (b): Derekavak P2 327 (≤ 766), WbPilotValley P3 212 (≤ 227) | Geçer |
+| G6 | Derekavak P2, 60 Hz, kip (b): ana iş parçacığı 3,9 ms (≤ 6) geçer; render gönderimi 3,9 ms (≤ 3) **0,9 ms aşar**. Foliage draw call'ları toplanınca 2,2 ms (GPU +0,6 ms, culling'siz) | Ana iş parçacığı geçer, render gönderimi kalır |
+| G7 | Örnek sayısı GPU = CPU, görüntü aynı; GPU −0,02 … −0,11 ms (≤ +0,5); CPU kazancı ölçülemiyor (çim az) | Geçer |
+| G8 | Tam çözünürlüklü bölgede ≤ 4,9 mm | Geçer |
+| G9 | Yan yana görüntüler hazır | Kullanıcı kararı |
 
 Ölçüm kuralı: baseline düzeneğiyle aynı — `ForgeReference` sahneleri ve
 pozları, 10 s ısınma + 15 s ölçüm, sınırsız kare hızı, başlıklı Chrome, R1;
@@ -788,3 +901,4 @@ silinebilir.
 | 2026-11-11 | v0.9 | S2 kapandı: G8 kullanıcı kararıyla tam çözünürlüklü bölgeye uygulanır (≤ 4,9 mm, geçer); GO tablosundaki G8 satırı buna göre netleşti |
 | 2026-11-11 | v0.9 | Faz 1 S3 Pipeline ölçüldü (Forge `33c0c00d` … `407720e1`): tek `RenderPipeline`, MRT → GTAO / SSGI / SSR → TRAA → bloom; efekt maliyeti 3 sahne × 3 poz × 1080p / 1440p. 1080p medyan: GTAO 1,6, TRAA 0,4, bloom 0,1, SSR 6,2 (üst sınır), SSGI 7,3 ms; yarım çözünürlükte SSR 1,1, SSGI 2,0, GTAO 0,5 ms. Balanced adayı (TRAA + GTAO + bloom) terrain-only kare ≤ 4,4 ms (1080p) / ≤ 7,2 ms (1440p). Beş MRT hedefi WebGPU'nun varsayılan renk eki sınırını (32 bayt) aşıyor. Balanced profil kararı kullanıcıda. CI `f2b29cf`, `0519c3b`, `4ed6381` (Forge `517961b1` … `4cc0d5b9`) yeşil (kullanıcı teyidi) |
 | 2026-11-11 | v0.9 | S3 kapandı (Forge `e0e64051`, `a4286990`): Balanced = TRAA + GTAO + bloom (level yazmışsa) + SSR yarım çözünürlük (level seçmişse); Cinematic SSGI + SSR tam (kullanıcı kararı). G2 / G3 terrain-only geçer: en kötü Derekavak P2, SSR açık 1080p 5,5 / p95 6,4 ms, 1440p 9,7 / p95 10,6 ms; kesin okuma S4'te. Yansıma kararı: genel yansıma SSR (Post Process `reflection: off \| ssr`, Faz 3), düz yüzeyler planar (Faz 7), sphere reflection capture taşınmaz (PORT_LOG INV-D12, G09). S4'e planar yansıma ölçümü eklendi (rapor) |
+| 2026-11-11 | v0.9 | Faz 1 S4 ölçüldü (Forge `2a135526` … `46986836`): Derekavak ve WbPilotValley'nin gerçek içeriği Forge'un yükleme kurallarıyla (cell'ler, materyal slotları, bellekteki tile'larla foliage halkası, uzak billboard'lar); içerik WebGL'le sayılarak doğrulandı. G1 6 / 6 (kare oranı 0,54–0,68), G2 / G3 kesin (≤ 6,83 / ≤ 11,51 ms), G5 (327 / 212), G7 geçer; G6 render gönderimi 3,9 ms (sınır 3) aşar, foliage draw call'ları toplanınca 2,2 ms. G5 tabanı eşdeğer kopyaya göre (kullanıcı kararı). G9 ve GO / NO-GO kullanıcıda |
