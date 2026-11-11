@@ -374,6 +374,10 @@ taşınır.
 | `src/engine/time/timeControl.ts` | `engine/core/timeControl.ts` | `04b5fb23` | taşındı | 5 taşındı (`timeControl.test.ts`, dosyanın tamamı) | yeşil (2026-11-11) |
 | `src/engine/work/cooperativeWork.ts` | `engine/core/cooperativeWork.ts` | `04b5fb23` | uyarlandı: parametre özelliği açık alan | 1 taşındı (`lakeScheduling.test.ts`'in yalnız `CooperativeWork` kontrolü; göl kontrolleri Faz 7) | yeşil (2026-11-11) |
 | `src/engine/perf/frameMetrics.ts` | `engine/perf/frameMetrics.ts` | `04b5fb23` | taşındı | 4 taşındı (`frameMetrics.test.ts`) | yeşil (2026-11-11) |
+| `src/engine/subsystem.ts` | `engine/core/Subsystem.ts` | `04b5fb23` | taşındı (yalnız tipler): Forge alt sistem biçimi; taşınan alt sistemler Faz 6'da World'e bağlanana kadar bunu uygular | — | — |
+| `src/engine/perf/` (`subsystemProfiler`, `frameRegions`, `debugTableView`, `bottleneckClassifier`, `perfBudget`) | `engine/core/subsystemProfiler.ts`, `engine/perf/{frameRegions,debugTableView,bottleneckClassifier,perfBudget}.ts` | `04b5fb23` | uyarlandı: profil çıkarıcı `engine/core`'dan `perf`'e; parametre özellikleri açık alan | 16 taşındı (`frameRegions.test.ts` 11, `subsystemProfiler.test.ts` 3, `perfBudget.test.ts` 2) | yeşil (2026-11-11) |
+| `src/engine/input/inputSubsystem.ts` | `engine/input/inputSubsystem.ts` | `04b5fb23` | uyarlandı: parametre özelliği açık alan | 1 taşındı (`inputSubsystem.test.ts`, iskele döngüsüyle) | yeşil (2026-11-11) |
+| `src/engine/testing/` (`EngineApp`, `SubsystemRegistry`) — **test iskelesi** | `engine/core/{EngineApp,SubsystemRegistry}.ts` | `04b5fb23` | iskele (kullanıcı kararı 2026-11-11): yalnız testler import eder (`engine-testing-is-test-only`); Faz 6'da silinir | 1 taşındı (`EngineApp.test.ts`, iskelenin öz-testi) | yeşil (2026-11-11) |
 
 İşlem: taşındı / uyarlandı / yeniden yazıldı. Testler: taşınan / yeniden yazılan
 / düşen sayısı (2b test sınıflamasına göre).
@@ -387,6 +391,15 @@ kontrolleri gövdeleri değişmeden modülün yanındaki `*.test.ts`'e kopyalan�
 `npm run port:forge-tests` etiketleri eşleyip ilerlemeyi sayar (§2.1).
 Ses alanında kalanlar: 2 A `perfReadout` (perf ile), 1 A çarpışma davranışı
 (behavior ile), 8 M (behavior / scene ile yeniden yazılır).
+
+**Test iskelesi (kullanıcı kararı 2026-11-11):** Forge'da physics / behavior /
+movement testlerinin çoğu alt sistemleri eski uygulama döngüsüyle
+(`EngineApp` + `SubsystemRegistry`) tick'liyor; 2a World bu döngünün yerini
+aldı. Kontroller birebir kalsın diye döngü `src/engine/testing/`'e iskele
+olarak taşındı; ürün kodu onu import edemez (`engine-testing-is-test-only`,
+kasıtlı ihlalli). Taşınan alt sistemler Forge biçimini (`src/engine/subsystem.ts`)
+uygular. Faz 6'da her alt sistem özelliğiyle World'e bağlanır, testleri
+World'e çevrilir ve iskele silinir.
 
 ### 2.1 Test sınıflaması
 
@@ -407,7 +420,7 @@ birden çok koşu üretir.
 
 **İlerleme:** `npm run port:forge-tests` bu deponun `src/**/*.test.ts`
 dosyalarındaki etiketleri Forge kontrolleriyle eşler; TSV'nin `ported`
-sütunu kontrolü taşıyan dosyayı gösterir. 2026-11-11: **A 100 / 927** (ses 37, UI 50, input 3, zaman 5, iş bölme 1, kare ölçümü 4).
+sütunu kontrolü taşıyan dosyayı gösterir. 2026-11-11: **A 118 / 927** (ses 37, UI 50, input 4, zaman 5, iş bölme 1, perf 20, iskele 1).
 
 **Sınıflar.** Her kontrol, değer düzeyinde ulaştığı Forge modüllerine göre
 sınıflanır. Ulaşım sözcüksel kapsamla izlenir: kontrolün gövdesi ve onun

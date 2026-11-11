@@ -84,6 +84,9 @@ projenin sunucusunu yeniden kullanma.
   gereken kod `src/runtime`'da (ör. `runtime/audio`). `src` altındaki testler
   yalnız `node:assert` import edebilir; Forge'dan taşınan kontroller birebir
   kalır (`check` = Vitest `test`).
+- `src/engine/testing/` test iskelesidir (Forge'un eski döngüsü): yalnız testler
+  import eder, ürün koduna girmez; Faz 6'da silinir. Taşınan alt sistemler
+  `src/engine/subsystem.ts` biçimini uygular. İlerleme `npm run port:forge-tests`.
 
 ## Çalışma kuralları
 

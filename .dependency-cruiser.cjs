@@ -123,6 +123,14 @@ module.exports = {
       to: { dependencyTypes: ["core"] },
     },
     {
+      name: "engine-testing-is-test-only",
+      comment:
+        "src/engine/testing holds Forge WebGL's old app loop as a test scaffold (plan 2b): ported checks tick subsystems through it word for word. Product code never reaches it; it is deleted in Faz 6 when the subsystems bind to the world.",
+      severity: "error",
+      from: { path: "^src/", pathNot: ["\\.test\\.ts$", "^src/engine/testing/"] },
+      to: { path: "^src/engine/testing/" },
+    },
+    {
       name: "src-tests-node-assert-only",
       comment:
         "A test under src/ runs in Node (Vitest) and never ships, so it may use node:assert: tests ported from Forge WebGL keep their assertions word for word (plan 2b). Every other Node module stays out of src/, tests included.",

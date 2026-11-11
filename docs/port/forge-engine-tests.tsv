@@ -420,17 +420,17 @@ tests/engine/frameCapture.test.ts	147	check	A			engine/core,engine/perf			a capt
 tests/engine/frameCapture.test.ts	162	check	A			engine/core,engine/perf			a group nothing measured cannot swallow its declared children
 tests/engine/frameCapture.test.ts	179	check	A			engine/core,engine/perf			the frame in progress sums a region entered more than once
 tests/engine/frameCapture.test.ts	194	check	A			engine/core,engine/perf			endFrame clears the frame so the next capture is not the previous one
-tests/engine/frameRegions.test.ts	42	check	A			engine/perf			frame region registry refuses to let the denominator become a row
-tests/engine/frameRegions.test.ts	49	check	A			engine/perf			frame region registry re-declares idempotently and inherits debugOnly
-tests/engine/frameRegions.test.ts	68	check	A			engine/core,engine/perf			frame region rows account for every millisecond of the frame
-tests/engine/frameRegions.test.ts	106	check	A			engine/core,engine/perf			frame region rows never print a negative residual or invent a peak
-tests/engine/frameRegions.test.ts	129	check	A			engine/core,engine/perf			frame region rows read a snapshot with no declarations as a flat list
-tests/engine/frameRegions.test.ts	149	check	A			engine/core,engine/perf			orphan regions surface as top-level rather than hiding under a phantom group
-tests/engine/frameRegions.test.ts	167	check	A			engine/core,engine/perf			a group's time is counted once, and diagnostic cost is counted apart
-tests/engine/frameRegions.test.ts	194	check	A			engine/core,engine/perf			the overlay's own cost cannot tip the bottleneck verdict to cpu
-tests/engine/frameRegions.test.ts	216	check	A			engine/core,engine/perf			the subsystem block is a region whose residual is the registry's own cost
-tests/engine/frameRegions.test.ts	246	check	A			engine/core			a subsystem registered after profiling started still nests under engine
-tests/engine/frameRegions.test.ts	259	check	A			engine/perf			debugTableToText aligns the grid so a pasted table is still readable
+tests/engine/frameRegions.test.ts	42	check	A			engine/perf		src/engine/perf/frameRegions.test.ts	frame region registry refuses to let the denominator become a row
+tests/engine/frameRegions.test.ts	49	check	A			engine/perf		src/engine/perf/frameRegions.test.ts	frame region registry re-declares idempotently and inherits debugOnly
+tests/engine/frameRegions.test.ts	68	check	A			engine/core,engine/perf		src/engine/perf/frameRegions.test.ts	frame region rows account for every millisecond of the frame
+tests/engine/frameRegions.test.ts	106	check	A			engine/core,engine/perf		src/engine/perf/frameRegions.test.ts	frame region rows never print a negative residual or invent a peak
+tests/engine/frameRegions.test.ts	129	check	A			engine/core,engine/perf		src/engine/perf/frameRegions.test.ts	frame region rows read a snapshot with no declarations as a flat list
+tests/engine/frameRegions.test.ts	149	check	A			engine/core,engine/perf		src/engine/perf/frameRegions.test.ts	orphan regions surface as top-level rather than hiding under a phantom group
+tests/engine/frameRegions.test.ts	167	check	A			engine/core,engine/perf		src/engine/perf/frameRegions.test.ts	a group's time is counted once, and diagnostic cost is counted apart
+tests/engine/frameRegions.test.ts	194	check	A			engine/core,engine/perf		src/engine/perf/frameRegions.test.ts	the overlay's own cost cannot tip the bottleneck verdict to cpu
+tests/engine/frameRegions.test.ts	216	check	A			engine/core,engine/perf		src/engine/perf/frameRegions.test.ts	the subsystem block is a region whose residual is the registry's own cost
+tests/engine/frameRegions.test.ts	246	check	A			engine/core		src/engine/perf/frameRegions.test.ts	a subsystem registered after profiling started still nests under engine
+tests/engine/frameRegions.test.ts	259	check	A			engine/perf		src/engine/perf/frameRegions.test.ts	debugTableToText aligns the grid so a pasted table is still readable
 tests/engine/gpuSweep.test.ts	27	check	A			engine/perf			median resists the warm-up frame a mean would let through
 tests/engine/gpuSweep.test.ts	36	check	A			engine/perf			a row is compared with its own bracket, so a sliding baseline cancels
 tests/engine/gpuSweep.test.ts	73	check	A			engine/perf			a row whose bracket moved as far as its saving is published as uncertain
@@ -1737,10 +1737,10 @@ tools/engine-tests.ts	2674	check	M			engine/scene	model:engine/scene		actor inst
 tools/engine-tests.ts	2696	check	M			engine/scene	model:engine/scene		actorInstanceToEntity bakes placement scale into the flattened capsule collider
 tools/engine-tests.ts	2729	check	M			engine/scene	model:engine/scene		actorInstanceToEntity bakes non-uniform placement scale into a box collider
 tools/engine-tests.ts	2752	check	M			engine/scene	model:engine/scene		light entity carries actor render inputs for parity
-tools/engine-tests.ts	2813	checkAsync	A			engine/core			engine core initializes and ticks deterministic subsystems
+tools/engine-tests.ts	2813	checkAsync	A			engine/core		src/engine/testing/EngineApp.test.ts	engine core initializes and ticks deterministic subsystems
 tools/engine-tests.ts	2863	check	R			engine/core,engine/render-three	three-via:engine/render-three		animation subsystem ticks mixers with engine deltaSeconds
 tools/engine-tests.ts	2885	check	R			engine/core,engine/perf,engine/render-three	three-via:engine/render-three		Phase 7 distance update cadence preserves near updates and batches far work
-tools/engine-tests.ts	2939	check	A			engine/core,engine/input			input subsystem maps raw codes to named action edges per tick
+tools/engine-tests.ts	2939	check	A			engine/core,engine/input		src/engine/input/inputSubsystem.test.ts	input subsystem maps raw codes to named action edges per tick
 tools/engine-tests.ts	2985	check	A			engine/input		src/engine/input/actionMap.test.ts	action map keeps a tap shorter than one tick as a one-tick press
 tools/engine-tests.ts	3005	check	A			engine/input		src/engine/input/actionMap.test.ts	action map resolves analog axes with deadzone scale invert and delta input
 tools/engine-tests.ts	3029	check	A			engine/input		src/engine/input/actionMap.test.ts	action map rescales a stick past its deadzone so the value starts from zero
@@ -2166,11 +2166,11 @@ tools/engine-tests.ts	16524	check	A			engine/loading			load progress: counts loa
 tools/engine-tests.ts	16571	check	A			engine/loading			load progress: transitions are idempotent and retry moves failed -> loaded
 tools/engine-tests.ts	16604	check	A			engine/loading			load progress: formatLoadDetail renders settled/total with a failure suffix
 tools/engine-tests.ts	16615	check	A			engine/loading			load progress: subscribe fires immediately and on each change, clear resets
-tools/engine-tests.ts	16646	check	A			engine/core			subsystem profiler: rolling average sorts worst-first with last + peak
-tools/engine-tests.ts	16673	check	A			engine/core			subsystem profiler: window drops old samples, clamps negatives, top(n) + clear
-tools/engine-tests.ts	16707	check	A			engine/core			subsystem profiler: registry times each subsystem with an injected clock
-tools/engine-tests.ts	16757	check	A			engine/perf			perf budget: flags over-budget metrics and keeps a stable row order
-tools/engine-tests.ts	16776	check	A			engine/perf			perf budget: formatByteSize renders decimal units with a placeholder for bad input
+tools/engine-tests.ts	16646	check	A			engine/core		src/engine/perf/subsystemProfiler.test.ts	subsystem profiler: rolling average sorts worst-first with last + peak
+tools/engine-tests.ts	16673	check	A			engine/core		src/engine/perf/subsystemProfiler.test.ts	subsystem profiler: window drops old samples, clamps negatives, top(n) + clear
+tools/engine-tests.ts	16707	check	A			engine/core		src/engine/perf/subsystemProfiler.test.ts	subsystem profiler: registry times each subsystem with an injected clock
+tools/engine-tests.ts	16757	check	A			engine/perf		src/engine/perf/perfBudget.test.ts	perf budget: flags over-budget metrics and keeps a stable row order
+tools/engine-tests.ts	16776	check	A			engine/perf		src/engine/perf/perfBudget.test.ts	perf budget: formatByteSize renders decimal units with a placeholder for bad input
 tools/engine-tests.ts	16785	check	A			engine/perf		src/engine/perf/frameMetrics.test.ts	frame metrics: windowed average and spike counts over raw deltas
 tools/engine-tests.ts	16811	check	A			engine/perf		src/engine/perf/frameMetrics.test.ts	frame metrics: P95 uses nearest-rank over the window
 tools/engine-tests.ts	16822	check	A			engine/perf		src/engine/perf/frameMetrics.test.ts	frame metrics: window is time-bounded and estimates refresh from the low percentile

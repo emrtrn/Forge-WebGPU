@@ -317,7 +317,13 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       *UI taşındı (2026-11-11):* `src/engine/ui` + `src/runtime/ui/uiDom.ts`,
       50 kontrol yeşil. *Input, zaman kontrolü, iş bölme, kare ölçümü
       taşındı (2026-11-11):* `src/engine/{input,time,work,perf}`, 13 kontrol.
-      İlerleme A 100 / 927.
+      *Test iskelesi (kullanıcı kararı 2026-11-11):* Forge'un eski uygulama
+      döngüsü (`EngineApp` + `SubsystemRegistry`) yalnız testlerin
+      kullanabildiği `src/engine/testing/`'te; onunla tick'lenen kontroller
+      birebir taşınır. Taşınan alt sistemler Forge biçimini
+      (`src/engine/subsystem.ts`) Faz 6'ya kadar korur. Perf hesabı
+      (profil çıkarıcı, kare bölgeleri, darboğaz sınıflayıcı, bütçe) ve
+      `inputSubsystem` geldi. İlerleme A 118 / 927.
 - [ ] Kayıt oyunu (`engine/persistence`) ve World Partition (`engine/world`)
       yeni modele göre yeniden kurulur; GUID anahtarlı. Kayıt oyunu `persist`
       işaretli bileşen alanlarını ve `defineSaveState` bölümlerini saklar;
@@ -463,6 +469,10 @@ Dört alt faz; her birinin kendi kapısı var, görsel kabul sonda toplu istenir
       nav. AI mantığı oyun kodunda; BT / State Tree / EQS / Blackboard / Smart
       Object, diyalog, ragdoll, hareketli platform, spline takipçisi, portallar
       yok (K12).
+- [ ] Taşınan alt sistemler (`src/engine/subsystem.ts` biçimi) özellikleriyle
+      World'e `defineSubsystem` üzerinden bağlanır; iskeleyle tick'lenen
+      testleri World'e çevrilir; `src/engine/testing/` ve
+      `engine-testing-is-test-only` kuralı silinir (2b iskele kararı).
 - [ ] **UI widget editörü (açık karar, K12):** görsel widget düzenleyici
       mimari §0.0'ın "istemsiz müdahale" ayağına uyar (HUD yerleşimi); Faz 6
       başında kullanıcı kararı. O güne kadar widget'lar şemalı JSON.
@@ -654,3 +664,4 @@ silinebilir.
 | 2026-11-11 | v1.0 | 2b ilk taşıma: ses (`src/engine/audio`, `src/runtime/audio`), 37 Forge kontrolü birebir Vitest'te yeşil; `engine` DOM'suz (kullanıcı kararı; `tsconfig.tools.json` + `verify:node-load` zorlar), `src` testlerine yalnız `node:assert` (`src-tests-node-assert-only`), testler ayrı `tsconfig.tests.json`; Sound Cue D, payda 927; `port:forge-tests` taşınanı etiketle sayar (37 / 927) |
 | 2026-11-11 | v1.0 | 2b: UI kütüphanesi taşındı (`src/engine/ui`, DOM kısmı `src/runtime/ui/uiDom.ts`), 50 Forge kontrolü yeşil; 5 M kontrol bırakıldı. A 87 / 927 |
 | 2026-11-11 | v1.0 | 2b: input (eylem haritası, varsayılan bağlamalar; ragdoll tuşu yok), zaman kontrolü, işbirlikçi iş bölme, kare ölçümü taşındı (`src/engine/{input,time,work,perf}`), 13 kontrol yeşil. A 100 / 927 |
+| 2026-11-11 | v1.0 | 2b test iskelesi (kullanıcı kararı): eski döngü `src/engine/testing/`'te, yalnız testlere açık (yeni katman kuralı + kasıtlı ihlal); Faz 6'da silinir. Perf hesabı, `inputSubsystem`, Forge alt sistem biçimi taşındı. A 118 / 927 |
