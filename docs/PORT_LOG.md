@@ -395,6 +395,12 @@ kontrolleri gövdeleri değişmeden modülün yanındaki `*.test.ts`'e kopyalan�
 `const check = test` (Vitest), assertion'lar `node:assert` ile aynı kalır
 (`src-tests-node-assert-only`). Bir kontrol etiketiyle taşınır;
 `npm run port:forge-tests` etiketleri eşleyip ilerlemeyi sayar (§2.1).
+Araçlar: `npm run port:forge -- tests <alan> --forge <Forge> [--write]` bütün
+import'ları taşınmış kontrolleri taşır ve kalanları neyin beklettiğini sayar;
+`closure` bir taşımanın kapsamını, `subset` eski büyük dosyadan gereken
+bildirimleri, `members` bütçeyi aşan dosyanın bölme planını çıkarır.
+Dönüşümler (import yolu, parametre özelliği, taşıma notu)
+`tools/port/portFiles.ts`'te.
 Ses alanında kalanlar: 2 A `perfReadout` (perf ile), 1 A çarpışma davranışı
 (behavior ile), 8 M (behavior / scene ile yeniden yazılır).
 

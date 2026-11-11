@@ -21,6 +21,7 @@
     "sdk:snapshot": "node tools/sdk-api.ts write",
     "verify:sdk-api": "node tools/sdk-api.ts verify",
     "port:forge-tests": "node tools/port-forge-tests.ts",
+    "port:forge": "node tools/port-forge.ts",
     "test": "vitest run",
     "build": "vite build",
     "gate": "npm run typecheck && npm run verify:layers && npm run verify:file-size && npm run verify:node-load && npm run verify:assets && npm run verify:sdk-api && npm run check:projects && npm run test && npm run build"
