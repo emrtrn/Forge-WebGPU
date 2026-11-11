@@ -494,7 +494,7 @@ Her adım dikey bir dilimdir ve kendi kapısıyla biter. Görsel beğeni kullan�
 kabulüdür; kapılar işlevsel ve ölçülebilirdir.
 
 - [ ] **PG0 Hazırlık.** §2'deki ana plan çıktıları ve üç nokta kodla
-      doğrulanır; PK4–PK6 kapanır; ana plana bağlantı satırı eklenir.
+      doğrulanır; PK5–PK6 kapanır (PK4 PG1 ölçümüyle); ana plana bağlantı satırı eklenir.
 - [ ] **PG1 Kaya, uçtan uca ince dilim.** Saf çekirdek (rastgele akışlar,
       mesh yazımı, LOD örneklemesi, collider, istatistik) + kaya üreticisi +
       tarif şeması + taş yüzeyi materyal tarifi (§6.6) + triplanar materyal +
@@ -545,7 +545,7 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 | Bake yolu (eski PK3) | CPU rasterleyici; Node'da ve worker'da çalışır (kullanıcı, 2026-11-11; §6.7) |
 | Dokuların kaynağı | Dokular da prosedürel üretilir; genel materyal tarifi, ileride binalar da kullanır (kullanıcı, 2026-11-11; §6.6) |
 
-**Açık (PG0'da kapanır):**
+**Açık (PK4 PG1 ölçümüyle, diğerleri PG0'da kapanır):**
 
 | ID | Soru | Öneri |
 |---|---|---|
