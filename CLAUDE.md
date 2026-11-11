@@ -84,5 +84,11 @@ projenin sunucusunu yeniden kullanma.
   Vite ana sürümleri de Forge'la aynı. Yükseltme faz sınırında, ayrı adımdır.
 - Forge WebGL deposu buradan yalnız okunur. Algoritmalar olduğu gibi taşınır
   (plan §2.11); `SceneApp` / `RuntimeSceneApp` referans alınır, kopyalanmaz.
+  **İstisna (Faz 1, kullanıcı kararı 2026-11-11):** WebGPU spike'ı Forge'da
+  `spikes/webgpu/` altına yazılır (plan Faz 1); `spikes/README.md`'deki bölümü
+  dahil. Başka Forge dosyasına dokunulmaz. Forge'un kuralları geçerli:
+  `main`, push öncesi `npx tsc --noEmit` + `npx tsc -p spikes`, yol sınırlı
+  commit. Sonuçlar bu deponun planına yazılır. Referans içerik ve ölçüm
+  düzeneği `C:\Users\emret\Desktop\Games\ForgeReference` (README'si).
 - Render kabulü yerelde, başlıklı tarayıcıda, gerçek WebGPU backend'inde
   yapılır. CI'da GPU yok; WebGL2'ye düşen koşu WebGPU kabulü sayılmaz.
