@@ -1,0 +1,295 @@
+// Ported from Forge WebGL engine/scene/components.ts (collider, transform, vehicle readers) @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
+// TRANSITION (plan 2b, user decision 2026-11-11): Forge WebGL's old entity and
+// component model, only the part ported subsystems read. Faz 6 replaces it with
+// schema components (each subsystem binds to the world with its feature) and
+// deletes src/engine/legacy. Kept inside src/engine (engine-legacy-stays-in-engine).
+import type { Entity, SceneJsonValue } from "./entity.ts";
+import type { LayoutPhysicsAxisLocks, Vec3 } from "./layout.ts";
+import { isNavigationRole, type NavigationRole } from "../physics/collision.ts";
+import { resolveCapsuleDimensions } from "./capsule.ts";
+
+export const TRANSFORM_COMPONENT = "Transform";
+export const COLLIDER_COMPONENT = "Collider";
+/** Ray-cast wheeled vehicle on a dynamic chassis (`engine/physics/vehicle`). */
+export const VEHICLE_COMPONENT = "Vehicle";
+export type ColliderShape =
+  | "box"
+  | "sphere"
+  | "capsule"
+  | "cylinder"
+  | "cone"
+  | "convex"
+  | "trimesh"
+  | "heightfield";
+
+export interface TransformComponent {
+  position: Vec3;
+  rotation: Vec3;
+  scale: Vec3;
+}
+
+/**
+ * A regular height grid for `shape === "heightfield"` (World Terrain tiles,
+ * OPEN_WORLD_PLAN Faz 3). Centred on the body origin in X/Z: sample (x, z) sits
+ * at body-local `[x · spacing − quadsX · spacing / 2, height, z · spacing − quadsZ · spacing / 2]`,
+ * and each quad splits into triangles (x,z)(x,z+1)(x+1,z) and (x+1,z)(x,z+1)(x+1,z+1),
+ * the same order and diagonal as the terrain trimesh it replaces. The array is
+ * shared, never copied: heights must not change while the body exists.
+ */
+export interface ColliderHeightfield {
+  quadsX: number;
+  quadsZ: number;
+  spacing: number;
+  /** `(quadsX + 1) · (quadsZ + 1)` body-local heights, row-major: `index = z · (quadsX + 1) + x`. */
+  heights: Float32Array;
+}
+
+/**
+ * One simple-collision shape of a (possibly compound) collider. Sizes/centers
+ * are world-scaled (placement scale baked in), like {@link ColliderComponent};
+ * `rotation` is a local Euler rotation in degrees for oriented shapes.
+ */
+export interface ColliderPrimitive {
+  shape: ColliderShape;
+  size: Vec3;
+  center?: Vec3;
+  rotation?: Vec3;
+  /** Baked convex hull points (world-scaled, relative to body origin) for `shape === "convex"`. */
+  points?: Vec3[];
+  /** Baked triangle vertices (world-scaled, relative to body origin) for `shape === "trimesh"`. */
+  vertices?: Vec3[];
+  /** Triangle index buffer into `vertices`, grouped by threes, for `shape === "trimesh"`. */
+  indices?: number[];
+  /** Height grid for `shape === "heightfield"`; `size`/`center` describe its AABB, as for a trimesh. */
+  heightfield?: ColliderHeightfield;
+}
+
+export interface ColliderComponent {
+  shape: ColliderShape;
+  /** World-axis-aligned full size (placement scale already baked in). */
+  size: Vec3;
+  /** Capsule radius before conversion to the legacy size AABB. */
+  capsuleRadius?: number;
+  /** Capsule half-height from center to top/bottom of the hemispheres. */
+  capsuleHalfHeight?: number;
+  /**
+   * Offset of the collider center from the entity's transform position, in world
+   * space (placement scale baked in). Absent means centered on the position.
+   */
+  center?: Vec3;
+  /**
+   * Authored compound collision shapes (Static Mesh editor). When present, the
+   * physics backend builds one collider per primitive; `shape`/`size`/`center`
+   * above describe the encompassing AABB used by the broad-phase / movement.
+   */
+  primitives?: ColliderPrimitive[];
+  isStatic: boolean;
+  isSensor: boolean;
+  /**
+   * Hides the runtime collider debug wireframe in Game/Play mode. The collider
+   * still collides — this only suppresses the diagnostic overlay the runtime
+   * draws around the actual (scale-baked) physics collider. Absent/false means
+   * the wireframe is visible so scaling can be observed.
+   */
+  hideInGame?: boolean;
+  /** Surface friction (Rapier). Absent uses the backend default. */
+  friction?: number;
+  /** Authored surface profile id, retained for ray-cast vehicle response. */
+  physicalMaterialId?: string;
+  /** Surface restitution / bounciness (Rapier). Absent uses the backend default. */
+  restitution?: number;
+  /** AI navigation interpretation; affects nav generation only, not physics collision. */
+  navigationRole?: NavigationRole;
+  /** Emit begin/end overlap events for sensors. Absent means true. */
+  generateOverlapEvents?: boolean;
+  /** Emit hit events while simulating physics. Absent means true. */
+  simulationGeneratesHitEvents?: boolean;
+  /** Packed Rapier interaction groups (membership<<16 | filter). Absent = interact with all. */
+  collisionGroups?: number;
+  /**
+   * The profile ignores the `camera` trace channel: a spring-arm camera passes
+   * through this collider instead of being pulled in by it. Derived from the
+   * collision preset/responses, like {@link collisionGroups}.
+   */
+  ignoreCameraTrace?: boolean;
+  simulatePhysics?: boolean;
+  massKg?: number;
+  linearDamping?: number;
+  angularDamping?: number;
+  enableGravity?: boolean;
+  lockPosition?: LayoutPhysicsAxisLocks;
+  lockRotation?: LayoutPhysicsAxisLocks;
+}
+
+function readVec3(value: SceneJsonValue | undefined): Vec3 | undefined {
+  if (!Array.isArray(value) || value.length !== 3) return undefined;
+  const [x, y, z] = value;
+  if (typeof x !== "number" || typeof y !== "number" || typeof z !== "number") return undefined;
+  return [x, y, z];
+}
+
+function readPhysicsAxisLocks(
+  value: SceneJsonValue | undefined,
+): LayoutPhysicsAxisLocks | undefined {
+  if (!Array.isArray(value) || value.length !== 3) return undefined;
+  const [x, y, z] = value;
+  if (typeof x !== "boolean" || typeof y !== "boolean" || typeof z !== "boolean") {
+    return undefined;
+  }
+  return [x, y, z];
+}
+
+/** Reads a typed transform from an entity's serializable component data. */
+export function readTransformComponent(entity: Entity): TransformComponent | undefined {
+  const data = entity.components[TRANSFORM_COMPONENT];
+  if (!data) return undefined;
+  const position = readVec3(data.position);
+  const rotation = readVec3(data.rotation);
+  const scale = readVec3(data.scale);
+  if (!position || !rotation || !scale) return undefined;
+  return { position, rotation, scale };
+}
+
+const COLLIDER_SHAPES: readonly ColliderShape[] = [
+  "box",
+  "sphere",
+  "capsule",
+  "cylinder",
+  "cone",
+  "convex",
+  "trimesh",
+  "heightfield",
+];
+
+/** A heightfield whose sample count matches its grid, or undefined. Keeps the array by reference. */
+function readColliderHeightfield(value: unknown): ColliderHeightfield | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const { quadsX, quadsZ, spacing, heights } = value as Record<string, unknown>;
+  if (typeof quadsX !== "number" || typeof quadsZ !== "number" || typeof spacing !== "number" ||
+    !Number.isInteger(quadsX) || !Number.isInteger(quadsZ) || quadsX < 1 || quadsZ < 1 || !(spacing > 0) ||
+    !(heights instanceof Float32Array) || heights.length !== (quadsX + 1) * (quadsZ + 1)) {
+    return undefined;
+  }
+  return { quadsX, quadsZ, spacing, heights };
+}
+
+/** Parses the optional compound-collider `primitives` array. */
+function readColliderPrimitives(
+  value: SceneJsonValue | undefined,
+): ColliderPrimitive[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const primitives: ColliderPrimitive[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const record = entry as Record<string, SceneJsonValue>;
+    if (
+      typeof record.shape !== "string" ||
+      !COLLIDER_SHAPES.includes(record.shape as ColliderShape)
+    ) {
+      continue;
+    }
+    const size = readVec3(record.size);
+    if (!size) continue;
+    const primitive: ColliderPrimitive = { shape: record.shape as ColliderShape, size };
+    if (primitive.shape === "heightfield") {
+      // Built in code (never authored JSON), so the grid is a typed array.
+      const heightfield = readColliderHeightfield(record.heightfield as unknown);
+      if (!heightfield) continue;
+      primitive.heightfield = heightfield;
+    }
+    const center = readVec3(record.center);
+    if (center) primitive.center = center;
+    const rotation = readVec3(record.rotation);
+    if (rotation) primitive.rotation = rotation;
+    if (Array.isArray(record.points)) {
+      const points = record.points
+        .map((point) => readVec3(point))
+        .filter((point): point is Vec3 => point !== undefined);
+      if (points.length > 0) primitive.points = points;
+    }
+    if (Array.isArray(record.vertices)) {
+      const vertices = record.vertices
+        .map((point) => readVec3(point))
+        .filter((point): point is Vec3 => point !== undefined);
+      if (vertices.length > 0) primitive.vertices = vertices;
+    }
+    if (Array.isArray(record.indices)) {
+      const indices = record.indices.filter(
+        (index): index is number =>
+          typeof index === "number" && Number.isInteger(index) && index >= 0,
+      );
+      if (indices.length > 0) primitive.indices = indices;
+    }
+    primitives.push(primitive);
+  }
+  return primitives.length > 0 ? primitives : undefined;
+}
+
+/** Reads a typed collider from an entity's serializable component data. */
+export function readColliderComponent(entity: Entity): ColliderComponent | undefined {
+  const data = entity.components[COLLIDER_COMPONENT];
+  if (!data) return undefined;
+  if (typeof data.shape !== "string" || !COLLIDER_SHAPES.includes(data.shape as ColliderShape)) {
+    return undefined;
+  }
+  const shape = data.shape as ColliderShape;
+  const authoredSize = readVec3(data.size);
+  const capsuleRadius =
+    shape === "capsule" ? readFiniteNumber(data.capsuleRadius, NaN, 0) : NaN;
+  const capsuleHalfHeight =
+    shape === "capsule" ? readFiniteNumber(data.capsuleHalfHeight, NaN, 0) : NaN;
+  const capsule =
+    shape === "capsule" && Number.isFinite(capsuleRadius) && Number.isFinite(capsuleHalfHeight)
+      ? resolveCapsuleDimensions(capsuleRadius, capsuleHalfHeight)
+      : null;
+  const size = capsule?.size ?? authoredSize;
+  if (!size) return undefined;
+  if (typeof data.isStatic !== "boolean" || typeof data.isSensor !== "boolean") return undefined;
+  const center = readVec3(data.center) ?? capsule?.center;
+  const component: ColliderComponent = {
+    shape,
+    size,
+    isStatic: data.isStatic,
+    isSensor: data.isSensor,
+  };
+  if (capsule) {
+    component.capsuleRadius = capsule.radius;
+    component.capsuleHalfHeight = capsule.halfHeight;
+  }
+  if (center) component.center = center;
+  if (typeof data.hideInGame === "boolean") component.hideInGame = data.hideInGame;
+  const primitives = readColliderPrimitives(data.primitives);
+  if (primitives) component.primitives = primitives;
+  if (typeof data.friction === "number") component.friction = data.friction;
+  if (typeof data.physicalMaterialId === "string") component.physicalMaterialId = data.physicalMaterialId;
+  if (typeof data.restitution === "number") component.restitution = data.restitution;
+  if (isNavigationRole(data.navigationRole)) component.navigationRole = data.navigationRole;
+  if (typeof data.generateOverlapEvents === "boolean") {
+    component.generateOverlapEvents = data.generateOverlapEvents;
+  }
+  if (typeof data.simulationGeneratesHitEvents === "boolean") {
+    component.simulationGeneratesHitEvents = data.simulationGeneratesHitEvents;
+  }
+  if (typeof data.collisionGroups === "number") component.collisionGroups = data.collisionGroups;
+  if (data.ignoreCameraTrace === true) component.ignoreCameraTrace = true;
+  if (typeof data.simulatePhysics === "boolean") component.simulatePhysics = data.simulatePhysics;
+  if (typeof data.massKg === "number") component.massKg = data.massKg;
+  if (typeof data.linearDamping === "number") component.linearDamping = data.linearDamping;
+  if (typeof data.angularDamping === "number") component.angularDamping = data.angularDamping;
+  if (typeof data.enableGravity === "boolean") component.enableGravity = data.enableGravity;
+  const lockPosition = readPhysicsAxisLocks(data.lockPosition);
+  if (lockPosition) component.lockPosition = lockPosition;
+  const lockRotation = readPhysicsAxisLocks(data.lockRotation);
+  if (lockRotation) component.lockRotation = lockRotation;
+  return component;
+}
+
+function readFiniteNumber(
+  value: SceneJsonValue | undefined,
+  fallback: number,
+  minExclusive?: number,
+): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  if (minExclusive !== undefined && value <= minExclusive) return fallback;
+  return value;
+}

@@ -391,6 +391,7 @@ export const DROPPED_MODULES: ReadonlyArray<{ readonly prefix: string; readonly 
   { prefix: "engine/ai/", why: "K12 AI authoring stack" },
   { prefix: "engine/physics/ragdoll.ts", why: "K12 ragdoll" },
   { prefix: "engine/audio/soundCue", why: "K12 Sound Cue" },
+  { prefix: "engine/physics/movingPlatform", why: "K12 moving platform" },
 ];
 
 export function droppedBy(path: string): string | null {

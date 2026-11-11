@@ -489,17 +489,17 @@ tests/engine/impactDeform.test.ts	186	check	A			engine/physics			impact deform: 
 tests/engine/impactDeform.test.ts	195	check	A			engine/physics			impact deform: a point resolves to the first zone holding it, or the body
 tests/engine/impactDeform.test.ts	208	check	A			engine/physics			impact deform: a dent only merges with dents of its own part
 tests/engine/impactDeform.test.ts	218	check	A			engine/physics			impact deform: the dent list stays bounded
-tests/engine/impactEvents.test.ts	23	check	A			engine/physics			impact: force and impulse thresholds convert through the slice length
-tests/engine/impactEvents.test.ts	33	check	A			engine/physics			impact: manifold normal follows the flipped flag without -0
-tests/engine/impactEvents.test.ts	39	check	A			engine/physics			impact: contact point is impulse-weighted, speculative points only as a fallback
-tests/engine/impactEvents.test.ts	56	check	A			engine/physics			impact: slices of one frame merge into one impact per pair
-tests/engine/impactEvents.test.ts	74	check	A			engine/physics			impact: pairs are ordered by id and the normal turns with the swap
-tests/engine/impactEvents.test.ts	86	check	A			engine/physics			impact: weighted normal is unit length; cancelling slices fall back to the strongest
-tests/engine/impactEvents.test.ts	97	check	A			engine/physics			impact: a pair with no manifold points reports a null point
-tests/engine/impactEvents.test.ts	105	check	A			engine/physics			impact: noise below the floor and invalid samples produce no event
-tests/engine/impactEvents.test.ts	121	check	A			engine/physics			impact: the per-frame budget keeps the strongest pairs in pair order
-tests/engine/impactEvents.test.ts	136	check	A			engine/physics			impact: insertion order does not change the reported frame
-tests/engine/impactEvents.test.ts	149	check	A			engine/physics			impact: clear drops the pending frame
+tests/engine/impactEvents.test.ts	23	check	A			engine/physics		src/engine/physics/impactEvents.test.ts	impact: force and impulse thresholds convert through the slice length
+tests/engine/impactEvents.test.ts	33	check	A			engine/physics		src/engine/physics/impactEvents.test.ts	impact: manifold normal follows the flipped flag without -0
+tests/engine/impactEvents.test.ts	39	check	A			engine/physics		src/engine/physics/impactEvents.test.ts	impact: contact point is impulse-weighted, speculative points only as a fallback
+tests/engine/impactEvents.test.ts	56	check	A			engine/physics		src/engine/physics/impactEvents.test.ts	impact: slices of one frame merge into one impact per pair
+tests/engine/impactEvents.test.ts	74	check	A			engine/physics		src/engine/physics/impactEvents.test.ts	impact: pairs are ordered by id and the normal turns with the swap
+tests/engine/impactEvents.test.ts	86	check	A			engine/physics		src/engine/physics/impactEvents.test.ts	impact: weighted normal is unit length; cancelling slices fall back to the strongest
+tests/engine/impactEvents.test.ts	97	check	A			engine/physics		src/engine/physics/impactEvents.test.ts	impact: a pair with no manifold points reports a null point
+tests/engine/impactEvents.test.ts	105	check	A			engine/physics		src/engine/physics/impactEvents.test.ts	impact: noise below the floor and invalid samples produce no event
+tests/engine/impactEvents.test.ts	121	check	A			engine/physics		src/engine/physics/impactEvents.test.ts	impact: the per-frame budget keeps the strongest pairs in pair order
+tests/engine/impactEvents.test.ts	136	check	A			engine/physics		src/engine/physics/impactEvents.test.ts	impact: insertion order does not change the reported frame
+tests/engine/impactEvents.test.ts	149	check	A			engine/physics		src/engine/physics/impactEvents.test.ts	impact: clear drops the pending frame
 tests/engine/keptTerrainTiles.test.ts	8	check	M			editor	model:editor		kept terrain tiles: stored keys round-trip per terrain, sorted, and an empty set removes the entry
 tests/engine/keptTerrainTiles.test.ts	25	check	M			editor	model:editor		kept terrain tiles: malformed storage, blocked storage and no storage read as none
 tests/engine/lakeGeometryFoam.test.ts	13	check	R			engine/render-three,engine/terrain,tests	three-via:engine/render-three,three:three		Lake geometry foam: true sections, air/deep rejection, union, transformed copies and cancellation
@@ -584,18 +584,18 @@ tests/engine/perfWitness.test.ts	45	check	A			engine/perf			the witness rounds t
 tests/engine/perfWitness.test.ts	58	check	A			engine/perf			an unmeasured GPU is null in the witness, never a zero
 tests/engine/perfWitness.test.ts	70	check	A			engine/perf			fork fields ride along but can never redefine a shared one
 tests/engine/perfWitness.test.ts	82	check	A			engine/perf			the witness serialises to something a harness can parse back
-tests/engine/physicsContacts.test.ts	51	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics contacts: a static crowd does not change reported pairs or their order
-tests/engine/physicsImpacts.test.ts	88	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics motion: a point on a spinning body moves at v + ω × r, and a set velocity holds
-tests/engine/physicsImpacts.test.ts	101	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics pass-through: an overlapping pair stays calm where the solver would throw it apart
-tests/engine/physicsImpacts.test.ts	116	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics pass-through: a pair collides again once apart, and a removed body ends it
-tests/engine/physicsImpacts.test.ts	143	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics impacts: a 10 kg crate dropped 2 m reports ≈ m·v at the floor
-tests/engine/physicsImpacts.test.ts	165	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics impacts: a threshold above the hit and an opted-out world stay silent
-tests/engine/physicsImpacts.test.ts	182	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics impacts: the opt-in survives a world rebuild and clear() drops it
-tests/engine/physicsImpacts.test.ts	194	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics impacts: owners keep their own thresholds and the lowest one reports
+tests/engine/physicsContacts.test.ts	51	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsContacts.test.ts	physics contacts: a static crowd does not change reported pairs or their order
+tests/engine/physicsImpacts.test.ts	88	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsImpacts.test.ts	physics motion: a point on a spinning body moves at v + ω × r, and a set velocity holds
+tests/engine/physicsImpacts.test.ts	101	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsImpacts.test.ts	physics pass-through: an overlapping pair stays calm where the solver would throw it apart
+tests/engine/physicsImpacts.test.ts	116	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsImpacts.test.ts	physics pass-through: a pair collides again once apart, and a removed body ends it
+tests/engine/physicsImpacts.test.ts	143	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsImpacts.test.ts	physics impacts: a 10 kg crate dropped 2 m reports ≈ m·v at the floor
+tests/engine/physicsImpacts.test.ts	165	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsImpacts.test.ts	physics impacts: a threshold above the hit and an opted-out world stay silent
+tests/engine/physicsImpacts.test.ts	182	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsImpacts.test.ts	physics impacts: the opt-in survives a world rebuild and clear() drops it
+tests/engine/physicsImpacts.test.ts	194	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsImpacts.test.ts	physics impacts: owners keep their own thresholds and the lowest one reports
 tests/engine/physicsImpacts.test.ts	228	checkAsync	M			engine/behavior,engine/core,engine/input,engine/physics,engine/scene	model:engine/scene		physics impacts: an On Impact binding receives the impact, On Hit edges are unchanged
-tests/engine/physicsImpacts.test.ts	260	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics impacts: 30, 60 and 144 Hz frames report the same fixed-step impacts
-tests/engine/physicsImpacts.test.ts	286	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics mass: a simulated compound (convex primitive) collider takes its authored massKg
-tests/engine/physicsImpacts.test.ts	309	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics world support: a chunk resting on fixed ground touches it; lifted, excluded or on a body it does not
+tests/engine/physicsImpacts.test.ts	260	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsImpacts.test.ts	physics impacts: 30, 60 and 144 Hz frames report the same fixed-step impacts
+tests/engine/physicsImpacts.test.ts	286	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsImpacts.test.ts	physics mass: a simulated compound (convex primitive) collider takes its authored massKg
+tests/engine/physicsImpacts.test.ts	309	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsImpacts.test.ts	physics world support: a chunk resting on fixed ground touches it; lifted, excluded or on a body it does not
 tests/engine/placementColor.test.ts	29	check	M			editor,tools/droppedFields,tools/saveValidator	model:editor,model:tools/droppedFields,model:tools/saveValidator		placement color: #rrggbb survives the save and undo snapshots; anything else is rejected
 tests/engine/placementColor.test.ts	41	check	R			engine/render-three	three-via:engine/render-three,three:three		placement color: instances show their colour over the material's; uncoloured ones keep it
 tests/engine/placementColor.test.ts	61	check	R			engine/render-three	three-via:engine/render-three,three:three		placement color: a clone's tinted material copy takes the colour and is owned for disposal
@@ -804,14 +804,14 @@ tests/engine/shaderChunkAnchors.test.ts	101	check	R			engine/render-three	three-
 tests/engine/skeletalAnimationModule.test.ts	70	checkAsync	R			src	three-via:src		skeleton library dedupes per asset and defaults a missing sidecar
 tests/engine/skeletalAnimationModule.test.ts	106	checkAsync	R			src	three-via:src		skeleton library falls back to defaults when no manifest is published
 tests/engine/skeletalAnimationModule.test.ts	117	check	M			src	model:src		a runtime without the skeletal module resolves no library
-tests/engine/staticQueries.test.ts	82	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		static queries random near blockers equal brute force in body/primitive order
-tests/engine/staticQueries.test.ts	103	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		static queries inclusive boundaries deduplicate cells and filter overflow
-tests/engine/staticQueries.test.ts	113	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		static queries random incremental mutations equal a full rebuild
-tests/engine/staticQueries.test.ts	157	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		static queries batches invalidate once and retain untouched records
-tests/engine/staticQueries.test.ts	183	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		static queries id map stays consistent across replace remove clear and re-add
+tests/engine/staticQueries.test.ts	82	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries random near blockers equal brute force in body/primitive order
+tests/engine/staticQueries.test.ts	103	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries inclusive boundaries deduplicate cells and filter overflow
+tests/engine/staticQueries.test.ts	113	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries random incremental mutations equal a full rebuild
+tests/engine/staticQueries.test.ts	157	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries batches invalidate once and retain untouched records
+tests/engine/staticQueries.test.ts	183	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries id map stays consistent across replace remove clear and re-add
 tests/engine/staticQueries.test.ts	207	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics,boundary-three-math:engine/physics		static queries 5000 AABBs bound character blocker inspections without flat queries
 tests/engine/staticQueries.test.ts	229	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics,boundary-three-math:engine/physics		static queries movement preserves void falling and empty-scene fallback floor
-tests/engine/staticQueries.test.ts	250	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		static queries streamed colliders become nav blockers on add and stop on remove
+tests/engine/staticQueries.test.ts	250	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries streamed colliders become nav blockers on add and stop on remove
 tests/engine/staticQueries.test.ts	275	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics,boundary-three-math:engine/physics		static queries movement swept radius covers fast travel launch and platform carry
 tests/engine/streamedActorState.test.ts	9	check	M			engine/world	model:engine/world		streamed actor state: poseMatches wraps angles and tolerates small drift
 tests/engine/streamedActorState.test.ts	20	check	M			engine/world	model:engine/world		streamed actor state: only a moved body is remembered and take consumes it
@@ -1358,21 +1358,21 @@ tests/engine/wbTestValley.test.ts	102	check	A	yes		engine/worldbuilder,tools/wor
 tests/engine/wbTestValley.test.ts	116	check	A	yes		engine/worldbuilder,tools/world/wbTestValley	boundary-model:engine/worldbuilder,boundary-model:tools/world/wbTestValley		wb test valley: the valley village gets a parcel per need; known gap — one dwelling left without a lot
 tests/engine/wbTestValley.test.ts	131	check	A	yes		engine/worldbuilder,tools/world/wbTestValley	boundary-model:engine/worldbuilder,boundary-model:tools/world/wbTestValley		wb test valley: no road or street crosses a building pad (scene check)
 tests/engine/wbTestValley.test.ts	137	check	A	yes		engine/worldbuilder,tools/world/wbTestValley	boundary-model:engine/worldbuilder,boundary-model:tools/world/wbTestValley		wb test valley: land use ranks low ground by its street's level, so re-levelled parcels (Apply Pads) leave it up to date
-tests/engine/wheelSink.test.ts	13	check	A			engine/physics			wheel sink: slew limits sinking and recovery and arrives exactly without overshooting
-tests/engine/wheelSink.test.ts	22	check	A			engine/physics			wheel sink: slew guards invalid inputs and never returns a negative depth
-tests/engine/wheelSink.test.ts	35	check	A			engine/physics			wheel sink: GAZ-52 and car suspension bounds compete with chassis clearance
-tests/engine/wheelSink.test.ts	53	check	A			engine/physics			wheel sink: sink limit rejects non-finite wheel geometry and clearance settings
-tests/engine/wheelSink.test.ts	67	check	A			engine/physics			wheel sink: belly drag opposes horizontal velocity, leaves y alone and scales with time
-tests/engine/wheelSink.test.ts	77	check	A			engine/physics			wheel sink: belly drag ramps linearly with overlap and speed below one metre per second
-tests/engine/wheelSink.test.ts	86	check	A			engine/physics			wheel sink: belly drag caps the impulse at momentum so a physics slice never reverses motion
-tests/engine/wheelSink.test.ts	96	check	A			engine/physics			wheel sink: belly drag returns zero without overlap, motion, time, mass or resistance
-tests/engine/wheelSink.test.ts	111	check	A			engine/physics			wheel sink: traction slip measures the engine impulse beyond the friction circle
-tests/engine/wheelSink.test.ts	131	check	A			engine/physics			wheel sink: digging grows with slip and time, reaches the cap and never shallows an existing rut
-tests/engine/wheelSink.test.ts	140	check	A			engine/physics			wheel sink: digging holds the sanitised depth on invalid rates, times, caps or slip
-tests/engine/wheelSink.test.ts	150	check	A			engine/physics			wheel sink: footprint averages a one-sided rut and heading rotates the axle from X to Z
-tests/engine/wheelSink.test.ts	167	check	A			engine/physics			wheel sink: footprint sanitises samples and samples only the centre for invalid or zero width
-tests/engine/wheelSink.test.ts	185	check	A			engine/physics			wheel sink: the footprint's cross slope points to the rut's deeper side, along the rotated axle
-tests/engine/wheelSink.test.ts	202	check	A			engine/physics			wheel sink: rut steering pushes along the axle toward the deeper side, capped and only under load
+tests/engine/wheelSink.test.ts	13	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: slew limits sinking and recovery and arrives exactly without overshooting
+tests/engine/wheelSink.test.ts	22	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: slew guards invalid inputs and never returns a negative depth
+tests/engine/wheelSink.test.ts	35	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: GAZ-52 and car suspension bounds compete with chassis clearance
+tests/engine/wheelSink.test.ts	53	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: sink limit rejects non-finite wheel geometry and clearance settings
+tests/engine/wheelSink.test.ts	67	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: belly drag opposes horizontal velocity, leaves y alone and scales with time
+tests/engine/wheelSink.test.ts	77	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: belly drag ramps linearly with overlap and speed below one metre per second
+tests/engine/wheelSink.test.ts	86	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: belly drag caps the impulse at momentum so a physics slice never reverses motion
+tests/engine/wheelSink.test.ts	96	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: belly drag returns zero without overlap, motion, time, mass or resistance
+tests/engine/wheelSink.test.ts	111	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: traction slip measures the engine impulse beyond the friction circle
+tests/engine/wheelSink.test.ts	131	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: digging grows with slip and time, reaches the cap and never shallows an existing rut
+tests/engine/wheelSink.test.ts	140	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: digging holds the sanitised depth on invalid rates, times, caps or slip
+tests/engine/wheelSink.test.ts	150	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: footprint averages a one-sided rut and heading rotates the axle from X to Z
+tests/engine/wheelSink.test.ts	167	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: footprint sanitises samples and samples only the centre for invalid or zero width
+tests/engine/wheelSink.test.ts	185	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: the footprint's cross slope points to the rut's deeper side, along the rotated axle
+tests/engine/wheelSink.test.ts	202	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: rut steering pushes along the axle toward the deeper side, capped and only under load
 tests/engine/wheelSurfaceFx.test.ts	132	check	A			engine/physics			wheel surface fx: airborne, stopped and invalid inputs produce zero output
 tests/engine/wheelSurfaceFx.test.ts	144	check	A			engine/physics			wheel surface fx: curves rise with speed and slip, clamp and mirror reverse
 tests/engine/wheelSurfaceFx.test.ts	159	check	A			engine/physics			wheel surface fx: documented rolling curve reuses caller output
@@ -1398,7 +1398,7 @@ tests/engine/wheelTracks.test.ts	144	check	M			engine/physics,engine/scene	model
 tests/engine/wheelTracks.test.ts	185	check	M			engine/physics,engine/scene	model:engine/scene		wheel tracks: a spinning wheel digs below its static rut at digRate and never past the soft layer
 tests/engine/wheelTracks.test.ts	201	check	M			engine/physics,engine/scene	model:engine/scene		wheel tracks: without slip or digRate the field matches the Faz 2 stamps exactly
 tests/engine/wheelTracks.test.ts	209	check	M			engine/physics,engine/scene	model:engine/scene		wheel tracks: slip digging lands within a few mm at 30 and 144 fps, even below one quantum per frame
-tests/engine/wheelTracks.test.ts	220	check	A	yes		engine/physics	boundary-model:engine/physics		wheel tracks: rut steering reads the cross slope ahead of a rolling wheel, past its own fresh footprint
+tests/engine/wheelTracks.test.ts	220	check	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/wheelTracks.test.ts	wheel tracks: rut steering reads the cross slope ahead of a rolling wheel, past its own fresh footprint
 tests/engine/wheelTracks.test.ts	241	check	M			engine/scene,engine/terrain	model:engine/scene		terrain surface: the deformation profile blends over soft layers only
 tests/engine/wheelTracks.test.ts	259	check	R			engine/render-three,engine/scene	three-via:engine/render-three		terrain deformation texture: full copy on attach, dirty rectangles after, window follows the field
 tests/engine/wheelTracks.test.ts	291	check	R			engine/physics,engine/render-three,engine/scene,src	three-via:engine/render-three,three-via:src		terrain deformation module: stamps vehicles on soft terrain, follows the player, idles without one
@@ -1851,44 +1851,44 @@ tools/engine-tests.ts	6291	check	M			engine/behavior,engine/core,engine/input,en
 tools/engine-tests.ts	6326	check	M			engine/behavior,engine/core,engine/input,engine/scene	model:engine/scene		endPlay fires on teardown and re-arms across a scene reload
 tools/engine-tests.ts	6361	check	M			engine/behavior,engine/core,engine/input,engine/physics,engine/scene	model:engine/scene		behavior event bindings allow beginPlay, tick, and overlap on the same actor
 tools/engine-tests.ts	6413	check	M			engine/behavior,engine/core,engine/input,engine/physics,engine/scene	model:engine/scene		behavior event bindings dispatch overlap and hit begin/end edges
-tools/engine-tests.ts	6497	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		dynamic physics active area classifies bodies outside its finite radius
+tools/engine-tests.ts	6497	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsBodies.test.ts	dynamic physics active area classifies bodies outside its finite radius
 tools/engine-tests.ts	6505	check	R			engine/render-three	three-via:engine/render-three,three:three		LOD templates preserve authored distances while quality bias retunes them
-tools/engine-tests.ts	6523	check	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics subsystem reports deterministic placeholder contacts
-tools/engine-tests.ts	6558	check	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		generateOverlapEvents=false suppresses sensor overlap contacts
-tools/engine-tests.ts	6605	check	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		simulationGeneratesHitEvents=false on both bodies suppresses the hit
-tools/engine-tests.ts	6641	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier physics backend reports contacts through the same contract
-tools/engine-tests.ts	6682	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier backend reports static sensor overlap with a kinematic player
-tools/engine-tests.ts	6723	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier simulatePhysics body falls under configured gravity
-tools/engine-tests.ts	6773	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier active area suspends distant dynamics and resumes them near focus
-tools/engine-tests.ts	6828	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier builds a compound collider per authored primitive (gap is empty)
-tools/engine-tests.ts	6888	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier builds a convex collider from hull points
-tools/engine-tests.ts	6934	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier trimesh colliders fix internal edges (a rolling ball does not bump)
-tools/engine-tests.ts	7010	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier simulatePhysics enableGravity false disables world gravity
-tools/engine-tests.ts	7058	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier simulatePhysics thin wall can topple after ground contact
-tools/engine-tests.ts	7121	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier backend stays on placeholder when the scene has no colliders
-tools/engine-tests.ts	7144	check	A			engine/physics			fixed step clock takes the same slice count at 30, 60 and 144 Hz
-tools/engine-tests.ts	7153	check	A			engine/physics			fixed step clock snaps jittery 60 Hz frames to one slice and caps the backlog
-tools/engine-tests.ts	7170	check	A			engine/physics			pose interpolation lerps position and takes the short rotation path
-tools/engine-tests.ts	7214	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier fixed step simulates the same fall at 30 Hz and 144 Hz
-tools/engine-tests.ts	7245	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier render pose blends between slices and a teleport skips the blend
-tools/engine-tests.ts	7286	check	A			engine/physics			resolveVehicleDefinition fills defaults and rejects unusable numbers
-tools/engine-tests.ts	7304	check	A			engine/physics			computeVehicleDrive splits pedals across drive, brake and handbrake wheels
-tools/engine-tests.ts	7330	check	A			engine/physics			computeVehicleDrive reports the driving pedal as engine load, not a braking one or a shift cut
-tools/engine-tests.ts	7344	check	A			engine/physics			computeVehicleDrive eases steering and turns right as a negative yaw
-tools/engine-tests.ts	7411	checkAsync	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier vehicle only attaches to a live dynamic chassis
-tools/engine-tests.ts	7426	checkAsync	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier vehicle settles on its suspension with every wheel grounded
-tools/engine-tests.ts	7446	checkAsync	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier vehicle drives forward, steers right, brakes and reverses
-tools/engine-tests.ts	7478	checkAsync	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier vehicle handbrake holds on a slope and releasing it rolls downhill
-tools/engine-tests.ts	7498	checkAsync	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier vehicle survives a world rebuild and leaves with its entity
-tools/engine-tests.ts	7517	check	A			engine/physics			vehicleDefinitionFromComponent overrides the reference car and replaces its wheels
+tools/engine-tests.ts	6523	check	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem reports deterministic placeholder contacts
+tools/engine-tests.ts	6558	check	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	generateOverlapEvents=false suppresses sensor overlap contacts
+tools/engine-tests.ts	6605	check	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	simulationGeneratesHitEvents=false on both bodies suppresses the hit
+tools/engine-tests.ts	6641	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	rapier physics backend reports contacts through the same contract
+tools/engine-tests.ts	6682	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	rapier backend reports static sensor overlap with a kinematic player
+tools/engine-tests.ts	6723	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	rapier simulatePhysics body falls under configured gravity
+tools/engine-tests.ts	6773	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	rapier active area suspends distant dynamics and resumes them near focus
+tools/engine-tests.ts	6828	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	rapier builds a compound collider per authored primitive (gap is empty)
+tools/engine-tests.ts	6888	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	rapier builds a convex collider from hull points
+tools/engine-tests.ts	6934	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	rapier trimesh colliders fix internal edges (a rolling ball does not bump)
+tools/engine-tests.ts	7010	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	rapier simulatePhysics enableGravity false disables world gravity
+tools/engine-tests.ts	7058	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	rapier simulatePhysics thin wall can topple after ground contact
+tools/engine-tests.ts	7121	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	rapier backend stays on placeholder when the scene has no colliders
+tools/engine-tests.ts	7144	check	A			engine/physics		src/engine/physics/fixedStep.test.ts	fixed step clock takes the same slice count at 30, 60 and 144 Hz
+tools/engine-tests.ts	7153	check	A			engine/physics		src/engine/physics/fixedStep.test.ts	fixed step clock snaps jittery 60 Hz frames to one slice and caps the backlog
+tools/engine-tests.ts	7170	check	A			engine/physics		src/engine/physics/fixedStep.test.ts	pose interpolation lerps position and takes the short rotation path
+tools/engine-tests.ts	7214	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	rapier fixed step simulates the same fall at 30 Hz and 144 Hz
+tools/engine-tests.ts	7245	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	rapier render pose blends between slices and a teleport skips the blend
+tools/engine-tests.ts	7286	check	A			engine/physics		src/engine/physics/vehicle/vehicleTypes.test.ts	resolveVehicleDefinition fills defaults and rejects unusable numbers
+tools/engine-tests.ts	7304	check	A			engine/physics		src/engine/physics/vehicle/vehicleTypes.test.ts	computeVehicleDrive splits pedals across drive, brake and handbrake wheels
+tools/engine-tests.ts	7330	check	A			engine/physics		src/engine/physics/vehicle/vehicleTypes.test.ts	computeVehicleDrive reports the driving pedal as engine load, not a braking one or a shift cut
+tools/engine-tests.ts	7344	check	A			engine/physics		src/engine/physics/vehicle/vehicleTypes.test.ts	computeVehicleDrive eases steering and turns right as a negative yaw
+tools/engine-tests.ts	7411	checkAsync	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	rapier vehicle only attaches to a live dynamic chassis
+tools/engine-tests.ts	7426	checkAsync	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/vehicle/vehicleTypes.test.ts	rapier vehicle settles on its suspension with every wheel grounded
+tools/engine-tests.ts	7446	checkAsync	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/vehicle/vehicleTypes.test.ts	rapier vehicle drives forward, steers right, brakes and reverses
+tools/engine-tests.ts	7478	checkAsync	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/vehicle/vehicleTypes.test.ts	rapier vehicle handbrake holds on a slope and releasing it rolls downhill
+tools/engine-tests.ts	7498	checkAsync	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/vehicle/vehicleTypes.test.ts	rapier vehicle survives a world rebuild and leaves with its entity
+tools/engine-tests.ts	7517	check	A			engine/physics		src/engine/physics/vehicle/vehicleTypes.test.ts	vehicleDefinitionFromComponent overrides the reference car and replaces its wheels
 tools/engine-tests.ts	7537	checkAsync	M			engine/physics,engine/scene	model:engine/scene		a Vehicle component makes physics build the vehicle, and a rebuild re-reads it
 tools/engine-tests.ts	7559	checkAsync	M			engine/physics,engine/scene,src	model:engine/scene,model:src		the starter Reference Car actor drives in Rapier physics
 tools/engine-tests.ts	7603	checkAsync	M			engine/physics,engine/scene	model:engine/scene		rapier vehicle drivetrain reference car reaches 100 km/h consistently across frame rates
 tools/engine-tests.ts	7651	checkAsync	M			engine/physics,engine/scene	model:engine/scene		rapier vehicle motion survives a save: speed, gear and handbrake restore into a fresh world
 tools/engine-tests.ts	7789	checkAsync	R			engine/physics,engine/scene	three:three		rapier vehicle route driver laps a circle on its own pedals, staying in its lane
 tools/engine-tests.ts	7810	checkAsync	R			engine/physics,engine/scene	three:three		rapier vehicle route driver stops at the end of a route that ends and parks
-tools/engine-tests.ts	7824	checkAsync	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier camera trace stops at static walls and passes moving, sensor and camera-ignoring bodies
-tools/engine-tests.ts	7861	checkAsync	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		rapier vehicle aerodynamics slow a coasting chassis and compress suspension with downforce
+tools/engine-tests.ts	7824	checkAsync	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	rapier camera trace stops at static walls and passes moving, sensor and camera-ignoring bodies
+tools/engine-tests.ts	7861	checkAsync	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/vehicle/vehicleTypes.test.ts	rapier vehicle aerodynamics slow a coasting chassis and compress suspension with downforce
 tools/engine-tests.ts	7889	check	A	yes		engine/behavior,engine/core,engine/input,engine/physics	boundary-model:engine/behavior,boundary-model:engine/physics,boundary-three-math:engine/physics		behavior can react to physics contacts from the engine tick
 tools/engine-tests.ts	7940	check	A	yes		engine/audio,engine/behavior,engine/core,engine/input,engine/physics	boundary-model:engine/behavior,boundary-model:engine/physics,boundary-three-math:engine/physics		audio subsystem records one-shot requests from a collision behavior
 tools/engine-tests.ts	7997	check	M			engine/audio,engine/behavior,engine/core,engine/input,engine/physics,src	model:src		collision-chime behavior: fresh scene registry lets the same entity id play again
@@ -1957,9 +1957,9 @@ tools/engine-tests.ts	9522	check	A			engine/navigation			advanceWaypoint keeps i
 tools/engine-tests.ts	9541	check	A			engine/navigation			advanceWaypoint does not accept heightfield waypoints on X/Z proximity alone
 tools/engine-tests.ts	9594	check	A			engine/navigation			separation steering pushes away from overlapping neighbors and clamps
 tools/engine-tests.ts	9635	check	A			engine/navigation			stuck state flags a stalled agent and resets on progress
-tools/engine-tests.ts	9658	check	A			engine/movement			triangleUpNormal: flat floor = 1, vertical wall = 0, ramp = cos(angle)
-tools/engine-tests.ts	9666	check	A			engine/movement			sampleTriangleHeight: interpolates inside, null outside / for vertical triangles
-tools/engine-tests.ts	9675	check	A			engine/movement			slopeCosFromDegrees: 0°=1, 45°≈0.707, 90° clamped above 0
+tools/engine-tests.ts	9658	check	A			engine/movement		src/engine/movement/slopeSurface.test.ts	triangleUpNormal: flat floor = 1, vertical wall = 0, ramp = cos(angle)
+tools/engine-tests.ts	9666	check	A			engine/movement		src/engine/movement/slopeSurface.test.ts	sampleTriangleHeight: interpolates inside, null outside / for vertical triangles
+tools/engine-tests.ts	9675	check	A			engine/movement		src/engine/movement/slopeSurface.test.ts	slopeCosFromDegrees: 0°=1, 45°≈0.707, 90° clamped above 0
 tools/engine-tests.ts	9681	check	A			engine/movement			findGroundAt: a walkable ramp surface supplies the interpolated floor height
 tools/engine-tests.ts	9694	check	A			engine/movement			findGroundAt: a ramp steeper than the slope limit still supports the pawn but is not walkable
 tools/engine-tests.ts	9709	check	A			engine/movement			findGroundAt: a flat AABB top still wins over a lower ramp surface
@@ -1974,24 +1974,24 @@ tools/engine-tests.ts	9900	check	A			engine/movement			findGroundLayersAt headro
 tools/engine-tests.ts	9917	check	A			engine/movement			findGroundLayersAt never seeds from a seedsGround:false hull top
 tools/engine-tests.ts	9940	check	A			engine/movement			collapseCoincidentFloors merges same-floor clusters and keeps distinct levels
 tools/engine-tests.ts	9949	check	A			engine/movement			ground probe finds walkable tops, landing crossings, and filters step-height blockers
-tools/engine-tests.ts	9965	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics subsystem exposes static blocker AABBs and collider half-extents
-tools/engine-tests.ts	9999	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics navigation queries honor collider navigation roles without changing physics blockers
-tools/engine-tests.ts	10079	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		walkable stair emits riser nav blockers tagged with their role; auto does not
-tools/engine-tests.ts	10145	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics subsystem offsets a collider AABB by its center
-tools/engine-tests.ts	10190	check	A			engine/physics			rotatedBoxAabb: zero rotation returns the plain body-local box
-tools/engine-tests.ts	10195	check	A			engine/physics			rotatedBoxAabb: a corner-pivoted wall rotated 90° about Y follows the mesh
-tools/engine-tests.ts	10202	check	A			engine/physics			rotatedBoxAabb: 45° rotation bloats a thin wall's footprint symmetrically
-tools/engine-tests.ts	10211	check	A			engine/physics			rotatedBoxFootprintXZ: undefined for an axis-aligned box, area-tight for a rotated one
-tools/engine-tests.ts	10235	check	A			engine/physics			rotatedBoxAabb: primitive rotation composes on top of body rotation
-tools/engine-tests.ts	10242	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics subsystem rotates a corner-pivoted compound wall's blocker AABB
-tools/engine-tests.ts	10263	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics subsystem rotates a single (non-compound) collider's blocker AABB
-tools/engine-tests.ts	10279	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics subsystem exposes trimesh surfaces and excludes flat ones from blockers
-tools/engine-tests.ts	10309	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics subsystem keeps a steep up-facing terrain triangle as a support surface
-tools/engine-tests.ts	10340	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics subsystem keeps a steep trimesh triangle as a wall blocker (not a surface)
-tools/engine-tests.ts	10373	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics subsystem never seeds a walkable surface on a solid body's downward face
-tools/engine-tests.ts	10410	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics subsystem bakes body rotation into surface-triangle normals
+tools/engine-tests.ts	9965	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem exposes static blocker AABBs and collider half-extents
+tools/engine-tests.ts	9999	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics navigation queries honor collider navigation roles without changing physics blockers
+tools/engine-tests.ts	10079	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	walkable stair emits riser nav blockers tagged with their role; auto does not
+tools/engine-tests.ts	10145	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem offsets a collider AABB by its center
+tools/engine-tests.ts	10190	check	A			engine/physics		src/engine/physics/rotatedBox.test.ts	rotatedBoxAabb: zero rotation returns the plain body-local box
+tools/engine-tests.ts	10195	check	A			engine/physics		src/engine/physics/rotatedBox.test.ts	rotatedBoxAabb: a corner-pivoted wall rotated 90° about Y follows the mesh
+tools/engine-tests.ts	10202	check	A			engine/physics		src/engine/physics/rotatedBox.test.ts	rotatedBoxAabb: 45° rotation bloats a thin wall's footprint symmetrically
+tools/engine-tests.ts	10211	check	A			engine/physics		src/engine/physics/rotatedBox.test.ts	rotatedBoxFootprintXZ: undefined for an axis-aligned box, area-tight for a rotated one
+tools/engine-tests.ts	10235	check	A			engine/physics		src/engine/physics/rotatedBox.test.ts	rotatedBoxAabb: primitive rotation composes on top of body rotation
+tools/engine-tests.ts	10242	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem rotates a corner-pivoted compound wall's blocker AABB
+tools/engine-tests.ts	10263	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem rotates a single (non-compound) collider's blocker AABB
+tools/engine-tests.ts	10279	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem exposes trimesh surfaces and excludes flat ones from blockers
+tools/engine-tests.ts	10309	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem keeps a steep up-facing terrain triangle as a support surface
+tools/engine-tests.ts	10340	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem keeps a steep trimesh triangle as a wall blocker (not a surface)
+tools/engine-tests.ts	10373	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem never seeds a walkable surface on a solid body's downward face
+tools/engine-tests.ts	10410	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem bakes body rotation into surface-triangle normals
 tools/engine-tests.ts	10442	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics,boundary-three-math:engine/physics		CharacterMovement subsystem walks up a trimesh ramp, following the incline
-tools/engine-tests.ts	10515	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics subsystem expands a trimesh collider into per-triangle blockers
+tools/engine-tests.ts	10515	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem expands a trimesh collider into per-triangle blockers
 tools/engine-tests.ts	10555	check	A	yes		engine/movement,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics subsystem gives steep trimesh triangle blockers a tight XZ footprint
 tools/engine-tests.ts	10590	check	M			engine/behavior,engine/input,engine/physics,src	model:src		input-move behavior: the player cannot walk through a static wall
 tools/engine-tests.ts	10634	check	A			engine/movement			classifyLocomotion: grounded planar speed picks idle/walk/run by threshold
@@ -2046,7 +2046,7 @@ tools/engine-tests.ts	12257	check	A	yes		engine/behavior,engine/core,engine/inpu
 tools/engine-tests.ts	12292	check	A	yes		engine/behavior,engine/core,engine/input,engine/physics	boundary-model:engine/behavior,boundary-model:engine/physics,boundary-three-math:engine/physics		actor command: destroy cuts subsequent ticks, contacts and messages
 tools/engine-tests.ts	12364	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: persisted destroy + hide re-apply on a snapshot restore
 tools/engine-tests.ts	12430	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: setCollisionEnabled reaches the host sink at end of tick
-tools/engine-tests.ts	12466	check	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics subsystem: setEntityCollisionEnabled toggles contacts and blockers
+tools/engine-tests.ts	12466	check	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem: setEntityCollisionEnabled toggles contacts and blockers
 tools/engine-tests.ts	12520	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: persisted collision-disable re-applies on a snapshot restore
 tools/engine-tests.ts	12580	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: setTickInterval throttles ticks and passes accumulated dt
 tools/engine-tests.ts	12620	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: setTickEnabled gates the tick binding, re-enable resumes
@@ -2127,11 +2127,11 @@ tools/engine-tests.ts	15298	check	A	yes		engine/input,engine/movement	boundary-m
 tools/engine-tests.ts	15347	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem stays glued to a descending slope while running (scaled ground snap)
 tools/engine-tests.ts	15410	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem follows a walkable landscape slope at the player sprint smoothing speed
 tools/engine-tests.ts	15478	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem still falls off a drop beyond Max Step Down
-tools/engine-tests.ts	15527	check	A			engine/physics			moving platform math: segment length, one-way time, ping-pong fraction, positions
-tools/engine-tests.ts	15545	check	A	yes		engine/physics	boundary-model:engine/physics		MovingPlatformSubsystem moves a platform, publishes its AABB + delta, and ping-pongs
+tools/engine-tests.ts	15527	check	D			engine/physics	dropped:K12 moving platform		moving platform math: segment length, one-way time, ping-pong fraction, positions
+tools/engine-tests.ts	15545	check	D			engine/physics	dropped:K12 moving platform		MovingPlatformSubsystem moves a platform, publishes its AABB + delta, and ping-pongs
 tools/engine-tests.ts	15572	check	M			engine/physics,engine/scene	model:engine/scene		adapter: a movingPlatform placement becomes a kinematic body, excluded from static blockers
-tools/engine-tests.ts	15601	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics		CharacterMovement subsystem: a rider is carried horizontally by a moving platform
-tools/engine-tests.ts	15661	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics		CharacterMovement subsystem: a rising platform lifts the rider and isn't read as climbing
+tools/engine-tests.ts	15601	check	D			engine/input,engine/movement,engine/physics	dropped:K12 moving platform		CharacterMovement subsystem: a rider is carried horizontally by a moving platform
+tools/engine-tests.ts	15661	check	D			engine/input,engine/movement,engine/physics	dropped:K12 moving platform		CharacterMovement subsystem: a rising platform lifts the rider and isn't read as climbing
 tools/engine-tests.ts	15727	check	M			tools/saveValidator	model:tools/saveValidator		save validator preserves a movingPlatform placement and rejects malformed motion
 tools/engine-tests.ts	15769	check	M			src	model:src		applyMouseLook turns with the pointer delta and clamps pitch
 tools/engine-tests.ts	15776	check	M			src	model:src		applyConfiguredMouseLook honors sensitivity and invert Y

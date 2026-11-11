@@ -131,6 +131,14 @@ module.exports = {
       to: { path: "^src/engine/testing/" },
     },
     {
+      name: "engine-legacy-stays-in-engine",
+      comment:
+        "src/engine/legacy holds the part of Forge WebGL's old entity/component model that ported subsystems read (plan 2b transition). Only the engine layer may use it; Faz 6 replaces it with schema components and deletes it.",
+      severity: "error",
+      from: { path: "^src/", pathNot: "^src/engine/" },
+      to: { path: "^src/engine/legacy/" },
+    },
+    {
       name: "src-tests-node-assert-only",
       comment:
         "A test under src/ runs in Node (Vitest) and never ships, so it may use node:assert: tests ported from Forge WebGL keep their assertions word for word (plan 2b). Every other Node module stays out of src/, tests included.",

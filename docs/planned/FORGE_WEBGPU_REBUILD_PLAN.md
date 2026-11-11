@@ -324,6 +324,13 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       (`src/engine/subsystem.ts`) Faz 6'ya kadar korur. Perf hesabı
       (profil çıkarıcı, kare bölgeleri, darboğaz sınıflayıcı, bütçe) ve
       `inputSubsystem` geldi. İlerleme A 118 / 927.
+      *Physics taşındı (2026-11-11):* `PhysicsSubsystem` (2.817 satır) 1.500
+      satır bütçesi için beşe bölündü (`StaticWorld`, `VehiclePhysics`, yardımcılar,
+      tipler; yöntem gövdeleri aynı), ragdoll çıktı; araçlar ve zemin tepkisi,
+      çarpışma, sorgu tipleri geldi. Eski bileşen okuyucuları geçiş olarak
+      `src/engine/legacy/`'de (kullanıcı kararı; yalnız engine import eder,
+      Faz 6'da silinir). 96 kontrol yeşil (28'i gerçek Rapier). İlerleme
+      A 214 / 923.
 - [ ] Kayıt oyunu (`engine/persistence`) ve World Partition (`engine/world`)
       yeni modele göre yeniden kurulur; GUID anahtarlı. Kayıt oyunu `persist`
       işaretli bileşen alanlarını ve `defineSaveState` bölümlerini saklar;
@@ -473,6 +480,8 @@ Dört alt faz; her birinin kendi kapısı var, görsel kabul sonda toplu istenir
       World'e `defineSubsystem` üzerinden bağlanır; iskeleyle tick'lenen
       testleri World'e çevrilir; `src/engine/testing/` ve
       `engine-testing-is-test-only` kuralı silinir (2b iskele kararı).
+      Alt sistemler şemalı bileşenlerden okur; `src/engine/legacy/` ve
+      `engine-legacy-stays-in-engine` kuralı silinir (2b geçiş kararı).
 - [ ] **UI widget editörü (açık karar, K12):** görsel widget düzenleyici
       mimari §0.0'ın "istemsiz müdahale" ayağına uyar (HUD yerleşimi); Faz 6
       başında kullanıcı kararı. O güne kadar widget'lar şemalı JSON.
@@ -665,3 +674,4 @@ silinebilir.
 | 2026-11-11 | v1.0 | 2b: UI kütüphanesi taşındı (`src/engine/ui`, DOM kısmı `src/runtime/ui/uiDom.ts`), 50 Forge kontrolü yeşil; 5 M kontrol bırakıldı. A 87 / 927 |
 | 2026-11-11 | v1.0 | 2b: input (eylem haritası, varsayılan bağlamalar; ragdoll tuşu yok), zaman kontrolü, işbirlikçi iş bölme, kare ölçümü taşındı (`src/engine/{input,time,work,perf}`), 13 kontrol yeşil. A 100 / 927 |
 | 2026-11-11 | v1.0 | 2b test iskelesi (kullanıcı kararı): eski döngü `src/engine/testing/`'te, yalnız testlere açık (yeni katman kuralı + kasıtlı ihlal); Faz 6'da silinir. Perf hesabı, `inputSubsystem`, Forge alt sistem biçimi taşındı. A 118 / 927 |
+| 2026-11-11 | v1.0 | 2b physics: `PhysicsSubsystem` beşe bölündü (bütçe), ragdoll çıktı, araçlar / zemin / çarpışma geldi; eski bileşen okuyucuları geçiş olarak `src/engine/legacy/` (kullanıcı kararı, yeni katman kuralı + kasıtlı ihlal). 96 kontrol yeşil; testler için `tsconfig.tests.json` üç bayrağı gevşetir. A 214 / 923 |

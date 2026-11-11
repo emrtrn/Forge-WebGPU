@@ -378,6 +378,12 @@ taşınır.
 | `src/engine/perf/` (`subsystemProfiler`, `frameRegions`, `debugTableView`, `bottleneckClassifier`, `perfBudget`) | `engine/core/subsystemProfiler.ts`, `engine/perf/{frameRegions,debugTableView,bottleneckClassifier,perfBudget}.ts` | `04b5fb23` | uyarlandı: profil çıkarıcı `engine/core`'dan `perf`'e; parametre özellikleri açık alan | 16 taşındı (`frameRegions.test.ts` 11, `subsystemProfiler.test.ts` 3, `perfBudget.test.ts` 2) | yeşil (2026-11-11) |
 | `src/engine/input/inputSubsystem.ts` | `engine/input/inputSubsystem.ts` | `04b5fb23` | uyarlandı: parametre özelliği açık alan | 1 taşındı (`inputSubsystem.test.ts`, iskele döngüsüyle) | yeşil (2026-11-11) |
 | `src/engine/testing/` (`EngineApp`, `SubsystemRegistry`) — **test iskelesi** | `engine/core/{EngineApp,SubsystemRegistry}.ts` | `04b5fb23` | iskele (kullanıcı kararı 2026-11-11): yalnız testler import eder (`engine-testing-is-test-only`); Faz 6'da silinir | 1 taşındı (`EngineApp.test.ts`, iskelenin öz-testi) | yeşil (2026-11-11) |
+| `src/engine/legacy/` (`entity`, `layout`, `capsule`, `components`) — **geçiş modeli** | `engine/scene/{entity,capsule}.ts`; `layout.ts`'ten `Vec3`, `LayoutPhysicsAxisLocks`; `components.ts`'ten collider / transform okuyucuları ve `VEHICLE_COMPONENT` (120 bildirimden 16'sı) | `04b5fb23` | geçiş (kullanıcı kararı 2026-11-11): yalnız `src/engine` import eder (`engine-legacy-stays-in-engine`); Faz 6'da şemalı bileşenlerle değiştirilip silinir | — | — |
+| `src/engine/physics/physicsSubsystem.ts` + `staticWorld.ts`, `vehiclePhysics.ts`, `physicsBodies.ts`, `physicsTypes.ts` | `engine/physics/physicsSubsystem.ts` (2.817 satır, tek sınıf) | `04b5fb23` | **yeniden düzenlendi** (kullanıcı onayı 2026-11-11): 1.500 satır bütçesi için beşe bölündü — statik dünya (`StaticWorld`, `collisionDisabled` / `bodiesById` paylaşımlı) ve araçlar (`VehiclePhysics`, Rapier durumunu host'tan okur) ayrı sınıf, saf yardımcılar ve tipler ayrı modül; yöntem gövdeleri aynı, başvurular `this.staticWorld.*` / `this.host.*()`; herkese açık API aynı (delegeler). Ragdoll çıkarıldı (K12) | 30 harness kontrolü (`physicsSubsystem.test.ts`; 28'i gerçek Rapier dünyasıyla) + `staticQueries` 6, `physicsImpacts` 10, `physicsContacts` 1 | yeşil (2026-11-11) |
+| `src/engine/physics/` (`collision`, `physicsQuery`, `fixedStep`, `rotatedBox`, `staticSpatialIndex`, `heightfieldStatic`, `staticTriangles`, `navigationGeometry`, `impactEvents`) | `engine/scene/collision.ts` (saf: etkileşim grupları, fiziksel malzemeler); behavior'daki physics sorgu tipleri; `engine/physics/*.ts` | `04b5fb23` | taşındı / uyarlandı: sorgu tipleri physics'e geçti; parametre özellikleri açık alan | `impactEvents` 11, `fixedStep` 3, `rotatedBox` 5, `physicsBodies` 1 | yeşil (2026-11-11) |
+| `src/engine/physics/vehicle/`, `src/engine/physics/surface/` | `engine/physics/{vehicle,surface}/*.ts` | `04b5fb23` | taşındı; `SurfaceDeformationSample` tipi `terrainSurface`'ten `surface/surfaceDeformationSample.ts`'e (terrain taşınınca oradan import eder) | `vehicleTypes` 10, `wheelSink` 15, `wheelTracks` 1; `vehicleDrivetrain` / `vehicleAssets` Forge başlangıç içeriğini okuduğu için içe aktarıcıyı bekliyor | yeşil (2026-11-11) |
+| `src/engine/movement/slopeSurface.ts`, `src/engine/terrain/deformationField.ts` | `engine/movement/slopeSurface.ts`, `engine/scene/deformationField.ts` | `04b5fb23` | taşındı (saf) | `slopeSurface` 3 | yeşil (2026-11-11) |
+| Hareketli platform | `engine/physics/movingPlatform{,Subsystem}.ts` | `04b5fb23` | taşınmadı (K12, INV-D51) | düşen (D) | — |
 
 İşlem: taşındı / uyarlandı / yeniden yazıldı. Testler: taşınan / yeniden yazılan
 / düşen sayısı (2b test sınıflamasına göre).
@@ -401,6 +407,18 @@ kasıtlı ihlalli). Taşınan alt sistemler Forge biçimini (`src/engine/subsyst
 uygular. Faz 6'da her alt sistem özelliğiyle World'e bağlanır, testleri
 World'e çevrilir ve iskele silinir.
 
+**Geçiş modeli (kullanıcı kararı 2026-11-11):** physics ve movement varlık
+verisini Forge'un eski bileşen modelinden okur (`readColliderComponent(entity)`
+vb.). Yalnız gereken okuyucular `src/engine/legacy/`'de; yalnız `src/engine`
+import eder (`engine-legacy-stays-in-engine`, kasıtlı ihlalli). Faz 6'da
+şemalı bileşenler gelince silinir.
+
+**Taşınan Forge testlerinin tipleri:** Forge testleri esbuild ile koşuyordu,
+tip denetiminden hiç geçmemişti. `tsconfig.tests.json` testler için
+`noUnusedLocals`, `noUnusedParameters`, `exactOptionalPropertyTypes`'ı kapatır
+(ürün kodu sıkı kalır). Kalan birkaç Forge tip hatası açıklamalı
+`@ts-expect-error` ile işaretli; kontrol kodu değişmez.
+
 ### 2.1 Test sınıflaması
 
 2b'nin ilk işi (plan Faz 2b). Kaynak Forge `forge-webgl-final` (`04b5fb23`).
@@ -420,7 +438,7 @@ birden çok koşu üretir.
 
 **İlerleme:** `npm run port:forge-tests` bu deponun `src/**/*.test.ts`
 dosyalarındaki etiketleri Forge kontrolleriyle eşler; TSV'nin `ported`
-sütunu kontrolü taşıyan dosyayı gösterir. 2026-11-11: **A 118 / 927** (ses 37, UI 50, input 4, zaman 5, iş bölme 1, perf 20, iskele 1).
+sütunu kontrolü taşıyan dosyayı gösterir. 2026-11-11: **A 214 / 923** (ses 37, UI 50, input 4, zaman 5, iş bölme 1, perf 20, iskele 1, physics 96). Hareketli platform D'ye geçince payda 927'den 923'e indi.
 
 **Sınıflar.** Her kontrol, değer düzeyinde ulaştığı Forge modüllerine göre
 sınıflanır. Ulaşım sözcüksel kapsamla izlenir: kontrolün gövdesi ve onun

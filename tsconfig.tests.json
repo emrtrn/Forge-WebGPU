@@ -2,10 +2,17 @@
   // Tests under src/: they run in Node (Vitest) and may use node:assert
   // (src-tests-node-assert-only), so they get Node types next to the browser
   // libs. Kept apart so the application project never sees Node types.
+  //
+  // Three checks are off here (product code keeps them): Forge WebGL never
+  // type-checked its tests, which are ported word for word, and a partly ported
+  // file keeps helpers for checks that come later.
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["vite/client", "node"]
+    "types": ["vite/client", "node"],
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "exactOptionalPropertyTypes": false
   },
   "include": ["src/**/*.test.ts", "src/virtual.d.ts"]
 }
