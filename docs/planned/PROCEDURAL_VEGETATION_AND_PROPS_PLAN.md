@@ -1,6 +1,7 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.1 · 2026-11-11
+**Sürüm:** v0.2 · 2026-11-11 (v0.1'den fark: tarifin türü ve çıktının
+saklanışı karara bağlandı; bake yolunda hız karşılaştırması eklendi)
 **Durum:** Plan. Uygulama başlamadı; kod, bağımlılık ya da ana plan kutusu
 değişmedi. Başlama koşulu §2'de.
 **İlgili belgeler:** [yeniden inşa planı](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
@@ -159,7 +160,10 @@ Alan adları öneridir; şema uygulamada kesinleşir.
 
 ### 5.1 Tarif
 
-Tarif, Content Browser'da görünen küçük bir JSON asset'idir:
+Tarif, Content Browser'da görünen küçük bir JSON asset'idir. Faz 4'ün genel
+veri editörünün (A13) şemalı veri asset'i olarak kayıtlıdır ve onun formuyla
+düzenlenir (kullanıcı kararı 2026-11-11). A13 mekanizması yalnız oyunun
+tanımladığı türlere açık kurulduysa, motor özelliklerine de açılır.
 
 ```text
 Üretim tarifi
@@ -176,8 +180,9 @@ Tarif, Content Browser'da görünen küçük bir JSON asset'idir:
 
 ### 5.2 Çıktı
 
-Her prototip için sıradan asset'ler yazılır ve tarifin yanındaki klasörde
-durur:
+Çıktı kalıcı dosyadır (kullanıcı kararı 2026-11-11): projeye yazılır ve
+commit'lenir, önbellek gibi her makinede yeniden üretilmez. Her prototip için
+sıradan asset'ler yazılır ve tarifin yanındaki klasörde durur:
 
 - mesh dosyası (LOD'leriyle), 5c'nin beklediği LOD sözleşmesinde;
 - dokular: yaprak / kart atlası, impostor atlası, gerekirse kabuk ya da yüzey
@@ -301,6 +306,22 @@ Kart ve impostor atlası için bitkinin çizilmesi gerekir. İki yol var:
 başına 128–256 px ve 64 görüş, worker'da saniyeler mertebesinde bir iştir.
 Bu tahmindir, PG3'te ölçülür.
 
+**Hız.** Çizim adımının kendisi GPU'da belirgin biçimde hızlıdır
+(milisaniyeler; CPU'da saniyeler). Ama bu fark sonucu değiştirmez:
+
+- Bake kare başına değil, tarif başına **bir kez** yapılır ve çıktı kalıcı
+  dosyadır.
+- Toplam sürenin büyük kısmı çizim dışındadır: mesh üretimi, doku sıkıştırma
+  (KTX2 kodlaması iki yolda da CPU işidir) ve dosya yazımı.
+- Kaydırıcı sürüklenirken görülen önizleme bake değildir; gerçek mesh zaten
+  GPU'da çizilir.
+
+Belirleyici olan hız değil, **nerede çalışabildiğidir**: World Builder dünyayı
+komut satırından, tarayıcı açmadan üretir. İki yolu birlikte tutmak da
+önerilmez; aynı tarif iki yolda piksel düzeyinde farklı atlas verir. Ölçümde
+CPU bake kullanımı engelleyecek kadar yavaş çıkarsa GPU yoluna tek yol olarak
+geçilir.
+
 ### 6.8 Katmanlar
 
 | Yer | İçerik |
@@ -407,7 +428,7 @@ sayısını yazar; bütçeyi aşan tarif uyarı verir.
 
 **Tarif paneli (insan):**
 
-- Şemadan üretilen form; parametre UI kuralları geçerli (kaydırıcı + kutu,
+- Genel veri editörünün (A13) şemadan ürettiği form; parametre UI kuralları geçerli (kaydırıcı + kutu,
   sınıra çekme, TR ipucu / EN ad).
 - Önizleme: kaynak, LOD0–2 ve impostor yan yana; kamera çevrede döner.
   Videodaki en yararlı fikir budur.
@@ -432,7 +453,7 @@ Her adım dikey bir dilimdir ve kendi kapısıyla biter. Görsel beğeni kullan�
 kabulüdür; kapılar işlevsel ve ölçülebilirdir.
 
 - [ ] **PG0 Hazırlık.** §2'deki ana plan çıktıları ve üç nokta kodla
-      doğrulanır; PK1–PK6 kapanır; ana plana bağlantı satırı eklenir.
+      doğrulanır; PK3–PK6 kapanır; ana plana bağlantı satırı eklenir.
 - [ ] **PG1 Kaya, uçtan uca ince dilim.** Saf çekirdek (rastgele akışlar,
       mesh yazımı, LOD örneklemesi, collider, istatistik) + kaya üreticisi +
       tarif şeması + triplanar materyal + tarif paneli + CLI + World Builder'da
@@ -475,13 +496,13 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 | Zamanlama | Şimdi yalnız plan; motor ve World Builder hazır olunca başlanır (kullanıcı, 2026-11-11) |
 | Yerleşimin yeniden üretimi | Yok (kullanıcı, 2026-11-07; plan 2b) |
 | Üçüncü taraf hazır kitaplık | Kenney / Quaternius yok (kullanıcı, 2026-11-11) |
+| Tarifin türü (eski PK1) | Genel veri editörünün (A13) şemalı veri asset'i; onun formuyla düzenlenir (kullanıcı, 2026-11-11) |
+| Çıktının saklanışı (eski PK2) | Kalıcı dosya: projeye yazılır, commit'lenir; önbellek değil (kullanıcı, 2026-11-11) |
 
 **Açık (PG0'da kapanır):**
 
 | ID | Soru | Öneri |
 |---|---|---|
-| PK1 | Tarif dosyası motorda hangi tür olarak kayıtlı olacak? Bugün bir motor özelliği yalnız ikili asset türü ekleyebiliyor; JSON türleri sabit | Faz 4'ün şemalı veri asset'i mekanizması (A13) kullanılır; motor özelliklerine açık değilse açılır |
-| PK2 | Üretilmiş mesh ve dokular projede kalıcı dosya mı, yoksa her makinede yeniden üretilen önbellek mi? | Kalıcı dosya: oyun doğrudan yükler, görünüm üretici değişince sessizce değişmez, "yeniden üretim yok" tercihine uyar. Bedeli depo boyutu |
 | PK3 | Kart ve impostor bake'i CPU'da mı, GPU'da mı? | CPU rasterleyici (§6.7) |
 | PK4 | Kabuk ve kaya yüzeyi dokusu yetmezse kaynak ne? | Önce prosedürel karo; yetmezse Codex'e ürettirilen doku, kaynağı meta'da kayıtlı |
 | PK5 | İnsan yapımı basit prop'lar (çit direği, sandık, varil) bu işe dahil mi? | PG7'ye kadar ertele; World Builder'ın çit ve donatı yerleşimi ihtiyaç doğurursa aç |
@@ -499,7 +520,7 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 | CPU rasterleyici kalitesi (alfa kenarı, mip) yetmez | Üst örnekleme; yetmezse GPU bake yedek yol olarak eklenir |
 | 5c sözleşmesi üreticinin çıktısıyla uyuşmaz | PG0'da kodla doğrulama; üretici 5c'ye uyar, tersi değil |
 | Kapsam türden türe büyür | Üretici ailesi başına ayrı adım; PG7 yalnız oyun isteyince |
-| Üretici değişince eski tarifler başka görünür | `generatorVersion` + çıktının kalıcı dosya olması (PK2) |
+| Üretici değişince eski tarifler başka görünür | `generatorVersion` + çıktının kalıcı dosya olması |
 
 ---
 
@@ -555,3 +576,4 @@ kurallarına göre yeniden yazılır.
 | Tarih | Sürüm | Not |
 |---|---|---|
 | 2026-11-11 | v0.1 | Plan yazıldı; prosedürel üretim kararı ve zamanlama (kullanıcı). Eski araştırma raporu ve kapsam envanteri kaldırıldı. Uygulama yok |
+| 2026-11-11 | v0.2 | Tarif A13 veri asset'i, çıktı kalıcı dosya (kullanıcı kararları; PK1 ve PK2 kapandı). §6.7'ye CPU / GPU bake hız karşılaştırması eklendi; PK3 açık |
