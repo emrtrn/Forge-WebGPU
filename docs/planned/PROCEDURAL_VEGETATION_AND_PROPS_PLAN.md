@@ -1,6 +1,7 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.4 · 2026-11-11 (v0.3'ten fark: doku yolu karma (C); yedek
+**Sürüm:** v0.5 · 2026-11-11 (v0.4'ten fark: insan yapımı prop'lar kapsam
+dışı)
 kaynaklar Codex ve Poly Haven)
 **Durum:** Plan. Uygulama başlamadı; kod, bağımlılık ya da ana plan kutusu
 değişmedi. Başlama koşulu §2'de.
@@ -50,6 +51,7 @@ ve tekil kahraman objeler bu planın dışındadır; onlar için bugünkü kayna
 | Yerleşimin yeniden üretimi, sahiplik, "yalnız değişeni güncelle" | Kullanıcı kararı 2026-11-07 (plan 2b); sahne onaydan sonra kullanıcınındır |
 | Biyolojik büyüme / çevre simülasyonu | Gereken şey kontrol edilebilir biçim; simülasyon kapsamı büyütür |
 | Binalar, yol ağı, yerleşim planı | World Builder'ın mevcut algoritmaları ve ayrı iş |
+| İnsan yapımı prop'lar (çit, sandık, varil, donatı) | Kullanıcı kararı 2026-11-11; binalar ve kentsel çevreyle birlikte ayrı işte ele alınır |
 | Tür kataloğu | Türler oyun verisidir (§5.3); motor yalnız üretici taşır |
 
 ---
@@ -130,7 +132,7 @@ varlıkları kapsar; "meşe" ya da "granit" o üreticinin bir ön ayarıdır (§
 | **Döküntü** | Düşmüş yaprak, kozalak, dal parçası, çakıl kümesi | Dallanan ve Kaya üreticilerinin parçalarından küçük mesh'ler | PG6 |
 | **İğne yapraklı** | Çam, ladin, servi | Dallanan üretici + iğneli dal ucu kartları (iğne tek tek mesh olmaz) | PG6 |
 | **Frond / rozet** | Eğrelti, palmiye tacı, rozet bitki | Orta damar + iki yanda yaprakçık; merkezden yayılan dizilim | PG7 |
-| **Basit biçim** | Mantar, çit direği, sandık, varil | Profil döndürme / uzatma + parça birleştirme | PG7, PK5'e bağlı |
+| **Mantar** | Tekil ve kümeli mantar, ağaç mantarı | Profil döndürme (sap + şapka) | PG7 |
 
 **Seçimlerin gerekçesi.**
 
@@ -507,7 +509,7 @@ Her adım dikey bir dilimdir ve kendi kapısıyla biter. Görsel beğeni kullan�
 kabulüdür; kapılar işlevsel ve ölçülebilirdir.
 
 - [ ] **PG0 Hazırlık.** §2'deki ana plan çıktıları ve üç nokta kodla
-      doğrulanır; PK5–PK6 kapanır; ana plana bağlantı satırı eklenir.
+      doğrulanır; PK6 kapanır; ana plana bağlantı satırı eklenir.
 - [ ] **PG1 Kaya, uçtan uca ince dilim.** Saf çekirdek (rastgele akışlar,
       mesh yazımı, LOD örneklemesi, collider, istatistik) + kaya üreticisi +
       tarif şeması + taş yüzeyi materyal tarifi (§6.6) + triplanar materyal +
@@ -534,7 +536,7 @@ kabulüdür; kapılar işlevsel ve ölçülebilirdir.
       yok; onay sayfası Content Browser'da görünüyor.
 - [ ] **PG6 Ölü odun, döküntü, iğne yapraklı.** *Kapı:* kütük ve döküntü
       bağlı ağaç tarifinden türüyor; iğne yapraklı ağaç kart bütçesinde.
-- [ ] **PG7 Genişleme.** Frond / rozet, basit biçim ve sonrası. Her biri bir
+- [ ] **PG7 Genişleme.** Frond / rozet, mantar ve sonrası. Her biri bir
       oyun isteyince ayrı adım olarak açılır.
 
 **İş bölümü.** Saf ve iyi tanımlı parçalar (rastgele akış, tüp mesh, kaya
@@ -559,12 +561,12 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 | Dokuların kaynağı | Dokular da prosedürel üretilir; genel materyal tarifi, ileride binalar da kullanır (kullanıcı, 2026-11-11; §6.6) |
 | Doku yolu (eski PK4) | Karma (C): pişirilmiş karo + gölgelendiricide büyük ölçekli değişim (kullanıcı, 2026-11-11; §6.6) |
 | Prosedürel doku yetmezse | Codex'e ürettirilen doku ve Poly Haven (CC0) dokuları (kullanıcı, 2026-11-11; §6.6) |
+| İnsan yapımı prop'lar (eski PK5) | Bu işe dahil değil (kullanıcı, 2026-11-11) |
 
 **Açık (PG0'da kapanır):**
 
 | ID | Soru | Öneri |
 |---|---|---|
-| PK5 | İnsan yapımı basit prop'lar (çit direği, sandık, varil) bu işe dahil mi? | PG7'ye kadar ertele; World Builder'ın çit ve donatı yerleşimi ihtiyaç doğurursa aç |
 | PK6 | Başlangıç ön ayarları nerede durur? | `content/packs/starter/`: birkaç nötr ön ayar (geniş yapraklı, iğne yapraklı, çalı, ot, köşeli ve yuvarlak kaya); bölgeye özgü türler oyun projesinde |
 
 ---
@@ -639,3 +641,4 @@ kurallarına göre yeniden yazılır.
 | 2026-11-11 | v0.2 | Tarif A13 veri asset'i, çıktı kalıcı dosya (kullanıcı kararları; PK1 ve PK2 kapandı). §6.7'ye CPU / GPU bake hız karşılaştırması eklendi; PK3 açık |
 | 2026-11-11 | v0.3 | Bake CPU'da (PK3 kapandı). Dokular da prosedürel (kullanıcı kararı): §6.6 materyal tarifi, dört yol, öneri karma; PK4 yeniden yazıldı, açık |
 | 2026-11-11 | v0.4 | Doku yolu karma (C), yedek kaynaklar Codex ve Poly Haven (kullanıcı kararı; PK4 kapandı). Poly Haven lisansı ve API koşulları aynı gün sitesinden doğrulandı |
+| 2026-11-11 | v0.5 | İnsan yapımı prop'lar kapsam dışı (kullanıcı kararı; PK5 kapandı); "Basit biçim" üreticisi yalnız mantara indi |
