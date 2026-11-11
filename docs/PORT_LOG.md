@@ -300,6 +300,61 @@ girmez, plan Faz 3 ve 9'dadır.
 | INV-G28 | Navmesh görünümü | `render-three/{aiNavigationView,recastNavMeshView}.ts` | 6 | yeniden yaz | ai-navigation-clearance | | |
 | INV-G29 | Kalite profilleri, adaptif kalite | `engine/perf/{qualityProfiles,adaptiveQuality}.ts` | 3 | uyarla | editor-quality | Compatibility / Balanced / Cinematic (plan §2.4) | |
 
+### H. Araçlar, teşhis ve kapılar
+
+| ID | Özellik | Forge yeri | Faz | İşlem | Forge testleri | Not | WebGPU |
+|---|---|---|---|---|---|---|---|
+| INV-H01 | Dev server kayıt uçları (20'den fazla `/__save-*`, terrain, gamedata) ve kayıt doğrulayıcıları | `vite.config.ts`, `tools/{saveValidator,terrainSaveValidator,lakeFoamSaveValidator}.ts` | 2a ✓ | yeniden tasarla | terrain-endpoints | Şemaya göre genel uçlar 2a'da (mimari §4.6); terrain ikili kanalı 5a, göl köpük bake 7 | kayıt servisi (2a) |
+| INV-H02 | Düşen alan ağı | `tools/droppedFields.ts` | 2a ✓ | yeniden tasarla | e:droppedFields | Normalize'ın parçası: geliştirmede hata, üretimde rapor | normalize (2a) |
+| INV-H03 | Proje kökü izolasyonu | `tools/projectPaths.ts` | 2a ✓ | taşı | tests/builder/project-roots | | yazma politikası (2a) |
+| INV-H04 | Engine test koşucusu (`--filter`, `--slow`, `--timing`) | `tools/{engine-tests.ts,run-engine-tests.mjs}` | 2a ✓ / 2b | yeniden tasarla | — | Vitest 2a'da (A5); 176 test dosyasının çevrilmesi 2b | Vitest (2a) |
+| INV-H05 | Playwright smoke'ları: editör, runtime, production, oyun projesi | `tests/smoke/`, `tests/production/`, `playwright*.config.*` | 4 / 6 | uyarla | 114 smoke + 2 production spec | Editör smoke'u Faz 4, runtime smoke'ları Faz 6; smoke portu 5283 | |
+| INV-H06 | Katman denetimi | `builder/web/verify-imports.mjs` | 2a ✓ | yeniden tasarla | tests/builder/verify-imports | dependency-cruiser + öz-test (A3, D13) | `verify:layers` (2a) |
+| INV-H07 | Dist doğrulaması (editör sızıntısı) | `builder/web/verify-dist.mjs` | 4 | uyarla | — | 2a'dan Faz 4'e taşındı | |
+| INV-H08 | Ek tip kapıları: smoke fixture'ları, içerik testleri, UI test tipleri | `tsconfig.{smoke,content-tests,ui-tests}.json` | 4 | uyarla | tests/builder/smoke-project | Playwright gelince | |
+| INV-H09 | Asset manifest sağlığı ve baseline | `tools/{asset-manifest-health.ts,run-asset-manifest-health.mjs}`, `tools/baselines/` | 2a ✓ | yeniden tasarla | — | `verify:assets`: tür + lisans + kaynak, asılı referans (D16) | `verify:assets` (2a) |
+| INV-H10 | Dünya verisi kapısı | `tools/{worldDataCheck,world-data-check}.ts` | 2a ✓ / 5a | yeniden tasarla | e:worldDataCheck | Level klasörü bütünlüğü 2a'da; terrain verisi denetimi 5a | level bütünlüğü (2a) |
+| INV-H11 | Terrain onarımı, öksüz tile temizliği | `tools/world/repair-terrain.mjs`, `tools/terrainOrphans.ts` | 5a | taşı | terrain-orphan-cleanup, e:terrainRepair, e:terrainOrphans | Atomik kayıt (2a) özet bayatlamasını önler; aracın gerekliliği 5a'da yeniden değerlendirilir | |
+| INV-H12 | World Builder CLI: rastgele dünya, brief, test dünyaları | `tools/world/{build-random-world,build-world-brief,generate-*}.mjs` | 2b | taşı | e:testWorld, e:wbTestValley, e:wbPilotValley, e:offroadTestWorld | `npm run world:random` 2b'de çalışır (plan 2b) | |
+| INV-H13 | HLOD build | `tools/world/{build-hlod.mjs,hlodBuild.ts}` | 5b | taşı | hlod | | |
+| INV-H14 | Kıyı ve ada şekli ölçüm araçları | `tools/world/{measure-*,run-*-measurement,compare-island-shapes}.*` | 2b † | taşı | — | World Builder algoritmalarıyla | |
+| INV-H15 | Üretim build'i ve sürüm: release content, starter content, profiller | `builder/web/{build-release,release-content,starter-content}.mjs`, `builder/web/profiles/` | 6 | uyarla | production/release, tests/builder/release-content | Editörsüz çıktı (plan Faz 6) | |
+| INV-H16 | Oyun projesi build'i, yeniden üretme, build kaydı | `builder/web/game-project-{build,reproduce}.mjs` | 6 | uyarla | tests/builder/game-project-build | `build-record.json`, `verify:build` (mimari §5) | |
+| INV-H17 | Alt dizin yayını (public URL tabanı) | `src/project/publicUrl.ts` | 4 | yeniden tasarla | tests/builder/public-url | `base` testi 2a'dan Faz 4'e taşındı (F06) | |
+| INV-H18 | `?debug` paneli: kare süresi, GPU süresi, istatistik tabloları, terrain haritası, hız kontrolü | `src/scene/{debugPanel,debugStats,debugTableModal,debugTerrainMap}.ts`, `engine/perf` | 3 | uyarla | debug-panel, e:perfReadout | Plan Faz 3 renderer host | |
+| INV-H19 | Perf teşhisi: GPU taraması, kare yakalama, kare bölgeleri, darboğaz sınıflandırma, perf bütçesi, alt sistem profiler | `engine/perf`, `engine/core/subsystemProfiler.ts`, `src/scene/gpuSweepSession.ts` | 3 | uyarla | e:gpuSweep, e:gpuSweepSession, e:frameCapture, e:frameRegions, e:perfWitness | §2.10 ölçüm formatı | |
+| INV-H20 | Perf raporları: asset, tarayıcı, WES, göl, okyanus bütçesi, kalite matrisi | `tools/*report*.{mjs,ts}`, `tools/perf/` | 3 / 7 † | uyarla | tests/builder/wes-acceptance-report | Su raporları Faz 7 | |
+| INV-H21 | Ses araçları: manifest senkronu, loudness denetimi, codec yoklaması | `tools/{sync-audio-manifest,audit-audio-loudness,probe-audio-codecs}.mjs` | 6 † | taşı | — | Manifest senkronu A10 meta'ya göre yeniden yazılır | |
+| INV-H22 | GLB optimizasyonu, gömülü doku ayıklama | `tools/{optimize-mesh-glb,strip-embedded-textures}.mjs` | 4 † | taşı | — | İçe aktarma hattıyla (INV-A25) | |
+| INV-H23 | Diyalog raporu ve hattı | `tools/{dialogueReport,dialoguePipeline}.ts`, `dialogue-report.mjs` | 6 | taşı | — | | |
+| INV-H24 | Su köpüğü bake, göl bench'leri | `tools/{bake-water-foam,bench-lake-bed,bench-lake-water}.mjs` | 7 | taşı | — | | |
+| INV-H25 | Asset kütüphanesi dizinleri: Kenney, Quaternius | `tools/{asset-library-index,quaternius-library-index}.mjs`, `tools/kenney/` | † | — | — | Plan 2b'de açık karar (Kenney); kütüphaneler depoya girmez (A9) | |
+| INV-H26 | Model 1 fork senkronu | `tools/sync-forge-to-games.{bat,ps1}` | — | taşınmaz | — | Model 1 oyunları Forge WebGL'de kalır (§3) | |
+| INV-H27 | Dev server başlat / durdur betikleri (Windows) | `tools/{open,stop}-dev-server.ps1` | — † | taşınmaz | — | Öneri: gerekirse sahipsiz Vite sürecini kapatan küçük bir araç olarak Faz 4'te yeniden yazılır | |
+| INV-H28 | Forge spike'ları: cell-activation, far-view, grass-ring | `spikes/` | — | taşınmaz | — | Sonuçları Forge planlarına işlendi; Faz 1 spike'ının yeri ayrı karar | |
+| INV-H29 | CI iş akışı | `.github/workflows/` | 2a ✓ | yeniden tasarla | — | `npm run gate` ile aynı | CI (2a) |
+
+### Onay bekleyen fazlar (`†`)
+
+Planda adı geçmeyen satırlar için önerilen fazlar. Kullanıcı onayından sonra
+`†` kaldırılır.
+
+| Konu | Satırlar | Öneri |
+|---|---|---|
+| Asset editörleri | INV-C01, C04–C08, C10–C16 | İlgili alt sistemin fazı: Static Mesh 4, Material 3 / 4, Actor Script 4 / 6, geri kalanı 6 |
+| Mesh Paint | INV-B10, E26 | 5d (öteki boyama araçlarıyla) |
+| Asset UVW ve vertex color | INV-E11, E12 | 3 (materyal sistemiyle) |
+| World mask yaması | INV-G26 | 3 (materyal bileşimi) |
+| Yükleme grupları | INV-D33 | Taşınmaz; hücre akışıyla yer değiştirir |
+| Level geçişi, zaman kontrolü | INV-F21, F31 | 6 |
+| rts-starter şablonu | INV-F10 | Faz 6'da game-starter'la birlikte `samples/` altında ikinci örnek |
+| Kıyı / ada ölçüm araçları | INV-H14 | 2b (World Builder ile) |
+| Perf raporları | INV-H20 | 3, su raporları 7 |
+| Ses araçları | INV-H21 | 6 |
+| GLB optimizasyonu | INV-H22 | 4 (içe aktarma) |
+| Kenney / Quaternius dizinleri | INV-H25 | Plan 2b'deki Kenney kararıyla birlikte |
+| Dev server betikleri | INV-H27 | Taşınmaz |
+
 ## 2. Taşıma günlüğü
 
 Forge SHA: _(cut-over'da `forge-webgl-final`)_.
