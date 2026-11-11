@@ -331,7 +331,7 @@ girmez, plan Faz 3 ve 9'dadır.
 | INV-H22 | GLB optimizasyonu, gömülü doku ayıklama | `tools/{optimize-mesh-glb,strip-embedded-textures}.mjs` | 4 | taşı | — | İçe aktarma hattıyla (INV-A25) | |
 | INV-H23 | Diyalog raporu ve hattı | `tools/{dialogueReport,dialoguePipeline}.ts`, `dialogue-report.mjs` | 6 | taşı | — | | |
 | INV-H24 | Su köpüğü bake, göl bench'leri | `tools/{bake-water-foam,bench-lake-bed,bench-lake-water}.mjs` | 7 | taşı | — | | |
-| INV-H25 | Asset kütüphanesi dizinleri: Kenney, Quaternius | `tools/{asset-library-index,quaternius-library-index}.mjs`, `tools/kenney/` | 2b | — | — | Taşınıp taşınmayacağı plan 2b'deki Kenney kararıyla; kütüphaneler depoya girmez (A9) | |
+| INV-H25 | Asset kütüphanesi dizinleri: Kenney, Quaternius | `tools/{asset-library-index,quaternius-library-index}.mjs`, `tools/kenney/` | — | taşınmaz | — | Kullanıcı kararı (2026-11-11): bu projede Kenney / Quaternius yok. Dizin ve üreticiler GameDesign klasörüne taşındı, Forge'dan kaldırıldı (Forge `92a709aa`) | |
 | INV-H26 | Model 1 fork senkronu | `tools/sync-forge-to-games.{bat,ps1}` | — | taşınmaz | — | Model 1 oyunları Forge WebGL'de kalır (§3) | |
 | INV-H27 | Dev server başlat / durdur betikleri (Windows) | `tools/{open,stop}-dev-server.ps1` | — | taşınmaz | — | Öneri: gerekirse sahipsiz Vite sürecini kapatan küçük bir araç olarak Faz 4'te yeniden yazılır | |
 | INV-H28 | Forge spike'ları: cell-activation, far-view, grass-ring | `spikes/` | — | taşınmaz | — | Sonuçları Forge planlarına işlendi; Faz 1 spike'ının yeri ayrı karar | |
@@ -354,7 +354,7 @@ girmez, plan Faz 3 ve 9'dadır.
 | Perf raporları | INV-H20 | 3, su raporları 7 |
 | Ses araçları | INV-H21 | 6 |
 | GLB optimizasyonu | INV-H22 | 4 (içe aktarma) |
-| Kenney / Quaternius dizinleri | INV-H25 | Plan 2b'deki Kenney kararıyla birlikte |
+| Kenney / Quaternius dizinleri | INV-H25 | Taşınmaz; GameDesign'a (kullanıcı kararı 2026-11-11) |
 | Dev server betikleri | INV-H27 | Taşınmaz |
 
 ## 2. Taşıma günlüğü

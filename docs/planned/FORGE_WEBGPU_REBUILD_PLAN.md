@@ -311,9 +311,13 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       çalıştırılabilir aşama / sahiplik / Dry Run yüzeyi konseptten sahne
       akışında kullanılmadığı için (kullanıcı kararı 2026-11-07) varsayılan
       olarak taşınmaz.
-- [ ] Kenney dizin aracı (`tools/asset-library-index.mjs`, `kenney-assets.tsv`)
+- [x] Kenney dizin aracı (`tools/asset-library-index.mjs`, `kenney-assets.tsv`)
       için karar: bu depoya taşınır mı, Forge'da mı kalır. Kütüphanenin kendisi
       depoya girmez (mimari A9).
+      *Karar (kullanıcı, 2026-11-11):* bu projede Kenney ya da Quaternius yok
+      (asset de araç da). İki dizin üreticisi ve Kenney dizini GameDesign
+      klasörüne taşındı (`tools/`, `docs/kenney/`), Forge'dan kaldırıldı
+      (Forge `92a709aa`). PORT_LOG INV-H25 "taşınmaz".
 - [ ] **İçe aktarıcı** `tools/import-forge-webgl`: level, hücreler, foliage,
       sidecar'lar → yeni format; terrain tile'ları olduğu gibi. Çevrilemeyen
       alan raporlanır. Referans level'lar ve starter content bununla gelir;
@@ -605,3 +609,4 @@ silinebilir.
 | 2026-11-11 | v0.9 | Faz 1 kapandı (GO, koşullu): ayrıntı `docs/archive/PHASE_1.md`'ye taşındı; planda özet, koşul 5c'de |
 | 2026-11-11 | v0.9 | Faz 2b başladı, cut-over: Forge `forge-webgl-final` = `04b5fb23` (bakım modu notu `CLAUDE.md` / `README.md` / `AGENTS.md`); Forge WebGL'de bundan sonra yalnız hata düzeltmesi, taşınmış modüle gelen düzeltme `PORT_LOG` §3'e. Envanter farkı yok |
 | 2026-11-11 | v0.9 | 2b test sınıflaması kapandı: `npm run port:forge-tests` (TypeScript AST, değer düzeyinde ve sözcüksel kapsamlı ulaşım), 2.588 kontrol yeri → A algoritma 1.010 (kapı paydası), M eski model 959, R render 619; satırlar `docs/port/forge-engine-tests.tsv`, özet `PORT_LOG` §2.1 |
+| 2026-11-11 | v0.9 | 2b Kenney kararı (kullanıcı): bu projede Kenney / Quaternius yok; dizin üreticileri ve Kenney dizini GameDesign klasörüne taşındı, Forge'dan kaldırıldı (Forge `92a709aa`); INV-H25 taşınmaz |
