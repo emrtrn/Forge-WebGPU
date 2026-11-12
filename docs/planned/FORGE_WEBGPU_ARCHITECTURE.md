@@ -1,6 +1,9 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.2 · 2026-11-11 (v1.1'den fark: ürün tezi ve kapsam ölçütü
+**Sürüm:** v1.3 · 2026-11-12 (v1.2'den fark: 2b `tools/world` kararları,
+kullanıcı onayı — §4.4 World Builder çıktısının dört bileşeni ve kökenin
+nesnelere taşınması, §4.6 veri belgeleri ve terrain'in metasız parçaları.
+v1.2: ürün tezi ve kapsam ölçütü
 (§0.0, kullanıcı kararı); A12 ajan düzenleme komutları, A13 genel veri editörü;
 §4.11 ajan ve insan yüzeyi. v1.1: §4.10 belge düzeni —
 `docs/architecture/ARCHITECTURE.md` bu rapordan kısa harita, rapor karar kaynağı
@@ -377,6 +380,20 @@ features/height-fog/
   katmanının otomatik toplu çizimidir. Toplu yerleşim için instanced static mesh
   bileşeni vardır; foliage kompakt örnek dizileri olarak hücre dosyalarında
   kalır.
+- **World Builder çıktısının bileşenleri (plan 2b `tools/world`, kullanıcı
+  kararı 2026-11-12):** dört bileşen 2b'de yalnız şema olarak tanımlıdır
+  (World Builder ve içe aktarıcı yazar; çizim Faz 3 / 5a, collider Faz 6):
+  `forge.staticMesh@1` (`mesh`, `collision`; uzamsal), `forge.shape@1`
+  (placeholder ve Add Actor primitifi: `primitive`, `color`, `collision`; ölçek
+  1'de 0,5 m, boyutu aktörün ölçeği verir; uzamsal), `forge.worldRole@1`
+  (`role`: noktalı anlamsal ad, placeholder → model geçişi için; `stage`: onu
+  koyan World Builder aşaması, elle konanda boş), `forge.terrain@1` (`data`:
+  `forge.terrain` veri belgesi; arazi hücreden büyük, aktörü kalıcı katmanda).
+  World Builder kökeni (`recipe.generatedBy`) nesnelerin üstüne,
+  `forge.worldRole.stage`'e taşındı; diske yazılan recipe onu taşımaz, defter
+  yalnız kurulum sırasında bellekte yaşar (Stage Runner taşınmadı, okuyanı
+  yok). Yerleşimin aktör kimliği level kimliği + yerleşim kimliğinden
+  deterministik türetilir: `--force` ile yeniden üretimde GUID'ler değişmez.
 - Büyük ikili veri (terrain tile, global harita, foliage örnekleri) GUID'li
   asset sidecar'larında, ikili kanalla taşınır.
 - Level = kalıcı katman + hücreler. Hücre ataması aktörün konumundan türetilir;
@@ -537,9 +554,10 @@ düşen alan uyarı değil, **hatadır**.
 - **Asset kimliği (A10 kararı, 2026-11-10):** kimlik asset'in yanında durur,
   merkezî manifest doğru kaynak değildir.
   - JSON asset'ler (level, materyal, aktör sınıfı) `id`'yi kendi içinde taşır.
-  - İkili asset'ler (GLB, doku, ses, terrain tile) yanlarında `*.meta.json`
+  - İkili asset'ler (GLB, doku, ses) yanlarında `*.meta.json`
     taşır: GUID, tür, lisans, kaynak, içe aktarma ayarları. Tür + lisans +
-    kaynak zorunludur (D16).
+    kaynak zorunludur (D16). Terrain tile'ı ve global haritası 2026-11-12'den
+    beri terrain belgesinin metasız parçasıdır (aşağıda "veri belgeleri").
   - GUID → yol dizini dev server'ın ve build'in **ürettiği** bir önbellektir;
     commit'lenmez, silinirse yeniden üretilir.
   - Referanslar yalnız GUID'dir; taşıma / yeniden adlandırma referans kırmaz.
@@ -563,6 +581,23 @@ düşen alan uyarı değil, **hatadır**.
     etiketinden tanınır. Oyunların DSL'le tanımlayacağı JSON asset türleri
     SDK'yla gelir. Level kimliği `lvl_` önekini korur; dizin iki öneki de tutar,
     `assetRef` level'ı gösteremez.
+  - *Veri belgeleri (plan 2b `tools/world`, kullanıcı kararı 2026-11-12):*
+    içeriğini başka katmanın tanımladığı yerleşik belge türleri:
+    `forge.terrain`, `forge.worldBrief`, `forge.worldRecipe`,
+    `forge.regionProfile`, `forge.groundCover` (`src/core/assets/dataDocument.ts`).
+    Çekirdek yalnız zarfı bilir: `{ "schema": "<tür>/1", "id": "ast_…", "data":
+    {…} }`; `data` taşınan engine normalize fonksiyonlarının okuduğu içeriktir,
+    onlar değişmez. Dosya adı türün sonekini taşır (`valley.terrain.json`,
+    `*.worldbrief.json`, `*.worldrecipe.json`, `*.regionprofile.json`,
+    `*.cover.json`). Belge, yanında metasız ikili parçalar sahiplenebilir
+    (level'ın hücreleri gibi; asset değildir): terrain'in
+    `<ad>.tiles/<x>_<z>.tile.bin` ve `<ad>.global.bin`'i (tile başına meta dosyası
+    reddedildi: 64 tile'lık dünyada 65 meta). Sahibi olmayan parça yine
+    meta'sız ikilidir. Asset dizini ve kayıt servisi zarfı denetler. World
+    Builder girdileri birbirine dosya yoluyla başvurur (asset dizininin dosya
+    etiketi: `content/levels/…`, `engine:content/packs/worldbuilder/…`):
+    Forge'un normalize fonksiyonları ve kontrolleri yol kuralını sınıyor;
+    GUID'li başvuru World Builder penceresiyle (5d) gelir.
   - *Dizin:* `src/core/assets` saftır: içerik köklerinin dosya listesini (JSON
     içerikleri ayrıştırılmış) alır, diski `tools/assets` okur. Kurulum: kimlik
     (meta'sız ikili, ikilisiz meta, aynı GUID iki dosyada → yol sırasında ilki

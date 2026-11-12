@@ -385,6 +385,18 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       level'ın yanında durur. Her yerleşim GUID + rol bileşeni taşır
       (placeholder → model geçişi için). Bölge profili oyun verisidir, motor
       deposuna girmez.
+      *Tasarım (kullanıcı onayı 2026-11-12; mimari §4.4, §4.6 v1.3):*
+      aşamalar ve bake bellekte bugünkü tiplerle koşar, sonda saf bir
+      dönüştürücü yerleşimleri aktöre çevirir (deterministik GUID; `forge.shape`
+      ya da `forge.staticMesh` + `forge.worldRole`), arazi `forge.terrain`
+      aktörü ve veri belgesi (tile'lar metasız parça). Saf kurulum
+      `src/engine/worldbuilder/build/`, dosya işi `tools/world/` (kayıt
+      servisinden, `--force` kuralı). Köken nesnelere (`forge.worldRole.stage`);
+      diskteki recipe `generatedBy` taşımaz. Girdiler GUID'li veri belgesi;
+      zemin örtüsü ön ayarları + nötr profil `content/packs/worldbuilder/`.
+      Su aktörleri Faz 7, foliage kuralları 5c, ışık / gökyüzü Faz 3:
+      yazılmaz, raporlanır. Çözülemeyen model satırı rol renkli placeholder
+      olur. *Adım 1 (2026-11-12):* veri belgeleri + dört şema (`d1a50f5`).
 - [ ] World Builder taşıma kapsamı envanterde işaretlenir: algoritmalar
       (arazi yazma, rota çözücü, yerleşim, ped, foliage) taşınır; yeniden
       çalıştırılabilir aşama / sahiplik / Dry Run yüzeyi konseptten sahne
@@ -733,3 +745,4 @@ silinebilir.
 | 2026-11-12 | v1.0 | 2b küçük alanlar: environment, loading, perception, vfx, perf'in kalanı; kalite profilleri / uyarlamalı kalite / donanım ipuçları / WebGL GPU timer Faz 3'e, Player Start Faz 6'ya, `lakeQuality` Faz 7'ye, `puddleWind` 5a'ya. 57 kontrol yeşil. A 559 / 922 |
 | 2026-11-12 | v1.0 | 2b worldbuilder (seçenek B, kullanıcı kararı): algoritmalar + aşama üreticileri; Stage Runner / sahiplik / Dry Run / üretici sürümleri taşınmadı, köken `recipe.generatedBy`, korumalı bölgeler üst düzeyde (World Builder kapsam kutusunda). 53 kontrol yeşil, 15 D (payda 907); 58 kontrol `node:fs` kararını bekliyor. A 612 / 907 |
 | 2026-11-12 | v1.0 | 2b: `node:fs` `src` testlerine açıldı (ortak test fixture'ı okumak için; kullanıcı kararı, `src-tests-node-assert-only` + kontrol fixture'ı, kasıtlı ihlal `node:child_process`'e geçti); nötr bölge profili fixture'ı `tests/engine/fixtures/`'ta, worldbuilder 58 kontrol yeşil. A 670 / 907 |
+| 2026-11-12 | v1.0 | 2b `tools/world` tasarımı (kullanıcı onayı; mimari v1.3): dönüştürücü + deterministik GUID, köken `forge.worldRole.stage`'e, girdiler ve terrain GUID'li veri belgesi (tile'lar metasız parça), örtü ön ayarları `worldbuilder` paketinde. Adım 1: veri belgeleri + `forge.staticMesh` / `forge.shape` / `forge.worldRole` / `forge.terrain` şemaları (`d1a50f5`). A 670 / 907 |

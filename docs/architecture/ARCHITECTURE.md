@@ -53,7 +53,12 @@ toplar. Örnek ve iskeletin kabul testi: `src/features/height-fog` (rapor §4.3)
 - Asset kimliği asset'in yanında: JSON asset'ler `id` taşır, ikili asset'ler
   `<dosya>.meta.json` (`forge.assetMeta/1`: tür + lisans + kaynak zorunlu).
   GUID → yol dizini üretilen önbellektir (`.forge-cache/`), referanslar yalnız
-  GUID (rapor §4.6, A10).
+  GUID (rapor §4.6, A10). Veri belgeleri (terrain, World Builder girdileri)
+  zarf içinde engine'in içeriğini taşır; terrain'in tile'ları ve global
+  haritası metasız parçalarıdır (rapor §4.6).
+- World Builder çıktısı ve içe aktarıcı için 2b'de yalnız şema olan bileşenler:
+  `forge.staticMesh`, `forge.shape`, `forge.worldRole` (rol + üreten aşama),
+  `forge.terrain` (rapor §4.4).
 
 ## Şema kaydı
 
