@@ -7,11 +7,15 @@
  * `world:random` writes the brief beside a new level.
  */
 // Ported from Forge WebGL tests/engine/randomWorld.test.ts @ forge-webgl-final (04b5fb23): checks unchanged, run by
-// Vitest; 8 check(s) not yet portable left out. docs/PORT_LOG.md §2.
+// Vitest; 7 check(s) not yet portable left out. docs/PORT_LOG.md §2.
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createBriefTerrain } from "./briefTerrain.ts";
 import { insidePolygon, sourceDistance } from "./field.ts";
-import { SEA_SIDES, islandHeight, islandOcean, islandShorePoint, oceanBedDepth, oceanLandDistance } from "./island.ts";
+import { SEA_SIDES, islandHeight, islandOcean, islandShorePoint, oceanBeachWeight, oceanBedDepth, oceanLandDistance } from "./island.ts";
+import { coverPaint, normalizeGroundCover } from "./groundCover.ts";
+import { oceanMask } from "./masks.ts";
+import { paintWeights } from "./build/temporarySteps.ts";
 import { radialIslandArea } from "./islandShape.ts";
 import { RIVER_SIZES, SETTLEMENT_WATER_GAP } from "./randomWater.ts";
 import { DEFAULT_REGION_PROFILE, LANDFORMS, randomWorldBrief, type RandomWorldOptions, worldExtent } from "./randomWorld.ts";
@@ -129,6 +133,57 @@ export async function registerRandomWorldTests(check: Check, checkSlowAsync: Che
       ocean.shoreProfile = patch === null ? null : { ...(ocean.shoreProfile as object), ...patch };
       if (patch && Object.keys(patch).length === 0) ocean.shoreProfile = {};
       assert.ok(normalizeWorldBrief(raw).issues.some(issue => issue.includes("shoreProfile")), JSON.stringify(patch));
+    }
+  });
+  check("random world coast A1: 70% interior and 2–3x measured painted beach across sizes, directions and seeds", () => {
+    const cover = // Boundary (plan 2b): the forest cover is a data document of the worldbuilder pack.
+    normalizeGroundCover(JSON.parse(readFileSync("content/packs/worldbuilder/covers/forest.cover.json", "utf8")).data).cover!;
+    const bed = cover.layers.findIndex(layer => layer.id === cover.roles.bed);
+    for (const size of ["small", "medium"] as const) for (const seaSide of SEA_SIDES) for (const seed of [4, 11, 29]) {
+      const world = brief({ size, seaSide, seed, landform: "coast", settlements: [], roads: "between" });
+      const terrain = createBriefTerrain(world), ocean = terrain.ocean!, extent = worldExtent(size), half = extent / 2;
+      const paint = coverPaint(cover, world, terrain, { forest: "medium", rocks: "medium", fields: "medium" }, { clearings: [], snowLine: null });
+      const pilot = paintWeights(world, terrain);
+      let interior = 0;
+      for (let j = 0; j < 128; j++) for (let i = 0; i < 128; i++) {
+        const x = -half + (i + .5) * extent / 128, z = -half + (j + .5) * extent / 128;
+        const weights = paint(x, z, 0, terrain.height(x, z));
+        const sand = weights[bed]! / weights.reduce((a, b) => a + b, 0);
+        assert.equal(sand, pilot(x, z, 0)[4], "preview/cover and fallback paint agree");
+        if (ocean.distance(x, z) >= 0 && sand < .5) interior++;
+      }
+      assert.ok(Math.abs(interior / 128 ** 2 - .7) < .02, `${size}/${seaSide}/${seed}: interior ratio`);
+      // Cross the actual paint, rather than equating shoreWidth with visible sand.
+      const axis = seaSide === "west" ? [1, 0] : seaSide === "east" ? [-1, 0] : seaSide === "north" ? [0, 1] : [0, -1];
+      const [cx, cz] = briefToWorld(world, world.terrain.coast!.center);
+      for (const along of [-half * .7, 0, half * .7]) {
+        const origin = [cx - axis[1]! * along, cz + axis[0]! * along] as const;
+        const d = ocean.distance(...origin), shore = [origin[0] - axis[0]! * d, origin[1] - axis[1]! * d];
+        let width = 0;
+        while (paint(shore[0]! + axis[0]! * (width + .25), shore[1]! + axis[1]! * (width + .25), 0, 0)[bed]! >= .5) width += .25;
+        assert.ok(width / 25 >= 2 && width / 25 <= 3);
+        const sea = [shore[0]! - axis[0]! * 10, shore[1]! - axis[1]! * 10] as const;
+        const oldProfile = structuredClone(world); delete oldProfile.ocean!.shoreProfile;
+        assert.ok(Math.abs(createBriefTerrain(oldProfile).height(...sea) + 40 * (1 - Math.exp(-10 / 60))) < 1e-8, "A1/legacy submerged profile is unchanged");
+        const beach = [shore[0]! + axis[0]! * 60, shore[1]! + axis[1]! * 60] as const;
+        assert.ok(oceanLandDistance(ocean, ...beach) < 0);
+        const mask = oceanMask({ origin: [beach[0] - 1, beach[1] - 1], cellSize: 2, width: 1, depth: 1 }, { ocean } as Parameters<typeof oceanMask>[1]);
+        assert.equal(mask.values[0], 1, "roads/scatter masks protect the dry beach too");
+      }
+      const legacy = structuredClone(world);
+      delete legacy.terrain.coast!.beachWidth;
+      legacy.terrain.coast!.center = [0, 0];
+      const roundTrip = normalizeWorldBrief(legacy);
+      assert.deepEqual(roundTrip.issues, []); assert.deepEqual(roundTrip.brief, legacy);
+      const old = islandOcean(legacy)!;
+      assert.equal(old.landClearance, undefined);
+      const d0 = old.distance(0, 0), x = axis[0]! * (25 - d0), z = axis[1]! * (25 - d0);
+      assert.ok(Math.abs(oceanBeachWeight(old, x, z) - .5) < 1e-9, "legacy midpoint stays 25 m");
+    }
+    for (const beachWidth of [0, -1, Infinity, "wide"]) {
+      const raw = randomWorldBrief({ ...OPTIONS, landform: "coast" }).brief;
+      (raw.terrain as { coast: Record<string, unknown> }).coast.beachWidth = beachWidth;
+      assert.ok(normalizeWorldBrief(raw).issues.some(issue => issue.includes("beachWidth")));
     }
   });
   check("random world coast: four sea directions keep settlements and exits dry; rivers drain to sea", () => {
