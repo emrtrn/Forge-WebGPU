@@ -91,6 +91,8 @@ beforeAll(async () => {
     ownership: { placements: { "rock-1": { stage: "scatter", outputHash: "abc" } }, splines: {}, foliageRules: {}, protectedRegions: [] },
   }));
   await put("layouts/Valley.foliage.json", json({ schema: 1, type: "foliage", groups: [] }));
+  await put("layouts/Other.level.json", json({ schema: 1, name: "Other", loadGroups: [], characters: [], instances: [] }));
+  await put("layouts/Other.worldbrief.json", json({ schema: 1, type: "worldBrief", id: "other", name: "Other", regionProfile: "layouts/Valley.regionprofile.json" }));
 });
 
 afterAll(async () => {
@@ -185,6 +187,12 @@ describe("import:forge", () => {
     expect([...dry.plan.imported.keys()].sort()).toEqual(["beep", "t-rock", "t-sand"]);
     expect(dry.plan.deferred.get("bt")?.phase).toBe("- (K12)");
     expect(formatImportReport(dry)).toContain("behaviorTree → - (K12) 1");
+  });
+
+  test("a sidecar two levels share is written once, where it lands first", async () => {
+    const dry = await run({ levels: [LEVEL, "layouts/Other.level.json"], dryRun: true });
+    expect(dry.levels[0]!.sidecars).toContain("content/levels/Valley/Valley.regionprofile.json");
+    expect(dry.levels[1]!.sidecars).toEqual(["content/levels/Other/Other.worldbrief.json"]);
   });
 
   test("a second run needs --force and writes the same bytes", async () => {

@@ -247,7 +247,10 @@ function levelSidecars(
   project: ImportTarget,
 ): string[] {
   const written: string[] = [];
-  const place = (path: string, name: string): string => {
+  // A sidecar another level of this run placed already (two briefs naming one profile) is
+  // written once, where it landed first; the later level refers to it there.
+  const place = (path: string, name: string): string | null => {
+    if (labels.has(path)) return null;
     const target = `${folder}/${name}`;
     labels.set(path, target);
     written.push(target);

@@ -502,6 +502,13 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       pakette; `npm run import:forge -- --pack starter` → 28 asset (doku 23,
       ses 5), 21,8 MB, `verify:assets` yeşil. Araç / kırılabilir grupları ve
       referans level'ların asset'leri pakete girmez (referans projesine).
+      *Adım 4b, referans projesi (2026-11-12):* `Games/ForgeReference/webgpu-scenes`
+      (`create-project --register`, starter paketini seçer, `check:projects`'te):
+      OpenWorldTest, Island, WbPilotValley, L03, PhysicsInteractionTest,
+      spline-test-range (forge-scenes) + Derekavak (Ridgebound kopyası, asset'leri
+      `content/ridgebound/`, ortak kimlikler yeniden kullanılır). 7 level, 4 terrain,
+      27 model, 44 doku, 188 MB; asset dizini 0 sorun, başsız açılış 2,1 s.
+      Yeniden çalıştırma komutları referans klasörünün README'sinde.
 - [ ] **İçe aktarıcının kabulü:** her eski tür için küçük fixture + beklenen
       çıktı testi; referans level'larda kaynak ve hedef arasında tür başına
       sayım karşılaştırması (aktör, bileşen, foliage örneği, hücre) ve
@@ -834,3 +841,4 @@ silinebilir.
 | 2026-11-12 | v1.0 | 2b içe aktarıcı adım 2: ortak yerleşim → aktör çevirisi ve Forge level çevirisi `src/engine/forgeImport/` (World Builder `worldLevel` onu kullanır; çevrilmeyen alanlar faz tablosuyla raporlanır), yalnız-şema ikili türler `forge.model` / `forge.texture` / `forge.sound`. A 819 / 905 |
 | 2026-11-12 | v1.0 | 2b içe aktarıcı adım 3: `npm run import:forge` (köken tablosu, asset planı, level raporu, yan dosyalar yeni etiketlerle, `--force` / `--dry-run`); WbPilotValley geçici projede kapıdan geçer ve World Builder'la yeniden kurulur. A 819 / 905 |
 | 2026-11-12 | v1.0 | 2b içe aktarıcı adım 4a (kullanıcı kararları): starter paketi yalnız motor varsayılanlarıyla (28 asset, 21,8 MB; lisansı bilinmeyenler dahil), `import:forge --pack`. A 819 / 905 |
+| 2026-11-12 | v1.0 | 2b içe aktarıcı adım 4b: depo dışı referans projesi `Games/ForgeReference/webgpu-scenes` (yerel kayıtlı): 7 referans level kullandıkları asset'lerle, asset dizini 0 sorun; paylaşılan yan dosya bir kez yazılır. A 819 / 905 |
