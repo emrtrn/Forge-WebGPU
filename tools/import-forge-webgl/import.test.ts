@@ -11,6 +11,8 @@ import { loadEngineRegistry } from "../assets/engineRegistry.ts";
 import { scanRoots } from "../assets/scan.ts";
 import { createProject } from "../project/create.ts";
 import { materialTextureIds } from "./assetPlan.ts";
+import { compareImport, formatComparison, unexplained } from "./compare.ts";
+import { openForgeSource } from "./forgeSource.ts";
 import { runForgeImport, relabel } from "./importRun.ts";
 import { provenanceOf, PROJECT_LICENSE, UNVERIFIED_LICENSE } from "./provenance.ts";
 import { formatImportReport } from "./report.ts";
@@ -187,6 +189,18 @@ describe("import:forge", () => {
     expect([...dry.plan.imported.keys()].sort()).toEqual(["beep", "t-rock", "t-sand"]);
     expect(dry.plan.deferred.get("bt")?.phase).toBe("- (K12)");
     expect(formatImportReport(dry)).toContain("behaviorTree → - (K12) 1");
+  });
+
+  test("the acceptance count matches source and target, every difference with its reason", async () => {
+    const result = await run({ force: true });
+    const tables = compareImport(project, await openForgeSource(forge), result);
+    const rows = (await tables).get(`${LEVEL} → content/levels/Valley`)!;
+    expect(unexplained(await tables)).toEqual([]);
+    expect(rows.find((row) => row.what.startsWith("model placements"))).toEqual({
+      what: "model placements → forge.staticMesh", source: 3, target: 1, note: "no model in the target: ghost 1, grass 1",
+    });
+    expect(rows.find((row) => row.what === "cells")).toMatchObject({ source: 1, target: 1, note: "" });
+    expect(formatComparison(await tables)).toContain("| shape placements → forge.shape | 1 | 1 | = |");
   });
 
   test("a sidecar two levels share is written once, where it lands first", async () => {

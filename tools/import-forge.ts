@@ -1,5 +1,5 @@
 // npm run import:forge -- --forge <Forge public/> --project <dir> [--level <public path>]... [--assets id,id,...]
-//   [--assets-folder content/forge] [--levels-folder content/levels] [--report <file.md>] [--dry-run] [--force]
+//   [--assets-folder content/forge] [--levels-folder content/levels] [--report <file.md>] [--dry-run] [--force] [--compare]
 // npm run import:forge -- --forge <Forge public/> --pack starter [--assets id,...] [--dry-run]
 //
 // Brings Forge WebGL levels and the assets they use into a game project of the
@@ -8,11 +8,15 @@
 // add converters: ids are derived from the source, so it writes the same GUIDs.
 // An existing level folder is replaced only with --force. `--pack <id>` writes
 // assets into the engine's content pack instead; the starter pack's assets are
-// listed in tools/import-forge-webgl/starterSeeds.ts.
+// listed in tools/import-forge-webgl/starterSeeds.ts. `--compare` counts the
+// written levels against their sources (plan 2b acceptance) and fails on a
+// difference without a known reason.
 
 import { writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { compareImport, formatComparison, unexplained } from "./import-forge-webgl/compare.ts";
+import { openForgeSource } from "./import-forge-webgl/forgeSource.ts";
 import { runForgeImport } from "./import-forge-webgl/importRun.ts";
 import { formatImportReport } from "./import-forge-webgl/report.ts";
 import { STARTER_SEEDS } from "./import-forge-webgl/starterSeeds.ts";
@@ -20,9 +24,9 @@ import { refuseEngineFixture } from "./world/worldCli.ts";
 
 const engineRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const usage = "Usage: npm run import:forge -- --forge <Forge public/> (--project <dir> [--level <public path>]... | --pack <id>) "
-  + "[--assets id,...] [--assets-folder <dir>] [--levels-folder <dir>] [--report <file.md>] [--dry-run] [--force]";
+  + "[--assets id,...] [--assets-folder <dir>] [--levels-folder <dir>] [--report <file.md>] [--dry-run] [--force] [--compare]";
 const VALUED = ["--forge", "--project", "--pack", "--level", "--assets", "--assets-folder", "--levels-folder", "--report"];
-const FLAGS = ["--dry-run", "--force"];
+const FLAGS = ["--dry-run", "--force", "--compare"];
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -56,11 +60,19 @@ async function main(): Promise<void> {
     force: args.includes("--force"),
     dryRun: args.includes("--dry-run"),
   });
-  const report = formatImportReport(result);
+  let report = formatImportReport(result);
+  let failed: string[] = [];
+  if (args.includes("--compare") && projectRoot !== undefined && !args.includes("--dry-run")) {
+    const tables = await compareImport(projectRoot, await openForgeSource(resolve(forge)), result);
+    report += `
+${formatComparison(tables)}`;
+    failed = unexplained(tables);
+  }
   const target = one("--report");
   if (target) await writeFile(resolve(target), report);
   console.log(report);
   console.log(`[import:forge] ${args.includes("--dry-run") ? "dry run, nothing written" : "done"} in ${((Date.now() - started) / 1000).toFixed(1)} s.`);
+  if (failed.length) throw new Error(`differences without a known reason: ${failed.join("; ")}`);
 }
 
 main().catch((error: unknown) => {
