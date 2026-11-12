@@ -460,9 +460,9 @@ tests/engine/heightFog.test.ts	27	check	R			engine/render-three,engine/world	thr
 tests/engine/heightFog.test.ts	34	check	M			tools/saveValidator	model:tools/saveValidator		height fog: new settings survive save validation with precision
 tests/engine/heightFog.test.ts	42	check	R			engine/render-three	three-via:engine/render-three,three:three		height fog: material patch chains existing shader code and follows scene state
 tests/engine/heightFog.test.ts	74	check	R			engine/render-three	three-via:engine/render-three,three:three		height fog: cloned compile hooks bind their own uniforms once
-tests/engine/heightmapPng.test.ts	45	checkAsync	A			engine/terrain			heightmap PNG reads independently encoded 16-bit grey, RGB, palette and 2-bit grey images
-tests/engine/heightmapPng.test.ts	58	checkAsync	A			engine/terrain			heightmap PNG 16-bit grey round-trips exactly with every filter and the adaptive choice
-tests/engine/heightmapPng.test.ts	80	checkAsync	A			engine/terrain			heightmap PNG rejects corrupt, truncated, interlaced, oversized and malformed files
+tests/engine/heightmapPng.test.ts	45	checkAsync	A			engine/terrain		src/engine/terrain/heightmapPng.test.ts	heightmap PNG reads independently encoded 16-bit grey, RGB, palette and 2-bit grey images
+tests/engine/heightmapPng.test.ts	58	checkAsync	A			engine/terrain		src/engine/terrain/heightmapPng.test.ts	heightmap PNG 16-bit grey round-trips exactly with every filter and the adaptive choice
+tests/engine/heightmapPng.test.ts	80	checkAsync	A			engine/terrain		src/engine/terrain/heightmapPng.test.ts	heightmap PNG rejects corrupt, truncated, interlaced, oversized and malformed files
 tests/engine/hlod.test.ts	57	check	M			engine/scene,engine/world	level-data:assets/Test/Levels/World.level.json,level-data:assets\Test\Levels\World.level.json,level-data:layouts/old.json,level-data:layouts/old.layout.json,model:engine/scene,model:engine/world		hlod: paths follow foliage and main cell naming rules
 tests/engine/hlod.test.ts	66	check	M			engine/world	model:engine/world		hlod: index validates fields, duplicates and numeric cell ordering
 tests/engine/hlod.test.ts	80	check	M			engine/world	model:engine/world		hlod: canonical transforms match runtime fallbacks and retain hidden inputs

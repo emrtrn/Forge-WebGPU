@@ -340,8 +340,9 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       + `terrainCollider`; `LayoutLandscape` legacy'ye. Ertelenenler: göl /
       nehir / okyanus Faz 7'ye, su birikintisi 5a'ya, terrain runtime akışı
       ve `worldStreamingSubsystem` 5b'ye, `worldTerrainMove` 5d / 7'ye.
-      150 terrain kontrolü yeşil; `heightmapPng`'nin 3 kontrolü `node:zlib`
-      kararını bekliyor. İlerleme A 367 / 923.
+      153 terrain kontrolü yeşil (`heightmapPng` için `node:zlib` bağımsız
+      referans kodlayıcı olarak `src` testlerine açıldı, kullanıcı kararı).
+      İlerleme A 370 / 923.
 - [ ] Kayıt oyunu (`engine/persistence`) ve World Partition (`engine/world`)
       yeni modele göre yeniden kurulur; GUID anahtarlı. Kayıt oyunu `persist`
       işaretli bileşen alanlarını ve `defineSaveState` bölümlerini saklar;
@@ -687,3 +688,4 @@ silinebilir.
 | 2026-11-11 | v1.0 | 2b test iskelesi (kullanıcı kararı): eski döngü `src/engine/testing/`'te, yalnız testlere açık (yeni katman kuralı + kasıtlı ihlal); Faz 6'da silinir. Perf hesabı, `inputSubsystem`, Forge alt sistem biçimi taşındı. A 118 / 927 |
 | 2026-11-11 | v1.0 | 2b physics: `PhysicsSubsystem` beşe bölündü (bütçe), ragdoll çıktı, araçlar / zemin / çarpışma geldi; eski bileşen okuyucuları geçiş olarak `src/engine/legacy/` (kullanıcı kararı, yeni katman kuralı + kasıtlı ihlal). 96 kontrol yeşil; testler için `tsconfig.tests.json` üç bayrağı gevşetir. A 214 / 923 |
 | 2026-11-12 | v1.0 | 2b terrain (sınıflandırma kullanıcı onayıyla): `src/engine/terrain` (34 dosya) + saf landscape algoritmaları, `src/engine/spline`, `src/engine/world` (ızgara / akış matematiği), `terrainCollider`; su Faz 7'ye, su birikintisi 5a'ya, runtime akışı 5b'ye, `worldTerrainMove` 5d / 7'ye ertelendi. 153 kontrol yeşil (terrain 150); taşıma araçlarında üç düzeltme (varsayılan değerli parametre özelliği, `checkAsync` kaydı, dinamik etiket sayımı), Vitest süre sınırı 30 sn. `heightmapPng` 3 kontrol `node:zlib` kararını bekliyor. A 367 / 923 |
+| 2026-11-12 | v1.0 | 2b: `node:zlib` `src` testlerine açıldı (bağımsız referans kodlayıcı; kullanıcı kararı, `src-tests-node-assert-only` + kontrol fixture'ı); `heightmapPng` 3 kontrol yeşil. CI `d8b7891`, `8d7ab7c` yeşil (kullanıcı teyidi). A 370 / 923 |
