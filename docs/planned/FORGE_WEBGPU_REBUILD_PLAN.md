@@ -366,6 +366,11 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       WebGL GPU timer Faz 3'e (Forge profilleri WebGL ayarı), Player Start
       Faz 6'ya, `lakeQuality` Faz 7'ye, `puddleWind` 5a'ya. 57 kontrol
       yeşil. İlerleme A 559 / 922.
+      *Worldbuilder taşındı (2026-11-12, seçenek B):* algoritmalar ve aşama
+      üreticileri `src/engine/worldbuilder`'da; Stage Runner taşınmadı, köken
+      `recipe.generatedBy`'da. Aşama kontrolleri Forge'un çalıştırıcısının
+      iskele kopyasıyla koşar. 53 kontrol yeşil, 15 D (payda 907); fixture'ı
+      `node:fs` ile okuyan 58 kontrol kural kararını bekliyor. İlerleme A 612 / 907.
 - [ ] Kayıt oyunu (`engine/persistence`) ve World Partition (`engine/world`)
       yeni modele göre yeniden kurulur; GUID anahtarlı. Kayıt oyunu `persist`
       işaretli bileşen alanlarını ve `defineSaveState` bölümlerini saklar;
@@ -383,6 +388,14 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       çalıştırılabilir aşama / sahiplik / Dry Run yüzeyi konseptten sahne
       akışında kullanılmadığı için (kullanıcı kararı 2026-11-07) varsayılan
       olarak taşınmaz.
+      *Karar (kullanıcı, 2026-11-12, seçenek B):* algoritmalar ve aşama
+      üreticileri taşındı; Stage Runner (`planStage`: Dry Run, sahiplik, elle
+      düzenleme / silme koruması, çıktı hash'leri), üretici sürümleri ve
+      `preserveManualOverrides` taşınmadı. Aşamaların birbirinin çıktısını
+      bulduğu köken `recipe.generatedBy` olarak kaldı (çalıştırıcı yazar:
+      `tools/world`); korumalı bölgeler üst düzey `recipe.protectedRegions`.
+      Kökenin nesnelerin üstüne (aktör bileşeni) taşınıp taşınmayacağı
+      `tools/world` yeni level formatını kurarken kararlaştırılır.
 - [x] Kenney dizin aracı (`tools/asset-library-index.mjs`, `kenney-assets.tsv`)
       için karar: bu depoya taşınır mı, Forge'da mı kalır. Kütüphanenin kendisi
       depoya girmez (mimari A9).
@@ -716,3 +729,4 @@ silinebilir.
 | 2026-11-12 | v1.0 | 2b movement: `src/engine/movement` + `animation/blendSpace` + `navFloorSampler`; hareketli platform bağı kesildi (K12), `LaunchOptions` / `TransformSink` movement'a; karakter hareketi okuyucusu legacy'ye. 76 kontrol yeşil; taşıma aracı isteğe bağlı parametre özelliğini `T | undefined` diye yazar. A 469 / 923 |
 | 2026-11-12 | v1.0 | 2b behavior: koddan kayıtlı davranış + script mesajları; olay / mesaj bağlamaları kod kaydında (`BehaviorDefinition`, kullanıcı kararı, K12 satırında); referans / arayüz / dispatcher / değişken / ses bileşeni yok. `behaviorSubsystem` bütçe için bölündü (tipler `behaviorTypes`). Forge fixture'ları test köprüsünden geçer; kontrol düzeyinde D listesi (payda 922). 33 kontrol yeşil. A 502 / 922 |
 | 2026-11-12 | v1.0 | 2b küçük alanlar: environment, loading, perception, vfx, perf'in kalanı; kalite profilleri / uyarlamalı kalite / donanım ipuçları / WebGL GPU timer Faz 3'e, Player Start Faz 6'ya, `lakeQuality` Faz 7'ye, `puddleWind` 5a'ya. 57 kontrol yeşil. A 559 / 922 |
+| 2026-11-12 | v1.0 | 2b worldbuilder (seçenek B, kullanıcı kararı): algoritmalar + aşama üreticileri; Stage Runner / sahiplik / Dry Run / üretici sürümleri taşınmadı, köken `recipe.generatedBy`, korumalı bölgeler üst düzeyde (World Builder kapsam kutusunda). 53 kontrol yeşil, 15 D (payda 907); 58 kontrol `node:fs` kararını bekliyor. A 612 / 907 |

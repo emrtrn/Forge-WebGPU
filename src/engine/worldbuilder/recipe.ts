@@ -1,0 +1,808 @@
+// Ported from Forge WebGL engine/worldbuilder/recipe.ts @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
+/**
+ * World Recipe: the one data file World Builder owns (plan v0.4 §1.2, §6.3,
+ * §13.4), stored beside its level as `<Level>.worldrecipe.json`.
+ *
+ * - `plan` is the semantic intent: regions, water, landmarks, settlements and
+ *   the road graph. AI (from a reference image), an OSM import or the user
+ *   write it; every element records where it came from (`source`, `observed`,
+ *   `confidence`) so a re-analysis never overwrites a manual edit.
+ * - `generated` is stage output that must persist to be regenerated locally
+ *   (settlement sites with their programs, parcels). Geometry itself stays in
+ *   the standard level formats.
+ * - `generatedBy` records which stage produced a level object (placement id,
+ *   spline id) and the road edge a spline realises: later stages find earlier
+ *   stages' output through it. `protectedRegions` are boxes stages keep clear.
+ *
+ * K12-style cut (World Builder option B, user decision 2026-11-12): Forge's
+ * `ownership` also drove the re-runnable stage / Dry Run surface (output
+ * hashes, preserveManualOverrides, generator versions, manual-deletion
+ * records). That surface is not ported; only the provenance stages read stays,
+ * as `generatedBy`, and the protected regions moved to the top level.
+ *
+ * Coordinates are world metres on the XZ plane, rounded like layout positions.
+ * `normalizeWorldRecipe` is the single source of field shape: the world brief
+ * builder writes its recipe through it and `validateSaveWorldRecipePayload`
+ * checks that output is save-canonical (stricter: any issue rejects it).
+ * Dependency-free; no three.js.
+ */
+import { isPlacementId, isSemanticRole } from "../legacy/placementIdentity.ts";
+import {
+  arrayOf,
+  type Ctx,
+  idSet,
+  isFiniteNumber,
+  isNonNegativeInteger,
+  isOneOf,
+  isPositiveInteger,
+  isRecord,
+  issue,
+  normalizeAssetPath,
+  normalizeSeed,
+  optionalPolygon,
+  optionalPositive,
+  optionalReference,
+  optionalTokens,
+  pointList,
+  reject,
+  requireId,
+  requireNumber,
+  requirePoint,
+  requirePolygon,
+  requireToken,
+  round,
+  uniqueEntries,
+  type WorldPoint,
+} from "./normalize.ts";
+import type { PadStair, PadWall } from "./terraces.ts";
+import {
+  LAND_USES,
+  type LandUse,
+  PROGRAM_SITINGS,
+  type ProgramSiting,
+  ROAD_CLASSES,
+  type RoadClass,
+} from "./vocabulary.ts";
+
+export type { WorldPoint } from "./normalize.ts";
+
+export const WORLD_RECIPE_SCHEMA_VERSION = 1;
+export const WORLD_RECIPE_SUFFIX = ".worldrecipe.json";
+
+export const PLAN_SOURCES = ["reference", "osm", "manual", "generated"] as const;
+export type PlanSource = (typeof PLAN_SOURCES)[number];
+
+export const ROAD_NODE_KINDS = ["end", "junction", "gate"] as const;
+export type RoadNodeKind = (typeof ROAD_NODE_KINDS)[number];
+
+export const REFERENCE_VIEWS = ["topDown", "perspective"] as const;
+export type ReferenceView = (typeof REFERENCE_VIEWS)[number];
+
+/** Where a plan element came from; a re-run of one source leaves the others alone. */
+export interface PlanProvenance {
+  source: PlanSource;
+  /** true: seen in the reference; false: inferred. Absent when not applicable. */
+  observed?: boolean;
+  /** 0..1; absent means not estimated. */
+  confidence?: number;
+}
+
+/** Stable plan namespaces used by reference imports and manual-deletion records. */
+export const WORLD_PLAN_KINDS = ["settlement", "node", "edge", "region", "water", "landmark"] as const;
+export type WorldPlanKind = (typeof WORLD_PLAN_KINDS)[number];
+
+/**
+ * A reference image laid over the world: the world point under its top-left
+ * corner and the extent it covers, metres. Image right is +X, image down is +Z
+ * (`reference.ts` maps normalised image points to the world).
+ */
+export interface WorldReference {
+  /** Public-root-relative image path. */
+  image?: string;
+  origin: WorldPoint;
+  size: WorldPoint;
+  view?: ReferenceView;
+}
+
+export interface PlanRegion extends PlanProvenance {
+  id: string;
+  /** Token such as `mountain`, `valley`, `forest.conifer`. */
+  kind: string;
+  polygon: WorldPoint[];
+}
+
+export interface PlanWater extends PlanProvenance {
+  id: string;
+  /** Token such as `river`, `lake`, `stream`. */
+  kind: string;
+  /** Centre line (rivers); exactly one of `path` / `polygon`. */
+  path?: WorldPoint[];
+  /** Outline (lakes). */
+  polygon?: WorldPoint[];
+  /** Water surface width of a river, metres; masks use their default without it. */
+  width?: number;
+}
+
+export interface PlanLandmark extends PlanProvenance {
+  id: string;
+  /** Token such as `logistics.depot`, `viewpoint`. */
+  kind: string;
+  position: WorldPoint;
+  settlement?: string;
+}
+
+export interface ProgramEntry {
+  role: string;
+  count: number;
+  siting?: ProgramSiting;
+}
+
+/** Where a settlement program line came from; later sources replace earlier ones for the same role. */
+export const PROGRAM_SOURCES = ["profile", "game", "recipe"] as const;
+export type ProgramSource = (typeof PROGRAM_SOURCES)[number];
+
+/** One resolved line of a settlement's program (L1). */
+export interface ProgramLine {
+  role: string;
+  count: number;
+  siting: ProgramSiting;
+  source: ProgramSource;
+}
+
+/** Changes to the program a settlement derives from population and its region profile. */
+export interface SettlementProgram {
+  add?: ProgramEntry[];
+  remove?: string[];
+}
+
+export interface PlanSettlement extends PlanProvenance {
+  id: string;
+  center: WorldPoint;
+  /** Search radius for site selection, metres. */
+  radius?: number;
+  boundary?: WorldPoint[];
+  /** Token such as `hamlet`, `village`, `town`. */
+  type: string;
+  population?: number;
+  /** Tokens such as `livestock`, `timber`. */
+  economy?: string[];
+  /** Public-root-relative `*.regionprofile.json`; overrides the recipe's. */
+  regionProfile?: string;
+  program?: SettlementProgram;
+  /** Per-settlement seed (uint32); absent derives from the recipe seed. */
+  seed?: number;
+  /** A protected settlement is kept as is when stages re-run. */
+  protected?: boolean;
+}
+
+export interface RoadNode extends PlanProvenance {
+  id: string;
+  position: WorldPoint;
+  kind: RoadNodeKind;
+  settlement?: string;
+}
+
+export interface RoadEdge extends PlanProvenance {
+  id: string;
+  from: string;
+  to: string;
+  roadClass: RoadClass;
+  /** Corridor hint for the route solver, not the final geometry. */
+  guide?: WorldPoint[];
+}
+
+export interface WorldPlan {
+  regions: PlanRegion[];
+  water: PlanWater[];
+  landmarks: PlanLandmark[];
+  settlements: PlanSettlement[];
+  roadGraph: { nodes: RoadNode[]; edges: RoadEdge[] };
+}
+
+export interface GeneratedParcel {
+  id: string;
+  settlement: string;
+  polygon: WorldPoint[];
+  /** The road edge the parcel fronts. */
+  frontage?: string;
+  landUse?: LandUse;
+  role?: string;
+  /** The host parcel whose role this one is merged into (a lot of several parcels, L5). */
+  partOf?: string;
+  /** The placement standing on it. */
+  placement?: string;
+}
+
+/**
+ * Ground levelled under a building (L6, T21), written by the `buildings` stage.
+ * Data only: the editor's Apply Pads bakes it into the terrain (decision 19).
+ */
+export interface GeneratedPad {
+  /** The building placement standing on it (a terrace of a split pad: its own id, see `building`). */
+  id: string;
+  settlement: string;
+  /** Footprint plus margin, on the XZ plane. */
+  polygon: WorldPoint[];
+  /** Level of the pad, world metres. */
+  height: number;
+  /** A terrace of a split pad: the building placement it belongs to. */
+  building?: string;
+  /** Blend into the terrain, metres (walled pads blend short); the editor default when absent. */
+  falloff?: number;
+  /** Retaining walls and steps (`engine/worldbuilder/terraces.ts`), measured once and kept with the pad. */
+  walls?: PadWall[];
+  stairs?: PadStair[];
+}
+
+/** A settlement's chosen site and resolved program (L1 + L2), written by the `settlementSites` stage. */
+export interface GeneratedSite {
+  settlement: string;
+  center: WorldPoint;
+  /** Built-up core radius the program needs, metres; with `core`, how far the core reaches from the centre. */
+  coreRadius: number;
+  /** Outline of the core grown over buildable ground; absent: the disc of `coreRadius`. */
+  core?: WorldPoint[];
+  /** Site score 0..1; absent when the site was not scored (a protected settlement keeps its planned centre). */
+  score?: number;
+  dwellings: number;
+  program: ProgramLine[];
+}
+
+/** The stage that produced a level object. */
+export interface GeneratedByEntry {
+  /** Token naming the stage, e.g. `roads`, `settlement`. */
+  stage: string;
+}
+
+export interface SplineGeneratedByEntry extends GeneratedByEntry {
+  /** The road edge the spline realises. */
+  edge?: string;
+}
+
+/** A box stages never touch, on the XZ plane. */
+export interface ProtectedRegion {
+  id: string;
+  kind: string;
+  min: WorldPoint;
+  max: WorldPoint;
+}
+
+export interface WorldRecipe {
+  schemaVersion: typeof WORLD_RECIPE_SCHEMA_VERSION;
+  recipeId: string;
+  /** Root seed (uint32). */
+  seed: number;
+  reference?: WorldReference;
+  /** Public-root-relative default `*.regionprofile.json`. */
+  regionProfile?: string;
+  plan: WorldPlan;
+  generated: { sites: GeneratedSite[]; parcels: GeneratedParcel[]; pads: GeneratedPad[] };
+  generation: {
+    /** Stage tokens in run order. */
+    stages: string[];
+  };
+  /** Boxes stages keep clear. */
+  protectedRegions: ProtectedRegion[];
+  /** Which stage produced each level object; written by the stage runner. */
+  generatedBy: {
+    placements: Record<string, GeneratedByEntry>;
+    splines: Record<string, SplineGeneratedByEntry>;
+  };
+}
+
+export interface WorldRecipeNormalization {
+  /** null when the document is not a recipe at all (wrong schema, no id). */
+  recipe: WorldRecipe | null;
+  /** Each dropped or corrected value, with its path. Empty for a clean recipe. */
+  issues: string[];
+}
+
+/** `<Level>.worldrecipe.json` beside the level, using the level sidecar naming rule. */
+export function worldRecipePath(levelPath: string): string {
+  const normalized = levelPath.replace(/\\/g, "/").replace(/^\/+/, "");
+  const base = normalized.replace(/(\.level|\.layout)?\.json$/i, "");
+  if (!base || base === normalized) throw new Error("world recipe requires a .json level path");
+  return `${base}${WORLD_RECIPE_SUFFIX}`;
+}
+
+export function createWorldRecipe(recipeId: string, seed = 0): WorldRecipe {
+  if (!isPlacementId(recipeId)) throw new Error(`invalid recipeId "${recipeId}"`);
+  return {
+    schemaVersion: WORLD_RECIPE_SCHEMA_VERSION,
+    recipeId,
+    seed: normalizeSeed(seed) ?? 0,
+    plan: { regions: [], water: [], landmarks: [], settlements: [], roadGraph: { nodes: [], edges: [] } },
+    generated: { sites: [], parcels: [], pads: [] },
+    generation: { stages: [] },
+    protectedRegions: [],
+    generatedBy: { placements: {}, splines: {} },
+  };
+}
+
+export function normalizeWorldRecipe(value: unknown): WorldRecipeNormalization {
+  const issues: string[] = [];
+  if (!isRecord(value)) return { recipe: null, issues: ["recipe must be an object"] };
+  if (value.schemaVersion !== WORLD_RECIPE_SCHEMA_VERSION) {
+    return { recipe: null, issues: [`schemaVersion must be ${WORLD_RECIPE_SCHEMA_VERSION}`] };
+  }
+  if (!isPlacementId(value.recipeId)) return { recipe: null, issues: ["recipeId must be an id"] };
+
+  const ctx: Ctx = { issues };
+  const recipe = createWorldRecipe(value.recipeId);
+  if (value.seed !== undefined) {
+    const seed = normalizeSeed(value.seed);
+    if (seed === null) issue(ctx, "seed", "must be an integer 0..4294967295");
+    else recipe.seed = seed;
+  }
+  if (value.reference !== undefined) {
+    const reference = normalizeReference(ctx, value.reference);
+    if (reference) recipe.reference = reference;
+  }
+  if (value.regionProfile !== undefined) {
+    const profile = normalizeAssetPath(value.regionProfile, ".regionprofile.json");
+    if (profile) recipe.regionProfile = profile;
+    else issue(ctx, "regionProfile", "must be a public-root-relative .regionprofile.json path");
+  }
+  recipe.plan = normalizePlan(ctx, value.plan);
+  recipe.generated = {
+    sites: normalizeSites(ctx, value.generated, recipe.plan),
+    parcels: normalizeParcels(ctx, value.generated, recipe.plan),
+    pads: normalizePads(ctx, value.generated, recipe.plan),
+  };
+  recipe.generation = normalizeGeneration(ctx, value.generation);
+  recipe.protectedRegions = normalizeProtectedRegions(ctx, value.protectedRegions);
+  recipe.generatedBy = normalizeGeneratedBy(ctx, value.generatedBy, recipe.plan);
+  return { recipe, issues };
+}
+
+// ─── Plan ───────────────────────────────────────────────────────────────────
+
+function normalizePlan(ctx: Ctx, value: unknown): WorldPlan {
+  const plan: WorldPlan = {
+    regions: [], water: [], landmarks: [], settlements: [], roadGraph: { nodes: [], edges: [] },
+  };
+  if (value === undefined) return plan;
+  if (!isRecord(value)) {
+    issue(ctx, "plan", "must be an object");
+    return plan;
+  }
+  plan.settlements = uniqueEntries(ctx, "plan.settlements", value.settlements, normalizeSettlement);
+  const settlements = idSet(plan.settlements);
+  plan.regions = uniqueEntries(ctx, "plan.regions", value.regions, normalizeRegion);
+  plan.water = uniqueEntries(ctx, "plan.water", value.water, normalizeWater);
+  plan.landmarks = uniqueEntries(ctx, "plan.landmarks", value.landmarks, (c, p, v) =>
+    normalizeLandmark(c, p, v, settlements));
+
+  const graph = value.roadGraph;
+  if (graph !== undefined && !isRecord(graph)) {
+    issue(ctx, "plan.roadGraph", "must be an object");
+  } else if (graph) {
+    plan.roadGraph.nodes = uniqueEntries(ctx, "plan.roadGraph.nodes", graph.nodes, (c, p, v) =>
+      normalizeRoadNode(c, p, v, settlements));
+    const nodes = idSet(plan.roadGraph.nodes);
+    plan.roadGraph.edges = uniqueEntries(ctx, "plan.roadGraph.edges", graph.edges, (c, p, v) =>
+      normalizeRoadEdge(c, p, v, nodes));
+  }
+  return plan;
+}
+
+function normalizeSettlement(ctx: Ctx, path: string, value: Record<string, unknown>): PlanSettlement | null {
+  const id = requireId(ctx, path, value.id);
+  const center = requirePoint(ctx, `${path}.center`, value.center);
+  const type = requireToken(ctx, `${path}.type`, value.type);
+  if (id === null || center === null || type === null) return null;
+  const settlement: PlanSettlement = { id, ...provenance(ctx, path, value), center, type };
+  const radius = optionalPositive(ctx, `${path}.radius`, value.radius);
+  if (radius !== undefined) settlement.radius = radius;
+  const boundary = optionalPolygon(ctx, `${path}.boundary`, value.boundary);
+  if (boundary) settlement.boundary = boundary;
+  if (value.population !== undefined) {
+    if (isNonNegativeInteger(value.population)) settlement.population = value.population;
+    else issue(ctx, `${path}.population`, "must be a non-negative integer");
+  }
+  const economy = optionalTokens(ctx, `${path}.economy`, value.economy);
+  if (economy) settlement.economy = economy;
+  if (value.regionProfile !== undefined) {
+    const profile = normalizeAssetPath(value.regionProfile, ".regionprofile.json");
+    if (profile) settlement.regionProfile = profile;
+    else issue(ctx, `${path}.regionProfile`, "must be a public-root-relative .regionprofile.json path");
+  }
+  if (value.program !== undefined) {
+    const program = normalizeProgram(ctx, `${path}.program`, value.program);
+    if (program) settlement.program = program;
+  }
+  if (value.seed !== undefined) {
+    const seed = normalizeSeed(value.seed);
+    if (seed === null) issue(ctx, `${path}.seed`, "must be an integer 0..4294967295");
+    else settlement.seed = seed;
+  }
+  if (value.protected !== undefined) {
+    if (typeof value.protected === "boolean") {
+      if (value.protected) settlement.protected = true;
+    } else {
+      issue(ctx, `${path}.protected`, "must be a boolean");
+    }
+  }
+  return settlement;
+}
+
+function normalizeProgram(ctx: Ctx, path: string, value: unknown): SettlementProgram | null {
+  if (!isRecord(value)) {
+    issue(ctx, path, "must be an object");
+    return null;
+  }
+  const program: SettlementProgram = {};
+  if (value.add !== undefined) {
+    const add = arrayOf(ctx, `${path}.add`, value.add, (c, p, entry) => {
+      if (!isRecord(entry)) return reject(c, p, "must be an object");
+      if (!isSemanticRole(entry.role)) return reject(c, `${p}.role`, "must be a semantic role");
+      if (!isPositiveInteger(entry.count)) return reject(c, `${p}.count`, "must be a positive integer");
+      const result: ProgramEntry = { role: entry.role, count: entry.count };
+      if (entry.siting !== undefined) {
+        if (isOneOf(PROGRAM_SITINGS, entry.siting)) result.siting = entry.siting;
+        else issue(c, `${p}.siting`, `must be one of ${PROGRAM_SITINGS.join(", ")}`);
+      }
+      return result;
+    });
+    if (add.length > 0) program.add = add;
+  }
+  if (value.remove !== undefined) {
+    const remove = arrayOf(ctx, `${path}.remove`, value.remove, (c, p, role) =>
+      isSemanticRole(role) ? role : reject(c, p, "must be a semantic role"));
+    if (remove.length > 0) program.remove = [...new Set(remove)];
+  }
+  return program.add || program.remove ? program : null;
+}
+
+function normalizeRegion(ctx: Ctx, path: string, value: Record<string, unknown>): PlanRegion | null {
+  const id = requireId(ctx, path, value.id);
+  const kind = requireToken(ctx, `${path}.kind`, value.kind);
+  const polygon = requirePolygon(ctx, `${path}.polygon`, value.polygon);
+  if (id === null || kind === null || polygon === null) return null;
+  return { id, ...provenance(ctx, path, value), kind, polygon };
+}
+
+function normalizeWater(ctx: Ctx, path: string, value: Record<string, unknown>): PlanWater | null {
+  const id = requireId(ctx, path, value.id);
+  const kind = requireToken(ctx, `${path}.kind`, value.kind);
+  if (id === null || kind === null) return null;
+  if ((value.path === undefined) === (value.polygon === undefined)) {
+    return reject(ctx, path, "needs exactly one of path or polygon");
+  }
+  const water: PlanWater = { id, ...provenance(ctx, path, value), kind };
+  if (value.path !== undefined) {
+    const line = pointList(ctx, `${path}.path`, value.path, 2);
+    if (!line) return null;
+    water.path = line;
+  } else {
+    const polygon = requirePolygon(ctx, `${path}.polygon`, value.polygon);
+    if (!polygon) return null;
+    water.polygon = polygon;
+  }
+  const width = optionalPositive(ctx, `${path}.width`, value.width);
+  if (width !== undefined) water.width = width;
+  return water;
+}
+
+function normalizeLandmark(
+  ctx: Ctx, path: string, value: Record<string, unknown>, settlements: ReadonlySet<string>,
+): PlanLandmark | null {
+  const id = requireId(ctx, path, value.id);
+  const kind = requireToken(ctx, `${path}.kind`, value.kind);
+  const position = requirePoint(ctx, `${path}.position`, value.position);
+  if (id === null || kind === null || position === null) return null;
+  const landmark: PlanLandmark = { id, ...provenance(ctx, path, value), kind, position };
+  const settlement = optionalReference(ctx, `${path}.settlement`, value.settlement, settlements);
+  if (settlement) landmark.settlement = settlement;
+  return landmark;
+}
+
+function normalizeRoadNode(
+  ctx: Ctx, path: string, value: Record<string, unknown>, settlements: ReadonlySet<string>,
+): RoadNode | null {
+  const id = requireId(ctx, path, value.id);
+  const position = requirePoint(ctx, `${path}.position`, value.position);
+  if (id === null || position === null) return null;
+  if (!isOneOf(ROAD_NODE_KINDS, value.kind)) {
+    return reject(ctx, `${path}.kind`, `must be one of ${ROAD_NODE_KINDS.join(", ")}`);
+  }
+  const node: RoadNode = { id, ...provenance(ctx, path, value), position, kind: value.kind };
+  const settlement = optionalReference(ctx, `${path}.settlement`, value.settlement, settlements);
+  if (settlement) node.settlement = settlement;
+  return node;
+}
+
+function normalizeRoadEdge(
+  ctx: Ctx, path: string, value: Record<string, unknown>, nodes: ReadonlySet<string>,
+): RoadEdge | null {
+  const id = requireId(ctx, path, value.id);
+  if (id === null) return null;
+  if (typeof value.from !== "string" || !nodes.has(value.from)) {
+    return reject(ctx, `${path}.from`, "must name a road node");
+  }
+  if (typeof value.to !== "string" || !nodes.has(value.to)) {
+    return reject(ctx, `${path}.to`, "must name a road node");
+  }
+  if (value.from === value.to) return reject(ctx, path, "from and to must differ");
+  if (!isOneOf(ROAD_CLASSES, value.roadClass)) {
+    return reject(ctx, `${path}.roadClass`, `must be one of ${ROAD_CLASSES.join(", ")}`);
+  }
+  const edge: RoadEdge = {
+    id, ...provenance(ctx, path, value), from: value.from, to: value.to, roadClass: value.roadClass,
+  };
+  if (value.guide !== undefined) {
+    const guide = pointList(ctx, `${path}.guide`, value.guide, 2);
+    if (guide) edge.guide = guide;
+  }
+  return edge;
+}
+
+/** Plan elements default to `manual`: a hand-written element is the user's. */
+function provenance(ctx: Ctx, path: string, value: Record<string, unknown>): PlanProvenance {
+  const result: PlanProvenance = { source: "manual" };
+  if (value.source !== undefined) {
+    if (isOneOf(PLAN_SOURCES, value.source)) result.source = value.source;
+    else issue(ctx, `${path}.source`, `must be one of ${PLAN_SOURCES.join(", ")}`);
+  }
+  if (value.observed !== undefined) {
+    if (typeof value.observed === "boolean") result.observed = value.observed;
+    else issue(ctx, `${path}.observed`, "must be a boolean");
+  }
+  if (value.confidence !== undefined) {
+    if (isFiniteNumber(value.confidence) && value.confidence >= 0 && value.confidence <= 1) {
+      result.confidence = round(value.confidence);
+    } else {
+      issue(ctx, `${path}.confidence`, "must be a number 0..1");
+    }
+  }
+  return result;
+}
+
+// ─── Generated, generation, provenance ───────────────────────────────────────
+
+function normalizeSites(ctx: Ctx, value: unknown, plan: WorldPlan): GeneratedSite[] {
+  if (!isRecord(value) || value.sites === undefined) return [];
+  const settlements = idSet(plan.settlements);
+  const seen = new Set<string>();
+  return arrayOf(ctx, "generated.sites", value.sites, (c, p, site) => {
+    if (!isRecord(site)) return reject(c, p, "must be an object");
+    if (typeof site.settlement !== "string" || !settlements.has(site.settlement)) {
+      return reject(c, `${p}.settlement`, "must name a plan settlement");
+    }
+    const center = requirePoint(c, `${p}.center`, site.center);
+    const coreRadius = optionalPositive(c, `${p}.coreRadius`, site.coreRadius);
+    if (center === null) return null;
+    if (coreRadius === undefined) return reject(c, `${p}.coreRadius`, "must be a positive number");
+    if (!isNonNegativeInteger(site.dwellings)) return reject(c, `${p}.dwellings`, "must be a non-negative integer");
+    if (seen.has(site.settlement)) return reject(c, `${p}.settlement`, `repeats settlement "${site.settlement}"`);
+    const score = site.score === undefined ? null : requireNumber(c, `${p}.score`, site.score, 0, 1);
+    const core = optionalPolygon(c, `${p}.core`, site.core);
+    // Field order matches what the stage writes, so a reloaded recipe compares equal to a re-run's.
+    const result: GeneratedSite = {
+      settlement: site.settlement, center, coreRadius, ...(core === undefined ? {} : { core }),
+      ...(score === null ? {} : { score }), dwellings: site.dwellings, program: [],
+    };
+    result.program = arrayOf(c, `${p}.program`, site.program ?? [], (c2, p2, line) => {
+      if (!isRecord(line)) return reject(c2, p2, "must be an object");
+      if (!isSemanticRole(line.role)) return reject(c2, `${p2}.role`, "must be a semantic role");
+      if (!isPositiveInteger(line.count)) return reject(c2, `${p2}.count`, "must be a positive integer");
+      if (!isOneOf(PROGRAM_SITINGS, line.siting)) return reject(c2, `${p2}.siting`, `must be one of ${PROGRAM_SITINGS.join(", ")}`);
+      if (!isOneOf(PROGRAM_SOURCES, line.source)) return reject(c2, `${p2}.source`, `must be one of ${PROGRAM_SOURCES.join(", ")}`);
+      const entry: ProgramLine = { role: line.role, count: line.count, siting: line.siting, source: line.source };
+      return entry;
+    });
+    seen.add(site.settlement);
+    return result;
+  });
+}
+
+function normalizeParcels(ctx: Ctx, value: unknown, plan: WorldPlan): GeneratedParcel[] {
+  if (value === undefined) return [];
+  if (!isRecord(value)) {
+    issue(ctx, "generated", "must be an object");
+    return [];
+  }
+  const settlements = idSet(plan.settlements);
+  const edges = idSet(plan.roadGraph.edges);
+  const paths = new Map<GeneratedParcel, string>();
+  const parcels = uniqueEntries(ctx, "generated.parcels", value.parcels, (c, p, parcel) => {
+    const id = requireId(c, p, parcel.id);
+    const polygon = requirePolygon(c, `${p}.polygon`, parcel.polygon);
+    if (id === null || polygon === null) return null;
+    if (typeof parcel.settlement !== "string" || !settlements.has(parcel.settlement)) {
+      return reject(c, `${p}.settlement`, "must name a plan settlement");
+    }
+    const result: GeneratedParcel = { id, settlement: parcel.settlement, polygon };
+    const frontage = optionalReference(c, `${p}.frontage`, parcel.frontage, edges);
+    if (frontage) result.frontage = frontage;
+    if (parcel.landUse !== undefined) {
+      if (isOneOf(LAND_USES, parcel.landUse)) result.landUse = parcel.landUse;
+      else issue(c, `${p}.landUse`, `must be one of ${LAND_USES.join(", ")}`);
+    }
+    if (parcel.role !== undefined) {
+      if (isSemanticRole(parcel.role)) result.role = parcel.role;
+      else issue(c, `${p}.role`, "must be a semantic role");
+    }
+    if (parcel.partOf !== undefined) {
+      if (isPlacementId(parcel.partOf)) result.partOf = parcel.partOf;
+      else issue(c, `${p}.partOf`, "must be a parcel id");
+    }
+    if (parcel.placement !== undefined) {
+      if (isPlacementId(parcel.placement)) result.placement = parcel.placement;
+      else issue(c, `${p}.placement`, "must be a placement id");
+    }
+    paths.set(result, p);
+    return result;
+  });
+  const byId = new Map(parcels.map((parcel) => [parcel.id, parcel]));
+  for (const parcel of parcels) {
+    if (parcel.partOf === undefined) continue;
+    const host = byId.get(parcel.partOf);
+    if (!host || host === parcel || host.settlement !== parcel.settlement || host.partOf !== undefined) {
+      issue(ctx, `${paths.get(parcel)}.partOf`, "must name another, unmerged parcel of the same settlement");
+      delete parcel.partOf;
+    }
+  }
+  return parcels;
+}
+
+function normalizePads(ctx: Ctx, value: unknown, plan: WorldPlan): GeneratedPad[] {
+  if (!isRecord(value) || value.pads === undefined) return [];
+  const settlements = idSet(plan.settlements);
+  return uniqueEntries(ctx, "generated.pads", value.pads, (c, p, pad) => {
+    const id = requireId(c, p, pad.id);
+    const polygon = requirePolygon(c, `${p}.polygon`, pad.polygon);
+    const height = requireNumber(c, `${p}.height`, pad.height, -100_000, 100_000);
+    if (id === null || polygon === null || height === null) return null;
+    if (typeof pad.settlement !== "string" || !settlements.has(pad.settlement)) {
+      return reject(c, `${p}.settlement`, "must name a plan settlement");
+    }
+    // Field order matches what the stage writes.
+    const result: GeneratedPad = { id, settlement: pad.settlement, polygon, height };
+    if (pad.building !== undefined) {
+      const building = requireId(c, `${p}.building`, pad.building);
+      if (building === null) return null;
+      result.building = building;
+    }
+    if (pad.falloff !== undefined) {
+      const falloff = requireNumber(c, `${p}.falloff`, pad.falloff, 0, 100);
+      if (falloff === null) return null;
+      result.falloff = falloff;
+    }
+    if (pad.walls !== undefined) {
+      if (!Array.isArray(pad.walls)) return reject(c, `${p}.walls`, "must be an array");
+      const walls: PadWall[] = [];
+      for (const [index, wall] of pad.walls.entries()) {
+        const at = `${p}.walls[${index}]`;
+        if (!isRecord(wall)) return reject(c, at, "must be an object");
+        const from = requirePoint(c, `${at}.from`, wall.from);
+        const to = requirePoint(c, `${at}.to`, wall.to);
+        const bottom = requireNumber(c, `${at}.bottom`, wall.bottom, -100_000, 100_000);
+        const top = requireNumber(c, `${at}.top`, wall.top, -100_000, 100_000);
+        if (from === null || to === null || bottom === null || top === null) return null;
+        if (!(top > bottom)) return reject(c, `${at}.top`, "must be above bottom");
+        walls.push({ from, to, bottom, top });
+      }
+      result.walls = walls;
+    }
+    if (pad.stairs !== undefined) {
+      if (!Array.isArray(pad.stairs)) return reject(c, `${p}.stairs`, "must be an array");
+      const stairs: PadStair[] = [];
+      for (const [index, stair] of pad.stairs.entries()) {
+        const at = `${p}.stairs[${index}]`;
+        if (!isRecord(stair)) return reject(c, at, "must be an object");
+        const foot = requirePoint(c, `${at}.foot`, stair.foot);
+        const head = requirePoint(c, `${at}.head`, stair.head);
+        const width = requireNumber(c, `${at}.width`, stair.width, 0.1, 100);
+        const low = requireNumber(c, `${at}.low`, stair.low, -100_000, 100_000);
+        const high = requireNumber(c, `${at}.high`, stair.high, -100_000, 100_000);
+        if (foot === null || head === null || width === null || low === null || high === null) return null;
+        if (!(high >= low)) return reject(c, `${at}.high`, "must not be below low");
+        stairs.push({ foot, head, width, low, high });
+      }
+      result.stairs = stairs;
+    }
+    return result;
+  });
+}
+
+function normalizeGeneration(ctx: Ctx, value: unknown): WorldRecipe["generation"] {
+  const generation: WorldRecipe["generation"] = { stages: [] };
+  if (value === undefined) return generation;
+  if (!isRecord(value)) {
+    issue(ctx, "generation", "must be an object");
+    return generation;
+  }
+  if (value.stages !== undefined) {
+    const stages = arrayOf(ctx, "generation.stages", value.stages, (c, p, stage) =>
+      isSemanticRole(stage) ? stage : reject(c, p, "must be a stage token"));
+    const unique = [...new Set(stages)];
+    if (unique.length !== stages.length) issue(ctx, "generation.stages", "repeated stages were removed");
+    generation.stages = unique;
+  }
+  return generation;
+}
+
+function normalizeGeneratedBy(ctx: Ctx, value: unknown, plan: WorldPlan): WorldRecipe["generatedBy"] {
+  const generatedBy: WorldRecipe["generatedBy"] = { placements: {}, splines: {} };
+  if (value === undefined) return generatedBy;
+  if (!isRecord(value)) {
+    issue(ctx, "generatedBy", "must be an object");
+    return generatedBy;
+  }
+  generatedBy.placements = generatedByMap(ctx, "generatedBy.placements", value.placements, () => ({}));
+  const edges = idSet(plan.roadGraph.edges);
+  generatedBy.splines = generatedByMap(ctx, "generatedBy.splines", value.splines, (c, p, entry) => {
+    const edge = optionalReference(c, `${p}.edge`, entry.edge, edges);
+    return edge ? { edge } : {};
+  });
+  return generatedBy;
+}
+
+/** Forge's `ownership.protectedRegions` rules, now at the top level. */
+function normalizeProtectedRegions(ctx: Ctx, value: unknown): ProtectedRegion[] {
+  if (value === undefined) return [];
+  return uniqueEntries(ctx, "protectedRegions", value,
+    (c, p, region) => {
+      const id = requireId(c, p, region.id);
+      const kind = requireToken(c, `${p}.kind`, region.kind);
+      const min = requirePoint(c, `${p}.min`, region.min);
+      const max = requirePoint(c, `${p}.max`, region.max);
+      if (id === null || kind === null || min === null || max === null) return null;
+      if (min[0] >= max[0] || min[1] >= max[1]) return reject(c, p, "min must be below max on both axes");
+      return { id, kind, min, max };
+    });
+}
+
+/** Forge's ownership map reader without the output / input hashes. */
+function generatedByMap<T extends GeneratedByEntry>(
+  ctx: Ctx,
+  path: string,
+  value: unknown,
+  extra: (ctx: Ctx, path: string, entry: Record<string, unknown>) => Omit<T, keyof GeneratedByEntry>,
+): Record<string, T> {
+  const result: Record<string, T> = {};
+  if (value === undefined) return result;
+  if (!isRecord(value)) {
+    issue(ctx, path, "must be an object keyed by id");
+    return result;
+  }
+  for (const key of Object.keys(value).sort()) {
+    const entryPath = `${path}.${key}`;
+    const entry = value[key];
+    if (!isPlacementId(key)) {
+      issue(ctx, entryPath, "key must be an id");
+      continue;
+    }
+    if (!isRecord(entry) || !isSemanticRole(entry.stage)) {
+      issue(ctx, entryPath, "needs a stage token");
+      continue;
+    }
+    const produced = { stage: entry.stage } as T;
+    Object.assign(produced, extra(ctx, entryPath, entry));
+    result[key] = produced;
+  }
+  return result;
+}
+
+function normalizeReference(ctx: Ctx, value: unknown): WorldReference | null {
+  if (!isRecord(value)) {
+    issue(ctx, "reference", "must be an object");
+    return null;
+  }
+  const origin = requirePoint(ctx, "reference.origin", value.origin);
+  const size = requirePoint(ctx, "reference.size", value.size);
+  if (origin === null || size === null) return null;
+  if (size[0] <= 0 || size[1] <= 0) return reject(ctx, "reference.size", "must be positive");
+  const reference: WorldReference = { origin, size };
+  if (value.image !== undefined) {
+    const image = normalizeAssetPath(value.image, null);
+    if (image) reference.image = image;
+    else issue(ctx, "reference.image", "must be a public-root-relative path");
+  }
+  if (value.view !== undefined) {
+    if (isOneOf(REFERENCE_VIEWS, value.view)) reference.view = value.view;
+    else issue(ctx, "reference.view", `must be one of ${REFERENCE_VIEWS.join(", ")}`);
+  }
+  return reference;
+}
