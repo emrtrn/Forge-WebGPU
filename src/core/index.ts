@@ -4,6 +4,7 @@
 
 export * from "./assets/assetIndex.ts";
 export * from "./assets/assetType.ts";
+export * from "./assets/dataDocument.ts";
 export * from "./assets/identity.ts";
 export * from "./assets/integrity.ts";
 export * from "./assets/levelFolders.ts";

@@ -131,6 +131,14 @@ describe("other files", () => {
     expect(codes(await write("content/textures/c.glb.meta.json", meta))).toEqual(["error asset-type-mismatch content/textures/c.glb.meta.json type"]);
   });
 
+  test("a data document is written in its envelope, under its type's suffix; its content is kept", async () => {
+    const terrain = { schema: "forge.terrain/1", id: "ast_ffffffffffffffffffffffffffffffff", data: { type: "worldTerrain", tiles: [1, 2] } };
+    expect((await write(`${FOLDER}/valley.terrain.json`, { data: terrain.data, id: terrain.id, schema: terrain.schema })).status).toBe("saved");
+    expect(await read(`${FOLDER}/valley.terrain.json`)).toBe(stringifyDocument(terrain));
+    expect(codes(await write(`${FOLDER}/valley.json`, terrain))).toEqual([`error invalid-document ${FOLDER}/valley.json`]);
+    expect(codes(await write(`${FOLDER}/b.terrain.json`, { ...terrain, extra: 1 }))).toEqual([`error unknown-field ${FOLDER}/b.terrain.json extra`]);
+  });
+
   test("JSON that is not a known document, or not JSON, is refused; a binary passes", async () => {
     expect(codes(await write("content/notes.json", { hello: 1 }))).toEqual(["error unrecognized-file content/notes.json"]);
     const broken = await service.commit({ writes: [{ path: "content/broken.json", base: null, text: "{" }] });

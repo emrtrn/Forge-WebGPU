@@ -12,6 +12,8 @@
 // - `forge.levelCell/1`: at `cells/<key>.json` of a level folder, with that
 //   key and the id of the folder's `level.json`.
 // - `forge.actorClass/1`.
+// - A data document (terrain, World Builder inputs): its envelope, with the
+//   file suffix of its type; the content is the engine's (`dataDocument.ts`).
 // - Anything else, the server-owned cell index included, is refused.
 //
 // Class actors are checked against their class: first a class written in the
@@ -25,6 +27,8 @@ import {
   assetPathOfMeta,
   cellKeyOfFile,
   claimsFile,
+  hasDataDocumentName,
+  normalizeDataDocument,
   isJsonObject,
   LEVEL_CELL_INDEX_SCHEMA,
   LEVEL_CELL_SCHEMA,
@@ -192,6 +196,14 @@ export function createDocumentCheck(registry: SchemaRegistry, classes: ClassStor
     }
 
     if (schema === LEVEL_CELL_INDEX_SCHEMA) return refuse(path, "server-owned", "A level's cell index is written by the server only.");
+    const dataType = registry.documentTypeForSchema(schema);
+    if (dataType?.dataFile !== undefined) {
+      if (!hasDataDocumentName(dataType, path)) {
+        return refuse(path, "invalid-document", `A ${dataType.label} file is named *${dataType.dataFile.suffix}.`);
+      }
+      const result = normalizeDataDocument(json, dataType, options);
+      return { text: result.value ? stringifyDocument(result.value) : "", issues: toSaveIssues(path, result.issues) };
+    }
     return refuse(path, "unrecognized-file", "Not a document the editor saves: no known schema tag.");
   };
 }

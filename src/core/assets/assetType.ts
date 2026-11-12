@@ -21,6 +21,7 @@ import { checkFieldMap, deepFreeze, SchemaDefinitionError, type FieldMap } from 
 import { labelFromComponentName } from "../schema/label.ts";
 import { checkMigrations, type MigrationMap } from "../schema/migrate.ts";
 import { assertDefaultsAreNormal } from "../schema/normalize.ts";
+import { DATA_DOCUMENT_TYPES, type DataDocumentShape } from "./dataDocument.ts";
 
 /** Lower-case file suffix without the leading dot: `glb`, `png`, `r16.bin`. */
 export const EXTENSION_PATTERN = /^[a-z0-9]+(\.[a-z0-9]+)*$/;
@@ -51,6 +52,8 @@ export interface DocumentAssetTypeDef {
   readonly schema: string;
   /** Which id kind the document's `id` is: levels keep their `lvl_` ids. */
   readonly idKind: Extract<IdKind, "asset" | "level">;
+  /** Set on a data document (`dataDocument.ts`): its file name and its binary parts. */
+  readonly dataFile?: DataDocumentShape;
 }
 
 export type AssetTypeDef = BinaryAssetTypeDef | DocumentAssetTypeDef;
@@ -146,5 +149,13 @@ export const ActorClassAssetType: DocumentAssetTypeDef = deepFreeze({
   idKind: "asset",
 });
 
-/** Every schema registry starts with these: they are part of the data model, not features. */
-export const BUILT_IN_ASSET_TYPES: readonly DocumentAssetTypeDef[] = [LevelAssetType, ActorClassAssetType];
+/**
+ * Every schema registry starts with these: they are part of the data model,
+ * not features. The data documents carry engine content (terrain, World
+ * Builder inputs) whose envelope core owns.
+ */
+export const BUILT_IN_ASSET_TYPES: readonly DocumentAssetTypeDef[] = [
+  LevelAssetType,
+  ActorClassAssetType,
+  ...DATA_DOCUMENT_TYPES,
+];

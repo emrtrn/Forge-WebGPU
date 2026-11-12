@@ -10,6 +10,7 @@ import {
   defineAssetType,
   LevelAssetType,
 } from "./assetType.ts";
+import { DATA_DOCUMENT_TYPES } from "./dataDocument.ts";
 
 const Texture = defineAssetType(
   "test.texture",
@@ -70,7 +71,7 @@ describe("defineAssetType", () => {
 describe("registry", () => {
   test("a new registry holds the built-in document types", () => {
     const registry = createSchemaRegistry();
-    expect(registry.assetTypes()).toEqual([LevelAssetType, ActorClassAssetType]);
+    expect(registry.assetTypes()).toEqual([LevelAssetType, ActorClassAssetType, ...DATA_DOCUMENT_TYPES]);
     expect(registry.documentTypeForSchema(LEVEL_SCHEMA)).toBe(LevelAssetType);
     expect(registry.documentTypeForSchema(ACTOR_CLASS_SCHEMA)).toBe(ActorClassAssetType);
     expect(registry.documentTypeForSchema("forge.level/2")).toBeUndefined();

@@ -20,6 +20,7 @@ import type { AssetId } from "../id.ts";
 import { normalizeActorClass, type ClassResolver } from "../level/actorClass.ts";
 import type { ActorClassDoc } from "../level/model.ts";
 import { ActorClassAssetType, LevelAssetType } from "./assetType.ts";
+import { normalizeDataDocument } from "./dataDocument.ts";
 import {
   fileLabel,
   identifyAssets,
@@ -100,6 +101,12 @@ export function buildAssetIndex(files: readonly ContentFile[], options: AssetInd
       issues.push(...result.issues);
       references.push(...result.references);
       if (result.folder) levels.set(entry.id, result.folder);
+    } else {
+      // A data document: core checks the envelope; its content is the engine's.
+      const def = registry.getAssetType(entry.type);
+      if (def?.storage === "document" && def.dataFile !== undefined) {
+        withFile(file, normalizeDataDocument(document.json, def, options).issues, issues);
+      }
     }
   }
   issues.push(...reportOrphanParts([...partGroups.values()].flat(), options));

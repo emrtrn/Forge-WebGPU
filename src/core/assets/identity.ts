@@ -13,6 +13,9 @@
 //   A level cell or cell index (A11) is not an asset but a part of the level
 //   whose folder it is in; it is set aside for the level pass. Any other
 //   `.json` file is `unrecognized-file`.
+// - A data document (`dataDocument.ts`) must have its type's file suffix. A
+//   binary file its type names as a part (a terrain tile) needs no meta file:
+//   it belongs to the document and is set aside like a level cell.
 // - The same GUID in two files is `duplicate-id`: the first file in path order
 //   keeps it, the later one is left out.
 //
@@ -32,6 +35,7 @@ import {
 import { LEVEL_CELL_INDEX_SCHEMA, LEVEL_CELL_SCHEMA } from "../level/model.ts";
 import type { SchemaRegistry } from "../schema/registry.ts";
 import { claimsFile } from "./assetType.ts";
+import { dataDocumentPartMatchers, hasDataDocumentName } from "./dataDocument.ts";
 import { assetPathOfMeta, metaPathOf, metaTypeOf, normalizeAssetMeta, type AssetMetaDoc } from "./meta.ts";
 
 /** One file under a content root, as the caller found it. */
@@ -80,6 +84,8 @@ export interface IdentityResult {
   readonly documents: { readonly entry: AssetEntry; readonly json: unknown; readonly revision?: string }[];
   /** Level cells and cell indexes, in path order; they belong to a level folder. */
   readonly levelParts: ContentFile[];
+  /** Binary parts of data documents (terrain tiles), in path order. */
+  readonly documentParts: ContentFile[];
   readonly issues: FileIssue[];
 }
 
@@ -99,7 +105,15 @@ export function withFile(file: string, issues: readonly Issue[], into: FileIssue
 export function identifyAssets(files: readonly ContentFile[], options: AssetIndexOptions): IdentityResult {
   const sorted = [...files].sort((a, b) => compare(fileLabel(a.root, a.path), fileLabel(b.root, b.path)));
   const present = new Set(sorted.map((file) => fileLabel(file.root, file.path)));
-  const result: IdentityResult = { entries: new Map(), metas: new Map(), documents: [], levelParts: [], issues: [] };
+  const result: IdentityResult = {
+    entries: new Map(),
+    metas: new Map(),
+    documents: [],
+    levelParts: [],
+    documentParts: [],
+    issues: [],
+  };
+  const isPart = documentPartTest(sorted, options);
 
   const claim = (entry: AssetEntry, ctx: NormalizeContext, idPath: string): boolean => {
     const first = result.entries.get(entry.id);
@@ -124,7 +138,11 @@ export function identifyAssets(files: readonly ContentFile[], options: AssetInde
       identifyMeta(file, assetPath, present, ctx, options, result, claim);
     } else if (isJsonPath(file.path)) {
       identifyDocument(file, ctx, options, result, claim);
-    } else if (!present.has(fileLabel(file.root, metaPathOf(file.path)))) {
+    } else if (present.has(fileLabel(file.root, metaPathOf(file.path)))) {
+      // Identified through its meta file.
+    } else if (isPart(file)) {
+      result.documentParts.push(file);
+    } else {
       reportLoss(
         ctx,
         "missing-meta",
@@ -203,6 +221,10 @@ function identifyDocument(
     reportFatal(ctx, "invalid-document", "id", `A ${def.label.toLowerCase()} needs a ${def.idKind} id.`);
     return;
   }
+  if (!hasDataDocumentName(def, file.path)) {
+    reportFatal(ctx, "invalid-document", "", `A ${def.label} file is named *${def.dataFile?.suffix ?? ""}.`);
+    return;
+  }
   const entry: AssetEntry = {
     id: json.id,
     type: def.name,
@@ -214,6 +236,20 @@ function identifyDocument(
   if (claim(entry, ctx, "id")) {
     result.documents.push(file.revision === undefined ? { entry, json } : { entry, json, revision: file.revision });
   }
+}
+
+/** Whether a binary file is a part a data document of its root names. */
+function documentPartTest(files: readonly ContentFile[], options: AssetIndexOptions): (file: ContentFile) => boolean {
+  const matchers = new Map<string, RegExp[]>();
+  for (const file of files) {
+    if (!isJsonPath(file.path) || !isJsonObject(file.json)) continue;
+    const def = options.registry.documentTypeForSchema(file.json.schema);
+    if (def?.dataFile === undefined || def.dataFile.parts.length === 0) continue;
+    const list = matchers.get(file.root) ?? [];
+    list.push(...dataDocumentPartMatchers(def, file.path));
+    matchers.set(file.root, list);
+  }
+  return (file) => (matchers.get(file.root) ?? []).some((matcher) => matcher.test(file.path));
 }
 
 /** Ordinal comparison: the same order on every machine and locale. */
