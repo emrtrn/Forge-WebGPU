@@ -1,9 +1,12 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.3 · 2026-11-12 (v1.2'den fark: 2b `tools/world` kararları,
-kullanıcı onayı — §4.4 World Builder çıktısının dört bileşeni ve kökenin
-nesnelere taşınması, §4.6 veri belgeleri ve terrain'in metasız parçaları.
-v1.2: ürün tezi ve kapsam ölçütü
+**Sürüm:** v1.4 · 2026-11-12 (v1.3'ten fark: 2b içe aktarıcı kararları,
+kullanıcı onayı — §4.4 yerleşim → aktör çevirisi World Builder ve içe
+aktarıcıda ortak, §4.6 üç yalnız-şema ikili asset türü ve içe aktarılan
+asset'lerin köken eşlemesi, `LicenseRef-forge-unverified`.
+v1.3: 2b `tools/world` kararları — §4.4 World Builder çıktısının dört
+bileşeni ve kökenin nesnelere taşınması, §4.6 veri belgeleri ve terrain'in
+metasız parçaları. v1.2: ürün tezi ve kapsam ölçütü
 (§0.0, kullanıcı kararı); A12 ajan düzenleme komutları, A13 genel veri editörü;
 §4.11 ajan ve insan yüzeyi. v1.1: §4.10 belge düzeni —
 `docs/architecture/ARCHITECTURE.md` bu rapordan kısa harita, rapor karar kaynağı
@@ -394,6 +397,17 @@ features/height-fog/
   yalnız kurulum sırasında bellekte yaşar (Stage Runner taşınmadı, okuyanı
   yok). Yerleşimin aktör kimliği level kimliği + yerleşim kimliğinden
   deterministik türetilir: `--force` ile yeniden üretimde GUID'ler değişmez.
+- **Forge WebGL içe aktarıcısı (plan 2b, kullanıcı kararı 2026-11-12):**
+  yerleşim → aktör çevirisi World Builder ile ortak saf koddur
+  (`src/engine/forgeImport/`): `instances` → `forge.staticMesh` /
+  `forge.shape` + `forge.worldRole`, `marker:playerStart` → "Player Start"
+  adlı bileşensiz aktör, `landscapes` → `forge.terrain` aktörü + veri belgesi
+  (tile'lar olduğu gibi), `heightFog` → `forge.heightFog`; hücre ataması
+  konumdan (A11). Karşılığı henüz olmayan alan yazılmaz, level başına raporda
+  hedef fazıyla listelenir; çevirici o fazda eklenir. Aktör ve asset GUID'leri
+  kaynak yol + kaynak kimlikten deterministik türer: içe aktarıcı yeniden
+  çalıştırıldığında aynı GUID'leri yazar, eklenen çevirici var olan
+  başvuruları kırmaz.
 - Büyük ikili veri (terrain tile, global harita, foliage örnekleri) GUID'li
   asset sidecar'larında, ikili kanalla taşınır.
 - Level = kalıcı katman + hücreler. Hücre ataması aktörün konumundan türetilir;
@@ -581,6 +595,27 @@ düşen alan uyarı değil, **hatadır**.
     etiketinden tanınır. Oyunların DSL'le tanımlayacağı JSON asset türleri
     SDK'yla gelir. Level kimliği `lvl_` önekini korur; dizin iki öneki de tutar,
     `assetRef` level'ı gösteremez.
+  - *İlk ikili türler (plan 2b içe aktarıcı, kullanıcı kararı 2026-11-12):*
+    `forge.model` (`glb`, `gltf`), `forge.texture` (`png`, `jpg`, `webp`,
+    `ktx2`), `forge.sound` (`wav`, `ogg`, `mp3`); her biri kendi özellik
+    klasöründe `defineAssetType` + `defineFeature({ assetTypes })` ile, sürüm
+    1'de içe aktarma ayarı yok (`import: {}`). Ayarlar (sıkıştırma, mipmap,
+    renk uzayı, ses akışı) Faz 3'te sürüm 2 ve geçiş zinciriyle gelir.
+    Materyal, efekt, araç, foliage türü ve UI asset türleri kendi fazlarında.
+  - *İçe aktarılan asset'lerin kökeni (kullanıcı kararı 2026-11-12):* lisans
+    sorumluluğu kullanıcıdadır; lisansı bilinmeyen Forge asset'i de alınır,
+    oyun projesine girmez (kullanıcı kendi varlıklarını üretene kadar durur;
+    motor bunu zorlamaz). Meta deseni `Unknown`'ı reddettiği için içe aktarıcı
+    lisans ve kaynağı yol önekine göre bir köken tablosundan yazar:
+    bilinmeyen → `LicenseRef-forge-unverified` (kaynak `origin` Forge
+    manifestinin `source` / `license` metni); kullanıcının kendi projesi
+    (ThreeAges), Forge'un proje içi placeholder / pilot / materyal içeriği →
+    `LicenseRef-forge-project` (`authored`); AI ile üretilen →
+    `LicenseRef-forge-project` (`ai-generated`); Poly Haven → `CC0-1.0`;
+    lisansı belli üçüncü taraf kendi SPDX kimliği ve atfıyla (Gaz-52:
+    `CC-BY-4.0`, Sketchfab, yazar Vebis_V_stolb_GT). Kenney / Quaternius
+    alınmaz. Asset GUID'i Forge manifest kimliğinden türer; level'lardaki
+    başvurular bu eşlemeyle yazılır.
   - *Veri belgeleri (plan 2b `tools/world`, kullanıcı kararı 2026-11-12):*
     içeriğini başka katmanın tanımladığı yerleşik belge türleri:
     `forge.terrain`, `forge.worldBrief`, `forge.worldRecipe`,

@@ -438,6 +438,49 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       alan raporlanır. Referans level'lar ve starter content bununla gelir;
       referans level'lar depo dışı yerel içerik projesine yazılır, starter
       content `content/packs/starter/`'a (mimari A9).
+      *Tasarım (kullanıcı kararları 2026-11-12; mimari §4.4, §4.6 v1.4):*
+      - *Şimdi çevrilen:* `instances` → `forge.staticMesh` / `forge.shape` +
+        `forge.worldRole` (`marker:playerStart` → "Player Start" adlı
+        bileşensiz aktör); `landscapes` → `forge.terrain` aktörü + veri
+        belgesi, tile'lar ve global harita olduğu gibi kopyalanır;
+        `worldCells` → A11 hücreleri (atama konumdan, kendiliğinden);
+        `heightFog` → `forge.heightFog`; World Builder yan dosyaları
+        (`*.worldbrief.json`, `*.worldrecipe.json`, `*.regionprofile.json`,
+        referans görsel) → veri belgeleri / ikili asset.
+      - *Raporlanan:* geri kalan her alan level başına raporda "çevrilmedi:
+        alan → faz": ışık / gökyüzü / bulut / post process / WES /
+        `worldSettings` Faz 3, foliage 5c, su Faz 7, spline / blocking volume /
+        prefab örnekleri (`actors`) / araç Faz 6, yerleşimdeki `fracture` Faz 8.
+        Çeviriciler bir kayıtta durur, kendi fazlarında eklenir. İçe aktarıcı
+        deterministiktir (GUID kaynak yolu + kimlikten türer); fazlar
+        ilerledikçe yeniden çalıştırılır ve aynı GUID'leri yazar.
+      - *Ortak çevirici:* yerleşim → aktör çevirisi World Builder'la ortak saf
+        kod, `src/engine/forgeImport/`; `worldbuilder/build/worldLevel` onu
+        kullanır (davranış ve testleri aynı).
+      - *Asset türleri:* üç yalnız-şema ikili tür, içe aktarma ayarı olmadan
+        (`forge.model`, `forge.texture`, `forge.sound`; ayarlar Faz 3'te sürüm
+        2 + geçiş zinciriyle). Materyal, efekt, araç, foliage türü ve UI kendi
+        fazlarında; şimdi raporlanır. K12 türleri (AI, diyalog, Sound Cue)
+        atlanır ve listelenir.
+      - *Lisans (sorumluluk kullanıcıda):* lisansı bilinmeyen asset de alınır;
+        oyun projesine girmez, kullanıcı kendi varlıklarını üretene kadar
+        durur. Lisans ve kaynak yol önekine göre bir köken tablosundan
+        yazılır (mimari §4.6). Kenney / Quaternius yine yok
+        (`assets/kenney-nature-kit` alınmaz).
+      - *Hedefler:* starter content'in tamamı (~150 MB) değil, bir tohum
+        listesinden (örnek proje, motor testleri, editör varsayılanları,
+        referans level'ların kullandıkları) başvurulanlar ve dokuları
+        `content/packs/starter/`'a; referans level'lar depo dışı yerel içerik
+        projesine (`Games/ForgeReference/webgpu-scenes`, `create-project` ile,
+        `forge.projects.local.json`'a kayıtlı), kullandıkları asset'lerle (A9).
+      - *CLI:* `npm run import:forge -- --forge <Forge public> --project
+        <hedef> …`; level başına rapor (çevrilen / çevrilmeyen alan, asset
+        sayıları); yazım kayıt servisinden (`tools/world/worldWrite.ts`
+        kalıbı), ikililer sahneleme kanalından meta dosyalarıyla.
+      - *Araç kontrolleri:* `vehicleDrivetrain` / `vehicleAssets`'in okuduğu
+        Forge araç JSON'ları ve sesleri test fixture'ı olarak
+        `tests/engine/fixtures/`'a (içe aktarıcıdan bağımsız); araç asset
+        türü Faz 6.
 - [ ] **İçe aktarıcının kabulü:** her eski tür için küçük fixture + beklenen
       çıktı testi; referans level'larda kaynak ve hedef arasında tür başına
       sayım karşılaştırması (aktör, bileşen, foliage örneği, hücre) ve
@@ -765,3 +808,4 @@ silinebilir.
 | 2026-11-12 | v1.0 | 2b `tools/world` kutusu kapandı: `npm run world:random` / `world:brief` yeni level formatını kayıt servisinden yazar (`65285df`; kurulum `src/engine/worldbuilder/build`, deterministik GUID, `--force` kuralı, `worldbuilder` paketi); bekleyen World Builder kontrolleri + test dünyaları + terrain onarımı 27 kontrol (`8f29972`), D'ye düşen yol spline kontrolü yeniden yazıldı; World Builder kapsam kutusu da kapandı (köken nesnelerde). Açık 4 A: eski level belgesi 2, off-road fixture 2. A 697 / 907 |
 | 2026-11-12 | v1.0 | 2b (kullanıcı kararı, CI `90b88fd` … `a16cd94` yeşil): Forge'un eski level belgesini sınayan 2 kontrol D (payda 905; `testWorld`'ün deterministiklik yarısı yeni testte), off-road test level'ı ve 2 kontrolü Faz 8'e. A 697 / 905 |
 | 2026-11-12 | v1.0 | 2b physics kırılma + göçük (kullanıcı onayı): `src/engine/physics/{fracture,deformable}` three'siz algoritmalar; asset türü / bileşen / mesh senkronu / TSL / editör Faz 8. 88 kontrol yeşil (`fractureRuntime`'ın 4 R kontrolü dışarıda). Physics'te bekleyen araç içeriği 34 (içe aktarıcıyla) + runtime kabuğu 7. A 785 / 905 |
+| 2026-11-12 | v1.0 | 2b içe aktarıcı tasarımı (kullanıcı kararları; mimari v1.4): şimdi çevrilen alanlar (yerleşim, arazi, hücreler, Height Fog, World Builder yan dosyaları), geri kalanı level raporunda faza bağlı; ortak çevirici `src/engine/forgeImport/`; üç yalnız-şema ikili tür `forge.model` / `forge.texture` / `forge.sound`; lisans sorumluluğu kullanıcıda, köken tablosu ve `LicenseRef-forge-unverified`; starter tohum listesinden, referans level'lar depo dışı projede. A 785 / 905 |

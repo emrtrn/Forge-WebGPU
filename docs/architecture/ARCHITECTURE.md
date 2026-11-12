@@ -56,9 +56,14 @@ toplar. Örnek ve iskeletin kabul testi: `src/features/height-fog` (rapor §4.3)
   GUID (rapor §4.6, A10). Veri belgeleri (terrain, World Builder girdileri)
   zarf içinde engine'in içeriğini taşır; terrain'in tile'ları ve global
   haritası metasız parçalarıdır (rapor §4.6).
+- İlk ikili asset türleri `forge.model`, `forge.texture`, `forge.sound`
+  (yalnız şema, içe aktarma ayarları Faz 3'te). İçe aktarılan Forge
+  asset'lerinin lisans ve kaynağı yol önekli bir köken tablosundan; lisansı
+  bilinmeyen `LicenseRef-forge-unverified` (rapor §4.6).
 - World Builder çıktısı ve içe aktarıcı için 2b'de yalnız şema olan bileşenler:
   `forge.staticMesh`, `forge.shape`, `forge.worldRole` (rol + üreten aşama),
-  `forge.terrain` (rapor §4.4).
+  `forge.terrain`; yerleşim → aktör çevirisi ikisinde ortak
+  (`src/engine/forgeImport/`, rapor §4.4).
 
 ## Şema kaydı
 
