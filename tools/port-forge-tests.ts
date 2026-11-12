@@ -21,9 +21,10 @@ import {
   classifyCheck,
   deferredTo,
   droppedCheck,
+  opaqueLevelPathCheck,
   isMathOnlyThreeArea,
   isThreePackage,
-  OLD_MODEL_AREAS,
+  isOldModelModule,
   RENDER_AREAS,
   type CheckVerdict,
   type FileAnalysis,
@@ -141,7 +142,7 @@ class ForgeGraph {
     const known = this.facts.get(path);
     if (known) return known;
     const area = areaOf(path);
-    const own: Reach = { three: RENDER_AREAS.has(area), threeMath: false, oldModel: OLD_MODEL_AREAS.has(area) };
+    const own: Reach = { three: RENDER_AREAS.has(area), threeMath: false, oldModel: isOldModelModule(path) };
     if (this.inProgress.has(path)) return own;
     this.inProgress.add(path);
     let { three, threeMath, oldModel } = own;
@@ -220,7 +221,11 @@ function classifyFile(graph: ForgeGraph, file: string, ported: ReadonlyMap<strin
     const dataPaths = modules.flatMap((module) => (module.path && module.path.endsWith(".json") ? [module.path] : []));
     const classified = classifyCheck(modules, [...check.literals, ...dataPaths]);
     const dropped = droppedCheck(file, check.label);
-    const verdict = dropped === null ? classified : { ...classified, cls: "D" as const, reasons: [`dropped:${dropped}`] };
+    const opaque = classified.cls === "M" && opaqueLevelPathCheck(file, check.label)
+      && classified.reasons.every((reason) => reason.startsWith("level-data:"));
+    const verdict = dropped !== null
+      ? { ...classified, cls: "D" as const, reasons: [`dropped:${dropped}`] }
+      : opaque ? { ...classified, cls: "A" as const, reasons: ["opaque-level-path"] } : classified;
     const carried = ported.get(check.label) ?? null;
     const deferred = verdict.cls === "A" && carried === null ? deferredTo(file, check.label) : null;
     return { file, check, verdict, ported: carried, deferred };

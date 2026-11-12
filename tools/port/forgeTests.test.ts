@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { analyzeSource, areaOf, classifyCheck, deferredTo, droppedBy, droppedCheck, isMathOnlyThreeArea, isOldLevelData, type ModuleFacts } from "./forgeTests.ts";
+import { analyzeSource, areaOf, classifyCheck, deferredTo, droppedBy, droppedCheck, isMathOnlyThreeArea, isOldModelModule, isOldLevelData, type ModuleFacts } from "./forgeTests.ts";
 
 const analyze = (text: string) => analyzeSource("tests/engine/sample.test.ts", text);
 
@@ -186,6 +186,18 @@ describe("classifyCheck", () => {
     expect(deferredTo("tools/engine-tests.ts", "adaptive quality: classifyFrameLoad splits")).toBe("3");
     expect(deferredTo("tools/engine-tests.ts", "computePlayerStartSpawn: no marker")).toBe("6");
     expect(deferredTo("tools/engine-tests.ts", "behavior subsystem ticks behaviors")).toBeNull();
+  });
+
+  test("in engine/world and engine/persistence only the modules holding the old model are old", () => {
+    expect(isOldModelModule("engine/world/worldPartition.ts")).toBe(true);
+    expect(isOldModelModule("engine/world/streamingPolicy.ts")).toBe(false);
+    expect(isOldModelModule("engine/persistence/saveGameState.ts")).toBe(true);
+    expect(isOldModelModule("engine/persistence/saveGameStore.ts")).toBe(false);
+    expect(isOldModelModule("engine/scene/layout.ts")).toBe(true);
+    expect(classifyCheck([local("engine/world/viewDistance.ts")], []).cls).toBe("A");
+    expect(classifyCheck([local("engine/world/hlod.ts")], []).cls).toBe("M");
+    expect(droppedCheck("tests/engine/worldPartition.test.ts", "world partition: split/merge round trip")).toMatch(/A11/);
+    expect(droppedCheck("tests/engine/worldPartition.test.ts", "world partition: light peaks use inclusive box distances")).toBeNull();
   });
 
   test("three in an engine module outside render-three is math, not render", () => {

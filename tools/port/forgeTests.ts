@@ -372,8 +372,6 @@ export function areaOf(path: string): string {
 /** Areas that hold Forge WebGL's data model or app: rewritten against the new model, not ported (plan 2b). */
 export const OLD_MODEL_AREAS: ReadonlySet<string> = new Set([
   "engine/scene",
-  "engine/persistence",
-  "engine/world",
   "editor",
   "src",
   "game",
@@ -383,6 +381,23 @@ export const OLD_MODEL_AREAS: ReadonlySet<string> = new Set([
   "tools/terrainSaveValidator",
   "tools/droppedFields",
 ]);
+
+/**
+ * Areas where only some modules hold the old model; the rest is pure math that
+ * ports (plan 2b save-game + World Partition design, user decision 2026-11-12):
+ * the old level partition, foliage cells, HLOD and open-world setup read
+ * `RoomLayout`; the save payload carries the untyped `flags` and index keys.
+ */
+export const OLD_MODEL_MODULES: ReadonlyMap<string, readonly string[]> = new Map([
+  ["engine/world", ["engine/world/worldPartition.ts", "engine/world/foliageCells.ts", "engine/world/hlod.ts", "engine/world/openWorldSetup.ts", "engine/world/workers/foliageWorker.ts"]],
+  ["engine/persistence", ["engine/persistence/saveGameState.ts", "engine/persistence/saveEntityKeys.ts"]],
+]);
+
+/** A Forge module that holds the old data model (its area, or one listed in {@link OLD_MODEL_MODULES}). */
+export function isOldModelModule(path: string): boolean {
+  const area = areaOf(path);
+  return OLD_MODEL_AREAS.has(area) || (OLD_MODEL_MODULES.get(area)?.includes(path) ?? false);
+}
 
 /** Areas rewritten in TSL / WebGPU (plan Faz 3+). */
 export const RENDER_AREAS: ReadonlySet<string> = new Set(["engine/render-three"]);
@@ -428,6 +443,12 @@ const OLD_LEVEL_DOCUMENT =
 
 const OLD_ASSET_MANIFEST =
   "Forge WebGL's central asset manifest (public/assets/manifest.json) and its health report; the A10 asset index and verify:assets replace it (user decision 2026-11-12)";
+
+const SAVE_BY_GUID =
+  "Forge WebGL's save payload (actor index keys, untyped flags, level path); forge.saveGame/1 keys by actor GUID + component + field (A7, user decision 2026-11-12)";
+
+const OLD_PARTITION =
+  "Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their tests replace them (user decision 2026-11-12)";
 
 export const DROPPED_CHECKS: ReadonlyArray<{ readonly file: string; readonly label: string; readonly why: string }> = [
   {
@@ -542,10 +563,68 @@ export const DROPPED_CHECKS: ReadonlyArray<{ readonly file: string; readonly lab
     label: "world builder: engine/worldbuilder modules stay dependency-free (no three.js)",
     why: "reads Forge WebGL's folder layout; the layer rules (.dependency-cruiser.cjs) keep src/engine three-free here (user decision 2026-11-12)",
   },
+  ...[
+    "save identity: a saved actor is found again after its index moved",
+    "save identity: old saves and id-less actors stay by index, other entities pass through",
+    "save identity: an actor that left the level is null, never another actor",
+    "save identity: of two actors sharing an id the first has it",
+    "save identity: entries are renamed, a null drops them, the rest is kept",
+  ].map((label) => ({ file: "tests/engine/saveEntityKeys.test.ts", label, why: SAVE_BY_GUID })),
+  ...[
+    "game save serializer: collects level, player facing, and persistent state",
+    "game save serializer: rejects bad player transforms and drops non-json flags",
+  ].map((label) => ({ file: "tools/engine-tests.ts", label, why: SAVE_BY_GUID })),
+  {
+    file: "tools/engine-tests.ts",
+    label: "game save restore waits for the matching loaded level before applying",
+    why: "rewritten against forge.saveGame/1 (level by GUID); the new test lives next to src/core/save (user decision 2026-11-12)",
+  },
+  ...[
+    "world partition persistence: every routed element and settings survive the save allowlist",
+    "world partition persistence: true and absent spatiallyLoaded stay omitted for every kind",
+    "world partition persistence: every kind rejects non-boolean spatiallyLoaded",
+    "world partition persistence: partial partition settings normalize only when authored",
+    "world partition persistence: invalid partition settings name the field and normalizer reason",
+    "world partition persistence: explicit element clones preserve authored spatiallyLoaded",
+    "world partition persistence: split and merge preserve independent partition settings",
+    "world partition persistence: normalized world widgets retain the persistent flag on save",
+  ].map((label) => ({ file: "tests/engine/serializationDrift.test.ts", label, why: OLD_PARTITION })),
+  ...[
+    "world cells: index validation omits empty indices and uses numeric z then x ordering",
+    "world cells: save payload validates paths, keys, keep membership and duplicate writes",
+    "world cells: element allowlist and dropped-field reporting match layout saves",
+    "world cells: shared loader merges cells and classifies missing, corrupt and mismatched cells by path",
+    "world cells: saver orders writes, sends changed cells only, keeps full index and clears stale cells on disable",
+  ].map((label) => ({ file: "tests/engine/worldCellPersistence.test.ts", label, why: OLD_PARTITION })),
+  ...[
+    "wb pilot valley: two builds agree byte for byte; partition only moves placements into cells",
+    "wb pilot valley: a partitioned level reads back whole, and saving it again writes the same files",
+  ].map((label) => ({ file: "tests/engine/wbPilotValley.test.ts", label, why: "the old partitioned layout; import:forge --compare and world:brief's byte-identical rebuild cover it (user decision 2026-11-12)" })),
 ];
 
+/** The old-level part of tests/engine/worldPartition.test.ts: every check except the light peaks (5b). */
+export function droppedPartitionCheck(file: string, label: string): string | null {
+  if (file !== "tests/engine/worldPartition.test.ts") return null;
+  return label.startsWith("world partition: light peaks") || label.startsWith("world partition: lightless") ? null : OLD_PARTITION;
+}
+
 export function droppedCheck(file: string, label: string): string | null {
-  return DROPPED_CHECKS.find((entry) => entry.file === file && entry.label === label)?.why ?? null;
+  return DROPPED_CHECKS.find((entry) => entry.file === file && entry.label === label)?.why ?? droppedPartitionCheck(file, label);
+}
+
+/**
+ * Checks that read as old level data only because a level path is an opaque
+ * string in them (a save slot's payload, a slot label), not a level the check
+ * loads: algorithm checks.
+ */
+export const OPAQUE_LEVEL_PATH_CHECKS: ReadonlyArray<{ readonly file: string; readonly label: string }> = [
+  { file: "tools/engine-tests.ts", label: "save-game store: writes, lists, reads, overwrites, and deletes slots" },
+  { file: "tools/engine-tests.ts", label: "save-game store: storage write failures return an error result" },
+  { file: "tools/engine-tests.ts", label: "save-game UI commands and ViewModel fields stay slot-scoped" },
+];
+
+export function opaqueLevelPathCheck(file: string, label: string): boolean {
+  return OPAQUE_LEVEL_PATH_CHECKS.some((entry) => entry.file === file && entry.label === label);
 }
 
 /**
@@ -582,6 +661,15 @@ export const DEFERRED_CHECKS: ReadonlyArray<{ readonly file: string; readonly la
     phase: "7",
     why: "lakes, rivers and ocean",
   })),
+  ...["worldStreaming", "assetResidency", "viewDistance", "detailCulling", "worldMapView", "heightFog"].map((name) => ({
+    file: `tests/engine/${name}.test.ts`,
+    phase: "5b",
+    why: "runtime cell streaming, asset residency, view distance and culling, World Partition map (INV-F24, B11)",
+  })),
+  ...["sunCascades", "followShadow"].map((name) => ({ file: `tests/engine/${name}.test.ts`, phase: "3", why: "sun shadow cascades" })),
+  { file: "tools/engine-tests.ts", labelPrefix: "user settings", phase: "3", why: "user settings carry the graphics preferences (quality profiles)" },
+  { file: "tests/engine/foliageRing.test.ts", phase: "5c", why: "foliage ring" },
+  { file: "tools/engine-tests.ts", labelPrefix: "starter save/load UI asset", phase: "6", why: "the starter's save / load UI widget asset" },
   { file: "tests/engine/offroadTestWorld.test.ts", phase: "8", why: "off-road test level, regenerated in the new format (user decision 2026-11-12)" },
 ];
 
@@ -634,7 +722,7 @@ export function classifyCheck(modules: readonly ModuleFacts[], literals: readonl
     else if (module.path !== null && module.three) reasons.push(`three-via:${areaOf(module.path)}`);
   }
   if (reasons.length > 0) return { cls: "R", boundary: false, areas, reasons: sorted(reasons) };
-  for (const area of areas) if (OLD_MODEL_AREAS.has(area)) reasons.push(`model:${area}`);
+  for (const module of modules) if (module.path !== null && isOldModelModule(module.path)) reasons.push(`model:${areaOf(module.path)}`);
   for (const literal of literals) if (isOldLevelData(literal)) reasons.push(`level-data:${literal}`);
   if (reasons.length > 0) return { cls: "M", boundary: false, areas, reasons: sorted(reasons) };
   for (const module of modules) {

@@ -15,24 +15,24 @@ tests/engine/aiModule.test.ts	414	checkAsync	R			engine/core,engine/scene,src	th
 tests/engine/aiModule.test.ts	438	checkAsync	R			src	three-via:src		a runtime with no AI host registers nothing at all	
 tests/engine/aiModule.test.ts	455	checkAsync	R			engine/core,engine/physics,engine/scene,src	three-via:src,three:three		ai module plans moveTo through Recast when the host hands out collider triangles	
 tests/engine/aiModule.test.ts	554	checkAsync	R			engine/core,engine/physics,engine/scene,src	three-via:src,three:three		ai module suspends pawns beyond a partitioned level's load range	
-tests/engine/assetResidency.test.ts	40	checkAsync	M			engine/world	model:engine/world		asset residency: eviction delay rejects negative and nonfinite values	
-tests/engine/assetResidency.test.ts	45	checkAsync	M			engine/world	model:engine/world		asset residency: loading and resident ids share one load across owners	
-tests/engine/assetResidency.test.ts	66	checkAsync	M			engine/world	model:engine/world		asset residency: setOwner diffs ids and an empty iterable releases the owner	
-tests/engine/assetResidency.test.ts	87	checkAsync	M			engine/world	model:engine/world		asset residency: only pending ids evict at the inclusive release deadline	
-tests/engine/assetResidency.test.ts	107	checkAsync	M			engine/world	model:engine/world		asset residency: unowned loading ids start their delay at successful settle	
-tests/engine/assetResidency.test.ts	126	checkAsync	M			engine/world	model:engine/world		asset residency: reacquiring an unowned loading id shares the pending load	
-tests/engine/assetResidency.test.ts	138	checkAsync	M			engine/world	model:engine/world		asset residency: reacquiring pending eviction cancels its deadline without loading	
-tests/engine/assetResidency.test.ts	160	checkAsync	M			engine/world	model:engine/world		asset residency: rejected loads stay failed until the last owner releases then retry	
-tests/engine/assetResidency.test.ts	184	checkAsync	M			engine/world	model:engine/world		asset residency: synchronous load throws settle as failed without eviction	
-tests/engine/assetResidency.test.ts	202	checkAsync	M			engine/world	model:engine/world		asset residency: an unowned rejected load is deleted without eviction	
-tests/engine/assetResidency.test.ts	214	checkAsync	M			engine/world	model:engine/world		asset residency: whenReady resolves for empty unknown and already-ready owners	
-tests/engine/assetResidency.test.ts	225	checkAsync	M			engine/world	model:engine/world		asset residency: waiters track every listed owner's current ids until ready	
-tests/engine/assetResidency.test.ts	245	checkAsync	M			engine/world	model:engine/world		asset residency: releasing or dropping loading ids rechecks waiters	
-tests/engine/assetResidency.test.ts	264	checkAsync	M			engine/world	model:engine/world		asset residency: waiting owners settle on rejection and when released	
-tests/engine/assetResidency.test.ts	278	checkAsync	M			engine/world	model:engine/world		asset residency: snapshot counts ids by state and owners with nonempty sets	
-tests/engine/assetResidency.test.ts	294	checkAsync	M			engine/world	model:engine/world		asset residency: releaseAll releases every owner while allowing cross-level reuse	
-tests/engine/assetResidency.test.ts	320	checkAsync	M			engine/world	model:engine/world		asset residency: zero delay evicts settled unowned assets only during update	
-tests/engine/assetResidency.test.ts	331	checkAsync	M			engine/world	model:engine/world		asset residency: stale success and failure cannot settle a recreated entry	
+tests/engine/assetResidency.test.ts	40	checkAsync	A			engine/world			asset residency: eviction delay rejects negative and nonfinite values	5b
+tests/engine/assetResidency.test.ts	45	checkAsync	A			engine/world			asset residency: loading and resident ids share one load across owners	5b
+tests/engine/assetResidency.test.ts	66	checkAsync	A			engine/world			asset residency: setOwner diffs ids and an empty iterable releases the owner	5b
+tests/engine/assetResidency.test.ts	87	checkAsync	A			engine/world			asset residency: only pending ids evict at the inclusive release deadline	5b
+tests/engine/assetResidency.test.ts	107	checkAsync	A			engine/world			asset residency: unowned loading ids start their delay at successful settle	5b
+tests/engine/assetResidency.test.ts	126	checkAsync	A			engine/world			asset residency: reacquiring an unowned loading id shares the pending load	5b
+tests/engine/assetResidency.test.ts	138	checkAsync	A			engine/world			asset residency: reacquiring pending eviction cancels its deadline without loading	5b
+tests/engine/assetResidency.test.ts	160	checkAsync	A			engine/world			asset residency: rejected loads stay failed until the last owner releases then retry	5b
+tests/engine/assetResidency.test.ts	184	checkAsync	A			engine/world			asset residency: synchronous load throws settle as failed without eviction	5b
+tests/engine/assetResidency.test.ts	202	checkAsync	A			engine/world			asset residency: an unowned rejected load is deleted without eviction	5b
+tests/engine/assetResidency.test.ts	214	checkAsync	A			engine/world			asset residency: whenReady resolves for empty unknown and already-ready owners	5b
+tests/engine/assetResidency.test.ts	225	checkAsync	A			engine/world			asset residency: waiters track every listed owner's current ids until ready	5b
+tests/engine/assetResidency.test.ts	245	checkAsync	A			engine/world			asset residency: releasing or dropping loading ids rechecks waiters	5b
+tests/engine/assetResidency.test.ts	264	checkAsync	A			engine/world			asset residency: waiting owners settle on rejection and when released	5b
+tests/engine/assetResidency.test.ts	278	checkAsync	A			engine/world			asset residency: snapshot counts ids by state and owners with nonempty sets	5b
+tests/engine/assetResidency.test.ts	294	checkAsync	A			engine/world			asset residency: releaseAll releases every owner while allowing cross-level reuse	5b
+tests/engine/assetResidency.test.ts	320	checkAsync	A			engine/world			asset residency: zero delay evicts settled unowned assets only during update	5b
+tests/engine/assetResidency.test.ts	331	checkAsync	A			engine/world			asset residency: stale success and failure cannot settle a recreated entry	5b
 tests/engine/audioModule.test.ts	127	checkAsync	M			engine/scene,src	model:engine/scene,model:src		audio module ticks with presentation and starts the level's ambient emitters	
 tests/engine/audioModule.test.ts	159	checkAsync	M			src	model:src		audio module plays dialogue lines from both source kinds	
 tests/engine/audioModule.test.ts	195	checkAsync	M			src	model:src		audio module owns the live mix and drops the level's lookups on teardown	
@@ -206,8 +206,8 @@ tests/engine/deformationPersistence.test.ts	183	check	M			engine/scene	level-dat
 tests/engine/deformationPersistence.test.ts	195	check	M			engine/scene	level-data:layouts/雪.level.json,level-data:other.level.json,model:engine/scene		deformation persistence: mismatched level or terrain ignored	
 tests/engine/deformationPersistence.test.ts	203	check	M			engine/scene	level-data:layouts/雪.level.json,model:engine/scene		deformation persistence: byte budget drops window preserving current and old coarse tracks	
 tests/engine/deformationPersistence.test.ts	239	check	M			engine/scene	level-data:layouts/雪.level.json,model:engine/scene		deformation persistence: two kilometre four-wheel drive stays within 64 KiB	
-tests/engine/detailCulling.test.ts	30	check	M			engine/world	model:engine/world		detail culling: cull distance is 200 × radius, and large assets never cull	
-tests/engine/detailCulling.test.ts	40	check	M			engine/world	model:engine/world		detail culling: a batch is skipped only when its nearest point is past its largest instance's distance	
+tests/engine/detailCulling.test.ts	30	check	A			engine/world			detail culling: cull distance is 200 × radius, and large assets never cull	5b
+tests/engine/detailCulling.test.ts	40	check	A			engine/world			detail culling: a batch is skipped only when its nearest point is past its largest instance's distance	5b
 tests/engine/detailCulling.test.ts	48	check	R			engine/render-three	three-via:engine/render-three,three:three		detail culling: small assets render through shared size-scaled fade clones, large ones are left alone	
 tests/engine/detailCulling.test.ts	70	check	R			engine/render-three	three-via:engine/render-three,three:three		detail culling: compact batches hide past range and come back, never un-hiding someone else's mesh	
 tests/engine/detailCulling.test.ts	98	check	R			engine/render-three	three-via:engine/render-three,three:three		detail culling: an asset's own node scale (a centimetre model) does not shrink its cull distance	
@@ -279,24 +279,24 @@ tests/engine/foliageFade.test.ts	79	check	R			engine/render-three	three-via:engi
 tests/engine/foliageFade.test.ts	95	check	R			engine/render-three	three-via:engine/render-three,three:three		foliage fade: a fading clone keeps the source defines and runs its patch first	
 tests/engine/foliageFade.test.ts	118	check	R			engine/render-three,engine/scene	three-via:engine/render-three,three:three		foliage fade: culled groups render through fading clones that follow the camera and quality scale	
 tests/engine/foliageFade.test.ts	147	check	R			engine/render-three,engine/scene	three-via:engine/render-three,three:three		foliage fade: a type that never culls keeps its original material	
-tests/engine/foliageRing.test.ts	24	check	M			engine/world	model:engine/world		foliage far blocks: only blocks with ground between the near and far radius, nearest first	
-tests/engine/foliageRing.test.ts	47	check	M			engine/world	model:engine/world		foliage ring: cell size grows with the cull distance, capped by candidates per cell	
-tests/engine/foliageRing.test.ts	59	check	M			engine/world	model:engine/world		foliage ring: radius follows the cull distance, or covers a small surface for a type that never culls	
-tests/engine/foliageRing.test.ts	66	check	M			engine/world	model:engine/world		foliage ring: cells in range build nearest first with banded keep fractions	
-tests/engine/foliageRing.test.ts	84	check	M			engine/world	model:engine/world		foliage ring: built cells stay until 1.25x the radius and a replan builds nothing new	
-tests/engine/foliageRing.test.ts	97	check	M			engine/world	model:engine/world		foliage ring: a camera on a band edge does not rebuild the cell each frame	
-tests/engine/foliageRing.test.ts	113	check	M			engine/world	model:engine/world		foliage ring: density changes rebuild every cell, zero density unloads all	
-tests/engine/foliageRing.test.ts	125	check	M			engine/world	model:engine/world		foliage ring: the plan stays on the surface and an unbounded radius covers it at full density	
-tests/engine/followShadow.test.ts	50	check	M		yes	engine/world	model:engine/world		`follow shadow: orthonormal basis for direction ${lightDirection.join(", ")}`	
+tests/engine/foliageRing.test.ts	24	check	A			engine/world			foliage far blocks: only blocks with ground between the near and far radius, nearest first	5c
+tests/engine/foliageRing.test.ts	47	check	A			engine/world			foliage ring: cell size grows with the cull distance, capped by candidates per cell	5c
+tests/engine/foliageRing.test.ts	59	check	A			engine/world			foliage ring: radius follows the cull distance, or covers a small surface for a type that never culls	5c
+tests/engine/foliageRing.test.ts	66	check	A			engine/world			foliage ring: cells in range build nearest first with banded keep fractions	5c
+tests/engine/foliageRing.test.ts	84	check	A			engine/world			foliage ring: built cells stay until 1.25x the radius and a replan builds nothing new	5c
+tests/engine/foliageRing.test.ts	97	check	A			engine/world			foliage ring: a camera on a band edge does not rebuild the cell each frame	5c
+tests/engine/foliageRing.test.ts	113	check	A			engine/world			foliage ring: density changes rebuild every cell, zero density unloads all	5c
+tests/engine/foliageRing.test.ts	125	check	A			engine/world			foliage ring: the plan stays on the surface and an unbounded radius covers it at full density	5c
+tests/engine/followShadow.test.ts	50	check	A		yes	engine/world			`follow shadow: orthonormal basis for direction ${lightDirection.join(", ")}`	3
 tests/engine/followShadow.test.ts	58	check	R		yes	engine/world	three:three		`follow shadow: basis matches three lookAt for direction ${lightDirection.join(", ")}`	
-tests/engine/followShadow.test.ts	82	check	M		yes	engine/world	model:engine/world		`follow shadow: target snaps laterally and preserves depth for direction ${lightDirection.join(", ")}`	
-tests/engine/followShadow.test.ts	94	check	M			engine/world	model:engine/world		follow shadow: sub-texel motion inside a rounding boundary keeps the target stable	
-tests/engine/followShadow.test.ts	105	check	M			engine/world	model:engine/world		follow shadow: a one-texel focus move advances the target by one texel	
-tests/engine/followShadow.test.ts	117	check	M			engine/world	model:engine/world		follow shadow: frustum and light position cover the requested extent and depth	
-tests/engine/followShadow.test.ts	129	check	M			engine/world	model:engine/world		follow shadow: direction magnitude does not change the frame	
-tests/engine/followShadow.test.ts	139	check	M			engine/world	model:engine/world		follow shadow: zero depths remain valid	
-tests/engine/followShadow.test.ts	145	check	M			engine/world	model:engine/world		follow shadow: invalid direction, extent, map size or depth returns null	
-tests/engine/followShadow.test.ts	158	check	M			engine/world	model:engine/world		follow shadow: non-finite vector components and scalars return null	
+tests/engine/followShadow.test.ts	82	check	A		yes	engine/world			`follow shadow: target snaps laterally and preserves depth for direction ${lightDirection.join(", ")}`	3
+tests/engine/followShadow.test.ts	94	check	A			engine/world			follow shadow: sub-texel motion inside a rounding boundary keeps the target stable	3
+tests/engine/followShadow.test.ts	105	check	A			engine/world			follow shadow: a one-texel focus move advances the target by one texel	3
+tests/engine/followShadow.test.ts	117	check	A			engine/world			follow shadow: frustum and light position cover the requested extent and depth	3
+tests/engine/followShadow.test.ts	129	check	A			engine/world			follow shadow: direction magnitude does not change the frame	3
+tests/engine/followShadow.test.ts	139	check	A			engine/world			follow shadow: zero depths remain valid	3
+tests/engine/followShadow.test.ts	145	check	A			engine/world			follow shadow: invalid direction, extent, map size or depth returns null	3
+tests/engine/followShadow.test.ts	158	check	A			engine/world			follow shadow: non-finite vector components and scalars return null	3
 tests/engine/forgeGameModule.test.ts	95	checkAsync	R			engine/core,src	three:three		a runtime with no game module runs the whole lifecycle as a no-op	
 tests/engine/forgeGameModule.test.ts	105	checkAsync	R			engine/core,src	three:three		setup runs in registration order, teardown in reverse	
 tests/engine/forgeGameModule.test.ts	133	check	R			src	three:three		a game module publishes services through the same container as Layer 2	
@@ -455,7 +455,7 @@ tests/engine/groundCover.test.ts	86	check	A	yes		engine/worldbuilder	boundary-mo
 tests/engine/groundCover.test.ts	97	checkSlow	M			engine/worldbuilder,tools/world/worldBriefBuild	level-data:assets/trial/Cover.level.json		ground cover: the forest cover builds exactly what the pilot's paint built	
 tests/engine/groundCover.test.ts	109	checkSlow	M			engine/worldbuilder,tools/world/worldBriefBuild	level-data:assets/trial/Cover.level.json		ground cover: each cover paints what it says	
 tests/engine/groundCover.test.ts	137	checkSlow	M			engine/worldbuilder,tools/world/worldBriefBuild	level-data:assets/trial/Cover.level.json		ground cover: densities thin or thicken the forest and the rocks	
-tests/engine/heightFog.test.ts	17	check	M			engine/world	model:engine/world		height fog: analytic integral matches numerical integration in both directions	
+tests/engine/heightFog.test.ts	17	check	A			engine/world			height fog: analytic integral matches numerical integration in both directions	5b
 tests/engine/heightFog.test.ts	27	check	R			engine/render-three,engine/world	three-via:engine/render-three		height fog: clear distance, altitude and opacity cap affect far visibility	
 tests/engine/heightFog.test.ts	34	check	M			tools/saveValidator	model:tools/saveValidator		height fog: new settings survive save validation with precision	
 tests/engine/heightFog.test.ts	42	check	R			engine/render-three	three-via:engine/render-three,three:three		height fog: material patch chains existing shader code and follows scene state	
@@ -761,11 +761,11 @@ tests/engine/runtimeParityLevel.test.ts	349	check	M				level-data:public/layouts
 tests/engine/runtimeUiModule.test.ts	54	checkAsync	R			engine/core,engine/ui,src	three-via:src,three:three		runtime UI module mounts nothing in a host with no overlay element	
 tests/engine/runtimeUiModule.test.ts	104	checkAsync	R			engine/core,src	three-via:src,three:three		runtime UI module skips asset loading for a level that authors no UI	
 tests/engine/runtimeUiModule.test.ts	130	check	M			src	model:src		a runtime without the UI module resolves no presenter	
-tests/engine/saveEntityKeys.test.ts	14	check	M			engine/persistence	model:engine/persistence		save identity: a saved actor is found again after its index moved	
-tests/engine/saveEntityKeys.test.ts	21	check	M			engine/persistence	model:engine/persistence		save identity: old saves and id-less actors stay by index, other entities pass through	
-tests/engine/saveEntityKeys.test.ts	32	check	M			engine/persistence	model:engine/persistence		save identity: an actor that left the level is null, never another actor	
-tests/engine/saveEntityKeys.test.ts	37	check	M			engine/persistence	model:engine/persistence		save identity: of two actors sharing an id the first has it	
-tests/engine/saveEntityKeys.test.ts	44	check	M			engine/persistence	model:engine/persistence		save identity: entries are renamed, a null drops them, the rest is kept	
+tests/engine/saveEntityKeys.test.ts	14	check	D			engine/persistence	dropped:Forge WebGL's save payload (actor index keys, untyped flags, level path); forge.saveGame/1 keys by actor GUID + 		save identity: a saved actor is found again after its index moved	
+tests/engine/saveEntityKeys.test.ts	21	check	D			engine/persistence	dropped:Forge WebGL's save payload (actor index keys, untyped flags, level path); forge.saveGame/1 keys by actor GUID + 		save identity: old saves and id-less actors stay by index, other entities pass through	
+tests/engine/saveEntityKeys.test.ts	32	check	D			engine/persistence	dropped:Forge WebGL's save payload (actor index keys, untyped flags, level path); forge.saveGame/1 keys by actor GUID + 		save identity: an actor that left the level is null, never another actor	
+tests/engine/saveEntityKeys.test.ts	37	check	D			engine/persistence	dropped:Forge WebGL's save payload (actor index keys, untyped flags, level path); forge.saveGame/1 keys by actor GUID + 		save identity: of two actors sharing an id the first has it	
+tests/engine/saveEntityKeys.test.ts	44	check	D			engine/persistence	dropped:Forge WebGL's save payload (actor index keys, untyped flags, level path); forge.saveGame/1 keys by actor GUID + 		save identity: entries are renamed, a null drops them, the rest is kept	
 tests/engine/saveEntityKeys.test.ts	50	check	M			editor	model:editor		actor id: the editor fills gaps and splits doubles, a kept id never changes	
 tests/engine/saveEntityKeys.test.ts	63	check	M			editor	model:editor		actor id: an undo snapshot keeps it, a duplicate does not	
 tests/engine/saveEntityKeys.test.ts	68	check	M			tools/droppedFields,tools/saveValidator	model:tools/droppedFields,model:tools/saveValidator		actor id: it round-trips through the save, a bad one is refused	
@@ -775,18 +775,18 @@ tests/engine/saveGameModule.test.ts	194	checkAsync	R			engine/core,engine/ui,src
 tests/engine/saveGameModule.test.ts	223	check	M			src	model:src		a runtime without the save module resolves no save commands	
 tests/engine/sceneCheck.test.ts	15	check	A			engine/worldbuilder		src/engine/worldbuilder/sceneCheck.test.ts	scene check: a road through a pad is reported; one beside it is not	
 tests/engine/sceneCheck.test.ts	25	check	A			engine/worldbuilder		src/engine/worldbuilder/sceneCheck.test.ts	scene check: a road ending at a pad is its entrance; off level it is reported	
-tests/engine/serializationDrift.test.ts	176	check	M			engine/world,tools/droppedFields,tools/saveValidator	model:engine/world,model:tools/droppedFields,model:tools/saveValidator		world partition persistence: every routed element and settings survive the save allowlist	
-tests/engine/serializationDrift.test.ts	184	check	M			engine/world,tools/saveValidator	model:engine/world,model:tools/saveValidator		world partition persistence: true and absent spatiallyLoaded stay omitted for every kind	
-tests/engine/serializationDrift.test.ts	193	check	M			engine/world,tools/saveValidator	model:engine/world,model:tools/saveValidator		world partition persistence: every kind rejects non-boolean spatiallyLoaded	
-tests/engine/serializationDrift.test.ts	204	check	M			engine/world,tools/droppedFields,tools/saveValidator	model:engine/world,model:tools/droppedFields,model:tools/saveValidator		world partition persistence: partial partition settings normalize only when authored	
+tests/engine/serializationDrift.test.ts	176	check	D			engine/world,tools/droppedFields,tools/saveValidator	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition persistence: every routed element and settings survive the save allowlist	
+tests/engine/serializationDrift.test.ts	184	check	D			engine/world,tools/saveValidator	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition persistence: true and absent spatiallyLoaded stay omitted for every kind	
+tests/engine/serializationDrift.test.ts	193	check	D			engine/world,tools/saveValidator	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition persistence: every kind rejects non-boolean spatiallyLoaded	
+tests/engine/serializationDrift.test.ts	204	check	D			engine/world,tools/droppedFields,tools/saveValidator	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition persistence: partial partition settings normalize only when authored	
 tests/engine/serializationDrift.test.ts	221	check	M			engine/world,tools/droppedFields,tools/saveValidator	model:engine/world,model:tools/droppedFields,model:tools/saveValidator		serialization drift: worldSettings.viewDistance round-trips	
 tests/engine/serializationDrift.test.ts	240	check	M			editor,engine/world,tools/droppedFields,tools/saveValidator	model:editor,model:engine/world,model:tools/droppedFields,model:tools/saveValidator		serialization drift: a sun's Cascaded Shadows flag round-trips save and editor clone	
 tests/engine/serializationDrift.test.ts	257	check	R			engine/environment,engine/world,tests,tools/droppedFields,tools/saveValidator	three-via:tests		serialization drift: every World Environment field the normalizer keeps survives a save	
 tests/engine/serializationDrift.test.ts	265	check	M			engine/world,tools/droppedFields,tools/saveValidator	model:engine/world,model:tools/droppedFields,model:tools/saveValidator		serialization drift: a Height Fog fitted to a long view distance keeps its density	
-tests/engine/serializationDrift.test.ts	274	check	M			engine/world,tools/saveValidator	model:engine/world,model:tools/saveValidator		world partition persistence: invalid partition settings name the field and normalizer reason	
-tests/engine/serializationDrift.test.ts	292	check	M			editor,engine/world,tools/droppedFields	model:editor,model:engine/world,model:tools/droppedFields		world partition persistence: explicit element clones preserve authored spatiallyLoaded	
-tests/engine/serializationDrift.test.ts	314	check	M			engine/world	model:engine/world		world partition persistence: split and merge preserve independent partition settings	
-tests/engine/serializationDrift.test.ts	328	check	M			engine/ui,engine/world,tools/droppedFields,tools/saveValidator	model:engine/world,model:tools/droppedFields,model:tools/saveValidator		world partition persistence: normalized world widgets retain the persistent flag on save	
+tests/engine/serializationDrift.test.ts	274	check	D			engine/world,tools/saveValidator	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition persistence: invalid partition settings name the field and normalizer reason	
+tests/engine/serializationDrift.test.ts	292	check	D			editor,engine/world,tools/droppedFields	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition persistence: explicit element clones preserve authored spatiallyLoaded	
+tests/engine/serializationDrift.test.ts	314	check	D			engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition persistence: split and merge preserve independent partition settings	
+tests/engine/serializationDrift.test.ts	328	check	D			engine/ui,engine/world,tools/droppedFields,tools/saveValidator	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition persistence: normalized world widgets retain the persistent flag on save	
 tests/engine/serializationDrift.test.ts	335	check	M			engine/scene,src,tools/droppedFields,tools/saveValidator	model:engine/scene,model:src,model:tools/droppedFields,model:tools/saveValidator		surface response: physical material preset ids round-trip placement and collision sidecar saves	
 tests/engine/serializationDrift.test.ts	350	check	R			src,tools/droppedFields,tools/saveValidator	three-via:src		skeleton sidecar: everything the runtime normalizer keeps survives a save	
 tests/engine/serializationDrift.test.ts	355	check	R			src,tools/saveValidator	three-via:src		skeleton sidecar: an authored def round-trips runtime -> save -> runtime	
@@ -813,26 +813,26 @@ tests/engine/staticQueries.test.ts	207	check	A	yes		engine/input,engine/movement
 tests/engine/staticQueries.test.ts	229	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries movement preserves void falling and empty-scene fallback floor	
 tests/engine/staticQueries.test.ts	250	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries streamed colliders become nav blockers on add and stop on remove	
 tests/engine/staticQueries.test.ts	275	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries movement swept radius covers fast travel launch and platform carry	
-tests/engine/streamedActorState.test.ts	9	check	M			engine/world	model:engine/world		streamed actor state: poseMatches wraps angles and tolerates small drift	
-tests/engine/streamedActorState.test.ts	20	check	M			engine/world	model:engine/world		streamed actor state: only a moved body is remembered and take consumes it	
-tests/engine/streamedActorState.test.ts	33	check	M			engine/world	model:engine/world		streamed actor state: a car left on its handbrake at home is still remembered	
-tests/engine/streamedActorState.test.ts	41	check	M			engine/world	model:engine/world		streamed actor state: saved vehicles are parked and cached cars export at rest	
-tests/engine/streamingPolicy.test.ts	20	check	M			engine/world	model:engine/world		streaming policy: box-distance range edges are inclusive, including corners and negatives	
-tests/engine/streamingPolicy.test.ts	38	check	M			engine/world	model:engine/world		streaming policy: prefetch and activation split, and activation waits for completed loads	
-tests/engine/streamingPolicy.test.ts	51	check	M			engine/world	model:engine/world		streaming policy: activation defaults to load range and is clamped to it	
-tests/engine/streamingPolicy.test.ts	61	check	M			engine/world	model:engine/world		streaming policy: loaded hysteresis survives crossing the boundary and returning	
-tests/engine/streamingPolicy.test.ts	73	check	M			engine/world	model:engine/world		streaming policy: active hysteresis deactivates into prefetch before unloading	
-tests/engine/streamingPolicy.test.ts	89	check	M			engine/world	model:engine/world		streaming policy: velocity-ahead ordering works on both axes and is speed independent	
-tests/engine/streamingPolicy.test.ts	106	check	M			engine/world	model:engine/world		streaming policy: nearest cells precede distant cells and ties use deterministic keys	
-tests/engine/streamingPolicy.test.ts	115	check	M			engine/world	model:engine/world		streaming policy: two sources union without duplicates and retain each other's cells	
-tests/engine/streamingPolicy.test.ts	128	check	M			engine/world	model:engine/world		streaming policy: source priority bias raises only qualifying cells	
-tests/engine/streamingPolicy.test.ts	135	check	M			engine/world	model:engine/world		streaming policy: world-corner clipping excludes cells that only touch the outer edge	
-tests/engine/streamingPolicy.test.ts	147	check	M			engine/world	model:engine/world		streaming policy: shifted grids and partial edge cells respect world bounds	
-tests/engine/streamingPolicy.test.ts	155	check	M			engine/world	model:engine/world		streaming policy: quality multiplier scales load, activation and hysteresis, not cell size	
-tests/engine/streamingPolicy.test.ts	169	check	M			engine/world	model:engine/world		streaming policy: no sources releases residency and decisions do not mutate inputs	
-tests/engine/streamingPolicy.test.ts	182	check	M			engine/world	model:engine/world		streaming policy: seeded random walk preserves Activated subset Loaded with budgeted work	
-tests/engine/streamingPolicy.test.ts	220	check	M			engine/world	model:engine/world		streaming policy: budget takes an ordered prefix and defers all excess work	
-tests/engine/streamingPolicy.test.ts	243	check	M			engine/world	model:engine/world		streaming policy: invalid unbounded-loop inputs and negative budgets are rejected	
+tests/engine/streamedActorState.test.ts	9	check	A			engine/world			streamed actor state: poseMatches wraps angles and tolerates small drift	
+tests/engine/streamedActorState.test.ts	20	check	A			engine/world			streamed actor state: only a moved body is remembered and take consumes it	
+tests/engine/streamedActorState.test.ts	33	check	A			engine/world			streamed actor state: a car left on its handbrake at home is still remembered	
+tests/engine/streamedActorState.test.ts	41	check	A			engine/world			streamed actor state: saved vehicles are parked and cached cars export at rest	
+tests/engine/streamingPolicy.test.ts	20	check	A			engine/world			streaming policy: box-distance range edges are inclusive, including corners and negatives	
+tests/engine/streamingPolicy.test.ts	38	check	A			engine/world			streaming policy: prefetch and activation split, and activation waits for completed loads	
+tests/engine/streamingPolicy.test.ts	51	check	A			engine/world			streaming policy: activation defaults to load range and is clamped to it	
+tests/engine/streamingPolicy.test.ts	61	check	A			engine/world			streaming policy: loaded hysteresis survives crossing the boundary and returning	
+tests/engine/streamingPolicy.test.ts	73	check	A			engine/world			streaming policy: active hysteresis deactivates into prefetch before unloading	
+tests/engine/streamingPolicy.test.ts	89	check	A			engine/world			streaming policy: velocity-ahead ordering works on both axes and is speed independent	
+tests/engine/streamingPolicy.test.ts	106	check	A			engine/world			streaming policy: nearest cells precede distant cells and ties use deterministic keys	
+tests/engine/streamingPolicy.test.ts	115	check	A			engine/world			streaming policy: two sources union without duplicates and retain each other's cells	
+tests/engine/streamingPolicy.test.ts	128	check	A			engine/world			streaming policy: source priority bias raises only qualifying cells	
+tests/engine/streamingPolicy.test.ts	135	check	A			engine/world			streaming policy: world-corner clipping excludes cells that only touch the outer edge	
+tests/engine/streamingPolicy.test.ts	147	check	A			engine/world			streaming policy: shifted grids and partial edge cells respect world bounds	
+tests/engine/streamingPolicy.test.ts	155	check	A			engine/world			streaming policy: quality multiplier scales load, activation and hysteresis, not cell size	
+tests/engine/streamingPolicy.test.ts	169	check	A			engine/world			streaming policy: no sources releases residency and decisions do not mutate inputs	
+tests/engine/streamingPolicy.test.ts	182	check	A			engine/world			streaming policy: seeded random walk preserves Activated subset Loaded with budgeted work	
+tests/engine/streamingPolicy.test.ts	220	check	A			engine/world			streaming policy: budget takes an ordered prefix and defers all excess work	
+tests/engine/streamingPolicy.test.ts	243	check	A			engine/world			streaming policy: invalid unbounded-loop inputs and negative budgets are rejected	
 tests/engine/sunCascadeShadow.test.ts	79	check	R			engine/render-three	three-via:engine/render-three,three:three		sun cascade shadow: three's lighting chunk still carries the anchors the patch needs	
 tests/engine/sunCascadeShadow.test.ts	92	check	R			engine/render-three	three-via:engine/render-three		sun cascade shadow: terrain levels keep the lit terrain within the GPU's texture units	
 tests/engine/sunCascadeShadow.test.ts	108	check	R			engine/render-three	three-via:engine/render-three,three:three		sun cascade shadow: cascades replace the sun in the render and hand it back	
@@ -840,15 +840,15 @@ tests/engine/sunCascadeShadow.test.ts	149	check	R			engine/render-three	three-vi
 tests/engine/sunCascadeShadow.test.ts	168	check	R			engine/render-three	three-via:engine/render-three,three:three		sun cascade shadow: other shadowed directional lights are muted with one warning	
 tests/engine/sunCascadeShadow.test.ts	186	check	R			engine/render-three	three-via:engine/render-three,three:three		sun cascade shadow: stagger redraws cascades 2+ on alternate frames and keeps their frames	
 tests/engine/sunCascadeShadow.test.ts	206	check	R			engine/render-three	three-via:engine/render-three,three:three		sun cascade shadow: the material patch chains, keys by state and is a no-op while inactive	
-tests/engine/sunCascades.test.ts	91	check	M			engine/world	model:engine/world		sun cascades: practical splits match the approved profile table	
-tests/engine/sunCascades.test.ts	104	check	M			engine/world	model:engine/world		sun cascades: unusable split input yields no cascades	
-tests/engine/sunCascades.test.ts	115	check	M			engine/world	model:engine/world		sun cascades: slice sphere reaches the eye and the far corners exactly	
-tests/engine/sunCascades.test.ts	131	check	M			engine/world	model:engine/world		sun cascades: each cascade box holds its whole frustum slice, and every nearer slice	
-tests/engine/sunCascades.test.ts	147	check	M			engine/world	model:engine/world		sun cascades: box size is constant under camera rotation and frames are texel-snapped	
-tests/engine/sunCascades.test.ts	171	check	M			engine/world	model:engine/world		sun cascades: distance and fade follow the quality distance scale	
-tests/engine/sunCascades.test.ts	179	check	M			engine/world	model:engine/world		sun cascades: staggered refresh alternates cascades 2+ and draws everything on frame 0	
-tests/engine/sunCascades.test.ts	189	check	M			engine/world	model:engine/world		sun cascades: the texture-unit budget caps the cascade count	
-tests/engine/sunCascades.test.ts	197	check	M			engine/perf,engine/world	model:engine/world		sun cascades: quality profiles carry the approved cascade counts	
+tests/engine/sunCascades.test.ts	91	check	A			engine/world			sun cascades: practical splits match the approved profile table	3
+tests/engine/sunCascades.test.ts	104	check	A			engine/world			sun cascades: unusable split input yields no cascades	3
+tests/engine/sunCascades.test.ts	115	check	A			engine/world			sun cascades: slice sphere reaches the eye and the far corners exactly	3
+tests/engine/sunCascades.test.ts	131	check	A			engine/world			sun cascades: each cascade box holds its whole frustum slice, and every nearer slice	3
+tests/engine/sunCascades.test.ts	147	check	A			engine/world			sun cascades: box size is constant under camera rotation and frames are texel-snapped	3
+tests/engine/sunCascades.test.ts	171	check	A			engine/world			sun cascades: distance and fade follow the quality distance scale	3
+tests/engine/sunCascades.test.ts	179	check	A			engine/world			sun cascades: staggered refresh alternates cascades 2+ and draws everything on frame 0	3
+tests/engine/sunCascades.test.ts	189	check	A			engine/world			sun cascades: the texture-unit budget caps the cascade count	3
+tests/engine/sunCascades.test.ts	197	check	A			engine/perf,engine/world			sun cascades: quality profiles carry the approved cascade counts	3
 tests/engine/sunFollowShadow.test.ts	31	check	R			engine/render-three	three-via:engine/render-three,three:three		sun follow shadow: re-centres ahead of the camera without turning the light	
 tests/engine/sunFollowShadow.test.ts	53	check	R			engine/render-three	three-via:engine/render-three,three:three		sun follow shadow: sub-texel camera motion keeps the frustum still	
 tests/engine/surfaceResponse.test.ts	32	check	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/surfaceResponse.test.ts	soft ground speed: progressive entry drag fades with soft participation and preserves launch	
@@ -911,9 +911,9 @@ tests/engine/terrain.test.ts	287	check	A			engine/terrain		src/engine/terrain/te
 tests/engine/terrain.test.ts	299	check	A			engine/terrain		src/engine/terrain/terrain.test.ts	terrain raycast: a NaN at any coarse cell corner preserves the hole	
 tests/engine/terrain.test.ts	312	check	A			engine/terrain		src/engine/terrain/terrain.test.ts	terrain raycast: a coarse map leaves resident hits identical, including seams	
 tests/engine/terrain.test.ts	331	check	A			engine/terrain		src/engine/terrain/terrain.test.ts	terrain raycast: passes above an unloaded tile before hitting a resident tile	
-tests/engine/terrain.test.ts	344	check	M			engine/world	model:engine/world		world grid: cell lookup owns boundaries by their min edge, negatives included	
-tests/engine/terrain.test.ts	354	check	M			engine/world	model:engine/world		world grid: cells in radius are complete and nearest first	
-tests/engine/terrain.test.ts	376	check	M			engine/world	model:engine/world		world grid: actors wider than a cell stay persistent	
+tests/engine/terrain.test.ts	344	check	A			engine/world			world grid: cell lookup owns boundaries by their min edge, negatives included	
+tests/engine/terrain.test.ts	354	check	A			engine/world			world grid: cells in radius are complete and nearest first	
+tests/engine/terrain.test.ts	376	check	A			engine/world			world grid: actors wider than a cell stay persistent	
 tests/engine/terrain.test.ts	394	checkAsync	A			engine/physics,engine/terrain		src/engine/terrain/terrain.test.ts	terrain rapier: heightfield collider surface equals terrainHeightAt (K3a)	
 tests/engine/terrainAutoPaint.test.ts	55	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/terrainAutoPaint.test.ts	terrain auto paint: band is full inside, smoothstep falloff outside, hard edge at 0	
 tests/engine/terrainAutoPaint.test.ts	65	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/terrainAutoPaint.test.ts	terrain auto paint: noise only breaks up covered ground, never adds outside it	
@@ -1030,15 +1030,15 @@ tests/engine/terrainLayerArray.test.ts	46	check	R			engine/render-three	three-vi
 tests/engine/terrainLayerArray.test.ts	59	check	R			engine/render-three	three-via:engine/render-three,three:three		terrain layer array: flipY reverses rows like the GL upload, data textures read without a canvas	
 tests/engine/terrainLayerArray.test.ts	72	check	R			engine/render-three	three-via:engine/render-three,three:three		terrain layer array: textured layers pack in order, untextured layers keep -1, settings match the layer textures	
 tests/engine/terrainLayerArray.test.ts	96	check	R			engine/render-three	three-via:engine/render-three,three:three		terrain layer array: a re-uploaded source texture is decoded again	
-tests/engine/terrainLod.test.ts	135	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/terrainLod.test.ts	terrain LOD detail: track windows refine to leaf/4 near the camera; inside them neighbours differ by at most one	
-tests/engine/terrainLod.test.ts	185	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/terrainLod.test.ts	terrain LOD detail: off, empty or far windows select exactly as before; nodes outside the window never change	
-tests/engine/terrainLod.test.ts	208	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/terrainLod.test.ts	terrain LOD detail: levels clamp to three, the margin widens refined boxes and morph ranges keep doubling	
-tests/engine/terrainLod.test.ts	236	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/terrainLod.test.ts	terrain LOD: mountainous neighbours differ by at most one across 180 seeded cameras	
-tests/engine/terrainLod.test.ts	255	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/terrainLod.test.ts	terrain LOD: ranges double and morph matches the shader at start, midpoint and end	
-tests/engine/terrainLod.test.ts	289	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/terrainLod.test.ts	terrain LOD: residency covers every slot node; fully morphed tile nodes use the global map	
-tests/engine/terrainLod.test.ts	321	check	M			engine/terrain,engine/world	model:engine/world		terrain LOD: radius four includes 67 interior tiles in near-to-far order	
-tests/engine/terrainLod.test.ts	345	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/terrainLod.test.ts	terrain LOD: relief validation flags ratio three and accepts four through H/size 1.41	
-tests/engine/terrainLod.test.ts	359	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/terrainLod.test.ts	terrain LOD: non-square edges, visibility injection and distant roots preserve coverage	
+tests/engine/terrainLod.test.ts	135	check	A			engine/terrain		src/engine/terrain/terrainLod.test.ts	terrain LOD detail: track windows refine to leaf/4 near the camera; inside them neighbours differ by at most one	
+tests/engine/terrainLod.test.ts	185	check	A			engine/terrain		src/engine/terrain/terrainLod.test.ts	terrain LOD detail: off, empty or far windows select exactly as before; nodes outside the window never change	
+tests/engine/terrainLod.test.ts	208	check	A			engine/terrain		src/engine/terrain/terrainLod.test.ts	terrain LOD detail: levels clamp to three, the margin widens refined boxes and morph ranges keep doubling	
+tests/engine/terrainLod.test.ts	236	check	A			engine/terrain		src/engine/terrain/terrainLod.test.ts	terrain LOD: mountainous neighbours differ by at most one across 180 seeded cameras	
+tests/engine/terrainLod.test.ts	255	check	A			engine/terrain		src/engine/terrain/terrainLod.test.ts	terrain LOD: ranges double and morph matches the shader at start, midpoint and end	
+tests/engine/terrainLod.test.ts	289	check	A			engine/terrain		src/engine/terrain/terrainLod.test.ts	terrain LOD: residency covers every slot node; fully morphed tile nodes use the global map	
+tests/engine/terrainLod.test.ts	321	check	A			engine/terrain,engine/world			terrain LOD: radius four includes 67 interior tiles in near-to-far order	
+tests/engine/terrainLod.test.ts	345	check	A			engine/terrain		src/engine/terrain/terrainLod.test.ts	terrain LOD: relief validation flags ratio three and accepts four through H/size 1.41	
+tests/engine/terrainLod.test.ts	359	check	A			engine/terrain		src/engine/terrain/terrainLod.test.ts	terrain LOD: non-square edges, visibility injection and distant roots preserve coverage	
 tests/engine/terrainLod.test.ts	383	check	A			engine/terrain		src/engine/terrain/terrainLod.test.ts	terrain slots: release and re-acquire reuse cached data without evicting active slots	
 tests/engine/terrainLod.test.ts	398	check	A			engine/terrain		src/engine/terrain/terrainLod.test.ts	terrain slots: capacity pressure evicts least-recently-released data	
 tests/engine/terrainLod.test.ts	421	check	A			engine/terrain		src/engine/terrain/terrainLod.test.ts	terrain slots: default capacity 80 stays bounded across repeated allocation cycles	
@@ -1322,15 +1322,15 @@ tests/engine/vfxModule.test.ts	409	checkAsync	R			engine/scene,src	three-via:src
 tests/engine/vfxModule.test.ts	454	checkAsync	R			engine/scene,src	three-via:src,three:three		vfx module separates the autoPlay path from a script trigger	
 tests/engine/vfxModule.test.ts	476	checkAsync	R			engine/scene,src	three-via:src,three:three		vfx module carries the quality profile's particle density	
 tests/engine/vfxModule.test.ts	496	checkAsync	R			src	three-via:src		a runtime with no scene to render into registers no vfx at all	
-tests/engine/viewDistance.test.ts	17	check	M			engine/world	model:engine/world		view distance: Height Fog opacity follows its mode and hides when hidden or absent	
-tests/engine/viewDistance.test.ts	26	check	M			engine/world	model:engine/world		view distance: quality multiplier scales the authored far plane	
-tests/engine/viewDistance.test.ts	33	check	M			engine/world	model:engine/world		view distance: effective far plane is clamped to authored limits	
-tests/engine/viewDistance.test.ts	42	check	M			engine/world	model:engine/world		view distance: absent or invalid authored distances keep camera defaults	
-tests/engine/viewDistance.test.ts	48	check	M			engine/world	model:engine/world		view distance: far view mode starts strictly beyond 1000 metres	
-tests/engine/viewDistance.test.ts	54	check	M			engine/world	model:engine/world		view distance: exponential fog reaches the target opacity at the far plane	
-tests/engine/viewDistance.test.ts	61	check	M			engine/world	model:engine/world		view distance: exponential fog rejects invalid distances and opacities	
-tests/engine/viewDistance.test.ts	78	check	M			engine/world	model:engine/world		view distance: linear fog interpolates and clamps opacity	
-tests/engine/viewDistance.test.ts	84	check	M			engine/world	model:engine/world		view distance: collapsed or reversed linear fog ranges step at the end	
+tests/engine/viewDistance.test.ts	17	check	A			engine/world			view distance: Height Fog opacity follows its mode and hides when hidden or absent	5b
+tests/engine/viewDistance.test.ts	26	check	A			engine/world			view distance: quality multiplier scales the authored far plane	5b
+tests/engine/viewDistance.test.ts	33	check	A			engine/world			view distance: effective far plane is clamped to authored limits	5b
+tests/engine/viewDistance.test.ts	42	check	A			engine/world			view distance: absent or invalid authored distances keep camera defaults	5b
+tests/engine/viewDistance.test.ts	48	check	A			engine/world			view distance: far view mode starts strictly beyond 1000 metres	5b
+tests/engine/viewDistance.test.ts	54	check	A			engine/world			view distance: exponential fog reaches the target opacity at the far plane	5b
+tests/engine/viewDistance.test.ts	61	check	A			engine/world			view distance: exponential fog rejects invalid distances and opacities	5b
+tests/engine/viewDistance.test.ts	78	check	A			engine/world			view distance: linear fog interpolates and clamps opacity	5b
+tests/engine/viewDistance.test.ts	84	check	A			engine/world			view distance: collapsed or reversed linear fog ranges step at the end	5b
 tests/engine/waterFoam.test.ts	28	check	R			engine/render-three	three-via:engine/render-three		Water look: river foam trail decays downstream from rapids	
 tests/engine/waterFoam.test.ts	42	check	R			engine/render-three	three-via:engine/render-three		Water look: ribbon carries trail and lateral offsets per vertex	
 tests/engine/waterFoam.test.ts	91	check	M			engine/scene,engine/terrain	model:engine/scene		Water look: crest foam steepness keeps calm swell clear	
@@ -1345,12 +1345,12 @@ tests/engine/waterFoam.test.ts	345	check	R			engine/render-three,engine/scene,en
 tests/engine/waterWheelInteraction.test.ts	19	check	R			engine/render-three,engine/terrain	three-via:engine/render-three,three:three		water wheels: cylinder intersections follow slope, tyre roll and exact wet surface without requiring ground contact	
 tests/engine/waterWheelInteraction.test.ts	40	check	A	yes		engine/terrain	boundary-model:engine/terrain		water wheels: foam emits only on continuous movement/slip, advects, stays bounded and expires	7
 tests/engine/waterWheelInteraction.test.ts	52	check	R			engine/perf,engine/render-three,engine/scene,src,tests	three-via:engine/render-three,three-via:src,three:three		water wheels: river-only fixed-step subscription and Lake foam share quality, hidden and disposal gates	
-tests/engine/wbPilotValley.test.ts	62	check	M			engine/world,engine/worldbuilder,tests,tools/world/worldBriefBuild	level-data:.cells/main/,level-data:assets/world-builder/Levels/WbPilotValley.level.json,model:engine/world		wb pilot valley: two builds agree byte for byte; partition only moves placements into cells	
+tests/engine/wbPilotValley.test.ts	62	check	D			engine/world,engine/worldbuilder,tests,tools/world/worldBriefBuild	dropped:the old partitioned layout; import:forge --compare and world:brief's byte-identical rebuild cover it (user decis		wb pilot valley: two builds agree byte for byte; partition only moves placements into cells	
 tests/engine/wbPilotValley.test.ts	73	check	M			engine/worldbuilder,tests,tools/world/worldBriefBuild	level-data:assets/world-builder/Levels/WbPilotValley.level.json		wb pilot valley: the climb stays within its limit and ends at the cabin	
 tests/engine/wbPilotValley.test.ts	93	check	M			engine/worldbuilder,tests,tools/world/worldBriefBuild	level-data:assets/world-builder/Levels/WbPilotValley.level.json		wb pilot valley: the water stays below both banks and the cabin stands on level ground	
 tests/engine/wbPilotValley.test.ts	113	check	M			engine/worldbuilder,tests,tools/world/worldBriefBuild	level-data:assets/world-builder/Levels/WbPilotValley.level.json		wb pilot valley: every placement has a unique id and stands on the ground; every plant rule grows on the terrain	
 tests/engine/wbPilotValley.test.ts	130	check	M			engine/terrain,engine/worldbuilder,tests,tools/saveValidator,tools/world/worldBriefBuild	level-data:assets/world-builder/Levels/WbPilotValley.level.json,model:tools/saveValidator		wb pilot valley: every file is what the editor's save would write	
-tests/engine/wbPilotValley.test.ts	144	check	M			engine/world,engine/worldbuilder,tests,tools/world/worldBriefBuild	level-data:.cells/main/,level-data:assets/world-builder/Levels/WbPilotValley.level.json,model:engine/world		wb pilot valley: a partitioned level reads back whole, and saving it again writes the same files	
+tests/engine/wbPilotValley.test.ts	144	check	D			engine/world,engine/worldbuilder,tests,tools/world/worldBriefBuild	dropped:the old partitioned layout; import:forge --compare and world:brief's byte-identical rebuild cover it (user decis		wb pilot valley: a partitioned level reads back whole, and saving it again writes the same files	
 tests/engine/wbPilotValley.test.ts	158	checkSlowAsync	M			engine/worldbuilder,tests,tools/world/worldBriefRun	level-data:assets/trial/Valley.cells/main,level-data:assets/trial/Valley.cells/main/99_99.cell.json,level-data:assets/trial/Valley.level.json		wb pilot valley: world:brief writes a new level, refuses to overwrite it, and with --force keeps its partition and drops stale cells	
 tests/engine/wbTestValley.test.ts	75	check	M			tools/world/wbTestValley	level-data:layouts/WbTestValley.landscapes/valley.terrain.json		wb test valley: the terrain matches the analytic height and the level points at it	
 tests/engine/wbTestValley.test.ts	90	check	A	yes		engine/worldbuilder,tools/world/wbTestValley	boundary-model:engine/worldbuilder,boundary-model:tools/world/wbTestValley	src/engine/worldbuilder/testWorlds/wbTestValley.test.ts	wb test valley: the chain runs; the track climbs the slope in a serpentine within its limit	
@@ -1444,11 +1444,11 @@ tests/engine/worldBuildings.test.ts	140	check	M			engine/scene,engine/worldbuild
 tests/engine/worldBuildings.test.ts	168	check	M			engine/worldbuilder,tools/saveValidator	model:tools/saveValidator		world buildings: a re-run after save + reload is empty; protected settlements keep theirs (WB-02)	
 tests/engine/worldBuildings.test.ts	195	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldBuildings.test.ts	world buildings: on a steep slope pads get retaining walls and steps, the square terraces; a bake changes nothing	
 tests/engine/worldBuildings.test.ts	231	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldBuildings.test.ts	world buildings: without roles the stage asks for land use; pads must name a settlement	
-tests/engine/worldCellPersistence.test.ts	21	check	M			engine/world,tools/saveValidator	model:engine/world,model:tools/saveValidator		world cells: index validation omits empty indices and uses numeric z then x ordering	
-tests/engine/worldCellPersistence.test.ts	34	check	M			tools/saveValidator	level-data:../Cells.level.json,level-data:layouts/../Cells.json,level-data:layouts/Cells.level.json,model:tools/saveValidator		world cells: save payload validates paths, keys, keep membership and duplicate writes	
-tests/engine/worldCellPersistence.test.ts	53	check	M			tools/droppedFields,tools/saveValidator	level-data:layouts/Cells.level.json,model:tools/droppedFields,model:tools/saveValidator		world cells: element allowlist and dropped-field reporting match layout saves	
-tests/engine/worldCellPersistence.test.ts	67	checkAsync	M			engine/assets,src	level-data:Cells.level.json,level-data:layouts/Cells.cells/main/0_0.cell.json,level-data:layouts/Cells.level.json,model:src		world cells: shared loader merges cells and classifies missing, corrupt and mismatched cells by path	
-tests/engine/worldCellPersistence.test.ts	91	checkAsync	M			engine/world,src	level-data:layouts/CellSaveTest.level.json,level-data:layouts/OtherCellSaveTest.level.json,model:engine/world,model:src		world cells: saver orders writes, sends changed cells only, keeps full index and clears stale cells on disable	
+tests/engine/worldCellPersistence.test.ts	21	check	D			engine/world,tools/saveValidator	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world cells: index validation omits empty indices and uses numeric z then x ordering	
+tests/engine/worldCellPersistence.test.ts	34	check	D			tools/saveValidator	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world cells: save payload validates paths, keys, keep membership and duplicate writes	
+tests/engine/worldCellPersistence.test.ts	53	check	D			tools/droppedFields,tools/saveValidator	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world cells: element allowlist and dropped-field reporting match layout saves	
+tests/engine/worldCellPersistence.test.ts	67	checkAsync	D			engine/assets,src	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world cells: shared loader merges cells and classifies missing, corrupt and mismatched cells by path	
+tests/engine/worldCellPersistence.test.ts	91	checkAsync	D			engine/world,src	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world cells: saver orders writes, sends changed cells only, keeps full index and clears stale cells on disable	
 tests/engine/worldDataCheck.test.ts	50	check	M			engine/world,tools/worldDataCheck	level-data:layouts/World.level.json,model:engine/world		world data: HLOD proxies listed by the index must ship	
 tests/engine/worldDataCheck.test.ts	71	check	M			engine/scene,engine/world,tools/worldDataCheck	level-data:layouts/World.level.json,model:engine/scene,model:engine/world		world data: existing world and foliage cells have counts, bytes and largest files	
 tests/engine/worldDataCheck.test.ts	93	check	M			engine/scene,engine/world,tools/worldDataCheck	level-data:layouts/World.level.json,model:engine/scene,model:engine/world		world data: missing cell and foliage cell each report their reference path	
@@ -1517,11 +1517,11 @@ tests/engine/worldLandUse.test.ts	161	check	A	yes		engine/worldbuilder	boundary-
 tests/engine/worldLandUse.test.ts	177	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldLandUse.test.ts	world land use: unplaceable lines are reported with the reason	
 tests/engine/worldLandUse.test.ts	188	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldLandUse.test.ts	world land use: protected settlements keep their parcels; a re-run after save + reload is empty (WB-02)	
 tests/engine/worldLandUse.test.ts	203	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldLandUse.test.ts	world land use: partOf must name an unmerged parcel of the same settlement	
-tests/engine/worldMapView.test.ts	17	check	M			engine/world	model:engine/world		world map view: the frame is a padded square around every rect, centred	
-tests/engine/worldMapView.test.ts	27	check	M			engine/world	model:engine/world		world map view: world and map pixels convert both ways, +Z down	
-tests/engine/worldMapView.test.ts	37	check	M			engine/world	model:engine/world		world map view: shading ramps by height, lights north-west slopes, leaves holes transparent	
-tests/engine/worldMapView.test.ts	55	check	M			engine/world	model:engine/world		world map view: height lookup takes the nearest sample, null outside and on holes	
-tests/engine/worldMapView.test.ts	64	check	M			engine/world	model:engine/world		world map view: focus keeps the view direction and height above the ground, or pulls back from the horizon	
+tests/engine/worldMapView.test.ts	17	check	A			engine/world			world map view: the frame is a padded square around every rect, centred	5b
+tests/engine/worldMapView.test.ts	27	check	A			engine/world			world map view: world and map pixels convert both ways, +Z down	5b
+tests/engine/worldMapView.test.ts	37	check	A			engine/world			world map view: shading ramps by height, lights north-west slopes, leaves holes transparent	5b
+tests/engine/worldMapView.test.ts	55	check	A			engine/world			world map view: height lookup takes the nearest sample, null outside and on holes	5b
+tests/engine/worldMapView.test.ts	64	check	A			engine/world			world map view: focus keeps the view direction and height above the ground, or pulls back from the horizon	5b
 tests/engine/worldMasks.test.ts	72	check	A			engine/worldbuilder		src/engine/worldbuilder/worldMasks.test.ts	world masks: grid spec covers the bounds, cell centres and the cell cap	
 tests/engine/worldMasks.test.ts	85	check	A			engine/worldbuilder		src/engine/worldbuilder/worldMasks.test.ts	world masks: fieldAt interpolates between cell centres and is NaN outside the grid	
 tests/engine/worldMasks.test.ts	94	check	A			engine/worldbuilder		src/engine/worldbuilder/worldMasks.test.ts	world masks: height field marks off-terrain cells as no data, slope reads degrees	
@@ -1538,49 +1538,49 @@ tests/engine/worldParcels.test.ts	130	check	A	yes		engine/worldbuilder	boundary-
 tests/engine/worldParcels.test.ts	141	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldParcels.test.ts	world parcels: the stage keeps parcels off water and protected areas and reports needs (WB-15)	
 tests/engine/worldParcels.test.ts	164	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldParcels.test.ts	world parcels: plates sit on the parcels; a re-run after save + reload is empty (WB-02)	
 tests/engine/worldParcels.test.ts	183	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldParcels.test.ts	world parcels: no sites, no street, or too few parcels are reported	
-tests/engine/worldPartition.test.ts	207	check	M		yes	engine/world	model:engine/world		`world partition: cell contents match saved and persistent elements for ${name}`	
-tests/engine/worldPartition.test.ts	215	check	M			engine/world	model:engine/world		world partition: disabled and empty cell contents return empty maps	
+tests/engine/worldPartition.test.ts	207	check	D		yes	engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		`world partition: cell contents match saved and persistent elements for ${name}`	
+tests/engine/worldPartition.test.ts	215	check	D			engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition: disabled and empty cell contents return empty maps	
 tests/engine/worldPartition.test.ts	223	check	M			engine/world	model:engine/world		world partition: light peaks use inclusive box distances and independent shadow kinds	
 tests/engine/worldPartition.test.ts	269	check	M			engine/world	model:engine/world		world partition: lightless occupied cells can set the light pool peak	
-tests/engine/worldPartition.test.ts	293	check	M			engine/world	model:engine/world		world partition: save summary counts every element exactly once	
-tests/engine/worldPartition.test.ts	302	check	M			engine/world	model:engine/world		world partition: actor routing agrees with partition cells and preserves merged indices	
-tests/engine/worldPartition.test.ts	354	check	M			engine/world	model:engine/world		world partition: settings defaults and partial fields are independent copies	
-tests/engine/worldPartition.test.ts	371	check	M			engine/world	model:engine/world		world partition: foliage defaults, custom settings and invalid grids	
-tests/engine/worldPartition.test.ts	383	check	M			engine/world	model:engine/world		world partition: invalid settings name the offending field	
-tests/engine/worldPartition.test.ts	400	check	M			engine/world	model:engine/world		world partition: cell normalization checks headers and arrays, leaves elements opaque	
-tests/engine/worldPartition.test.ts	425	check	M			engine/world	level-data:.level.json,level-data:\foo\Bar.level.json,level-data:foo.level.json,level-data:foo/Bar.cells/main/-2_10.cell.json,level-data:foo/Bar.cells/main/0_0.cell.json,level-data:foo/Bar.layout.json,level-data:foo/Bar.level.json,model:engine/world		world partition: cell paths share terrain level suffix and separator rules	
-tests/engine/worldPartition.test.ts	434	check	M			engine/world	model:engine/world		world partition: every kind routes by X/Z with numeric z-then-x cell order	
-tests/engine/worldPartition.test.ts	481	check	M			engine/world	model:engine/world		world partition: blocking footprints resolve brush shape, default size and signed per-axis scale	
-tests/engine/worldPartition.test.ts	494	check	M			engine/world	model:engine/world		world partition: configured cellSize controls exact positive and negative boundaries	
-tests/engine/worldPartition.test.ts	505	check	M			engine/world	model:engine/world		world partition: disabled split returns an independent unchanged clone	
-tests/engine/worldPartition.test.ts	514	check	M			engine/world	model:engine/world		world partition: split/merge round trip, determinism and deep input ownership	
-tests/engine/worldPartition.test.ts	539	check	M			engine/world	model:engine/world		world partition: persistent and cell JSON round trip preserves every element modulo array order	
-tests/engine/worldPartition.test.ts	547	check	M			engine/world	model:engine/world		world partition: merge appends cells in numeric order and creates missing instance groups	
-tests/engine/worldPartition.test.ts	575	check	M			engine/world	model:engine/world		world partition: cells preserve source instance group and placement order	
+tests/engine/worldPartition.test.ts	293	check	D			engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition: save summary counts every element exactly once	
+tests/engine/worldPartition.test.ts	302	check	D			engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition: actor routing agrees with partition cells and preserves merged indices	
+tests/engine/worldPartition.test.ts	354	check	D			engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition: settings defaults and partial fields are independent copies	
+tests/engine/worldPartition.test.ts	371	check	D			engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition: foliage defaults, custom settings and invalid grids	
+tests/engine/worldPartition.test.ts	383	check	D			engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition: invalid settings name the offending field	
+tests/engine/worldPartition.test.ts	400	check	D			engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition: cell normalization checks headers and arrays, leaves elements opaque	
+tests/engine/worldPartition.test.ts	425	check	D			engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition: cell paths share terrain level suffix and separator rules	
+tests/engine/worldPartition.test.ts	434	check	D			engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition: every kind routes by X/Z with numeric z-then-x cell order	
+tests/engine/worldPartition.test.ts	481	check	D			engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition: blocking footprints resolve brush shape, default size and signed per-axis scale	
+tests/engine/worldPartition.test.ts	494	check	D			engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition: configured cellSize controls exact positive and negative boundaries	
+tests/engine/worldPartition.test.ts	505	check	D			engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition: disabled split returns an independent unchanged clone	
+tests/engine/worldPartition.test.ts	514	check	D			engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition: split/merge round trip, determinism and deep input ownership	
+tests/engine/worldPartition.test.ts	539	check	D			engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition: persistent and cell JSON round trip preserves every element modulo array order	
+tests/engine/worldPartition.test.ts	547	check	D			engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition: merge appends cells in numeric order and creates missing instance groups	
+tests/engine/worldPartition.test.ts	575	check	D			engine/world	dropped:Forge WebGL's RoomLayout partition / cell files; the A11 cell model and the save service (phase 2a) and their te		world partition: cells preserve source instance group and placement order	
 tests/engine/worldPartitionOutliner.test.ts	49	check	M			editor,engine/world	model:editor,model:engine/world		world partition outliner: object ids map to the save's cells; persistent kinds are absent	
 tests/engine/worldPartitionOutliner.test.ts	69	check	M			editor,engine/world	model:editor,model:engine/world		world partition outliner: every mapped id is a real Outliner row	
 tests/engine/worldPartitionOutliner.test.ts	79	check	M			editor,engine/world	model:editor,model:engine/world		world partition outliner: loaded cells use the runtime's nearest-point load range	
 tests/engine/worldPartitionOutliner.test.ts	88	check	M			editor	model:editor		world partition outliner: states and filters (loaded includes persistent)	
-tests/engine/worldPartitionStreaming.test.ts	32	check	M			engine/world	model:engine/world		world partition streaming: cells added after configure join residency and activate in range	
-tests/engine/worldPartitionStreaming.test.ts	48	check	M			engine/world	model:engine/world		world partition streaming: prepare activates exactly in-range occupied cells without a budget	
-tests/engine/worldPartitionStreaming.test.ts	61	check	M			engine/world	model:engine/world		world partition streaming: update activates at most two occupied cells nearest first without repeats	
-tests/engine/worldPartitionStreaming.test.ts	76	check	M			engine/world	model:engine/world		world partition streaming: priority favors cells ahead and empty grid cells spend no budget	
-tests/engine/worldPartitionStreaming.test.ts	86	check	M			engine/world	model:engine/world		world partition streaming: gameplay ranges ignore graphics view-distance settings	
-tests/engine/worldPartitionStreaming.test.ts	93	check	M			engine/world	model:engine/world		world partition streaming: unload uses 1.25 range hysteresis and releases all outgoing cells in one frame	
-tests/engine/worldPartitionStreaming.test.ts	105	check	M			engine/world	model:engine/world		world partition streaming: prepare after restore loads the destination immediately	
-tests/engine/worldPartitionStreaming.test.ts	115	check	M			engine/world	model:engine/world		world partition streaming: snapshot reflects retained pawns, destroyed actors and stable-id reactivation	
-tests/engine/worldPartitionStreaming.test.ts	128	check	M			engine/world	model:engine/world		world partition streaming: clear discards the level and an empty level remains inert	
-tests/engine/worldPartitionStreaming.test.ts	139	check	M			engine/world	model:engine/world		world partition streaming: prefetch covers occupied ring cells before activation with independent hysteresis	
-tests/engine/worldPartitionStreaming.test.ts	162	check	M			engine/world	model:engine/world		world partition streaming: the prefetch-only step never releases currently active cells	
-tests/engine/worldPartitionStreaming.test.ts	177	check	M			engine/world	model:engine/world		world partition streaming: readiness is filtered before the activation budget and retried next update	
-tests/engine/worldPartitionStreaming.test.ts	196	check	M			engine/world	model:engine/world		world partition streaming: waiting counts all occupied unready candidates beyond the budget	
-tests/engine/worldPartitionStreaming.test.ts	210	check	M			engine/world	model:engine/world		world partition streaming: prefetchAround returns prepare's ordered candidates regardless of readiness	
-tests/engine/worldPartitionStreaming.test.ts	244	check	M			engine/world	model:engine/world		world partition streaming: prepare remains unbudgeted when prefetched cells are ready	
-tests/engine/worldPartitionStreaming.test.ts	258	check	M			engine/world	model:engine/world		world partition streaming: prefetch factor rejects values below one and nonfinite values	
-tests/engine/worldPartitionStreaming.test.ts	266	check	M			engine/world	model:engine/world		world partition streaming: custom prefetch factor changes the ring without changing activation	
-tests/engine/worldPartitionStreaming.test.ts	280	check	M			engine/world	model:engine/world		world partition streaming: absent optional hooks keep prefetch bookkeeping empty and activation unchanged	
-tests/engine/worldPartitionStreaming.test.ts	294	check	M			engine/world	model:engine/world		world partition streaming: clear resets prefetch and waiting bookkeeping without host hooks	
-tests/engine/worldPartitionStreaming.test.ts	312	check	M			engine/world	model:engine/world		world partition streaming: occupied static-only cells prefetch, activate and spend budget like actor cells	
+tests/engine/worldPartitionStreaming.test.ts	32	check	A			engine/world			world partition streaming: cells added after configure join residency and activate in range	
+tests/engine/worldPartitionStreaming.test.ts	48	check	A			engine/world			world partition streaming: prepare activates exactly in-range occupied cells without a budget	
+tests/engine/worldPartitionStreaming.test.ts	61	check	A			engine/world			world partition streaming: update activates at most two occupied cells nearest first without repeats	
+tests/engine/worldPartitionStreaming.test.ts	76	check	A			engine/world			world partition streaming: priority favors cells ahead and empty grid cells spend no budget	
+tests/engine/worldPartitionStreaming.test.ts	86	check	A			engine/world			world partition streaming: gameplay ranges ignore graphics view-distance settings	
+tests/engine/worldPartitionStreaming.test.ts	93	check	A			engine/world			world partition streaming: unload uses 1.25 range hysteresis and releases all outgoing cells in one frame	
+tests/engine/worldPartitionStreaming.test.ts	105	check	A			engine/world			world partition streaming: prepare after restore loads the destination immediately	
+tests/engine/worldPartitionStreaming.test.ts	115	check	A			engine/world			world partition streaming: snapshot reflects retained pawns, destroyed actors and stable-id reactivation	
+tests/engine/worldPartitionStreaming.test.ts	128	check	A			engine/world			world partition streaming: clear discards the level and an empty level remains inert	
+tests/engine/worldPartitionStreaming.test.ts	139	check	A			engine/world			world partition streaming: prefetch covers occupied ring cells before activation with independent hysteresis	
+tests/engine/worldPartitionStreaming.test.ts	162	check	A			engine/world			world partition streaming: the prefetch-only step never releases currently active cells	
+tests/engine/worldPartitionStreaming.test.ts	177	check	A			engine/world			world partition streaming: readiness is filtered before the activation budget and retried next update	
+tests/engine/worldPartitionStreaming.test.ts	196	check	A			engine/world			world partition streaming: waiting counts all occupied unready candidates beyond the budget	
+tests/engine/worldPartitionStreaming.test.ts	210	check	A			engine/world			world partition streaming: prefetchAround returns prepare's ordered candidates regardless of readiness	
+tests/engine/worldPartitionStreaming.test.ts	244	check	A			engine/world			world partition streaming: prepare remains unbudgeted when prefetched cells are ready	
+tests/engine/worldPartitionStreaming.test.ts	258	check	A			engine/world			world partition streaming: prefetch factor rejects values below one and nonfinite values	
+tests/engine/worldPartitionStreaming.test.ts	266	check	A			engine/world			world partition streaming: custom prefetch factor changes the ring without changing activation	
+tests/engine/worldPartitionStreaming.test.ts	280	check	A			engine/world			world partition streaming: absent optional hooks keep prefetch bookkeeping empty and activation unchanged	
+tests/engine/worldPartitionStreaming.test.ts	294	check	A			engine/world			world partition streaming: clear resets prefetch and waiting bookkeeping without host hooks	
+tests/engine/worldPartitionStreaming.test.ts	312	check	A			engine/world			world partition streaming: occupied static-only cells prefetch, activate and spend budget like actor cells	
 tests/engine/worldRecipe.test.ts	94	check	A			engine/worldbuilder		src/engine/worldbuilder/worldRecipe.test.ts	world recipe: a reference maps image points to the world, top-left at its origin, down = +Z (WB-13)	
 tests/engine/worldRecipe.test.ts	104	check	M			engine/worldbuilder	level-data:/layouts/playground.json,level-data:assets/starter-content/Levels/Valley.level.json,level-data:layouts/Old.worldrecipe.json,level-data:layouts/notes.txt,level-data:layouts/playground.worldrecipe.json,level-data:layouts\Old.layout.json		world recipe: sidecar path follows the level naming rule	
 tests/engine/worldRecipe.test.ts	111	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldRecipe.test.ts	world recipe: an empty recipe is canonical and issue-free	
@@ -1628,25 +1628,25 @@ tests/engine/worldStage.test.ts	145	check	D	yes		engine/worldbuilder	dropped:Wor
 tests/engine/worldStage.test.ts	169	check	D	yes		engine/worldbuilder	dropped:World Builder option B: the Stage Runner / ownership surface (dry run, output hashes, hand-edit keeping, generat		world stage: applying before after after restores the level exactly, group order included	
 tests/engine/worldStage.test.ts	195	check	D	yes		engine/worldbuilder	dropped:World Builder option B: the Stage Runner / ownership surface (dry run, output hashes, hand-edit keeping, generat		world stage: malformed stage output is an error, not a partial apply	
 tests/engine/worldStage.test.ts	218	check	D	yes		engine/worldbuilder	dropped:World Builder option B: the Stage Runner / ownership surface (dry run, output hashes, hand-edit keeping, generat		world stage: default stages are unique tokens with positive versions	
-tests/engine/worldStreaming.test.ts	62	checkAsync	M			engine/world	model:engine/world		world streaming: lifecycle, stats and deactivate before unload	
-tests/engine/worldStreaming.test.ts	84	checkAsync	M			engine/world	model:engine/world		world streaming: priority and default six concurrent fetches	
-tests/engine/worldStreaming.test.ts	104	checkAsync	M			engine/world	model:engine/world		world streaming: configurable fetch cap and union of sources	
-tests/engine/worldStreaming.test.ts	115	checkAsync	M			engine/world	model:engine/world		world streaming: pending fetch uses hysteresis before aborting	
-tests/engine/worldStreaming.test.ts	128	checkAsync	M			engine/world	model:engine/world		world streaming: aborted late result cannot replace a new request for the same key	
-tests/engine/worldStreaming.test.ts	143	checkAsync	M			engine/world	model:engine/world		world streaming: activation budget defers work and supports zero and override	
-tests/engine/worldStreaming.test.ts	163	checkAsync	M			engine/world	model:engine/world		world streaming: atomic activation overrun starts no further work	
-tests/engine/worldStreaming.test.ts	177	checkAsync	M			engine/world	model:engine/world		world streaming: prefetch stays inactive and cached reentry avoids fetch	
-tests/engine/worldStreaming.test.ts	193	checkAsync	M			engine/world	model:engine/world		world streaming: LRU byte eviction refreshes needed cells and pins active data	
-tests/engine/worldStreaming.test.ts	218	checkAsync	M			engine/assets,engine/world	model:engine/world		world streaming: missing and corrupt fallback emits one classified warning per key	
-tests/engine/worldStreaming.test.ts	237	checkAsync	M			engine/world	model:engine/world		world streaming: failed cells retry only after leaving retention and warning stays deduplicated	
-tests/engine/worldStreaming.test.ts	258	checkAsync	M			engine/world	model:engine/world		world streaming: evicted fallback and throwing fallback cannot cause retry storms	
-tests/engine/worldStreaming.test.ts	276	checkAsync	M			engine/world	model:engine/world		world streaming: area readiness clips to world and wait resolves only on update	
-tests/engine/worldStreaming.test.ts	302	checkAsync	M			engine/world	model:engine/world		world streaming: dispose aborts, deactivates, releases data and rejects waiters once	
-tests/engine/worldStreaming.test.ts	325	checkAsync	M			engine/world	model:engine/world		world streaming: aborted rejection is not a content failure	
-tests/engine/worldStreaming.test.ts	336	check	M			engine/world	model:engine/world		world streaming: invalid configuration and area inputs reject	
+tests/engine/worldStreaming.test.ts	62	checkAsync	A			engine/world			world streaming: lifecycle, stats and deactivate before unload	5b
+tests/engine/worldStreaming.test.ts	84	checkAsync	A			engine/world			world streaming: priority and default six concurrent fetches	5b
+tests/engine/worldStreaming.test.ts	104	checkAsync	A			engine/world			world streaming: configurable fetch cap and union of sources	5b
+tests/engine/worldStreaming.test.ts	115	checkAsync	A			engine/world			world streaming: pending fetch uses hysteresis before aborting	5b
+tests/engine/worldStreaming.test.ts	128	checkAsync	A			engine/world			world streaming: aborted late result cannot replace a new request for the same key	5b
+tests/engine/worldStreaming.test.ts	143	checkAsync	A			engine/world			world streaming: activation budget defers work and supports zero and override	5b
+tests/engine/worldStreaming.test.ts	163	checkAsync	A			engine/world			world streaming: atomic activation overrun starts no further work	5b
+tests/engine/worldStreaming.test.ts	177	checkAsync	A			engine/world			world streaming: prefetch stays inactive and cached reentry avoids fetch	5b
+tests/engine/worldStreaming.test.ts	193	checkAsync	A			engine/world			world streaming: LRU byte eviction refreshes needed cells and pins active data	5b
+tests/engine/worldStreaming.test.ts	218	checkAsync	A			engine/assets,engine/world			world streaming: missing and corrupt fallback emits one classified warning per key	5b
+tests/engine/worldStreaming.test.ts	237	checkAsync	A			engine/world			world streaming: failed cells retry only after leaving retention and warning stays deduplicated	5b
+tests/engine/worldStreaming.test.ts	258	checkAsync	A			engine/world			world streaming: evicted fallback and throwing fallback cannot cause retry storms	5b
+tests/engine/worldStreaming.test.ts	276	checkAsync	A			engine/world			world streaming: area readiness clips to world and wait resolves only on update	5b
+tests/engine/worldStreaming.test.ts	302	checkAsync	A			engine/world			world streaming: dispose aborts, deactivates, releases data and rejects waiters once	5b
+tests/engine/worldStreaming.test.ts	325	checkAsync	A			engine/world			world streaming: aborted rejection is not a content failure	5b
+tests/engine/worldStreaming.test.ts	336	check	A			engine/world			world streaming: invalid configuration and area inputs reject	5b
 tests/engine/worldStreaming.test.ts	349	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/worldStreaming.test.ts	terrain streaming: codec round-trip in metres, min/max, weight blocks and transferable ownership	
 tests/engine/worldStreaming.test.ts	381	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/worldStreaming.test.ts	terrain streaming: rejects mismatched headers, summaries and corrupt samples	
-tests/engine/worldStreaming.test.ts	401	checkAsync	M			engine/terrain,engine/world	model:engine/world		terrain streaming: worker init, decode transfer and structured request errors	
+tests/engine/worldStreaming.test.ts	401	checkAsync	A	yes		engine/terrain,engine/world	boundary-model:engine/world		terrain streaming: worker init, decode transfer and structured request errors	5b
 tests/engine/worldStreets.test.ts	108	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldStreets.test.ts	world streets: organic streets start on a street's edge, stay in the core and keep the slope limit	
 tests/engine/worldStreets.test.ts	126	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldStreets.test.ts	world streets: on a slope contour streets stay level; a flat core grows them as organic	
 tests/engine/worldStreets.test.ts	140	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldStreets.test.ts	world streets: streets keep off blocked ground, keep their distance and are deterministic	
@@ -2144,22 +2144,22 @@ tools/engine-tests.ts	15916	check	M			engine/gameplay,engine/scene	model:engine/
 tools/engine-tests.ts	15952	check	M			src	model:src		level-travel state machine: an idle request begins immediately	
 tools/engine-tests.ts	15963	check	M			src	model:src		level-travel state machine: a mid-travel request queues (latest wins), not begins	
 tools/engine-tests.ts	15985	check	M			src	model:src		level-travel state machine: settling with no pending returns to idle	
-tools/engine-tests.ts	15996	check	M			engine/persistence	level-data:Levels/A.level.json,level-data:Levels/B.level.json,level-data:Levels/C.level.json,model:engine/persistence		save-game store: writes, lists, reads, overwrites, and deletes slots	
-tools/engine-tests.ts	16047	check	M			engine/persistence	model:engine/persistence		save-game store: migrates old envelopes one schema step at a time	
-tools/engine-tests.ts	16085	check	M			engine/persistence	model:engine/persistence		save-game store: corrupt JSON reads as null and logs without crashing	
-tools/engine-tests.ts	16103	check	M			engine/persistence	level-data:Levels/A.level.json,model:engine/persistence		save-game store: storage write failures return an error result	
-tools/engine-tests.ts	16127	check	M			engine/persistence	level-data:Levels/Playground.level.json,model:engine/persistence		game save serializer: collects level, player facing, and persistent state	
+tools/engine-tests.ts	15996	check	A			engine/persistence	opaque-level-path		save-game store: writes, lists, reads, overwrites, and deletes slots	
+tools/engine-tests.ts	16047	check	A			engine/persistence			save-game store: migrates old envelopes one schema step at a time	
+tools/engine-tests.ts	16085	check	A			engine/persistence			save-game store: corrupt JSON reads as null and logs without crashing	
+tools/engine-tests.ts	16103	check	A			engine/persistence	opaque-level-path		save-game store: storage write failures return an error result	
+tools/engine-tests.ts	16127	check	D			engine/persistence	dropped:Forge WebGL's save payload (actor index keys, untyped flags, level path); forge.saveGame/1 keys by actor GUID + 		game save serializer: collects level, player facing, and persistent state	
 tools/engine-tests.ts	16166	check	M			engine/persistence	level-data:Levels/A.level.json,level-data:Levels/VehicleTest.level.json,model:engine/persistence		game save serializer: round-trips vehicles and the ride, dropping only bad vehicle entries	
-tools/engine-tests.ts	16214	check	M			engine/persistence	level-data:Levels/A.level.json,model:engine/persistence		game save serializer: rejects bad player transforms and drops non-json flags	
-tools/engine-tests.ts	16245	check	M			engine/persistence,src	level-data:Levels/Other.level.json,level-data:Levels/SaveTarget.level.json,model:engine/persistence,model:src		game save restore waits for the matching loaded level before applying	
-tools/engine-tests.ts	16267	check	M			engine/perf,engine/persistence	model:engine/persistence		user settings store: round-trips locale and normalized audio bus volumes	
-tools/engine-tests.ts	16303	check	M			engine/persistence	model:engine/persistence		user settings store: corrupt data falls back without crashing and write errors return false	
-tools/engine-tests.ts	16330	check	M			engine/audio,engine/perf,engine/persistence,engine/ui	model:engine/persistence		user settings normalization drops unknown buses and applies stored audio + locale	
+tools/engine-tests.ts	16214	check	D			engine/persistence	dropped:Forge WebGL's save payload (actor index keys, untyped flags, level path); forge.saveGame/1 keys by actor GUID + 		game save serializer: rejects bad player transforms and drops non-json flags	
+tools/engine-tests.ts	16245	check	D			engine/persistence,src	dropped:rewritten against forge.saveGame/1 (level by GUID); the new test lives next to src/core/save (user decision 2026		game save restore waits for the matching loaded level before applying	
+tools/engine-tests.ts	16267	check	A			engine/perf,engine/persistence			user settings store: round-trips locale and normalized audio bus volumes	3
+tools/engine-tests.ts	16303	check	A			engine/persistence			user settings store: corrupt data falls back without crashing and write errors return false	3
+tools/engine-tests.ts	16330	check	A			engine/audio,engine/perf,engine/persistence,engine/ui			user settings normalization drops unknown buses and applies stored audio + locale	3
 tools/engine-tests.ts	16356	check	A			engine/perf			graphics preferences: defaults are adaptive-on / 60fps / medium	3
 tools/engine-tests.ts	16371	check	A			engine/perf			graphics preferences: normalization validates each field and gates customSettings on level	3
-tools/engine-tests.ts	16441	check	M			engine/perf,engine/persistence	model:engine/persistence		user settings store: round-trips graphics preferences alongside audio + locale	
-tools/engine-tests.ts	16468	check	M			engine/persistence	level-data:Playground.level.json,level-data:assets/starter-content/Levels/Playground.level.json,model:engine/persistence		save-game UI commands and ViewModel fields stay slot-scoped	
-tools/engine-tests.ts	16491	check	M			engine/persistence,engine/ui	model:engine/persistence		starter save/load UI asset binds slots and emits reserved save messages	
+tools/engine-tests.ts	16441	check	A			engine/perf,engine/persistence			user settings store: round-trips graphics preferences alongside audio + locale	3
+tools/engine-tests.ts	16468	check	A			engine/persistence	opaque-level-path		save-game UI commands and ViewModel fields stay slot-scoped	
+tools/engine-tests.ts	16491	check	A			engine/persistence,engine/ui			starter save/load UI asset binds slots and emits reserved save messages	6
 tools/engine-tests.ts	16524	check	A			engine/loading		src/engine/loading/loadProgress.test.ts	load progress: counts loaded/failed/pending and derives fraction + done	
 tools/engine-tests.ts	16571	check	A			engine/loading		src/engine/loading/loadProgress.test.ts	load progress: transitions are idempotent and retry moves failed -> loaded	
 tools/engine-tests.ts	16604	check	A			engine/loading		src/engine/loading/loadProgress.test.ts	load progress: formatLoadDetail renders settled/total with a failure suffix	
