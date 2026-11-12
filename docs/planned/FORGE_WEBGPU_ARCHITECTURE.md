@@ -1,6 +1,11 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.4 · 2026-11-12 (v1.3'ten fark: 2b içe aktarıcı kararları,
+**Sürüm:** v1.5 · 2026-11-12 (v1.4'ten fark: 2b kayıt oyunu ve World
+Partition kararları, kullanıcı onayı — §4.4 tek dünya ızgarası ve 2b / 5b
+ayrımı, §4.6 `forge.saveGame/1`, §4.8 A7'nin uygulaması: `persist` alanları,
+bileşenin `state` bölümü, `defineSaveState`, yüklenmemiş hücrelerin durum
+defteri.
+v1.4: 2b içe aktarıcı kararları,
 kullanıcı onayı — §4.4 yerleşim → aktör çevirisi World Builder ve içe
 aktarıcıda ortak, §4.6 üç yalnız-şema ikili asset türü ve içe aktarılan
 asset'lerin köken eşlemesi, `LicenseRef-forge-unverified`.
@@ -485,6 +490,19 @@ features/height-fog/
     dosyasında olmayan aktöre `actorRef`. Uyarı — yanlış hücredeki aktör
     (yüklemede yerinde kalır, sonraki kayıt taşır). Runtime'da "henüz yüklü
     değil" geçerli durumdur; asılı aktör referansı yalnız bu geçişte aranır.
+- **World Partition, 2b / 5b ayrımı (kullanıcı kararı 2026-11-12):** tek
+  dünya ızgarası `src/core/grid/worldGrid.ts`'tir (Forge'un, gövdeler aynı;
+  orijinli): terrain tile ızgarası, akış politikası ve level hücreleri onu
+  kullanır, level ızgarası orijini dünya orijini olan ızgaradır
+  (`core/level/cells`'in `cellAt` / `cellBounds` / `exceedsCell`'i; anahtar
+  yazımı core'da). 2b'de saf olanlar var: akış politikası, hücre yerleşim
+  planlayıcısı (`WorldPartitionStreaming<Id>`: etkin / önceden getirilen
+  hücreler, kare bütçesi; yeni modelde aktör GUID'leriyle), hareket etmiş
+  aktörün durum belleği (`streamedActorState`). Hücre dosyası getirme, aktör
+  ekleme / çıkarma, eşzamansız yükleyici, asset residency, `loadRange` level
+  ayarı, HLOD, görüş mesafesi ve culling 5b'de; kaskat ve takipli gölge
+  Faz 3'te, foliage halkası 5c'de. Yüklenmemiş bir hücrenin aktörlerinin
+  oyun durumu kayıt oyununun durum defterinde durur (§4.8).
 - **Ölçek ölçümü (2a, 2026-11-10):** 50.000 aktörlük level R1'de eşik içinde
   (bütün level yükleme ~0,9 s, hücre yükleme p95 ~1,5 ms, tek aktör kaydı
   ~40 ms, tam kayıt ~2,2 s, heap ~58 MB; [Faz 2a arşivi](../archive/PHASE_2A.md)). Aşağıdaki çarelere
@@ -569,6 +587,19 @@ düşen alan uyarı değil, **hatadır**.
   Bileşenler GUID taşımaz: aktör içinde yerel kimlikle tutulur (A1) ve
   `aktör GUID + bileşen kimliği` ile adreslenir. Kayıt oyunu (save-game)
   anahtarları bu adreslerdir; indeks çevirisi yok (D5).
+- **Kayıt belgesi `forge.saveGame/1` (2b, kullanıcı kararı 2026-11-12):**
+  `level` (GUID), `actors` (aktör GUID → isteğe bağlı `transform` +
+  `components`: bileşen kimliği → `{ type: "<ad>@<sürüm>", alan: değer }`),
+  `removed` (oyunda yok edilen level aktörleri), `spawned` (oyunda doğan
+  aktörlerin tam belgesi, GUID'leriyle; durumları da `actors`'ta), `states`
+  (`defineSaveState` adı → damgalı değerler). Bileşen girdisi override
+  kurallarını izler: sürüm damgası, kısmi veriyle geçiş zinciri, yalnız
+  farklar; yalnız `persist` alanları ve `state` anahtarları kalır. Normalize
+  level'a bakmaz; uygulanırken aktörü ya da bileşeni artık olmayan girdi
+  raporlanıp düşer. Kayıt yalnız kendi level'ına uygulanır, başka level
+  yüklüyken bekler. Depolama (slot, zarf, şema geçişi) Forge'un
+  `SaveGameStore`'u, `src/engine/persistence`; tarayıcı bağdaştırıcısı
+  `src/runtime/persistence`. Kod `src/core/save/`.
 - **Asset kimliği (A10 kararı, 2026-11-10):** kimlik asset'in yanında durur,
   merkezî manifest doğru kaynak değildir.
   - JSON asset'ler (level, materyal, aktör sınıfı) `id`'yi kendi içinde taşır.
@@ -812,7 +843,24 @@ düşen alan uyarı değil, **hatadır**.
      GameInstance subsystem karşılığı). Aynı DSL ve normalize fonksiyonu (A2).
 
   SDK'da Forge'daki `ScriptState.persist` → `flags` gibi tipsiz bir anahtar–değer
-  torbası yoktur. Kanıt: Ridgebound m0 kodu bugün durumu
+  torbası yoktur.
+  *Uygulama (2b, kullanıcı kararları 2026-11-12):* alanın `persist: true`
+  bayrağı yalnız bileşenin üst düzey alanlarında (level'da yazılan, oyunda
+  değişen değer: kapının `open`'ı; kayıt level değerinden farklıysa tutar);
+  yalnız runtime'da var olan değerler (vites, göçük) bileşenin **`state`
+  bölümünde**: level'a hiç yazılmaz, Details'te yok, varsayılandan farklıysa
+  her zaman kayda girer, bileşenle aynı sürüm ve geçiş zincirini kullanır.
+  `persistTransform` bileşen seçeneği yerinden oynamış aktörün transform'unu
+  kayda alır. `defineSaveState(ad, sürüm, alanlar, { migrations })` özelliğin
+  `saveStates`'iyle kayda girer. Yakalama / uygulama saftır; **durum defteri**
+  (`SaveLedger`) hücresi boşalan aktörlerin girdisini, yok edilenleri,
+  doğanları ve oyun geneli durumu tutar, hücre yüklenirken girdiyi aktör
+  World'e girmeden uygular; kayıt = defter + yüklü aktörlerin o anki durumu
+  (kayıt ile hücre akışı tek mekanizma). Taşınmış davranış alt sisteminin
+  `ScriptState.persist`'i Faz 6'ya kadar Forge biçiminde kalır; orada gizli /
+  çarpışma kapalı / yok edildi tipli alanlara, `persist(key)` davranış
+  tanımının `state` şemasına çevrilir. Runtime kayıt özelliği (hızlı kayıt,
+  slot arayüzü, oyuncu ve araç durumu) Faz 6. Kanıt: Ridgebound m0 kodu bugün durumu
   `as unknown as SceneJsonValue` ile `flags`'e yazıyor, elle `schema: 1` ve elle
   doğrulama tutuyor, konumsal kimliğe karşı kendi korumasını yazıyor ve oyun geneli
   bakiyeyi görev panosu aktörüne bağlıyor.

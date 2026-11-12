@@ -392,10 +392,22 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       sütunu); ertelenenler paydada kalır ve her fazın kapısı kendi ertelenen
       A'larını yeşil ister: Faz 3 18, 5a 4, 5b 2, 5d 4, Faz 6 4, Faz 7 20,
       Faz 8 2. **A 836 / 890.**
-- [ ] Kayıt oyunu (`engine/persistence`) ve World Partition (`engine/world`)
+- [x] Kayıt oyunu (`engine/persistence`) ve World Partition (`engine/world`)
       yeni modele göre yeniden kurulur; GUID anahtarlı. Kayıt oyunu `persist`
       işaretli bileşen alanlarını ve `defineSaveState` bölümlerini saklar;
       tipsiz `flags` torbası yok (mimari A7).
+      *Tasarım (kullanıcı onayı 2026-11-12; mimari §4.4, §4.6, §4.8 v1.5):*
+      sınıflama `engine/world` ve `engine/persistence`'ı modül düzeyinde eski
+      model sayar (129 saf kontrol M → A, 40 D, payda 1.022); bileşen
+      alanının `persist` bayrağı + bileşenin `state` bölümü (level'a yazılmaz);
+      davranışın `flags`'i Faz 6'da tipliye; tek dünya ızgarası `src/core`'da.
+      *Yapıldı (2026-11-12):* sınıflama (`4bdc041`), tek ızgara + akış
+      politikası (`e005bc2`), slot deposu + slot arayüzü (`8b8449f`), hücre
+      yerleşim planlayıcısı + durum belleği (`38aca39`), `forge.saveGame/1` +
+      `persist` / `state` / `defineSaveState` + yakalama / uygulama + durum
+      defteri, SDK 0.1.1 (`3f9b423`). Runtime akışı 5b'de, runtime kayıt
+      özelliği Faz 6'da. Bu kutunun 49 A'sı taşındı; **A 885 / 1.022**, fazı
+      yazılmamış taşınmayan A yok.
 - [x] `tools/world` taşınır; World Builder çıktısı yeni level formatını yazar;
       `npm run world:random` çalışır (test dünyaları ilk günden üretilebilir).
       Çıktı kuralları: üretilen level projenin içerik ağacına yazılır, asset
@@ -576,7 +588,7 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
 - [ ] Kapı: referans sahnelerin statik içeriği ve çevresi, Faz 0 görüntüleriyle
       yan yana; kullanıcının ilk görsel kabulü. Ertelenen Forge A kontrolleri yeşil (`npm run port:forge-tests`, TSV `deferred`
       `3`: kalite profilleri / uyarlamalı kalite / GPU timer 14, asset perf 3,
-      starter materyal 1).
+      starter materyal 1, güneş kaskatları 9, takipli gölge 9, kullanıcı ayarları 4).
 
 ### Faz 4 — Editör çekirdeği
 
@@ -626,14 +638,16 @@ Dört alt faz; her birinin kendi kapısı var, görsel kabul sonda toplu istenir
 - [ ] **5b Akış + HLOD:** World Partition hücre akışı (A11 modeli; editör de
       akışla çalışır), HLOD, view distance, küçük nesne culling. *Kapı:* hücre
       yükle / boşalt döngüsünde sızıntı yok (bellek ve GPU kaynağı ölçümü);
-      akış sırasında kare süresi sıçraması sınırın içinde; ertelenen 2 A yeşil
-      (`terrainRuntimeStreaming`).
+      akış sırasında kare süresi sıçraması sınırın içinde; ertelenen 54 A yeşil
+      (`terrainRuntimeStreaming` 2, eşzamansız hücre yükleyici 17, asset residency
+      18, görüş mesafesi 9 + sis 1, dünya haritası 5, ayrıntı culling 2).
 - [ ] **5c Foliage:** instancing + compute culling + indirect draw; impostor /
       billboard, rüzgâr, fade; foliage hücreleri. GPU güdümlü yol bütün foliage
       türlerinde ve gölge kaskatlarında zorunlu (Faz 1 GO koşulu; S4: kip (b)'de
       Derekavak P2'nin 327 draw call'unun 260'ı foliage). *Kapı:* referans
       level'ın gerçek foliage sayılarıyla S4 ölçümünün üretim karşılığı; G6
-      Derekavak P2'de 60 Hz'de render gönderimi ≤ 3 ms, ana iş parçacığı ≤ 6 ms.
+      Derekavak P2'de 60 Hz'de render gönderimi ≤ 3 ms, ana iş parçacığı ≤ 6 ms;
+      ertelenen 8 A yeşil (foliage halkası).
 - [ ] **5d Editör araçları + World Builder:** sculpt, paint, foliage paint,
       landscape spline; World Builder penceresi + `/__world-random` endpoint'i
       + önizleme worker'ı. *Kapı:* araç başına editör smoke'u (düzenle → kaydet
@@ -682,7 +696,7 @@ Dört alt faz; her birinin kendi kapısı var, görsel kabul sonda toplu istenir
       kapsamı (K11) aynı ölçümle kesinleşir.
 - [ ] Kapı: runtime smoke'ları (boot, playflow, checkpoint); araç terrain
       üstünde sürülüyor (5a terrain'i gerekir). Ertelenen Forge A kontrolleri yeşil (`npm run port:forge-tests`, TSV `deferred`
-      `6`: Player Start / varsayılan piyon 4).
+      `6`: Player Start / varsayılan piyon 4, starter kayıt arayüzü 1).
 - [ ] **Ridgebound pilotu (K8, kapıdan sonra):** Ridgebound'un bir **kopyası**
       `forge.projects.local.json` ile kaydedilir ve `check:projects`'e girer. M0
       oyun kodu `@forge/sdk`'ya, `TransportState` `defineSaveState`'e taşınır;
@@ -878,3 +892,4 @@ silinebilir.
 | 2026-11-12 | v1.0 | 2b içe aktarıcı ve kabulü kutuları kapandı: `import:forge --compare` (`f1851bc`), yedi referans level'da sayımlar eşit, hücre farkları açıklamalı (bölümlenmemiş kaynak; pilotun Player Start'ı kendi hücresinde, kalıcı katman sorusu Faz 6). Çeviriciler kendi fazlarında eklenip içe aktarıcı yeniden çalıştırılır. A 819 / 905 |
 | 2026-11-12 | v1.0 | CI `c5d2605`'e kadar yeşil (kullanıcı teyidi) |
 | 2026-11-12 | v1.0 | 2b "Taşıma" kutusu kapandı (kullanıcı kararları): kalan 86 A gövde düzeyinde sınıflandı; 17 dosya düzeyinde ertelenmiş saf kontrol taşındı (`546f696`), eski manifest / şablon / klasör düzeni 12 kontrol D, 1 M, sarmalayıcı çağrısı 2 sayılmaz (`ab662b5`); ertelenen A'lar paydada kalır, fazı TSV `deferred` sütununda, her faz kapısı kendininkini ister (3: 18, 5a: 4, 5b: 2, 5d: 4, 6: 4, 7: 20, 8: 2). A 836 / 890 |
+| 2026-11-12 | v1.0 | 2b kayıt oyunu + World Partition tasarımı (kullanıcı kararları; mimari v1.5): sınıflama `engine/world` / `engine/persistence`'ı modül düzeyinde eski model sayar (129 M → A, 40 D; `4bdc041`), tek dünya ızgarası `src/core/grid` (`e005bc2`), slot deposu (`8b8449f`), hücre yerleşim planlayıcısı + durum belleği (`38aca39`), `forge.saveGame/1` + `persist` / `state` / `defineSaveState` + durum defteri, SDK 0.1.1 (`3f9b423`). Kutu kapandı; runtime akışı 5b, runtime kayıt özelliği Faz 6. Ertelenen A: Faz 3 40, 5a 4, 5b 54, 5c 8, 5d 4, Faz 6 5, Faz 7 20, Faz 8 2. A 885 / 1.022 |

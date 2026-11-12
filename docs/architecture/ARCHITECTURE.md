@@ -64,6 +64,13 @@ toplar. Örnek ve iskeletin kabul testi: `src/features/height-fog` (rapor §4.3)
   `forge.staticMesh`, `forge.shape`, `forge.worldRole` (rol + üreten aşama),
   `forge.terrain`; yerleşim → aktör çevirisi ikisinde ortak
   (`src/engine/forgeImport/`, rapor §4.4).
+- Tek dünya ızgarası `src/core/grid/worldGrid.ts`: level hücreleri (sıfır
+  orijin), terrain tile'ları ve akış politikası onu kullanır; hücre yerleşim
+  planlayıcısı `src/engine/world`, runtime akışı 5b'de (rapor §4.4).
+- Kayıt oyunu `forge.saveGame/1` (`src/core/save/`): her şey GUID'le, bileşen
+  alanının `persist` bayrağı, bileşenin `state` bölümü, `defineSaveState`;
+  yüklenmemiş hücrelerin durumu `SaveLedger`'da. Slot deposu
+  `src/engine/persistence` (rapor §4.6, §4.8, A7).
 
 ## Şema kaydı
 
