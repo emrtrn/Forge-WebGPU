@@ -1,0 +1,98 @@
+// Ported from Forge WebGL tests/engine/deformableAsset.test.ts @ forge-webgl-final (04b5fb23): checks unchanged, run by
+// Vitest; 3 check(s) not yet portable left out. docs/PORT_LOG.md §2.
+import assert from "node:assert/strict";
+import { deformableSidecarPath, DEFORMABLE_DEFAULTS, DEFORMABLE_DETACH_LIMITS, DEFORMABLE_LIMITS, DEFORMABLE_ZONE_COORDINATE, createAssetDeformable, fitPartZone, normalizeAssetDeformable, type AssetDeformableDef } from "./deformableTypes.ts";
+import { test } from "vitest";
+
+
+const maximal: AssetDeformableDef = {
+  version: 1, enabled: false, mode: "impact", dentImpulse: 500000, fullImpulse: 2000000,
+  radius: 10, maxDepth: 2, plasticity: 1, maxDents: 64, collisionPolicy: "visual_only",
+  wear: { depth: 2, color: [1, 0.5, 0], roughness: 1, materials: ["M_Paint", "M_Trim"] },
+  parts: [{
+    id: "door_left", nodes: ["Door_L", "Door_L_Trim"], zone: { min: [0.7, 0.4, -0.6], max: [1.3, 2.6, 0.45] },
+    detach: { impulse: 1000000, massKg: 100000, kick: 50 },
+    alsoDents: ["door_frame"],
+  }],
+};
+
+/** Registers deformable sidecar normalization and save allowlist checks. */
+export function registerDeformableAssetTests(check: (label: string, run: () => void) => void): void {
+
+  check("deformable asset: an empty object gets the defaults, a new sidecar is valid", () => {
+    assert.deepEqual(normalizeAssetDeformable({}), DEFORMABLE_DEFAULTS);
+    assert.deepEqual(normalizeAssetDeformable(createAssetDeformable()), createAssetDeformable());
+  });
+
+  check("deformable asset: unsupported sidecars are refused", () => {
+    for (const value of [null, 3, [], { version: 2 }, { mode: "cloth" }, { collisionPolicy: "rebuild" }]) {
+      assert.equal(normalizeAssetDeformable(value), null);
+    }
+  });
+
+  check("deformable asset: fields stay in bounds and the ramp never collapses", () => {
+    const low = normalizeAssetDeformable({ radius: -1, maxDepth: 0, plasticity: -2, maxDents: 0, dentImpulse: -5 })!;
+    assert.equal(low.radius, DEFORMABLE_LIMITS.radius[0]);
+    assert.equal(low.maxDepth, DEFORMABLE_LIMITS.maxDepth[0]);
+    assert.equal(low.plasticity, 0);
+    assert.equal(low.maxDents, 1);
+    assert.equal(low.dentImpulse, 0);
+    assert.equal(normalizeAssetDeformable({ maxDents: 7.6 })!.maxDents, 8);
+    assert.equal(normalizeAssetDeformable({ radius: "wide" })!.radius, DEFORMABLE_DEFAULTS.radius);
+    const inverted = normalizeAssetDeformable({ dentImpulse: 900, fullImpulse: 100 })!;
+    assert.ok(inverted.fullImpulse > inverted.dentImpulse);
+  });
+
+  check("deformable asset: alsoDents keeps text ids once, never the part itself", () => {
+    const part = { id: "lamp", nodes: ["Lamp"], zone: { min: [0, 0, 0], max: [1, 1, 1] } };
+    const read = (alsoDents: unknown) => normalizeAssetDeformable({ parts: [{ ...part, alsoDents }] })!.parts![0]!.alsoDents;
+    assert.deepEqual(read(["panel", "panel", "", 3, "lamp"]), ["panel"]);
+    assert.equal(read([]), undefined);
+    assert.equal(read("panel"), undefined);
+  });
+
+  check("deformable asset: a part's detach needs an impulse and stays in bounds", () => {
+    const part = { id: "door", nodes: ["Door"], zone: { min: [0, 0, 0], max: [1, 1, 1] } };
+    const read = (detach: unknown) => normalizeAssetDeformable({ parts: [{ ...part, detach }] })!.parts![0]!.detach;
+    assert.deepEqual(read({ impulse: 500 }), { impulse: 500, massKg: 20, kick: 1 });
+    assert.deepEqual(read({ impulse: -1, massKg: 0, kick: 99 }), {
+      impulse: 0, massKg: DEFORMABLE_DETACH_LIMITS.massKg[0], kick: DEFORMABLE_DETACH_LIMITS.kick[1],
+    });
+    for (const broken of [{ massKg: 5 }, { impulse: "hard" }, { impulse: Number.NaN }, null, 3, []]) {
+      assert.equal(read(broken), undefined, "the part stays, it just never tears off");
+    }
+  });
+
+  check("deformable asset: a zone corner stays in bounds", () => {
+    const part = { id: "door", nodes: ["Door"], zone: { min: [-5000, 0, 0], max: [1, 5000, 1] } };
+    const zone = normalizeAssetDeformable({ parts: [part] })!.parts![0]!.zone;
+    assert.equal(zone.min[0], DEFORMABLE_ZONE_COORDINATE[0]);
+    assert.equal(zone.max[1], DEFORMABLE_ZONE_COORDINATE[1]);
+  });
+
+  check("deformable asset: a fitted zone reaches the model's outside along the part's thin axis", () => {
+    const close = (actual: readonly number[], expected: readonly number[]): void => {
+      actual.forEach((value, axis) => assert.ok(Math.abs(value - expected[axis]!) < 1e-6, `${actual} vs ${expected}`));
+    };
+    // The Gaz-52: a door on the left (+X) of a 2.44 m wide truck.
+    const model = { min: [-1.22, 0, -4.64] as [number, number, number], max: [1.22, 2.6, 2.26] as [number, number, number] };
+    const door = fitPartZone({ min: [0.77, 0.93, -0.57], max: [0.98, 2.46, 0.44] }, model);
+    close(door.min, [0.72, 0.88, -0.62]);
+    close(door.max, [1.27, 2.51, 0.49]);
+    const otherDoor = fitPartZone({ min: [-0.98, 0.93, -0.57], max: [-0.77, 2.46, 0.44] }, model);
+    close(otherDoor.min, [-1.27, 0.88, -0.62]);
+    close(otherDoor.max, [-0.72, 2.51, 0.49]);
+    // A thin hood looks up, past the part, to the top of the model.
+    close(fitPartZone({ min: [-0.8, 1.5, 0.5], max: [0.8, 1.6, 2] }, model).max, [0.85, 2.65, 2.05]);
+    // A part already at the bounds keeps its margin.
+    close(fitPartZone({ min: [1.1, 0, 0], max: [1.22, 1, 1] }, model).max, [1.27, 1.05, 1.05]);
+  });
+
+  check("deformable asset: the sidecar sits beside its model", () => {
+    assert.equal(deformableSidecarPath("assets/props/Panel.glb"), "assets/props/Panel.deformable.json");
+    assert.equal(deformableSidecarPath("\\assets\\props\\Panel.gltf"), "assets/props/Panel.deformable.json");
+  });
+
+}
+
+registerDeformableAssetTests(test as unknown as Parameters<typeof registerDeformableAssetTests>[0]);

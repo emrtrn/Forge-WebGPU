@@ -373,6 +373,10 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       A 612 / 907. Nötr bölge profili fixture'ını okuyan 58 kontrol `node:fs`
       `src` testlerine açılınca (kullanıcı kararı, `src-tests-node-assert-only`
       + kontrol fixture'ı) yeşil. İlerleme A 670 / 907.
+      *Kırılma + göçük algoritmaları taşındı (2026-11-12, kullanıcı onayı):*
+      `src/engine/physics/{fracture,deformable}` (three'siz, olduğu gibi);
+      asset türü, bileşenler, mesh senkronu, `dentWear` TSL ve editör Faz 8.
+      88 kontrol yeşil. İlerleme A 785 / 905.
 - [ ] Kayıt oyunu (`engine/persistence`) ve World Partition (`engine/world`)
       yeni modele göre yeniden kurulur; GUID anahtarlı. Kayıt oyunu `persist`
       işaretli bileşen alanlarını ve `defineSaveState` bölümlerini saklar;
@@ -760,3 +764,4 @@ silinebilir.
 | 2026-11-12 | v1.0 | 2b `tools/world` tasarımı (kullanıcı onayı; mimari v1.3): dönüştürücü + deterministik GUID, köken `forge.worldRole.stage`'e, girdiler ve terrain GUID'li veri belgesi (tile'lar metasız parça), örtü ön ayarları `worldbuilder` paketinde. Adım 1: veri belgeleri + `forge.staticMesh` / `forge.shape` / `forge.worldRole` / `forge.terrain` şemaları (`d1a50f5`). A 670 / 907 |
 | 2026-11-12 | v1.0 | 2b `tools/world` kutusu kapandı: `npm run world:random` / `world:brief` yeni level formatını kayıt servisinden yazar (`65285df`; kurulum `src/engine/worldbuilder/build`, deterministik GUID, `--force` kuralı, `worldbuilder` paketi); bekleyen World Builder kontrolleri + test dünyaları + terrain onarımı 27 kontrol (`8f29972`), D'ye düşen yol spline kontrolü yeniden yazıldı; World Builder kapsam kutusu da kapandı (köken nesnelerde). Açık 4 A: eski level belgesi 2, off-road fixture 2. A 697 / 907 |
 | 2026-11-12 | v1.0 | 2b (kullanıcı kararı, CI `90b88fd` … `a16cd94` yeşil): Forge'un eski level belgesini sınayan 2 kontrol D (payda 905; `testWorld`'ün deterministiklik yarısı yeni testte), off-road test level'ı ve 2 kontrolü Faz 8'e. A 697 / 905 |
+| 2026-11-12 | v1.0 | 2b physics kırılma + göçük (kullanıcı onayı): `src/engine/physics/{fracture,deformable}` three'siz algoritmalar; asset türü / bileşen / mesh senkronu / TSL / editör Faz 8. 88 kontrol yeşil (`fractureRuntime`'ın 4 R kontrolü dışarıda). Physics'te bekleyen araç içeriği 34 (içe aktarıcıyla) + runtime kabuğu 7. A 785 / 905 |

@@ -107,15 +107,15 @@ tests/engine/contentLoading.test.ts	197	checkAsync	R			engine/assets,src	three-v
 tests/engine/contentLoading.test.ts	220	checkAsync	R		yes	src	three-via:src		`content: ${kind} sidecar 404 is silent, failures warn once, success re-arms diagnostics`
 tests/engine/contentLoading.test.ts	253	checkAsync	M			src	level-data:legacy.level.json,model:src		content: legacy reflection migration still runs after validated loading
 tests/engine/deformableAsset.test.ts	23	check	M			engine/physics,tools/droppedFields,tools/saveValidator	model:tools/droppedFields,model:tools/saveValidator		deformable asset: a maximal sidecar round-trips through the normalizer and the save
-tests/engine/deformableAsset.test.ts	30	check	A			engine/physics			deformable asset: an empty object gets the defaults, a new sidecar is valid
-tests/engine/deformableAsset.test.ts	35	check	A			engine/physics			deformable asset: unsupported sidecars are refused
-tests/engine/deformableAsset.test.ts	41	check	A			engine/physics			deformable asset: fields stay in bounds and the ramp never collapses
+tests/engine/deformableAsset.test.ts	30	check	A			engine/physics		src/engine/physics/deformable/deformableAsset.test.ts	deformable asset: an empty object gets the defaults, a new sidecar is valid
+tests/engine/deformableAsset.test.ts	35	check	A			engine/physics		src/engine/physics/deformable/deformableAsset.test.ts	deformable asset: unsupported sidecars are refused
+tests/engine/deformableAsset.test.ts	41	check	A			engine/physics		src/engine/physics/deformable/deformableAsset.test.ts	deformable asset: fields stay in bounds and the ramp never collapses
 tests/engine/deformableAsset.test.ts	54	check	M			engine/physics,tools/droppedFields,tools/saveValidator	model:tools/droppedFields,model:tools/saveValidator		deformable asset: broken parts are left out and the save reports them
-tests/engine/deformableAsset.test.ts	77	check	A			engine/physics			deformable asset: alsoDents keeps text ids once, never the part itself
-tests/engine/deformableAsset.test.ts	85	check	A			engine/physics			deformable asset: a part's detach needs an impulse and stays in bounds
-tests/engine/deformableAsset.test.ts	97	check	A			engine/physics			deformable asset: a zone corner stays in bounds
-tests/engine/deformableAsset.test.ts	104	check	A			engine/physics			deformable asset: a fitted zone reaches the model's outside along the part's thin axis
-tests/engine/deformableAsset.test.ts	122	check	A			engine/physics			deformable asset: the sidecar sits beside its model
+tests/engine/deformableAsset.test.ts	77	check	A			engine/physics		src/engine/physics/deformable/deformableAsset.test.ts	deformable asset: alsoDents keeps text ids once, never the part itself
+tests/engine/deformableAsset.test.ts	85	check	A			engine/physics		src/engine/physics/deformable/deformableAsset.test.ts	deformable asset: a part's detach needs an impulse and stays in bounds
+tests/engine/deformableAsset.test.ts	97	check	A			engine/physics		src/engine/physics/deformable/deformableAsset.test.ts	deformable asset: a zone corner stays in bounds
+tests/engine/deformableAsset.test.ts	104	check	A			engine/physics		src/engine/physics/deformable/deformableAsset.test.ts	deformable asset: a fitted zone reaches the model's outside along the part's thin axis
+tests/engine/deformableAsset.test.ts	122	check	A			engine/physics		src/engine/physics/deformable/deformableAsset.test.ts	deformable asset: the sidecar sits beside its model
 tests/engine/deformableAsset.test.ts	127	check	M			tools/droppedFields,tools/saveValidator	model:tools/droppedFields,model:tools/saveValidator		deformable asset: the save refuses a bad path or sidecar and reports unknown fields
 tests/engine/deformableMeshSync.test.ts	110	check	R			engine/render-three	three-via:engine/render-three,three:three		deformable mesh sync: a dent records how far each vertex went, and only with wear on
 tests/engine/deformableMeshSync.test.ts	130	check	R			engine/render-three	three-via:engine/render-three,three:three		deformable mesh sync: wear goes on the named materials once and keeps a patch already there
@@ -305,48 +305,48 @@ tests/engine/forgeGameModule.test.ts	149	checkAsync	R			engine/core,src	three:th
 tests/engine/forgeGameModule.test.ts	168	checkAsync	R			engine/core,src	three:three		a module that throws on one level gets a clean chance on the next
 tests/engine/forgeGameModule.test.ts	194	checkAsync	R			src	three:three		a module that throws while ticking stops ticking, others keep running
 tests/engine/forgeGameModule.test.ts	207	check	R			src	three:three		a disposed runtime refuses further game modules
-tests/engine/fracture.test.ts	113	check	A			engine/physics			fracture: seeds are deterministic, inset, uniformly sampled and focused
-tests/engine/fracture.test.ts	133	check	A			engine/physics			fracture: bisectors are outward unit planes in seed order and skip coincidence
-tests/engine/fracture.test.ts	140	check	A			engine/physics			fracture: clipping conserves the kept volume and creates one outward cap
-tests/engine/fracture.test.ts	164	check	A			engine/physics			fracture: clipping through source vertices keeps a closed boundary and interpolates attributes
-tests/engine/fracture.test.ts	201	check	A			engine/physics			fracture: 16-cell box conserves volume and mass with valid convex hulls
-tests/engine/fracture.test.ts	225	check	A			engine/physics			fracture: 2000 strict-interior box samples belong to exactly one cell
-tests/engine/fracture.test.ts	238	check	A			engine/physics			fracture: geometry indices, material groups and flat normals remain valid
-tests/engine/fracture.test.ts	268	check	A			engine/physics			fracture: rotated non-indexed source conserves volume and uses box-projected interior UVs
-tests/engine/fracture.test.ts	296	check	A			engine/physics			fracture: repeated bakes deep-equal and Float32 buffers are byte-identical
-tests/engine/fracture.test.ts	309	check	A			engine/physics			fracture: degenerate focused seeds are removed and neighbours absorb their volume
-tests/engine/fracture.test.ts	337	check	A			engine/physics			fracture: source checks distinguish closed convex, concave and open meshes
-tests/engine/fracture.test.ts	352	check	A			engine/physics			fracture: invalid cell counts, mass and empty meshes report clear errors
-tests/engine/fracture.test.ts	366	check	A			engine/physics			fracture: 16-cell box bake median stays under 500 ms
-tests/engine/fracture.test.ts	380	check	A			engine/physics			fracture: weighted bisectors are equidistant under the anisotropic metric
-tests/engine/fracture.test.ts	398	check	A			engine/physics			fracture: splinter pattern stretches chunks along the grain and conserves volume
-tests/engine/fracture.test.ts	426	check	A			engine/physics			fracture: splinter cut faces run interior UV U along the grain
-tests/engine/fractureAsset.test.ts	42	check	A			engine/physics			fracture asset: defaults are complete and freshly copied
-tests/engine/fractureAsset.test.ts	53	check	A			engine/physics			fracture asset: every valid field survives normalization
-tests/engine/fractureAsset.test.ts	57	check	A			engine/physics			fracture asset: numeric limits clamp and integer fields round
-tests/engine/fractureAsset.test.ts	74	check	A			engine/physics			fracture asset: wrong types and non-finite numbers use defaults
-tests/engine/fractureAsset.test.ts	82	check	A			engine/physics			fracture asset: nullable fields and hash syntax are enforced
-tests/engine/fractureAsset.test.ts	93	check	A			engine/physics			fracture asset: unsupported versions sources and non-objects are rejected
+tests/engine/fracture.test.ts	113	check	A			engine/physics		src/engine/physics/fracture/fracture.test.ts	fracture: seeds are deterministic, inset, uniformly sampled and focused
+tests/engine/fracture.test.ts	133	check	A			engine/physics		src/engine/physics/fracture/fracture.test.ts	fracture: bisectors are outward unit planes in seed order and skip coincidence
+tests/engine/fracture.test.ts	140	check	A			engine/physics		src/engine/physics/fracture/fracture.test.ts	fracture: clipping conserves the kept volume and creates one outward cap
+tests/engine/fracture.test.ts	164	check	A			engine/physics		src/engine/physics/fracture/fracture.test.ts	fracture: clipping through source vertices keeps a closed boundary and interpolates attributes
+tests/engine/fracture.test.ts	201	check	A			engine/physics		src/engine/physics/fracture/fracture.test.ts	fracture: 16-cell box conserves volume and mass with valid convex hulls
+tests/engine/fracture.test.ts	225	check	A			engine/physics		src/engine/physics/fracture/fracture.test.ts	fracture: 2000 strict-interior box samples belong to exactly one cell
+tests/engine/fracture.test.ts	238	check	A			engine/physics		src/engine/physics/fracture/fracture.test.ts	fracture: geometry indices, material groups and flat normals remain valid
+tests/engine/fracture.test.ts	268	check	A			engine/physics		src/engine/physics/fracture/fracture.test.ts	fracture: rotated non-indexed source conserves volume and uses box-projected interior UVs
+tests/engine/fracture.test.ts	296	check	A			engine/physics		src/engine/physics/fracture/fracture.test.ts	fracture: repeated bakes deep-equal and Float32 buffers are byte-identical
+tests/engine/fracture.test.ts	309	check	A			engine/physics		src/engine/physics/fracture/fracture.test.ts	fracture: degenerate focused seeds are removed and neighbours absorb their volume
+tests/engine/fracture.test.ts	337	check	A			engine/physics		src/engine/physics/fracture/fracture.test.ts	fracture: source checks distinguish closed convex, concave and open meshes
+tests/engine/fracture.test.ts	352	check	A			engine/physics		src/engine/physics/fracture/fracture.test.ts	fracture: invalid cell counts, mass and empty meshes report clear errors
+tests/engine/fracture.test.ts	366	check	A			engine/physics		src/engine/physics/fracture/fracture.test.ts	fracture: 16-cell box bake median stays under 500 ms
+tests/engine/fracture.test.ts	380	check	A			engine/physics		src/engine/physics/fracture/fracture.test.ts	fracture: weighted bisectors are equidistant under the anisotropic metric
+tests/engine/fracture.test.ts	398	check	A			engine/physics		src/engine/physics/fracture/fracture.test.ts	fracture: splinter pattern stretches chunks along the grain and conserves volume
+tests/engine/fracture.test.ts	426	check	A			engine/physics		src/engine/physics/fracture/fracture.test.ts	fracture: splinter cut faces run interior UV U along the grain
+tests/engine/fractureAsset.test.ts	42	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: defaults are complete and freshly copied
+tests/engine/fractureAsset.test.ts	53	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: every valid field survives normalization
+tests/engine/fractureAsset.test.ts	57	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: numeric limits clamp and integer fields round
+tests/engine/fractureAsset.test.ts	74	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: wrong types and non-finite numbers use defaults
+tests/engine/fractureAsset.test.ts	82	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: nullable fields and hash syntax are enforced
+tests/engine/fractureAsset.test.ts	93	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: unsupported versions sources and non-objects are rejected
 tests/engine/fractureAsset.test.ts	99	check	M			tools/droppedFields,tools/saveValidator	model:tools/droppedFields,model:tools/saveValidator		fracture asset: maximal save round-trips without dropped fields
 tests/engine/fractureAsset.test.ts	106	check	M			tools/droppedFields,tools/saveValidator	model:tools/droppedFields,model:tools/saveValidator		fracture asset: geometry and unknown keys are dropped and reported
 tests/engine/fractureAsset.test.ts	113	check	M			tools/saveValidator	model:tools/saveValidator		fracture asset: save paths must stay relative with the correct suffix
 tests/engine/fractureAsset.test.ts	122	check	M			tools/saveValidator	model:tools/saveValidator		fracture asset: save rejects damaged payloads with the schema error
-tests/engine/fractureAsset.test.ts	132	check	A			engine/physics			fracture asset: sidecar paths follow collision slash and extension rules
-tests/engine/fractureAsset.test.ts	139	check	A			engine/physics			fracture asset: source hash is deterministic with a pinned little-endian value
-tests/engine/fractureAsset.test.ts	150	check	A			engine/physics			fracture asset: source hash covers positions normals UVs and index order
-tests/engine/fractureAsset.test.ts	164	check	A			engine/physics			fracture asset: implicit indices match sequential indices and missing UVs differ from zeros
-tests/engine/fractureAsset.test.ts	174	check	A			engine/physics			fracture asset: not-baked is exclusive with stale-bake
-tests/engine/fractureAsset.test.ts	178	check	A			engine/physics			fracture asset: stale-bake requires a differing non-null source hash
-tests/engine/fractureAsset.test.ts	184	check	A			engine/physics			fracture asset: not-closed warns on open meshes
-tests/engine/fractureAsset.test.ts	188	check	A			engine/physics			fracture asset: not-convex warns on concave meshes
-tests/engine/fractureAsset.test.ts	192	check	A			engine/physics			fracture asset: many-chunks starts above 32
-tests/engine/fractureAsset.test.ts	197	check	A			engine/physics			fracture asset: self-weight warns only below the floor and displays it with one decimal
-tests/engine/fractureAsset.test.ts	206	check	A			engine/physics			fracture asset: multi-material warns when exterior faces use the first material
-tests/engine/fractureAsset.test.ts	210	check	A			engine/physics			fracture asset: combined warnings preserve their fixed order
-tests/engine/fractureAsset.test.ts	219	check	A			engine/physics			fracture asset: disabled fracture suppresses all warnings
-tests/engine/fractureAsset.test.ts	226	check	A			engine/physics			fracture asset: support anchors are ordered, finite, capped and never shared
-tests/engine/fractureAsset.test.ts	259	check	A			engine/physics			fracture asset: break presentation ids must be manifest ids, debris limits clamp
-tests/engine/fractureAsset.test.ts	272	check	A			engine/physics			fracture asset: pattern and grain fall back and clamp, grain only for splinter
+tests/engine/fractureAsset.test.ts	132	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: sidecar paths follow collision slash and extension rules
+tests/engine/fractureAsset.test.ts	139	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: source hash is deterministic with a pinned little-endian value
+tests/engine/fractureAsset.test.ts	150	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: source hash covers positions normals UVs and index order
+tests/engine/fractureAsset.test.ts	164	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: implicit indices match sequential indices and missing UVs differ from zeros
+tests/engine/fractureAsset.test.ts	174	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: not-baked is exclusive with stale-bake
+tests/engine/fractureAsset.test.ts	178	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: stale-bake requires a differing non-null source hash
+tests/engine/fractureAsset.test.ts	184	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: not-closed warns on open meshes
+tests/engine/fractureAsset.test.ts	188	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: not-convex warns on concave meshes
+tests/engine/fractureAsset.test.ts	192	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: many-chunks starts above 32
+tests/engine/fractureAsset.test.ts	197	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: self-weight warns only below the floor and displays it with one decimal
+tests/engine/fractureAsset.test.ts	206	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: multi-material warns when exterior faces use the first material
+tests/engine/fractureAsset.test.ts	210	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: combined warnings preserve their fixed order
+tests/engine/fractureAsset.test.ts	219	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: disabled fracture suppresses all warnings
+tests/engine/fractureAsset.test.ts	226	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: support anchors are ordered, finite, capped and never shared
+tests/engine/fractureAsset.test.ts	259	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: break presentation ids must be manifest ids, debris limits clamp
+tests/engine/fractureAsset.test.ts	272	check	A			engine/physics		src/engine/physics/fracture/fractureAsset.test.ts	fracture asset: pattern and grain fall back and clamp, grain only for splinter
 tests/engine/fractureAsset.test.ts	283	check	M			editor,tools/droppedFields,tools/saveValidator	model:editor,model:tools/droppedFields,model:tools/saveValidator		fracture placement override: save keeps opt-out and threshold, editor clone copies it
 tests/engine/fractureAsset.test.ts	293	check	M			engine/physics,tools/saveValidator	model:tools/saveValidator		fracture placement override: inherited enabled and empty overrides are not written
 tests/engine/fractureAsset.test.ts	301	check	M			engine/physics,tools/saveValidator	model:tools/saveValidator		fracture placement override: malformed values reject the save
@@ -374,42 +374,42 @@ tests/engine/fractureModule.test.ts	552	check	R			engine/physics,engine/scene,sr
 tests/engine/fractureModule.test.ts	574	check	R			engine/physics,engine/scene,src	three-via:src,three:three		fracture module: a re-baked asset or an unknown id never breaks the load
 tests/engine/fractureModule.test.ts	600	check	R			engine/physics,engine/scene,src	three-via:src,three:three		fracture module: a broken source stays broken when its cell unloads and returns
 tests/engine/fractureModule.test.ts	624	check	R			engine/physics,engine/scene,src	three-via:src,three:three		fracture module: a restore for an unbuilt source waits until the shell builds it
-tests/engine/fracturePersistence.test.ts	7	check	A			engine/physics			fracture persistence: chunk masks round-trip every count up to 64 chunks
+tests/engine/fracturePersistence.test.ts	7	check	A			engine/physics		src/engine/physics/fracture/fracturePersistence.test.ts	fracture persistence: chunk masks round-trip every count up to 64 chunks
 tests/engine/fracturePersistence.test.ts	21	check	M			engine/persistence	level-data:layouts/a.level.json,model:engine/persistence		deformable persistence: dents round-trip, damaged ones cost only themselves, old saves load
-tests/engine/fracturePersistence.test.ts	73	check	A			engine/physics			fracture persistence: malformed masks decode to null
+tests/engine/fracturePersistence.test.ts	73	check	A			engine/physics		src/engine/physics/fracture/fracturePersistence.test.ts	fracture persistence: malformed masks decode to null
 tests/engine/fracturePersistence.test.ts	84	check	M			engine/persistence	level-data:Levels/A.level.json,model:engine/persistence		fracture persistence: destructibles round-trip through collect and apply, sorted by id
 tests/engine/fracturePersistence.test.ts	93	check	M			engine/persistence	level-data:Levels/A.level.json,model:engine/persistence		fracture persistence: bad destructible entries are dropped one by one, never the load
 tests/engine/fracturePersistence.test.ts	124	check	M			engine/persistence	level-data:Levels/A.level.json,model:engine/persistence		fracture persistence: a save written before Faz 5 loads with nothing broken
-tests/engine/fractureRuntime.test.ts	79	check	A			engine/physics			fracture runtime: disabled definitions and placement overrides do not register
-tests/engine/fractureRuntime.test.ts	95	check	A			engine/physics			fracture runtime: valid threshold overrides win and invalid ones use the asset
-tests/engine/fractureRuntime.test.ts	114	check	A			engine/physics			fracture runtime: finite impacts break at the threshold exactly once
-tests/engine/fractureRuntime.test.ts	129	check	A			engine/physics			fracture runtime: damage accumulates and breaks on reaching or crossing the threshold
-tests/engine/fractureRuntime.test.ts	150	check	A			engine/physics			fracture runtime: null damage threshold accumulates without breaking
-tests/engine/fractureRuntime.test.ts	162	check	A			engine/physics			fracture runtime: scripted and restored breaks suppress all later triggers
-tests/engine/fractureRuntime.test.ts	179	check	A			engine/physics			fracture runtime: registration resets state and damage, with ordered ids and cleanup
-tests/engine/fractureRuntime.test.ts	211	check	A			engine/physics			fracture runtime: spawn budget keeps largest volumes in ascending chunk index
-tests/engine/fractureRuntime.test.ts	225	check	A			engine/physics			fracture runtime: identity preserves pivots, hulls and masses with independent copies
+tests/engine/fractureRuntime.test.ts	79	check	A			engine/physics		src/engine/physics/fracture/fractureRuntime.test.ts	fracture runtime: disabled definitions and placement overrides do not register
+tests/engine/fractureRuntime.test.ts	95	check	A			engine/physics		src/engine/physics/fracture/fractureRuntime.test.ts	fracture runtime: valid threshold overrides win and invalid ones use the asset
+tests/engine/fractureRuntime.test.ts	114	check	A			engine/physics		src/engine/physics/fracture/fractureRuntime.test.ts	fracture runtime: finite impacts break at the threshold exactly once
+tests/engine/fractureRuntime.test.ts	129	check	A			engine/physics		src/engine/physics/fracture/fractureRuntime.test.ts	fracture runtime: damage accumulates and breaks on reaching or crossing the threshold
+tests/engine/fractureRuntime.test.ts	150	check	A			engine/physics		src/engine/physics/fracture/fractureRuntime.test.ts	fracture runtime: null damage threshold accumulates without breaking
+tests/engine/fractureRuntime.test.ts	162	check	A			engine/physics		src/engine/physics/fracture/fractureRuntime.test.ts	fracture runtime: scripted and restored breaks suppress all later triggers
+tests/engine/fractureRuntime.test.ts	179	check	A			engine/physics		src/engine/physics/fracture/fractureRuntime.test.ts	fracture runtime: registration resets state and damage, with ordered ids and cleanup
+tests/engine/fractureRuntime.test.ts	211	check	A			engine/physics		src/engine/physics/fracture/fractureRuntime.test.ts	fracture runtime: spawn budget keeps largest volumes in ascending chunk index
+tests/engine/fractureRuntime.test.ts	225	check	A			engine/physics		src/engine/physics/fracture/fractureRuntime.test.ts	fracture runtime: identity preserves pivots, hulls and masses with independent copies
 tests/engine/fractureRuntime.test.ts	251	check	R			engine/physics,engine/render-three	three-via:engine/render-three,three:three		fracture runtime: XYZ rotation and nonuniform scale agree with Forge transform matrices
-tests/engine/fractureRuntime.test.ts	271	check	A			engine/physics			fracture runtime: degenerate scale clamps every chunk mass to the minimum
+tests/engine/fractureRuntime.test.ts	271	check	A			engine/physics		src/engine/physics/fracture/fractureRuntime.test.ts	fracture runtime: degenerate scale clamps every chunk mass to the minimum
 tests/engine/fractureRuntime.test.ts	281	check	R			engine/physics	three:three		fracture runtime: impact kicks point away from contact with the documented speed
 tests/engine/fractureRuntime.test.ts	294	check	R			engine/physics	three:three		fracture runtime: large hits cap outward speed before halving it
 tests/engine/fractureRuntime.test.ts	300	check	R			engine/physics,engine/render-three	three-via:engine/render-three,three:three		fracture runtime: scripted and null-contact kicks use the kept volume centre
-tests/engine/fractureRuntime.test.ts	310	check	A			engine/physics			fracture runtime: invalid impact strengths give zero kick and coincident points push up
-tests/engine/fractureRuntime.test.ts	325	check	A			engine/physics			fracture runtime: smaller chunks have shorter lifetimes based on the kept mean
-tests/engine/fractureRuntime.test.ts	342	check	A			engine/physics			fracture runtime: spawn planning is deterministic and leaves all inputs unchanged
-tests/engine/fractureRuntime.test.ts	353	check	A			engine/physics			fracture runtime: expiration includes the boundary in birth order and keeps Infinity
-tests/engine/fractureRuntime.test.ts	370	check	A			engine/physics			fracture runtime: count budget floors caps and evicts oldest with insertion ties
-tests/engine/fractureRuntime.test.ts	387	check	A			engine/physics			fracture runtime: owner cleanup and clear return ids in birth order
-tests/engine/fractureRuntime.test.ts	403	check	A			engine/physics			fracture runtime: adding an existing id replaces its owner, lifetime and insertion
-tests/engine/fractureSupport.test.ts	84	check	A			engine/physics			fracture support: clipping preserves neighbor metadata and true face area
-tests/engine/fractureSupport.test.ts	102	check	A			engine/physics			fracture support: 16-cell box links are ordered unique connected and conserve cut area
-tests/engine/fractureSupport.test.ts	109	check	A			engine/physics			fracture support: two cells share exactly one link matching both interior areas
-tests/engine/fractureSupport.test.ts	120	check	A			engine/physics			fracture support: links are deterministic and consistent for splinters and merged cells
-tests/engine/fractureSupport.test.ts	135	check	A			engine/physics			fracture support: support islands respect anchors absent chunks and invalid links
-tests/engine/fractureSupport.test.ts	155	check	A			engine/physics			fracture support: bottom slabs anchor real hull bounds including the floor
-tests/engine/fractureSupport.test.ts	184	check	A			engine/physics			fracture support: radius selection includes boundaries excludes absent and falls back deterministically
-tests/engine/fractureSupport.test.ts	197	check	A			engine/physics			fracture support: damage radius handles growth clamps negative impulses and non-finite inputs
-tests/engine/fractureSupport.test.ts	213	check	A			engine/physics			fracture support: a hit releases the radius then the islands it cut off, and a second hit collapses the rest
+tests/engine/fractureRuntime.test.ts	310	check	A			engine/physics		src/engine/physics/fracture/fractureRuntime.test.ts	fracture runtime: invalid impact strengths give zero kick and coincident points push up
+tests/engine/fractureRuntime.test.ts	325	check	A			engine/physics		src/engine/physics/fracture/fractureRuntime.test.ts	fracture runtime: smaller chunks have shorter lifetimes based on the kept mean
+tests/engine/fractureRuntime.test.ts	342	check	A			engine/physics		src/engine/physics/fracture/fractureRuntime.test.ts	fracture runtime: spawn planning is deterministic and leaves all inputs unchanged
+tests/engine/fractureRuntime.test.ts	353	check	A			engine/physics		src/engine/physics/fracture/fractureRuntime.test.ts	fracture runtime: expiration includes the boundary in birth order and keeps Infinity
+tests/engine/fractureRuntime.test.ts	370	check	A			engine/physics		src/engine/physics/fracture/fractureRuntime.test.ts	fracture runtime: count budget floors caps and evicts oldest with insertion ties
+tests/engine/fractureRuntime.test.ts	387	check	A			engine/physics		src/engine/physics/fracture/fractureRuntime.test.ts	fracture runtime: owner cleanup and clear return ids in birth order
+tests/engine/fractureRuntime.test.ts	403	check	A			engine/physics		src/engine/physics/fracture/fractureRuntime.test.ts	fracture runtime: adding an existing id replaces its owner, lifetime and insertion
+tests/engine/fractureSupport.test.ts	84	check	A			engine/physics		src/engine/physics/fracture/fractureSupport.test.ts	fracture support: clipping preserves neighbor metadata and true face area
+tests/engine/fractureSupport.test.ts	102	check	A			engine/physics		src/engine/physics/fracture/fractureSupport.test.ts	fracture support: 16-cell box links are ordered unique connected and conserve cut area
+tests/engine/fractureSupport.test.ts	109	check	A			engine/physics		src/engine/physics/fracture/fractureSupport.test.ts	fracture support: two cells share exactly one link matching both interior areas
+tests/engine/fractureSupport.test.ts	120	check	A			engine/physics		src/engine/physics/fracture/fractureSupport.test.ts	fracture support: links are deterministic and consistent for splinters and merged cells
+tests/engine/fractureSupport.test.ts	135	check	A			engine/physics		src/engine/physics/fracture/fractureSupport.test.ts	fracture support: support islands respect anchors absent chunks and invalid links
+tests/engine/fractureSupport.test.ts	155	check	A			engine/physics		src/engine/physics/fracture/fractureSupport.test.ts	fracture support: bottom slabs anchor real hull bounds including the floor
+tests/engine/fractureSupport.test.ts	184	check	A			engine/physics		src/engine/physics/fracture/fractureSupport.test.ts	fracture support: radius selection includes boundaries excludes absent and falls back deterministically
+tests/engine/fractureSupport.test.ts	197	check	A			engine/physics		src/engine/physics/fracture/fractureSupport.test.ts	fracture support: damage radius handles growth clamps negative impulses and non-finite inputs
+tests/engine/fractureSupport.test.ts	213	check	A			engine/physics		src/engine/physics/fracture/fractureSupport.test.ts	fracture support: a hit releases the radius then the islands it cut off, and a second hit collapses the rest
 tests/engine/frameCapture.test.ts	47	check	A			engine/core,engine/perf		src/engine/perf/frameCapture.test.ts	a captured frame's rows sum to the frame
 tests/engine/frameCapture.test.ts	72	check	A			engine/core,engine/perf		src/engine/perf/frameCapture.test.ts	a decomposed group is replaced by its children, never listed beside them
 tests/engine/frameCapture.test.ts	88	check	A			engine/core,engine/perf		src/engine/perf/frameCapture.test.ts	a region that did not run reads as absent, not as zero
@@ -475,20 +475,20 @@ tests/engine/hlod.test.ts	176	checkAsync	R			engine/world,tools/world/hlodBuild	
 tests/engine/hlod.test.ts	198	checkAsync	R			engine/world,tools/world/hlodBuild	three-via:tools/world/hlodBuild		hlod: external GLTF resources use injected IO and retain node transforms
 tests/engine/hlod.test.ts	218	checkAsync	R			tools/world/hlodBuild	three-via:tools/world/hlodBuild		hlod: hidden and small placements leave an empty index; bad assets warn once
 tests/engine/hlod.test.ts	231	checkAsync	R			tools/world/hlodBuild	three-via:tools/world/hlodBuild		hlod: disabled partition and invalid build parameters reject
-tests/engine/impactDeform.test.ts	43	check	A			engine/physics			impact deform: depth ramps from dentImpulse to fullImpulse
-tests/engine/impactDeform.test.ts	52	check	A			engine/physics			impact deform: a dent moves the centre by its depth and nothing past its radius
-tests/engine/impactDeform.test.ts	63	check	A			engine/physics			impact deform: a vertex never passes maxDepth, however many dents add up
-tests/engine/impactDeform.test.ts	69	check	A			engine/physics			impact deform: the shape does not depend on the dents' order
-tests/engine/impactDeform.test.ts	80	check	A			engine/physics			impact deform: deepening a dent equals replaying it at its final depth
-tests/engine/impactDeform.test.ts	91	check	A			engine/physics			impact deform: normals tilt on the dent's slope and stay authored elsewhere
-tests/engine/impactDeform.test.ts	111	check	A			engine/physics			impact deform: a vertex split by a UV seam stays smooth, a hard edge keeps its crease
-tests/engine/impactDeform.test.ts	140	check	A			engine/physics			impact deform: a weld needs the same position, whatever the hash says
-tests/engine/impactDeform.test.ts	156	check	A			engine/physics			impact deform: a non-indexed mesh dents and welds its corners
-tests/engine/impactDeform.test.ts	172	check	A			engine/physics			impact deform: the hit finds the striker's side, even off the surface
-tests/engine/impactDeform.test.ts	186	check	A			engine/physics			impact deform: a dent leaves the far side of a thick object alone
-tests/engine/impactDeform.test.ts	195	check	A			engine/physics			impact deform: a point resolves to the first zone holding it, or the body
-tests/engine/impactDeform.test.ts	208	check	A			engine/physics			impact deform: a dent only merges with dents of its own part
-tests/engine/impactDeform.test.ts	218	check	A			engine/physics			impact deform: the dent list stays bounded
+tests/engine/impactDeform.test.ts	43	check	A			engine/physics		src/engine/physics/deformable/impactDeform.test.ts	impact deform: depth ramps from dentImpulse to fullImpulse
+tests/engine/impactDeform.test.ts	52	check	A			engine/physics		src/engine/physics/deformable/impactDeform.test.ts	impact deform: a dent moves the centre by its depth and nothing past its radius
+tests/engine/impactDeform.test.ts	63	check	A			engine/physics		src/engine/physics/deformable/impactDeform.test.ts	impact deform: a vertex never passes maxDepth, however many dents add up
+tests/engine/impactDeform.test.ts	69	check	A			engine/physics		src/engine/physics/deformable/impactDeform.test.ts	impact deform: the shape does not depend on the dents' order
+tests/engine/impactDeform.test.ts	80	check	A			engine/physics		src/engine/physics/deformable/impactDeform.test.ts	impact deform: deepening a dent equals replaying it at its final depth
+tests/engine/impactDeform.test.ts	91	check	A			engine/physics		src/engine/physics/deformable/impactDeform.test.ts	impact deform: normals tilt on the dent's slope and stay authored elsewhere
+tests/engine/impactDeform.test.ts	111	check	A			engine/physics		src/engine/physics/deformable/impactDeform.test.ts	impact deform: a vertex split by a UV seam stays smooth, a hard edge keeps its crease
+tests/engine/impactDeform.test.ts	140	check	A			engine/physics		src/engine/physics/deformable/impactDeform.test.ts	impact deform: a weld needs the same position, whatever the hash says
+tests/engine/impactDeform.test.ts	156	check	A			engine/physics		src/engine/physics/deformable/impactDeform.test.ts	impact deform: a non-indexed mesh dents and welds its corners
+tests/engine/impactDeform.test.ts	172	check	A			engine/physics		src/engine/physics/deformable/impactDeform.test.ts	impact deform: the hit finds the striker's side, even off the surface
+tests/engine/impactDeform.test.ts	186	check	A			engine/physics		src/engine/physics/deformable/impactDeform.test.ts	impact deform: a dent leaves the far side of a thick object alone
+tests/engine/impactDeform.test.ts	195	check	A			engine/physics		src/engine/physics/deformable/impactDeform.test.ts	impact deform: a point resolves to the first zone holding it, or the body
+tests/engine/impactDeform.test.ts	208	check	A			engine/physics		src/engine/physics/deformable/impactDeform.test.ts	impact deform: a dent only merges with dents of its own part
+tests/engine/impactDeform.test.ts	218	check	A			engine/physics		src/engine/physics/deformable/impactDeform.test.ts	impact deform: the dent list stays bounded
 tests/engine/impactEvents.test.ts	23	check	A			engine/physics		src/engine/physics/impactEvents.test.ts	impact: force and impulse thresholds convert through the slice length
 tests/engine/impactEvents.test.ts	33	check	A			engine/physics		src/engine/physics/impactEvents.test.ts	impact: manifold normal follows the flipped flag without -0
 tests/engine/impactEvents.test.ts	39	check	A			engine/physics		src/engine/physics/impactEvents.test.ts	impact: contact point is impulse-weighted, speculative points only as a fallback
