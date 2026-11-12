@@ -298,7 +298,7 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       taşınmaz, render'ı yeniden yazan fazla gelir. A'nın 471'i sınırda
       uyarlama ister; 88'i `engine/physics/ragdoll.ts`'in three matematiği
       yüzünden (bu depoda three yalnız render'da).
-- [ ] **Taşıma:** `engine/*` three'siz alt sistemleri (physics, terrain
+- [x] **Taşıma:** `engine/*` three'siz alt sistemleri (physics, terrain
       verisi, navigation, movement, audio, behavior, worldbuilder
       algoritmaları, environment, perf, animation, input, loading, perception,
       ui, vfx, gameplay, core) ve ilgili testleri: kopyala → sınırda yeni
@@ -380,6 +380,18 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       *Araç kontrolleri (2026-11-12):* `surfaceResponse` 20, `vehicleDrivetrain`
       13, `vehicleAssets` 1 elle (gövdeler aynı); stok GAZ-52 tanımı test
       fixture'ı. İlerleme A 819 / 905.
+      *Kapandı (2026-11-12, kullanıcı kararları):* kalan 86 A gövde düzeyinde
+      yeniden okundu. Dosya düzeyinde ertelenmiş ama gövdesi taşınmış saf koda
+      inen 17 kontrol taşındı (`wheelSurfaceFx` 4, terrain render kaynağı /
+      akış codec'i 8, `perfReadout` 2, `vehicleRuntime` 2, `windSway` 1). Eski
+      merkezî asset manifesti 9, şablonların `main.ts` import listesi 2,
+      worldbuilder klasör düzeni 1 kontrol D; `terrainSplineData`'nın eski
+      `terrainSaveValidator`'a bağlı kontrolü M (5a); `checkSlow` sarmalayıcısındaki
+      iki çağrı kontrol sayılmaz. Payda 890. **Kapatma kuralı:** her A ya
+      taşınmış ya da fazına yazılmıştır (`DEFERRED_CHECKS`, TSV `deferred`
+      sütunu); ertelenenler paydada kalır ve her fazın kapısı kendi ertelenen
+      A'larını yeşil ister: Faz 3 18, 5a 4, 5b 2, 5d 4, Faz 6 4, Faz 7 20,
+      Faz 8 2. **A 836 / 890.**
 - [ ] Kayıt oyunu (`engine/persistence`) ve World Partition (`engine/world`)
       yeni modele göre yeniden kurulur; GUID anahtarlı. Kayıt oyunu `persist`
       işaretli bileşen alanlarını ve `defineSaveState` bölümlerini saklar;
@@ -562,7 +574,9 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       çalışır; CI'da çalışmaz (GPU yok). Referans görüntüler kullanıcının
       kabulünden sonra güncellenir.
 - [ ] Kapı: referans sahnelerin statik içeriği ve çevresi, Faz 0 görüntüleriyle
-      yan yana; kullanıcının ilk görsel kabulü.
+      yan yana; kullanıcının ilk görsel kabulü. Ertelenen Forge A kontrolleri yeşil (`npm run port:forge-tests`, TSV `deferred`
+      `3`: kalite profilleri / uyarlamalı kalite / GPU timer 14, asset perf 3,
+      starter materyal 1).
 
 ### Faz 4 — Editör çekirdeği
 
@@ -608,11 +622,12 @@ Dört alt faz; her birinin kendi kapısı var, görsel kabul sonda toplu istenir
       tile seam, 8 boya katmanı, su birikintisi, kıyı ıslaklığı, kostik; tile
       akışı (editör ve runtime), global harita. *Kapı:* referans terrain
       level'ı §2.10 ölçümüyle sınırın içinde; görsel yükseklik collider ile
-      eşleşiyor.
+      eşleşiyor; ertelenen 4 A yeşil (su birikintisi 3, öksüz tile 1).
 - [ ] **5b Akış + HLOD:** World Partition hücre akışı (A11 modeli; editör de
       akışla çalışır), HLOD, view distance, küçük nesne culling. *Kapı:* hücre
       yükle / boşalt döngüsünde sızıntı yok (bellek ve GPU kaynağı ölçümü);
-      akış sırasında kare süresi sıçraması sınırın içinde.
+      akış sırasında kare süresi sıçraması sınırın içinde; ertelenen 2 A yeşil
+      (`terrainRuntimeStreaming`).
 - [ ] **5c Foliage:** instancing + compute culling + indirect draw; impostor /
       billboard, rüzgâr, fade; foliage hücreleri. GPU güdümlü yol bütün foliage
       türlerinde ve gölge kaskatlarında zorunlu (Faz 1 GO koşulu; S4: kip (b)'de
@@ -622,7 +637,8 @@ Dört alt faz; her birinin kendi kapısı var, görsel kabul sonda toplu istenir
 - [ ] **5d Editör araçları + World Builder:** sculpt, paint, foliage paint,
       landscape spline; World Builder penceresi + `/__world-random` endpoint'i
       + önizleme worker'ı. *Kapı:* araç başına editör smoke'u (düzenle → kaydet
-      → yeniden aç); üretilen dünya Content Browser'da görünüyor.
+      → yeniden aç); üretilen dünya Content Browser'da görünüyor; ertelenen
+      4 A yeşil (`worldTerrainMove`, su tipleri Faz 7'yle).
 - [ ] Faz kapısı: referans açık dünya sahnelerinde görsel + performans kabulü;
       terrain collider ile eşleşiyor.
 
@@ -665,7 +681,8 @@ Dört alt faz; her birinin kendi kapısı var, görsel kabul sonda toplu istenir
       compute'suz yolların maliyeti ölçülür; kullanıcı kararı. Oyunun tarayıcı
       kapsamı (K11) aynı ölçümle kesinleşir.
 - [ ] Kapı: runtime smoke'ları (boot, playflow, checkpoint); araç terrain
-      üstünde sürülüyor (5a terrain'i gerekir).
+      üstünde sürülüyor (5a terrain'i gerekir). Ertelenen Forge A kontrolleri yeşil (`npm run port:forge-tests`, TSV `deferred`
+      `6`: Player Start / varsayılan piyon 4).
 - [ ] **Ridgebound pilotu (K8, kapıdan sonra):** Ridgebound'un bir **kopyası**
       `forge.projects.local.json` ile kaydedilir ve `check:projects`'e girer. M0
       oyun kodu `@forge/sdk`'ya, `TransportState` `defineSaveState`'e taşınır;
@@ -681,7 +698,8 @@ Dört alt faz; her birinin kendi kapısı var, görsel kabul sonda toplu istenir
       plane, reflective surface, su birikintisi) `reflector()` ile planar;
       genel yansıma Post Process'teki SSR (Faz 3). Suda SSR kullanılmaz;
       sphere reflection capture yok. Planar'ın maliyet ilk okuması S4'te.
-- [ ] Kapı: su görsel kabulü ve ölçüm.
+- [ ] Kapı: su görsel kabulü ve ölçüm. Ertelenen Forge A kontrolleri yeşil (`npm run port:forge-tests`, TSV `deferred`
+      `7`: göl / okyanus / nehir 20).
 
 ### Faz 8 — Terrain deformasyonu ve araç hasarı
 
@@ -693,7 +711,8 @@ Dört alt faz; her birinin kendi kapısı var, görsel kabul sonda toplu istenir
       Doruk K-180 kaynağı (`art/vehicles/doruk-k180/`): "motor deposunda oyun
       yok" kuralının bilinçli istisnası. Yeni depo düzenindeki yerleri (mimari
       A9) taşımadan önce kullanıcıyla belirlenir.
-- [ ] Kapı: Ridgebound kopya sahnesinde hasar ve iz senaryoları.
+- [ ] Kapı: Ridgebound kopya sahnesinde hasar ve iz senaryoları. Ertelenen Forge A kontrolleri yeşil (`npm run port:forge-tests`, TSV `deferred`
+      `8`: off-road test level'ı 2).
 
 ### Faz 9 — İleri aydınlatma (her teknik ayrı karar)
 
@@ -857,3 +876,5 @@ silinebilir.
 | 2026-11-12 | v1.0 | 2b içe aktarıcı adım 4a (kullanıcı kararları): starter paketi yalnız motor varsayılanlarıyla (28 asset, 21,8 MB; lisansı bilinmeyenler dahil), `import:forge --pack`. A 819 / 905 |
 | 2026-11-12 | v1.0 | 2b içe aktarıcı adım 4b: depo dışı referans projesi `Games/ForgeReference/webgpu-scenes` (yerel kayıtlı): 7 referans level kullandıkları asset'lerle, asset dizini 0 sorun; paylaşılan yan dosya bir kez yazılır. A 819 / 905 |
 | 2026-11-12 | v1.0 | 2b içe aktarıcı ve kabulü kutuları kapandı: `import:forge --compare` (`f1851bc`), yedi referans level'da sayımlar eşit, hücre farkları açıklamalı (bölümlenmemiş kaynak; pilotun Player Start'ı kendi hücresinde, kalıcı katman sorusu Faz 6). Çeviriciler kendi fazlarında eklenip içe aktarıcı yeniden çalıştırılır. A 819 / 905 |
+| 2026-11-12 | v1.0 | CI `c5d2605`'e kadar yeşil (kullanıcı teyidi) |
+| 2026-11-12 | v1.0 | 2b "Taşıma" kutusu kapandı (kullanıcı kararları): kalan 86 A gövde düzeyinde sınıflandı; 17 dosya düzeyinde ertelenmiş saf kontrol taşındı (`546f696`), eski manifest / şablon / klasör düzeni 12 kontrol D, 1 M, sarmalayıcı çağrısı 2 sayılmaz (`ab662b5`); ertelenen A'lar paydada kalır, fazı TSV `deferred` sütununda, her faz kapısı kendininkini ister (3: 18, 5a: 4, 5b: 2, 5d: 4, 6: 4, 7: 20, 8: 2). A 836 / 890 |
