@@ -578,8 +578,8 @@ tests/engine/perfReadout.test.ts	150	check	M			src	model:src		buildSceneCostSnap
 tests/engine/perfReadout.test.ts	166	check	M			src	model:src		formatSceneCost aligns the bucket column and omits an empty inventory	
 tests/engine/perfReadout.test.ts	187	check	M			src	model:src		formatAudioBudget says nothing measured rather than reporting zeros	
 tests/engine/perfReadout.test.ts	192	check	M			src	model:src		formatAudioBudget reports the ceiling, the peak and the busy buses	
-tests/engine/perfReadout.test.ts	221	check	A			engine/audio			AudioSubsystem tracks the voice budget per bus and refuses over the ceiling	
-tests/engine/perfReadout.test.ts	259	check	A			engine/audio			AudioSubsystem releases a finished one-shot's voice back to the budget	
+tests/engine/perfReadout.test.ts	221	check	A			engine/audio		src/runtime/audio/perfReadout.test.ts	AudioSubsystem tracks the voice budget per bus and refuses over the ceiling	
+tests/engine/perfReadout.test.ts	259	check	A			engine/audio		src/runtime/audio/perfReadout.test.ts	AudioSubsystem releases a finished one-shot's voice back to the budget	
 tests/engine/perfWitness.test.ts	45	check	A			engine/perf		src/engine/perf/perfWitness.test.ts	the witness rounds to two decimals and keeps the counts whole	
 tests/engine/perfWitness.test.ts	58	check	A			engine/perf		src/engine/perf/perfWitness.test.ts	an unmeasured GPU is null in the witness, never a zero	
 tests/engine/perfWitness.test.ts	70	check	A			engine/perf		src/engine/perf/perfWitness.test.ts	fork fields ride along but can never redefine a shared one	
@@ -1056,7 +1056,7 @@ tests/engine/terrainPuddle.test.ts	35	check	M			engine/scene,engine/terrain	mode
 tests/engine/terrainRender.test.ts	126	check	M			engine/assets,tools/saveValidator	model:tools/saveValidator		terrain detail: settings survive save and normalization without changing material UV	
 tests/engine/terrainRender.test.ts	146	check	R			engine/render-three	three-via:engine/render-three,three:three		terrain detail: atlas variants become isolated repeatable array slices, including flipped sources	
 tests/engine/terrainRender.test.ts	167	check	R			engine/assets,engine/render-three,engine/terrain	three-via:engine/render-three,three:three		terrain detail: Landscape binds optional detail with material UV and no additional sampler	
-tests/engine/terrainRender.test.ts	194	check	A			engine/terrain			terrain render source: a sparse World Terrain retains world queries, holes and invalidated bounds	
+tests/engine/terrainRender.test.ts	194	check	A			engine/terrain		src/engine/terrain/terrainRender.test.ts	terrain render source: a sparse World Terrain retains world queries, holes and invalidated bounds	
 tests/engine/terrainRender.test.ts	211	check	R			engine/terrain	three:three		terrain LOD: a 2×3 tile extent tiles the footprint with track-detail refinement and frustum culling	
 tests/engine/terrainRender.test.ts	245	check	R			engine/render-three,engine/terrain	three-via:engine/render-three		terrain texture pool: tiles upload into slot layers and cached slots skip the copy	
 tests/engine/terrainRender.test.ts	285	check	R			engine/render-three,engine/terrain	three-via:engine/render-three		terrain texture pool: an unpainted terrain still binds one zero weight layer per slot	
@@ -1068,8 +1068,8 @@ tests/engine/terrainRender.test.ts	376	check	R			engine/render-three,engine/terr
 tests/engine/terrainRender.test.ts	424	check	R			engine/render-three,engine/terrain	three-via:engine/render-three,three:three		terrain caustics: micro-normal array and cascaded shadow patches compose and release together	
 tests/engine/terrainRender.test.ts	447	check	R			engine/render-three,engine/terrain	three-via:engine/render-three,three:three		landscape binding: cloud sculpt and tint cases retain the actor and dispose spline geometry	
 tests/engine/terrainRender.test.ts	478	check	R			engine/render-three,engine/terrain,src	three-via:engine/render-three,three-via:src,three:three		selection outline: GPU terrain patches are excluded while spline meshes keep their proxies	
-tests/engine/terrainRenderer.test.ts	149	check	A			engine/terrain			terrain renderer: normals match the clamped central-difference formula, edges included	
-tests/engine/terrainRenderer.test.ts	168	check	A			engine/terrain			terrain renderer: node height bounds equal brute force after partial updates	
+tests/engine/terrainRenderer.test.ts	149	check	A			engine/terrain		src/engine/terrain/terrainRenderer.test.ts	terrain renderer: normals match the clamped central-difference formula, edges included	
+tests/engine/terrainRenderer.test.ts	168	check	A			engine/terrain		src/engine/terrain/terrainRenderer.test.ts	terrain renderer: node height bounds equal brute force after partial updates	
 tests/engine/terrainRenderer.test.ts	209	check	R			engine/render-three,engine/terrain	three-via:engine/render-three,three:three		terrain renderer: selected nodes tile the authored grid once from any camera	
 tests/engine/terrainRenderer.test.ts	235	check	R			engine/render-three,engine/terrain	three-via:engine/render-three,three:three		terrain renderer: the view frustum culls nodes behind the camera and re-selects on a turn	
 tests/engine/terrainRenderer.test.ts	269	check	R			engine/render-three,engine/terrain	three-via:engine/render-three,three:three		terrain renderer: self-shadow keeps the nodes inside a shadow frustum the view does not see; quality hooks toggle	
@@ -1170,9 +1170,9 @@ tests/engine/terrainWorldRenderer.test.ts	235	check	R			engine/render-three,engi
 tests/engine/terrainWorldRenderer.test.ts	272	check	R			engine/render-three,engine/terrain	three-via:engine/render-three,three:three		terrain uploads: seam dab copies the neighbour edge strip and matches a rebuild	
 tests/engine/terrainWorldRenderer.test.ts	312	check	R			engine/render-three,engine/terrain	three-via:engine/render-three,three:three		terrain uploads: seam normal reach, corner copies, batching and context recovery	
 tests/engine/terrainWorldRenderer.test.ts	353	check	R			engine/render-three,engine/terrain	three-via:engine/render-three,three:three		terrain uploads: edits without global samples skip maps; hole fill stays identical	
-tests/engine/terrainWorldRenderer.test.ts	376	check	A			engine/terrain			terrain world: seam normals equal a single-grid reference, holes clamp	
-tests/engine/terrainWorldRenderer.test.ts	411	check	A			engine/terrain			terrain world: node height bounds equal brute force across tiles, holes stay conservative	
-tests/engine/terrainWorldRenderer.test.ts	470	check	A			engine/terrain			terrain world: global map samples vertex heights, normals and weights; holes are flagged	
+tests/engine/terrainWorldRenderer.test.ts	376	check	A			engine/terrain		src/engine/terrain/terrainWorldRenderer.test.ts	terrain world: seam normals equal a single-grid reference, holes clamp	
+tests/engine/terrainWorldRenderer.test.ts	411	check	A			engine/terrain		src/engine/terrain/terrainWorldRenderer.test.ts	terrain world: node height bounds equal brute force across tiles, holes stay conservative	
+tests/engine/terrainWorldRenderer.test.ts	470	check	A			engine/terrain		src/engine/terrain/terrainWorldRenderer.test.ts	terrain world: global map samples vertex heights, normals and weights; holes are flagged	
 tests/engine/terrainWorldRenderer.test.ts	511	check	R			engine/render-three,engine/terrain	three-via:engine/render-three,three:three		terrain world: selected nodes cover every tile once and never a missing tile at full resolution	
 tests/engine/terrainWorldRenderer.test.ts	538	check	R			engine/render-three,engine/terrain	three-via:engine/render-three,three:three		terrain world: tile slots stream nearest-first under the upload budget and capacity	
 tests/engine/terrainWorldRenderer.test.ts	580	check	R			engine/render-three,engine/terrain	three-via:engine/render-three,three:three		terrain world: raycasts hit the same surface as a reference mesh and miss the hole	
@@ -1293,11 +1293,11 @@ tests/engine/vehicleEntry.test.ts	345	check	R			engine/input,src	three-via:src,t
 tests/engine/vehicleRuntime.test.ts	176	check	M			src	model:src		vehicle telemetry: rollback is distinct from reverse gear and missing diagnostics stay unknown	
 tests/engine/vehicleRuntime.test.ts	188	check	M			engine/physics,src	model:src		vehicle mode maps WASD + Space onto pedals, steering and handbrake	
 tests/engine/vehicleRuntime.test.ts	207	check	M			src	model:src		vehicle mode steers directly with a stick and treats the triggers as analog pedals	
-tests/engine/vehicleRuntime.test.ts	230	check	A			engine/physics			an analog steer input skips the rate filter but keeps the gamma response	
+tests/engine/vehicleRuntime.test.ts	230	check	A			engine/physics		src/engine/physics/vehicle/vehicleRuntime.test.ts	an analog steer input skips the rate filter but keeps the gamma response	
 tests/engine/vehicleRuntime.test.ts	240	check	M			src	model:src		vehicle chase camera frames the car from behind along its planar heading	
 tests/engine/vehicleRuntime.test.ts	261	check	M			src	model:src		vehicle chase orbit: centred is the authored framing, yaw looks round, elevation is bounded	
 tests/engine/vehicleRuntime.test.ts	290	check	M			src	model:src		vehicle chase orbit swings back only once idle and moving; the arm pulls in at once and eases out	
-tests/engine/vehicleRuntime.test.ts	307	check	A			engine/physics			vehicle engine sound pitch follows the revs and volume the load	
+tests/engine/vehicleRuntime.test.ts	307	check	A			engine/physics		src/engine/physics/vehicle/vehicleRuntime.test.ts	vehicle engine sound pitch follows the revs and volume the load	
 tests/engine/vehicleRuntime.test.ts	335	check	R			src	three-via:src		vehicle mode is registered and selectable	
 tests/engine/vehicleRuntime.test.ts	342	check	R			engine/input,engine/physics,src	three-via:src,three:three		vehicle session possesses the first vehicle and forwards held keys as input	
 tests/engine/vehicleRuntime.test.ts	365	check	R			engine/input,src	three-via:src,three:three		vehicle session possesses late when physics brings the car up after boot	
@@ -1373,11 +1373,11 @@ tests/engine/wheelSink.test.ts	150	check	A			engine/physics		src/engine/physics/
 tests/engine/wheelSink.test.ts	167	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: footprint sanitises samples and samples only the centre for invalid or zero width	
 tests/engine/wheelSink.test.ts	185	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: the footprint's cross slope points to the rut's deeper side, along the rotated axle	
 tests/engine/wheelSink.test.ts	202	check	A			engine/physics		src/engine/physics/surface/wheelSink.test.ts	wheel sink: rut steering pushes along the axle toward the deeper side, capped and only under load	
-tests/engine/wheelSurfaceFx.test.ts	132	check	A			engine/physics			wheel surface fx: airborne, stopped and invalid inputs produce zero output	
-tests/engine/wheelSurfaceFx.test.ts	144	check	A			engine/physics			wheel surface fx: curves rise with speed and slip, clamp and mirror reverse	
-tests/engine/wheelSurfaceFx.test.ts	159	check	A			engine/physics			wheel surface fx: documented rolling curve reuses caller output	
+tests/engine/wheelSurfaceFx.test.ts	132	check	A			engine/physics		src/engine/physics/surface/wheelSurfaceFx.test.ts	wheel surface fx: airborne, stopped and invalid inputs produce zero output	
+tests/engine/wheelSurfaceFx.test.ts	144	check	A			engine/physics		src/engine/physics/surface/wheelSurfaceFx.test.ts	wheel surface fx: curves rise with speed and slip, clamp and mirror reverse	
+tests/engine/wheelSurfaceFx.test.ts	159	check	A			engine/physics		src/engine/physics/surface/wheelSurfaceFx.test.ts	wheel surface fx: documented rolling curve reuses caller output	
 tests/engine/wheelSurfaceFx.test.ts	167	check	R			engine/scene,src	three-via:src,three:three		wheel surface fx: presets without presentation and absent lookup make no effect or sound calls	
-tests/engine/wheelSurfaceFx.test.ts	185	check	A			engine/physics			wheel surface fx: physics slip drives a stationary burnout and overrides rotation noise	
+tests/engine/wheelSurfaceFx.test.ts	185	check	A			engine/physics		src/engine/physics/surface/wheelSurfaceFx.test.ts	wheel surface fx: physics slip drives a stationary burnout and overrides rotation noise	
 tests/engine/wheelSurfaceFx.test.ts	197	check	R			engine/render-three,engine/scene,engine/vfx	three-via:engine/render-three		wheel surface fx: authored mud droplets arc, keep world positions and drain after stopping	
 tests/engine/wheelSurfaceFx.test.ts	225	check	R			engine/physics,engine/render-three,engine/scene,engine/vfx	three-via:engine/render-three		wheel surface fx: snow preset resolves an authored powder emitter at low particle density	
 tests/engine/wheelSurfaceFx.test.ts	243	checkAsync	R			engine/scene,src	three-via:src,three:three		wheel surface fx: mud opts in without audio and spray follows chassis, steering and reverse	
@@ -1419,7 +1419,7 @@ tests/engine/windSway.test.ts	188	check	R			engine/render-three	three-via:engine
 tests/engine/windSway.test.ts	210	check	R			engine/render-three	three-via:engine/render-three,three:three		wind sway: shadow materials sway with the same uniforms	
 tests/engine/windSway.test.ts	222	check	R			engine/environment,engine/render-three	three-via:engine/render-three		wind sway: the frame update writes wind, time, view origin and the fade window	
 tests/engine/windSway.test.ts	235	check	M			engine/environment,engine/scene,tools/saveValidator	model:engine/scene,model:tools/saveValidator		wind sway: foliage type sway is optional, clamps leniently and survives the save	
-tests/engine/windSway.test.ts	244	check	A			engine/environment			wind sway: the WES wind group only counts while the environment is active	
+tests/engine/windSway.test.ts	244	check	A			engine/environment		src/engine/environment/windSway.test.ts	wind sway: the WES wind group only counts while the environment is active	
 tests/engine/windSway.test.ts	251	check	R			engine/render-three,engine/scene	three-via:engine/render-three,three:three		wind sway: foliage without sway or cull keeps the shared material; sway clones it	
 tests/engine/windSway.test.ts	270	check	R			engine/render-three,engine/scene	three-via:engine/render-three,three:three		wind sway: a culled, swaying type fades and sways in one program, shadows included	
 tests/engine/windSway.test.ts	286	check	R			engine/perf,engine/render-three	three-via:engine/render-three,three:three		wind sway: quality sets a sway distance per profile and the shader skips calm or far instances	
@@ -1644,8 +1644,8 @@ tests/engine/worldStreaming.test.ts	276	checkAsync	M			engine/world	model:engine
 tests/engine/worldStreaming.test.ts	302	checkAsync	M			engine/world	model:engine/world		world streaming: dispose aborts, deactivates, releases data and rejects waiters once	
 tests/engine/worldStreaming.test.ts	325	checkAsync	M			engine/world	model:engine/world		world streaming: aborted rejection is not a content failure	
 tests/engine/worldStreaming.test.ts	336	check	M			engine/world	model:engine/world		world streaming: invalid configuration and area inputs reject	
-tests/engine/worldStreaming.test.ts	349	check	A	yes		engine/terrain	boundary-model:engine/terrain		terrain streaming: codec round-trip in metres, min/max, weight blocks and transferable ownership	
-tests/engine/worldStreaming.test.ts	381	check	A	yes		engine/terrain	boundary-model:engine/terrain		terrain streaming: rejects mismatched headers, summaries and corrupt samples	
+tests/engine/worldStreaming.test.ts	349	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/worldStreaming.test.ts	terrain streaming: codec round-trip in metres, min/max, weight blocks and transferable ownership	
+tests/engine/worldStreaming.test.ts	381	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/worldStreaming.test.ts	terrain streaming: rejects mismatched headers, summaries and corrupt samples	
 tests/engine/worldStreaming.test.ts	401	checkAsync	M			engine/terrain,engine/world	model:engine/world		terrain streaming: worker init, decode transfer and structured request errors	
 tests/engine/worldStreets.test.ts	108	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldStreets.test.ts	world streets: organic streets start on a street's edge, stay in the core and keep the slope limit	
 tests/engine/worldStreets.test.ts	126	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldStreets.test.ts	world streets: on a slope contour streets stay level; a flat core grows them as organic	
