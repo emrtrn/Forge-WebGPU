@@ -57,3 +57,13 @@ export function registerTestWorldTests(check: Check): void {
 }
 
 registerTestWorldTests(test as unknown as Parameters<typeof registerTestWorldTests>[0]);
+
+// The generator half of Forge's "test world: deterministic per seed, and the level wires
+// terrain, Player Start and Game Mode", dropped for its old level document (D).
+test("test world: deterministic per seed", () => {
+  const options = { tiles: 3, tileQuads: 32, spacing: 16 };
+  const a = generateTestWorld(options);
+  const b = generateTestWorld(options);
+  assert.deepEqual(a.tileBytes.get("1_1"), b.tileBytes.get("1_1"));
+  assert.notDeepEqual(generateTestWorld({ ...options, seed: 7 }).tileBytes.get("1_1"), a.tileBytes.get("1_1"));
+});

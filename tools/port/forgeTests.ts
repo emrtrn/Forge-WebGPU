@@ -406,6 +406,9 @@ export function droppedBy(path: string): string | null {
 const WORLD_STAGE_RUNNER =
   "World Builder option B: the Stage Runner / ownership surface (dry run, output hashes, hand-edit keeping, generator versions, manual-deletion records)";
 
+const OLD_LEVEL_DOCUMENT =
+  "Forge WebGL's old level document (RoomLayout with instances / loadGroups, Game Mode path); the new format has its own checks (user decision 2026-11-12)";
+
 export const DROPPED_CHECKS: ReadonlyArray<{ readonly file: string; readonly label: string; readonly why: string }> = [
   {
     file: "tools/engine-tests.ts",
@@ -485,6 +488,16 @@ export const DROPPED_CHECKS: ReadonlyArray<{ readonly file: string; readonly lab
     file: "tests/engine/worldStage.test.ts",
     label: "world stage: default stages are unique tokens with positive versions",
     why: WORLD_STAGE_RUNNER,
+  },
+  {
+    file: "tests/engine/testWorld.test.ts",
+    label: "test world: deterministic per seed, and the level wires terrain, Player Start and Game Mode",
+    why: OLD_LEVEL_DOCUMENT,
+  },
+  {
+    file: "tests/engine/worldDataCheck.test.ts",
+    label: "world data: level documents require both arrays on an object",
+    why: OLD_LEVEL_DOCUMENT,
   },
 ];
 
