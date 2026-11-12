@@ -1,4 +1,4 @@
-// Ported from Forge WebGL engine/scene/components.ts (collider, transform, vehicle readers) @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
+// Ported from Forge WebGL engine/scene/components.ts (collider, transform, vehicle, character movement readers) @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
 // TRANSITION (plan 2b, user decision 2026-11-11): Forge WebGL's old entity and
 // component model, only the part ported subsystems read. Faz 6 replaces it with
 // schema components (each subsystem binds to the world with its feature) and
@@ -292,4 +292,89 @@ function readFiniteNumber(
   if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
   if (minExclusive !== undefined && value <= minExclusive) return fallback;
   return value;
+}
+
+export const CHARACTER_MOVEMENT_COMPONENT = "CharacterMovement";
+
+export type CharacterMovementMode = "walking" | "falling" | "flying" | "swimming" | "custom";
+
+export interface CharacterMovementComponent {
+  maxWalkSpeed: number;
+  sprintMultiplier: number;
+  jumpSpeed: number;
+  gravityScale: number;
+  airControl: number;
+  acceleration: number;
+  brakingDeceleration: number;
+  groundFriction: number;
+  rotationRate: Vec3;
+  orientRotationToMovement: boolean;
+  orientRotationToControl: boolean;
+  movementMode: CharacterMovementMode;
+  capsuleRadius: number;
+  capsuleHalfHeight: number;
+  maxStepHeight: number;
+  /**
+   * Largest drop (units) the grounded feet follow down without going airborne, so
+   * walking down stair-sized ledges stays grounded (no fall animation). A drop
+   * beyond this enters falling.
+   */
+  maxStepDown: number;
+  /** Steepest ramp (degrees) the character can walk up; steeper surfaces are not walkable ground. */
+  maxSlopeAngleDeg: number;
+  /**
+   * Planar speed multiplier while climbing at/above a 45° incline (slope ratio 1);
+   * shallower climbs blend toward 1, so stairs and ramps read as effort. 1 = no
+   * uphill slowdown.
+   */
+  uphillSpeedScale: number;
+  /**
+   * Vertical speed (units/s) the grounded feet ease toward a new floor height, so
+   * a step is climbed/descended over a few frames instead of snapping in one
+   * (which pops the camera). 0 = instant snap. Ramps are unaffected (their
+   * per-frame rise is below the per-frame ease budget).
+   */
+  stepSmoothSpeed: number;
+}
+
+const CHARACTER_MOVEMENT_MODES: readonly CharacterMovementMode[] = [
+  "walking",
+  "falling",
+  "flying",
+  "swimming",
+  "custom",
+];
+
+
+export function readCharacterMovementComponent(
+  entity: Entity,
+): CharacterMovementComponent | undefined {
+  const data = entity.components[CHARACTER_MOVEMENT_COMPONENT];
+  if (!data) return undefined;
+  const mode =
+    typeof data.movementMode === "string" &&
+    CHARACTER_MOVEMENT_MODES.includes(data.movementMode as CharacterMovementMode)
+      ? (data.movementMode as CharacterMovementMode)
+      : "walking";
+  return {
+    maxWalkSpeed: readFiniteNumber(data.maxWalkSpeed, 3, 0),
+    sprintMultiplier: readFiniteNumber(data.sprintMultiplier, 2, 0),
+    jumpSpeed: readFiniteNumber(data.jumpSpeed, 4, 0),
+    gravityScale: readFiniteNumber(data.gravityScale, 1),
+    airControl: readFiniteNumber(data.airControl, 0.25),
+    acceleration: readFiniteNumber(data.acceleration, 30, 0),
+    brakingDeceleration: readFiniteNumber(data.brakingDeceleration, 24, 0),
+    groundFriction: readFiniteNumber(data.groundFriction, 8, 0),
+    rotationRate: readVec3(data.rotationRate) ?? [0, 0, 500],
+    orientRotationToMovement: data.orientRotationToMovement !== false,
+    orientRotationToControl: data.orientRotationToControl === true,
+    movementMode: mode,
+    capsuleRadius: readFiniteNumber(data.capsuleRadius, 0.3, 0),
+    capsuleHalfHeight: readFiniteNumber(data.capsuleHalfHeight, 0.9, 0),
+    maxStepHeight: readFiniteNumber(data.maxStepHeight, 0.45, 0),
+    maxStepDown: readFiniteNumber(data.maxStepDown, 0.5, 0),
+    maxSlopeAngleDeg: readFiniteNumber(data.maxSlopeAngleDeg, 45, 0),
+    uphillSpeedScale: readFiniteNumber(data.uphillSpeedScale, 0.65, 0),
+    stepSmoothSpeed: readFiniteNumber(data.stepSmoothSpeed, 6, 0),
+  };
 }

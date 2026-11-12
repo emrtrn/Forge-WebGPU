@@ -348,6 +348,11 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       `@recast-navigation/core` `0.43.1` tam sabit (Forge ile aynı); worker
       mesajlaşması `src/runtime/navigation`'da. `navFloorSampler` movement ile.
       23 kontrol yeşil (17'si gerçek Recast wasm'ıyla). İlerleme A 393 / 923.
+      *Movement taşındı (2026-11-12):* `src/engine/movement` (karakter hareketi
+      alt sistemi, çarpışma, düzlemsel / dikey hareket, yokuş yavaşlaması,
+      lokomosyon) + `animation/blendSpace` + `navFloorSampler`; hareketli
+      platform bağı kesildi (K12; platform bağlamı hep boş). Karakter hareketi
+      okuyucusu legacy'ye. 76 kontrol yeşil. İlerleme A 469 / 923.
 - [ ] Kayıt oyunu (`engine/persistence`) ve World Partition (`engine/world`)
       yeni modele göre yeniden kurulur; GUID anahtarlı. Kayıt oyunu `persist`
       işaretli bileşen alanlarını ve `defineSaveState` bölümlerini saklar;
@@ -695,3 +700,4 @@ silinebilir.
 | 2026-11-12 | v1.0 | 2b terrain (sınıflandırma kullanıcı onayıyla): `src/engine/terrain` (34 dosya) + saf landscape algoritmaları, `src/engine/spline`, `src/engine/world` (ızgara / akış matematiği), `terrainCollider`; su Faz 7'ye, su birikintisi 5a'ya, runtime akışı 5b'ye, `worldTerrainMove` 5d / 7'ye ertelendi. 153 kontrol yeşil (terrain 150); taşıma araçlarında üç düzeltme (varsayılan değerli parametre özelliği, `checkAsync` kaydı, dinamik etiket sayımı), Vitest süre sınırı 30 sn. `heightmapPng` 3 kontrol `node:zlib` kararını bekliyor. A 367 / 923 |
 | 2026-11-12 | v1.0 | 2b: `node:zlib` `src` testlerine açıldı (bağımsız referans kodlayıcı; kullanıcı kararı, `src-tests-node-assert-only` + kontrol fixture'ı); `heightmapPng` 3 kontrol yeşil. CI `d8b7891`, `8d7ab7c` yeşil (kullanıcı teyidi). A 370 / 923 |
 | 2026-11-12 | v1.0 | 2b navigation: `src/engine/navigation` (Recast / Detour, döşemeli planlayıcı, ajan profili, yerel kaçınma), worker mesajlaşması `src/runtime/navigation`; `@recast-navigation/core` `0.43.1` tam sabit; `navFloorSampler` movement ile. 23 kontrol yeşil; taşıma aracı async kayıt fonksiyonlarını `await` ile çağırır. A 393 / 923 |
+| 2026-11-12 | v1.0 | 2b movement: `src/engine/movement` + `animation/blendSpace` + `navFloorSampler`; hareketli platform bağı kesildi (K12), `LaunchOptions` / `TransformSink` movement'a; karakter hareketi okuyucusu legacy'ye. 76 kontrol yeşil; taşıma aracı isteğe bağlı parametre özelliğini `T | undefined` diye yazar. A 469 / 923 |

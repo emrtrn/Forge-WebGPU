@@ -1,9 +1,11 @@
 // Ported from Forge WebGL tests/engine/terrainHeightfieldPhysics.test.ts @ forge-webgl-final (04b5fb23): checks unchanged, run by
-// Vitest; 7 check(s) not yet portable left out. docs/PORT_LOG.md §2.
+// Vitest; 6 check(s) not yet portable left out. docs/PORT_LOG.md §2.
 import assert from "node:assert/strict";
 import { COLLIDER_COMPONENT, TRANSFORM_COMPONENT, type ColliderComponent } from "../legacy/components.ts";
 import { type Entity, type EntityComponentData } from "../legacy/entity.ts";
 import { type Vec3 } from "../legacy/layout.ts";
+import { navFloorSampler } from "../navigation/navFloorSampler.ts";
+import { HeightfieldStaticSource } from "../physics/heightfieldStatic.ts";
 import { PhysicsSubsystem } from "../physics/physicsSubsystem.ts";
 import { NEUTRAL_VEHICLE_INPUT, createReferenceCarDefinition } from "../physics/vehicle/vehicleTypes.ts";
 import { terrainTileTrimesh } from "../testing/terrainTrimeshReference.ts";
@@ -229,6 +231,37 @@ async function driveTerrainSeam(seamed: boolean, route: SeamDrive) {
 }
 
 export function registerTerrainHeightfieldPhysicsTests(check: Check): void {
+  check("terrain heightfield navigation: 257x257 tile answers floor queries without requesting the full triangle list", () => {
+    const def: WorldTerrainDef = { ...vehicleTerrain(false).def, tileQuads: 256, tilesX: 1, tilesZ: 1,
+      origin: [0, 0, 0], tiles: [{ key: "0_0", minHeight: 0, maxHeight: 0 }] };
+    const document = { def, tiles: new Map([["0_0", createFlatTerrainTile(def, 0, 0)]]) };
+    const physics = new PhysicsSubsystem();
+    const originalAll = HeightfieldStaticSource.prototype.all;
+    let fullCalls = 0;
+    HeightfieldStaticSource.prototype.all = function () {
+      fullCalls += 1;
+      throw new Error("navigation queries must not allocate the tile's 131072 triangles");
+    };
+    try {
+      physics.setEntities(worldTerrainColliderEntities({ id: "large", name: "Large", collision: true }, document));
+      const surfaces = physics.staticNavigationSurfaceTriangles(false);
+      const blockers = physics.staticNavigationBlockerAabbs();
+      assert.deepEqual(surfaces, []);
+      assert.deepEqual(blockers, []);
+      assert.deepEqual(physics.staticBlockerAabbs(), [], "debug/perception must not generate surfaces either");
+      const bounds = [{ min: [0, -1, 0] as Vec3, max: [16, 10, 16] as Vec3 }];
+      const agent = { radius: 0.3, height: 1.8, stepHeight: 0.6 };
+      const sampleFloorYs = navFloorSampler(blockers, surfaces, bounds, agent, 0,
+        physics.staticNavigationSurfaceSamplesAt.bind(physics));
+      for (const [x, z] of [[2, 2], [12, 12], [8, 3]] as const) {
+        assert.deepEqual(sampleFloorYs(x, z), [0], `flat floor at ${x},${z}`);
+      }
+      assert.equal(fullCalls, 0);
+    } finally {
+      HeightfieldStaticSource.prototype.all = originalAll;
+      physics.dispose();
+    }
+  });
 
   check("terrain heightfield physics: a collision-free World Terrain leaves no static ground", () => {
     const document = terrain(1.5, [0, 0, 0]);

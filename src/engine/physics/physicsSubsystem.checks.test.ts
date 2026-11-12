@@ -1,11 +1,47 @@
 // Ported from Forge WebGL tools/engine-tests.ts @ forge-webgl-final (04b5fb23): each check is
 // copied unchanged and runs as a Vitest test; docs/PORT_LOG.md §2.
 import assert from "node:assert/strict";
+import { resolvePlanarMovement } from "../movement/characterCollision.ts";
 import { terrainTileTrimesh } from "../testing/terrainTrimeshReference.ts";
 import { PhysicsSubsystem } from "./physicsSubsystem.ts";
 import { test } from "vitest";
 
 const check = test;
+
+check("physics subsystem gives steep trimesh triangle blockers a tight XZ footprint", () => {
+  const physics = new PhysicsSubsystem();
+  physics.setEntities([
+    {
+      id: "rotated-trimesh-wall",
+      components: {
+        Transform: { position: [0, 0, 0], rotation: [0, 45, 0], scale: [1, 1, 1] },
+        Collider: {
+          shape: "box",
+          size: [4, 3, 0.2],
+          isStatic: true,
+          isSensor: false,
+          primitives: [
+            {
+              shape: "trimesh",
+              size: [4, 3, 0.2],
+              vertices: [
+                [-2, 0, 0],
+                [2, 0, 0],
+                [-2, 3, 0],
+              ],
+              indices: [0, 1, 2],
+            },
+          ],
+        },
+      },
+    },
+  ]);
+  const blockers = physics.staticBlockerAabbs();
+  assert.equal(blockers.length, 1);
+  assert.ok(blockers[0]?.footprint && blockers[0].footprint.length === 2, "vertical triangle projects to a segment");
+  const moved = resolvePlanarMovement([1.7, 0, 0.8], { dx: -0.4, dz: 0 }, [0.1, 0.5, 0.1], blockers);
+  assert.ok(Math.abs(moved.dx + 0.4) < 1e-9, `dx=${moved.dx}`);
+});
 
 check("landscape trimesh reference is centred and up-facing, and physics files its triangles as walkable surfaces", () => {
   const { primitive } = terrainTileTrimesh({ tileQuads: 2, spacing: 2, origin: [0, 0, 0] }, {

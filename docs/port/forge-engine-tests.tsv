@@ -809,10 +809,10 @@ tests/engine/staticQueries.test.ts	103	check	A	yes		engine/physics	boundary-mode
 tests/engine/staticQueries.test.ts	113	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries random incremental mutations equal a full rebuild
 tests/engine/staticQueries.test.ts	157	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries batches invalidate once and retain untouched records
 tests/engine/staticQueries.test.ts	183	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries id map stays consistent across replace remove clear and re-add
-tests/engine/staticQueries.test.ts	207	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics,boundary-three-math:engine/physics		static queries 5000 AABBs bound character blocker inspections without flat queries
-tests/engine/staticQueries.test.ts	229	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics,boundary-three-math:engine/physics		static queries movement preserves void falling and empty-scene fallback floor
+tests/engine/staticQueries.test.ts	207	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries 5000 AABBs bound character blocker inspections without flat queries
+tests/engine/staticQueries.test.ts	229	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries movement preserves void falling and empty-scene fallback floor
 tests/engine/staticQueries.test.ts	250	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries streamed colliders become nav blockers on add and stop on remove
-tests/engine/staticQueries.test.ts	275	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics,boundary-three-math:engine/physics		static queries movement swept radius covers fast travel launch and platform carry
+tests/engine/staticQueries.test.ts	275	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries movement swept radius covers fast travel launch and platform carry
 tests/engine/streamedActorState.test.ts	9	check	M			engine/world	model:engine/world		streamed actor state: poseMatches wraps angles and tolerates small drift
 tests/engine/streamedActorState.test.ts	20	check	M			engine/world	model:engine/world		streamed actor state: only a moved body is remembered and take consumes it
 tests/engine/streamedActorState.test.ts	33	check	M			engine/world	model:engine/world		streamed actor state: a car left on its handbrake at home is still remembered
@@ -978,7 +978,7 @@ tests/engine/terrainErosion.test.ts	58	check	A	yes		engine/terrain	boundary-mode
 tests/engine/terrainErosion.test.ts	70	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/terrainErosion.test.ts	terrain erosion validates settings and bounds expensive brush allocations
 tests/engine/terrainGlobalMapFile.test.ts	27	check	A			engine/terrain		src/engine/terrain/terrainGlobalMapFile.test.ts	terrain global file: bit-exact multi-tile round trip preserves NaN payloads, signed zero and both weight blocks
 tests/engine/terrainGlobalMapFile.test.ts	47	check	M			engine/terrain,tools/saveValidator	model:tools/saveValidator		terrain global file: corrupt headers, lengths, samples and definition mismatches are rejected
-tests/engine/terrainHeightfieldPhysics.test.ts	232	check	A	yes		engine/navigation,engine/physics,engine/terrain	boundary-model:engine/physics,boundary-model:engine/terrain,boundary-three-math:engine/physics		terrain heightfield navigation: 257x257 tile answers floor queries without requesting the full triangle list
+tests/engine/terrainHeightfieldPhysics.test.ts	232	check	A	yes		engine/navigation,engine/physics,engine/terrain	boundary-model:engine/physics,boundary-model:engine/terrain,boundary-three-math:engine/physics	src/engine/terrain/terrainHeightfieldPhysics.test.ts	terrain heightfield navigation: 257x257 tile answers floor queries without requesting the full triangle list
 tests/engine/terrainHeightfieldPhysics.test.ts	264	check	M			engine/navigation,engine/physics,engine/scene,engine/terrain,tests	model:engine/scene		terrain heightfield navigation: floor layers equal trimesh without full surface generation
 tests/engine/terrainHeightfieldPhysics.test.ts	338	check	M			engine/physics,engine/scene,engine/terrain,tests	model:engine/scene		terrain heightfield physics: on-demand triangles answer every static query exactly like the per-tile trimesh
 tests/engine/terrainHeightfieldPhysics.test.ts	370	check	M			engine/physics,engine/scene,engine/terrain,tests	model:engine/scene		terrain heightfield physics: quads wider than the on-demand limit are expanded at load and still match
@@ -1916,13 +1916,13 @@ tools/engine-tests.ts	8832	check	M			engine/assets,tools/saveValidator	model:too
 tools/engine-tests.ts	8844	check	M			tools/saveValidator	model:tools/saveValidator		save validator allowlist keeps known placement fields, drops unknown ones
 tools/engine-tests.ts	8882	check	M			tools/saveValidator	model:tools/saveValidator		save validator light intensity accepts high finite values and rejects invalid values
 tools/engine-tests.ts	8895	check	M			tools/saveValidator	model:tools/saveValidator		save validator allowlist keeps known light fields, drops unknown ones
-tools/engine-tests.ts	8921	check	A			engine/movement			planarMoveStep: a single axis moves at exactly speed*dt
-tools/engine-tests.ts	8940	check	A			engine/movement			planarMoveStep: diagonals are normalized to the straight-line speed
-tools/engine-tests.ts	8960	check	A			engine/movement			planarMoveStep: opposing keys cancel and idle/zero input yields no delta
-tools/engine-tests.ts	8980	check	A			engine/movement			planarMoveStepRelativeToYaw rotates WASD by controller yaw
-tools/engine-tests.ts	9000	check	A			engine/movement			facingYawFromMove: the character faces its cardinal movement direction
-tools/engine-tests.ts	9009	check	A			engine/movement			facingYawFromMove: no movement returns null so facing is held
-tools/engine-tests.ts	9013	check	A			engine/movement			rotateYawToward: turns by a capped shortest-path step
+tools/engine-tests.ts	8921	check	A			engine/movement		src/engine/movement/planarMovement.test.ts	planarMoveStep: a single axis moves at exactly speed*dt
+tools/engine-tests.ts	8940	check	A			engine/movement		src/engine/movement/planarMovement.test.ts	planarMoveStep: diagonals are normalized to the straight-line speed
+tools/engine-tests.ts	8960	check	A			engine/movement		src/engine/movement/planarMovement.test.ts	planarMoveStep: opposing keys cancel and idle/zero input yields no delta
+tools/engine-tests.ts	8980	check	A			engine/movement		src/engine/movement/planarMovement.test.ts	planarMoveStepRelativeToYaw rotates WASD by controller yaw
+tools/engine-tests.ts	9000	check	A			engine/movement		src/engine/movement/planarMovement.test.ts	facingYawFromMove: the character faces its cardinal movement direction
+tools/engine-tests.ts	9009	check	A			engine/movement		src/engine/movement/planarMovement.test.ts	facingYawFromMove: no movement returns null so facing is held
+tools/engine-tests.ts	9013	check	A			engine/movement		src/engine/movement/planarMovement.test.ts	rotateYawToward: turns by a capped shortest-path step
 tools/engine-tests.ts	9020	check	M			engine/behavior,engine/input,src	model:src		input-move behavior: normalizes diagonal travel, faces it, holds facing idle
 tools/engine-tests.ts	9070	check	M			src	model:src		desiredFollowPose: offsets the camera from the player and aims above it
 tools/engine-tests.ts	9076	check	M			src	model:src		smoothingFactor: framerate-independent easing in [0,1], zero when degenerate
@@ -1931,24 +1931,24 @@ tools/engine-tests.ts	9091	check	M			src	model:src		stepFollowCamera: snaps on f
 tools/engine-tests.ts	9109	check	M			src	model:src		desiredSpringArmCameraPose orbits around the authored target offset
 tools/engine-tests.ts	9126	check	M			src	model:src		SpringArm doCollisionTest pulls the camera in front of static blockers
 tools/engine-tests.ts	9163	check	M			src	model:src		cameraProjectionFromComponent maps FOV and clip planes
-tools/engine-tests.ts	9180	check	A			engine/movement			stepVerticalMotion: rests on the floor and stays grounded without input
-tools/engine-tests.ts	9190	check	A			engine/movement			stepVerticalMotion: a grounded jump leaves the floor with upward velocity
-tools/engine-tests.ts	9203	check	A			engine/movement			stepVerticalMotion: jump rises then re-grounds after one rise/fall cycle
-tools/engine-tests.ts	9221	check	A			engine/movement			stepVerticalMotion: no mid-air double jump and a paused tick holds height
+tools/engine-tests.ts	9180	check	A			engine/movement		src/engine/movement/verticalMotion.test.ts	stepVerticalMotion: rests on the floor and stays grounded without input
+tools/engine-tests.ts	9190	check	A			engine/movement		src/engine/movement/verticalMotion.test.ts	stepVerticalMotion: a grounded jump leaves the floor with upward velocity
+tools/engine-tests.ts	9203	check	A			engine/movement		src/engine/movement/verticalMotion.test.ts	stepVerticalMotion: jump rises then re-grounds after one rise/fall cycle
+tools/engine-tests.ts	9221	check	A			engine/movement		src/engine/movement/verticalMotion.test.ts	stepVerticalMotion: no mid-air double jump and a paused tick holds height
 tools/engine-tests.ts	9233	check	M			engine/behavior,engine/input,src	model:src		input-move behavior: Space jumps from the ground, then gravity returns it
 tools/engine-tests.ts	9272	check	M			tools/saveValidator	model:tools/saveValidator		save validator allowlist keeps valid world gravity and killZ, rejects bad values
-tools/engine-tests.ts	9309	check	A			engine/movement			resolvePlanarMovement: no blockers leaves the move unchanged
-tools/engine-tests.ts	9316	check	A			engine/movement			resolvePlanarMovement: head-on into a wall is blocked; diagonal slides
-tools/engine-tests.ts	9328	check	A			engine/movement			resolvePlanarMovement: a blocker above the player's span does not block
-tools/engine-tests.ts	9335	check	A			engine/movement			resolvePlanarMovement: a blocker the player already overlaps does not block (ground)
-tools/engine-tests.ts	9343	check	A			engine/movement			resolvePlanarMovement: stops at the blocker in the path among several
-tools/engine-tests.ts	9353	check	A			engine/movement			safeSubstepLength: half the thinnest X/Z extent, Infinity for no blockers
-tools/engine-tests.ts	9361	check	A			engine/movement,engine/physics			resolvePlanarMovement: rotated wall footprint does not block its empty AABB corners
-tools/engine-tests.ts	9376	check	A			engine/movement,engine/physics			safeSubstepLength: rotated wall footprint uses the real thin edge
-tools/engine-tests.ts	9384	check	A			engine/movement			resolvePlanarMovement: trimesh wall segment footprint does not block its empty AABB corners
-tools/engine-tests.ts	9396	check	A			engine/movement			resolvePlanarMovementSubstepped: a fast move cannot tunnel through a thin wall
-tools/engine-tests.ts	9414	check	A			engine/movement			resolvePlanarMovementSubstepped: a move within one substep matches the single pass
-tools/engine-tests.ts	9423	check	A			engine/movement			resolvePlanarMovementSubstepped: preserves wall slide on a fast diagonal move
+tools/engine-tests.ts	9309	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	resolvePlanarMovement: no blockers leaves the move unchanged
+tools/engine-tests.ts	9316	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	resolvePlanarMovement: head-on into a wall is blocked; diagonal slides
+tools/engine-tests.ts	9328	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	resolvePlanarMovement: a blocker above the player's span does not block
+tools/engine-tests.ts	9335	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	resolvePlanarMovement: a blocker the player already overlaps does not block (ground)
+tools/engine-tests.ts	9343	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	resolvePlanarMovement: stops at the blocker in the path among several
+tools/engine-tests.ts	9353	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	safeSubstepLength: half the thinnest X/Z extent, Infinity for no blockers
+tools/engine-tests.ts	9361	check	A			engine/movement,engine/physics		src/engine/physics/rotatedBox.checks.test.ts	resolvePlanarMovement: rotated wall footprint does not block its empty AABB corners
+tools/engine-tests.ts	9376	check	A			engine/movement,engine/physics		src/engine/physics/rotatedBox.checks.test.ts	safeSubstepLength: rotated wall footprint uses the real thin edge
+tools/engine-tests.ts	9384	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	resolvePlanarMovement: trimesh wall segment footprint does not block its empty AABB corners
+tools/engine-tests.ts	9396	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	resolvePlanarMovementSubstepped: a fast move cannot tunnel through a thin wall
+tools/engine-tests.ts	9414	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	resolvePlanarMovementSubstepped: a move within one substep matches the single pass
+tools/engine-tests.ts	9423	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	resolvePlanarMovementSubstepped: preserves wall slide on a fast diagonal move
 tools/engine-tests.ts	9439	check	A			engine/navigation		src/engine/navigation/navAgentProfile.test.ts	resolveNavAgentProfile prefers authored navAgent size over an oversized collider
 tools/engine-tests.ts	9458	check	A			engine/navigation		src/engine/navigation/navAgentProfile.test.ts	resolveNavAgentProfile falls back to collider extents then defaults when navAgent size is absent
 tools/engine-tests.ts	9475	check	M			engine/scene	model:engine/scene		resolveCharacterCapsule prefers the non-sensor Collider capsule over legacy movement size
@@ -1960,20 +1960,20 @@ tools/engine-tests.ts	9635	check	A			engine/navigation		src/engine/navigation/lo
 tools/engine-tests.ts	9658	check	A			engine/movement		src/engine/movement/slopeSurface.test.ts	triangleUpNormal: flat floor = 1, vertical wall = 0, ramp = cos(angle)
 tools/engine-tests.ts	9666	check	A			engine/movement		src/engine/movement/slopeSurface.test.ts	sampleTriangleHeight: interpolates inside, null outside / for vertical triangles
 tools/engine-tests.ts	9675	check	A			engine/movement		src/engine/movement/slopeSurface.test.ts	slopeCosFromDegrees: 0°=1, 45°≈0.707, 90° clamped above 0
-tools/engine-tests.ts	9681	check	A			engine/movement			findGroundAt: a walkable ramp surface supplies the interpolated floor height
-tools/engine-tests.ts	9694	check	A			engine/movement			findGroundAt: a ramp steeper than the slope limit still supports the pawn but is not walkable
-tools/engine-tests.ts	9709	check	A			engine/movement			findGroundAt: a flat AABB top still wins over a lower ramp surface
-tools/engine-tests.ts	9722	check	A			engine/movement			findGroundAt: preferredFloorY chooses the intended stacked floor
-tools/engine-tests.ts	9742	check	A			engine/movement			findGroundLayersAt returns every walkable stacked floor
-tools/engine-tests.ts	9753	check	A			engine/movement			findGroundLayersAt support radius rejects narrow wall tops but keeps stacked floors
-tools/engine-tests.ts	9781	check	A			engine/movement			findGroundLayersAt support radius keeps stair treads walkable
-tools/engine-tests.ts	9798	check	A			engine/movement			findGroundLayersAt can respect navigation roles without changing default ground probes
-tools/engine-tests.ts	9823	check	A			engine/movement			findGroundLayersAt support radius rejects rotated wall footprint tops
-tools/engine-tests.ts	9865	check	A			engine/movement			findGroundLayersAt headroom gate drops floor cells under a low ceiling
-tools/engine-tests.ts	9900	check	A			engine/movement			findGroundLayersAt headroom gate treats a blocker underside as a ceiling
-tools/engine-tests.ts	9917	check	A			engine/movement			findGroundLayersAt never seeds from a seedsGround:false hull top
-tools/engine-tests.ts	9940	check	A			engine/movement			collapseCoincidentFloors merges same-floor clusters and keeps distinct levels
-tools/engine-tests.ts	9949	check	A			engine/movement			ground probe finds walkable tops, landing crossings, and filters step-height blockers
+tools/engine-tests.ts	9681	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	findGroundAt: a walkable ramp surface supplies the interpolated floor height
+tools/engine-tests.ts	9694	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	findGroundAt: a ramp steeper than the slope limit still supports the pawn but is not walkable
+tools/engine-tests.ts	9709	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	findGroundAt: a flat AABB top still wins over a lower ramp surface
+tools/engine-tests.ts	9722	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	findGroundAt: preferredFloorY chooses the intended stacked floor
+tools/engine-tests.ts	9742	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	findGroundLayersAt returns every walkable stacked floor
+tools/engine-tests.ts	9753	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	findGroundLayersAt support radius rejects narrow wall tops but keeps stacked floors
+tools/engine-tests.ts	9781	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	findGroundLayersAt support radius keeps stair treads walkable
+tools/engine-tests.ts	9798	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	findGroundLayersAt can respect navigation roles without changing default ground probes
+tools/engine-tests.ts	9823	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	findGroundLayersAt support radius rejects rotated wall footprint tops
+tools/engine-tests.ts	9865	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	findGroundLayersAt headroom gate drops floor cells under a low ceiling
+tools/engine-tests.ts	9900	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	findGroundLayersAt headroom gate treats a blocker underside as a ceiling
+tools/engine-tests.ts	9917	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	findGroundLayersAt never seeds from a seedsGround:false hull top
+tools/engine-tests.ts	9940	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	collapseCoincidentFloors merges same-floor clusters and keeps distinct levels
+tools/engine-tests.ts	9949	check	A			engine/movement		src/engine/movement/characterCollision.test.ts	ground probe finds walkable tops, landing crossings, and filters step-height blockers
 tools/engine-tests.ts	9965	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem exposes static blocker AABBs and collider half-extents
 tools/engine-tests.ts	9999	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics navigation queries honor collider navigation roles without changing physics blockers
 tools/engine-tests.ts	10079	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	walkable stair emits riser nav blockers tagged with their role; auto does not
@@ -1990,16 +1990,16 @@ tools/engine-tests.ts	10309	check	A	yes		engine/physics	boundary-model:engine/ph
 tools/engine-tests.ts	10340	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem keeps a steep trimesh triangle as a wall blocker (not a surface)
 tools/engine-tests.ts	10373	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem never seeds a walkable surface on a solid body's downward face
 tools/engine-tests.ts	10410	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem bakes body rotation into surface-triangle normals
-tools/engine-tests.ts	10442	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics,boundary-three-math:engine/physics		CharacterMovement subsystem walks up a trimesh ramp, following the incline
+tools/engine-tests.ts	10442	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem walks up a trimesh ramp, following the incline
 tools/engine-tests.ts	10515	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem expands a trimesh collider into per-triangle blockers
-tools/engine-tests.ts	10555	check	A	yes		engine/movement,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics		physics subsystem gives steep trimesh triangle blockers a tight XZ footprint
+tools/engine-tests.ts	10555	check	A	yes		engine/movement,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.checks.test.ts	physics subsystem gives steep trimesh triangle blockers a tight XZ footprint
 tools/engine-tests.ts	10590	check	M			engine/behavior,engine/input,engine/physics,src	model:src		input-move behavior: the player cannot walk through a static wall
-tools/engine-tests.ts	10634	check	A			engine/movement			classifyLocomotion: grounded planar speed picks idle/walk/run by threshold
-tools/engine-tests.ts	10643	check	A			engine/movement			classifyLocomotion: airborne reads jump while rising, fall while descending
-tools/engine-tests.ts	10650	check	A			engine/movement			resolveLocomotionClip: walks the fallback chain to an available clip
-tools/engine-tests.ts	10668	check	A			engine/movement			resolveLocomotionClip: an authored anim-set overrides the clip-name heuristic
-tools/engine-tests.ts	10691	check	A			engine/movement			locomotionConfigForSkeleton: derives blend space + anim-set, tolerates no sidecar
-tools/engine-tests.ts	10714	check	A			engine/movement			selectLocomotionClip: composes classify + resolve end to end
+tools/engine-tests.ts	10634	check	A			engine/movement		src/engine/movement/locomotionAnimation.test.ts	classifyLocomotion: grounded planar speed picks idle/walk/run by threshold
+tools/engine-tests.ts	10643	check	A			engine/movement		src/engine/movement/locomotionAnimation.test.ts	classifyLocomotion: airborne reads jump while rising, fall while descending
+tools/engine-tests.ts	10650	check	A			engine/movement		src/engine/movement/locomotionAnimation.test.ts	resolveLocomotionClip: walks the fallback chain to an available clip
+tools/engine-tests.ts	10668	check	A			engine/movement		src/engine/movement/locomotionAnimation.test.ts	resolveLocomotionClip: an authored anim-set overrides the clip-name heuristic
+tools/engine-tests.ts	10691	check	A			engine/movement		src/engine/movement/locomotionAnimation.test.ts	locomotionConfigForSkeleton: derives blend space + anim-set, tolerates no sidecar
+tools/engine-tests.ts	10714	check	A			engine/movement		src/engine/movement/locomotionAnimation.test.ts	selectLocomotionClip: composes classify + resolve end to end
 tools/engine-tests.ts	10722	check	R			engine/render-three	three-via:engine/render-three,three:three		CrossfadeAnimator: exposes its clips and tracks the current clip on play
 tools/engine-tests.ts	10737	check	R			engine/render-three	three-via:engine/render-three,three:three		CrossfadeAnimator: playRange holds a montage section and reports when it ends
 tools/engine-tests.ts	10761	check	R			src,tools/saveValidator	three-via:src		montage sections normalize and round-trip, dropping ranges that would freeze a frame
@@ -2013,8 +2013,8 @@ tools/engine-tests.ts	10997	check	R			engine/render-three	three-via:engine/rende
 tools/engine-tests.ts	11013	check	R			engine/render-three	three-via:engine/render-three,three:three		splitClipsByUpperBody: routes each track to the half its node belongs to
 tools/engine-tests.ts	11036	check	R			engine/render-three	three-via:engine/render-three,three:three		LayeredCharacterAnimator: upper montage/aim layers over locomotion legs
 tools/engine-tests.ts	11083	check	R			engine/render-three	three-via:engine/render-three,three:three		LayeredClipAnimator: the torso takes a one-shot or a held pose while the legs keep walking
-tools/engine-tests.ts	11168	check	A			engine/movement			pickLocomotionBlendSpace: prefers a named 1D space, else the first usable one
-tools/engine-tests.ts	11194	check	A			engine/movement			resolveLocomotionAnimation: blends on the ground, falls back to a clip airborne
+tools/engine-tests.ts	11168	check	A			engine/movement		src/engine/movement/locomotionAnimation.test.ts	pickLocomotionBlendSpace: prefers a named 1D space, else the first usable one
+tools/engine-tests.ts	11194	check	A			engine/movement		src/engine/movement/locomotionAnimation.test.ts	resolveLocomotionAnimation: blends on the ground, falls back to a clip airborne
 tools/engine-tests.ts	11257	check	M			engine/behavior,engine/input,src	model:src		input-move behavior: reports the movement snapshot and sprint raises planar speed
 tools/engine-tests.ts	11303	check	M			engine/scene	model:engine/scene		layout sensor flag maps to a non-blocking sensor collider
 tools/engine-tests.ts	11329	check	M			engine/scene	model:engine/scene		collisionPreset maps to runtime collider: trigger=sensor, noCollision=none
@@ -2051,12 +2051,12 @@ tools/engine-tests.ts	12520	check	A	yes		engine/behavior,engine/core,engine/inpu
 tools/engine-tests.ts	12580	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: setTickInterval throttles ticks and passes accumulated dt
 tools/engine-tests.ts	12620	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: setTickEnabled gates the tick binding, re-enable resumes
 tools/engine-tests.ts	12659	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		world.velocityOf delegates to the wired provider and is null otherwise
-tools/engine-tests.ts	12701	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem exposes last-frame velocity from applied motion
+tools/engine-tests.ts	12701	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem exposes last-frame velocity from applied motion
 tools/engine-tests.ts	12741	check	M			engine/behavior,engine/core,engine/input,engine/scene	model:engine/scene		owner/instigator: spawned actor resolves its spawner; unowned + owner-death read null
 tools/engine-tests.ts	12802	check	M			engine/behavior,engine/core,engine/input,src	model:src		damage convention: apply-damage subtracts health, then Damage.Died + destroy
 tools/engine-tests.ts	12857	check	M			engine/behavior,engine/core,engine/input,engine/physics,src	model:src		damage convention: damage-zone overlap deals Damage.Apply to the touched actor
 tools/engine-tests.ts	12900	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: addImpulse/launch reach the host sink at end of tick
-tools/engine-tests.ts	12942	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement launch: upward launch arcs and lands; horizontal knockback decays
+tools/engine-tests.ts	12942	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement launch: upward launch arcs and lands; horizontal knockback decays
 tools/engine-tests.ts	12991	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: attachTo makes a child follow its parent; detach stops it
 tools/engine-tests.ts	13048	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: attachTo orbits a keepWorld child and snaps a snapToTarget child
 tools/engine-tests.ts	13108	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior		script timers: after delivers one self-targeted message
@@ -2107,26 +2107,26 @@ tools/engine-tests.ts	14594	check	R			src	three-via:src		createProjectGameMode w
 tools/engine-tests.ts	14599	check	M			src	model:src		formatGameModeDebug renders a possessed pawn's mode + movement state
 tools/engine-tests.ts	14626	check	M			src	model:src		formatGameModeDebug shows placeholders when nothing is possessed
 tools/engine-tests.ts	14653	check	M			engine/behavior,engine/input,src	model:src		input-move behavior: an unpossessed character ignores movement input
-tools/engine-tests.ts	14692	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem only moves the possessed character
-tools/engine-tests.ts	14744	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem moves an AI-driven character from move intent
-tools/engine-tests.ts	14788	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem blocks planar movement against dynamic character blockers
-tools/engine-tests.ts	14832	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem derives ground footprint from the Collider capsule
-tools/engine-tests.ts	14881	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem keeps planar wall resolve on physics collider half-extents
-tools/engine-tests.ts	14928	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem can orient a character to controller yaw
-tools/engine-tests.ts	14964	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem applies Rotation Rate Z to smooth yaw turns
-tools/engine-tests.ts	14998	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem applies jump and gravity from component props
-tools/engine-tests.ts	15038	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem steps onto low platforms and falls off unsupported edges
-tools/engine-tests.ts	15096	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem eases a step-up over several frames (no camera pop)
-tools/engine-tests.ts	15142	check	A			engine/movement			uphill slowdown: flat, descending, and standing frames read as no climb
-tools/engine-tests.ts	15149	check	A			engine/movement			uphill slowdown: smoothed slope converges on a ramp and decays after it
-tools/engine-tests.ts	15160	check	A			engine/movement			uphill slowdown: spiky stair samples average near the staircase incline
-tools/engine-tests.ts	15180	check	A			engine/movement			uphillSpeedScale maps the smoothed slope to a planar speed multiplier
-tools/engine-tests.ts	15188	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem slows the walk while climbing stairs and recovers on the flat
-tools/engine-tests.ts	15238	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem slides downhill off a too-steep surface (Öneri C)
-tools/engine-tests.ts	15298	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem walks down a 0.4 ledge without entering falling
-tools/engine-tests.ts	15347	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem stays glued to a descending slope while running (scaled ground snap)
-tools/engine-tests.ts	15410	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem follows a walkable landscape slope at the player sprint smoothing speed
-tools/engine-tests.ts	15478	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		CharacterMovement subsystem still falls off a drop beyond Max Step Down
+tools/engine-tests.ts	14692	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem only moves the possessed character
+tools/engine-tests.ts	14744	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem moves an AI-driven character from move intent
+tools/engine-tests.ts	14788	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem blocks planar movement against dynamic character blockers
+tools/engine-tests.ts	14832	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem derives ground footprint from the Collider capsule
+tools/engine-tests.ts	14881	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem keeps planar wall resolve on physics collider half-extents
+tools/engine-tests.ts	14928	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem can orient a character to controller yaw
+tools/engine-tests.ts	14964	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem applies Rotation Rate Z to smooth yaw turns
+tools/engine-tests.ts	14998	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem applies jump and gravity from component props
+tools/engine-tests.ts	15038	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem steps onto low platforms and falls off unsupported edges
+tools/engine-tests.ts	15096	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem eases a step-up over several frames (no camera pop)
+tools/engine-tests.ts	15142	check	A			engine/movement		src/engine/movement/uphillSlowdown.test.ts	uphill slowdown: flat, descending, and standing frames read as no climb
+tools/engine-tests.ts	15149	check	A			engine/movement		src/engine/movement/uphillSlowdown.test.ts	uphill slowdown: smoothed slope converges on a ramp and decays after it
+tools/engine-tests.ts	15160	check	A			engine/movement		src/engine/movement/uphillSlowdown.test.ts	uphill slowdown: spiky stair samples average near the staircase incline
+tools/engine-tests.ts	15180	check	A			engine/movement		src/engine/movement/uphillSlowdown.test.ts	uphillSpeedScale maps the smoothed slope to a planar speed multiplier
+tools/engine-tests.ts	15188	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem slows the walk while climbing stairs and recovers on the flat
+tools/engine-tests.ts	15238	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem slides downhill off a too-steep surface (Öneri C)
+tools/engine-tests.ts	15298	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem walks down a 0.4 ledge without entering falling
+tools/engine-tests.ts	15347	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem stays glued to a descending slope while running (scaled ground snap)
+tools/engine-tests.ts	15410	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem follows a walkable landscape slope at the player sprint smoothing speed
+tools/engine-tests.ts	15478	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem still falls off a drop beyond Max Step Down
 tools/engine-tests.ts	15527	check	D			engine/physics	dropped:K12 moving platform		moving platform math: segment length, one-way time, ping-pong fraction, positions
 tools/engine-tests.ts	15545	check	D			engine/physics	dropped:K12 moving platform		MovingPlatformSubsystem moves a platform, publishes its AABB + delta, and ping-pongs
 tools/engine-tests.ts	15572	check	M			engine/physics,engine/scene	model:engine/scene		adapter: a movingPlatform placement becomes a kinematic body, excluded from static blockers
@@ -2305,8 +2305,8 @@ tools/engine-tests.ts	20097	check	M			src	model:src		get-up blend factor: clamps
 tools/engine-tests.ts	20111	check	M			engine/behavior,engine/input,src	model:src		BehaviorSubsystem.subscribeScriptMessage delivers target-scoped events then unsubscribes
 tools/engine-tests.ts	20139	check	R			src	three-via:src		asset skeleton sidecar normalizes animation metadata
 tools/engine-tests.ts	20211	check	R			engine/animation,src	three-via:src		blend space engine resolver preserves skeleton loader and editor compatibility exports
-tools/engine-tests.ts	20216	check	A			engine/animation			blend space 1d resolver interpolates between bracketing samples
-tools/engine-tests.ts	20244	check	A			engine/animation			blend space resolver weights are normalized and merge duplicate clips
+tools/engine-tests.ts	20216	check	A			engine/animation		src/engine/animation/blendSpace.test.ts	blend space 1d resolver interpolates between bracketing samples
+tools/engine-tests.ts	20244	check	A			engine/animation		src/engine/animation/blendSpace.test.ts	blend space resolver weights are normalized and merge duplicate clips
 tools/engine-tests.ts	20289	check	M			engine/assets,tools/saveValidator	model:tools/saveValidator		material save payload requires a material path and canonical fields
 tools/engine-tests.ts	20504	check	R			engine/assets,engine/render-three,tools/saveValidator	three-via:engine/render-three,three:three		material flipY survives normalize and save, and reaches every texture map
 tools/engine-tests.ts	20594	check	R			engine/assets,engine/render-three,tools/saveValidator	three-via:engine/render-three,three:three		forge normal motion patches the normal shader and updates a shared time uniform
@@ -2522,7 +2522,7 @@ tools/engine-tests.ts	27418	check	D			engine/ai	dropped:K12 AI authoring stack		
 tools/engine-tests.ts	27438	check	D			engine/ai	dropped:K12 AI authoring stack		forge.setPatrolTarget seeds first route point and preserves a valid one
 tools/engine-tests.ts	27470	check	D			engine/ai	dropped:K12 AI authoring stack		forge.moveToPatrolTarget uses authored speed/acceptance and fails safely on broken ref
 tools/engine-tests.ts	27502	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack		forge.moveAlongPatrolRoute approaches the nearest spline point before following look-ahead targets
-tools/engine-tests.ts	27561	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement		AI spline patrol move speed stays stable at 30 and 120 FPS through CharacterMovement
+tools/engine-tests.ts	27561	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	AI spline patrol move speed stays stable at 30 and 120 FPS through CharacterMovement
 tools/engine-tests.ts	27608	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack		AI spline patrol wrap modes advance deterministically at route boundaries
 tools/engine-tests.ts	27646	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack		AI spline patrol reports a missing spline without requesting movement
 tools/engine-tests.ts	27675	check	D			engine/ai	dropped:K12 AI authoring stack		forge.moveAlongPatrolRoute uses Target Point source explicitly when configured

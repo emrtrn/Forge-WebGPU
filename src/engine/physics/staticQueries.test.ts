@@ -1,7 +1,9 @@
 // Ported from Forge WebGL tests/engine/staticQueries.test.ts @ forge-webgl-final (04b5fb23): checks unchanged, run by
-// Vitest; 3 check(s) not yet portable left out. docs/PORT_LOG.md §2.
+// Vitest; whole file. docs/PORT_LOG.md §2.
 import assert from "node:assert/strict";
+import { ActionMap } from "../input/actionMap.ts";
 import { type Entity } from "../legacy/entity.ts";
+import { CharacterMovementSubsystem } from "../movement/characterMovementSubsystem.ts";
 import { type PhysicsAabb, type PhysicsQuery, type PhysicsSurfaceTriangle } from "./physicsQuery.ts";
 import { PhysicsSubsystem } from "./physicsSubsystem.ts";
 import { test } from "vitest";
@@ -206,6 +208,49 @@ export function registerStaticQueriesTests(check: Check): void {
     assert.deepEqual(physics.staticBlockerAabbsNear(0, 0, 20), physics.staticBlockerAabbs());
   });
 
+  check("static queries 5000 AABBs bound character blocker inspections without flat queries", () => {
+    const physics = new PhysicsSubsystem();
+    const player = pawn();
+    physics.setEntities([...Array.from({ length: 5000 }, (_, i) => box(`floor:${i}`, (i % 100) * 8, Math.floor(i / 100) * 8)), player]);
+    const query: PhysicsQuery = {
+      ...legacyQuery(physics),
+      staticBlockerAabbs: () => { throw new Error("movement materialized all blockers"); },
+      staticSurfaceTriangles: () => { throw new Error("movement materialized all surfaces"); },
+      staticBlockerAabbsNear: (x, z, r) => physics.staticBlockerAabbsNear(x, z, r),
+      hasStaticGround: () => physics.hasStaticGround(),
+    };
+    const movement = new CharacterMovementSubsystem(new ActionMap({}), () => {}, query, {
+      isPlayerControlled: () => false, getMoveIntent: () => ({ direction: [1, 0] }),
+    });
+    movement.setEntities([player]);
+    const before = physics.staticQueryDebug();
+    movement.update({ deltaSeconds: 1 / 60, elapsedSeconds: 1 / 60, frame: 1 });
+    assert.ok(movement.transformOf("pawn")!.position[0] > 0);
+    const inspected = physics.staticQueryDebug().blockerCandidatesInspected - before.blockerCandidatesInspected;
+    assert.ok(inspected > 0 && inspected <= 12, `inspected ${inspected}, expected at most 12 of 5000`);
+  });
+
+  check("static queries movement preserves void falling and empty-scene fallback floor", () => {
+    for (const hasDistantGround of [false, true]) {
+      const physics = new PhysicsSubsystem();
+      const player = pawn();
+      physics.setEntities(hasDistantGround ? [player, box("far", 1000, 1000)] : [player]);
+      const run = (query: PhysicsQuery): number[] => {
+        const movement = new CharacterMovementSubsystem(new ActionMap({}), () => {}, query, {
+          isPlayerControlled: () => false, getMoveIntent: () => ({ direction: [1, 0] }),
+        });
+        movement.setEntities([player]);
+        for (let frame = 1; frame <= 10; frame += 1) {
+          movement.update({ deltaSeconds: 0.1, elapsedSeconds: frame * 0.1, frame });
+        }
+        return movement.transformOf("pawn")!.position;
+      };
+      const indexed = run(physics);
+      assert.deepEqual(indexed, run(legacyQuery(physics)));
+      assert.equal(indexed[1]! < 0, hasDistantGround);
+    }
+  });
+
   check("static queries streamed colliders become nav blockers on add and stop on remove", () => {
     // World Partition adds/removes actors at runtime; the AI's static-geometry
     // revision keys on the blocker array identity, so each change must hand back
@@ -229,6 +274,31 @@ export function registerStaticQueriesTests(check: Check): void {
     assert.notEqual(afterRemove, withWall);
     assert.deepEqual(afterRemove, before);
     assert.equal(crossesRoute(afterRemove), false);
+  });
+
+  check("static queries movement swept radius covers fast travel launch and platform carry", () => {
+    const player = pawn();
+    const wall = box("wall", 12, 0, 0.1);
+    Object.assign(wall.components.Transform!, { position: [12, 2, 0] });
+    Object.assign(wall.components.Collider!, { size: [0.1, 5, 10] });
+    const physics = new PhysicsSubsystem();
+    physics.setEntities([box("floor", 0, 0, 200), wall, player]);
+    for (const mode of ["input", "launch", "carry"] as const) {
+      const run = (query: PhysicsQuery): number[] => {
+        const platform = { min: [-1, -1, -1] as [number, number, number], max: [1, 0.1, 1] as [number, number, number] };
+        const movement = new CharacterMovementSubsystem(new ActionMap({}), () => {}, query, {
+          isPlayerControlled: () => false,
+          getMoveIntent: () => ({ direction: [1, 0], speed: mode === "input" ? 16 : 0 }),
+          ...(mode === "carry" ? { platforms: { platforms: () => [{ id: "platform", aabb: platform, delta: [16, 0, 0] as const }] } } : {}),
+        });
+        movement.setEntities([player]);
+        if (mode === "launch") movement.launch("pawn", [16, 0, 0]);
+        movement.update({ deltaSeconds: 1, elapsedSeconds: 1, frame: 1 });
+        return movement.transformOf("pawn")!.position;
+      };
+      assert.deepEqual(run(physics), run(legacyQuery(physics)), mode);
+      assert.ok(run(physics)[0]! <= 11.651, `${mode}: ${run(physics)}`);
+    }
   });
 }
 
