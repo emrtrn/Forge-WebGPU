@@ -403,11 +403,88 @@ export function droppedBy(path: string): string | null {
  * exercises cut data (a component the ported code no longer reads) through a
  * module that is ported. Keyed by Forge file and label.
  */
+const WORLD_STAGE_RUNNER =
+  "World Builder option B: the Stage Runner / ownership surface (dry run, output hashes, hand-edit keeping, generator versions, manual-deletion records)";
+
 export const DROPPED_CHECKS: ReadonlyArray<{ readonly file: string; readonly label: string; readonly why: string }> = [
   {
     file: "tools/engine-tests.ts",
     label: "audio subsystem records one-shot requests from a collision behavior",
     why: "K12 audio component (BehaviorContext.audioComponent)",
+  },  {
+    file: "tests/engine/referenceImport.test.ts",
+    label: "reference import: persisted deletions and dependent edges never resurrect",
+    why: WORLD_STAGE_RUNNER,
+  },
+  {
+    file: "tests/engine/worldRecipe.test.ts",
+    label: "world recipe: bad entries and dangling references are dropped with a path",
+    why: WORLD_STAGE_RUNNER,
+  },
+  {
+    file: "tests/engine/worldRecipe.test.ts",
+    label: "world recipe: ownership keys are written in sorted order",
+    why: WORLD_STAGE_RUNNER,
+  },
+  {
+    file: "tests/engine/worldRoads.test.ts",
+    label: "world roads: each road edge becomes a world-space terrain spline with profile width, mesh and paint",
+    why: WORLD_STAGE_RUNNER,
+  },
+  {
+    file: "tests/engine/worldRoads.test.ts",
+    label: "world roads: hand edits and deletions are kept unless preserveManualOverrides is off (WB-08)",
+    why: WORLD_STAGE_RUNNER,
+  },
+  {
+    file: "tests/engine/worldRoads.test.ts",
+    label: "world roads: manual ids, other stages, protected regions and locked terrains block or keep",
+    why: WORLD_STAGE_RUNNER,
+  },
+  {
+    file: "tests/engine/worldRoads.test.ts",
+    label: "world roads: a stage touches only its own ownership section",
+    why: WORLD_STAGE_RUNNER,
+  },
+  {
+    file: "tests/engine/worldSettlement.test.ts",
+    label: "world settlement: a v2 run removes the core disc a v1 run placed",
+    why: WORLD_STAGE_RUNNER,
+  },
+  {
+    file: "tests/engine/worldStage.test.ts",
+    label: "world stage: planBlockout adds one marker per plan element and records ownership",
+    why: WORLD_STAGE_RUNNER,
+  },
+  {
+    file: "tests/engine/worldStage.test.ts",
+    label: "world stage: plan edits update and remove only the stage's own objects",
+    why: WORLD_STAGE_RUNNER,
+  },
+  {
+    file: "tests/engine/worldStage.test.ts",
+    label: "world stage: hand edits and deletions are kept unless preserveManualOverrides is off (WB-08)",
+    why: WORLD_STAGE_RUNNER,
+  },
+  {
+    file: "tests/engine/worldStage.test.ts",
+    label: "world stage: wanted ids held by manual objects, other stages or protected regions are blocked",
+    why: WORLD_STAGE_RUNNER,
+  },
+  {
+    file: "tests/engine/worldStage.test.ts",
+    label: "world stage: applying before after after restores the level exactly, group order included",
+    why: WORLD_STAGE_RUNNER,
+  },
+  {
+    file: "tests/engine/worldStage.test.ts",
+    label: "world stage: malformed stage output is an error, not a partial apply",
+    why: WORLD_STAGE_RUNNER,
+  },
+  {
+    file: "tests/engine/worldStage.test.ts",
+    label: "world stage: default stages are unique tokens with positive versions",
+    why: WORLD_STAGE_RUNNER,
   },
 ];
 

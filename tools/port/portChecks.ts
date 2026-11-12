@@ -19,6 +19,16 @@ export const ENGINE_HARNESS = "tools/engine-tests.ts";
 const RUNNERS = /^check(Async|Slow|SlowAsync)?$/;
 const CONTENT_PATH = /^(public|tests|content|assets)\/.+\.[a-z0-9]+$/i;
 
+/**
+ * Content a Forge test file reads through a path built at run time (a template
+ * or a constant from the module under test), which the literal scan cannot see.
+ * Every check in the file waits until the repo has it.
+ */
+export const RUNTIME_CONTENT: Readonly<Record<string, readonly string[]>> = {
+  // `public/${COVERS[name]}`: the World Builder ground cover presets (they come with tools/world).
+  "tests/engine/randomWorldPreview.test.ts": ["public/assets/world-builder/covers/forest.cover.json"],
+};
+
 export interface Roots {
   /** Forge checkout, forward slashes, trailing slash. */
   readonly forge: string;
@@ -202,6 +212,9 @@ export class CheckPorter {
     const imports = new Map<string, Resolved>();
     const helpers = new Set<ts.Statement>();
     const missing: string[] = [];
+    for (const path of RUNTIME_CONTENT[info.file] ?? []) {
+      if (!existsSync(this.roots.repo + path)) missing.push(`content ${path} (read through a computed path)`);
+    }
     const queue: ts.Node[] = [node];
     while (queue.length > 0) {
       const current = queue.pop()!;
