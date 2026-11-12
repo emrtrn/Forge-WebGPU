@@ -80,6 +80,8 @@ export interface ForgeLevelOptions {
   readonly meshAsset: (forgeAssetId: string) => string | null;
   /** Defaults to the id derived from the path. */
   readonly levelId?: LevelId;
+  /** The World Builder stage that placed a placement, from the level's recipe ledger. */
+  readonly stageOf?: (placementId: string) => string | undefined;
 }
 
 export interface ImportedTerrain {
@@ -201,7 +203,9 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
   const missing = new Map<string, number>();
   const place = (groups: readonly PlacementGroup[], keyPrefix: string): void => {
     notePlacementFields(groups);
-    const placed = placementGroupActors(groups, { actorId, keyPrefix, meshAsset: options.meshAsset });
+    const placed = placementGroupActors(groups, {
+      actorId, keyPrefix, meshAsset: options.meshAsset, ...(options.stageOf ? { stageOf: options.stageOf } : {}),
+    });
     actors.push(...placed.actors);
     counts.placements += placed.counts.placements;
     counts.placeholders += placed.counts.placeholders;

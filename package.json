@@ -19,6 +19,7 @@
     "create-project": "node tools/create-project.ts",
     "world:random": "node tools/world-random.ts",
     "world:brief": "node tools/world-brief.ts",
+    "import:forge": "node tools/import-forge.ts",
     "check:projects": "node tools/check-projects.ts",
     "sdk:snapshot": "node tools/sdk-api.ts write",
     "verify:sdk-api": "node tools/sdk-api.ts verify",

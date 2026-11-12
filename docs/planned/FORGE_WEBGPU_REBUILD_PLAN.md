@@ -490,6 +490,13 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       `importForgeLevel`: level + hücreler + terrain tanımı → yeni level,
       faz tablosuyla rapor `fields.ts`) ve `forge.model` / `forge.texture` /
       `forge.sound` (`forge.staticMesh.mesh` `forge.model` gösterir).
+      *Adım 3 (2026-11-12):* `npm run import:forge` (`tools/import-forge-webgl`):
+      köken tablosu, model → materyal → doku zinciriyle asset planı, level
+      başına rapor (`--dry-run`, `--report`), World Builder yan dosyalarının iç
+      yolları yeni etiketlere ve profil asset'leri GUID'e, eski recipe defteri
+      nesnelere; tek atomik kayıt, `--force` kuralı, yeniden çalıştırma aynı
+      baytlar. WbPilotValley: 151 yerleşim / 45 hücre / 41 asset; World Builder
+      içe alınan brief'ten aynı 152 aktörü kurar.
 - [ ] **İçe aktarıcının kabulü:** her eski tür için küçük fixture + beklenen
       çıktı testi; referans level'larda kaynak ve hedef arasında tür başına
       sayım karşılaştırması (aktör, bileşen, foliage örneği, hücre) ve
@@ -820,3 +827,4 @@ silinebilir.
 | 2026-11-12 | v1.0 | 2b içe aktarıcı tasarımı (kullanıcı kararları; mimari v1.4): şimdi çevrilen alanlar (yerleşim, arazi, hücreler, Height Fog, World Builder yan dosyaları), geri kalanı level raporunda faza bağlı; ortak çevirici `src/engine/forgeImport/`; üç yalnız-şema ikili tür `forge.model` / `forge.texture` / `forge.sound`; lisans sorumluluğu kullanıcıda, köken tablosu ve `LicenseRef-forge-unverified`; starter tohum listesinden, referans level'lar depo dışı projede. A 785 / 905 |
 | 2026-11-12 | v1.0 | 2b araç kontrolleri: `surfaceResponse` 20, `vehicleDrivetrain` 13, `vehicleAssets` 1 elle taşındı (A kontroller eski room layout / actor script'e ulaşmıyor; stok GAZ-52 tanımı `tests/engine/fixtures/`'ta). A 819 / 905 |
 | 2026-11-12 | v1.0 | 2b içe aktarıcı adım 2: ortak yerleşim → aktör çevirisi ve Forge level çevirisi `src/engine/forgeImport/` (World Builder `worldLevel` onu kullanır; çevrilmeyen alanlar faz tablosuyla raporlanır), yalnız-şema ikili türler `forge.model` / `forge.texture` / `forge.sound`. A 819 / 905 |
+| 2026-11-12 | v1.0 | 2b içe aktarıcı adım 3: `npm run import:forge` (köken tablosu, asset planı, level raporu, yan dosyalar yeni etiketlerle, `--force` / `--dry-run`); WbPilotValley geçici projede kapıdan geçer ve World Builder'la yeniden kurulur. A 819 / 905 |
