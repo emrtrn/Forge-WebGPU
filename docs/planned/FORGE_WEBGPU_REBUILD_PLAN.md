@@ -377,7 +377,7 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       yeni modele göre yeniden kurulur; GUID anahtarlı. Kayıt oyunu `persist`
       işaretli bileşen alanlarını ve `defineSaveState` bölümlerini saklar;
       tipsiz `flags` torbası yok (mimari A7).
-- [ ] `tools/world` taşınır; World Builder çıktısı yeni level formatını yazar;
+- [x] `tools/world` taşınır; World Builder çıktısı yeni level formatını yazar;
       `npm run world:random` çalışır (test dünyaları ilk günden üretilebilir).
       Çıktı kuralları: üretilen level projenin içerik ağacına yazılır, asset
       olarak kayıtlıdır (Content Browser'da görünür) ve var olanın üstüne
@@ -397,7 +397,17 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       Su aktörleri Faz 7, foliage kuralları 5c, ışık / gökyüzü Faz 3:
       yazılmaz, raporlanır. Çözülemeyen model satırı rol renkli placeholder
       olur. *Adım 1 (2026-11-12):* veri belgeleri + dört şema (`d1a50f5`).
-- [ ] World Builder taşıma kapsamı envanterde işaretlenir: algoritmalar
+      *Yapıldı (2026-11-12):* `npm run world:random` / `world:brief`
+      (`65285df`): kurulum `src/engine/worldbuilder/build`, yazıcı
+      `tools/world` (kayıt servisinden tek atomik kayıt, `--force` kuralı,
+      başarısız kurulumda brief geri gelir; yeniden üretim aynı baytları
+      yazar), `worldbuilder` paketi. Üretilen dünya projenin asset kapısından
+      geçer ve başlangıç level'ı olarak başsız açılır. Bekleyen kontroller
+      (`8f29972`): 21 World Builder + test dünyaları 2 + terrain onarımı 4;
+      D'ye düşen ana yol spline kontrolü yeni çalıştırıcıyla yeniden yazıldı.
+      Açık kalan 4 A: Forge'un eski level belgesi (`testWorldLevel`,
+      `worldDataCheck`) ve off-road smoke fixture'ı (2). İlerleme A 697 / 907.
+- [x] World Builder taşıma kapsamı envanterde işaretlenir: algoritmalar
       (arazi yazma, rota çözücü, yerleşim, ped, foliage) taşınır; yeniden
       çalıştırılabilir aşama / sahiplik / Dry Run yüzeyi konseptten sahne
       akışında kullanılmadığı için (kullanıcı kararı 2026-11-07) varsayılan
@@ -410,6 +420,8 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       `tools/world`); korumalı bölgeler üst düzey `recipe.protectedRegions`.
       Kökenin nesnelerin üstüne (aktör bileşeni) taşınıp taşınmayacağı
       `tools/world` yeni level formatını kurarken kararlaştırılır.
+      *Karar (kullanıcı, 2026-11-12):* köken nesnelere taşındı
+      (`forge.worldRole.stage`); diskteki recipe `generatedBy` taşımaz (mimari §4.4).
 - [x] Kenney dizin aracı (`tools/asset-library-index.mjs`, `kenney-assets.tsv`)
       için karar: bu depoya taşınır mı, Forge'da mı kalır. Kütüphanenin kendisi
       depoya girmez (mimari A9).
@@ -746,3 +758,4 @@ silinebilir.
 | 2026-11-12 | v1.0 | 2b worldbuilder (seçenek B, kullanıcı kararı): algoritmalar + aşama üreticileri; Stage Runner / sahiplik / Dry Run / üretici sürümleri taşınmadı, köken `recipe.generatedBy`, korumalı bölgeler üst düzeyde (World Builder kapsam kutusunda). 53 kontrol yeşil, 15 D (payda 907); 58 kontrol `node:fs` kararını bekliyor. A 612 / 907 |
 | 2026-11-12 | v1.0 | 2b: `node:fs` `src` testlerine açıldı (ortak test fixture'ı okumak için; kullanıcı kararı, `src-tests-node-assert-only` + kontrol fixture'ı, kasıtlı ihlal `node:child_process`'e geçti); nötr bölge profili fixture'ı `tests/engine/fixtures/`'ta, worldbuilder 58 kontrol yeşil. A 670 / 907 |
 | 2026-11-12 | v1.0 | 2b `tools/world` tasarımı (kullanıcı onayı; mimari v1.3): dönüştürücü + deterministik GUID, köken `forge.worldRole.stage`'e, girdiler ve terrain GUID'li veri belgesi (tile'lar metasız parça), örtü ön ayarları `worldbuilder` paketinde. Adım 1: veri belgeleri + `forge.staticMesh` / `forge.shape` / `forge.worldRole` / `forge.terrain` şemaları (`d1a50f5`). A 670 / 907 |
+| 2026-11-12 | v1.0 | 2b `tools/world` kutusu kapandı: `npm run world:random` / `world:brief` yeni level formatını kayıt servisinden yazar (`65285df`; kurulum `src/engine/worldbuilder/build`, deterministik GUID, `--force` kuralı, `worldbuilder` paketi); bekleyen World Builder kontrolleri + test dünyaları + terrain onarımı 27 kontrol (`8f29972`), D'ye düşen yol spline kontrolü yeniden yazıldı; World Builder kapsam kutusu da kapandı (köken nesnelerde). Açık 4 A: eski level belgesi 2, off-road fixture 2. A 697 / 907 |

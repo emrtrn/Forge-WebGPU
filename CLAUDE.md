@@ -50,6 +50,8 @@ kararları plan K12'de; taşınmayan Forge kodu `forge-webgl-final` etiketinde.
 | `npm run check:projects` | `samples/*` ve `forge.projects.local.json`'daki oyun projeleri: `forge check` + proje asset kapısı + başsız açılış |
 | `npm run forge -- check --project <yol>` | Oyun projesi sözleşme denetimi (sürüm, derleme, import sınırı); `dev` aynı projeyi `devPort`'unda açar |
 | `npm run create-project -- <hedef> --id <ad>` | `samples/starter`'dan depo dışında yeni oyun projesi (`--register` yerel listeye ekler) |
+| `npm run world:random -- --project <yol> --out <level klasörü>` | Birkaç seçimden greybox dünya: brief + level (`content/levels/<ad>/`), kayıt servisinden; proje `contentPacks`'te `worldbuilder` seçmeli; var olan level `--force` ister |
+| `npm run world:brief -- --project <yol> --brief <klasör>/<ad>.worldbrief.json` | Brief'ten level'ı yeniden kurar (aynı GUID'ler, aynı baytlar) |
 | `npm run bench:level` | 50.000 aktörlük ölçek ölçümü (kapıda değil) |
 | `npm run test` | Vitest; testler modülün yanında (`*.test.ts`) |
 | `npm run port:forge-tests -- --forge <Forge>` | 2b test sınıflaması ve ilerleme (A taşınan / payda); `docs/port/forge-engine-tests.tsv` |
