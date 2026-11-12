@@ -507,7 +507,7 @@ tip denetiminden hiç geçmemişti. `tsconfig.tests.json` testler için
 
 ### 2.1 Test sınıflaması
 
-2b'nin ilk işi (plan Faz 2b). Kaynak Forge `forge-webgl-final` (`04b5fb23`).
+2b'nin ilk işi (plan Faz 2b, arşivi [`docs/archive/PHASE_2B.md`](archive/PHASE_2B.md)). Kaynak Forge `forge-webgl-final` (`04b5fb23`).
 Araç `npm run port:forge-tests -- --forge <Forge checkout>`. Taranan
 ağaçlarda yerel değişiklik olmamalı; etiketten sonraki commit'ler taranan
 TypeScript / JSON dosyalarına dokunmamalı (yoksa etiket checkout edilir).
