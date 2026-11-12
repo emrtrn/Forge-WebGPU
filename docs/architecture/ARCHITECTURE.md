@@ -21,7 +21,7 @@ kendini de sınar (rapor §4.2, A3).
 |---|---|---|
 | `core` | aktör / bileşen modeli, şema DSL'i ve kaydı, kimlik, level ve hücre modeli, asset modeli, düzenleme modeli, alt sistem sözleşmesi, proje manifesti | yok; DOM ve `import.meta.env` de yok |
 | `engine` | three'siz alt sistemler (fizik, terrain verisi, nav, hareket, ses…; 2b'de taşınır, kapsam K12); DOM ve Web Audio yok, düz Node'da yüklenir | yok |
-| `render` | renderer, render bağlamaları, materyaller, pipeline (Faz 3) | tek sahip (`three/webgpu`, `three/tsl`) |
+| `render` | renderer host, GUID anahtarlı kaynak önbelleği, render bağlamaları, materyaller, pipeline, görüntüleyici (Faz 3; rapor §4.9) | tek sahip (`three/webgpu`, `three/tsl`) |
 | `runtime` | World, sahne kurucu, oyun modülü host'u, boot; tarayıcı API'si gereken alt sistem kodu (`runtime/audio`) | dolaylı |
 | `gameplay` | yeniden kullanılabilir oyun çatısı (Faz 6) | yok |
 | `editor` | editör; yalnız dinamik import, oyun bundle'ına girmez (Faz 4) | dolaylı |
@@ -35,8 +35,9 @@ kendini de sınar (rapor §4.2, A3).
 
 Bir özellik tek klasördür: `src/features/<ad>/{schema,runtime,render,editor,feature}.ts`
 + test + README. `feature.ts` `defineFeature({ id, components, assetTypes,
-subsystems })` döner ve `editor.ts`'i hiç anmaz; editör host'u onu kendisi
-toplar. Yeni özellik kabuk dosyasına dokunmaz: `main.ts` özellikleri klasörden
+saveStates, subsystems })` döner ve ne `editor.ts`'i ne `render.ts`'i anar;
+editör host'u ve render host'u onları kendisi toplar (`render.ts` →
+`defineRenderBinding`, rapor §4.3, §4.9). Başsız açılışta render yok. Yeni özellik kabuk dosyasına dokunmaz: `main.ts` özellikleri klasörden
 toplar. Örnek ve iskeletin kabul testi: `src/features/height-fog` (rapor §4.3).
 
 ## Veri modeli
@@ -57,7 +58,9 @@ toplar. Örnek ve iskeletin kabul testi: `src/features/height-fog` (rapor §4.3)
   zarf içinde engine'in içeriğini taşır; terrain'in tile'ları ve global
   haritası metasız parçalarıdır (rapor §4.6).
 - İlk ikili asset türleri `forge.model`, `forge.texture`, `forge.sound`
-  (yalnız şema, içe aktarma ayarları Faz 3'te). İçe aktarılan Forge
+  (`model` ve `texture`'ın içe aktarma ayarları Faz 3'te sürüm 2). Şemalı JSON
+  asset türü (DSL, başvurular dizinde yürünür, form şemadan) Faz 3'te
+  `forge.material` ile gelir; A13'ün de temeli (rapor §4.6). İçe aktarılan Forge
   asset'lerinin lisans ve kaynağı yol önekli bir köken tablosundan; lisansı
   bilinmeyen `LicenseRef-forge-unverified` (rapor §4.6).
 - World Builder çıktısı ve içe aktarıcı için 2b'de yalnız şema olan bileşenler:
@@ -96,7 +99,10 @@ level oturumu (rapor §4.6).
 World (yaşam döngüsü, tick grupları, bileşen dizini; modül düzeyinde
 değişebilir durum yok), editör / Play / oyunun ortak sahne kurucusu
 (`assembleLevel`), oyun modülü host'u ve renderer'dan bağımsız boot hata ekranı
-(rapor §4.7, A6).
+(rapor §4.7, A6). Boot'un `render` aşaması renderer host'u kurar; host World'e
+`renderSync` grubunda tek bir `forge.render` alt sistemi ekler ve render
+bağlamalarını çalıştırır. Kaynak önbelleği host'undur, World'ün değil (A6;
+rapor §4.7, §4.9).
 
 ## Oyun projesi sözleşmesi
 
@@ -128,4 +134,6 @@ projesinde (rapor §4.8, A9).
 `npm run gate`: iki tsconfig'le tip kontrolü, katman denetimi + öz-testi, dosya
 boyutu bütçesi, Node yükleme, asset kapısı, SDK API kapısı, `check:projects`,
 Vitest, build. Aynı kapı CI'da. Render kabulü yerelde, gerçek WebGPU
-backend'inde (rapor §4.10).
+backend'inde: `npm run smoke:render` (Playwright, başlıklı Chrome, port 5283;
+gate'te ve CI'da değil, `render/**` ya da `features/*/render.ts` dokunan
+push'tan önce; referans görüntüler depo dışında; rapor §4.10).

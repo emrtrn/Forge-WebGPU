@@ -1,6 +1,9 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v1.1 · 2026-11-12 (v1.0'dan fark: Faz 2b kapandı ve arşivlendi —
+**Sürüm:** v1.2 · 2026-11-12 (v1.1'den fark: Faz 3 başladı — döküm, içe
+aktarıcı çeviricileri, tasarım kararları 1–11 ve adım sırası Faz 3 bölümünde,
+kararlar mimari v1.6'da; HLOD 5b'de, terrain salt çizimi Faz 3'te, GPU timer
+kontrolü D. v1.1: Faz 2b kapandı ve arşivlendi —
 cut-over, alt sistemlerin taşınması, `tools/world`, içe aktarıcı, kayıt oyunu
 ve World Partition'ın saf kısmı; ertelenen Forge kontrolleri faz kapılarında.
 v1.0: ürün tezi ve kapsam ölçütü
@@ -28,7 +31,8 @@ Faz 1 ∥ 2a, cut-over 2b'ye kaydı)
 GO sayıları. Faz 1 spike'ı S1–S4 ile tamamlandı; **GO (koşullu, kullanıcı kararı
 2026-11-11):** GPU güdümlü foliage 5c'de zorunlu, G6 orada yeniden ölçülür. S5
 yapılmadı (Faz 9'a, kullanıcı kararı). Faz 1 [arşivde](../archive/PHASE_1.md). Faz 2b
-başladı: cut-over yapıldı (`forge-webgl-final` = Forge `04b5fb23`, 2026-11-11).
+kapandı (2026-11-12; [arşiv](../archive/PHASE_2B.md)). Faz 3 başladı (2026-11-12):
+döküm ve tasarım kararları onaylandı, sırada adım 1 (dikey dilim).
 **Ürün tezi ve kapsam ölçütü:** [mimari §0.0](FORGE_WEBGPU_ARCHITECTURE.md);
 kapsam kararları §8 K12.
 **Belge düzeni:** tek ana plan; biten fazın ayrıntısı faz kapanınca
@@ -296,12 +300,126 @@ kadar yeşil (kullanıcı teyidi).
 
 ### Faz 3 — Render çekirdeği ve level görüntüleyici
 
-- [ ] Render kaynak önbelleği (geometri, doku, pipeline) asset GUID'iyle
-      anahtarlı ve renderer'a ait, World'den ayrı (mimari A6).
-- [ ] Renderer host: init, resize, DPR, cihaz kaybı, gerçek backend rozeti;
-      `?debug` overlay (`engine/perf` zaten three'siz) + GPU timestamp.
-- [ ] Materyal sistemi: `ForgeMaterialDef` → node material (§2.3);
-      katman / anizotropi / ORM; GLB + KTX2.
+**Başladı 2026-11-12.** Tasarım kullanıcı onayıyla (2026-11-12, "hepsi öneri
+gibi"); kararlar mimari raporda (v1.6: §4.3, §4.6, §4.7, §4.9, §4.10), bu
+bölüm kutuları, dökümü ve sırayı tutar. Görsel ayar kullanıcıda (§2.9): sistem
+kurulur, parametreler şemaya açılır; sahne doğrulaması işlevsel, tek kontrol
+çekimi.
+
+**Döküm (2026-11-12).** Fazı 3 olan 36 envanter satırı (`PORT_LOG` §1) aşağıdaki
+kutulara dağılır; Forge kaynakları yalnız okunur (`render-three` TSL ile yeniden
+yazılır, spike `spikes/webgpu/` referans).
+
+| Kutu | INV | Forge kaynağı | Ertelenen A | R kontrolleri (öneri, kesin sayım kutuda `PORT_LOG` §2'ye) |
+|---|---|---|---|---|
+| Kaynak önbelleği | G03, E06, E08 | `render-three/{gltfLoader,gltfModelLoader,models}`; spike `shared/{content,contentRender}` | — | 2 yeniden yaz (GUID'le model sınırları, GLB slot sırası) |
+| Renderer host | G01, H18, H19 | `render-three/renderer`; spike `shared/spike` | GPU timer 1 → D (karar 6) | — |
+| Materyal | E09–E12, G02, G26, C08 (motor), H20 (asset raporu) | `engine/assets/material`; `render-three/{materials,textureConfig,aoSurfaceMaterials,worldMaskPatch}`; `tools/assetPerfReport` | starter materyal 1, asset perf 3 | 5 yeniden yaz; 6 düşer (world mask yaması 3, AO yüzey materyali 3) |
+| Işık ve gölge | D04, D46, G04, G05 | `render-three/{lights,sunCascadeShadow,sunFollowShadow,depthMode}`; `engine/world/{sunCascades,followShadow}`; spike `shared/environment` | güneş kaskatları 9, takipli gölge 9 | 19 yeniden yaz; 3 düşer (GLSL yaması 2, eski indeks etiketi 1) |
+| Çevre | D08–D11, D16, D17 (render alanları), G06–G09 | `render-three/{skyAtmosphere,moonDisc,starField,heightFog,cloudLayer,reflection,authoredEnvironment}`; alanlar `engine/scene/*`; taşınmış `engine/environment` | — | 18 yeniden yaz; 6 düşer (`resolve*` 3 → şema normalize'ı, sis yaması 2, varsayılan level 1); sphere capture 10 D (INV-D12) |
+| Gün saati | D16, F26 | taşınmış `worldClock`, `worldEnvironmentController`, `recapturePolicy` | — | — |
+| Pipeline + kalite | D15, G11, G29, A10 (motor) | `render-three/postProcess`; `engine/perf/{qualityProfiles,adaptiveQuality,hardwareHints}`, `engine/persistence/userSettingsStore`; spike `shared/pipeline` | kalite / uyarlama / ipuçları 13, kullanıcı ayarları 4 | 10 yeniden yaz; 1 düşer (`resolvePostProcess`) |
+| Level görüntüleyici | D01, D05, D40 (+ G13 salt çizim, karar 1) | `src/scene` runtime (referans); spike kip (b), `shared/terrain` | — | 4 yeniden yaz; 2 düşer (World yaşam döngüsü yerini aldı) |
+| Render smoke'u | H18 / H19 (ölçüm biçimi) | `ForgeReference/baseline/tools`, spike `run.mjs` | — | — |
+
+three'nin GLSL chunk çapalarını sınayan 6 R da düşer. Faz 3'e düşen R: 92
+(58 yeniden yaz, 34 düşer); kalan 526 R fazlarında (4 editör, 5a terrain
+render, 5b HLOD / culling / LOD, 5c foliage, 5d / 6 spline mesh, 6 animasyon /
+VFX / oyun kamerası, 7 su, 8 deformable / kırılma).
+
+**İçe aktarıcının Faz 3 çeviricileri** (her biri kendi kutusunda; sonra
+`--pack starter` ve `webgpu-scenes`'in 7 level'ı `--force` ile yeniden alınır,
+GUID'ler aynı; `--compare` yeni aktör sayımlarını açıklar; World Builder
+level'ları `world:brief` ile, greybox ışık / gökyüzü `worldBuild`'in
+`deferred`'ından çıkar):
+
+| Forge alanı | Hedef |
+|---|---|
+| `lights[]` | aktör başına `forge.directionalLight` / `forge.pointLight` / `forge.spotLight`; güneş `atmosphereSun` işaretli tek directional (Forge'un güneş seçme kuralı çeviride) |
+| `skyAtmosphere` | tekil `forge.skyAtmosphere` (pozlama ölçeği Forge'daki gibi, 1 → 0,2) |
+| `reflection` + sky light yakalama | tekil `forge.skyLight` (PMREM) |
+| `cloudLayer` / `postProcess` / `worldEnvironment` | tekil `forge.cloudLayer` / `forge.postProcess` (+ `reflection: off \| ssr`, `antialias: none \| traa \| smaa`) / `forge.worldEnvironment` (sürekli gün döngüsü yok, karar 8) |
+| `worldSettings` | render alanları (arka plan, ortam ışığı, gölge varsayılanları) Faz 3'ün tekillerine (karar 7); view distance 5b, rüzgâr 5c, yerçekimi / kill Z / game mode 6 |
+| `instances[].{color, castShadow, materialSlot}` | `forge.staticMesh` sürüm 2 (`color`, `castShadow`, `materials`), `forge.shape`'e `castShadow` |
+| `landscapes[].material` | `forge.terrain.material` |
+| `*.material.json` | `forge.material` (doku başvuruları GUID) |
+| `*.materials.json`, `*.uvw.json`, `*.vertexcolors.json` | `forge.model` içe aktarma ayarları sürüm 2: `materials`, `uvw`, `vertexColors` (boş `meshes` yazılmaz) |
+
+**Kararlar (kullanıcı, 2026-11-12; ayrıntı mimari v1.6):**
+
+1. *Terrain:* spike S2'nin TSL CDLOD'u Faz 3'e salt çizim olarak gelir
+   (yükseklik, 8 katman, normal, gölge; su birikintisi / kıyı / kostik / tile
+   akışı yok); 5a üretim kalitesine çıkarır. Referans sahneler kapıda terrain'le.
+2. *`render.ts` kaydı:* editör deseni. Render host `features/*/render.ts`'i
+   kendisi toplar; `feature.ts` render'ı anmaz (statik ya da dinamik). Yeni
+   katman kuralı + kasıtlı ihlal fixture'ı. Başsız açılışta (`check:projects`)
+   render yok.
+3. *Kalite modeli:* Forge'un merdiveni (ultra / high / medium / low / custom),
+   uyarlamalı kalite ve donanım ipuçları olduğu gibi taşınır; ayrı adımda
+   WebGPU izin alanları (`traaAllowed`, `ssrAllowed: off | half | full`,
+   `ssgiAllowed`, `aoResolutionScale`) ve eşleme: ultra / high → Balanced,
+   medium → GTAO'suz Balanced, low → Compatibility; Cinematic merdiven dışı
+   ayrı seçim, uyarlamalı kalite ona çıkmaz. Profil izin verir, açmaz.
+4. *MRT:* biçim sıkıştırma, `requiredLimits` yok: output RGBA16F 8 + normal
+   RGBA8 8 + velocity RG16F 4 + metalrough RG8 2 + diffuse RGBA8 8 = 30 bayt
+   ≤ 32. Bayt maliyetleri ilk pipeline adımında gerçek cihazda doğrulanır; bir
+   test her profilin toplamını sınar.
+5. *Materyal:* `forge.material` şemalı JSON asset türü (çekirdeğe yeni yetenek,
+   A13'ün de temeli: başvurular dizinde yürünür, form şemadan). Forge'un
+   `normalizeForgeMaterialDef`'i içe aktarıcının okuyucusu olarak olduğu gibi
+   taşınır. Starter materyal A kontrolü paketteki çevrilmiş materyalleri aynı
+   iddialarla sınar (yol ve normalize çağrısı değişir; `PORT_LOG`'da
+   "uyarlandı").
+6. *GPU timer A kontrolü* (WebGL `EXT_disjoint_timer_query`): D, payda 1.021.
+   three WebGPU'da ve WebGL2 backend'inde kendi timestamp sorgusunu kullanıyor.
+   Araçta (`DROPPED_CHECKS`) kalite adımında uygulanır.
+7. *worldSettings:* her alan sahibi özelliğin tekil bileşenine; World Settings
+   paneli (Faz 4) bu tekilleri tek yerde gösterir. Tek `forge.worldSettings`
+   bileşeni yok.
+8. *Sürekli gün döngüsü yok:* şemada yalnız sabit saat + zamanlı geçiş; Forge'da
+   `dayLength > 0` olan level raporda "çevrilmedi (kullanıcı kararı)".
+9. *HLOD 5b'de* (akışla; hücre boşaltılmadan anlamı yok).
+10. *Cihaz kaybı v1:* render durur, renderer'sız ekran + "yeniden yükle";
+    otomatik yeniden kurulum sonra.
+11. Shape mesh'leri prosedürel geometri (asset yok); referans görüntüler depo
+    dışında (`Games/ForgeReference/render-refs/`, içerik lisansı doğrulanmadı).
+
+**Sıra** (her adım yeşilse ayrı commit + push; adımdan sonra `PORT_LOG` §2 /
+§2.1, bu bölüm + §11, `npm run port:forge-tests`, gerekirse mimari rapor ve
+harita, hafıza):
+
+1. **Dikey dilim:** `@playwright/test` (Forge'daki sürüm, tam sabit);
+   `src/render` iskeleti; renderer host (backend kanıtı + rozet, DPR, resize,
+   cihaz kaybı, `data-forge-perf` + timestamp); boot'un `render` aşaması;
+   render bağlaması sözleşmesi + host toplaması (karar 2); GUID anahtarlı
+   kaynak önbelleği + iki World testi; `forge.shape` + `forge.staticMesh`
+   (GLB kendi materyalleriyle) + Height Fog `render.ts` + ışıksız level'a
+   varsayılan güneş / ortam ışığı; terrain'siz level (PhysicsInteractionTest /
+   L03); smoke iskeleti (1 level × 1 poz, boş görüntü, backend kanıtı).
+2. Kalite profilleri / uyarlamalı kalite / donanım ipuçları / kullanıcı ayarları
+   taşınır (17 A), GPU timer D; WebGPU izin alanları ayrı commit.
+3. Işık ve gölge: ışık bileşenleri + çevirici, `sunCascades` / `followShadow`
+   taşınır (18 A), `CSMShadowNode` (Forge bölmeleri, kamerayı düğüm kendi alır),
+   takipli gölge, reversed-Z.
+4. Materyal: şemalı JSON asset türü, `forge.material`, `forge.model` / `texture`
+   / `staticMesh` sürüm 2 + geçiş, node material + katkı sırası, çeviriciler,
+   starter'a 10 materyal (1 A), asset perf raporu (3 A).
+5. Çevre: gökyüzü, sky light / IBL, bulut, WES bağlaması (ay, yıldız, gece),
+   world settings alanları + çeviriciler.
+6. `RenderPipeline` + Post Process + kalite eşlemesi + MRT.
+7. Olay bazlı gün saati (`timeTransition`, ayrı commit) + yakalama sıklığı ölçümü.
+8. Görüntüleyiciyi tamamla: instancing (kip b), terrain salt çizimi, bütün
+   referans level'lar, kamera, `?debug`.
+9. Smoke tam set + Faz 0 görüntüleriyle yan yana ızgara → kullanıcı kabulü → kapı.
+
+- [ ] Render kaynak önbelleği (geometri, doku, materyal; pipeline three'nin)
+      asset GUID'iyle anahtarlı ve renderer'a ait, World'den ayrı (mimari A6,
+      §4.9).
+- [ ] Renderer host: init, resize, DPR, cihaz kaybı (karar 10), gerçek backend
+      rozeti; `?debug` overlay (`engine/perf` zaten three'siz) + GPU timestamp.
+- [ ] Materyal sistemi: `forge.material` (karar 5) → node material (§2.3);
+      katman / anizotropi / ORM; GLB + KTX2 (three'nin `examples/jsm/libs`'i,
+      yeni npm bağımlılığı ve vendor kopyası yok).
 - [ ] Işık ve gölge: `CSMShadowNode`, reversed-Z (`reversedDepthBuffer` yapıcı
       seçeneği; WebGL'deki `EXT_clip_control` hilesi gerekmez), view distance.
 - [ ] Çevre: sky atmosphere, height fog, cloud layer, WES bağlantısı
@@ -309,28 +427,32 @@ kadar yeşil (kullanıcı teyidi).
       reflection capture taşınmaz (kullanıcı kararı 2026-11-11): genel yansıma
       SSR, düz yüzeyler planar (Faz 7).
 - [ ] Olay bazlı gün saati: level'da saat varsayılan olarak durur; gün / gece
-      değişimi zamanlı bir geçiştir (süre parametreli), sonra saat yine durur.
-      Geçiş sırasında sky light / IBL yeniden yakalama sıklığı ölçülerek
-      seçilir. (Forge'da `setHour` anlık atlıyordu.)
-- [ ] `RenderPipeline` + kalite profilleri (§2.4). Profil tanımı S3'te
+      değişimi zamanlı bir geçiştir (süre parametreli), sonra saat yine durur
+      (karar 8). Geçiş sırasında sky light / IBL yeniden yakalama sıklığı
+      ölçülerek seçilir. (Forge'da `setHour` anlık atlıyordu.)
+- [ ] `RenderPipeline` + kalite profilleri (§2.4, karar 3). Profil tanımı S3'te
       (Faz 1). Post Process'te yansıma seçeneği `reflection: off | ssr`
-      (kullanıcı kararı 2026-11-11); profil izin verir, zorla açmaz. MRT
-      beş hedefte WebGPU'nun varsayılan renk eki sınırını (32 bayt / örnek)
-      aşar: sıkıştırma ya da adaptörden `requiredLimits` (S3 bulgusu).
-- [ ] Level görüntüleyici: level.json → statik mesh'ler, instancing, HLOD;
-      runtime route'unda salt görüntüleme.
-- [ ] **Render regresyon smoke'u:** kabul edilen referans pozlar yerelde,
-      başlıklı tarayıcıda, gerçek WebGPU backend'inde yeniden çekilip referans
-      görüntüyle karşılaştırılır. Kurallar: görüntü `page.screenshot({ clip })`
-      ile alınır, boş / siyah görüntü kontrolü zorunlu, backend kanıtı kayda
-      yazılır. `render/**` ve `features/*/render.ts` dokunan push'lardan önce
-      çalışır; CI'da çalışmaz (GPU yok). Referans görüntüler kullanıcının
+      (kullanıcı kararı 2026-11-11); profil izin verir, zorla açmaz. MRT sınırı
+      biçim sıkıştırmayla (karar 4).
+- [ ] Level görüntüleyici: level.json → statik mesh'ler, şekiller, instancing,
+      terrain salt çizimi (karar 1); runtime route'unda salt görüntüleme. HLOD
+      5b'de (karar 9).
+- [ ] **Render regresyon smoke'u** (`npm run smoke:render`, Playwright, başlıklı
+      Chrome, port 5283): kabul edilen referans pozlar yerelde, gerçek WebGPU
+      backend'inde yeniden çekilip referans görüntüyle karşılaştırılır.
+      Kurallar: görüntü `page.screenshot({ clip })` ile alınır, hazır sinyali
+      `data-forge-ready` (gizli doğan katmana bakılmaz), boş / siyah görüntü
+      kontrolü zorunlu, `isWebGPUBackend` false ise koşu başarısız, backend
+      kanıtı ve §2.10 alanları kayda yazılır. `render/**` ve
+      `features/*/render.ts` dokunan push'lardan önce çalışır; gate'e ve CI'a
+      girmez (GPU yok). Referans görüntüler depo dışında, kullanıcının
       kabulünden sonra güncellenir.
-- [ ] Kapı: referans sahnelerin statik içeriği ve çevresi, Faz 0 görüntüleriyle
-      yan yana; kullanıcının ilk görsel kabulü. Ertelenen Forge A kontrolleri
-      yeşil (`npm run port:forge-tests`, TSV `deferred` `3`, 40: kalite
-      profilleri / uyarlamalı kalite / GPU timer 14, asset perf 3, starter
-      materyal 1, güneş kaskatları 9, takipli gölge 9, kullanıcı ayarları 4).
+- [ ] Kapı: referans sahnelerin statik içeriği, terrain'i ve çevresi, Faz 0
+      görüntüleriyle yan yana; kullanıcının ilk görsel kabulü. Ertelenen Forge A
+      kontrolleri yeşil (`npm run port:forge-tests`, TSV `deferred` `3`, 39:
+      kalite profilleri / uyarlamalı kalite 13, asset perf 3, starter
+      materyal 1, güneş kaskatları 9, takipli gölge 9, kullanıcı ayarları 4;
+      GPU timer 1 D, karar 6).
 
 ### Faz 4 — Editör çekirdeği
 
@@ -372,7 +494,8 @@ Dört alt faz; her birinin kendi kapısı var, görsel kabul sonda toplu istenir
 5a önce gelir; 5b ve 5c onun üstünde paralel yürüyebilir; 5d, 5a–5c'nin
 çıktısını kullanır.
 
-- [ ] **5a Terrain:** spike'taki TSL CDLOD üretim kalitesine çıkar: morph,
+- [ ] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
+      Faz 3 karar 1) üretim kalitesine çıkar: morph,
       tile seam, 8 boya katmanı, su birikintisi, kıyı ıslaklığı, kostik; tile
       akışı (editör ve runtime), global harita. *Kapı:* referans terrain
       level'ı §2.10 ölçümüyle sınırın içinde; görsel yükseklik collider ile
@@ -636,3 +759,4 @@ silinebilir.
 | 2026-11-12 | v1.0 | 2b "Taşıma" kutusu kapandı (kullanıcı kararları): kalan 86 A gövde düzeyinde sınıflandı; 17 dosya düzeyinde ertelenmiş saf kontrol taşındı (`546f696`), eski manifest / şablon / klasör düzeni 12 kontrol D, 1 M, sarmalayıcı çağrısı 2 sayılmaz (`ab662b5`); ertelenen A'lar paydada kalır, fazı TSV `deferred` sütununda, her faz kapısı kendininkini ister (3: 18, 5a: 4, 5b: 2, 5d: 4, 6: 4, 7: 20, 8: 2). A 836 / 890 |
 | 2026-11-12 | v1.0 | 2b kayıt oyunu + World Partition tasarımı (kullanıcı kararları; mimari v1.5): sınıflama `engine/world` / `engine/persistence`'ı modül düzeyinde eski model sayar (129 M → A, 40 D; `4bdc041`), tek dünya ızgarası `src/core/grid` (`e005bc2`), slot deposu (`8b8449f`), hücre yerleşim planlayıcısı + durum belleği (`38aca39`), `forge.saveGame/1` + `persist` / `state` / `defineSaveState` + durum defteri, SDK 0.1.1 (`3f9b423`). Kutu kapandı; runtime akışı 5b, runtime kayıt özelliği Faz 6. Ertelenen A: Faz 3 40, 5a 4, 5b 54, 5c 8, 5d 4, Faz 6 5, Faz 7 20, Faz 8 2. A 885 / 1.022 |
 | 2026-11-12 | v1.1 | Faz 2b kapandı (CI `4d844ce`'ye kadar yeşil, kullanıcı teyidi): ayrıntı `docs/archive/PHASE_2B.md`'ye taşındı, planda özet; A 885 / 1.022, ertelenen Forge kontrolleri faz kapılarında. Sıradaki: Faz 3 |
+| 2026-11-12 | v1.2 | Faz 3 başladı: döküm (36 INV satırı, ertelenen 40 A, Faz 3'e düşen 92 R: 58 yeniden yaz / 34 düşer), içe aktarıcının Faz 3 çeviricileri ve tasarım kullanıcı onayıyla ("hepsi öneri gibi"; mimari v1.6): terrain salt çizimi Faz 3'te, `render.ts`'i render host toplar, Forge kalite merdiveni + WebGPU izin alanları (Cinematic merdiven dışı), MRT biçim sıkıştırmasıyla 30 bayt, `forge.material` şemalı JSON asset türü, GPU timer kontrolü D (payda 1.021, kalite adımında), worldSettings alanları sahibi özelliğin tekiline, sürekli gün döngüsü yok, HLOD 5b, cihaz kaybında v1 yeniden yükle. Kod yok; sırada adım 1 (dikey dilim) |

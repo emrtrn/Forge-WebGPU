@@ -1,6 +1,13 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.5 · 2026-11-12 (v1.4'ten fark: 2b kayıt oyunu ve World
+**Sürüm:** v1.6 · 2026-11-12 (v1.5'ten fark: Faz 3 render tasarımı, kullanıcı
+onayı — §4.3 `render.ts`'i render host toplar, `feature.ts` render'ı anmaz;
+§4.6 şemalı JSON asset türü ve `forge.material`, `forge.model` / `texture` /
+`staticMesh` sürüm 2; §4.7 boot'un `render` aşaması ve render senkronu; §4.9
+renderer host, GUID anahtarlı kaynak önbelleği, render bağlaması sözleşmesi,
+kalite merdiveni ve pipeline profilleri, MRT bütçesi, ışık / çevre bileşenleri,
+olay bazlı gün saati, cihaz kaybı; §4.10 render regresyon smoke'u.
+v1.5: 2b kayıt oyunu ve World
 Partition kararları, kullanıcı onayı — §4.4 tek dünya ızgarası ve 2b / 5b
 ayrımı, §4.6 `forge.saveGame/1`, §4.8 A7'nin uygulaması: `persist` alanları,
 bileşenin `state` bölümü, `defineSaveState`, yüklenmemiş hücrelerin durum
@@ -266,7 +273,7 @@ features/height-fog/
   runtime.ts    # alt sistem / capability — three'siz
   render.ts     # render bağlaması — three/webgpu yalnız burada
   editor.ts     # özel araç veya Details (yoksa şemadan otomatik)
-  feature.ts    # defineFeature({ id, components, subsystems, render, addActor })
+  feature.ts    # defineFeature({ id, components, assetTypes, saveStates, subsystems })
   height-fog.test.ts
   README.md     # 5–10 satır: amaç, şema, kayıt noktaları
 ```
@@ -286,8 +293,16 @@ features/height-fog/
   gönderme `feature-does-not-name-editor` kuralıyla yakalanır; ikisinin de
   fixture'da ihlali vardır (`features/fog/feature.ts`, `features/rain/feature.ts`).
 - `defineFeature` çekirdekte yaşar ve yalnız çekirdeğin tipleyebildiği alanları
-  taşır: `id`, `components`, `assetTypes`, `subsystems` (alt sistem sözleşmesi
-  çekirdekte, onu çalıştıran World `src/runtime`'da); `render` Faz 3'te eklenir.
+  taşır: `id`, `components`, `assetTypes`, `saveStates`, `subsystems` (alt
+  sistem sözleşmesi çekirdekte, onu çalıştıran World `src/runtime`'da).
+- **`feature.ts` render'ı da anmaz (Faz 3 kararı, 2026-11-12):** `render.ts`
+  editör deseniyle kendi kayıt birimidir: `defineRenderBinding({ feature, create })`
+  ile kendini tanımlar ve render host `features/*/render.ts` dosyalarını
+  kendisi toplar (motor: Vite glob; oyun projesi: aynı desen, ilk ihtiyaçta
+  Faz 6'da). Gerekçe: `check:projects` ve araçlar `feature.ts`'i Node'da
+  yükler, başsız açılışta World render'sız çalışır; `feature.ts` render.ts'i
+  anarsa three/webgpu Node'a ve başsız açılışa girer. Statik ve dinamik her
+  gönderme bir katman kuralıyla yakalanır (kasıtlı ihlal fixture'ında).
 - **Node'da yükleme (2a kararı, 2026-11-10):** depo genelinde göreli import'lar
   `.ts` uzantılı yazılır (`allowImportingTsExtensions` taban tsconfig'te);
   `src/core` ve `features/*/schema.ts` Node'da yükleyici ya da bundle adımı
@@ -637,6 +652,27 @@ düşen alan uyarı değil, **hatadır**.
     1'de içe aktarma ayarı yok (`import: {}`). Ayarlar (sıkıştırma, mipmap,
     renk uzayı, ses akışı) Faz 3'te sürüm 2 ve geçiş zinciriyle gelir.
     Materyal, efekt, araç, foliage türü ve UI asset türleri kendi fazlarında.
+  - *Materyal ve sürüm 2 türleri (Faz 3, kullanıcı kararı 2026-11-12):*
+    çekirdek şemalı **JSON asset türü** kazanır: DSL'le tanımlanan, dosyası
+    `{ "schema": "<tür>/<sürüm>", "id": "ast_…", … }` olan, alanları şema
+    normalize'ından geçen, başvuruları asset dizininde yürünen (asılı
+    referans, `planDelete`, ters dizin) ve Details formu şemadan gelen asset.
+    Kayıt servisi onu `schema` etiketinden tanır. Aynı yetenek A13'ün (oyunun
+    veri asset'leri) temelidir. Veri belgesi zarfı (`data`) yalnız içeriği
+    başka katmanın normalize ettiği belgeler için kalır. İlk kullanan
+    `forge.material` (`*.material.json`): Forge'un `ForgeMaterialDef` alanları
+    birim ve aralıklarıyla (preset, baseColor, doku slotları `assetRef(forge.texture)`,
+    ORM, UV tiling, flipY, roughness / metalness / AO / opacity, alpha kipi,
+    side, emissive, normal motion, katman karışımı; `sway` 5c'de ve
+    `terrainDetail` 5a'da çizilir ama alanları şimdi gelir). Forge'un
+    `normalizeForgeMaterialDef`'i içe aktarıcının okuyucusu olarak olduğu gibi
+    taşınır. `forge.model` sürüm 2: `materials` (GLB materyal sırasına göre
+    slot varsayılanları, Forge `*.materials.json`), `uvw` (`*.uvw.json`),
+    `vertexColors` (`*.vertexcolors.json`); `forge.texture` sürüm 2:
+    `anisotropy` (varsayılan 8), `mipmaps`; renk uzayını dokuyu kullanan slot
+    belirler (Forge'daki gibi). `forge.staticMesh` sürüm 2: `materials` (slot
+    override'ı, boş = modelin), `color` (tint, boş = materyal), `castShadow`;
+    `forge.shape`'e `castShadow`. Her biri sürüm 1'den geçiş zinciriyle.
   - *İçe aktarılan asset'lerin kökeni (kullanıcı kararı 2026-11-12):* lisans
     sorumluluğu kullanıcıdadır; lisansı bilinmeyen Forge asset'i de alınır,
     oyun projesine girmez (kullanıcı kendi varlıklarını üretene kadar durur;
@@ -817,6 +853,13 @@ düşen alan uyarı değil, **hatadır**.
     `main.ts` motor özelliklerini `features/*/feature.ts`'ten toplar (yeni
     özellik kabuğa dokunmaz); proje yokken "Nothing to open" bilgi ekranı
     (A9: motor deposunda varsayılan sahne yok).
+  - *Render aşaması ve senkronu (Faz 3 kararı, 2026-11-12):* boot'a `render`
+    aşaması girer (renderer host init); hatası ve cihaz kaybı renderer'sız
+    ekranda görünür. Host World'e tek bir `forge.render` alt sistemi
+    (`renderSync` grubu) kurar; o, toplanan render bağlamalarını toplu
+    `actorsAdded` / `actorsRemoved` ve kare başına `sync` ile çalıştırır.
+    Başsız açılışta (Node, `check:projects`) host yoktur, World render'sız
+    koşar. Ayrıntı §4.9.
 
 ### 4.8 Oyun projesi modeli (Model 2, ikinci sürüm)
 
@@ -992,6 +1035,84 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   `RenderPipeline`, kalite profilleri, gerçek backend doğrulaması, GPU
   timestamp, addon'lar kendi sarmalayıcılarımızın arkasında.
 
+**Faz 3 kararları (kullanıcı onayı 2026-11-12, "hepsi öneri gibi"):**
+
+- *Klasörler:* `src/render/{host,resources,materials,pipeline,sync,viewer}`.
+  three (`three/webgpu`, `three/tsl`) yalnız burada ve `features/*/render.ts`'te.
+- *Renderer host:* `WebGPURenderer` (`trackTimestamp`, `reversedDepthBuffer`,
+  `antialias: false`), `await init()`. Backend kanıtı Faz 1 S1 biçiminde
+  (`isWebGPUBackend`, adaptör, özellikler, sınırlar) tutulur ve
+  `data-forge-backend` ile `data-forge-perf`'e (Faz 0 düzeneğinin alanları,
+  taşınmış `perfWitness`) yazılır. Rozet geliştirmede her zaman, üretimde
+  yalnız WebGL2'ye düşüşte görünür ("WebGPU kabulü sayılmaz"). DPR
+  `effectiveDevicePixelRatio` (kalite) ile, boyut `ResizeObserver` ile.
+  Kamera host'a dışarıdan verilir (görüntüleyici, editör, oyun kamerası).
+  **Cihaz kaybı v1:** render durur, renderer'sız ekran + "yeniden yükle";
+  otomatik yeniden kurulum sonraki bir karar.
+- *Kaynak önbelleği (A6):* host'a, yani GPU cihazına aittir, World'den
+  ayrıdır. Anahtarlar `model:<guid>`, `texture:<guid>:<srgb|linear>`,
+  `material:<guid>:<katkı imzası>`, `shape:<primitive>` (şekiller prosedürel
+  geometri, asset değil). Her World kullandığını sayaçla alır, dispose'da
+  bırakır; sayacı sıfır olanın atılması ve bellek bütçesi 5b'de. Pipeline
+  önbelleği three'nin kendisi; derleme süresi kayda yazılır. GUID → URL
+  çözümü asset dizininden (geliştirmede dev server, üretimde build'in dizini).
+  glTF: KTX2 ve meshopt three'nin `examples/jsm/libs` dosyalarıyla (yeni npm
+  bağımlılığı ve depoda vendor kopyası yok). İki World'ün önbelleği
+  paylaştığını ve birini kapatmanın ötekine dokunmadığını bir test sınar.
+- *Render bağlaması:* `features/<ad>/render.ts` →
+  `defineRenderBinding({ feature, create(ctx) })`, dönen nesne
+  `actorsAdded` / `actorsRemoved` (toplu, F11) / `sync(frame)` / `dispose`.
+  `ctx`: World'ün salt okunur görünümü (`componentsOf`, servisler, ör.
+  `HeightFogStateKey`), sahne kökü, kaynak önbelleği, sis / çevre / ışık
+  kancaları, etkin kalite ayarları. Oynanış kodu three nesnesine dokunmaz.
+  Faz 3'te tekil bileşenler her karede karşılaştırılır, toplu bileşenler
+  (static mesh, shape) ekle / çıkar ile kurulur; alan ve transform değişikliği
+  bildirimi Faz 4'te editörle World'e girer. Editör ve runtime aynı host'u ve
+  bağlamaları kullanır; editör çizim katmanı TRAA'dan sonra (Faz 4).
+- *Materyal:* `forge.material` (§4.6) → `MeshStandardNodeMaterial`, anizotropi
+  / clearcoat gerekirse `MeshPhysicalNodeMaterial`; yalnız slotlar
+  (`colorNode`, `normalNode`, `roughnessNode`, `metalnessNode`, `aoNode`,
+  `emissiveNode`, `opacityNode`, `positionNode`). Özellik katkıları TSL
+  fonksiyonu olarak sabit sırayla: world mask → fade (5b) → rüzgâr (5c) →
+  ıslaklık (5a) → göçük (8).
+- *Işık ve çevre bileşenleri:* `forge.directionalLight` / `forge.pointLight` /
+  `forge.spotLight` (aktör başına; güneş `atmosphereSun` işaretli tek
+  directional; ışıksız level'a varsayılan güneş + ortam ışığı, Forge kuralı);
+  tekiller `forge.skyAtmosphere`, `forge.skyLight` (PMREM; sphere capture
+  yok), `forge.cloudLayer`, `forge.postProcess`, `forge.worldEnvironment`.
+  Alanlar Forge'un `engine/scene/*` normalize'ından ve Details'inden (Height
+  Fog örneği gibi; TR ipucu, EN ad, kaydırıcı aralığı). Forge'un World
+  Settings alanları sahibi özelliğin tekiline dağılır (render alanları Faz 3'ün
+  tekillerine; view distance 5b, rüzgâr 5c, yerçekimi / kill Z / game mode 6);
+  tek bir `forge.worldSettings` bileşeni yok, World Settings paneli (Faz 4)
+  tekilleri tek yerde gösterir. Gölge: güneşte `CSMShadowNode` (Forge'un
+  bölmeleri `customSplitsCallback` ile, kamerayı düğüm kendi alır), öteki
+  durumda takipli tek harita; taşınan `engine/world/{sunCascades,followShadow}`.
+- *Kalite:* Forge'un merdiveni (ultra / high / medium / low / custom),
+  uyarlamalı kalite ve donanım ipuçları olduğu gibi taşınır (ilke #2: kalite
+  yalnız kapatır / küçültür). WebGPU izin alanları ayrı adımda:
+  `traaAllowed`, `ssrAllowed: off | half | full`, `ssgiAllowed`,
+  `aoResolutionScale`. Eşleme: ultra / high → Balanced (TRAA + GTAO + bloom +
+  SSR yarım), medium → GTAO'suz Balanced, low → Compatibility; **Cinematic**
+  (SSGI + SSR tam) merdivenin dışında ayrı bir seçim, uyarlamalı kalite ona
+  çıkmaz. Profil efekti açmaz, level'ın yazdığına izin verir.
+- *Pipeline:* MRT'li sahne pass'i → GTAO / SSGI / SSR → TRAA → bloom / DoF →
+  tonemap + pozlama; profil ya da Post Process değişince yeniden kurulur, her
+  karede değil. **MRT bütçesi:** biçim sıkıştırma, `requiredLimits` yok:
+  output RGBA16F (8) + normal RGBA8 (8) + velocity RG16F (4) + metalrough RG8
+  (2) + diffuse RGBA8 (8) = 30 ≤ 32 bayt / örnek; bir test her profilin
+  toplamını sınar. Post Process `reflection: off | ssr`, `antialias: none |
+  traa | smaa`.
+- *Olay bazlı gün saati:* `forge.worldEnvironment`'ta sabit `hour`; sürekli
+  gün döngüsü yok. `WorldEnvironmentService.transitionTo({ hour, seconds })`
+  saati yumuşak geçişle ilerletir, sonra durur (saf modül
+  `engine/environment/timeTransition.ts`, taşımadan ayrı). Geçişte sky light /
+  IBL yeniden yakalama sıklığı ölçülerek seçilir (`recapturePolicy`'nin açı
+  eşiği ve PMREM maliyeti).
+- *Terrain:* Faz 3'te salt çizim (spike S2'nin TSL CDLOD'u: yükseklik, 8
+  katman, normal, gölge); su birikintisi, kıyı, kostik, tile akışı ve üretim
+  kalitesi 5a'da. HLOD 5b'de.
+
 ### 4.10 Kalite altyapısı
 
 - **Test koşucusu:** Vitest; testler modülün yanında, merkezi kayıt dosyası yok
@@ -1011,6 +1132,19 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   smoke'ları açıkça etiketli `forceWebGL` test kipiyle çalışır (TSL WebGL2
   backend'inde de çalışır); render kabulü yerelde, gerçek GPU'da. Bu kip hiçbir
   zaman "WebGPU çalışıyor" sayılmaz.
+- **Render regresyon smoke'u (Faz 3 kararı, 2026-11-12):** `npm run
+  smoke:render`, Playwright (`@playwright/test`, Forge'daki sürüm, tam sabit),
+  başlıklı Chrome (`channel: "chrome"`, gerçek GPU), port 5283, referans
+  projesi. Sahne × poz başına: poz `forge.play.cameraPose`'a, hazır sinyali
+  `data-forge-ready` (yükleme bitti + kaynaklar çözüldü + N kare; gizli doğan
+  katmana bakılmaz), `isWebGPUBackend` false ise koşu başarısız, görüntü
+  `page.screenshot({ clip })`, boş görüntü kontrolü (parlaklık standart
+  sapması eşiği), eşikli karşılaştırma (`toHaveScreenshot`). Kayıt: commit,
+  three, backend kanıtı, tarayıcı, GPU / sürücü, poz, çözünürlük / DPR,
+  profil. Referans görüntüler depo dışında (`Games/ForgeReference/render-refs/`;
+  içerik lisansı doğrulanmadı), kullanıcı kabulünden sonra güncellenir. Gate'e
+  ve CI'a girmez; `render/**` ya da `features/*/render.ts` dokunan push'tan
+  önce elle çalışır.
 - **Dağıtım tabanı:** bütün URL'ler `base`'e göre; alt dizin yayını ilk günden
   test edilir (F06).
 - **Asset kökeni:** içe aktarmada tür + lisans + kaynak zorunlu; CI'da kapı
