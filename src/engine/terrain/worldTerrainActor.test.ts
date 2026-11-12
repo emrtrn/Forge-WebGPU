@@ -1,0 +1,289 @@
+// Ported from Forge WebGL tests/engine/worldTerrainActor.test.ts @ forge-webgl-final (04b5fb23): checks unchanged, run by
+// Vitest; 5 check(s) not yet portable left out. docs/PORT_LOG.md §2.
+import assert from "node:assert/strict";
+import { type ColliderComponent, type TransformComponent } from "../legacy/components.ts";
+import { type Vec3 } from "../legacy/layout.ts";
+import { forEachHeightfieldTriangle } from "../physics/heightfieldStatic.ts";
+import { PhysicsSubsystem } from "../physics/physicsSubsystem.ts";
+import { normalizeWorldTerrain } from "./terrainDefinition.ts";
+import { applyTerrainBrush, createTerrainEditWorld } from "./terrainEdit.ts";
+import { terrainHeightAt } from "./terrainHeightQuery.ts";
+import { type WorldTerrainDocument, validateTerrainTile } from "./terrainLoader.ts";
+import { encodeTerrainTile } from "./terrainTileCodec.ts";
+import { createFlatTerrainTile, terrainTileHeightRange, terrainTileLayerWeight, tileKey, type WorldTerrainDef } from "./terrainTypes.ts";
+import { isMultiTileTerrain, worldTerrainActorPosition, worldTerrainColliderEntities, worldTerrainExtent, worldTerrainPlacementIssues } from "./worldTerrainActor.ts";
+import { WORLD_TERRAIN_CREATE_DEFAULTS, createFlatWorldTerrain, createWorldTerrainFromHeightmap, estimateWorldTerrain, worldTerrainCreateProblems, worldTerrainGridForHeightmap, worldTerrainHeightStep, worldTerrainHeightmapProblems } from "./worldTerrainCreate.ts";
+import { captureWorldTerrainSave } from "./worldTerrainSave.ts";
+import { test } from "vitest";
+
+
+type Check = (label: string, fn: () => void) => void;
+type CheckAsync = (label: string, fn: () => Promise<void>) => Promise<void>;
+
+const Q = 32;
+const SPACING = 1.5;
+const HOLE = tileKey(2, 1);
+
+function heightAt(gx: number, gz: number): number {
+  return Math.fround(4 * Math.sin(gx * 0.11) * Math.cos(gz * 0.07) + 0.03 * gx);
+}
+
+/** A 3×2 World Terrain with one hole; heights come from one global function so seams agree. */
+function worldDocument(origin: Vec3 = [10, 2, -30]): WorldTerrainDocument {
+  const def: WorldTerrainDef = {
+    schema: 1, type: "worldTerrain", name: "World", tileQuads: Q, spacing: SPACING, tilesX: 3, tilesZ: 2, origin,
+    heightMin: -64, heightMax: 64, layers: [{ id: "grass", name: "Grass", color: "#4a7a3a" }], tiles: [], collision: true,
+  };
+  const tiles = new Map<string, ReturnType<typeof createFlatTerrainTile>>();
+  for (let tz = 0; tz < def.tilesZ; tz += 1) {
+    for (let tx = 0; tx < def.tilesX; tx += 1) {
+      const key = tileKey(tx, tz);
+      if (key === HOLE) continue;
+      const tile = createFlatTerrainTile(def, tx, tz);
+      for (let z = 0; z <= Q; z += 1) {
+        for (let x = 0; x <= Q; x += 1) tile.heights[z * (Q + 1) + x] = heightAt(tx * Q + x, tz * Q + z);
+      }
+      const range = terrainTileHeightRange(tile);
+      def.tiles.push({ key, minHeight: range.min, maxHeight: range.max });
+      tiles.set(key, tile);
+    }
+  }
+  return { def, tiles };
+}
+
+function lookup({ tiles }: WorldTerrainDocument) {
+  return { tile: (x: number, z: number) => tiles.get(tileKey(x, z)) };
+}
+
+/** Height of a trimesh entity's surface under world (x, z), from whichever triangle contains it. */
+/** Height of a heightfield collider's triangles at world X/Z, or null outside it. */
+function heightfieldHeightAt(transform: TransformComponent, collider: ColliderComponent, x: number, z: number): number | null {
+  const field = collider.primitives![0]!.heightfield!;
+  const px = x - transform.position[0];
+  const pz = z - transform.position[2];
+  let found: number | null = null;
+  forEachHeightfieldTriangle(field, 0, field.quadsX - 1, 0, field.quadsZ - 1, (a, b, c) => {
+    if (found !== null) return;
+    const det = (b[2] - c[2]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[2] - c[2]);
+    const wa = ((b[2] - c[2]) * (px - c[0]) + (c[0] - b[0]) * (pz - c[2])) / det;
+    const wb = ((c[2] - a[2]) * (px - c[0]) + (a[0] - c[0]) * (pz - c[2])) / det;
+    const wc = 1 - wa - wb;
+    if (wa < -1e-9 || wb < -1e-9 || wc < -1e-9) return;
+    found = transform.position[1] + wa * a[1] + wb * b[1] + wc * c[1];
+  });
+  return found;
+}
+
+export function registerWorldTerrainActorTests(check: Check): void {
+
+  check("world terrain frame: def.origin is the min corner, the actor is the grid centre", () => {
+    const { def } = worldDocument();
+    assert.deepEqual(worldTerrainExtent(def), [3 * Q * SPACING, 2 * Q * SPACING]);
+    assert.deepEqual(worldTerrainActorPosition(def), [10 + 1.5 * Q * SPACING, 2, -30 + Q * SPACING]);
+    assert.deepEqual(worldTerrainPlacementIssues({ position: worldTerrainActorPosition(def) }, def), []);
+    assert.equal(worldTerrainPlacementIssues({ position: [0, 0, 0] }, def).length, 1);
+    assert.match(worldTerrainPlacementIssues({ position: worldTerrainActorPosition(def), rotation: [0, 30, 0] }, def)[0]!, /rotated/);
+  });
+
+  check("world terrain shape: only a single (0, 0) tile is not multi-tile", () => {
+    const one = { tilesX: 1, tilesZ: 1, tiles: [{ key: "0_0", minHeight: 0, maxHeight: 0 }] };
+    assert.equal(isMultiTileTerrain(one), false);
+    assert.equal(isMultiTileTerrain({ ...one, tilesX: 2 }), true);
+    assert.equal(isMultiTileTerrain({ ...one, tiles: [] }), true);
+    assert.equal(isMultiTileTerrain(worldDocument().def), true);
+  });
+
+  check("world terrain collision: PhysicsSubsystem serves the tile triangles as walkable ground, the hole stays empty", () => {
+    const document = worldDocument();
+    const physics = new PhysicsSubsystem();
+    physics.setEntities(worldTerrainColliderEntities({ id: "big", name: "Big", collision: true }, document));
+    assert.equal(physics.hasStaticGround(), true);
+    const surfaceAt = (x: number, z: number): number | null => {
+      for (const { a, b, c, normalY } of physics.staticSurfaceTrianglesNear(x, z)) {
+        const det = (b[2] - c[2]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[2] - c[2]);
+        const wa = ((b[2] - c[2]) * (x - c[0]) + (c[0] - b[0]) * (z - c[2])) / det;
+        const wb = ((c[2] - a[2]) * (x - c[0]) + (a[0] - c[0]) * (z - c[2])) / det;
+        if (wa < -1e-9 || wb < -1e-9 || 1 - wa - wb < -1e-9) continue;
+        assert.ok(normalY > 0, "terrain triangles face up");
+        return wa * a[1] + wb * b[1] + (1 - wa - wb) * c[1];
+      }
+      return null;
+    };
+    // Points on both sides of the (0,0)|(1,0) and (0,0)|(0,1) seams and inside tiles.
+    for (const [x, z] of [[11.3, -29.1], [10 + Q * SPACING - 0.2, -20.4], [10 + Q * SPACING + 0.2, -20.4], [40.7, -30 + Q * SPACING + 0.1], [140.1, -20.3]] as const) {
+      const expected = terrainHeightAt(document.def, lookup(document), x, z)!;
+      const actual = surfaceAt(x, z);
+      assert.ok(actual !== null && Math.abs(actual - expected) < 1e-4, `${x},${z}: ${actual} vs ${expected}`);
+    }
+    assert.equal(surfaceAt(10 + 2.5 * Q * SPACING, -30 + 1.5 * Q * SPACING), null);
+  });
+}
+
+export function registerWorldTerrainSaveTests(check: Check): void {
+  check("world terrain save: a dab across a seam saves just the touched tiles, each in its loaded format, and they validate", () => {
+    const document = worldDocument();
+    const world = createTerrainEditWorld(document.def, document.tiles.values());
+    // On the x seam between tiles (0, 0) and (1, 0), well inside z of row 0.
+    const seamX = document.def.origin[0] + Q * SPACING;
+    const { dirty } = applyTerrainBrush(world, { x: seamX, z: -30 + 10 * SPACING, radius: 4, strength: 0.5, falloff: 1, mode: "raise" });
+    assert.deepEqual([...dirty.keys()].sort(), ["0_0", "1_0"]);
+    const formats = new Map([["0_0", "u16" as const], ["1_0", "f32" as const]]);
+    const snapshot = captureWorldTerrainSave(world, dirty.keys(), formats);
+    assert.equal(snapshot.widened, false);
+    assert.deepEqual(snapshot.tiles.map((tile) => tile.key), ["0_0", "1_0"]);
+    assert.equal(snapshot.def.heightMin, document.def.heightMin);
+    for (const { key, bytes } of snapshot.tiles) {
+      const decoded = validateTerrainTile(snapshot.def, key, bytes);
+      assert.equal(decoded.heightFormat, formats.get(key));
+      const edited = world.tiles.get(key)!.heights;
+      const step = decoded.heightFormat === "u16" ? (snapshot.def.heightMax - snapshot.def.heightMin) / 65535 : 0;
+      decoded.heights.forEach((height, index) => assert.ok(Math.abs(height - edited[index]!) <= step / 2 + 1e-6, `${key}[${index}]`));
+    }
+    // Seam copies agree, so the terrain stays watertight after a reload.
+    const left = world.tiles.get("0_0")!;
+    const right = world.tiles.get("1_0")!;
+    for (let z = 0; z <= Q; z += 1) assert.equal(left.heights[z * (Q + 1) + Q], right.heights[z * (Q + 1)]);
+    // The caller's definition is not touched; the snapshot carries the refreshed summaries.
+    assert.notEqual(snapshot.def, world.def);
+    assert.ok(snapshot.def.tiles.find((tile) => tile.key === "0_0")!.maxHeight >= document.def.tiles.find((tile) => tile.key === "0_0")!.maxHeight);
+  });
+
+  check("world terrain save: leaving the encoding range widens it to whole metres and re-encodes every tile", () => {
+    const document = worldDocument();
+    const world = createTerrainEditWorld(document.def, document.tiles.values());
+    const centre = { x: 10 + 1.5 * Q * SPACING, z: -30 + 0.5 * Q * SPACING };
+    for (let dab = 0; dab < 40; dab += 1) applyTerrainBrush(world, { ...centre, radius: 3, strength: 2, falloff: 1, mode: "raise" });
+    const peak = Math.max(...world.tiles.get("1_0")!.heights);
+    assert.ok(peak > document.def.heightMax, `peak ${peak}`);
+    const snapshot = captureWorldTerrainSave(world, ["1_0"], new Map());
+    assert.equal(snapshot.widened, true);
+    assert.equal(snapshot.def.heightMax, Math.ceil(peak) + 1);
+    assert.equal(snapshot.def.heightMin, document.def.heightMin);
+    assert.deepEqual(snapshot.tiles.map((tile) => tile.key), [...document.tiles.keys()].sort());
+    for (const { key, bytes } of snapshot.tiles) assert.equal(validateTerrainTile(snapshot.def, key, bytes).heightFormat, "f32");
+    // The edit world keeps its range until the save is acknowledged.
+    assert.equal(world.def.heightMax, document.def.heightMax);
+  });
+}
+
+export function registerWorldTerrainCreateTests(check: Check): void {
+  check("world terrain create: a flat grid centred on the origin that the save allowlist and tile validation accept", () => {
+    const options = { ...WORLD_TERRAIN_CREATE_DEFAULTS, tilesX: 3, tilesZ: 2, tileQuads: 64 as const, spacing: 2, baseHeight: 4.5 };
+    const { def, tiles } = createFlatWorldTerrain(options);
+    assert.deepEqual(normalizeWorldTerrain(structuredClone(def)), def);
+    assert.equal(isMultiTileTerrain(def), true);
+    assert.deepEqual(worldTerrainExtent(def), [3 * 64 * 2, 2 * 64 * 2]);
+    assert.deepEqual(worldTerrainActorPosition(def), [0, 4.5, 0]);
+    assert.deepEqual([...tiles.keys()], ["0_0", "1_0", "2_0", "0_1", "1_1", "2_1"]);
+    assert.deepEqual(def.layers.map((layer) => layer.id), ["grass", "dirt", "rock", "snow"]);
+    for (const [key, tile] of tiles) {
+      const decoded = validateTerrainTile(def, key, encodeTerrainTile(tile, { heightMin: def.heightMin, heightMax: def.heightMax }));
+      assert.equal(decoded.heightFormat, "u16");
+      assert.ok(decoded.heights.every((height) => Math.abs(height) < 0.005), key);
+      assert.equal(terrainTileLayerWeight(decoded, 0, 0), 1);
+    }
+    const estimate = estimateWorldTerrain(options);
+    assert.equal(estimate.tileCount, 6);
+    assert.equal(estimate.vertices, 6 * 65 * 65);
+    assert.equal(estimate.diskBytes, 6 * (32 + 65 * 65 * 2 + 65 * 65 * 4));
+  });
+
+  check("world terrain create: the Add Landscape default is one flat 129 x 129 tile", () => {
+    const { def, tiles } = createFlatWorldTerrain(WORLD_TERRAIN_CREATE_DEFAULTS);
+    assert.equal(isMultiTileTerrain(def), false);
+    assert.deepEqual(worldTerrainExtent(def), [128, 128]);
+    assert.deepEqual(worldTerrainActorPosition(def), [0, 0, 0]);
+    const tile = tiles.get("0_0")!;
+    assert.equal(tile.size, 129);
+    assert.equal(def.spacing, 1);
+    assert.ok(tile.heights.every((height) => height === 0));
+    assert.deepEqual(def.layers.map((_, layer) => terrainTileLayerWeight(tile, layer, 0)), [1, 0, 0, 0]);
+  });
+
+  check("world terrain create: out-of-range spacing and oversized grids are refused with a reason", () => {
+    const base = { ...WORLD_TERRAIN_CREATE_DEFAULTS, tileQuads: 256 as const };
+    assert.deepEqual(worldTerrainCreateProblems(base), []);
+    assert.match(worldTerrainCreateProblems({ ...base, spacing: 0.1 }).join(" "), /spacing/);
+    assert.match(worldTerrainCreateProblems({ ...base, tilesX: 33 }).join(" "), /Tiles X/);
+    assert.match(worldTerrainCreateProblems({ ...base, name: "  " }).join(" "), /name/);
+    // 64 tiles of 256 quads is the ceiling; 65 is not, but 16 × 16 small tiles fit.
+    assert.deepEqual(worldTerrainCreateProblems({ ...base, tilesX: 8, tilesZ: 8 }), []);
+    assert.match(worldTerrainCreateProblems({ ...base, tilesX: 13, tilesZ: 5 }).join(" "), /Too large/);
+    assert.deepEqual(worldTerrainCreateProblems({ ...base, tilesX: 16, tilesZ: 16, tileQuads: 64 }), []);
+    assert.throws(() => createFlatWorldTerrain({ ...base, spacing: 0.1 }), /spacing/);
+  });
+
+  check("world terrain create: a chosen height range is written to the definition and must hold the flat start", () => {
+    const base = { ...WORLD_TERRAIN_CREATE_DEFAULTS, tilesX: 2, tilesZ: 1, tileQuads: 64 as const };
+    assert.deepEqual([createFlatWorldTerrain(base).def.heightMin, createFlatWorldTerrain(base).def.heightMax], [-256, 256], "default ±256 m");
+    const { def, tiles } = createFlatWorldTerrain({ ...base, heightMin: -40, heightMax: 1200 });
+    assert.deepEqual([def.heightMin, def.heightMax], [-40, 1200]);
+    assert.deepEqual(normalizeWorldTerrain(structuredClone(def)), def);
+    for (const [key, tile] of tiles) validateTerrainTile(def, key, encodeTerrainTile(tile, { heightMin: def.heightMin, heightMax: def.heightMax }));
+    assert.equal(worldTerrainHeightStep({ heightMin: -40, heightMax: 1200 }), 1240 / 65535);
+    assert.equal(worldTerrainHeightStep({}), 512 / 65535);
+    for (const range of [{ heightMin: 5, heightMax: 100 }, { heightMin: -100, heightMax: -5 }, { heightMin: 0, heightMax: 0 },
+      { heightMin: -20000, heightMax: 10 }, { heightMin: Number.NaN, heightMax: 10 }]) {
+      assert.match(worldTerrainCreateProblems({ ...base, ...range }).join(" "), /Height range/, JSON.stringify(range));
+    }
+    assert.deepEqual(worldTerrainCreateProblems({ ...base, heightMin: 0, heightMax: 10 }), [], "a range may start at the datum");
+  });
+
+  check("world terrain create: a heightmap picks the grid it fills exactly, preferred resolution first, never resampled", () => {
+    assert.deepEqual(worldTerrainGridForHeightmap(1025, 513), { tilesX: 4, tilesZ: 2, tileQuads: 256 });
+    assert.deepEqual(worldTerrainGridForHeightmap(1025, 513, 128), { tilesX: 8, tilesZ: 4, tileQuads: 128 });
+    assert.deepEqual(worldTerrainGridForHeightmap(129, 129), { tilesX: 1, tilesZ: 1, tileQuads: 128 });
+    assert.deepEqual(worldTerrainGridForHeightmap(193, 65), { tilesX: 3, tilesZ: 1, tileQuads: 64 });
+    assert.equal(worldTerrainGridForHeightmap(1000, 1000), null, "no resolution divides 999");
+    assert.equal(worldTerrainGridForHeightmap(4097, 4097), null, "over the editor's vertex limit");
+  });
+
+  check("world terrain create: a heightmap start keeps its u16 codes, seams, default layers and range", () => {
+    const options = { ...WORLD_TERRAIN_CREATE_DEFAULTS, name: "Hills", tilesX: 2, tilesZ: 1, tileQuads: 64 as const, spacing: 2, baseHeight: 5 };
+    const [width, height] = [129, 65];
+    const codes = new Uint16Array(width * height);
+    for (let z = 0; z < height; z += 1) for (let x = 0; x < width; x += 1) codes[z * width + x] = (x * 509 + z * 131) % 65536;
+    const little = new Uint8Array(codes.buffer.slice(0));
+    const big = new Uint8Array(little.length);
+    for (let i = 0; i < little.length; i += 2) [big[i], big[i + 1]] = [little[i + 1]!, little[i]!];
+    const source = { bytes: little, width, height, endianness: "little" as const, heightMin: -20, heightMax: 300 };
+    assert.deepEqual(worldTerrainHeightmapProblems(options, source), []);
+    const { def, tiles } = createWorldTerrainFromHeightmap({ ...options, heightMin: -1, heightMax: 1 }, source);
+    assert.deepEqual([def.heightMin, def.heightMax], [-20, 300], "the heightmap's range, not the dialog's");
+    assert.deepEqual(def.origin, [-128, 5, -64]);
+    assert.deepEqual(normalizeWorldTerrain(structuredClone(def)), def);
+    assert.deepEqual(def.layers.map((layer) => layer.id), ["grass", "dirt", "rock", "snow"]);
+    const range = def.heightMax - def.heightMin;
+    for (const [key, tile] of tiles) {
+      assert.equal(terrainTileLayerWeight(tile, 0, 0), 1, `${key} layer 0`);
+      const encoded = encodeTerrainTile(tile, { heightMin: def.heightMin, heightMax: def.heightMax });
+      const decoded = validateTerrainTile(def, key, encoded);
+      for (let vz = 0; vz < tile.size; vz += 1) {
+        for (let vx = 0; vx < tile.size; vx += 1) {
+          const code = codes[vz * width + tile.x * 64 + vx]!;
+          assert.equal(tile.heights[vz * tile.size + vx], Math.fround(def.heightMin + code / 65535 * range));
+          assert.equal(new DataView(encoded.buffer, encoded.byteOffset).getUint16(32 + (vz * tile.size + vx) * 2, true), code, "u16 save writes the source code back");
+        }
+      }
+      assert.equal(decoded.heightFormat, "u16");
+    }
+    const [left, right] = [tiles.get("0_0")!, tiles.get("1_0")!];
+    for (let vz = 0; vz < 65; vz += 1) assert.equal(left.heights[vz * 65 + 64], right.heights[vz * 65], `seam row ${vz}`);
+    const fromBig = createWorldTerrainFromHeightmap(options, { ...source, bytes: big, endianness: "big" });
+    assert.deepEqual(fromBig.tiles.get("1_0")!.heights, right.heights, "big-endian RAW");
+    // The size must match the grid; a 1x1 grid is one tile.
+    assert.match(worldTerrainHeightmapProblems({ ...options, tilesX: 3 }, source).join(" "), /needs exactly 193 × 65/);
+    assert.match(worldTerrainHeightmapProblems(options, { ...source, heightMax: -30 }).join(" "), /max above min/);
+    assert.throws(() => createWorldTerrainFromHeightmap({ ...options, tilesX: 3 }, source), /needs exactly/);
+    const single = createWorldTerrainFromHeightmap({ ...options, tilesX: 1 }, { ...source, width: 65, bytes: little.slice(0, 65 * 65 * 2), height: 65 });
+    assert.equal(single.tiles.get("0_0")!.heights[64], Math.fround(-20 + ((64 * 509) % 65536) / 65535 * 320));
+  });
+}
+
+export async function registerWorldTerrainActorAsyncTests(checkAsync: CheckAsync): Promise<void> {
+}
+
+registerWorldTerrainActorTests(test as unknown as Parameters<typeof registerWorldTerrainActorTests>[0]);
+registerWorldTerrainSaveTests(test as unknown as Parameters<typeof registerWorldTerrainSaveTests>[0]);
+registerWorldTerrainCreateTests(test as unknown as Parameters<typeof registerWorldTerrainCreateTests>[0]);
+registerWorldTerrainActorAsyncTests(test as unknown as Parameters<typeof registerWorldTerrainActorAsyncTests>[0]);

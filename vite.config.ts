@@ -28,5 +28,8 @@ export default defineConfig({
   },
   test: {
     include: ["src/**/*.test.ts", "tools/**/*.test.ts"],
+    // Forge WebGL's checks ran without a time limit; a few ported ones sweep
+    // many seeds (terrain LOD: 180 cameras) and pass 5 s under a parallel run.
+    testTimeout: 30_000,
   },
 });

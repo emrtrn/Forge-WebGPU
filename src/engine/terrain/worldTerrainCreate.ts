@@ -1,0 +1,219 @@
+// Ported from Forge WebGL engine/terrain/worldTerrainCreate.ts @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
+import { LANDSCAPE_DEFAULT_LAYERS } from "./landscape.ts";
+import type { WorldTerrainDocument } from "./terrainLoader.ts";
+import { importRawHeightmap } from "./terrainImport.ts";
+import { decodeTerrainTile, terrainTileByteLength } from "./terrainTileCodec.ts";
+import {
+  TERRAIN_DEFAULT_HEIGHT_MAX,
+  TERRAIN_DEFAULT_HEIGHT_MIN,
+  TERRAIN_MAX_TILES_PER_AXIS,
+  createFlatTerrainTile,
+  terrainWeightBlockCount,
+  tileKey,
+  type TerrainTileData,
+  type WorldTerrainDef,
+} from "./terrainTypes.ts";
+
+/** Tile resolutions the editor offers; 256 quads is the plan's default (K1). */
+export const WORLD_TERRAIN_CREATE_TILE_QUADS = [64, 128, 256] as const;
+export type WorldTerrainCreateTileQuads = (typeof WORLD_TERRAIN_CREATE_TILE_QUADS)[number];
+
+/**
+ * Upper bound on a new terrain's vertices: 64 tiles of 257². Until tile
+ * streaming (Faz 4) the editor keeps every tile in memory and the runtime
+ * builds one trimesh per tile at boot (~74 ms each at 257², Faz 3 interim), so
+ * the schema's 32 × 32 grid is not offered yet.
+ */
+export const WORLD_TERRAIN_CREATE_MAX_VERTICES = 64 * 257 * 257;
+export const WORLD_TERRAIN_CREATE_MIN_SPACING = 0.25;
+export const WORLD_TERRAIN_CREATE_MAX_SPACING = 8;
+export const WORLD_TERRAIN_CREATE_MAX_BASE_HEIGHT = 1000;
+/** Largest height range offset either side of the datum the dialog accepts. */
+export const WORLD_TERRAIN_CREATE_MAX_HEIGHT_RANGE = 10000;
+
+export interface WorldTerrainCreateOptions {
+  name: string;
+  tilesX: number;
+  tilesZ: number;
+  tileQuads: WorldTerrainCreateTileQuads;
+  /** Metres between neighbouring vertices. */
+  spacing: number;
+  /** World Y of the height datum; the new terrain is flat at this height. */
+  baseHeight: number;
+  /**
+   * u16 encoding range relative to the datum (default ±256 m); it must hold
+   * the flat start (0). Sculpting past it widens the range on Save.
+   */
+  heightMin?: number;
+  heightMax?: number;
+}
+
+/** One 128-quad tile at 1 m: the 129 × 129 grid Add Landscape has always made. */
+export const WORLD_TERRAIN_CREATE_DEFAULTS: WorldTerrainCreateOptions = {
+  name: "Landscape", tilesX: 1, tilesZ: 1, tileQuads: 128, spacing: 1, baseHeight: 0,
+};
+
+export interface WorldTerrainCreateEstimate {
+  tileCount: number;
+  /** World X/Z size in metres. */
+  extent: [number, number];
+  vertices: number;
+  /** Tile binaries on disk (`u16` heights) plus nothing for the small definition. */
+  diskBytes: number;
+  /** Float32 heights + RGBA8 weights the editor holds for every tile. */
+  memoryBytes: number;
+}
+
+export function estimateWorldTerrain(options: WorldTerrainCreateOptions): WorldTerrainCreateEstimate {
+  const size = options.tileQuads + 1;
+  const tileCount = options.tilesX * options.tilesZ;
+  const layers = LANDSCAPE_DEFAULT_LAYERS.length;
+  const tileSize = options.tileQuads * options.spacing;
+  return {
+    tileCount,
+    extent: [options.tilesX * tileSize, options.tilesZ * tileSize],
+    vertices: tileCount * size * size,
+    diskBytes: tileCount * terrainTileByteLength(size, layers, "u16"),
+    memoryBytes: tileCount * size * size * (4 + 4 * terrainWeightBlockCount(layers)),
+  };
+}
+
+/** Problems that block creation, as short sentences for the dialog; empty when valid. */
+export function worldTerrainCreateProblems(options: WorldTerrainCreateOptions): string[] {
+  const problems: string[] = [];
+  if (!options.name.trim()) problems.push("Enter a name.");
+  for (const [axis, value] of [["X", options.tilesX], ["Z", options.tilesZ]] as const) {
+    if (!Number.isInteger(value) || value < 1 || value > TERRAIN_MAX_TILES_PER_AXIS) {
+      problems.push(`Tiles ${axis} must be a whole number from 1 to ${TERRAIN_MAX_TILES_PER_AXIS}.`);
+    }
+  }
+  if (!WORLD_TERRAIN_CREATE_TILE_QUADS.includes(options.tileQuads)) problems.push("Pick a tile resolution.");
+  if (!(options.spacing >= WORLD_TERRAIN_CREATE_MIN_SPACING && options.spacing <= WORLD_TERRAIN_CREATE_MAX_SPACING)) {
+    problems.push(`Vertex spacing must be between ${WORLD_TERRAIN_CREATE_MIN_SPACING} and ${WORLD_TERRAIN_CREATE_MAX_SPACING} m.`);
+  }
+  if (!(Math.abs(options.baseHeight) <= WORLD_TERRAIN_CREATE_MAX_BASE_HEIGHT)) {
+    problems.push(`Base height must be within ±${WORLD_TERRAIN_CREATE_MAX_BASE_HEIGHT} m.`);
+  }
+  const heightMin = options.heightMin ?? TERRAIN_DEFAULT_HEIGHT_MIN;
+  const heightMax = options.heightMax ?? TERRAIN_DEFAULT_HEIGHT_MAX;
+  if (!(heightMin <= 0 && heightMin >= -WORLD_TERRAIN_CREATE_MAX_HEIGHT_RANGE)
+    || !(heightMax >= 0 && heightMax <= WORLD_TERRAIN_CREATE_MAX_HEIGHT_RANGE) || !(heightMax > heightMin)) {
+    problems.push(`Height range must hold the flat start: min from -${WORLD_TERRAIN_CREATE_MAX_HEIGHT_RANGE} to 0 m, max from 0 to ${WORLD_TERRAIN_CREATE_MAX_HEIGHT_RANGE} m, max above min.`);
+  }
+  if (problems.length === 0 && estimateWorldTerrain(options).vertices > WORLD_TERRAIN_CREATE_MAX_VERTICES) {
+    problems.push("Too large for this build: at most 64 tiles of 256 quads (or the same vertex count) until tile streaming lands.");
+  }
+  return problems;
+}
+
+/** Metres per u16 height step for a range (the precision Save stores). */
+export function worldTerrainHeightStep(options: Pick<WorldTerrainCreateOptions, "heightMin" | "heightMax">): number {
+  return ((options.heightMax ?? TERRAIN_DEFAULT_HEIGHT_MAX) - (options.heightMin ?? TERRAIN_DEFAULT_HEIGHT_MIN)) / 65535;
+}
+
+/**
+ * A flat World Terrain centred on world X/Z 0 at `baseHeight` (1x1 included,
+ * which the editor edits through the Landscape adapter): every grid cell
+ * has a tile (no holes), the default Landscape layers with layer 0 at full
+ * weight, and the default ±256 m height range. Nothing is written; the editor
+ * saves the tiles and definition like any edited World Terrain.
+ */
+export function createFlatWorldTerrain(options: WorldTerrainCreateOptions): WorldTerrainDocument {
+  const problems = worldTerrainCreateProblems(options);
+  if (problems.length > 0) throw new Error(problems.join(" "));
+  const { extent } = estimateWorldTerrain(options);
+  const def: WorldTerrainDef = {
+    schema: 1, type: "worldTerrain", name: options.name.trim(),
+    tileQuads: options.tileQuads, spacing: options.spacing, tilesX: options.tilesX, tilesZ: options.tilesZ,
+    origin: [-extent[0] / 2, options.baseHeight, -extent[1] / 2],
+    heightMin: options.heightMin ?? TERRAIN_DEFAULT_HEIGHT_MIN, heightMax: options.heightMax ?? TERRAIN_DEFAULT_HEIGHT_MAX,
+    layers: LANDSCAPE_DEFAULT_LAYERS.map(({ id, name, color }) => ({ id, name, color })),
+    tiles: [], collision: true,
+  };
+  const tiles = new Map<string, TerrainTileData>();
+  for (let z = 0; z < def.tilesZ; z += 1) {
+    for (let x = 0; x < def.tilesX; x += 1) {
+      const key = tileKey(x, z);
+      tiles.set(key, createFlatTerrainTile(def, x, z));
+      def.tiles.push({ key, minHeight: 0, maxHeight: 0 });
+    }
+  }
+  return { def, tiles };
+}
+
+/** A 16-bit heightmap the New Landscape dialog starts a terrain from (OPEN_WORLD_PLAN Faz 8). */
+export interface WorldTerrainHeightmapSource {
+  /** Row-major u16 samples, rows along +Z (a PNG is converted to little-endian RAW first). */
+  bytes: Uint8Array;
+  width: number;
+  height: number;
+  endianness: "little" | "big";
+  /** Metres above the base height that samples 0 and 65535 stand for. */
+  heightMin: number;
+  heightMax: number;
+}
+
+/**
+ * The tile grid a `width` × `height` heightmap fills exactly (`(size − 1)` a
+ * multiple of the tile resolution, within the tile and vertex limits), trying
+ * `preferredQuads` first and then the finest tiles. Null when none fits: the
+ * heightmap is never resampled.
+ */
+export function worldTerrainGridForHeightmap(
+  width: number,
+  height: number,
+  preferredQuads?: WorldTerrainCreateTileQuads,
+): Pick<WorldTerrainCreateOptions, "tilesX" | "tilesZ" | "tileQuads"> | null {
+  const order = [preferredQuads, ...[...WORLD_TERRAIN_CREATE_TILE_QUADS].reverse()]
+    .filter((quads): quads is WorldTerrainCreateTileQuads => quads !== undefined);
+  for (const tileQuads of order) {
+    const tilesX = (width - 1) / tileQuads;
+    const tilesZ = (height - 1) / tileQuads;
+    if (![tilesX, tilesZ].every((tiles) => Number.isInteger(tiles) && tiles >= 1 && tiles <= TERRAIN_MAX_TILES_PER_AXIS)) continue;
+    if (width * height > WORLD_TERRAIN_CREATE_MAX_VERTICES) continue;
+    return { tilesX, tilesZ, tileQuads };
+  }
+  return null;
+}
+
+/** Problems that block starting `options` from `source`; empty when valid. */
+export function worldTerrainHeightmapProblems(options: WorldTerrainCreateOptions, source: WorldTerrainHeightmapSource): string[] {
+  const problems: string[] = [];
+  const width = options.tilesX * options.tileQuads + 1;
+  const height = options.tilesZ * options.tileQuads + 1;
+  if (source.width !== width || source.height !== height) {
+    problems.push(`The heightmap is ${source.width} × ${source.height}; this grid needs exactly ${width} × ${height} samples (no resampling).`);
+  }
+  if (source.bytes.byteLength !== source.width * source.height * 2) {
+    problems.push(`The heightmap holds ${source.bytes.byteLength} bytes; ${source.width} × ${source.height} 16-bit samples need ${source.width * source.height * 2}.`);
+  }
+  if (!(Number.isFinite(source.heightMin) && Number.isFinite(source.heightMax) && source.heightMax > source.heightMin)
+    || Math.abs(source.heightMin) > WORLD_TERRAIN_CREATE_MAX_HEIGHT_RANGE || Math.abs(source.heightMax) > WORLD_TERRAIN_CREATE_MAX_HEIGHT_RANGE) {
+    problems.push(`Heightmap min and max must be within ±${WORLD_TERRAIN_CREATE_MAX_HEIGHT_RANGE} m, max above min.`);
+  }
+  return problems;
+}
+
+/**
+ * A World Terrain shaped like {@link createFlatWorldTerrain} (default layers,
+ * layer 0 at full weight, centred on the origin at `baseHeight`) whose heights
+ * come from `source`. Its encoding range is the heightmap's own min/max, so
+ * saving as u16 writes the source codes back unchanged; the dialog's height
+ * range does not apply.
+ */
+export function createWorldTerrainFromHeightmap(options: WorldTerrainCreateOptions, source: WorldTerrainHeightmapSource): WorldTerrainDocument {
+  const { heightMin: _heightMin, heightMax: _heightMax, ...grid } = options;
+  const problems = [...worldTerrainCreateProblems(grid), ...worldTerrainHeightmapProblems(grid, source)];
+  if (problems.length > 0) throw new Error(problems.join(" "));
+  const flat = createFlatWorldTerrain(grid);
+  const imported = importRawHeightmap({
+    bytes: source.bytes, width: source.width, height: source.height, endianness: source.endianness,
+    heightMin: source.heightMin, heightMax: source.heightMax,
+    tileQuads: grid.tileQuads, spacing: grid.spacing, origin: flat.def.origin,
+  });
+  for (const [key, bytes] of imported.tiles) flat.tiles.get(key)!.heights.set(decodeTerrainTile(bytes).heights);
+  flat.def.heightMin = imported.def.heightMin;
+  flat.def.heightMax = imported.def.heightMax;
+  flat.def.tiles = imported.def.tiles.map((summary) => ({ ...summary }));
+  return flat;
+}

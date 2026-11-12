@@ -375,15 +375,22 @@ taşınır.
 | `src/engine/work/cooperativeWork.ts` | `engine/core/cooperativeWork.ts` | `04b5fb23` | uyarlandı: parametre özelliği açık alan | 1 taşındı (`lakeScheduling.test.ts`'in yalnız `CooperativeWork` kontrolü; göl kontrolleri Faz 7) | yeşil (2026-11-11) |
 | `src/engine/perf/frameMetrics.ts` | `engine/perf/frameMetrics.ts` | `04b5fb23` | taşındı | 4 taşındı (`frameMetrics.test.ts`) | yeşil (2026-11-11) |
 | `src/engine/subsystem.ts` | `engine/core/Subsystem.ts` | `04b5fb23` | taşındı (yalnız tipler): Forge alt sistem biçimi; taşınan alt sistemler Faz 6'da World'e bağlanana kadar bunu uygular | — | — |
-| `src/engine/perf/` (`subsystemProfiler`, `frameRegions`, `debugTableView`, `bottleneckClassifier`, `perfBudget`) | `engine/core/subsystemProfiler.ts`, `engine/perf/{frameRegions,debugTableView,bottleneckClassifier,perfBudget}.ts` | `04b5fb23` | uyarlandı: profil çıkarıcı `engine/core`'dan `perf`'e; parametre özellikleri açık alan | 16 taşındı (`frameRegions.test.ts` 11, `subsystemProfiler.test.ts` 3, `perfBudget.test.ts` 2) | yeşil (2026-11-11) |
+| `src/engine/perf/` (`subsystemProfiler`, `frameRegions`, `debugTableView`, `bottleneckClassifier`, `perfBudget`) | `engine/core/subsystemProfiler.ts`, `engine/perf/{frameRegions,debugTableView,bottleneckClassifier,perfBudget}.ts` | `04b5fb23` | uyarlandı: profil çıkarıcı `engine/core`'dan `perf`'e; parametre özellikleri açık alan | 16 taşındı (`frameRegions.test.ts` 11, `subsystemProfiler.test.ts` 3, `perfBudget.test.ts` 2) + `bottleneckClassifier.test.ts` 1 (2026-11-12, `tools/engine-tests.ts` içi) | yeşil (2026-11-11) |
 | `src/engine/input/inputSubsystem.ts` | `engine/input/inputSubsystem.ts` | `04b5fb23` | uyarlandı: parametre özelliği açık alan | 1 taşındı (`inputSubsystem.test.ts`, iskele döngüsüyle) | yeşil (2026-11-11) |
 | `src/engine/testing/` (`EngineApp`, `SubsystemRegistry`) — **test iskelesi** | `engine/core/{EngineApp,SubsystemRegistry}.ts` | `04b5fb23` | iskele (kullanıcı kararı 2026-11-11): yalnız testler import eder (`engine-testing-is-test-only`); Faz 6'da silinir | 1 taşındı (`EngineApp.test.ts`, iskelenin öz-testi) | yeşil (2026-11-11) |
-| `src/engine/legacy/` (`entity`, `layout`, `capsule`, `components`) — **geçiş modeli** | `engine/scene/{entity,capsule}.ts`; `layout.ts`'ten `Vec3`, `LayoutPhysicsAxisLocks`; `components.ts`'ten collider / transform okuyucuları ve `VEHICLE_COMPONENT` (120 bildirimden 16'sı) | `04b5fb23` | geçiş (kullanıcı kararı 2026-11-11): yalnız `src/engine` import eder (`engine-legacy-stays-in-engine`); Faz 6'da şemalı bileşenlerle değiştirilip silinir | — | — |
+| `src/engine/legacy/` (`entity`, `layout`, `capsule`, `components`) — **geçiş modeli** | `engine/scene/{entity,capsule}.ts`; `layout.ts`'ten `Vec3`, `LayoutPhysicsAxisLocks`, `LayoutLandscape` (terrain ile, `worldTerrainActor` için, 2026-11-12); `components.ts`'ten collider / transform okuyucuları ve `VEHICLE_COMPONENT` (120 bildirimden 16'sı) | `04b5fb23` | geçiş (kullanıcı kararı 2026-11-11): yalnız `src/engine` import eder (`engine-legacy-stays-in-engine`); Faz 6'da şemalı bileşenlerle değiştirilip silinir | — | — |
 | `src/engine/physics/physicsSubsystem.ts` + `staticWorld.ts`, `vehiclePhysics.ts`, `physicsBodies.ts`, `physicsTypes.ts` | `engine/physics/physicsSubsystem.ts` (2.817 satır, tek sınıf) | `04b5fb23` | **yeniden düzenlendi** (kullanıcı onayı 2026-11-11): 1.500 satır bütçesi için beşe bölündü — statik dünya (`StaticWorld`, `collisionDisabled` / `bodiesById` paylaşımlı) ve araçlar (`VehiclePhysics`, Rapier durumunu host'tan okur) ayrı sınıf, saf yardımcılar ve tipler ayrı modül; yöntem gövdeleri aynı, başvurular `this.staticWorld.*` / `this.host.*()`; herkese açık API aynı (delegeler). Ragdoll çıkarıldı (K12) | 30 harness kontrolü (`physicsSubsystem.test.ts`; 28'i gerçek Rapier dünyasıyla) + `staticQueries` 6, `physicsImpacts` 10, `physicsContacts` 1 | yeşil (2026-11-11) |
 | `src/engine/physics/` (`collision`, `physicsQuery`, `fixedStep`, `rotatedBox`, `staticSpatialIndex`, `heightfieldStatic`, `staticTriangles`, `navigationGeometry`, `impactEvents`) | `engine/scene/collision.ts` (saf: etkileşim grupları, fiziksel malzemeler); behavior'daki physics sorgu tipleri; `engine/physics/*.ts` | `04b5fb23` | taşındı / uyarlandı: sorgu tipleri physics'e geçti; parametre özellikleri açık alan | `impactEvents` 11, `fixedStep` 3, `rotatedBox` 5, `physicsBodies` 1 | yeşil (2026-11-11) |
 | `src/engine/physics/vehicle/`, `src/engine/physics/surface/` | `engine/physics/{vehicle,surface}/*.ts` | `04b5fb23` | taşındı; `SurfaceDeformationSample` tipi `terrainSurface`'ten `surface/surfaceDeformationSample.ts`'e (terrain taşınınca oradan import eder) | `vehicleTypes` 10, `wheelSink` 15, `wheelTracks` 1; `vehicleDrivetrain` / `vehicleAssets` Forge başlangıç içeriğini okuduğu için içe aktarıcıyı bekliyor | yeşil (2026-11-11) |
 | `src/engine/movement/slopeSurface.ts`, `src/engine/terrain/deformationField.ts` | `engine/movement/slopeSurface.ts`, `engine/scene/deformationField.ts` | `04b5fb23` | taşındı (saf) | `slopeSurface` 3 | yeşil (2026-11-11) |
 | Hareketli platform | `engine/physics/movingPlatform{,Subsystem}.ts` | `04b5fb23` | taşınmadı (K12, INV-D51) | düşen (D) | — |
+| `src/engine/terrain/` (34 dosya: tipler, tile codec, düzenleme + geri alma, sculpt, erozyon, auto paint, pad'ler, onarım, yeniden örnekleme, heightmap PNG / içe aktarma, yükseklik sorgusu, LOD, global harita, maske, katmanlar, loader, render verisi / kaynağı, slot havuzu, tile akışı decode'u, spline verisi / mesh'leri, `terrainSurface`, `worldTerrain{Actor,Create,Expand,Save}`, `terrainEditorStreaming`) | `engine/terrain/*.ts` (aşağıdaki ertelenenler hariç) | `04b5fb23` | taşındı: import yolları, parametre özellikleri açık alan; `terrainSurface` `SurfaceDeformationSample`'ı tanımlamaz, `physics/surface/surfaceDeformationSample.ts`'ten import eder; `worldTerrainActor` eski Collider / Transform okuyucularıyla `legacy`'ye bağlı (physics gibi) | 150 taşındı: `terrainEdit` 28, `terrain` 20, `terrainImport` 18, `worldTerrainActor` 11, `terrainLod` 11, `terrainSplines` 10, `terrainEditorStreaming` 8, `terrainSurface` 7, `terrainErosion` 6, `terrainAutoPaint` 5, `worldTerrainExpandSingle` 4, `terrainSplineEditing` 4, `terrainPads` 4, `terrainSplitBake` 3, `terrainResample` 3, `terrainDocument` 3, `terrainHeightfieldPhysics` 2, `terrainSplineData` 1, `terrainRuntimeStreaming` 1, `terrainGlobalMapFile` 1. `heightmapPng` 3 bekliyor: bağımsız referans olarak `node:zlib` kullanıyor, `src-tests-node-assert-only` yasaklıyor (karar kullanıcıda) | yeşil (2026-11-12) |
+| `src/engine/terrain/{landscape,landscapeBrush,landscapeSplineValidation,landscapeSplineAdapter}.ts` | `engine/scene/{landscapeBrush,landscapeSplineValidation,landscapeSplineAdapter}.ts`; `engine/scene/landscape.ts`'in spline kısmı (`subset`: 42 bildirimin 30'u — spline tipleri, `splineToPolyline`, `SplineCorridorIndex`, spline mesh zincirleri / örnekleri, `LANDSCAPE_DEFAULT_LAYERS`) | `04b5fb23` | uyarlandı (kullanıcı onayı 2026-11-12): scene'deki saf landscape algoritmaları terrain'e; landscape aktörü çözümü (`resolveLandscape`, ad / kimlik, boyut ön ayarları), materyal tanımı ve heightmap yeniden örnekleme alınmadı (aktör 5a'da şemayla, render 5a / 5d) | terrain kontrolleriyle | yeşil (2026-11-12) |
+| `src/engine/spline/` (`spline`, `splineCurve`) | `engine/scene/{spline,splineCurve}.ts` | `04b5fb23` | taşındı (kullanıcı onayı 2026-11-12): saf eğri matematiği ve spline verisi normalleştiricisi; landscape spline adapter'ı kullanır, spline aktörü (INV-D27, Faz 6) şemasıyla bunu kullanır ya da yerine geçer | testleri M (scene) | derleniyor |
+| `src/engine/world/` (`worldGrid`, `streamingPolicy`) | `engine/world/{worldGrid,streamingPolicy}.ts` | `04b5fb23` | taşındı (kullanıcı onayı 2026-11-12): saf ızgara ve akış hedefi matematiği (`terrainLod`, `terrainEditorStreaming` kullanır). `src/core/level/cells.ts` ile hücre anahtarı / konumu / sınırları çakışıyor (Forge'unkinde ızgara `origin`'i var); birleştirme 5b tasarımında | terrain kontrolleriyle | yeşil (2026-11-12) |
+| `src/engine/physics/terrainCollider.ts` | `engine/physics/terrainCollider.ts` | `04b5fb23` | taşındı | — | derleniyor |
+| `src/engine/testing/terrainTrimeshReference.ts` — **test yardımcısı** | `tests/engine/terrainTrimeshReference.ts` | `04b5fb23` | taşındı: heightfield kontrollerinin bağımsız referans trimesh'i; iskelede, yalnız testler import eder | `physicsSubsystem.checks` 2 (`tools/engine-tests.ts` içi) ve `terrainHeightfieldPhysics` / `terrainEdit` kontrollerini açar | yeşil (2026-11-12) |
+| Terrain'in ertelenen parçaları | Göl / nehir / okyanus: `engine/terrain/{lake*,ocean*,riverSurface,terrainLakeBed,terrainLakeWater,terrainRiverWater,waterWheelInteraction}.ts` + `engine/scene/{waterBody,oceanWater,lakeBed,riverWater}` ve köpük / kostik → **Faz 7**. Su birikintisi: `terrainPuddle{,Preparation}`, `puddleInteraction`, `scene/puddleWater` → **5a** (INV-D21). `terrainRuntimeStreaming` + `world/worldStreamingSubsystem` → **5b** (A11). `worldTerrainMove` (dört eski su tipini de kaydırır) → **5d / 7** | `04b5fb23` | ertelendi (kullanıcı onayı 2026-11-12) | bekleyen A: su ~19, su birikintisi 2, akış ~5, `worldTerrainMove` 4; ~8'i worldbuilder'ı da bekliyor | — |
 
 İşlem: taşındı / uyarlandı / yeniden yazıldı. Testler: taşınan / yeniden yazılan
 / düşen sayısı (2b test sınıflamasına göre).
@@ -425,6 +432,23 @@ tip denetiminden hiç geçmemişti. `tsconfig.tests.json` testler için
 (ürün kodu sıkı kalır). Kalan birkaç Forge tip hatası açıklamalı
 `@ts-expect-error` ile işaretli; kontrol kodu değişmez.
 
+**Terrain ile gelen altyapı düzeltmeleri (2026-11-12):**
+
+- Vitest `testTimeout` 30 sn (`vite.config.ts`): Forge kontrollerinin süre
+  sınırı yoktu; tohumlu taramalar (terrain LOD, 180 kamera) paralel koşuda
+  5 sn'yi aşıyor. Kontrol gövdesi değişmez.
+- `spellOutParameterProperties` yalnız varsayılan değerli parametre özelliğini
+  (`capacity = 80`) tipsiz alana çevirir; TypeScript tipi kurucudaki atamadan
+  çıkarır.
+- Kayıt tarzı test dosyalarında `register…(check, checkAsync)` her parametreye
+  Vitest `test`'i alır (önce yalnız ilki geçiyordu).
+- `port:forge-tests` döngüde üretilen etiketli kontrolleri (şablon) kaynak
+  metniyle eşler; taşınan kontrol şablonu birebir taşıdığı için eşleşir. Önce
+  hiç sayılmıyor, `tests --write` onları yeniden taşınacak sanıyordu.
+- Bir test dosyası yeniden üretilecekse önce silinir ve `port:forge-tests`
+  ile TSV tazelenir; yoksa araç TSV'de taşınmış görünen kontrolleri dışarıda
+  bırakır. Kontrolleri birden çok alana yayılan dosyalar `tests "."` ile yazılır.
+
 ### 2.1 Test sınıflaması
 
 2b'nin ilk işi (plan Faz 2b). Kaynak Forge `forge-webgl-final` (`04b5fb23`).
@@ -445,6 +469,7 @@ birden çok koşu üretir.
 **İlerleme:** `npm run port:forge-tests` bu deponun `src/**/*.test.ts`
 dosyalarındaki etiketleri Forge kontrolleriyle eşler; TSV'nin `ported`
 sütunu kontrolü taşıyan dosyayı gösterir. 2026-11-11: **A 214 / 923** (ses 37, UI 50, input 4, zaman 5, iş bölme 1, perf 20, iskele 1, physics 96). Hareketli platform D'ye geçince payda 927'den 923'e indi.
+2026-11-12: **A 367 / 923** (terrain 150, physics 2, perf 1).
 
 **Sınıflar.** Her kontrol, değer düzeyinde ulaştığı Forge modüllerine göre
 sınıflanır. Ulaşım sözcüksel kapsamla izlenir: kontrolün gövdesi ve onun
