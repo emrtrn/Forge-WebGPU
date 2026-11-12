@@ -410,16 +410,16 @@ tests/engine/fractureSupport.test.ts	155	check	A			engine/physics			fracture sup
 tests/engine/fractureSupport.test.ts	184	check	A			engine/physics			fracture support: radius selection includes boundaries excludes absent and falls back deterministically
 tests/engine/fractureSupport.test.ts	197	check	A			engine/physics			fracture support: damage radius handles growth clamps negative impulses and non-finite inputs
 tests/engine/fractureSupport.test.ts	213	check	A			engine/physics			fracture support: a hit releases the radius then the islands it cut off, and a second hit collapses the rest
-tests/engine/frameCapture.test.ts	47	check	A			engine/core,engine/perf			a captured frame's rows sum to the frame
-tests/engine/frameCapture.test.ts	72	check	A			engine/core,engine/perf			a decomposed group is replaced by its children, never listed beside them
-tests/engine/frameCapture.test.ts	88	check	A			engine/core,engine/perf			a region that did not run reads as absent, not as zero
-tests/engine/frameCapture.test.ts	102	check	A			engine/core,engine/perf			the captured frame is shown beside the window it came from
-tests/engine/frameCapture.test.ts	120	check	A			engine/core,engine/perf			diagnostic-only rows stay marked in the table and in the pasted text
-tests/engine/frameCapture.test.ts	133	check	A			engine/core,engine/perf			a capture with no frame denominator says so instead of inventing shares
-tests/engine/frameCapture.test.ts	147	check	A			engine/core,engine/perf			a capture records the time controls it was taken under
-tests/engine/frameCapture.test.ts	162	check	A			engine/core,engine/perf			a group nothing measured cannot swallow its declared children
-tests/engine/frameCapture.test.ts	179	check	A			engine/core,engine/perf			the frame in progress sums a region entered more than once
-tests/engine/frameCapture.test.ts	194	check	A			engine/core,engine/perf			endFrame clears the frame so the next capture is not the previous one
+tests/engine/frameCapture.test.ts	47	check	A			engine/core,engine/perf		src/engine/perf/frameCapture.test.ts	a captured frame's rows sum to the frame
+tests/engine/frameCapture.test.ts	72	check	A			engine/core,engine/perf		src/engine/perf/frameCapture.test.ts	a decomposed group is replaced by its children, never listed beside them
+tests/engine/frameCapture.test.ts	88	check	A			engine/core,engine/perf		src/engine/perf/frameCapture.test.ts	a region that did not run reads as absent, not as zero
+tests/engine/frameCapture.test.ts	102	check	A			engine/core,engine/perf		src/engine/perf/frameCapture.test.ts	the captured frame is shown beside the window it came from
+tests/engine/frameCapture.test.ts	120	check	A			engine/core,engine/perf		src/engine/perf/frameCapture.test.ts	diagnostic-only rows stay marked in the table and in the pasted text
+tests/engine/frameCapture.test.ts	133	check	A			engine/core,engine/perf		src/engine/perf/frameCapture.test.ts	a capture with no frame denominator says so instead of inventing shares
+tests/engine/frameCapture.test.ts	147	check	A			engine/core,engine/perf		src/engine/perf/frameCapture.test.ts	a capture records the time controls it was taken under
+tests/engine/frameCapture.test.ts	162	check	A			engine/core,engine/perf		src/engine/perf/frameCapture.test.ts	a group nothing measured cannot swallow its declared children
+tests/engine/frameCapture.test.ts	179	check	A			engine/core,engine/perf		src/engine/perf/frameCapture.test.ts	the frame in progress sums a region entered more than once
+tests/engine/frameCapture.test.ts	194	check	A			engine/core,engine/perf		src/engine/perf/frameCapture.test.ts	endFrame clears the frame so the next capture is not the previous one
 tests/engine/frameRegions.test.ts	42	check	A			engine/perf		src/engine/perf/frameRegions.test.ts	frame region registry refuses to let the denominator become a row
 tests/engine/frameRegions.test.ts	49	check	A			engine/perf		src/engine/perf/frameRegions.test.ts	frame region registry re-declares idempotently and inherits debugOnly
 tests/engine/frameRegions.test.ts	68	check	A			engine/core,engine/perf		src/engine/perf/frameRegions.test.ts	frame region rows account for every millisecond of the frame
@@ -431,18 +431,18 @@ tests/engine/frameRegions.test.ts	194	check	A			engine/core,engine/perf		src/eng
 tests/engine/frameRegions.test.ts	216	check	A			engine/core,engine/perf		src/engine/perf/frameRegions.test.ts	the subsystem block is a region whose residual is the registry's own cost
 tests/engine/frameRegions.test.ts	246	check	A			engine/core		src/engine/perf/frameRegions.test.ts	a subsystem registered after profiling started still nests under engine
 tests/engine/frameRegions.test.ts	259	check	A			engine/perf		src/engine/perf/frameRegions.test.ts	debugTableToText aligns the grid so a pasted table is still readable
-tests/engine/gpuSweep.test.ts	27	check	A			engine/perf			median resists the warm-up frame a mean would let through
-tests/engine/gpuSweep.test.ts	36	check	A			engine/perf			a row is compared with its own bracket, so a sliding baseline cancels
-tests/engine/gpuSweep.test.ts	73	check	A			engine/perf			a row whose bracket moved as far as its saving is published as uncertain
-tests/engine/gpuSweep.test.ts	95	check	A			engine/perf			differences inside the timer's quantisation are reported as noise
-tests/engine/gpuSweep.test.ts	116	check	A			engine/perf			unstable rows sort below every trustworthy one
-tests/engine/gpuSweep.test.ts	133	check	A			engine/perf			the table says outright that its rows do not sum
-tests/engine/gpuSweep.test.ts	151	check	A			engine/perf			no timer means an explanation, never a table of zeros
-tests/engine/gpuSweep.test.ts	161	check	A			engine/perf			the runner brackets every step with an untouched frame
-tests/engine/gpuSweep.test.ts	185	check	A			engine/perf			a late sample still counts toward the configuration it measured
-tests/engine/gpuSweep.test.ts	217	check	A			engine/perf			a starved step is written off rather than holding the scene forever
-tests/engine/gpuSweep.test.ts	232	check	A			engine/perf			a disjoint event re-measures the step; too many end the run
-tests/engine/gpuSweep.test.ts	258	check	A			engine/perf			a baseline that produced nothing is filled in, not counted as zero
+tests/engine/gpuSweep.test.ts	27	check	A			engine/perf		src/engine/perf/gpuSweep.test.ts	median resists the warm-up frame a mean would let through
+tests/engine/gpuSweep.test.ts	36	check	A			engine/perf		src/engine/perf/gpuSweep.test.ts	a row is compared with its own bracket, so a sliding baseline cancels
+tests/engine/gpuSweep.test.ts	73	check	A			engine/perf		src/engine/perf/gpuSweep.test.ts	a row whose bracket moved as far as its saving is published as uncertain
+tests/engine/gpuSweep.test.ts	95	check	A			engine/perf		src/engine/perf/gpuSweep.test.ts	differences inside the timer's quantisation are reported as noise
+tests/engine/gpuSweep.test.ts	116	check	A			engine/perf		src/engine/perf/gpuSweep.test.ts	unstable rows sort below every trustworthy one
+tests/engine/gpuSweep.test.ts	133	check	A			engine/perf		src/engine/perf/gpuSweep.test.ts	the table says outright that its rows do not sum
+tests/engine/gpuSweep.test.ts	151	check	A			engine/perf		src/engine/perf/gpuSweep.test.ts	no timer means an explanation, never a table of zeros
+tests/engine/gpuSweep.test.ts	161	check	A			engine/perf		src/engine/perf/gpuSweep.test.ts	the runner brackets every step with an untouched frame
+tests/engine/gpuSweep.test.ts	185	check	A			engine/perf		src/engine/perf/gpuSweep.test.ts	a late sample still counts toward the configuration it measured
+tests/engine/gpuSweep.test.ts	217	check	A			engine/perf		src/engine/perf/gpuSweep.test.ts	a starved step is written off rather than holding the scene forever
+tests/engine/gpuSweep.test.ts	232	check	A			engine/perf		src/engine/perf/gpuSweep.test.ts	a disjoint event re-measures the step; too many end the run
+tests/engine/gpuSweep.test.ts	258	check	A			engine/perf		src/engine/perf/gpuSweep.test.ts	a baseline that produced nothing is filled in, not counted as zero
 tests/engine/gpuSweepSession.test.ts	184	check	M			engine/perf,src	model:src		a browser without timer queries is told so, and the scene is untouched
 tests/engine/gpuSweepSession.test.ts	205	check	M			engine/perf,src	model:src		each saving is attributed to the category that was switched off
 tests/engine/gpuSweepSession.test.ts	224	check	M			engine/perf,src	model:src		a finished run puts the scene back and releases only its own hold
@@ -580,10 +580,10 @@ tests/engine/perfReadout.test.ts	187	check	M			src	model:src		formatAudioBudget 
 tests/engine/perfReadout.test.ts	192	check	M			src	model:src		formatAudioBudget reports the ceiling, the peak and the busy buses
 tests/engine/perfReadout.test.ts	221	check	A			engine/audio			AudioSubsystem tracks the voice budget per bus and refuses over the ceiling
 tests/engine/perfReadout.test.ts	259	check	A			engine/audio			AudioSubsystem releases a finished one-shot's voice back to the budget
-tests/engine/perfWitness.test.ts	45	check	A			engine/perf			the witness rounds to two decimals and keeps the counts whole
-tests/engine/perfWitness.test.ts	58	check	A			engine/perf			an unmeasured GPU is null in the witness, never a zero
-tests/engine/perfWitness.test.ts	70	check	A			engine/perf			fork fields ride along but can never redefine a shared one
-tests/engine/perfWitness.test.ts	82	check	A			engine/perf			the witness serialises to something a harness can parse back
+tests/engine/perfWitness.test.ts	45	check	A			engine/perf		src/engine/perf/perfWitness.test.ts	the witness rounds to two decimals and keeps the counts whole
+tests/engine/perfWitness.test.ts	58	check	A			engine/perf		src/engine/perf/perfWitness.test.ts	an unmeasured GPU is null in the witness, never a zero
+tests/engine/perfWitness.test.ts	70	check	A			engine/perf		src/engine/perf/perfWitness.test.ts	fork fields ride along but can never redefine a shared one
+tests/engine/perfWitness.test.ts	82	check	A			engine/perf		src/engine/perf/perfWitness.test.ts	the witness serialises to something a harness can parse back
 tests/engine/physicsContacts.test.ts	51	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsContacts.test.ts	physics contacts: a static crowd does not change reported pairs or their order
 tests/engine/physicsImpacts.test.ts	88	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsImpacts.test.ts	physics motion: a point on a spinning body moves at v + ω × r, and a set velocity holds
 tests/engine/physicsImpacts.test.ts	101	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsImpacts.test.ts	physics pass-through: an overlapping pair stays calm where the solver would throw it apart
@@ -1402,11 +1402,11 @@ tests/engine/wheelTracks.test.ts	220	check	A	yes		engine/physics	boundary-model:
 tests/engine/wheelTracks.test.ts	241	check	M			engine/scene,engine/terrain	model:engine/scene		terrain surface: the deformation profile blends over soft layers only
 tests/engine/wheelTracks.test.ts	259	check	R			engine/render-three,engine/scene	three-via:engine/render-three		terrain deformation texture: full copy on attach, dirty rectangles after, window follows the field
 tests/engine/wheelTracks.test.ts	291	check	R			engine/physics,engine/render-three,engine/scene,src	three-via:engine/render-three,three-via:src		terrain deformation module: stamps vehicles on soft terrain, follows the player, idles without one
-tests/engine/wind.test.ts	31	check	A			engine/environment			wind: the normalizer keeps authored fields, wraps direction and clamps with warnings
-tests/engine/wind.test.ts	47	check	A			engine/environment			wind: the World Environment group normalizes inside the actor; an empty group is dropped
+tests/engine/wind.test.ts	31	check	A			engine/environment		src/engine/environment/wind.test.ts	wind: the normalizer keeps authored fields, wraps direction and clamps with warnings
+tests/engine/wind.test.ts	47	check	A			engine/environment		src/engine/environment/wind.test.ts	wind: the World Environment group normalizes inside the actor; an empty group is dropped
 tests/engine/wind.test.ts	55	check	M			tools/droppedFields,tools/saveValidator	model:tools/droppedFields,model:tools/saveValidator		wind: worldSettings.wind round-trips the save and rejects a repair
-tests/engine/wind.test.ts	67	check	A			engine/environment			wind: source order is WES group, then World Settings, then the defaults, field by field
-tests/engine/wind.test.ts	89	check	A			engine/environment			wind: clear summer is the identity; weather and season scale it within bounds
+tests/engine/wind.test.ts	67	check	A			engine/environment		src/engine/environment/wind.test.ts	wind: source order is WES group, then World Settings, then the defaults, field by field
+tests/engine/wind.test.ts	89	check	A			engine/environment		src/engine/environment/wind.test.ts	wind: clear summer is the identity; weather and season scale it within bounds
 tests/engine/windSway.test.ts	74	check	M			engine/assets,tools/saveValidator	model:tools/saveValidator		wind sway: material sway round-trips the normalizer and the save allowlist
 tests/engine/windSway.test.ts	85	check	R			engine/assets,engine/render-three	three-via:engine/render-three,three:three		wind sway: a static batch moves onto clones, leaving the cached material and still meshes alone
 tests/engine/windSway.test.ts	108	check	R			engine/assets,engine/render-three	three-via:engine/render-three,three:three		wind sway: a material's own patch and a placement tint's clone survive
@@ -1468,31 +1468,31 @@ tests/engine/worldDataCheck.test.ts	232	check	A	yes		tools/worldDataCheck	bounda
 tests/engine/worldDataCheck.test.ts	241	check	M			tools/worldDataCheck	level-data:layouts/World.,level-data:layouts/World.layout.json,level-data:layouts/World.level.json		world data: sidecars and manifest basenames are skipped before parsing
 tests/engine/worldEnvironment.test.ts	83	check	M			engine/environment,tools/saveValidator	model:tools/saveValidator		world environment: moon halo clamps and saves independently of solar bloom
 tests/engine/worldEnvironment.test.ts	107	check	M			engine/environment,tools/saveValidator	model:tools/saveValidator		world environment: star controls clamp, reject invalid data and survive save
-tests/engine/worldEnvironment.test.ts	122	check	A			engine/environment			world environment resolve: stars fade continuously at twilight and in fog independently of moonlight
+tests/engine/worldEnvironment.test.ts	122	check	A			engine/environment		src/engine/environment/worldEnvironment.test.ts	world environment resolve: stars fade continuously at twilight and in fog independently of moonlight
 tests/engine/worldEnvironment.test.ts	141	check	M			engine/environment,tools/saveValidator	model:tools/saveValidator		world environment: moon shadow strength clamps, rejects invalid values and survives save
-tests/engine/worldEnvironment.test.ts	151	check	A			engine/environment			world environment: an empty actor stays empty and resolves to the defaults
-tests/engine/worldEnvironment.test.ts	159	check	A			engine/environment			world environment: a maximal actor normalizes to itself without warnings
-tests/engine/worldEnvironment.test.ts	165	check	A			engine/environment			world environment: numbers clamp, unknown enums fall back, both with a warning
-tests/engine/worldEnvironment.test.ts	187	check	A			engine/environment			world environment: a sunset not after sunrise falls back to the default day
-tests/engine/worldEnvironment.test.ts	193	check	A			engine/environment			world environment: absolute night fill clamps, rejects invalid values and preserves zero
+tests/engine/worldEnvironment.test.ts	151	check	A			engine/environment		src/engine/environment/worldEnvironment.test.ts	world environment: an empty actor stays empty and resolves to the defaults
+tests/engine/worldEnvironment.test.ts	159	check	A			engine/environment		src/engine/environment/worldEnvironment.test.ts	world environment: a maximal actor normalizes to itself without warnings
+tests/engine/worldEnvironment.test.ts	165	check	A			engine/environment		src/engine/environment/worldEnvironment.test.ts	world environment: numbers clamp, unknown enums fall back, both with a warning
+tests/engine/worldEnvironment.test.ts	187	check	A			engine/environment		src/engine/environment/worldEnvironment.test.ts	world environment: a sunset not after sunrise falls back to the default day
+tests/engine/worldEnvironment.test.ts	193	check	A			engine/environment		src/engine/environment/worldEnvironment.test.ts	world environment: absolute night fill clamps, rejects invalid values and preserves zero
 tests/engine/worldEnvironment.test.ts	205	check	M			engine/environment,tools/saveValidator	model:tools/saveValidator		world environment: visible moon controls clamp and zero brightness survives save
 tests/engine/worldEnvironment.test.ts	214	check	M			engine/environment,tools/saveValidator	model:tools/saveValidator		world environment: a non-object actor is rejected by the save, a broken group only warns
 tests/engine/worldEnvironment.test.ts	222	check	M			tools/droppedFields,tools/saveValidator	model:tools/droppedFields,model:tools/saveValidator		world environment: the layout save round-trips every field and reports unknown ones (ENV-09)
 tests/engine/worldEnvironment.test.ts	235	check	M			tools/saveValidator	model:tools/saveValidator		world environment: a placed actor at its defaults survives the save as {}
 tests/engine/worldEnvironment.test.ts	240	check	M			tools/saveValidator	model:tools/saveValidator		world environment: a level without the actor saves byte-identically (ENV-00)
-tests/engine/worldEnvironment.test.ts	257	check	A			engine/environment			world environment clock: closed form, 24 h wrap, day length 0 stops it
-tests/engine/worldEnvironment.test.ts	274	check	A			engine/environment			world environment clock: 30/60/144 Hz updates reach the same hour (ENV-14)
-tests/engine/worldEnvironment.test.ts	285	check	A			engine/environment			world environment sun path: 06/12/18 directions follow the art-directed path
-tests/engine/worldEnvironment.test.ts	299	check	A			engine/environment			world environment sun path: nothing jumps at midnight or at the horizon
+tests/engine/worldEnvironment.test.ts	257	check	A			engine/environment		src/engine/environment/worldEnvironment.test.ts	world environment clock: closed form, 24 h wrap, day length 0 stops it
+tests/engine/worldEnvironment.test.ts	274	check	A			engine/environment		src/engine/environment/worldEnvironment.test.ts	world environment clock: 30/60/144 Hz updates reach the same hour (ENV-14)
+tests/engine/worldEnvironment.test.ts	285	check	A			engine/environment		src/engine/environment/worldEnvironment.test.ts	world environment sun path: 06/12/18 directions follow the art-directed path
+tests/engine/worldEnvironment.test.ts	299	check	A			engine/environment		src/engine/environment/worldEnvironment.test.ts	world environment sun path: nothing jumps at midnight or at the horizon
 tests/engine/worldEnvironment.test.ts	323	check	R			engine/environment,engine/render-three	three-via:engine/render-three		world environment sun path: the three-free Sun rotation matches three.js
-tests/engine/worldEnvironment.test.ts	330	check	A			engine/environment			world environment sun path: the inverse from a Sun rotation round-trips (ENV-00b)
-tests/engine/worldEnvironment.test.ts	347	check	A			engine/environment			world environment weather: clear and intensity 0 are the identity
+tests/engine/worldEnvironment.test.ts	330	check	A			engine/environment		src/engine/environment/worldEnvironment.test.ts	world environment sun path: the inverse from a Sun rotation round-trips (ENV-00b)
+tests/engine/worldEnvironment.test.ts	347	check	A			engine/environment		src/engine/environment/worldEnvironment.test.ts	world environment weather: clear and intensity 0 are the identity
 tests/engine/worldEnvironment.test.ts	361	check	M			engine/environment,engine/scene	model:engine/scene		world environment resolve: summer + clear at a high sun is the authored look
 tests/engine/worldEnvironment.test.ts	381	check	M			engine/environment,engine/scene	model:engine/scene		world environment resolve: night and weather adjust without touching the inputs
-tests/engine/worldEnvironment.test.ts	402	check	A			engine/environment			world environment resolve: night fill is independent of authored lights and fades continuously at dawn/dusk
-tests/engine/worldEnvironment.test.ts	421	check	A			engine/environment			world environment resolve: visible moon matches the moonlight direction and fades at sunrise/sunset
-tests/engine/worldEnvironment.test.ts	440	check	A			engine/environment			world environment recapture: by sun movement, finest at the horizon, never by time or while scrubbing (ENV-18)
-tests/engine/worldEnvironment.test.ts	465	check	A			engine/environment			world environment sky light: compensation bridges brightness between captures
+tests/engine/worldEnvironment.test.ts	402	check	A			engine/environment		src/engine/environment/worldEnvironment.test.ts	world environment resolve: night fill is independent of authored lights and fades continuously at dawn/dusk
+tests/engine/worldEnvironment.test.ts	421	check	A			engine/environment		src/engine/environment/worldEnvironment.test.ts	world environment resolve: visible moon matches the moonlight direction and fades at sunrise/sunset
+tests/engine/worldEnvironment.test.ts	440	check	A			engine/environment		src/engine/environment/worldEnvironment.test.ts	world environment recapture: by sun movement, finest at the horizon, never by time or while scrubbing (ENV-18)
+tests/engine/worldEnvironment.test.ts	465	check	A			engine/environment		src/engine/environment/worldEnvironment.test.ts	world environment sky light: compensation bridges brightness between captures
 tests/engine/worldEnvironmentModule.test.ts	35	check	M			engine/core,src	model:src		world environment module: Play starts from the level defaults and the clock runs on simulation time
 tests/engine/worldEnvironmentModule.test.ts	45	check	M			engine/core,src	model:src		world environment module: TimeControl pause holders stop the clock and time scale speeds it (ENV-06)
 tests/engine/worldEnvironmentModule.test.ts	61	check	M			src	model:src		world environment module: no actor, a hidden one or Level Travel leaves no state
@@ -2162,10 +2162,10 @@ tools/engine-tests.ts	16371	check	A			engine/perf			graphics preferences: normal
 tools/engine-tests.ts	16441	check	M			engine/perf,engine/persistence	model:engine/persistence		user settings store: round-trips graphics preferences alongside audio + locale
 tools/engine-tests.ts	16468	check	M			engine/persistence	level-data:Playground.level.json,level-data:assets/starter-content/Levels/Playground.level.json,model:engine/persistence		save-game UI commands and ViewModel fields stay slot-scoped
 tools/engine-tests.ts	16491	check	M			engine/persistence,engine/ui	model:engine/persistence		starter save/load UI asset binds slots and emits reserved save messages
-tools/engine-tests.ts	16524	check	A			engine/loading			load progress: counts loaded/failed/pending and derives fraction + done
-tools/engine-tests.ts	16571	check	A			engine/loading			load progress: transitions are idempotent and retry moves failed -> loaded
-tools/engine-tests.ts	16604	check	A			engine/loading			load progress: formatLoadDetail renders settled/total with a failure suffix
-tools/engine-tests.ts	16615	check	A			engine/loading			load progress: subscribe fires immediately and on each change, clear resets
+tools/engine-tests.ts	16524	check	A			engine/loading		src/engine/loading/loadProgress.test.ts	load progress: counts loaded/failed/pending and derives fraction + done
+tools/engine-tests.ts	16571	check	A			engine/loading		src/engine/loading/loadProgress.test.ts	load progress: transitions are idempotent and retry moves failed -> loaded
+tools/engine-tests.ts	16604	check	A			engine/loading		src/engine/loading/loadProgress.test.ts	load progress: formatLoadDetail renders settled/total with a failure suffix
+tools/engine-tests.ts	16615	check	A			engine/loading		src/engine/loading/loadProgress.test.ts	load progress: subscribe fires immediately and on each change, clear resets
 tools/engine-tests.ts	16646	check	A			engine/core		src/engine/perf/subsystemProfiler.test.ts	subsystem profiler: rolling average sorts worst-first with last + peak
 tools/engine-tests.ts	16673	check	A			engine/core		src/engine/perf/subsystemProfiler.test.ts	subsystem profiler: window drops old samples, clamps negatives, top(n) + clear
 tools/engine-tests.ts	16707	check	A			engine/core		src/engine/perf/subsystemProfiler.test.ts	subsystem profiler: registry times each subsystem with an injected clock
@@ -2213,15 +2213,15 @@ tools/engine-tests.ts	17834	check	M			tools/saveValidator	model:tools/saveValida
 tools/engine-tests.ts	17842	check	M			tools/saveValidator	model:tools/saveValidator		placement validator keeps a valid collisionPreset and rejects bad ones
 tools/engine-tests.ts	17872	check	M			tools/saveValidator	model:tools/saveValidator		placement validator allowlists particle + interaction and rejects bad ones
 tools/engine-tests.ts	17909	check	M			tools/saveValidator	model:tools/saveValidator		placement validator allowlists audio.autoPlay and rejects a non-boolean
-tools/engine-tests.ts	17923	check	A			engine/vfx			parseRuntimeParticleEffect collapses a schema-1 effect and rejects bad input
-tools/engine-tests.ts	17975	check	A			engine/vfx			normalizeEffectDefinition reads a schema-2 effect and applies defaults
+tools/engine-tests.ts	17923	check	A			engine/vfx		src/engine/vfx/particleEffectParser.test.ts	parseRuntimeParticleEffect collapses a schema-1 effect and rejects bad input
+tools/engine-tests.ts	17975	check	A			engine/vfx		src/engine/vfx/particleEffectParser.test.ts	normalizeEffectDefinition reads a schema-2 effect and applies defaults
 tools/engine-tests.ts	18019	check	M			engine/vfx,tools/saveValidator	model:tools/saveValidator		renderer.texture (VFX Lite Faz 6a) normalizes and collapses through to runtime
 tools/engine-tests.ts	18055	check	M			engine/vfx,tools/saveValidator	model:tools/saveValidator		renderer.subUV flipbook (VFX Lite Faz 6b) normalizes, clamps, and collapses
 tools/engine-tests.ts	18094	check	M			engine/vfx,tools/saveValidator	model:tools/saveValidator		schema-3 mesh renderer normalizes, caps, and round-trips through the save validator
 tools/engine-tests.ts	18133	check	M			engine/vfx,tools/saveValidator	model:tools/saveValidator		mesh renderer model refs accept manifest ids only, never a path or URL
 tools/engine-tests.ts	18168	check	R			engine/render-three,engine/vfx,tools/saveValidator	three-via:engine/render-three,three:three		mesh model selection normalizes, round-trips, and drives source pick order
-tools/engine-tests.ts	18228	check	A			engine/vfx			schema-1 and its hand-converted schema-2 starter collapse identically
-tools/engine-tests.ts	18269	check	A			engine/vfx			a burst effect collapses to a burst, not to a trickle spread over its lifetime
+tools/engine-tests.ts	18228	check	A			engine/vfx		src/engine/vfx/particleEffectParser.test.ts	schema-1 and its hand-converted schema-2 starter collapse identically
+tools/engine-tests.ts	18269	check	A			engine/vfx		src/engine/vfx/particleEffectParser.test.ts	a burst effect collapses to a burst, not to a trickle spread over its lifetime
 tools/engine-tests.ts	18314	check	R			engine/render-three	three-via:engine/render-three		ParticleEffect reports capacity and never exceeds it while alive
 tools/engine-tests.ts	18331	check	R			engine/render-three	three-via:engine/render-three		ParticleEffect density scale thins the spawn rate (quality knob)
 tools/engine-tests.ts	18355	check	R			engine/render-three	three-via:engine/render-three		ParticleEffect one-shot drains to zero alive and reports finished
@@ -2542,9 +2542,9 @@ tools/engine-tests.ts	28163	check	D			engine/ai,engine/scene	dropped:K12 AI auth
 tools/engine-tests.ts	28227	check	M			tools/saveValidator	model:tools/saveValidator		AI save payloads enforce compound extensions, traversal guard, and normalizers
 tools/engine-tests.ts	28284	check	D			engine/ai	dropped:K12 AI authoring stack		AIController exposes goal + blackboard in its debug snapshot
 tools/engine-tests.ts	28303	check	M			engine/scene	model:engine/scene		readAIControllerComponent parses props and marks empty components
-tools/engine-tests.ts	28361	check	A			engine/perception			AI perception sight respects radius, horizontal FOV, and blocker LOS
-tools/engine-tests.ts	28395	check	A			engine/perception			AI perception hearing applies loudness-scaled radius
-tools/engine-tests.ts	28412	check	A			engine/perception			AI perception dominant stimulus uses sense priority before strength
+tools/engine-tests.ts	28361	check	A			engine/perception		src/engine/perception/perception.test.ts	AI perception sight respects radius, horizontal FOV, and blocker LOS
+tools/engine-tests.ts	28395	check	A			engine/perception		src/engine/perception/perception.test.ts	AI perception hearing applies loudness-scaled radius
+tools/engine-tests.ts	28412	check	A			engine/perception		src/engine/perception/perception.test.ts	AI perception dominant stimulus uses sense priority before strength
 tools/engine-tests.ts	28452	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack		AISubsystem derives one controller per AIController entity, ticks safely, and gates
 tools/engine-tests.ts	28495	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack		AISubsystem runs a StateTree when the AIController references a stateTree asset
 tools/engine-tests.ts	28574	check	D			engine/ai,engine/scene	dropped:K12 AI authoring stack		AISubsystem derives perception listeners from AIController props and consumes noise events

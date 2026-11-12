@@ -360,6 +360,12 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       Bağlama fixture'lı Forge kontrolleri test köprüsünden geçer
       (`src/engine/testing/forgeBindings.ts`). 33 kontrol yeşil, 1 düştü
       (D, payda 922). İlerleme A 502 / 922.
+      *Küçük alanlar taşındı (2026-11-12):* environment, loading, perception,
+      vfx parçacık tanımları, perf'in kalanı (frame capture, GPU sweep, perf
+      witness). Kalite profilleri / uyarlamalı kalite / donanım ipuçları /
+      WebGL GPU timer Faz 3'e (Forge profilleri WebGL ayarı), Player Start
+      Faz 6'ya, `lakeQuality` Faz 7'ye, `puddleWind` 5a'ya. 57 kontrol
+      yeşil. İlerleme A 559 / 922.
 - [ ] Kayıt oyunu (`engine/persistence`) ve World Partition (`engine/world`)
       yeni modele göre yeniden kurulur; GUID anahtarlı. Kayıt oyunu `persist`
       işaretli bileşen alanlarını ve `defineSaveState` bölümlerini saklar;
@@ -709,3 +715,4 @@ silinebilir.
 | 2026-11-12 | v1.0 | 2b navigation: `src/engine/navigation` (Recast / Detour, döşemeli planlayıcı, ajan profili, yerel kaçınma), worker mesajlaşması `src/runtime/navigation`; `@recast-navigation/core` `0.43.1` tam sabit; `navFloorSampler` movement ile. 23 kontrol yeşil; taşıma aracı async kayıt fonksiyonlarını `await` ile çağırır. A 393 / 923 |
 | 2026-11-12 | v1.0 | 2b movement: `src/engine/movement` + `animation/blendSpace` + `navFloorSampler`; hareketli platform bağı kesildi (K12), `LaunchOptions` / `TransformSink` movement'a; karakter hareketi okuyucusu legacy'ye. 76 kontrol yeşil; taşıma aracı isteğe bağlı parametre özelliğini `T | undefined` diye yazar. A 469 / 923 |
 | 2026-11-12 | v1.0 | 2b behavior: koddan kayıtlı davranış + script mesajları; olay / mesaj bağlamaları kod kaydında (`BehaviorDefinition`, kullanıcı kararı, K12 satırında); referans / arayüz / dispatcher / değişken / ses bileşeni yok. `behaviorSubsystem` bütçe için bölündü (tipler `behaviorTypes`). Forge fixture'ları test köprüsünden geçer; kontrol düzeyinde D listesi (payda 922). 33 kontrol yeşil. A 502 / 922 |
+| 2026-11-12 | v1.0 | 2b küçük alanlar: environment, loading, perception, vfx, perf'in kalanı; kalite profilleri / uyarlamalı kalite / donanım ipuçları / WebGL GPU timer Faz 3'e, Player Start Faz 6'ya, `lakeQuality` Faz 7'ye, `puddleWind` 5a'ya. 57 kontrol yeşil. A 559 / 922 |
