@@ -298,6 +298,22 @@ function labelOf(argument: ts.Expression | undefined, source: ts.SourceFile): { 
 
 const sorted = (values: Iterable<string>): string[] => [...new Set(values)].sort();
 
+/**
+ * A call that only forwards its enclosing function's own label and body
+ * parameters (`const checkSlow = (label, fn) => { ... check(label, fn); }`)
+ * is the harness defining a check variant, not a check site.
+ */
+function isForwardingCall(call: ts.CallExpression): boolean {
+  if (call.arguments.length < 2 || !call.arguments.slice(0, 2).every(ts.isIdentifier)) return false;
+  let scope: ts.Node | undefined = call.parent;
+  while (scope && !ts.isFunctionLike(scope)) scope = scope.parent;
+  if (!scope) return false;
+  const parameters = new Set(
+    (scope as ts.SignatureDeclaration).parameters.flatMap((parameter) => (ts.isIdentifier(parameter.name) ? [parameter.name.text] : [])),
+  );
+  return call.arguments.slice(0, 2).every((argument) => parameters.has((argument as ts.Identifier).text));
+}
+
 /** Value imports of a file and the checks it registers, each with what it reaches. */
 export function analyzeSource(fileName: string, text: string, options: AnalyzeOptions = {}): FileAnalysis {
   const callees = options.callees ?? CHECK_CALLEES;
@@ -307,7 +323,7 @@ export function analyzeSource(fileName: string, text: string, options: AnalyzeOp
 
   const calls: ts.CallExpression[] = [];
   const findCalls = (node: ts.Node): void => {
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && callees.has(node.expression.text)) {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && callees.has(node.expression.text) && !isForwardingCall(node)) {
       calls.push(node);
     }
     ts.forEachChild(node, findCalls);
@@ -364,6 +380,7 @@ export const OLD_MODEL_AREAS: ReadonlySet<string> = new Set([
   "project",
   "templates",
   "tools/saveValidator",
+  "tools/terrainSaveValidator",
   "tools/droppedFields",
 ]);
 
@@ -408,6 +425,9 @@ const WORLD_STAGE_RUNNER =
 
 const OLD_LEVEL_DOCUMENT =
   "Forge WebGL's old level document (RoomLayout with instances / loadGroups, Game Mode path); the new format has its own checks (user decision 2026-11-12)";
+
+const OLD_ASSET_MANIFEST =
+  "Forge WebGL's central asset manifest (public/assets/manifest.json) and its health report; the A10 asset index and verify:assets replace it (user decision 2026-11-12)";
 
 export const DROPPED_CHECKS: ReadonlyArray<{ readonly file: string; readonly label: string; readonly why: string }> = [
   {
@@ -499,10 +519,76 @@ export const DROPPED_CHECKS: ReadonlyArray<{ readonly file: string; readonly lab
     label: "world data: level documents require both arrays on an object",
     why: OLD_LEVEL_DOCUMENT,
   },
+  ...[
+    "content: asset manifest accepts legacy aliases and rejects bad version and duplicate ids",
+    "content: asset health separates generated previews, registered companions and real orphans",
+    "content: asset health treats a model's fracture sidecar as a companion, an orphan one as unregistered",
+    "content: terrain global maps and tiles are companions; binaries without a definition stay visible",
+  ].map((label) => ({ file: "tests/engine/contentLoading.test.ts", label, why: OLD_ASSET_MANIFEST })),
+  ...[
+    "asset manifest validates against the public root including registered levels outside assets",
+    "asset manifest helpers expose canonical path, load group, and byte size",
+    "asset manifest rejects stale DevelopmentContent parent texture variants",
+    "asset manifest classifies Sound Cue assets separately from prefab JSON",
+    "asset manifest helpers tolerate the legacy file/loadGroup/bytes shape",
+  ].map((label) => ({ file: "tools/engine-tests.ts", label, why: OLD_ASSET_MANIFEST })),
+  ...["game-starter: its app contains no scene-setup code at all", "rts-starter: its app contains no scene-setup code at all"].map((label) => ({
+    file: "tests/engine/runtimeParityLevel.test.ts",
+    label,
+    why: "Forge WebGL's templates/*/main.ts import list; a game module's import boundary is enforced by forge check here (user decision 2026-11-12)",
+  })),
+  {
+    file: "tests/engine/regionProfile.test.ts",
+    label: "world builder: engine/worldbuilder modules stay dependency-free (no three.js)",
+    why: "reads Forge WebGL's folder layout; the layer rules (.dependency-cruiser.cjs) keep src/engine three-free here (user decision 2026-11-12)",
+  },
 ];
 
 export function droppedCheck(file: string, label: string): string | null {
   return DROPPED_CHECKS.find((entry) => entry.file === file && entry.label === label)?.why ?? null;
+}
+
+/**
+ * Algorithm checks whose port waits for a later phase: the module they test
+ * comes with that phase (plan 2b "Taşıma" closing rule, user decision
+ * 2026-11-12). They stay in the denominator; each phase's gate lists its own.
+ * Keyed by Forge file and, where the file mixes phases, a label prefix.
+ */
+export const DEFERRED_CHECKS: ReadonlyArray<{ readonly file: string; readonly labelPrefix?: string; readonly phase: string; readonly why: string }> = [
+  ...[
+    "graphics preferences:",
+    "quality profiles:",
+    "hardware hints:",
+    "quality ladder:",
+    "measurement calibration:",
+    "GPU timer:",
+    "adaptive quality:",
+  ].map((labelPrefix) => ({ file: "tools/engine-tests.ts", labelPrefix, phase: "3", why: "quality profiles / adaptive quality rebuilt with the render pipeline (INV-G29)" })),
+  { file: "tools/engine-tests.ts", labelPrefix: "asset perf:", phase: "3", why: "asset perf report (INV-H20)" },
+  { file: "tools/engine-tests.ts", labelPrefix: "starter material assets", phase: "3", why: "material asset type" },
+  ...["computePlayerStartSpawn:", "hasPlayerCharacter:", "createDefaultPlayerCharacter:"].map((labelPrefix) => ({
+    file: "tools/engine-tests.ts",
+    labelPrefix,
+    phase: "6",
+    why: "Player Start and the default pawn (INV-D25)",
+  })),
+  { file: "tests/engine/puddlePersistence.test.ts", phase: "5a", why: "puddles (INV-D21)" },
+  { file: "tests/engine/terrainPuddle.test.ts", phase: "5a", why: "puddles (INV-D21)" },
+  { file: "tests/engine/terrainOrphans.test.ts", phase: "5a", why: "terrain repair / orphan cleanup (INV-H11)" },
+  { file: "tests/engine/terrainRuntimeStreaming.test.ts", phase: "5b", why: "runtime terrain streaming (A11)" },
+  { file: "tests/engine/worldTerrainMove.test.ts", phase: "5d", why: "moving a World Terrain shifts the water types too (5d / 7)" },
+  ...["terrainLakeWater", "terrainLakeBed", "lakeInteraction", "lakeQuality", "oceanWater", "waterWheelInteraction", "waterFoam"].map((name) => ({
+    file: `tests/engine/${name}.test.ts`,
+    phase: "7",
+    why: "lakes, rivers and ocean",
+  })),
+  { file: "tests/engine/offroadTestWorld.test.ts", phase: "8", why: "off-road test level, regenerated in the new format (user decision 2026-11-12)" },
+];
+
+export function deferredTo(file: string, label: string): string | null {
+  return (
+    DEFERRED_CHECKS.find((entry) => entry.file === file && (entry.labelPrefix === undefined || label.startsWith(entry.labelPrefix)))?.phase ?? null
+  );
 }
 
 /** A algorithm, M old data model, R render, D not ported (K12). */

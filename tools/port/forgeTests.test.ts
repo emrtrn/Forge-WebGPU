@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { analyzeSource, areaOf, classifyCheck, droppedBy, droppedCheck, isMathOnlyThreeArea, isOldLevelData, type ModuleFacts } from "./forgeTests.ts";
+import { analyzeSource, areaOf, classifyCheck, deferredTo, droppedBy, droppedCheck, isMathOnlyThreeArea, isOldLevelData, type ModuleFacts } from "./forgeTests.ts";
 
 const analyze = (text: string) => analyzeSource("tests/engine/sample.test.ts", text);
 
@@ -107,6 +107,17 @@ describe("analyzeSource: what a check reaches", () => {
     expect(result.valueSpecifiers).toEqual(["./base"]);
   });
 
+  test("a harness variant forwarding its own label and body is not a check site", () => {
+    const result = analyze(`
+      const check = (label: string, fn: () => void): void => { fn(); report(label); };
+      const checkSlow = (label: string, fn: () => void): void => { if (slow) check(label, fn); };
+      const named = (label: string): void => check(label, () => {});
+      check("real", () => {});
+      checkSlow("slow one", () => {});
+    `);
+    expect(result.checks.map((found) => found.label)).toEqual(["label", "real", "slow one"]);
+  });
+
   test("side-effect imports and value re-exports count for the module graph", () => {
     const result = analyzeSource(
       "engine/x/index.ts",
@@ -168,6 +179,13 @@ describe("classifyCheck", () => {
     // A check exercising cut data through a ported module is listed by file and label.
     expect(droppedCheck("tools/engine-tests.ts", "audio subsystem records one-shot requests from a collision behavior")).toMatch(/K12/);
     expect(droppedCheck("tools/engine-tests.ts", "behavior subsystem ticks behaviors and mutates transforms deterministically")).toBeNull();
+  });
+
+  test("an unported algorithm check may name the phase it waits for, by file or label prefix", () => {
+    expect(deferredTo("tests/engine/terrainLakeWater.test.ts", "anything")).toBe("7");
+    expect(deferredTo("tools/engine-tests.ts", "adaptive quality: classifyFrameLoad splits")).toBe("3");
+    expect(deferredTo("tools/engine-tests.ts", "computePlayerStartSpawn: no marker")).toBe("6");
+    expect(deferredTo("tools/engine-tests.ts", "behavior subsystem ticks behaviors")).toBeNull();
   });
 
   test("three in an engine module outside render-three is math, not render", () => {

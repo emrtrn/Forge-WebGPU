@@ -258,7 +258,8 @@ export class CheckPorter {
       .split("\n")
       .slice(1)
       .map((line) => line.split("\t"))
-      .filter((row) => row[3] === "A" && !row[8] && areas.test(row[6] ?? ""));
+      // Unported algorithm checks; a deferred one (column 10) waits for its phase.
+      .filter((row) => row[3] === "A" && !row[8] && !row[10] && areas.test(row[6] ?? ""));
     const byFile = new Map<string, number[]>();
     for (const row of rows) {
       const lines = byFile.get(row[0]!) ?? [];

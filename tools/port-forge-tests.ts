@@ -19,6 +19,7 @@ import {
   analyzeSource,
   areaOf,
   classifyCheck,
+  deferredTo,
   droppedCheck,
   isMathOnlyThreeArea,
   isThreePackage,
@@ -177,6 +178,8 @@ interface Row {
   readonly verdict: CheckVerdict;
   /** This repo's test file that carries the check (same label), if ported. */
   readonly ported: string | null;
+  /** Phase an unported algorithm check waits for ({@link deferredTo}), if any. */
+  readonly deferred: string | null;
 }
 
 /**
@@ -218,14 +221,16 @@ function classifyFile(graph: ForgeGraph, file: string, ported: ReadonlyMap<strin
     const classified = classifyCheck(modules, [...check.literals, ...dataPaths]);
     const dropped = droppedCheck(file, check.label);
     const verdict = dropped === null ? classified : { ...classified, cls: "D" as const, reasons: [`dropped:${dropped}`] };
-    return { file, check, verdict, ported: ported.get(check.label) ?? null };
+    const carried = ported.get(check.label) ?? null;
+    const deferred = verdict.cls === "A" && carried === null ? deferredTo(file, check.label) : null;
+    return { file, check, verdict, ported: carried, deferred };
   });
 }
 
 const cell = (text: string): string => text.replace(/[\t\r\n]+/g, " ").trim();
 
 function toTsv(rows: readonly Row[]): string {
-  const header = ["file", "line", "kind", "class", "boundary", "dynamicLabel", "areas", "reasons", "ported", "label"].join("\t");
+  const header = ["file", "line", "kind", "class", "boundary", "dynamicLabel", "areas", "reasons", "ported", "label", "deferred"].join("\t");
   const lines = rows.map((row) =>
     [
       row.file,
@@ -238,6 +243,7 @@ function toTsv(rows: readonly Row[]): string {
       row.verdict.reasons.map((reason) => reason.slice(0, 120)).join(","),
       row.ported ?? "",
       cell(row.check.label).slice(0, 240),
+      row.deferred ?? "",
     ].join("\t"),
   );
   return `${[header, ...lines].join("\n")}\n`;
@@ -271,6 +277,11 @@ function summary(rows: readonly Row[], files: readonly string[], unregistered: r
   const portedOther = rows.filter((row) => row.verdict.cls !== "A" && row.ported !== null).length;
   out.push("");
   out.push(`**Taşınan:** A ${portedA} / ${n("A")}; A dışından etiketiyle taşınan ${portedOther}.`);
+  const waiting = rows.filter((row) => row.verdict.cls === "A" && row.ported === null);
+  const byPhase = [...count(waiting.filter((row) => row.deferred !== null), (row) => row.deferred!)].sort((a, b) => a[0].localeCompare(b[0]));
+  const open = waiting.filter((row) => row.deferred === null).length;
+  const phases = byPhase.length > 0 ? byPhase.map(([phase, value]) => `Faz ${phase} ${value}`).join(", ") : "yok";
+  out.push(`**Ertelenen A:** ${phases}; fazı yazılmamış taşınmayan A: ${open}.`);
   const boundary = rows.filter((row) => row.verdict.boundary);
   const via = (kind: string): number => boundary.filter((row) => row.verdict.reasons.some((reason) => reason.startsWith(kind))).length;
   out.push("");
