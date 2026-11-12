@@ -813,10 +813,10 @@ tests/engine/staticQueries.test.ts	207	check	A	yes		engine/input,engine/movement
 tests/engine/staticQueries.test.ts	229	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries movement preserves void falling and empty-scene fallback floor	
 tests/engine/staticQueries.test.ts	250	check	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries streamed colliders become nav blockers on add and stop on remove	
 tests/engine/staticQueries.test.ts	275	check	A	yes		engine/input,engine/movement,engine/physics	boundary-model:engine/movement,boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/staticQueries.test.ts	static queries movement swept radius covers fast travel launch and platform carry	
-tests/engine/streamedActorState.test.ts	9	check	A			engine/world			streamed actor state: poseMatches wraps angles and tolerates small drift	
-tests/engine/streamedActorState.test.ts	20	check	A			engine/world			streamed actor state: only a moved body is remembered and take consumes it	
-tests/engine/streamedActorState.test.ts	33	check	A			engine/world			streamed actor state: a car left on its handbrake at home is still remembered	
-tests/engine/streamedActorState.test.ts	41	check	A			engine/world			streamed actor state: saved vehicles are parked and cached cars export at rest	
+tests/engine/streamedActorState.test.ts	9	check	A			engine/world		src/engine/world/streamedActorState.test.ts	streamed actor state: poseMatches wraps angles and tolerates small drift	
+tests/engine/streamedActorState.test.ts	20	check	A			engine/world		src/engine/world/streamedActorState.test.ts	streamed actor state: only a moved body is remembered and take consumes it	
+tests/engine/streamedActorState.test.ts	33	check	A			engine/world		src/engine/world/streamedActorState.test.ts	streamed actor state: a car left on its handbrake at home is still remembered	
+tests/engine/streamedActorState.test.ts	41	check	A			engine/world		src/engine/world/streamedActorState.test.ts	streamed actor state: saved vehicles are parked and cached cars export at rest	
 tests/engine/streamingPolicy.test.ts	20	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: box-distance range edges are inclusive, including corners and negatives	
 tests/engine/streamingPolicy.test.ts	38	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: prefetch and activation split, and activation waits for completed loads	
 tests/engine/streamingPolicy.test.ts	51	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: activation defaults to load range and is clamped to it	
@@ -1561,26 +1561,26 @@ tests/engine/worldPartitionOutliner.test.ts	49	check	M			editor,engine/world	mod
 tests/engine/worldPartitionOutliner.test.ts	69	check	M			editor,engine/world	model:editor,model:engine/world		world partition outliner: every mapped id is a real Outliner row	
 tests/engine/worldPartitionOutliner.test.ts	79	check	M			editor,engine/world	model:editor,model:engine/world		world partition outliner: loaded cells use the runtime's nearest-point load range	
 tests/engine/worldPartitionOutliner.test.ts	88	check	M			editor	model:editor		world partition outliner: states and filters (loaded includes persistent)	
-tests/engine/worldPartitionStreaming.test.ts	32	check	A			engine/world			world partition streaming: cells added after configure join residency and activate in range	
-tests/engine/worldPartitionStreaming.test.ts	48	check	A			engine/world			world partition streaming: prepare activates exactly in-range occupied cells without a budget	
-tests/engine/worldPartitionStreaming.test.ts	61	check	A			engine/world			world partition streaming: update activates at most two occupied cells nearest first without repeats	
-tests/engine/worldPartitionStreaming.test.ts	76	check	A			engine/world			world partition streaming: priority favors cells ahead and empty grid cells spend no budget	
-tests/engine/worldPartitionStreaming.test.ts	86	check	A			engine/world			world partition streaming: gameplay ranges ignore graphics view-distance settings	
-tests/engine/worldPartitionStreaming.test.ts	93	check	A			engine/world			world partition streaming: unload uses 1.25 range hysteresis and releases all outgoing cells in one frame	
-tests/engine/worldPartitionStreaming.test.ts	105	check	A			engine/world			world partition streaming: prepare after restore loads the destination immediately	
-tests/engine/worldPartitionStreaming.test.ts	115	check	A			engine/world			world partition streaming: snapshot reflects retained pawns, destroyed actors and stable-id reactivation	
-tests/engine/worldPartitionStreaming.test.ts	128	check	A			engine/world			world partition streaming: clear discards the level and an empty level remains inert	
-tests/engine/worldPartitionStreaming.test.ts	139	check	A			engine/world			world partition streaming: prefetch covers occupied ring cells before activation with independent hysteresis	
-tests/engine/worldPartitionStreaming.test.ts	162	check	A			engine/world			world partition streaming: the prefetch-only step never releases currently active cells	
-tests/engine/worldPartitionStreaming.test.ts	177	check	A			engine/world			world partition streaming: readiness is filtered before the activation budget and retried next update	
-tests/engine/worldPartitionStreaming.test.ts	196	check	A			engine/world			world partition streaming: waiting counts all occupied unready candidates beyond the budget	
-tests/engine/worldPartitionStreaming.test.ts	210	check	A			engine/world			world partition streaming: prefetchAround returns prepare's ordered candidates regardless of readiness	
-tests/engine/worldPartitionStreaming.test.ts	244	check	A			engine/world			world partition streaming: prepare remains unbudgeted when prefetched cells are ready	
-tests/engine/worldPartitionStreaming.test.ts	258	check	A			engine/world			world partition streaming: prefetch factor rejects values below one and nonfinite values	
-tests/engine/worldPartitionStreaming.test.ts	266	check	A			engine/world			world partition streaming: custom prefetch factor changes the ring without changing activation	
-tests/engine/worldPartitionStreaming.test.ts	280	check	A			engine/world			world partition streaming: absent optional hooks keep prefetch bookkeeping empty and activation unchanged	
-tests/engine/worldPartitionStreaming.test.ts	294	check	A			engine/world			world partition streaming: clear resets prefetch and waiting bookkeeping without host hooks	
-tests/engine/worldPartitionStreaming.test.ts	312	check	A			engine/world			world partition streaming: occupied static-only cells prefetch, activate and spend budget like actor cells	
+tests/engine/worldPartitionStreaming.test.ts	32	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: cells added after configure join residency and activate in range	
+tests/engine/worldPartitionStreaming.test.ts	48	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: prepare activates exactly in-range occupied cells without a budget	
+tests/engine/worldPartitionStreaming.test.ts	61	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: update activates at most two occupied cells nearest first without repeats	
+tests/engine/worldPartitionStreaming.test.ts	76	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: priority favors cells ahead and empty grid cells spend no budget	
+tests/engine/worldPartitionStreaming.test.ts	86	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: gameplay ranges ignore graphics view-distance settings	
+tests/engine/worldPartitionStreaming.test.ts	93	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: unload uses 1.25 range hysteresis and releases all outgoing cells in one frame	
+tests/engine/worldPartitionStreaming.test.ts	105	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: prepare after restore loads the destination immediately	
+tests/engine/worldPartitionStreaming.test.ts	115	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: snapshot reflects retained pawns, destroyed actors and stable-id reactivation	
+tests/engine/worldPartitionStreaming.test.ts	128	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: clear discards the level and an empty level remains inert	
+tests/engine/worldPartitionStreaming.test.ts	139	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: prefetch covers occupied ring cells before activation with independent hysteresis	
+tests/engine/worldPartitionStreaming.test.ts	162	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: the prefetch-only step never releases currently active cells	
+tests/engine/worldPartitionStreaming.test.ts	177	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: readiness is filtered before the activation budget and retried next update	
+tests/engine/worldPartitionStreaming.test.ts	196	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: waiting counts all occupied unready candidates beyond the budget	
+tests/engine/worldPartitionStreaming.test.ts	210	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: prefetchAround returns prepare's ordered candidates regardless of readiness	
+tests/engine/worldPartitionStreaming.test.ts	244	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: prepare remains unbudgeted when prefetched cells are ready	
+tests/engine/worldPartitionStreaming.test.ts	258	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: prefetch factor rejects values below one and nonfinite values	
+tests/engine/worldPartitionStreaming.test.ts	266	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: custom prefetch factor changes the ring without changing activation	
+tests/engine/worldPartitionStreaming.test.ts	280	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: absent optional hooks keep prefetch bookkeeping empty and activation unchanged	
+tests/engine/worldPartitionStreaming.test.ts	294	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: clear resets prefetch and waiting bookkeeping without host hooks	
+tests/engine/worldPartitionStreaming.test.ts	312	check	A			engine/world		src/engine/world/worldPartitionStreaming.test.ts	world partition streaming: occupied static-only cells prefetch, activate and spend budget like actor cells	
 tests/engine/worldRecipe.test.ts	94	check	A			engine/worldbuilder		src/engine/worldbuilder/worldRecipe.test.ts	world recipe: a reference maps image points to the world, top-left at its origin, down = +Z (WB-13)	
 tests/engine/worldRecipe.test.ts	104	check	M			engine/worldbuilder	level-data:/layouts/playground.json,level-data:assets/starter-content/Levels/Valley.level.json,level-data:layouts/Old.worldrecipe.json,level-data:layouts/notes.txt,level-data:layouts/playground.worldrecipe.json,level-data:layouts\Old.layout.json		world recipe: sidecar path follows the level naming rule	
 tests/engine/worldRecipe.test.ts	111	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldRecipe.test.ts	world recipe: an empty recipe is canonical and issue-free	
