@@ -47,7 +47,7 @@ describe("spellOutParameterProperties", () => {
         "  // Constructor parameter properties in Forge, spelled out here (this repo",
         "  // allows only erasable TypeScript syntax: Node type stripping).",
         "  private readonly size: number;",
-        "  public name?: string;",
+        "  public name?: string | undefined;",
         "  /** Builds an A. */",
         "  constructor(size: number, name?: string, plain = 1) {",
         "    super();",

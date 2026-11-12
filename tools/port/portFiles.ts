@@ -80,7 +80,11 @@ export function spellOutParameterProperties(text: string, fileName: string): str
       const name = parameter.name.text;
       // Without an annotation (`size = 80`) the field stays unannotated: TypeScript
       // infers it from the constructor assignment, as it inferred the parameter.
-      const type = parameter.type ? `: ${parameter.type.getText(source)}` : "";
+      // An optional parameter is `T | undefined` inside the constructor; the field
+      // says so explicitly (exactOptionalPropertyTypes).
+      const type = parameter.type
+        ? `: ${parameter.type.getText(source)}${parameter.questionToken ? " | undefined" : ""}`
+        : "";
       fields.push(
         `${indent}${modifiers.map((m) => m.getText(source)).join(" ")} ${name}${parameter.questionToken ? "?" : ""}${type};`,
       );
