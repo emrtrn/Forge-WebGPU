@@ -1,12 +1,70 @@
 // Ported from Forge WebGL tools/engine-tests.ts @ forge-webgl-final (04b5fb23): each check is
 // copied unchanged and runs as a Vitest test; docs/PORT_LOG.md §2.
 import assert from "node:assert/strict";
+// The fixtures author Forge's EventBindings / MessageBindings (K12: not ported); the
+// scaffold turns them into the code registration, check bodies unchanged.
+import { ForgeBindingBehaviorSubsystem as BehaviorSubsystem } from "../testing/forgeBindings.ts";
+import { type BehaviorRegistry } from "../behavior/behaviorTypes.ts";
+import { ActionMap } from "../input/actionMap.ts";
+import { type Entity } from "../legacy/entity.ts";
 import { resolvePlanarMovement } from "../movement/characterCollision.ts";
+import { EngineApp } from "../testing/EngineApp.ts";
 import { terrainTileTrimesh } from "../testing/terrainTrimeshReference.ts";
 import { PhysicsSubsystem } from "./physicsSubsystem.ts";
 import { test } from "vitest";
 
 const check = test;
+
+check("behavior can react to physics contacts from the engine tick", () => {
+  const physics = new PhysicsSubsystem();
+  const registry: BehaviorRegistry = {
+    get: (scriptId) => {
+      if (scriptId !== "contact-react") return undefined;
+      return ({ physics: physicsQuery, transform }) => {
+        if ((physicsQuery?.contactsForEntity("mover").length ?? 0) > 0) {
+          transform.position[2] = 7;
+        }
+      };
+    },
+  };
+  const synced: Array<{ id: string; z: number }> = [];
+  const behavior = new BehaviorSubsystem(
+    registry,
+    new ActionMap({}),
+    (id, transform) => synced.push({ id, z: transform.position[2] }),
+    physics,
+  );
+  const entities: Entity[] = [
+    {
+      id: "mover",
+      components: {
+        Transform: { position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+        Collider: { shape: "box", size: [1, 1, 1], isStatic: false, isSensor: false },
+        Behavior: { scriptId: "contact-react" },
+      },
+    },
+    {
+      id: "sensor",
+      components: {
+        Transform: { position: [0.25, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+        Collider: { shape: "box", size: [1, 1, 1], isStatic: true, isSensor: true },
+      },
+    },
+  ];
+
+  physics.setEntities(entities);
+  behavior.setEntities(entities);
+
+  const app = new EngineApp();
+  app.registerSubsystem(physics);
+  app.registerSubsystem(behavior);
+  app.update(0.016);
+
+  assert.deepEqual(physics.contactsForEntity("mover"), [
+    { a: "mover", b: "sensor", isSensor: true },
+  ]);
+  assert.deepEqual(synced.at(-1), { id: "mover", z: 7 });
+});
 
 check("physics subsystem gives steep trimesh triangle blockers a tight XZ footprint", () => {
   const physics = new PhysicsSubsystem();
@@ -41,6 +99,78 @@ check("physics subsystem gives steep trimesh triangle blockers a tight XZ footpr
   assert.ok(blockers[0]?.footprint && blockers[0].footprint.length === 2, "vertical triangle projects to a segment");
   const moved = resolvePlanarMovement([1.7, 0, 0.8], { dx: -0.4, dz: 0 }, [0.1, 0.5, 0.1], blockers);
   assert.ok(Math.abs(moved.dx + 0.4) < 1e-9, `dx=${moved.dx}`);
+});
+
+// A1 DestroyActor: a destroyed entity leaves the behavior set the same tick — it no
+// longer ticks, its physics body is gone (contacts read empty), and its message
+// subscriptions are dropped (a later send never reaches it).
+check("actor command: destroy cuts subsequent ticks, contacts and messages", () => {
+  let ticks = 0;
+  let pings = 0;
+  const registry: BehaviorRegistry = {
+    get: (scriptId) => {
+      if (scriptId === "self-destruct") {
+        return (context) => {
+          ticks += 1;
+          context.actor.destroy();
+        };
+      }
+      if (scriptId === "on-ping") {
+        return () => {
+          pings += 1;
+        };
+      }
+      return undefined;
+    },
+  };
+  const physics = new PhysicsSubsystem();
+  const actor: Entity = {
+    id: "actor:0",
+    components: {
+      Transform: { position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+      Collider: { shape: "box", size: [1, 1, 1], isStatic: true, isSensor: true },
+      Behavior: { scriptId: "self-destruct", params: {} },
+      MessageBindings: { bindings: [{ message: "Ping", scriptId: "on-ping", target: "self" }] },
+    },
+  };
+  const player: Entity = {
+    id: "player:0",
+    components: {
+      Transform: { position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+      Collider: { shape: "box", size: [1, 1, 1], isStatic: false, isSensor: false },
+    },
+  };
+  physics.setEntities([actor, player]);
+  const behavior = new BehaviorSubsystem(
+    registry,
+    new ActionMap({}),
+    () => undefined,
+    physics,
+    undefined,
+    {
+      // The host sink removes the physics body so contact queries read empty.
+      actorCommandSink: {
+        setVisibility: () => undefined,
+        destroy: (id) => physics.removeEntity(id),
+      },
+    },
+  );
+  behavior.setEntities([actor, player]);
+  const app = new EngineApp();
+  app.registerSubsystem(physics);
+  app.registerSubsystem(behavior);
+
+  // Overlapping the player: before destroy there is a contact; after the tick the
+  // self-destruct fires and the host removes the body.
+  app.update(0.016);
+  assert.equal(ticks, 1);
+  assert.deepEqual(physics.contactsForEntity("actor:0"), []);
+
+  // A message aimed at the destroyed actor reaches no subscriber, and it never ticks again.
+  behavior.emitScriptMessage("Ping", "player:0", undefined, "actor:0");
+  app.update(0.016);
+  assert.equal(ticks, 1);
+  assert.equal(pings, 0);
 });
 
 check("landscape trimesh reference is centred and up-facing, and physics files its triangles as walkable surfaces", () => {

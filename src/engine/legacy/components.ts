@@ -1,4 +1,4 @@
-// Ported from Forge WebGL engine/scene/components.ts (collider, transform, vehicle, character movement readers) @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
+// Ported from Forge WebGL engine/scene/components.ts (collider, transform, vehicle, character movement, behavior, interaction, script actor readers) @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
 // TRANSITION (plan 2b, user decision 2026-11-11): Forge WebGL's old entity and
 // component model, only the part ported subsystems read. Faz 6 replaces it with
 // schema components (each subsystem binds to the world with its feature) and
@@ -377,4 +377,75 @@ export function readCharacterMovementComponent(
     uphillSpeedScale: readFiniteNumber(data.uphillSpeedScale, 0.65, 0),
     stepSmoothSpeed: readFiniteNumber(data.stepSmoothSpeed, 6, 0),
   };
+}
+
+export const BEHAVIOR_COMPONENT = "Behavior";
+export const INTERACTION_COMPONENT = "Interaction";
+export const SCRIPT_ACTOR_COMPONENT = "ScriptActor";
+
+/**
+ * Attaches a runtime script to an entity: a registered behavior `scriptId` plus
+ * opaque JSON `params`. The behavior registry (a runtime concern) resolves the
+ * id to an update function; the engine layer only stores the reference.
+ */
+export interface BehaviorComponent {
+  scriptId: string;
+  params?: Record<string, SceneJsonValue>;
+}
+
+export interface ScriptActorComponent {
+  classRef: string;
+  nodeId?: string;
+  // K12: `variables` (Actor Script variables) are cut.
+}
+
+/**
+ * Marks an entity as interactable: an `action` id the runtime interprets, an
+ * optional player-facing `prompt`, a default `enabled` flag, an optional
+ * `requires` gate (e.g. an inventory/key id) and an optional `cooldown` in
+ * seconds. Project gameplay rules (runtime) interpret these; the engine only
+ * stores the authored data, like Behavior/Metadata. Typically paired with a
+ * (sensor) {@link ColliderComponent} so an InteractionSystem can detect overlap.
+ */
+export interface InteractionComponent {
+  action: string;
+  prompt?: string;
+  enabled?: boolean;
+  requires?: string;
+  cooldown?: number;
+}
+
+/** Reads a typed behavior reference from an entity's serializable component data. */
+export function readBehaviorComponent(entity: Entity): BehaviorComponent | undefined {
+  const data = entity.components[BEHAVIOR_COMPONENT];
+  if (!data) return undefined;
+  if (typeof data.scriptId !== "string" || data.scriptId.length === 0) return undefined;
+  const component: BehaviorComponent = { scriptId: data.scriptId };
+  const params = data.params;
+  if (typeof params === "object" && params !== null && !Array.isArray(params)) {
+    component.params = { ...(params as Record<string, SceneJsonValue>) };
+  }
+  return component;
+}
+
+/** Reads placed Actor Script instance metadata used by world queries. */
+export function readScriptActorComponent(entity: Entity): ScriptActorComponent | undefined {
+  const data = entity.components[SCRIPT_ACTOR_COMPONENT];
+  if (!data || typeof data.classRef !== "string" || data.classRef.length === 0) return undefined;
+  const component: ScriptActorComponent = { classRef: data.classRef };
+  if (typeof data.nodeId === "string" && data.nodeId.length > 0) component.nodeId = data.nodeId;
+  return component;
+}
+
+/** Reads a typed interaction marker from an entity's serializable component data. */
+export function readInteractionComponent(entity: Entity): InteractionComponent | undefined {
+  const data = entity.components[INTERACTION_COMPONENT];
+  if (!data) return undefined;
+  if (typeof data.action !== "string" || data.action.length === 0) return undefined;
+  const component: InteractionComponent = { action: data.action };
+  if (typeof data.prompt === "string") component.prompt = data.prompt;
+  if (typeof data.enabled === "boolean") component.enabled = data.enabled;
+  if (typeof data.requires === "string") component.requires = data.requires;
+  if (typeof data.cooldown === "number") component.cooldown = data.cooldown;
+  return component;
 }

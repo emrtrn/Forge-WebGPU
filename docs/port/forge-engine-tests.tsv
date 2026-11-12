@@ -49,12 +49,12 @@ tests/engine/authoredEnvironment.test.ts	217	check	R			engine/environment,engine
 tests/engine/authoredEnvironment.test.ts	237	check	R			engine/environment,engine/render-three	three-via:engine/render-three,three:three		world environment binding: night dims to the moon, raises exposure and keeps an ambient floor
 tests/engine/authoredEnvironment.test.ts	252	check	R			engine/environment,engine/render-three	three-via:engine/render-three,three:three		world environment binding: an owner edit while active becomes the new base
 tests/engine/authoredEnvironment.test.ts	264	check	R			engine/environment,engine/render-three	three-via:engine/render-three,three:three		world environment binding: ending the override restores every value it changed
-tests/engine/behaviorSubsystem.test.ts	42	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior		behavior unload: endPlay once, detached indexes/messages/ticks, persisted state survives a fresh life
-tests/engine/behaviorSubsystem.test.ts	113	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior		behavior unload: non-persisted state is discarded when no keys survive
-tests/engine/behaviorSubsystem.test.ts	128	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior		behavior unload: persisted hide/collision markers survive and apply on re-add
-tests/engine/behaviorSubsystem.test.ts	154	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior		behavior unload: EndPlay destroy marker survives without issuing a host destroy command
-tests/engine/behaviorSubsystem.test.ts	171	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior		behavior snapshot: non-live entries survive and effects wait until that entity is added
-tests/engine/behaviorSubsystem.test.ts	211	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior		behavior snapshot: setEntities and clear wipe unloaded state and destroy markers
+tests/engine/behaviorSubsystem.test.ts	42	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.test.ts	behavior unload: endPlay once, detached indexes/messages/ticks, persisted state survives a fresh life
+tests/engine/behaviorSubsystem.test.ts	113	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.test.ts	behavior unload: non-persisted state is discarded when no keys survive
+tests/engine/behaviorSubsystem.test.ts	128	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.test.ts	behavior unload: persisted hide/collision markers survive and apply on re-add
+tests/engine/behaviorSubsystem.test.ts	154	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.test.ts	behavior unload: EndPlay destroy marker survives without issuing a host destroy command
+tests/engine/behaviorSubsystem.test.ts	171	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.test.ts	behavior snapshot: non-live entries survive and effects wait until that entity is added
+tests/engine/behaviorSubsystem.test.ts	211	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.test.ts	behavior snapshot: setEntities and clear wipe unloaded state and destroy markers
 tests/engine/briefTerrain.test.ts	37	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder		brief terrain: two valleys meet at a ridge and each point belongs to the lower one
 tests/engine/briefTerrain.test.ts	51	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder		brief terrain: unevenly spaced sections and a closed valley end
 tests/engine/briefTerrain.test.ts	60	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder		brief terrain: with no relief the slope is the plain valley shape
@@ -1831,19 +1831,19 @@ tools/engine-tests.ts	5369	check	A			engine/audio		src/runtime/audio/audioSubsys
 tools/engine-tests.ts	5374	check	A			engine/audio		src/runtime/audio/audioSubsystem.test.ts	audio subsystem setBusVolume stores and clamps without a context
 tools/engine-tests.ts	5382	check	A			engine/audio		src/runtime/audio/audioSubsystem.test.ts	audio subsystem mix snapshot ducks, resetMix restores
 tools/engine-tests.ts	5391	check	A			engine/audio		src/runtime/audio/audioSubsystem.test.ts	audio subsystem play routes its bus into the recorded request
-tools/engine-tests.ts	5403	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		behavior subsystem ticks behaviors and mutates transforms deterministically
-tools/engine-tests.ts	5467	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		behavior subsystem: setEnabled(false) suppresses ticking until re-enabled
-tools/engine-tests.ts	5504	check	A			engine/behavior			script message bus dispatches by message type and target
-tools/engine-tests.ts	5571	check	A			engine/behavior			script message bus reports missing target and missing handler
-tools/engine-tests.ts	5620	check	A			engine/behavior			script message bus keeps dispatch target-indexed under many subscribers
-tools/engine-tests.ts	5643	check	A			engine/behavior			script message bus can disable recent debug trace
-tools/engine-tests.ts	5658	check	A			engine/behavior			script message bus guards recursive flush while allowing queued follow-up messages
+tools/engine-tests.ts	5403	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorTicks.test.ts	behavior subsystem ticks behaviors and mutates transforms deterministically
+tools/engine-tests.ts	5467	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorTicks.test.ts	behavior subsystem: setEnabled(false) suppresses ticking until re-enabled
+tools/engine-tests.ts	5504	check	A			engine/behavior		src/engine/behavior/scriptMessages.test.ts	script message bus dispatches by message type and target
+tools/engine-tests.ts	5571	check	A			engine/behavior		src/engine/behavior/scriptMessages.test.ts	script message bus reports missing target and missing handler
+tools/engine-tests.ts	5620	check	A			engine/behavior		src/engine/behavior/scriptMessages.test.ts	script message bus keeps dispatch target-indexed under many subscribers
+tools/engine-tests.ts	5643	check	A			engine/behavior		src/engine/behavior/scriptMessages.test.ts	script message bus can disable recent debug trace
+tools/engine-tests.ts	5658	check	A			engine/behavior		src/engine/behavior/scriptMessages.test.ts	script message bus guards recursive flush while allowing queued follow-up messages
 tools/engine-tests.ts	5685	check	M			engine/behavior,engine/input,engine/scene	model:engine/scene		behavior context routes messages through world query, message bindings, and state
-tools/engine-tests.ts	5798	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior		behavior persistent state snapshots only include opt-in keys and can restore
-tools/engine-tests.ts	5842	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior		behavior resetEntityTransform updates the runtime transform before the next tick
+tools/engine-tests.ts	5798	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	behavior persistent state snapshots only include opt-in keys and can restore
+tools/engine-tests.ts	5842	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	behavior resetEntityTransform updates the runtime transform before the next tick
 tools/engine-tests.ts	5879	check	M			engine/behavior,engine/input,engine/scene	model:engine/scene		behavior world resolves direct actor references and rebuilds query indexes
 tools/engine-tests.ts	5984	check	M			engine/scene	model:engine/scene		transform direction helpers rotate actor local axes without render imports
-tools/engine-tests.ts	5997	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior		behavior world exposes read-only transform snapshots, distance and direction vectors
+tools/engine-tests.ts	5997	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	behavior world exposes read-only transform snapshots, distance and direction vectors
 tools/engine-tests.ts	6064	check	M			engine/behavior,engine/input,engine/scene	model:engine/scene		behavior subsystem exposes script debug warnings, trace, and actor inspect data
 tools/engine-tests.ts	6169	check	M			engine/behavior,engine/input,engine/scene	model:engine/scene		behavior subsystem smoke: 1000 actors receive 1000 targeted script messages
 tools/engine-tests.ts	6247	check	M			engine/behavior,engine/input,engine/scene	model:engine/scene		behavior event bindings run beginPlay, tick, and externally emitted interact
@@ -1889,8 +1889,8 @@ tools/engine-tests.ts	7789	checkAsync	R			engine/physics,engine/scene	three:thre
 tools/engine-tests.ts	7810	checkAsync	R			engine/physics,engine/scene	three:three		rapier vehicle route driver stops at the end of a route that ends and parks
 tools/engine-tests.ts	7824	checkAsync	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	rapier camera trace stops at static walls and passes moving, sensor and camera-ignoring bodies
 tools/engine-tests.ts	7861	checkAsync	A	yes		engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/vehicle/vehicleTypes.test.ts	rapier vehicle aerodynamics slow a coasting chassis and compress suspension with downforce
-tools/engine-tests.ts	7889	check	A	yes		engine/behavior,engine/core,engine/input,engine/physics	boundary-model:engine/behavior,boundary-model:engine/physics,boundary-three-math:engine/physics		behavior can react to physics contacts from the engine tick
-tools/engine-tests.ts	7940	check	A	yes		engine/audio,engine/behavior,engine/core,engine/input,engine/physics	boundary-model:engine/behavior,boundary-model:engine/physics,boundary-three-math:engine/physics		audio subsystem records one-shot requests from a collision behavior
+tools/engine-tests.ts	7889	check	A	yes		engine/behavior,engine/core,engine/input,engine/physics	boundary-model:engine/behavior,boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.checks.test.ts	behavior can react to physics contacts from the engine tick
+tools/engine-tests.ts	7940	check	D	yes		engine/audio,engine/behavior,engine/core,engine/input,engine/physics	dropped:K12 audio component (BehaviorContext.audioComponent)		audio subsystem records one-shot requests from a collision behavior
 tools/engine-tests.ts	7997	check	M			engine/audio,engine/behavior,engine/core,engine/input,engine/physics,src	model:src		collision-chime behavior: fresh scene registry lets the same entity id play again
 tools/engine-tests.ts	8049	check	M			engine/input,src	model:src		keyboard input source feeds raw codes into the action map
 tools/engine-tests.ts	8099	check	M			engine/scene	model:engine/scene		scene model represents mesh + light + metadata + transform hierarchy
@@ -2042,28 +2042,28 @@ tools/engine-tests.ts	12076	check	M			engine/audio,engine/behavior,engine/core,e
 tools/engine-tests.ts	12121	check	M			engine/behavior,engine/core,engine/input,engine/physics,engine/scene,src	model:engine/scene,model:src		checkpoint behavior: defaults to the quick slot
 tools/engine-tests.ts	12158	check	M			engine/audio,engine/behavior,engine/core,engine/input,engine/physics,src	model:src		collectible behavior: collected once on contact, persists the flag
 tools/engine-tests.ts	12210	check	M			engine/behavior,engine/core,engine/input,engine/physics,src	model:src		collectible behavior: a restored collected flag re-hides the pickup without contact
-tools/engine-tests.ts	12257	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: setVisibility reaches the host sink at end of tick
-tools/engine-tests.ts	12292	check	A	yes		engine/behavior,engine/core,engine/input,engine/physics	boundary-model:engine/behavior,boundary-model:engine/physics,boundary-three-math:engine/physics		actor command: destroy cuts subsequent ticks, contacts and messages
-tools/engine-tests.ts	12364	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: persisted destroy + hide re-apply on a snapshot restore
-tools/engine-tests.ts	12430	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: setCollisionEnabled reaches the host sink at end of tick
+tools/engine-tests.ts	12257	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	actor command: setVisibility reaches the host sink at end of tick
+tools/engine-tests.ts	12292	check	A	yes		engine/behavior,engine/core,engine/input,engine/physics	boundary-model:engine/behavior,boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.checks.test.ts	actor command: destroy cuts subsequent ticks, contacts and messages
+tools/engine-tests.ts	12364	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	actor command: persisted destroy + hide re-apply on a snapshot restore
+tools/engine-tests.ts	12430	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	actor command: setCollisionEnabled reaches the host sink at end of tick
 tools/engine-tests.ts	12466	check	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem: setEntityCollisionEnabled toggles contacts and blockers
-tools/engine-tests.ts	12520	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: persisted collision-disable re-applies on a snapshot restore
-tools/engine-tests.ts	12580	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: setTickInterval throttles ticks and passes accumulated dt
-tools/engine-tests.ts	12620	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: setTickEnabled gates the tick binding, re-enable resumes
-tools/engine-tests.ts	12659	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		world.velocityOf delegates to the wired provider and is null otherwise
+tools/engine-tests.ts	12520	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	actor command: persisted collision-disable re-applies on a snapshot restore
+tools/engine-tests.ts	12580	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	actor command: setTickInterval throttles ticks and passes accumulated dt
+tools/engine-tests.ts	12620	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	actor command: setTickEnabled gates the tick binding, re-enable resumes
+tools/engine-tests.ts	12659	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	world.velocityOf delegates to the wired provider and is null otherwise
 tools/engine-tests.ts	12701	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement subsystem exposes last-frame velocity from applied motion
 tools/engine-tests.ts	12741	check	M			engine/behavior,engine/core,engine/input,engine/scene	model:engine/scene		owner/instigator: spawned actor resolves its spawner; unowned + owner-death read null
 tools/engine-tests.ts	12802	check	M			engine/behavior,engine/core,engine/input,src	model:src		damage convention: apply-damage subtracts health, then Damage.Died + destroy
 tools/engine-tests.ts	12857	check	M			engine/behavior,engine/core,engine/input,engine/physics,src	model:src		damage convention: damage-zone overlap deals Damage.Apply to the touched actor
-tools/engine-tests.ts	12900	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: addImpulse/launch reach the host sink at end of tick
+tools/engine-tests.ts	12900	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	actor command: addImpulse/launch reach the host sink at end of tick
 tools/engine-tests.ts	12942	check	A	yes		engine/input,engine/movement	boundary-model:engine/movement	src/engine/movement/characterMovementSubsystem.test.ts	CharacterMovement launch: upward launch arcs and lands; horizontal knockback decays
-tools/engine-tests.ts	12991	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: attachTo makes a child follow its parent; detach stops it
-tools/engine-tests.ts	13048	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior		actor command: attachTo orbits a keepWorld child and snaps a snapToTarget child
-tools/engine-tests.ts	13108	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior		script timers: after delivers one self-targeted message
-tools/engine-tests.ts	13147	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior		script timers: clear prevents delivery and setEntities drops pending timers
-tools/engine-tests.ts	13205	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior		script timers: disabled subsystem does not advance timer time
-tools/engine-tests.ts	13246	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior		actor command: setLifeSpan destroys through the actor command sink
-tools/engine-tests.ts	13291	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior		actor command: spawn delivers a cloned host request
+tools/engine-tests.ts	12991	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	actor command: attachTo makes a child follow its parent; detach stops it
+tools/engine-tests.ts	13048	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	actor command: attachTo orbits a keepWorld child and snaps a snapToTarget child
+tools/engine-tests.ts	13108	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	script timers: after delivers one self-targeted message
+tools/engine-tests.ts	13147	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	script timers: clear prevents delivery and setEntities drops pending timers
+tools/engine-tests.ts	13205	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	script timers: disabled subsystem does not advance timer time
+tools/engine-tests.ts	13246	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	actor command: setLifeSpan destroys through the actor command sink
+tools/engine-tests.ts	13291	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	actor command: spawn delivers a cloned host request
 tools/engine-tests.ts	13350	check	M			engine/behavior,engine/core,engine/input,engine/physics,engine/scene	model:engine/scene		runtime spawn: addEntity joins behavior, physics, messages and destroy cleanup
 tools/engine-tests.ts	13448	check	M			engine/behavior,engine/input,src	model:src		proximity-toggle behavior emits edges from ScriptWorld distance queries
 tools/engine-tests.ts	13496	check	M			src	model:src		stepInteractionTrigger: fires on a fresh enter, not while held, re-fires on re-enter
