@@ -436,7 +436,7 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       (asset de araç da). İki dizin üreticisi ve Kenney dizini GameDesign
       klasörüne taşındı (`tools/`, `docs/kenney/`), Forge'dan kaldırıldı
       (Forge `92a709aa`). PORT_LOG INV-H25 "taşınmaz".
-- [ ] **İçe aktarıcı** `tools/import-forge-webgl`: level, hücreler, foliage,
+- [x] **İçe aktarıcı** `tools/import-forge-webgl`: level, hücreler, foliage,
       sidecar'lar → yeni format; terrain tile'ları olduğu gibi. Çevrilemeyen
       alan raporlanır. Referans level'lar ve starter content bununla gelir;
       referans level'lar depo dışı yerel içerik projesine yazılır, starter
@@ -509,11 +509,25 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       `content/ridgebound/`, ortak kimlikler yeniden kullanılır). 7 level, 4 terrain,
       27 model, 44 doku, 188 MB; asset dizini 0 sorun, başsız açılış 2,1 s.
       Yeniden çalıştırma komutları referans klasörünün README'sinde.
-- [ ] **İçe aktarıcının kabulü:** her eski tür için küçük fixture + beklenen
+- [x] **İçe aktarıcının kabulü:** her eski tür için küçük fixture + beklenen
       çıktı testi; referans level'larda kaynak ve hedef arasında tür başına
       sayım karşılaştırması (aktör, bileşen, foliage örneği, hücre) ve
       çevrilemeyen alan raporu. Fark açıklanmadan kapı geçilmez; görsel
       eşdeğerlik Faz 3 kapısında.
+      *Yapıldı (2026-11-12):* fixture testleri `src/engine/forgeImport/forgeLevel.test.ts`
+      (level, hücre, landscape / terrain, Height Fog, shape / model / Player Start,
+      bilinmeyen alan) ve `tools/import-forge-webgl/import.test.ts` (World Builder
+      yan dosyaları, model / doku / ses, materyal zinciri, köken tablosu, K12,
+      Kenney, paket kipi, yeniden çalıştırma). `import:forge --compare` yazılan
+      level'ı kaynağından bağımsız sayar (`f1851bc`); yedi referans level'da
+      yerleşim, terrain, sis, Player Start ve aktör sayıları eşit, foliage örneği
+      kaynakta da yok (yalnız 7'şer arazi kuralı → 5c). Tek fark hücrelerde, hepsi
+      açıklamalı: bölümlenmemiş kaynak level'lar konumdan atanır (A11);
+      WbPilotValley'de 45 → 46, çünkü Forge level dosyasının Player Start'ını
+      kalıcı level'da tutuyordu, yeni modelde aktör durduğu hücrede (`-1_2`).
+      Player Start'ın kalıcı katmanda olup olmayacağı Player Start özelliğiyle
+      (Faz 6) kararlaştırılır. Çevrilmeyen alan raporları referans projesinin
+      kökünde (`import-report-*.md`).
 
 ### Faz 3 — Render çekirdeği ve level görüntüleyici
 
@@ -842,3 +856,4 @@ silinebilir.
 | 2026-11-12 | v1.0 | 2b içe aktarıcı adım 3: `npm run import:forge` (köken tablosu, asset planı, level raporu, yan dosyalar yeni etiketlerle, `--force` / `--dry-run`); WbPilotValley geçici projede kapıdan geçer ve World Builder'la yeniden kurulur. A 819 / 905 |
 | 2026-11-12 | v1.0 | 2b içe aktarıcı adım 4a (kullanıcı kararları): starter paketi yalnız motor varsayılanlarıyla (28 asset, 21,8 MB; lisansı bilinmeyenler dahil), `import:forge --pack`. A 819 / 905 |
 | 2026-11-12 | v1.0 | 2b içe aktarıcı adım 4b: depo dışı referans projesi `Games/ForgeReference/webgpu-scenes` (yerel kayıtlı): 7 referans level kullandıkları asset'lerle, asset dizini 0 sorun; paylaşılan yan dosya bir kez yazılır. A 819 / 905 |
+| 2026-11-12 | v1.0 | 2b içe aktarıcı ve kabulü kutuları kapandı: `import:forge --compare` (`f1851bc`), yedi referans level'da sayımlar eşit, hücre farkları açıklamalı (bölümlenmemiş kaynak; pilotun Player Start'ı kendi hücresinde, kalıcı katman sorusu Faz 6). Çeviriciler kendi fazlarında eklenip içe aktarıcı yeniden çalıştırılır. A 819 / 905 |

@@ -407,7 +407,11 @@ features/height-fog/
   hedef fazıyla listelenir; çevirici o fazda eklenir. Aktör ve asset GUID'leri
   kaynak yol + kaynak kimlikten deterministik türer: içe aktarıcı yeniden
   çalıştırıldığında aynı GUID'leri yazar, eklenen çevirici var olan
-  başvuruları kırmaz.
+  başvuruları kırmaz. *Uygulandı (2026-11-12):* `npm run import:forge`
+  (`tools/import-forge-webgl`); `--compare` kaynak / hedef sayımı, `--pack` motor
+  içerik paketine yalnız asset. Gözlem: Forge level dosyasının kendi yerleşimleri
+  (Player Start) kalıcı level'daydı; yeni modelde aktör durduğu hücrededir
+  (Player Start'ın kalıcı katman kuralı Faz 6'da özelliğiyle).
 - Büyük ikili veri (terrain tile, global harita, foliage örnekleri) GUID'li
   asset sidecar'larında, ikili kanalla taşınır.
 - Level = kalıcı katman + hücreler. Hücre ataması aktörün konumundan türetilir;

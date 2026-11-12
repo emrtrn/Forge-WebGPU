@@ -26,7 +26,7 @@ kendini de sınar (rapor §4.2, A3).
 | `gameplay` | yeniden kullanılabilir oyun çatısı (Faz 6) | yok |
 | `editor` | editör; yalnız dinamik import, oyun bundle'ına girmez (Faz 4) | dolaylı |
 | `sdk`, `editor-sdk` | oyun projelerinin import edebildiği tek yüzey | — |
-| `tools/` (Node) | dev server, kayıt servisi, asset kapısı, başlatıcı, ölçümler | yok |
+| `tools/` (Node) | dev server, kayıt servisi, asset kapısı, başlatıcı, World Builder CLI, Forge WebGL içe aktarıcısı, ölçümler | yok |
 
 `src/core` ve `features/*/schema.ts` düz Node'da yüklenir (`verify:node-load`);
 `src/**` Node modülü import etmez.
