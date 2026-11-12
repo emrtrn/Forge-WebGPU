@@ -18,7 +18,12 @@
 //
 // Whether an actor is larger than a cell needs its bounds, which core does not
 // know; `exceedsCell` is the rule, and the editor proposes the move.
+//
+// The grid math (cell of a point, cell bounds, the wider-than-a-cell rule) is
+// the shared world grid (`core/grid/worldGrid`, Forge's, also the terrain tile
+// grid and the streaming policy's); a level grid is one with a zero origin.
 
+import { worldCellAt, worldCellBounds, worldCellForActor } from "../grid/worldGrid.ts";
 import type { ActorId } from "../id.ts";
 import {
   childPath,
@@ -74,19 +79,18 @@ export function compareCellKeys(a: string, b: string): number {
   return first.z - second.z || first.x - second.x;
 }
 
+/** The level grid is the shared world grid with its origin at the world origin. */
 export function cellAt(cellSize: number, worldX: number, worldZ: number): CellCoord {
-  return { x: Math.floor(worldX / cellSize), z: Math.floor(worldZ / cellSize) };
+  return worldCellAt({ cellSize }, worldX, worldZ);
 }
 
 export function cellBounds(cellSize: number, coord: CellCoord): CellBounds {
-  const minX = coord.x * cellSize;
-  const minZ = coord.z * cellSize;
-  return { minX, minZ, maxX: minX + cellSize, maxZ: minZ + cellSize };
+  return worldCellBounds({ cellSize }, coord.x, coord.z);
 }
 
 /** An actor whose X/Z footprint is larger than a cell belongs in the persistent layer (A11). */
 export function exceedsCell(cellSize: number, footprint: { readonly width: number; readonly depth: number }): boolean {
-  return footprint.width > cellSize || footprint.depth > cellSize;
+  return worldCellForActor({ cellSize }, [0, 0], { width: footprint.width, depth: footprint.depth }) === null;
 }
 
 export interface CellAssignOptions extends NormalizeOptions {

@@ -8,7 +8,7 @@ import {
   type WorldCellBounds,
   type WorldCellCoord,
   type WorldGridDef,
-} from "./worldGrid.ts";
+} from "../../core/grid/worldGrid.ts";
 
 export interface StreamingSource {
   position: readonly [number, number];

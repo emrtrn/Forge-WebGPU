@@ -1,8 +1,10 @@
 // Ported from Forge WebGL tests/engine/terrainLod.test.ts @ forge-webgl-final (04b5fb23): checks unchanged, run by
-// Vitest; 1 check(s) not yet portable left out. docs/PORT_LOG.md §2.
+// Vitest; whole file. docs/PORT_LOG.md §2.
 import assert from "node:assert/strict";
+import { distanceToWorldCell } from "../../core/grid/worldGrid.ts";
 import { TERRAIN_LOD_MAX_DETAIL_LEVELS, TerrainLodSelector, createTerrainLodSettings, terrainLodDetailMorphRange, terrainLodMorphRanges, terrainLodRanges, terrainMorphFactor, terrainResidentTileKeys, type TerrainLodDetail, type TerrainLodNode, type TerrainLodWorld, type TerrainNodeHeights, validateTerrainLodRange } from "./terrainLod.ts";
 import { TerrainSlotPool } from "./terrainSlotPool.ts";
+import { parseTileKey } from "./terrainTypes.ts";
 import { test } from "vitest";
 
 
@@ -304,6 +306,30 @@ export function registerTerrainLodTests(check: Check): void {
       }
     }
     assert.ok(tileFallbacks > 0 && fineNodes > 0);
+  });
+
+  check("terrain LOD: radius four includes 67 interior tiles in near-to-far order", () => {
+    const large = { ...world, tilesX: 32, tilesZ: 32 };
+    const settings = createTerrainLodSettings(large);
+    const camera = [large.origin[0] + 16.3 * 256, 5000, large.origin[2] + 16.3 * 256] as const;
+    const keys = terrainResidentTileKeys(large, settings, camera);
+    assert.equal(keys.length, 67);
+    assert.equal(new Set(keys).size, 67);
+    const grid = { cellSize: 256, origin: [large.origin[0], large.origin[2]] as const };
+    let previous = -1;
+    for (const key of keys) {
+      const { x, z } = parseTileKey(key)!;
+      const distance = distanceToWorldCell(grid, x, z, camera[0], camera[2]);
+      assert.ok(distance >= previous && distance <= 4 * 256);
+      previous = distance;
+    }
+    // 67 is an area estimate, not a cap: a camera at the tile centre needs 69.
+    assert.equal(terrainResidentTileKeys(large, settings, [large.origin[0] + 16.5 * 256, 0, large.origin[2] + 16.5 * 256]).length, 69);
+    assert.ok(terrainResidentTileKeys(large, settings, large.origin).every((key) => {
+      const coord = parseTileKey(key)!;
+      return coord.x >= 0 && coord.z >= 0 && coord.x < 32 && coord.z < 32;
+    }));
+    assert.deepEqual(terrainResidentTileKeys(large, settings, [1e6, 0, 1e6]), []);
   });
 
   check("terrain LOD: relief validation flags ratio three and accepts four through H/size 1.41", () => {

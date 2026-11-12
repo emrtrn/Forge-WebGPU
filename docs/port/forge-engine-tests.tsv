@@ -817,22 +817,22 @@ tests/engine/streamedActorState.test.ts	9	check	A			engine/world			streamed acto
 tests/engine/streamedActorState.test.ts	20	check	A			engine/world			streamed actor state: only a moved body is remembered and take consumes it	
 tests/engine/streamedActorState.test.ts	33	check	A			engine/world			streamed actor state: a car left on its handbrake at home is still remembered	
 tests/engine/streamedActorState.test.ts	41	check	A			engine/world			streamed actor state: saved vehicles are parked and cached cars export at rest	
-tests/engine/streamingPolicy.test.ts	20	check	A			engine/world			streaming policy: box-distance range edges are inclusive, including corners and negatives	
-tests/engine/streamingPolicy.test.ts	38	check	A			engine/world			streaming policy: prefetch and activation split, and activation waits for completed loads	
-tests/engine/streamingPolicy.test.ts	51	check	A			engine/world			streaming policy: activation defaults to load range and is clamped to it	
-tests/engine/streamingPolicy.test.ts	61	check	A			engine/world			streaming policy: loaded hysteresis survives crossing the boundary and returning	
-tests/engine/streamingPolicy.test.ts	73	check	A			engine/world			streaming policy: active hysteresis deactivates into prefetch before unloading	
-tests/engine/streamingPolicy.test.ts	89	check	A			engine/world			streaming policy: velocity-ahead ordering works on both axes and is speed independent	
-tests/engine/streamingPolicy.test.ts	106	check	A			engine/world			streaming policy: nearest cells precede distant cells and ties use deterministic keys	
-tests/engine/streamingPolicy.test.ts	115	check	A			engine/world			streaming policy: two sources union without duplicates and retain each other's cells	
-tests/engine/streamingPolicy.test.ts	128	check	A			engine/world			streaming policy: source priority bias raises only qualifying cells	
-tests/engine/streamingPolicy.test.ts	135	check	A			engine/world			streaming policy: world-corner clipping excludes cells that only touch the outer edge	
-tests/engine/streamingPolicy.test.ts	147	check	A			engine/world			streaming policy: shifted grids and partial edge cells respect world bounds	
-tests/engine/streamingPolicy.test.ts	155	check	A			engine/world			streaming policy: quality multiplier scales load, activation and hysteresis, not cell size	
-tests/engine/streamingPolicy.test.ts	169	check	A			engine/world			streaming policy: no sources releases residency and decisions do not mutate inputs	
-tests/engine/streamingPolicy.test.ts	182	check	A			engine/world			streaming policy: seeded random walk preserves Activated subset Loaded with budgeted work	
-tests/engine/streamingPolicy.test.ts	220	check	A			engine/world			streaming policy: budget takes an ordered prefix and defers all excess work	
-tests/engine/streamingPolicy.test.ts	243	check	A			engine/world			streaming policy: invalid unbounded-loop inputs and negative budgets are rejected	
+tests/engine/streamingPolicy.test.ts	20	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: box-distance range edges are inclusive, including corners and negatives	
+tests/engine/streamingPolicy.test.ts	38	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: prefetch and activation split, and activation waits for completed loads	
+tests/engine/streamingPolicy.test.ts	51	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: activation defaults to load range and is clamped to it	
+tests/engine/streamingPolicy.test.ts	61	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: loaded hysteresis survives crossing the boundary and returning	
+tests/engine/streamingPolicy.test.ts	73	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: active hysteresis deactivates into prefetch before unloading	
+tests/engine/streamingPolicy.test.ts	89	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: velocity-ahead ordering works on both axes and is speed independent	
+tests/engine/streamingPolicy.test.ts	106	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: nearest cells precede distant cells and ties use deterministic keys	
+tests/engine/streamingPolicy.test.ts	115	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: two sources union without duplicates and retain each other's cells	
+tests/engine/streamingPolicy.test.ts	128	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: source priority bias raises only qualifying cells	
+tests/engine/streamingPolicy.test.ts	135	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: world-corner clipping excludes cells that only touch the outer edge	
+tests/engine/streamingPolicy.test.ts	147	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: shifted grids and partial edge cells respect world bounds	
+tests/engine/streamingPolicy.test.ts	155	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: quality multiplier scales load, activation and hysteresis, not cell size	
+tests/engine/streamingPolicy.test.ts	169	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: no sources releases residency and decisions do not mutate inputs	
+tests/engine/streamingPolicy.test.ts	182	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: seeded random walk preserves Activated subset Loaded with budgeted work	
+tests/engine/streamingPolicy.test.ts	220	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: budget takes an ordered prefix and defers all excess work	
+tests/engine/streamingPolicy.test.ts	243	check	A			engine/world		src/engine/world/streamingPolicy.test.ts	streaming policy: invalid unbounded-loop inputs and negative budgets are rejected	
 tests/engine/sunCascadeShadow.test.ts	79	check	R			engine/render-three	three-via:engine/render-three,three:three		sun cascade shadow: three's lighting chunk still carries the anchors the patch needs	
 tests/engine/sunCascadeShadow.test.ts	92	check	R			engine/render-three	three-via:engine/render-three		sun cascade shadow: terrain levels keep the lit terrain within the GPU's texture units	
 tests/engine/sunCascadeShadow.test.ts	108	check	R			engine/render-three	three-via:engine/render-three,three:three		sun cascade shadow: cascades replace the sun in the render and hand it back	
@@ -911,9 +911,9 @@ tests/engine/terrain.test.ts	287	check	A			engine/terrain		src/engine/terrain/te
 tests/engine/terrain.test.ts	299	check	A			engine/terrain		src/engine/terrain/terrain.test.ts	terrain raycast: a NaN at any coarse cell corner preserves the hole	
 tests/engine/terrain.test.ts	312	check	A			engine/terrain		src/engine/terrain/terrain.test.ts	terrain raycast: a coarse map leaves resident hits identical, including seams	
 tests/engine/terrain.test.ts	331	check	A			engine/terrain		src/engine/terrain/terrain.test.ts	terrain raycast: passes above an unloaded tile before hitting a resident tile	
-tests/engine/terrain.test.ts	344	check	A			engine/world			world grid: cell lookup owns boundaries by their min edge, negatives included	
-tests/engine/terrain.test.ts	354	check	A			engine/world			world grid: cells in radius are complete and nearest first	
-tests/engine/terrain.test.ts	376	check	A			engine/world			world grid: actors wider than a cell stay persistent	
+tests/engine/terrain.test.ts	344	check	A			engine/world		src/engine/terrain/terrain.test.ts	world grid: cell lookup owns boundaries by their min edge, negatives included	
+tests/engine/terrain.test.ts	354	check	A			engine/world		src/engine/terrain/terrain.test.ts	world grid: cells in radius are complete and nearest first	
+tests/engine/terrain.test.ts	376	check	A			engine/world		src/engine/terrain/terrain.test.ts	world grid: actors wider than a cell stay persistent	
 tests/engine/terrain.test.ts	394	checkAsync	A			engine/physics,engine/terrain		src/engine/terrain/terrain.test.ts	terrain rapier: heightfield collider surface equals terrainHeightAt (K3a)	
 tests/engine/terrainAutoPaint.test.ts	55	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/terrainAutoPaint.test.ts	terrain auto paint: band is full inside, smoothstep falloff outside, hard edge at 0	
 tests/engine/terrainAutoPaint.test.ts	65	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/terrainAutoPaint.test.ts	terrain auto paint: noise only breaks up covered ground, never adds outside it	
@@ -1036,7 +1036,7 @@ tests/engine/terrainLod.test.ts	208	check	A			engine/terrain		src/engine/terrain
 tests/engine/terrainLod.test.ts	236	check	A			engine/terrain		src/engine/terrain/terrainLod.test.ts	terrain LOD: mountainous neighbours differ by at most one across 180 seeded cameras	
 tests/engine/terrainLod.test.ts	255	check	A			engine/terrain		src/engine/terrain/terrainLod.test.ts	terrain LOD: ranges double and morph matches the shader at start, midpoint and end	
 tests/engine/terrainLod.test.ts	289	check	A			engine/terrain		src/engine/terrain/terrainLod.test.ts	terrain LOD: residency covers every slot node; fully morphed tile nodes use the global map	
-tests/engine/terrainLod.test.ts	321	check	A			engine/terrain,engine/world			terrain LOD: radius four includes 67 interior tiles in near-to-far order	
+tests/engine/terrainLod.test.ts	321	check	A			engine/terrain,engine/world		src/engine/terrain/terrainLod.test.ts	terrain LOD: radius four includes 67 interior tiles in near-to-far order	
 tests/engine/terrainLod.test.ts	345	check	A			engine/terrain		src/engine/terrain/terrainLod.test.ts	terrain LOD: relief validation flags ratio three and accepts four through H/size 1.41	
 tests/engine/terrainLod.test.ts	359	check	A			engine/terrain		src/engine/terrain/terrainLod.test.ts	terrain LOD: non-square edges, visibility injection and distant roots preserve coverage	
 tests/engine/terrainLod.test.ts	383	check	A			engine/terrain		src/engine/terrain/terrainLod.test.ts	terrain slots: release and re-acquire reuse cached data without evicting active slots	

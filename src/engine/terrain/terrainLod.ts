@@ -1,5 +1,5 @@
 // Ported from Forge WebGL engine/terrain/terrainLod.ts @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
-import { worldCellsInRadius } from "../world/worldGrid.ts";
+import { worldCellsInRadius } from "../../core/grid/worldGrid.ts";
 import { terrainTileWorldSize, tileKey, type WorldTerrainDef } from "./terrainTypes.ts";
 
 /** CDLOD selection in world coordinates; level 0 is one patch over a leaf. */

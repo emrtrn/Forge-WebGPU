@@ -1,7 +1,8 @@
 /** World Terrain data model, tile codec, CPU queries, legacy conversion and World Partition grid math. */
 // Ported from Forge WebGL tests/engine/terrain.test.ts @ forge-webgl-final (04b5fb23): checks unchanged, run by
-// Vitest; 3 check(s) not yet portable left out. docs/PORT_LOG.md §2.
+// Vitest; whole file. docs/PORT_LOG.md §2.
 import assert from "node:assert/strict";
+import { distanceToWorldCell, parseWorldCellKey, worldCellAt, worldCellForActor, worldCellKey, worldCellsInRadius } from "../../core/grid/worldGrid.ts";
 import { type Vec3 } from "../legacy/layout.ts";
 import { terrainTileHeightfieldShape } from "../physics/terrainCollider.ts";
 import { buildTerrainGlobalMap } from "./terrainGlobalMap.ts";
@@ -313,6 +314,45 @@ export function registerTerrainTests(check: Check): void {
     assert.equal(hit.approximate, undefined);
     close(hit.point[0], 60);
     assert.deepEqual(hit, exact);
+  });
+
+  check("world grid: cell lookup owns boundaries by their min edge, negatives included", () => {
+    const grid = { cellSize: 128 };
+    assert.deepEqual(worldCellAt(grid, 0, 0), { x: 0, z: 0 });
+    assert.deepEqual(worldCellAt(grid, 128, 127.9), { x: 1, z: 0 });
+    assert.deepEqual(worldCellAt(grid, -0.01, -128), { x: -1, z: -1 });
+    assert.deepEqual(worldCellAt({ cellSize: 100, origin: [50, -50] }, 49, -50), { x: -1, z: 0 });
+    assert.equal(worldCellKey(-2, 5), "-2_5");
+    assert.deepEqual(parseWorldCellKey("-2_5"), { x: -2, z: 5 });
+  });
+
+  check("world grid: cells in radius are complete and nearest first", () => {
+    const grid = { cellSize: 100 };
+    assert.deepEqual(worldCellsInRadius(grid, 50, 50, 0), [{ x: 0, z: 0 }]);
+    assert.equal(worldCellsInRadius(grid, 0, 0, 0).length, 4, "a corner point touches four cells");
+    const cells = worldCellsInRadius(grid, 50, 50, 150);
+    assert.deepEqual(cells[0], { x: 0, z: 0 });
+    for (const cell of cells) assert.ok(distanceToWorldCell(grid, cell.x, cell.z, 50, 50) <= 150);
+    const all = new Set(cells.map((cell) => worldCellKey(cell.x, cell.z)));
+    for (let z = -3; z <= 3; z += 1) {
+      for (let x = -3; x <= 3; x += 1) {
+        assert.equal(all.has(worldCellKey(x, z)), distanceToWorldCell(grid, x, z, 50, 50) <= 150, `${x},${z}`);
+      }
+    }
+    let previous = 0;
+    for (const cell of cells) {
+      const distance = distanceToWorldCell(grid, cell.x, cell.z, 50, 50);
+      assert.ok(distance >= previous);
+      previous = distance;
+    }
+    assert.deepEqual(worldCellsInRadius(grid, 0, 0, -1), []);
+  });
+
+  check("world grid: actors wider than a cell stay persistent", () => {
+    const grid = { cellSize: 128 };
+    assert.deepEqual(worldCellForActor(grid, [300, -10]), { x: 2, z: -1 });
+    assert.deepEqual(worldCellForActor(grid, [300, -10], { width: 20, depth: 128 }), { x: 2, z: -1 });
+    assert.equal(worldCellForActor(grid, [300, -10], { width: 200, depth: 4 }), null);
   });
 }
 
