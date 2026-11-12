@@ -51,19 +51,26 @@ const VALLEY_SIDE_DEG = 12;
 export const ROAD_NETWORKS = ["between", "exits"] as const;
 export type RoadNetwork = (typeof ROAD_NETWORKS)[number];
 
-/** Ground covers Forge ships (`groundCover.ts`), by name. */
+/**
+ * Ground covers the engine ships (`groundCover.ts`), by name: asset index labels of the
+ * `worldbuilder` content pack (Forge WebGL: `assets/world-builder/covers/`; plan 2b).
+ */
 export const COVERS = {
-  forest: "assets/world-builder/covers/forest.cover.json",
-  meadow: "assets/world-builder/covers/meadow.cover.json",
-  farmland: "assets/world-builder/covers/farmland.cover.json",
-  steppe: "assets/world-builder/covers/steppe.cover.json",
-  desert: "assets/world-builder/covers/desert.cover.json",
-  alpine: "assets/world-builder/covers/alpine.cover.json",
+  forest: "engine:content/packs/worldbuilder/covers/forest.cover.json",
+  meadow: "engine:content/packs/worldbuilder/covers/meadow.cover.json",
+  farmland: "engine:content/packs/worldbuilder/covers/farmland.cover.json",
+  steppe: "engine:content/packs/worldbuilder/covers/steppe.cover.json",
+  desert: "engine:content/packs/worldbuilder/covers/desert.cover.json",
+  alpine: "engine:content/packs/worldbuilder/covers/alpine.cover.json",
 } as const;
 export type CoverName = keyof typeof COVERS;
 
-/** Region profile a random world uses unless told otherwise (Forge's pilot profile). */
-export const DEFAULT_REGION_PROFILE = "assets/world-builder/Levels/WbPilotValley.regionprofile.json";
+/**
+ * Region profile a random world uses unless told otherwise: the neutral profile
+ * of the `worldbuilder` content pack (Forge WebGL used its pilot game's profile;
+ * a profile is game data, plan 2b).
+ */
+export const DEFAULT_REGION_PROFILE = "engine:content/packs/worldbuilder/profiles/neutral.regionprofile.json";
 
 /** Forge's starter nature models: rocks by where they lie, conifers, bushes, grass. */
 export const DEFAULT_NATURE_MODELS: readonly BriefModel[] = [

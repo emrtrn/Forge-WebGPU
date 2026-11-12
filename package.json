@@ -17,6 +17,8 @@
     "bench:level": "node --expose-gc tools/bench-level.ts",
     "forge": "node tools/forge.ts",
     "create-project": "node tools/create-project.ts",
+    "world:random": "node tools/world-random.ts",
+    "world:brief": "node tools/world-brief.ts",
     "check:projects": "node tools/check-projects.ts",
     "sdk:snapshot": "node tools/sdk-api.ts write",
     "verify:sdk-api": "node tools/sdk-api.ts verify",
