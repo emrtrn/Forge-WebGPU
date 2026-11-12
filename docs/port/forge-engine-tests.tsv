@@ -851,19 +851,19 @@ tests/engine/sunCascades.test.ts	189	check	M			engine/world	model:engine/world		
 tests/engine/sunCascades.test.ts	197	check	M			engine/perf,engine/world	model:engine/world		sun cascades: quality profiles carry the approved cascade counts
 tests/engine/sunFollowShadow.test.ts	31	check	R			engine/render-three	three-via:engine/render-three,three:three		sun follow shadow: re-centres ahead of the camera without turning the light
 tests/engine/sunFollowShadow.test.ts	53	check	R			engine/render-three	three-via:engine/render-three,three:three		sun follow shadow: sub-texel camera motion keeps the frustum still
-tests/engine/surfaceResponse.test.ts	32	check	A	yes		engine/physics	boundary-model:engine/physics		soft ground speed: progressive entry drag fades with soft participation and preserves launch
-tests/engine/surfaceResponse.test.ts	49	check	A	yes		engine/physics	boundary-model:engine/physics		soft ground launch: mud preserves a finite depth threshold while rolling builds with speed
-tests/engine/surfaceResponse.test.ts	65	check	A	yes		engine/physics	boundary-model:engine/physics		soft ground resistance: depth and load increase ploughing below belly contact, with finite breakaway
-tests/engine/surfaceResponse.test.ts	83	check	A			engine/physics			soft ground resistance: impulse dissipates energy and cannot reverse relative contact motion
-tests/engine/surfaceResponse.test.ts	94	check	A			engine/physics			wheel traction: longitudinal grip caps drive symmetrically and wheelspin slews and brakes
+tests/engine/surfaceResponse.test.ts	32	check	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/surfaceResponse.test.ts	soft ground speed: progressive entry drag fades with soft participation and preserves launch
+tests/engine/surfaceResponse.test.ts	49	check	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/surfaceResponse.test.ts	soft ground launch: mud preserves a finite depth threshold while rolling builds with speed
+tests/engine/surfaceResponse.test.ts	65	check	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/surfaceResponse.test.ts	soft ground resistance: depth and load increase ploughing below belly contact, with finite breakaway
+tests/engine/surfaceResponse.test.ts	83	check	A			engine/physics		src/engine/physics/surface/surfaceResponse.test.ts	soft ground resistance: impulse dissipates energy and cannot reverse relative contact motion
+tests/engine/surfaceResponse.test.ts	94	check	A			engine/physics		src/engine/physics/surface/surfaceResponse.test.ts	wheel traction: longitudinal grip caps drive symmetrically and wheelspin slews and brakes
 tests/engine/surfaceResponse.test.ts	115	check	M			engine/physics,engine/scene	model:engine/scene		surface response: missing blocks and unknown ids are neutral
-tests/engine/surfaceResponse.test.ts	130	check	A	yes		engine/physics	boundary-model:engine/physics		surface response: blends normalised weights including neutral layers
-tests/engine/surfaceResponse.test.ts	152	check	A	yes		engine/physics	boundary-model:engine/physics		surface response: empty and invalid weights are neutral
-tests/engine/surfaceResponse.test.ts	159	check	A	yes		engine/physics	boundary-model:engine/physics		surface response: two material boundary is continuous with exact endpoints
-tests/engine/surfaceResponse.test.ts	172	check	A	yes		engine/physics	boundary-model:engine/physics		surface response: wheel scales compose with drive stiffness and never accumulate
-tests/engine/surfaceResponse.test.ts	187	check	A	yes		engine/physics	boundary-model:engine/physics		surface response: rolling brake ramps with speed and load in either direction
+tests/engine/surfaceResponse.test.ts	130	check	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/surfaceResponse.test.ts	surface response: blends normalised weights including neutral layers
+tests/engine/surfaceResponse.test.ts	152	check	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/surfaceResponse.test.ts	surface response: empty and invalid weights are neutral
+tests/engine/surfaceResponse.test.ts	159	check	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/surfaceResponse.test.ts	surface response: two material boundary is continuous with exact endpoints
+tests/engine/surfaceResponse.test.ts	172	check	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/surfaceResponse.test.ts	surface response: wheel scales compose with drive stiffness and never accumulate
+tests/engine/surfaceResponse.test.ts	187	check	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/surfaceResponse.test.ts	surface response: rolling brake ramps with speed and load in either direction
 tests/engine/surfaceResponse.test.ts	200	check	M			engine/physics,engine/scene	model:engine/scene		surface response: default provider reads collider ids inherited from assets or placements
-tests/engine/surfaceResponse.test.ts	236	checkAsync	A	yes		engine/physics	boundary-model:engine/physics		vehicle telemetry rapier: demand, delivered impulse and soil capacity remain separate
+tests/engine/surfaceResponse.test.ts	236	checkAsync	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/surfaceResponse.test.ts	vehicle telemetry rapier: demand, delivered impulse and soil capacity remain separate
 tests/engine/surfaceResponse.test.ts	330	checkAsync	M			engine/physics,engine/scene	model:engine/scene		soft ground speed rapier: stock truck sheds road speed on mud and snow with throttle on or off
 tests/engine/surfaceResponse.test.ts	340	checkAsync	M			engine/physics,engine/scene	model:engine/scene		soft ground speed rapier: cruise stays in 10-20 km/h and coasting stops promptly at 30/60/144 Hz
 tests/engine/surfaceResponse.test.ts	362	checkAsync	M			engine/physics,engine/scene	model:engine/scene		soft ground launch rapier: stock GAZ-52 restarts on a 5 degree mud incline including old rear ruts
@@ -875,16 +875,16 @@ tests/engine/surfaceResponse.test.ts	426	checkAsync	M			engine/physics,engine/sc
 tests/engine/surfaceResponse.test.ts	438	checkAsync	M			engine/physics,engine/scene	model:engine/scene		soft ground resistance rapier: 60/120 Hz physics retains the same force balance
 tests/engine/surfaceResponse.test.ts	446	checkAsync	M			engine/physics,engine/scene	model:engine/scene		soft ground resistance rapier: stock GAZ-52 entry matrix covers speed, slope, throttle and reverse
 tests/engine/surfaceResponse.test.ts	469	checkAsync	M			engine/physics,engine/scene	model:engine/scene		wheel traction rapier: stock GAZ-52 spins its rear wheels on real mud and snow presets at 30/60/144 Hz
-tests/engine/surfaceResponse.test.ts	504	checkAsync	A	yes		engine/physics	boundary-model:engine/physics		wheel traction rapier: mud and snow limit straight-line thrust and spin only driven wheels, forward and reverse
-tests/engine/surfaceResponse.test.ts	548	checkAsync	A	yes		engine/physics	boundary-model:engine/physics		wheel traction rapier: stuck wheels splash while digging; brake, grip recovery and respawn clear spin
+tests/engine/surfaceResponse.test.ts	504	checkAsync	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/surfaceResponse.test.ts	wheel traction rapier: mud and snow limit straight-line thrust and spin only driven wheels, forward and reverse
+tests/engine/surfaceResponse.test.ts	548	checkAsync	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/surfaceResponse.test.ts	wheel traction rapier: stuck wheels splash while digging; brake, grip recovery and respawn clear spin
 tests/engine/surfaceResponse.test.ts	603	checkAsync	M			engine/physics,engine/scene	model:engine/scene		surface response rapier: GAZ-52 accelerates on mud without gear hunting at 30/60/144 Hz
-tests/engine/surfaceResponse.test.ts	673	checkAsync	A	yes		engine/physics	boundary-model:engine/physics		surface response rapier: no provider and neutral providers preserve the legacy speed curve exactly
-tests/engine/surfaceResponse.test.ts	684	checkAsync	A	yes		engine/physics	boundary-model:engine/physics		surface response rapier: mud mesh provider reduces acceleration under identical throttle
-tests/engine/surfaceResponse.test.ts	691	checkAsync	A	yes		engine/physics	boundary-model:engine/physics		surface response rapier: clearing a mud provider or returning null restores neutral wheel response
-tests/engine/surfaceResponse.test.ts	718	checkAsync	A			engine/physics			surface response rapier: groundEntityId and provider contacts follow the collider owner
-tests/engine/surfaceResponse.test.ts	753	checkAsync	A			engine/physics			wheel sink rapier: a constant track lowers the chassis by its depth at the slew rate and climbs back out
-tests/engine/surfaceResponse.test.ts	785	checkAsync	A			engine/physics			wheel sink rapier: the chassis bottom caps the sink and deeper mud drags on the belly
-tests/engine/surfaceResponse.test.ts	809	checkAsync	A	yes		engine/physics	boundary-model:engine/physics		wheel sink rapier: traction slip reports engine impulse the tyres could not transfer
+tests/engine/surfaceResponse.test.ts	673	checkAsync	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/surfaceResponse.test.ts	surface response rapier: no provider and neutral providers preserve the legacy speed curve exactly
+tests/engine/surfaceResponse.test.ts	684	checkAsync	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/surfaceResponse.test.ts	surface response rapier: mud mesh provider reduces acceleration under identical throttle
+tests/engine/surfaceResponse.test.ts	691	checkAsync	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/surfaceResponse.test.ts	surface response rapier: clearing a mud provider or returning null restores neutral wheel response
+tests/engine/surfaceResponse.test.ts	718	checkAsync	A			engine/physics		src/engine/physics/surface/surfaceResponse.test.ts	surface response rapier: groundEntityId and provider contacts follow the collider owner
+tests/engine/surfaceResponse.test.ts	753	checkAsync	A			engine/physics		src/engine/physics/surface/surfaceResponse.test.ts	wheel sink rapier: a constant track lowers the chassis by its depth at the slew rate and climbs back out
+tests/engine/surfaceResponse.test.ts	785	checkAsync	A			engine/physics		src/engine/physics/surface/surfaceResponse.test.ts	wheel sink rapier: the chassis bottom caps the sink and deeper mud drags on the belly
+tests/engine/surfaceResponse.test.ts	809	checkAsync	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/surfaceResponse.test.ts	wheel sink rapier: traction slip reports engine impulse the tyres could not transfer
 tests/engine/surfaceResponse.test.ts	869	checkAsync	M			engine/physics,engine/scene	model:engine/scene		wheel sink rapier: a car on mud settles into its own ruts and drives out of them without shaking
 tests/engine/surfaceResponse.test.ts	917	checkAsync	M			engine/physics,engine/scene	model:engine/scene		wheel sink rapier: driven wheels spinning on low-grip mud dig themselves in
 tests/engine/surfaceResponse.test.ts	959	checkAsync	M			engine/physics,engine/scene	model:engine/scene		wheel sink rapier: on deep mud a steady-throttle car stays clearly below its firm-ground speed
@@ -1246,7 +1246,7 @@ tests/engine/vehicleAi.test.ts	180	check	M			engine/scene	model:engine/scene		a 
 tests/engine/vehicleAi.test.ts	195	check	R			engine/physics,engine/scene,src	three-via:src,three:three		vehicle AI module drives along its spline with pure-pursuit steering and cruise pedals
 tests/engine/vehicleAi.test.ts	220	check	R			engine/physics,engine/scene,src	three-via:src,three:three		vehicle AI module waits for a missing spline and lets the player keep a car they took over
 tests/engine/vehicleAssets.test.ts	30	check	M			engine/assets,tools/saveValidator	model:tools/saveValidator		vehicle asset classification produces valid non-placeable manifest records
-tests/engine/vehicleAssets.test.ts	39	check	A			engine/physics			vehicle normalizer handles malformed JSON fields and preserves asset defaults under overrides
+tests/engine/vehicleAssets.test.ts	39	check	A			engine/physics		src/engine/physics/vehicle/vehicleAssets.test.ts	vehicle normalizer handles malformed JSON fields and preserves asset defaults under overrides
 tests/engine/vehicleAssets.test.ts	67	check	M			engine/physics,tools/droppedFields,tools/saveValidator	model:tools/droppedFields,model:tools/saveValidator		vehicle asset saves retain every normalized field and report unknown fields
 tests/engine/vehicleAssets.test.ts	79	check	M			engine/physics,tools/droppedFields,tools/saveValidator	model:tools/droppedFields,model:tools/saveValidator		vehicle wheel width: an authored tyre width saves intact; invalid widths stay absent
 tests/engine/vehicleAssets.test.ts	93	check	M			engine/physics,tools/droppedFields,tools/saveValidator	model:tools/droppedFields,model:tools/saveValidator		vehicle engine sound: the asset block saves intact, inline fields override one by one, null silences
@@ -1254,21 +1254,21 @@ tests/engine/vehicleAssets.test.ts	133	check	M			engine/physics,tools/saveValida
 tests/engine/vehicleAssets.test.ts	148	check	M			engine/physics,engine/scene,tools/droppedFields,tools/saveValidator	model:engine/scene,model:tools/droppedFields,model:tools/saveValidator		vehicle component asset and inline wheel props survive the actor save path
 tests/engine/vehicleAssets.test.ts	159	checkAsync	M			engine/scene,src	model:engine/scene,model:src		vehicle asset loader caches parallel reads and actor resolution leaves authored props intact
 tests/engine/vehicleAssets.test.ts	182	checkAsync	M			engine/scene,src	model:engine/scene,model:src		vehicle asset loader tolerates missing malformed and failed static reads
-tests/engine/vehicleDrivetrain.test.ts	34	check	A			engine/physics			vehicle drivetrain torque curve interpolates and clamps outside authored RPM points
-tests/engine/vehicleDrivetrain.test.ts	42	check	A			engine/physics			vehicle drivetrain normalizer sorts curves and enforces usable RPM and gearbox ranges
+tests/engine/vehicleDrivetrain.test.ts	34	check	A			engine/physics		src/engine/physics/vehicle/vehicleDrivetrain.test.ts	vehicle drivetrain torque curve interpolates and clamps outside authored RPM points
+tests/engine/vehicleDrivetrain.test.ts	42	check	A			engine/physics		src/engine/physics/vehicle/vehicleDrivetrain.test.ts	vehicle drivetrain normalizer sorts curves and enforces usable RPM and gearbox ranges
 tests/engine/vehicleDrivetrain.test.ts	66	check	M			engine/physics,tools/droppedFields,tools/saveValidator	model:tools/droppedFields,model:tools/saveValidator		vehicle drivetrain nested inline overrides preserve asset fields and all fields survive saves
-tests/engine/vehicleDrivetrain.test.ts	83	check	A			engine/physics			vehicle drivetrain automatic gears shift with hysteresis and respect both end gears
-tests/engine/vehicleDrivetrain.test.ts	97	check	A			engine/physics			vehicle drivetrain shift duration disconnects torque and reconnects at the slice boundary
-tests/engine/vehicleDrivetrain.test.ts	114	check	A			engine/physics			vehicle drivetrain holds a lower gear when surface drag makes an upshift unsustainable
-tests/engine/vehicleDrivetrain.test.ts	134	check	A			engine/physics			vehicle drivetrain FWD RWD and AWD split torque by axle independently of legacy drive flags
-tests/engine/vehicleDrivetrain.test.ts	149	check	A			engine/physics			vehicle drivetrain converts wheel torque by radius and preserves the total force cap
-tests/engine/vehicleDrivetrain.test.ts	161	check	A			engine/physics			vehicle drivetrain enforces idle RPM rev limit and brakes before changing direction
-tests/engine/vehicleDrivetrain.test.ts	182	check	A			engine/physics			vehicle drivetrain engine braking resists coasting in forward and reverse without propelling at rest
-tests/engine/vehicleDrivetrain.test.ts	194	check	A			engine/physics			vehicle drivetrain speed steering curve reduces both forward and reverse lock and handbrake grip restores
-tests/engine/vehicleDrivetrain.test.ts	210	check	A			engine/physics			vehicle steering rate slows with speed, returns at its own rate and counter-steers through centre
-tests/engine/vehicleDrivetrain.test.ts	234	check	A			engine/physics			vehicle steer gamma bends the wheel angle response and the AI inverse undoes it
+tests/engine/vehicleDrivetrain.test.ts	83	check	A			engine/physics		src/engine/physics/vehicle/vehicleDrivetrain.test.ts	vehicle drivetrain automatic gears shift with hysteresis and respect both end gears
+tests/engine/vehicleDrivetrain.test.ts	97	check	A			engine/physics		src/engine/physics/vehicle/vehicleDrivetrain.test.ts	vehicle drivetrain shift duration disconnects torque and reconnects at the slice boundary
+tests/engine/vehicleDrivetrain.test.ts	114	check	A			engine/physics		src/engine/physics/vehicle/vehicleDrivetrain.test.ts	vehicle drivetrain holds a lower gear when surface drag makes an upshift unsustainable
+tests/engine/vehicleDrivetrain.test.ts	134	check	A			engine/physics		src/engine/physics/vehicle/vehicleDrivetrain.test.ts	vehicle drivetrain FWD RWD and AWD split torque by axle independently of legacy drive flags
+tests/engine/vehicleDrivetrain.test.ts	149	check	A			engine/physics		src/engine/physics/vehicle/vehicleDrivetrain.test.ts	vehicle drivetrain converts wheel torque by radius and preserves the total force cap
+tests/engine/vehicleDrivetrain.test.ts	161	check	A			engine/physics		src/engine/physics/vehicle/vehicleDrivetrain.test.ts	vehicle drivetrain enforces idle RPM rev limit and brakes before changing direction
+tests/engine/vehicleDrivetrain.test.ts	182	check	A			engine/physics		src/engine/physics/vehicle/vehicleDrivetrain.test.ts	vehicle drivetrain engine braking resists coasting in forward and reverse without propelling at rest
+tests/engine/vehicleDrivetrain.test.ts	194	check	A			engine/physics		src/engine/physics/vehicle/vehicleDrivetrain.test.ts	vehicle drivetrain speed steering curve reduces both forward and reverse lock and handbrake grip restores
+tests/engine/vehicleDrivetrain.test.ts	210	check	A			engine/physics		src/engine/physics/vehicle/vehicleDrivetrain.test.ts	vehicle steering rate slows with speed, returns at its own rate and counter-steers through centre
+tests/engine/vehicleDrivetrain.test.ts	234	check	A			engine/physics		src/engine/physics/vehicle/vehicleDrivetrain.test.ts	vehicle steer gamma bends the wheel angle response and the AI inverse undoes it
 tests/engine/vehicleDrivetrain.test.ts	251	check	M			engine/physics,tools/droppedFields,tools/saveValidator	model:tools/droppedFields,model:tools/saveValidator		vehicle steering response fields survive saves
-tests/engine/vehicleDrivetrain.test.ts	263	check	A			engine/physics			vehicle aerodynamics are quadratic drag opposes velocity and downforce is downward
+tests/engine/vehicleDrivetrain.test.ts	263	check	A			engine/physics		src/engine/physics/vehicle/vehicleDrivetrain.test.ts	vehicle aerodynamics are quadratic drag opposes velocity and downforce is downward
 tests/engine/vehicleEditorFields.test.ts	62	check	M			engine/physics,src	model:src		vehicle editor overrides: blank inherits the asset, a number overrides it, junk is refused
 tests/engine/vehicleEditorFields.test.ts	77	check	M			engine/physics,src	model:src		vehicle editor engine sound: inherit, silent and a swapped loop all read back as meant
 tests/engine/vehicleEditorFields.test.ts	95	check	M			engine/physics,src	model:src		vehicle editor form shows inherited values as placeholders and keeps unknown references

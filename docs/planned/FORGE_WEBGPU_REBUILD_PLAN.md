@@ -377,6 +377,9 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       `src/engine/physics/{fracture,deformable}` (three'siz, olduğu gibi);
       asset türü, bileşenler, mesh senkronu, `dentWear` TSL ve editör Faz 8.
       88 kontrol yeşil. İlerleme A 785 / 905.
+      *Araç kontrolleri (2026-11-12):* `surfaceResponse` 20, `vehicleDrivetrain`
+      13, `vehicleAssets` 1 elle (gövdeler aynı); stok GAZ-52 tanımı test
+      fixture'ı. İlerleme A 819 / 905.
 - [ ] Kayıt oyunu (`engine/persistence`) ve World Partition (`engine/world`)
       yeni modele göre yeniden kurulur; GUID anahtarlı. Kayıt oyunu `persist`
       işaretli bileşen alanlarını ve `defineSaveState` bölümlerini saklar;
@@ -809,3 +812,4 @@ silinebilir.
 | 2026-11-12 | v1.0 | 2b (kullanıcı kararı, CI `90b88fd` … `a16cd94` yeşil): Forge'un eski level belgesini sınayan 2 kontrol D (payda 905; `testWorld`'ün deterministiklik yarısı yeni testte), off-road test level'ı ve 2 kontrolü Faz 8'e. A 697 / 905 |
 | 2026-11-12 | v1.0 | 2b physics kırılma + göçük (kullanıcı onayı): `src/engine/physics/{fracture,deformable}` three'siz algoritmalar; asset türü / bileşen / mesh senkronu / TSL / editör Faz 8. 88 kontrol yeşil (`fractureRuntime`'ın 4 R kontrolü dışarıda). Physics'te bekleyen araç içeriği 34 (içe aktarıcıyla) + runtime kabuğu 7. A 785 / 905 |
 | 2026-11-12 | v1.0 | 2b içe aktarıcı tasarımı (kullanıcı kararları; mimari v1.4): şimdi çevrilen alanlar (yerleşim, arazi, hücreler, Height Fog, World Builder yan dosyaları), geri kalanı level raporunda faza bağlı; ortak çevirici `src/engine/forgeImport/`; üç yalnız-şema ikili tür `forge.model` / `forge.texture` / `forge.sound`; lisans sorumluluğu kullanıcıda, köken tablosu ve `LicenseRef-forge-unverified`; starter tohum listesinden, referans level'lar depo dışı projede. A 785 / 905 |
+| 2026-11-12 | v1.0 | 2b araç kontrolleri: `surfaceResponse` 20, `vehicleDrivetrain` 13, `vehicleAssets` 1 elle taşındı (A kontroller eski room layout / actor script'e ulaşmıyor; stok GAZ-52 tanımı `tests/engine/fixtures/`'ta). A 819 / 905 |
