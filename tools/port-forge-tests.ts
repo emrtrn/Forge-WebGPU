@@ -179,9 +179,10 @@ interface Row {
 }
 
 /**
- * Labels of the checks this repo already carries: every `check(...)` with a
- * literal label in a `*.test.ts` under src/. A ported Forge check keeps its
- * label word for word, so a label match is the port record.
+ * Labels of the checks this repo already carries: every `check(...)` in a
+ * `*.test.ts` under src/. A ported Forge check keeps its label word for word,
+ * so a label match is the port record; a label built at run time (a template
+ * in a loop) is matched by its source text, which is copied unchanged too.
  */
 function collectPortedLabels(repoRoot: string): Map<string, string> {
   const labels = new Map<string, string>();
@@ -191,7 +192,7 @@ function collectPortedLabels(repoRoot: string): Map<string, string> {
       if (entry.isDirectory()) walk(path);
       else if (entry.name.endsWith(".test.ts")) {
         for (const check of analyzeSource(path, readFileSync(join(repoRoot, path), "utf8")).checks) {
-          if (!check.dynamicLabel && !labels.has(check.label)) labels.set(check.label, path);
+          if (!labels.has(check.label)) labels.set(check.label, path);
         }
       }
     }
@@ -214,7 +215,7 @@ function classifyFile(graph: ForgeGraph, file: string, ported: ReadonlyMap<strin
     const modules = check.specifiers.map((specifier) => graph.moduleFacts(file, specifier));
     const dataPaths = modules.flatMap((module) => (module.path && module.path.endsWith(".json") ? [module.path] : []));
     const verdict = classifyCheck(modules, [...check.literals, ...dataPaths]);
-    return { file, check, verdict, ported: check.dynamicLabel ? null : (ported.get(check.label) ?? null) };
+    return { file, check, verdict, ported: ported.get(check.label) ?? null };
   });
 }
 

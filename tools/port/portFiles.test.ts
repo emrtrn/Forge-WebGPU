@@ -60,6 +60,26 @@ describe("spellOutParameterProperties", () => {
     );
   });
 
+  test("a property with only a default stays unannotated and keeps its default", () => {
+    const out = spellOutParameterProperties(
+      ["class A {", "  constructor(readonly capacity = 80) {", "    void capacity;", "  }", "}"].join("\n"),
+      "a.ts",
+    );
+    expect(out).toBe(
+      [
+        "class A {",
+        "  // Constructor parameter properties in Forge, spelled out here (this repo",
+        "  // allows only erasable TypeScript syntax: Node type stripping).",
+        "  readonly capacity;",
+        "  constructor(capacity = 80) {",
+        "    this.capacity = capacity;",
+        "    void capacity;",
+        "  }",
+        "}",
+      ].join("\n"),
+    );
+  });
+
   test("leaves a file without parameter properties alone", () => {
     const text = "class A {\n  constructor(size: number) {}\n}\n";
     expect(spellOutParameterProperties(text, "a.ts")).toBe(text);

@@ -74,12 +74,15 @@ export function spellOutParameterProperties(text: string, fileName: string): str
       const modifiers = (ts.getModifiers(parameter) ?? []).filter((m) => PARAMETER_MODIFIERS.has(m.kind));
       const first = modifiers[0];
       if (!first) continue;
-      if (!ts.isIdentifier(parameter.name) || !parameter.type) {
-        throw new Error(`${fileName}: a parameter property needs a plain name and a type annotation`);
+      if (!ts.isIdentifier(parameter.name) || (!parameter.type && !parameter.initializer)) {
+        throw new Error(`${fileName}: a parameter property needs a plain name and a type annotation or a default`);
       }
       const name = parameter.name.text;
+      // Without an annotation (`size = 80`) the field stays unannotated: TypeScript
+      // infers it from the constructor assignment, as it inferred the parameter.
+      const type = parameter.type ? `: ${parameter.type.getText(source)}` : "";
       fields.push(
-        `${indent}${modifiers.map((m) => m.getText(source)).join(" ")} ${name}${parameter.questionToken ? "?" : ""}: ${parameter.type.getText(source)};`,
+        `${indent}${modifiers.map((m) => m.getText(source)).join(" ")} ${name}${parameter.questionToken ? "?" : ""}${type};`,
       );
       assignments.push(`this.${name} = ${name};`);
       edits.push([first.getStart(source), parameter.name.getStart(source), ""]);

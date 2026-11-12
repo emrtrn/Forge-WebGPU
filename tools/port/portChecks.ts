@@ -355,7 +355,13 @@ export class CheckPorter {
       report.push(`  skip ${info.file}: ${dest} exists`);
       return null;
     }
-    const registers = [...rest.matchAll(/export (?:async )?function (register[A-Za-z0-9]+)\(/g)].map((match) => match[1]!);
+    // Every runner parameter (check, checkAsync, …) gets Vitest's `test`.
+    const registers = parse("rest.ts", rest)
+      .statements.filter(
+        (statement): statement is ts.FunctionDeclaration =>
+          ts.isFunctionDeclaration(statement) && /^register[A-Za-z0-9]+$/.test(statement.name?.text ?? ""),
+      )
+      .map((statement) => ({ name: statement.name!.text, arity: statement.parameters.length }));
     const out =
       leading +
       `// Ported from Forge WebGL ${info.file} @ forge-webgl-final (04b5fb23): checks unchanged, run by\n` +
@@ -364,7 +370,12 @@ export class CheckPorter {
       `\nimport { test } from "vitest";\n` +
       rest.trimEnd() +
       "\n\n" +
-      registers.map((name) => `${name}(test as unknown as Parameters<typeof ${name}>[0]);`).join("\n") +
+      registers
+        .map(({ name, arity }) => {
+          const args = Array.from({ length: arity }, (_, index) => `test as unknown as Parameters<typeof ${name}>[${index}]`);
+          return `${name}(${args.join(", ")});`;
+        })
+        .join("\n") +
       "\n";
     mkdirSync(posix.dirname(this.roots.repo + dest), { recursive: true });
     writeFileSync(this.roots.repo + dest, out);
