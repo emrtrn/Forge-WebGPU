@@ -19,6 +19,7 @@ import {
   analyzeSource,
   areaOf,
   classifyCheck,
+  droppedCheck,
   isMathOnlyThreeArea,
   isThreePackage,
   OLD_MODEL_AREAS,
@@ -214,7 +215,9 @@ function classifyFile(graph: ForgeGraph, file: string, ported: ReadonlyMap<strin
   return graph.analysis(file).checks.map((check) => {
     const modules = check.specifiers.map((specifier) => graph.moduleFacts(file, specifier));
     const dataPaths = modules.flatMap((module) => (module.path && module.path.endsWith(".json") ? [module.path] : []));
-    const verdict = classifyCheck(modules, [...check.literals, ...dataPaths]);
+    const classified = classifyCheck(modules, [...check.literals, ...dataPaths]);
+    const dropped = droppedCheck(file, check.label);
+    const verdict = dropped === null ? classified : { ...classified, cls: "D" as const, reasons: [`dropped:${dropped}`] };
     return { file, check, verdict, ported: ported.get(check.label) ?? null };
   });
 }

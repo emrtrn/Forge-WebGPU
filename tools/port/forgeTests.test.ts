@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { analyzeSource, areaOf, classifyCheck, droppedBy, isMathOnlyThreeArea, isOldLevelData, type ModuleFacts } from "./forgeTests.ts";
+import { analyzeSource, areaOf, classifyCheck, droppedBy, droppedCheck, isMathOnlyThreeArea, isOldLevelData, type ModuleFacts } from "./forgeTests.ts";
 
 const analyze = (text: string) => analyzeSource("tests/engine/sample.test.ts", text);
 
@@ -165,6 +165,9 @@ describe("classifyCheck", () => {
     expect(classifyCheck([local("engine/physics/physicsSubsystem.ts", { threeMath: true })], []).cls).toBe("A");
     expect(droppedBy("engine/ai/behaviorRunner.ts")).toBe("K12 AI authoring stack");
     expect(droppedBy("engine/perception/perception.ts")).toBeNull();
+    // A check exercising cut data through a ported module is listed by file and label.
+    expect(droppedCheck("tools/engine-tests.ts", "audio subsystem records one-shot requests from a collision behavior")).toMatch(/K12/);
+    expect(droppedCheck("tools/engine-tests.ts", "behavior subsystem ticks behaviors and mutates transforms deterministically")).toBeNull();
   });
 
   test("three in an engine module outside render-three is math, not render", () => {

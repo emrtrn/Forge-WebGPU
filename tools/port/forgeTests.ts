@@ -398,6 +398,23 @@ export function droppedBy(path: string): string | null {
   return DROPPED_MODULES.find((entry) => path.startsWith(entry.prefix))?.why ?? null;
 }
 
+/**
+ * Single checks dropped with a K12 cut that no module boundary shows: the check
+ * exercises cut data (a component the ported code no longer reads) through a
+ * module that is ported. Keyed by Forge file and label.
+ */
+export const DROPPED_CHECKS: ReadonlyArray<{ readonly file: string; readonly label: string; readonly why: string }> = [
+  {
+    file: "tools/engine-tests.ts",
+    label: "audio subsystem records one-shot requests from a collision behavior",
+    why: "K12 audio component (BehaviorContext.audioComponent)",
+  },
+];
+
+export function droppedCheck(file: string, label: string): string | null {
+  return DROPPED_CHECKS.find((entry) => entry.file === file && entry.label === label)?.why ?? null;
+}
+
 /** A algorithm, M old data model, R render, D not ported (K12). */
 export type CheckClass = "A" | "M" | "R" | "D";
 
