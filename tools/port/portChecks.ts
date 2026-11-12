@@ -361,7 +361,13 @@ export class CheckPorter {
         (statement): statement is ts.FunctionDeclaration =>
           ts.isFunctionDeclaration(statement) && /^register[A-Za-z0-9]+$/.test(statement.name?.text ?? ""),
       )
-      .map((statement) => ({ name: statement.name!.text, arity: statement.parameters.length }));
+      .map((statement) => ({
+        name: statement.name!.text,
+        arity: statement.parameters.length,
+        // An async register may await setup (a wasm load) before its first check:
+        // awaited at the top level so Vitest collects the checks.
+        isAsync: (ts.getModifiers(statement) ?? []).some((modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword),
+      }));
     const out =
       leading +
       `// Ported from Forge WebGL ${info.file} @ forge-webgl-final (04b5fb23): checks unchanged, run by\n` +
@@ -371,9 +377,9 @@ export class CheckPorter {
       rest.trimEnd() +
       "\n\n" +
       registers
-        .map(({ name, arity }) => {
+        .map(({ name, arity, isAsync }) => {
           const args = Array.from({ length: arity }, (_, index) => `test as unknown as Parameters<typeof ${name}>[${index}]`);
-          return `${name}(${args.join(", ")});`;
+          return `${isAsync ? "await " : ""}${name}(${args.join(", ")});`;
         })
         .join("\n") +
       "\n";

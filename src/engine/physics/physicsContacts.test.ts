@@ -86,4 +86,4 @@ export async function registerPhysicsContactTests(checkAsync: CheckAsync): Promi
   }));
 }
 
-registerPhysicsContactTests(test as unknown as Parameters<typeof registerPhysicsContactTests>[0]);
+await registerPhysicsContactTests(test as unknown as Parameters<typeof registerPhysicsContactTests>[0]);

@@ -67,4 +67,4 @@ export async function registerTerrainSplineDataAsyncTests(checkAsync: CheckAsync
 }
 
 registerTerrainSplineDataTests(test as unknown as Parameters<typeof registerTerrainSplineDataTests>[0]);
-registerTerrainSplineDataAsyncTests(test as unknown as Parameters<typeof registerTerrainSplineDataAsyncTests>[0]);
+await registerTerrainSplineDataAsyncTests(test as unknown as Parameters<typeof registerTerrainSplineDataAsyncTests>[0]);

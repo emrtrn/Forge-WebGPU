@@ -111,4 +111,4 @@ export async function registerTerrainDocumentAsyncTests(checkAsync: CheckAsync):
 }
 
 registerTerrainDocumentTests(test as unknown as Parameters<typeof registerTerrainDocumentTests>[0]);
-registerTerrainDocumentAsyncTests(test as unknown as Parameters<typeof registerTerrainDocumentAsyncTests>[0]);
+await registerTerrainDocumentAsyncTests(test as unknown as Parameters<typeof registerTerrainDocumentAsyncTests>[0]);

@@ -50,4 +50,4 @@ export async function registerTerrainRuntimeStreamingTests(check: Check, checkAs
   });
 }
 
-registerTerrainRuntimeStreamingTests(test as unknown as Parameters<typeof registerTerrainRuntimeStreamingTests>[0], test as unknown as Parameters<typeof registerTerrainRuntimeStreamingTests>[1]);
+await registerTerrainRuntimeStreamingTests(test as unknown as Parameters<typeof registerTerrainRuntimeStreamingTests>[0], test as unknown as Parameters<typeof registerTerrainRuntimeStreamingTests>[1]);

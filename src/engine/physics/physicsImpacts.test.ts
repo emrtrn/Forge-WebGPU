@@ -297,4 +297,4 @@ export async function registerPhysicsImpactTests(checkAsync: CheckAsync): Promis
   }));
 }
 
-registerPhysicsImpactTests(test as unknown as Parameters<typeof registerPhysicsImpactTests>[0]);
+await registerPhysicsImpactTests(test as unknown as Parameters<typeof registerPhysicsImpactTests>[0]);

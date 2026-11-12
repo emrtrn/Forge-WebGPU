@@ -286,4 +286,4 @@ export async function registerWorldTerrainActorAsyncTests(checkAsync: CheckAsync
 registerWorldTerrainActorTests(test as unknown as Parameters<typeof registerWorldTerrainActorTests>[0]);
 registerWorldTerrainSaveTests(test as unknown as Parameters<typeof registerWorldTerrainSaveTests>[0]);
 registerWorldTerrainCreateTests(test as unknown as Parameters<typeof registerWorldTerrainCreateTests>[0]);
-registerWorldTerrainActorAsyncTests(test as unknown as Parameters<typeof registerWorldTerrainActorAsyncTests>[0]);
+await registerWorldTerrainActorAsyncTests(test as unknown as Parameters<typeof registerWorldTerrainActorAsyncTests>[0]);

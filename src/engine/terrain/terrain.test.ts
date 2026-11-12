@@ -367,4 +367,4 @@ export async function registerTerrainRapierTests(checkAsync: CheckAsync): Promis
 }
 
 registerTerrainTests(test as unknown as Parameters<typeof registerTerrainTests>[0]);
-registerTerrainRapierTests(test as unknown as Parameters<typeof registerTerrainRapierTests>[0]);
+await registerTerrainRapierTests(test as unknown as Parameters<typeof registerTerrainRapierTests>[0]);

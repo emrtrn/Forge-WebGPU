@@ -102,4 +102,4 @@ export async function registerTerrainSplineEditingTests(check: Check, checkAsync
   });
 }
 
-registerTerrainSplineEditingTests(test as unknown as Parameters<typeof registerTerrainSplineEditingTests>[0], test as unknown as Parameters<typeof registerTerrainSplineEditingTests>[1]);
+await registerTerrainSplineEditingTests(test as unknown as Parameters<typeof registerTerrainSplineEditingTests>[0], test as unknown as Parameters<typeof registerTerrainSplineEditingTests>[1]);

@@ -205,4 +205,4 @@ export async function registerTerrainSurfaceRapierTests(checkAsync: CheckAsync):
 }
 
 registerTerrainSurfaceTests(test as unknown as Parameters<typeof registerTerrainSurfaceTests>[0]);
-registerTerrainSurfaceRapierTests(test as unknown as Parameters<typeof registerTerrainSurfaceRapierTests>[0]);
+await registerTerrainSurfaceRapierTests(test as unknown as Parameters<typeof registerTerrainSurfaceRapierTests>[0]);

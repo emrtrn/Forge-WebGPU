@@ -104,4 +104,4 @@ export async function registerHeightmapPngTests(checkAsync: CheckAsync): Promise
   });
 }
 
-registerHeightmapPngTests(test as unknown as Parameters<typeof registerHeightmapPngTests>[0]);
+await registerHeightmapPngTests(test as unknown as Parameters<typeof registerHeightmapPngTests>[0]);

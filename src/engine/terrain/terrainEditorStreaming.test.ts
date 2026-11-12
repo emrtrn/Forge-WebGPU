@@ -189,4 +189,4 @@ export async function registerTerrainEditorStreamingTests(check: Check, checkAsy
   });
 }
 
-registerTerrainEditorStreamingTests(test as unknown as Parameters<typeof registerTerrainEditorStreamingTests>[0], test as unknown as Parameters<typeof registerTerrainEditorStreamingTests>[1]);
+await registerTerrainEditorStreamingTests(test as unknown as Parameters<typeof registerTerrainEditorStreamingTests>[0], test as unknown as Parameters<typeof registerTerrainEditorStreamingTests>[1]);

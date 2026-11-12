@@ -279,4 +279,4 @@ export async function registerTerrainHeightfieldRapierTests(checkAsync: CheckAsy
 }
 
 registerTerrainHeightfieldPhysicsTests(test as unknown as Parameters<typeof registerTerrainHeightfieldPhysicsTests>[0]);
-registerTerrainHeightfieldRapierTests(test as unknown as Parameters<typeof registerTerrainHeightfieldRapierTests>[0]);
+await registerTerrainHeightfieldRapierTests(test as unknown as Parameters<typeof registerTerrainHeightfieldRapierTests>[0]);
