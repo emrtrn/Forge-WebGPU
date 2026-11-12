@@ -386,7 +386,7 @@ features/height-fog/
 - **World Builder çıktısının bileşenleri (plan 2b `tools/world`, kullanıcı
   kararı 2026-11-12):** dört bileşen 2b'de yalnız şema olarak tanımlıdır
   (World Builder ve içe aktarıcı yazar; çizim Faz 3 / 5a, collider Faz 6):
-  `forge.staticMesh@1` (`mesh`, `collision`; uzamsal), `forge.shape@1`
+  `forge.staticMesh@1` (`mesh`: `forge.model` asset'i, `collision`; uzamsal), `forge.shape@1`
   (placeholder ve Add Actor primitifi: `primitive`, `color`, `collision`; ölçek
   1'de 0,5 m, boyutu aktörün ölçeği verir; uzamsal), `forge.worldRole@1`
   (`role`: noktalı anlamsal ad, placeholder → model geçişi için; `stage`: onu

@@ -484,6 +484,12 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
         Forge araç JSON'ları ve sesleri test fixture'ı olarak
         `tests/engine/fixtures/`'a (içe aktarıcıdan bağımsız); araç asset
         türü Faz 6.
+      *Adım 1 (2026-11-12):* araç kontrolleri 34 elle (`1caa990`), A 819 / 905.
+      *Adım 2 (2026-11-12):* ortak çevirici `src/engine/forgeImport/`
+      (`placements`: World Builder'la ortak, `worldLevel` testleri aynı;
+      `importForgeLevel`: level + hücreler + terrain tanımı → yeni level,
+      faz tablosuyla rapor `fields.ts`) ve `forge.model` / `forge.texture` /
+      `forge.sound` (`forge.staticMesh.mesh` `forge.model` gösterir).
 - [ ] **İçe aktarıcının kabulü:** her eski tür için küçük fixture + beklenen
       çıktı testi; referans level'larda kaynak ve hedef arasında tür başına
       sayım karşılaştırması (aktör, bileşen, foliage örneği, hücre) ve
@@ -813,3 +819,4 @@ silinebilir.
 | 2026-11-12 | v1.0 | 2b physics kırılma + göçük (kullanıcı onayı): `src/engine/physics/{fracture,deformable}` three'siz algoritmalar; asset türü / bileşen / mesh senkronu / TSL / editör Faz 8. 88 kontrol yeşil (`fractureRuntime`'ın 4 R kontrolü dışarıda). Physics'te bekleyen araç içeriği 34 (içe aktarıcıyla) + runtime kabuğu 7. A 785 / 905 |
 | 2026-11-12 | v1.0 | 2b içe aktarıcı tasarımı (kullanıcı kararları; mimari v1.4): şimdi çevrilen alanlar (yerleşim, arazi, hücreler, Height Fog, World Builder yan dosyaları), geri kalanı level raporunda faza bağlı; ortak çevirici `src/engine/forgeImport/`; üç yalnız-şema ikili tür `forge.model` / `forge.texture` / `forge.sound`; lisans sorumluluğu kullanıcıda, köken tablosu ve `LicenseRef-forge-unverified`; starter tohum listesinden, referans level'lar depo dışı projede. A 785 / 905 |
 | 2026-11-12 | v1.0 | 2b araç kontrolleri: `surfaceResponse` 20, `vehicleDrivetrain` 13, `vehicleAssets` 1 elle taşındı (A kontroller eski room layout / actor script'e ulaşmıyor; stok GAZ-52 tanımı `tests/engine/fixtures/`'ta). A 819 / 905 |
+| 2026-11-12 | v1.0 | 2b içe aktarıcı adım 2: ortak yerleşim → aktör çevirisi ve Forge level çevirisi `src/engine/forgeImport/` (World Builder `worldLevel` onu kullanır; çevrilmeyen alanlar faz tablosuyla raporlanır), yalnız-şema ikili türler `forge.model` / `forge.texture` / `forge.sound`. A 819 / 905 |

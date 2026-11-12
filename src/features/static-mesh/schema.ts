@@ -12,6 +12,7 @@ export const StaticMesh = defineComponent(
   1,
   {
     mesh: assetRef({
+      assetType: "forge.model",
       hint: "Gösterilen model asset'i.",
     }),
     collision: bool({

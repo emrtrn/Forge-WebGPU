@@ -30,11 +30,13 @@ for (const file of schemaFiles) {
   const label = file.slice(repoRoot.length + 1).replaceAll("\\", "/");
   try {
     const module: Record<string, unknown> = await import(pathToFileURL(file).href);
+    // A feature schema defines components, binary asset types or both (what registerExports takes).
     const definitions = Object.values(module).filter(
-      (value) => core.isJsonObject(value) && value.kind === "component",
+      (value) => core.isJsonObject(value)
+        && (value.kind === "component" || (value.kind === "assetType" && value.storage === "binary")),
     );
     if (definitions.length === 0) {
-      failures.push(`${label} loaded but exports no component definition.`);
+      failures.push(`${label} loaded but exports no component or asset type definition.`);
     }
   } catch (error) {
     failures.push(`${label} does not load in Node: ${error instanceof Error ? error.message : String(error)}`);
