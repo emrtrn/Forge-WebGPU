@@ -391,6 +391,8 @@ taşınır.
 | `src/engine/physics/terrainCollider.ts` | `engine/physics/terrainCollider.ts` | `04b5fb23` | taşındı | — | derleniyor |
 | `src/engine/testing/terrainTrimeshReference.ts` — **test yardımcısı** | `tests/engine/terrainTrimeshReference.ts` | `04b5fb23` | taşındı: heightfield kontrollerinin bağımsız referans trimesh'i; iskelede, yalnız testler import eder | `physicsSubsystem.checks` 2 (`tools/engine-tests.ts` içi) ve `terrainHeightfieldPhysics` / `terrainEdit` kontrollerini açar | yeşil (2026-11-12) |
 | Terrain'in ertelenen parçaları | Göl / nehir / okyanus: `engine/terrain/{lake*,ocean*,riverSurface,terrainLakeBed,terrainLakeWater,terrainRiverWater,waterWheelInteraction}.ts` + `engine/scene/{waterBody,oceanWater,lakeBed,riverWater}` ve köpük / kostik → **Faz 7**. Su birikintisi: `terrainPuddle{,Preparation}`, `puddleInteraction`, `scene/puddleWater` → **5a** (INV-D21). `terrainRuntimeStreaming` + `world/worldStreamingSubsystem` → **5b** (A11). `worldTerrainMove` (dört eski su tipini de kaydırır) → **5d / 7** | `04b5fb23` | ertelendi (kullanıcı onayı 2026-11-12) | bekleyen A: su ~19, su birikintisi 2, akış ~5, `worldTerrainMove` 4; ~8'i worldbuilder'ı da bekliyor | — |
+| `src/engine/navigation/` (`navigationTypes`, `navAgentProfile`, `localAvoidance`, `recastNavMesh`, `recastTileBuild`, `recastPlanner`, `workers/recastTileWorker`) | `engine/navigation/*.ts` (`navFloorSampler` hariç) | `04b5fb23` | taşındı: import yolları, parametre özellikleri açık alan; `Vec3` legacy'den, `NavigationRole` `physics/collision`'dan. `@recast-navigation/core` `0.43.1` tam sabit (Forge ile aynı, Rapier kuralı gibi). Worker'ın mesaj kısmı `src/runtime`'a ayrıldı (aşağıda); istek işleyicisi ve mesaj tipleri engine'de. `navFloorSampler` taşınmamış `movement/characterCollision`'a bağlı, movement ile gelir | 23 taşındı: `recastNavMesh` 17 (gerçek Recast wasm'ıyla), `navAgentProfile` 2, `navigationTypes` 2, `localAvoidance` 2 | yeşil (2026-11-12) |
+| `src/runtime/navigation/recastTileWorker.ts` | `engine/navigation/workers/recastTileWorker.ts` (worker kapsamı) | `04b5fb23` | uyarlandı: worker giriş kodu `runtime` katmanına (tarayıcı worker mesajlaşması; engine'in Node tsconfig'inde `MessageEvent<T>` yok). Worker havuzu Faz 6'da navigation özelliğiyle | Forge'da testi yok (işleyici engine'de test edilir) | derleniyor |
 
 İşlem: taşındı / uyarlandı / yeniden yazıldı. Testler: taşınan / yeniden yazılan
 / düşen sayısı (2b test sınıflamasına göre).
@@ -448,6 +450,11 @@ tip denetiminden hiç geçmemişti. `tsconfig.tests.json` testler için
 - Bir test dosyası yeniden üretilecekse önce silinir ve `port:forge-tests`
   ile TSV tazelenir; yoksa araç TSV'de taşınmış görünen kontrolleri dışarıda
   bırakır. Kontrolleri birden çok alana yayılan dosyalar `tests "."` ile yazılır.
+- Async kayıt fonksiyonları (`export async function register…`) üst düzey
+  `await` ile çağrılır: Recast kayıt fonksiyonu ilk kontrolden önce wasm'ı
+  bekliyor, beklenmeyince Vitest hiç kontrol toplamıyordu. Önceden taşınan
+  async kayıtlar da `await`'li yapıldı; koşu sayısı değişmedi (hepsinde ilk
+  `await` bir `checkAsync`'ti), yani kayıp kontrol yoktu (navigation ile).
 
 ### 2.1 Test sınıflaması
 
@@ -469,7 +476,7 @@ birden çok koşu üretir.
 **İlerleme:** `npm run port:forge-tests` bu deponun `src/**/*.test.ts`
 dosyalarındaki etiketleri Forge kontrolleriyle eşler; TSV'nin `ported`
 sütunu kontrolü taşıyan dosyayı gösterir. 2026-11-11: **A 214 / 923** (ses 37, UI 50, input 4, zaman 5, iş bölme 1, perf 20, iskele 1, physics 96). Hareketli platform D'ye geçince payda 927'den 923'e indi.
-2026-11-12: **A 370 / 923** (terrain 153, physics 2, perf 1).
+2026-11-12: **A 370 / 923** (terrain 153, physics 2, perf 1); navigation ile **A 393 / 923**.
 
 **Sınıflar.** Her kontrol, değer düzeyinde ulaştığı Forge modüllerine göre
 sınıflanır. Ulaşım sözcüksel kapsamla izlenir: kontrolün gövdesi ve onun
