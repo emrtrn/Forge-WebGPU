@@ -33,6 +33,8 @@ import {
   stringifyDocument,
   WorldBriefAssetType,
   WorldRecipeAssetType,
+  buildAssetIndex,
+  type AssetIndex,
   type BinaryAssetTypeDef,
   type JsonObject,
   type LevelDoc,
@@ -44,7 +46,10 @@ import { fileRevision } from "../assets/revision.ts";
 import { createClassStore, createDocumentCheck } from "../save/documentCheck.ts";
 import { createSaveService, type SaveDelete, type SaveWrite } from "../save/transaction.ts";
 import { createWritePolicy } from "../server/projectPaths.ts";
-import { openWorldProject, type WorldProject } from "../world/worldProject.ts";
+import { engineContentRoots } from "../assets/engineContent.ts";
+import { loadEngineRegistry } from "../assets/engineRegistry.ts";
+import { scanRoots } from "../assets/scan.ts";
+import { openWorldProject } from "../world/worldProject.ts";
 import { planAssets, type AssetPlan } from "./assetPlan.ts";
 import { openForgeSource, type ForgeSource } from "./forgeSource.ts";
 import { profileAssetIds, readForgeLevel, type ForgeLevelFiles } from "./levelRead.ts";
@@ -52,7 +57,10 @@ import { provenanceOf } from "./provenance.ts";
 
 export interface ImportRunOptions {
   readonly engineRoot: string;
-  readonly projectRoot: string;
+  /** The game project to write into; or `pack`. */
+  readonly projectRoot?: string | undefined;
+  /** A content pack of the engine to write into (`content/packs/<pack>/`): assets only, no levels. */
+  readonly pack?: string | undefined;
   /** Forge WebGL `public/` folder (it holds `assets/manifest.json`). */
   readonly forgeRoot: string;
   /** Public-relative `*.level.json` files. */
@@ -133,6 +141,34 @@ function convertRecipe(raw: JsonObject): JsonObject {
   return { ...structuredClone(result.recipe), generatedBy: { placements: {}, splines: {} } } as unknown as JsonObject;
 }
 
+/** Where the import writes: a game project, or one of the engine's content packs. */
+interface ImportTarget {
+  readonly root: string;
+  readonly writableRoots: readonly string[];
+  readonly registry: WorldRegistry;
+  readonly index: AssetIndex;
+}
+type WorldRegistry = Awaited<ReturnType<typeof loadEngineRegistry>>;
+
+const PACK_ID = /^[a-z][a-z0-9-]*$/;
+
+async function openTarget(options: ImportRunOptions): Promise<ImportTarget> {
+  if (options.pack !== undefined) {
+    if (options.projectRoot !== undefined) throw new Error("give a project or a pack, not both");
+    if (!PACK_ID.test(options.pack)) throw new Error(`not a content pack id: ${options.pack}`);
+    if (options.levels.length > 0) throw new Error("a content pack takes assets only; levels go to a project");
+    const folder = `content/packs/${options.pack}`;
+    const registry = await loadEngineRegistry(options.engineRoot);
+    // The pack sees the engine's content (a pack may refer to it) and itself, as verify:assets indexes it.
+    const roots = [...engineContentRoots(options.engineRoot, []), { label: folder, dir: join(options.engineRoot, folder) }];
+    const index = buildAssetIndex((await scanRoots(roots)).files, { strict: true, registry });
+    return { root: options.engineRoot, writableRoots: [folder], registry, index };
+  }
+  if (options.projectRoot === undefined) throw new Error("give a project or a pack");
+  const project = await openWorldProject(options.engineRoot, options.projectRoot);
+  return { root: project.root, writableRoots: project.manifest.contentRoots, registry: project.registry, index: project.index };
+}
+
 const fileAssetId = (path: string) => `ast_${stableHex(`forge-webgl/file/${path}`)}` as const;
 const baseName = (path: string): string => path.slice(path.lastIndexOf("/") + 1);
 
@@ -142,9 +178,9 @@ interface PendingWrites {
 }
 
 export async function runForgeImport(options: ImportRunOptions): Promise<ImportRunResult> {
-  const assetsFolder = posix.normalize(options.assetsFolder ?? "content/forge");
+  const assetsFolder = posix.normalize(options.assetsFolder ?? (options.pack !== undefined ? `content/packs/${options.pack}` : "content/forge"));
   const levelsFolder = posix.normalize(options.levelsFolder ?? "content/levels");
-  const project = await openWorldProject(options.engineRoot, options.projectRoot);
+  const project = await openTarget(options);
   const source = await openForgeSource(options.forgeRoot);
   const levels: ForgeLevelFiles[] = [];
   for (const path of options.levels) levels.push(await readForgeLevel(source, path));
@@ -208,7 +244,7 @@ function levelSidecars(
   folder: string,
   labels: Map<string, string>,
   pending: PendingWrites,
-  project: WorldProject,
+  project: ImportTarget,
 ): string[] {
   const written: string[] = [];
   const place = (path: string, name: string): string => {
@@ -249,7 +285,7 @@ function levelSidecars(
 }
 
 /** Normalises and splits the level into its files (as `tools/world`). */
-function writeLevel(project: WorldProject, folder: string, level: LevelDoc, pending: PendingWrites): void {
+function writeLevel(project: ImportTarget, folder: string, level: LevelDoc, pending: PendingWrites): void {
   const options = { strict: true, registry: project.registry, resolveClass: project.index.resolveClass };
   const normalized = normalizeLevel(level, options);
   if (!normalized.value || !normalized.ok) {
@@ -262,7 +298,7 @@ function writeLevel(project: WorldProject, folder: string, level: LevelDoc, pend
 }
 
 async function commit(
-  project: WorldProject,
+  project: ImportTarget,
   source: ForgeSource,
   pending: PendingWrites,
   folders: readonly string[],
@@ -298,7 +334,7 @@ async function commit(
       writes.push({ path, base: await revisionOf(path), staged: file });
     }
     const service = createSaveService({
-      policy: createWritePolicy(project.root, project.manifest.contentRoots),
+      policy: createWritePolicy(project.root, project.writableRoots),
       check: createDocumentCheck(project.registry, createClassStore(project.root, project.registry, project.index)),
     });
     const result = await service.commit({ writes, deletes });

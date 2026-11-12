@@ -1,0 +1,12 @@
+{
+  "schema": "forge.assetMeta/1",
+  "id": "ast_903c2a5a98b86e0ee05bbc6d27999733",
+  "type": "forge.sound@1",
+  "license": "LicenseRef-forge-project",
+  "source": {
+    "origin": "authored",
+    "author": "",
+    "url": ""
+  },
+  "import": {}
+}

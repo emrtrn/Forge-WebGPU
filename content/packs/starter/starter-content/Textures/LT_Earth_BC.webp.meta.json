@@ -1,0 +1,12 @@
+{
+  "schema": "forge.assetMeta/1",
+  "id": "ast_3d1d30cf415b8685cee1195628ccf77e",
+  "type": "forge.texture@1",
+  "license": "LicenseRef-forge-project",
+  "source": {
+    "origin": "ThreeAges",
+    "author": "",
+    "url": ""
+  },
+  "import": {}
+}

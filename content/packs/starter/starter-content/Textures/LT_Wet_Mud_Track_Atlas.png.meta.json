@@ -1,0 +1,12 @@
+{
+  "schema": "forge.assetMeta/1",
+  "id": "ast_bd487535e9eeb956f084a4492a0d820d",
+  "type": "forge.texture@1",
+  "license": "LicenseRef-forge-project",
+  "source": {
+    "origin": "ai-generated",
+    "author": "",
+    "url": ""
+  },
+  "import": {}
+}

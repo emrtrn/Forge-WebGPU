@@ -177,6 +177,16 @@ describe("import:forge", () => {
     expect(buildAssetIndex(scan.files, { strict: true, registry }).issues).toEqual([]);
   });
 
+  test("a content pack takes assets only, into content/packs/<id>/", async () => {
+    const pack = { engineRoot, forgeRoot: forge, pack: "starter" };
+    await expect(runForgeImport({ ...pack, levels: [LEVEL] })).rejects.toThrow(/assets only/);
+    await expect(runForgeImport({ ...pack, projectRoot: project, levels: [] })).rejects.toThrow(/not both/);
+    const dry = await runForgeImport({ ...pack, levels: [], assets: ["beep", "m-rock", "bt"], dryRun: true });
+    expect([...dry.plan.imported.keys()].sort()).toEqual(["beep", "t-rock", "t-sand"]);
+    expect(dry.plan.deferred.get("bt")?.phase).toBe("- (K12)");
+    expect(formatImportReport(dry)).toContain("behaviorTree → - (K12) 1");
+  });
+
   test("a second run needs --force and writes the same bytes", async () => {
     await expect(run()).rejects.toThrow(/pass --force/);
     const before = await readFile(join(project, "content/levels/Valley/cells/0_0.json"), "utf8");

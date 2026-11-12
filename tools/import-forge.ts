@@ -1,23 +1,27 @@
 // npm run import:forge -- --forge <Forge public/> --project <dir> [--level <public path>]... [--assets id,id,...]
 //   [--assets-folder content/forge] [--levels-folder content/levels] [--report <file.md>] [--dry-run] [--force]
+// npm run import:forge -- --forge <Forge public/> --pack starter [--assets id,...] [--dry-run]
 //
 // Brings Forge WebGL levels and the assets they use into a game project of the
 // new format (plan 2b importer; tools/import-forge-webgl). What is not
 // converted yet is reported per level with its phase; run it again as phases
 // add converters: ids are derived from the source, so it writes the same GUIDs.
-// An existing level folder is replaced only with --force.
+// An existing level folder is replaced only with --force. `--pack <id>` writes
+// assets into the engine's content pack instead; the starter pack's assets are
+// listed in tools/import-forge-webgl/starterSeeds.ts.
 
 import { writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runForgeImport } from "./import-forge-webgl/importRun.ts";
 import { formatImportReport } from "./import-forge-webgl/report.ts";
+import { STARTER_SEEDS } from "./import-forge-webgl/starterSeeds.ts";
 import { refuseEngineFixture } from "./world/worldCli.ts";
 
 const engineRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const usage = "Usage: npm run import:forge -- --forge <Forge public/> --project <dir> [--level <public path>]... "
+const usage = "Usage: npm run import:forge -- --forge <Forge public/> (--project <dir> [--level <public path>]... | --pack <id>) "
   + "[--assets id,...] [--assets-folder <dir>] [--levels-folder <dir>] [--report <file.md>] [--dry-run] [--force]";
-const VALUED = ["--forge", "--project", "--level", "--assets", "--assets-folder", "--levels-folder", "--report"];
+const VALUED = ["--forge", "--project", "--pack", "--level", "--assets", "--assets-folder", "--levels-folder", "--report"];
 const FLAGS = ["--dry-run", "--force"];
 
 async function main(): Promise<void> {
@@ -32,15 +36,18 @@ async function main(): Promise<void> {
   const one = (name: string): string | undefined => values.get(name)?.at(-1);
   const forge = one("--forge");
   const project = one("--project");
+  const pack = one("--pack");
   const levels = values.get("--level") ?? [];
-  const assets = (values.get("--assets") ?? []).flatMap((list) => list.split(",")).filter((id) => id !== "");
-  if (!forge || !project || (levels.length === 0 && assets.length === 0)) throw new Error(usage);
-  const projectRoot = resolve(project);
-  refuseEngineFixture(engineRoot, projectRoot);
+  let assets = (values.get("--assets") ?? []).flatMap((list) => list.split(",")).filter((id) => id !== "");
+  if (pack === "starter" && assets.length === 0) assets = Object.keys(STARTER_SEEDS);
+  if (!forge || (project === undefined) === (pack === undefined) || (levels.length === 0 && assets.length === 0)) throw new Error(usage);
+  const projectRoot = project === undefined ? undefined : resolve(project);
+  if (projectRoot !== undefined) refuseEngineFixture(engineRoot, projectRoot);
   const started = Date.now();
   const result = await runForgeImport({
     engineRoot,
     projectRoot,
+    pack,
     forgeRoot: resolve(forge),
     levels,
     assets,

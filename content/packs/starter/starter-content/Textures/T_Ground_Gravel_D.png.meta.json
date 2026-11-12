@@ -1,0 +1,12 @@
+{
+  "schema": "forge.assetMeta/1",
+  "id": "ast_6cb8f87a8ac87046865a6ed17711e965",
+  "type": "forge.texture@1",
+  "license": "LicenseRef-forge-unverified",
+  "source": {
+    "origin": "Forge WebGL manifest: no source (license: Unknown)",
+    "author": "",
+    "url": ""
+  },
+  "import": {}
+}

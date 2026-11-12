@@ -8,5 +8,8 @@
 *.png binary
 *.jpg binary
 *.webp binary
+*.wav binary
+*.ogg binary
+*.mp3 binary
 *.bin binary
 *.wasm binary
