@@ -1,8 +1,9 @@
 # Forge WebGPU — Prosedürel Bina ve Kentsel Çevre Planı
 
-**Sürüm:** v0.2 · 2026-11-12 (v0.1'den fark: üç referansın kodu okundu, Ek A;
-ayna ayrı varyant, parça kimliği niteliği, modül hizalama varsayılan; kapsam
-envanteri kaldırıldı)
+**Sürüm:** v0.4 · 2026-11-12 (v0.3'ten fark: kullanıcının referans görselden
+stil kiti fikri §5.5'e işlendi: akış, kaynak seçimi ölçütü, kültürler arası
+kelime dağarcığı adayları, bileşik tarif, görselden çıkarımın sınırları; açık
+sorular BK4–BK7, iki yeni risk. Önceki sürümlerin farkları ilerleme kaydında)
 **Durum:** Plan. Uygulama başlamadı; kod, bağımlılık ya da ana plan kutusu
 değişmedi. Başlama koşulu §2'de.
 **İlgili belgeler:** [yeniden inşa planı](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
@@ -56,7 +57,7 @@ dokuları. Binanın nereye konacağını World Builder seçer.
 | Modüler parça montajı; gölgelendiricide çizilen cephe | Kullanıcı kararı 2026-11-11: bütün mesh + karo doku (§6.2) |
 | İç mekân | Kullanıcı kararı 2026-11-11: yalnız dış kabuk |
 | Yüksek katlı ve yoğun şehir binaları (giydirme cephe, bitişik nizam) | Önce köy / kasaba (kullanıcı kararı 2026-10-28); PB6 adayı |
-| Simgesel ve tekil yapılar, köprü, araç, karakter | Bugünkü kaynaklar geçerli: Blender, Tripo, hazır model |
+| Simgesel ve tekil yapılar, büyük köprü, araç, karakter | Bugünkü kaynaklar geçerli: Blender, Tripo, hazır model. Küçük köy köprüsü bunun dışındadır, kaynağı açık (§4.1) |
 | Trafik ve yaya için yol semantiği (şerit, dönüş izni, yaya topolojisi) | Motorda tüketicisi yok (K12: AI mantığı oyun kodunda); "ileride lazım olur" §0.0'a göre girmez |
 | Gerçek coğrafi veriden bina (OpenStreetMap, açık veri) | Ayrı girdi yolu ve ayrı lisans yükü (ODbL); World Builder'ın işi |
 | Levha ve tabela yazısı | Oyun verisidir; üretici yalnız boş yüzey ve doku yuvası verir |
@@ -162,9 +163,9 @@ Motor bina türü değil **üretici** taşır. "Taş köy evi" ya da "ahşap ah�
   bitki planında kayanın yaptığı gibi.
 - **Donatı üreticilerinin topolojisi sabittir.** Serbest parça listesi (genel
   parametrik modelleyici) yoktur; öyle bir araç tarifi büyütür ve ajanı yeniden
-  köşe yazmaya iter. Sabit topolojiye sığmayan donatı (trafik ışığı, durak,
-  oyun grubu, hidrant) hazır model yolunda kalır ya da PB6'da kendi üreticisini
-  alır.
+  köşe yazmaya iter. Sabit topolojiye sığmayan donatının (trafik ışığı, durak,
+  hidrant, oyun grubu) kaynağı açıktır: hazır model mi, kendi üreticisi mi
+  (§4.1, BK3).
 - **Ortak kavramlar:** ayak izi, yüz, kat bandı, aks, açıklık, bağlanma
   noktası, materyal yuvası. Balkon korkuluğu Doğrusal modülün kesitini kullanır.
 
@@ -173,6 +174,36 @@ klasörü (gökdelen, kaldırım, lamba, trafik ışığı, bank, çöp kutusu, 
 sokak ağacı, araç, yaya) yalnız referanstır: `three/webgpu` ve `three/tsl`
 import ettiği için katman kuralıyla `render` dışına giremez. Okunan kısımları ve
 bu plana etkileri Ek A.1'de.
+
+### 4.1 Kaynağı açık varlıklar
+
+Kapsam envanterinde (Ek B) bulunup önceki sürümlerde hiçbir yere atanmamış ya da
+yalnız "hazır model" diye geçilmiş varlıklar. **Kullanıcı kararı (2026-11-12):**
+kaynakları şimdilik netleştirilmez; hazır model mi, üretici mi, açık kalır.
+Bu bölüm onları kayda geçirir ve sahipsiz kalmalarını önler; karar BK3'te.
+
+| Varlık | Envanter | Yerleşimi seçen | Kaynak | Üretici olursa yakın aile (not, karar değil) |
+|---|---|---|---|---|
+| **Trafik ışığı** | U07 | World Builder (kavşak konumu, `streetFurniture` kuralı) | **açık** | Direk (gövde + kol); lamba kafası sabit topolojiye sığmayabilir. three'nin `city/` klasöründe üreticisi var, okunmadı (Ek A.1) |
+| **Durak** (gölgelik, levha, bank) | U07 | World Builder | **açık** | Direk + Kasa parçalarının birleşimi; sabit topolojiye sığıp sığmadığına bakılmadı |
+| **Hidrant** | U07, U09 | World Builder | **açık** | Döndürme (profil + yan çıkışlar). three'nin `city/` klasöründe üreticisi var, okunmadı |
+| **Yol yüzeyi türleri** (asfalt, kilit taş, parke, çakıl, toprak) ve **yol işaretleri** (şerit çizgisi, ok, kenar çizgisi) | U03 | World Builder'ın yol sistemi | **açık** | Yüzey dokusu ya da decal. Desen ailesinin şaşırtmalı sırası kilit taş ve parkeyi taşıyabilir |
+| **Rögar kapağı, mazgal, drenaj ızgarası, menfez** | U06, U09 | World Builder | **açık** | Küçük zemin parçası; Döndürme (disk) ya da decal |
+| **Otobüs cebi, yük indirme alanı, otopark çizgileri** | U06, U11 | World Builder (düzen, §7.3) | **açık** | Düzen World Builder'ın; yüzey işareti yukarıdaki yol işaretleriyle aynı karara bağlı |
+| **Çatı üstü donatı** (klima grubu, anten, güneş paneli, su tankı), **yangın merdiveni**, dış klima ünitesi | U10 | Bina eki olarak prototip içinde | **açık** | Üretici seçilirse bina kabuğunun eki (§6.2). Hazır model seçilirse prototip mesh'inin parçası olamaz; ayrı örnek olarak dizilir ve ayrı çizim çağrısı ister |
+| **Köy ölçeği:** toprak yol, küçük köprü, sera, kümes, odunluk, ahır avlusu | U03, U05, U11 | World Builder | **açık** | Toprak yol yukarıdaki yüzey satırına girer; sera ve odunluk bina kabuğu ya da Kasa'ya yakın; küçük köprü Doğrusal modüle yakın olabilir. Ahır kendisi Bina kabuğu ailesindedir (§4) |
+| **Aynı sınıftaki öteki donatı:** yön levhası, bariyer, duba, kiosk, ilan panosu, elektrik kutusu | U07 | World Builder | **açık** | Sabit topolojiye sığmayan her donatı bu tabloya yazılır |
+
+- **Kaynak kararı World Builder'ı etkilemez.** Çıktı iki durumda da sıradan
+  asset'tir; rol ve konum kuralı aynıdır, yalnız rolün asset kaynağı
+  (`blender | tripo | ready | generated`, §7.2) değişir. Kaynak kapanana kadar
+  bu roller bugünkü yer tutucuyu kullanır.
+- **Levha ve tabela yazısı** bu tablonun dışındadır (§1): üretici yalnız boş
+  yüzey ve doku yuvası verir.
+- **Bir satır üreticiye giderse** ilgili ailenin adımına (PB4) ya da PB6'ya yeni
+  madde olarak yazılır; hazır modele giderse yalnız bu tablodaki "Kaynak"
+  hücresi güncellenir. Hangi sürümde olursa olsun sabit topoloji kuralı (§4)
+  geçerlidir.
 
 ---
 
@@ -256,6 +287,104 @@ Mimari stil (hangi bölgede taş duvar ve kırma çatı, hangisinde ahşap ve be
 
 Hangi rolün hangi tarifi kullandığı bölge profilinde, yani oyun verisinde
 durur. Bina tipolojisi ya da stil listesi motor deposuna girmez.
+
+### 5.5 Stil kiti: referans görselden üretime
+
+**Kullanıcı fikri (2026-11-12); akış karar değil, açık noktaları BK4–BK7.**
+Kullanıcı bir ya da birkaç referans görsel verir. Ajan şehrin çağını ve
+kültürünü çıkarır, tekrar eden varlıkları (bina, şehir nesnesi, sokak çevresi)
+listeler, her biri için kaynağı seçer ve üretir. Gerekçe: oyunların hepsi batı
+kültüründe geçmez. Türkiye'de geçen bir oyunda mimari üslup ve bina türleri
+değişir; dini yapı kilise değil camidir.
+
+**İlke: kültürle değişen çoğunlukla veridir, üretici kodu değil.** Akışın
+çıktısı yeni üretici değil **stil kiti**dir: ön ayarlar, materyal tarifleri, az
+sayıda el yapımı model ve rol eşlemesi. Kit bir içerik paketidir
+(`content/packs/<stil>/`, A9) ya da oyun projesinin içeriğidir. Bölge profili
+rollerini ona bağlar. Motor stil tanımaz (§5.4). "Üreteç yapan sistem" pratikte
+ön ayar yapan sistemdir; yeni üretici ailesi istisnadır (BK4).
+
+```text
+Referans görsel(ler)
+   ▼
+① Stil özeti          ajan yazar, kullanıcı düzeltir
+   ▼
+② Varlık envanteri    tekrar eden her varlık bir satır + kaynak kararı
+   ▼
+③ Üretim              ön ayar, desen dokusu, az sayıda Blender modeli
+   ▼
+④ Aile onayı          §7.4 adım 3: tarif başına prototip sayfası
+   ▼
+⑤ Stil kiti           içerik paketi ya da proje içeriği; bölge profili bağlar
+```
+
+| Adım | İçerik |
+|---|---|
+| ① Stil özeti | Çağ, bölge, iklim, malzemeler, bina tipleri ve payları, kat dağılımı, çatı biçimleri, açıklık oranları, sokak dokusu, zemin yüzeyleri. Her alan "görselden" ya da "varsayım" işareti taşır; kullanıcı onaylamadan ③'e geçilmez |
+| ② Varlık envanteri | Kullanıcının U01–U13 kapsam listesi (Ek B) kontrol listesi olarak kullanılır. Satırlar görseldeki **sıklığa** göre sıralanır, simgeselliğe göre değil |
+| ③ Üretim | Kaynak seçimi ölçütüne göre (aşağıda). Varlığın yerleşimi World Builder'ındır |
+
+**Kaynak seçimi ölçütü.** Ayırıcı bina sayısı değil, kaç farklı biçim gerektiği
+ve biçimin stiller arasında değişip değişmediğidir. Kullanıcının gözlemi:
+birkaç on binalık bir yerleşim için Claude + Blender daha pratik, binlerce
+binada üretici daha sağlıklı. Prototip setiyle (§5.3) binlerce bina bile stil
+başına ≈ 30–60 mesh eder ve bu Blender'la da yapılabilir. Üreticinin asıl
+kazancı şunlardır: yeniden ayar tek satırdır (bütün katlar 20 cm yükselir);
+LOD, uzak cephe, collider ve meta (ölçü, giriş noktası) her mesh'te aynı
+tutarlılıkla çıkar; yeni stil yeni bir ön ayardır.
+
+| Sınıf | Ölçüt | Örnek | Kaynak |
+|---|---|---|---|
+| Parametrik aile | Çok sayıda, biçim çeşitli, stille biçim değişir | Konut, dükkân, ahır, çit, duvar | Üretici + ön ayar |
+| Sabit topolojili donatı | Çok sayıda, biçim az değişir | Bank, lamba, çöp kutusu, direk | Birden çok stil hedefteyse ön ayar (Kasa, Direk, Döndürme); tek stilse tek model. İkisi de ucuz |
+| Tek model + materyal varyantı | Çok sayıda, biçim sabit | Hidrant, trafik ışığı, kiosk | Blender'da bir kez; ton ve yıpranma örnek başına (§5.3). Kullanıcının bank örneği tek stilde bu sınıftadır |
+| Tekil yapı | Yerleşimde 1–5 tane | Ulu cami, saat kulesi, büyük köprü, istasyon | Blender / el (§1) |
+| Yüzey | Geometri değil | Yol işaretleri, rögar, kaldırım taşı | Desen dokusu ya da decal |
+| Yerleşim kuralı | Biçim değil konum | Lamba aralığı, köşe parseli, otopark düzeni | World Builder |
+
+§4.1'deki satırların kaynağı (BK3) bir oyun isteyince bu ölçütle kapanır.
+
+**Kültürler arası kelime dağarcığı (aday, BK4).** Bina kabuğunun §5.1'deki
+kelimeleri (dikdörtgen açıklık; düz, tek eğim, beşik, kırma çatı; baca,
+sundurma, balkon) batı köyüne ve kasabasına göre yazıldı. Anadolu ve İstanbul
+örneği üzerinden eksik çıkanlar aşağıda. Hepsi geometrik parametredir ve en az
+iki kültürde tekrar eder; tipoloji değildir, motor kuralına (§5.4) uyar.
+
+| Aday | Görüldüğü yerler |
+|---|---|
+| Kat çıkması / cumba (üst katın taşması) | Osmanlı evi, Tudor, Japon machiya |
+| Açıklık biçimi: dikdörtgen, yuvarlak kemer, sivri kemer, basık kemer | Akdeniz, İslam mimarisi, Gotik, Roma |
+| Geniş saçak + saçak altı payandası | Anadolu, Alp, Japonya |
+| Avlu (iç boşluklu ayak izi) | Akdeniz, Orta Doğu, Çin |
+| Kubbe ve kule başlığı | Cami, kilise, tapınak. Kubbe Döndürme ailesindendir; kule prizma + başlıktır |
+| Bitişik nizam (PB6'da) | Türk şehrinin baskın dokusu apartman sırasıdır; hedef Türkiye ise öne çekilir (BK6) |
+| Düz çatı ekipmanı: su deposu, güneş paneli, anten (§4.1'de kaynağı açık) | Türkiye'de neredeyse her çatıda; Akdeniz, Orta Doğu |
+
+**Bileşik tarif (aday, BK5).** Dini yapı örneği "cami üreticisi" ya da "kilise
+üreticisi" gerektirmez. Köy camisi bina kabuğu (kırma çatı) + kubbe
+(Döndürme) + minaredir (katmanlı Döndürme: gövde, şerefe, külah). Köy kilisesi bina kabuğu
+(beşik çatı) + kuledir (prizma + piramit başlık). Gereken, alt tarifleri
+bağlanma noktalarına oturtan ve tek mesh yazan ince bir bileşik tariftir.
+Reddedilen cephe montajından (§1) farkı ölçeğindedir: modüller değil bütün
+tarifler birleşir. Ulu cami, külliye gibi tekil yapılar Blender'da kalır.
+
+**Görselden çıkarımın sınırları.**
+
+- *Güvenilir:* çağ, bölge, malzeme, çatı tipi, açıklık oranı, kat dağılımı,
+  sokak nesnesi listesi.
+- *Zayıf:* metrik ölçü (kat yüksekliği, aks genişliği), görünmeyen cepheler,
+  tekrar sıklığı. Tek perspektif görselden metre çıkmaz. Birden çok görsel
+  istenir: sokak seviyesi, kuşbakışı, cephe yakın çekimi. Referans AI ile
+  üretilmiş olabilir (World Builder'ın ilk girdisi gibi); kural aynıdır.
+- *Kalıp yargı:* "Türk şehri = kubbe + minare" turistik bir indirgemedir;
+  gerçek doku apartman, dükkân altı ve çatı ekipmanıdır. Sıklığa göre
+  sıralama (②) ve kullanıcı onayı (①) bunun karşılığıdır.
+
+**Kod öncesi sınama (öneri; başlama zamanı kullanıcıda, 2026-11-12'de
+başlanmadı).** Motor ve World Builder hazır olmadan yapılabilir. İki farklı
+kültürden referansla (biri Anadolu / İstanbul) ① ve ② kağıt üstünde çıkarılır,
+her satır mevcut üretici ailelerine eşlenir. Eşlenemeyen satırlar kelime
+dağarcığının gerçek eksiğidir. Sonuç BK4 ve BK5'i kapatır ve bu plana işlenir.
 
 ---
 
@@ -492,7 +621,8 @@ buraya yalnız bina tarafını etkiledikleri için yazıldı:
 | Bitişik nizam ve köşe parseli | PB6: yan duvarı kör, köşede iki cepheli prototip |
 | Park ve meydanın iç düzeni | Yok; varlıkları bitki planı ve PB4 verir |
 | Kaldırım ve bordür | PB6: kesit modülü (§2, nokta 3) |
-| Otopark, yükleme alanı | Yok |
+| Otopark, yükleme alanı | Yok; yüzey işaretlerinin kaynağı §4.1'de açık |
+| Otobüs cebi, yol kenarı yük indirme, rögar ve mazgal konumu, toprak yol ve öteki yüzey türleri | Yok; bu yerleşim kararlarının varlık kaynağı §4.1'de açık |
 
 ### 7.4 Konseptten sahne akışındaki yeri
 
@@ -504,6 +634,9 @@ Onay noktaları değişmez; bina ve donatıda üçüncü onayın konusu değişi
    ölçü çubuğu ve insan boyu işaretiyle). Blender greybox modeli yerine
    üretilmiş prototip gösterilir.
 4. Ayrıntı: yer tutucular üretilmiş asset'lerle değişir.
+
+Stil kiti (§5.5) kullanılıyorsa üçüncü onayın sayfaları kitin ④ adımında
+üretilir.
 
 Onaydan sonra sahne kullanıcınındır. Tarifi değiştirip yeniden üretmek açık bir
 eylemdir ve yalnız asset dosyalarını yeniler; yerleşim yeniden çalışmaz.
@@ -603,7 +736,9 @@ kabulüdür; kapılar işlevsel ve ölçülebilirdir.
       bitişik nizam ve köşe binası (komşuya bakan duvar kör); yüksek katlı bina
       ve giydirme cephe; iç mekân izlenimi ve gece pencere ışığı (camın
       arkasında gölgelendiricide sahte oda; uzakta yalnız oda ortalaması);
-      kaldırım ve bordür kesiti; yeni donatı üreticileri.
+      kaldırım ve bordür kesiti; yeni donatı üreticileri. §4.1'deki açık
+      kaynaklı varlıklardan üretici seçilenler (BK3) buraya ya da PB4'e madde
+      olarak eklenir.
 
 **İş bölümü.** Saf ve iyi tanımlı parçalar (desen yerleşimi, cephe ızgarası
 bölme, çatı geometrisi, düz iskelet, profil döndürme) imza + kabul ölçütüyle
@@ -645,6 +780,16 @@ açık onay da verilmedi):
 | ID | Soru | Öneri |
 |---|---|---|
 | BK2 | Başlangıç ön ayarları nerede durur? | Bitki planının PK6'sıyla aynı yer (`content/packs/starter/`): birkaç nötr bina, duvar, çit ve donatı ön ayarı; bölgeye özgü stiller oyun projesinde |
+| BK3 | §4.1'deki her varlığın kaynağı hazır model mi, üretici mi (hangi aile)? | Kullanıcı kararı (2026-11-12): şimdilik açık. PB0'da kapanması gerekmez; bir oyun ya da yerleşim varlığı isteyince varlık başına karar verilir, §5.5'teki kaynak seçimi ölçütüyle. Yer tutucu bu sürede çalışmaya devam eder |
+
+**Açık (stil kiti, §5.5; 2026-11-12'de sunuldu, karar bekliyor):**
+
+| ID | Soru | Öneri |
+|---|---|---|
+| BK4 | Yeni üretici ailesi ya da üretici parametresi nerede yaşar ve kültürler arası adaylardan (§5.5) hangileri girer? | Yalnız motorda ve yalnız en az iki stilde tekrar eden geometrik boşluk için; stile özgü biçim Blender'a gider. Ajan her şehir için üretici kodu yazmaz. Oyun projesinin SDK ile kendi üreticisini getirmesi yeni bir mimari sorudur; varsayılmaz, istenirse ayrıca açılır. Kapanış yolu: kod öncesi sınama (§5.5) |
+| BK5 | Bileşik tarif plana girer mi? | Evet: alt tarifler bağlanma noktalarına oturur, çıktı tek mesh. PB5 adayı |
+| BK6 | İlk hedef stil Türk kasabası / şehri olursa bitişik nizam ve düz çatı ekipmanı PB6'dan öne alınır mı? | Hedef oyun belli olunca karar verilir; ölçek sırası kararı (2026-10-28) o güne kadar geçerli |
+| BK7 | Stil özeti ve varlık envanteri ayrı bir asset türü mü (editörde formla düzenlenir), paket içinde belge mi? | İlk kit paket içinde belgeyle yapılır; formla düzenleme ihtiyacı ikinci kitte görülürse A13 veri asset'ine geçilir |
 
 ---
 
@@ -661,9 +806,12 @@ açık onay da verilmedi):
 | Ana plan statik mesh'te GPU güdümlü bir yola geçer ve üreticinin çıktısı uymaz | Çıktı baştan o yolun kısıtlarına uygun: ayna ayrı varyant, köşe rengi yok, indeksli ve kaynaklı köşe, opak tek yüz (§6.2, §6.7) |
 | Kapsam envanterdeki 13 kategoriye doğru büyür | Üretici ailesi başına ayrı adım; PB6 yalnız oyun isteyince |
 | Donatı üreticileri genel modelleyiciye dönüşür | Sabit topoloji kuralı (§4) |
+| Kaynağı açık varlıklar (§4.1) sahipsiz kalır ya da sessizce kapsama girer | Tek tabloda kayıtlı, BK3 açık; üreticiye gidenler adım olarak yazılır, gitmeyenler hazır model kalır |
 | Bitki planı gecikir | Bu iş yalnız PG1'e bağlıdır; rasterleyici gerekirse PB3'te yazılır |
 | Taşınan World Builder bugünkünden farklı çıkar | PB0'da kodla doğrulama; üretici World Builder'a uyar |
 | Üretici değişince eski tarifler başka görünür | `generatorVersion` + çıktının kalıcı dosya olması |
+| Stil kiti akışı her şehir için yeni üretici koduna döner, motor şişer | Kit veridir (§5.5); yeni aile yalnız iki stilde tekrar eden geometrik boşluk için (BK4) |
+| Görselden çıkarım kalıp yargıya ya da uydurma ölçüye kayar | Özette "görselden / varsayım" işareti, sıklığa göre envanter, kullanıcı onayı; birden çok görsel (§5.5) |
 
 ---
 
@@ -800,19 +948,22 @@ asset kurallarına göre yeniden yazılır.
 
 ## Ek B — Kapsam envanterinin bu plandaki karşılığı
 
+Kullanıcının U01–U13 listesi 13 ayrı araç değildir; aynı hattın aşamalarıdır.
+Aynı liste her stil kitinde varlık envanterinin (§5.5 ②) kontrol listesidir.
+
 | Envanter | Bu planda |
 |---|---|
 | U01 Yerleşim planlama | World Builder; kapsam dışı |
 | U02 Bölgeler ve imar | World Builder ve bölge profili; kapsam dışı |
-| U03 Yollar ve ulaşım | World Builder (yol sınıfı, spline, kavşak, köprü Forge'da var); bordür ve kaldırım kesiti PB6 |
+| U03 Yollar ve ulaşım | World Builder (yol sınıfı, spline, kavşak, köprü Forge'da var); bordür ve kaldırım kesiti PB6; yol yüzeyi türleri ve işaretleri, küçük köprü: kaynak açık (§4.1) |
 | U04 Şehir adaları ve parseller | World Builder; kapsam dışı |
 | U05 Prosedürel binalar | Bina kabuğu üreticisi (PB2, PB5); tipoloji oyun verisi |
-| U06 Sokak çevresi | Doğrusal modül (PB1, PB4); yerleşimi World Builder |
-| U07 Şehir nesneleri | Direk, Döndürme, Kasa (PB4); sabit topolojiye sığmayanlar hazır model |
+| U06 Sokak çevresi | Doğrusal modül (PB1, PB4); yerleşimi World Builder; rögar, mazgal, otobüs cebi, yük indirme: kaynak açık (§4.1) |
+| U07 Şehir nesneleri | Direk, Döndürme, Kasa (PB4); trafik ışığı, durak, hidrant ve sabit topolojiye sığmayan öteki donatı: kaynak açık (§4.1) |
 | U08 Parklar ve kamusal alanlar | Düzeni World Builder (§7.3); varlıkları bitki planı ve PB4 |
-| U09 Altyapı | Direk üreticisi (elektrik direği); gerisi oyun isteyince |
-| U10 Mimari ve kentsel ayrıntılar | Bina ekleri (PB2, PB5) ve gölgelendirici payı (§6.6) |
-| U11 Özel işlev alanları | Kapsam dışı; oyun isteyince |
+| U09 Altyapı | Direk üreticisi (elektrik direği); hidrant, menfez, drenaj: kaynak açık (§4.1); gerisi oyun isteyince |
+| U10 Mimari ve kentsel ayrıntılar | Bina ekleri (PB2, PB5) ve gölgelendirici payı (§6.6); çatı üstü donatı ve yangın merdiveni: kaynak açık (§4.1) |
+| U11 Özel işlev alanları | Kapsam dışı; oyun isteyince. Köy ölçeği yardımcı yapılar (sera, kümes, odunluk) ve otopark çizgileri: kaynak açık (§4.1) |
 | U12 Simgesel ve özel yapılar | Kapsam dışı; hazır model ya da Blender |
 | U13 Şehir anlam ve bağlantı verileri | Trafik ve yaya kapsam dışı; kalan: GUID + rol, giriş noktası (§6.8) |
 
@@ -821,4 +972,6 @@ asset kurallarına göre yeniden yazılır.
 | Tarih | Sürüm | Not |
 |---|---|---|
 | 2026-11-11 | v0.1 | Plan yazıldı. Kapsam envanteri değerlendirildi; kullanıcı kararları: yalnız biçim üretimi, prototip seti, bütün mesh + karo doku, yalnız dış kabuk. Uygulama yok |
+| 2026-11-12 | v0.3 | Kapsam envanterinde olup hiçbir yere atanmamış varlıklar §4.1'e işlendi: trafik ışığı, durak, hidrant, yol yüzeyi ve işaretleri, rögar ve mazgal, otobüs cebi ve yük indirme, çatı üstü donatı ve yangın merdiveni, köy ölçeği yapılar, öteki sığmayan donatı. Kullanıcı kararı: kaynakları (hazır model / üretici) şimdilik açık; BK3. §1, §4, §7.3, PB6, §12 ve Ek B ona göre güncellendi. Uygulama yok |
 | 2026-11-12 | v0.2 | Üç referansın kodu okundu (three r187 şehir üreticisi ve meshlet hattı, Slop New York); Ek A yeniden yazıldı. Gövdeye girenler: ayna ayrı varyant, parça kimliği niteliği (donatıda da), üçgen sırası, modül hizalama varsayılan, gölge vekili ve meshlet kısıtları kodla düzeltildi. Kapsam envanteri belgesi kaldırıldı (kullanıcı onayı). Uygulama yok |
+| 2026-11-12 | v0.4 | Kullanıcının referans görselden stil kiti fikri §5.5'e işlendi (kültür değişince üslup ve bina türleri değişir; çağ ve kültürü çıkar, tekrar eden varlıkları listele, kaynağını seç, üret). Eklenenler: kaynak seçimi ölçütü, kültürler arası kelime dağarcığı adayları, bileşik tarif, görselden çıkarımın sınırları, kod öncesi sınama önerisi; açık sorular BK4–BK7; iki risk. Kullanıcı: bugün başlanmıyor. Uygulama yok |
