@@ -2144,10 +2144,10 @@ tools/engine-tests.ts	15916	check	M			engine/gameplay,engine/scene	model:engine/
 tools/engine-tests.ts	15952	check	M			src	model:src		level-travel state machine: an idle request begins immediately	
 tools/engine-tests.ts	15963	check	M			src	model:src		level-travel state machine: a mid-travel request queues (latest wins), not begins	
 tools/engine-tests.ts	15985	check	M			src	model:src		level-travel state machine: settling with no pending returns to idle	
-tools/engine-tests.ts	15996	check	A			engine/persistence	opaque-level-path		save-game store: writes, lists, reads, overwrites, and deletes slots	
-tools/engine-tests.ts	16047	check	A			engine/persistence			save-game store: migrates old envelopes one schema step at a time	
-tools/engine-tests.ts	16085	check	A			engine/persistence			save-game store: corrupt JSON reads as null and logs without crashing	
-tools/engine-tests.ts	16103	check	A			engine/persistence	opaque-level-path		save-game store: storage write failures return an error result	
+tools/engine-tests.ts	15996	check	A			engine/persistence	opaque-level-path	src/engine/persistence/saveGameStore.test.ts	save-game store: writes, lists, reads, overwrites, and deletes slots	
+tools/engine-tests.ts	16047	check	A			engine/persistence		src/engine/persistence/saveGameStore.test.ts	save-game store: migrates old envelopes one schema step at a time	
+tools/engine-tests.ts	16085	check	A			engine/persistence		src/engine/persistence/saveGameStore.test.ts	save-game store: corrupt JSON reads as null and logs without crashing	
+tools/engine-tests.ts	16103	check	A			engine/persistence	opaque-level-path	src/engine/persistence/saveGameStore.test.ts	save-game store: storage write failures return an error result	
 tools/engine-tests.ts	16127	check	D			engine/persistence	dropped:Forge WebGL's save payload (actor index keys, untyped flags, level path); forge.saveGame/1 keys by actor GUID + 		game save serializer: collects level, player facing, and persistent state	
 tools/engine-tests.ts	16166	check	M			engine/persistence	level-data:Levels/A.level.json,level-data:Levels/VehicleTest.level.json,model:engine/persistence		game save serializer: round-trips vehicles and the ride, dropping only bad vehicle entries	
 tools/engine-tests.ts	16214	check	D			engine/persistence	dropped:Forge WebGL's save payload (actor index keys, untyped flags, level path); forge.saveGame/1 keys by actor GUID + 		game save serializer: rejects bad player transforms and drops non-json flags	
@@ -2158,7 +2158,7 @@ tools/engine-tests.ts	16330	check	A			engine/audio,engine/perf,engine/persistenc
 tools/engine-tests.ts	16356	check	A			engine/perf			graphics preferences: defaults are adaptive-on / 60fps / medium	3
 tools/engine-tests.ts	16371	check	A			engine/perf			graphics preferences: normalization validates each field and gates customSettings on level	3
 tools/engine-tests.ts	16441	check	A			engine/perf,engine/persistence			user settings store: round-trips graphics preferences alongside audio + locale	3
-tools/engine-tests.ts	16468	check	A			engine/persistence	opaque-level-path		save-game UI commands and ViewModel fields stay slot-scoped	
+tools/engine-tests.ts	16468	check	A			engine/persistence	opaque-level-path	src/engine/persistence/saveGameSlots.test.ts	save-game UI commands and ViewModel fields stay slot-scoped	
 tools/engine-tests.ts	16491	check	A			engine/persistence,engine/ui			starter save/load UI asset binds slots and emits reserved save messages	6
 tools/engine-tests.ts	16524	check	A			engine/loading		src/engine/loading/loadProgress.test.ts	load progress: counts loaded/failed/pending and derives fraction + done	
 tools/engine-tests.ts	16571	check	A			engine/loading		src/engine/loading/loadProgress.test.ts	load progress: transitions are idempotent and retry moves failed -> loaded	
