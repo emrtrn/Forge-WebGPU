@@ -30,6 +30,11 @@ export interface FieldUi {
   readonly label?: string;
   /** Turkish tooltip. */
   readonly hint?: string;
+  /**
+   * A save game keeps this field's run-time value (A7). Only on a component's
+   * top-level fields; see `persist.ts`.
+   */
+  readonly persist?: boolean;
 }
 
 export interface NumberField extends FieldUi {
@@ -181,7 +186,7 @@ export function deepFreeze<T>(value: T): T {
   return value;
 }
 
-function fail(message: string): never {
+export function fail(message: string): never {
   throw new SchemaDefinitionError(message);
 }
 

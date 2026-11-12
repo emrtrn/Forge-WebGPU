@@ -8,6 +8,16 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.1
+
+API: d8bb500ca5f4f90d
+
+Save game (architecture A7), additive: a field's `persist` flag (a save keeps
+its run-time value; top-level component fields only), a component's `state`
+section (run-time-only values, never in a level, always saved) and
+`persistTransform` option, `defineSaveState` for game-wide save state and
+`defineFeature({ saveStates })`. No untyped `flags`.
+
 ## 0.1.0
 
 API: 98af92859f3f882b

@@ -15,6 +15,7 @@ import {
   type DocumentAssetTypeDef,
 } from "../assets/assetType.ts";
 import { isJsonObject, type JsonObject } from "../json.ts";
+import type { SaveStateDef } from "../save/saveState.ts";
 import { parseComponentTypeTag, type ComponentDef } from "./component.ts";
 import { SchemaDefinitionError } from "./fields.ts";
 import { childPath, reportLoss, type NormalizeContext } from "./issues.ts";
@@ -35,12 +36,18 @@ export interface SchemaRegistry {
   binaryTypesForFile(fileName: string): readonly BinaryAssetTypeDef[];
   /** The document type a JSON asset's `schema` tag names. */
   documentTypeForSchema(schema: unknown): DocumentAssetTypeDef | undefined;
+  /** Registration point for game-wide save states (A7). A name can be registered once. */
+  registerSaveState(def: SaveStateDef): void;
+  getSaveState(name: string): SaveStateDef | undefined;
+  /** In registration order. */
+  saveStates(): readonly SaveStateDef[];
 }
 
 export function createSchemaRegistry(): SchemaRegistry {
   const byName = new Map<string, ComponentDef>();
   const assetTypes = new Map<string, AssetTypeDef>();
   const documentsBySchema = new Map<string, DocumentAssetTypeDef>();
+  const saveStates = new Map<string, SaveStateDef>();
 
   const registerAssetType = (def: AssetTypeDef): void => {
     if (def.kind !== "assetType") {
@@ -89,6 +96,21 @@ export function createSchemaRegistry(): SchemaRegistry {
     },
     documentTypeForSchema(schema) {
       return typeof schema === "string" ? documentsBySchema.get(schema) : undefined;
+    },
+    registerSaveState(def) {
+      if (def.kind !== "saveState") {
+        throw new SchemaDefinitionError("registerSaveState: not a save state definition.");
+      }
+      if (saveStates.has(def.name)) {
+        throw new SchemaDefinitionError(`registerSaveState: "${def.name}" is already registered.`);
+      }
+      saveStates.set(def.name, def);
+    },
+    getSaveState(name) {
+      return saveStates.get(name);
+    },
+    saveStates() {
+      return [...saveStates.values()];
     },
   };
 }

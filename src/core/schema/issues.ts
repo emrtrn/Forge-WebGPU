@@ -35,7 +35,8 @@ export type IssueCode =
   | "singleton-conflict"
   | "misplaced-actor"
   | "orphan-part"
-  | "revision-mismatch";
+  | "revision-mismatch"
+  | "unknown-save-state";
 
 export type IssueSeverity = "error" | "warning";
 

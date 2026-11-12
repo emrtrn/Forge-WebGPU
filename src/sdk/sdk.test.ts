@@ -17,6 +17,7 @@ describe("@forge/sdk", () => {
       "defineComponent",
       "defineFeature",
       "defineGameModule",
+      "defineSaveState",
       "defineSubsystem",
       "enumOf",
       "isId",

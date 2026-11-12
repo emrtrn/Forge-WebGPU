@@ -39,6 +39,10 @@ export type {
   Vec4,
 } from "../core/index.ts";
 
+// Game-wide save state (A7); actor state is `persist` fields and a component's `state`
+export { defineSaveState } from "../core/index.ts";
+export type { SaveStateData, SaveStateDef } from "../core/index.ts";
+
 // Binary asset types a game brings
 export { defineAssetType } from "../core/index.ts";
 export type { BinaryAssetTypeDef } from "../core/index.ts";

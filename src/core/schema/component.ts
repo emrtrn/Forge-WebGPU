@@ -16,6 +16,7 @@ import {
 import { labelFromComponentName } from "./label.ts";
 import { checkMigrations, type MigrationMap } from "./migrate.ts";
 import { assertDefaultsAreNormal } from "./normalize.ts";
+import { checkPersistFlags } from "./persist.ts";
 
 /** Namespaced, e.g. `forge.heightFog`; a game uses its own namespace. */
 export const COMPONENT_NAME_PATTERN = /^[a-z][A-Za-z0-9]*(\.[a-z][A-Za-z0-9]*)+$/;
@@ -37,6 +38,14 @@ export interface ComponentOptions {
   readonly singleton?: boolean;
   /** One step per earlier version, keyed by the version it migrates from. */
   readonly migrations?: MigrationMap;
+  /**
+   * Run-time-only values a save game keeps (A7, `persist.ts`): never in a
+   * level, not in Details. Their keys share the component's namespace, so a
+   * migration step sees fields and state together.
+   */
+  readonly state?: FieldMap;
+  /** A save game keeps the actor's transform when it moved (a pushed crate, a parked car). */
+  readonly persistTransform?: boolean;
 }
 
 export interface ComponentDef<M extends FieldMap = FieldMap> {
@@ -49,6 +58,8 @@ export interface ComponentDef<M extends FieldMap = FieldMap> {
   readonly singleton: boolean;
   readonly fields: M;
   readonly migrations: MigrationMap;
+  readonly state: FieldMap;
+  readonly persistTransform: boolean;
 }
 
 /** `forge.heightFog@1`: the `type` tag a stored component carries. */
@@ -89,6 +100,16 @@ export function defineComponent<M extends FieldMap>(
     }
   }
   assertDefaultsAreNormal(`defineComponent ${name}`, fields);
+  checkPersistFlags(`defineComponent ${name}`, fields, "topLevel");
+  const state = { ...options.state };
+  checkFieldMap(`defineComponent ${name} state`, state);
+  for (const key of Object.keys(state)) {
+    if (Object.hasOwn(fields, key) || (RESERVED_COMPONENT_KEYS as readonly string[]).includes(key)) {
+      throw new SchemaDefinitionError(`defineComponent ${name}: state "${key}" is already a field or envelope key.`);
+    }
+  }
+  checkPersistFlags(`defineComponent ${name} state`, state, "none");
+  assertDefaultsAreNormal(`defineComponent ${name} state`, state);
   const migrations = { ...options.migrations };
   checkMigrations(`defineComponent ${name}`, version, migrations);
 
@@ -102,6 +123,8 @@ export function defineComponent<M extends FieldMap>(
     singleton: options.singleton ?? false,
     fields: { ...fields },
     migrations,
+    state,
+    persistTransform: options.persistTransform ?? false,
   }) as ComponentDef<M>;
 }
 

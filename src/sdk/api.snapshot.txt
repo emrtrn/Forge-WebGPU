@@ -24,8 +24,10 @@ interface ComponentDef<M>
   readonly label: string
   readonly migrations: MigrationMap
   readonly name: string
+  readonly persistTransform: boolean
   readonly singleton: boolean
   readonly spatial: boolean
+  readonly state: FieldMap
   readonly version: number
 
 interface ComponentEntry
@@ -40,6 +42,7 @@ interface FeatureDef
   readonly components: ReadonlyArray<ComponentDef<import("src/core/index").FieldMap>>
   readonly id: string
   readonly kind: "feature"
+  readonly saveStates: ReadonlyArray<SaveStateDef<import("src/core/index").FieldMap>>
   readonly subsystems: ReadonlyArray<SubsystemDef>
 
 type FieldDef = NumberField | BoolField | ColorField | TextField | TransformField | AssetRefField | ActorRefField | EnumField<string> | VectorField<VectorSize> | ArrayField<FieldDef> | ObjectField<FieldMap>
@@ -60,7 +63,18 @@ type IdKind = "actor" | "asset" | "level"
 
 type LevelId = `lvl_${string}`
 
-const SDK_VERSION: "0.1.0"
+const SDK_VERSION: "0.1.1"
+
+type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
+
+interface SaveStateDef<M>
+  readonly fields: M
+  readonly hint: string | null
+  readonly kind: "saveState"
+  readonly label: string
+  readonly migrations: MigrationMap
+  readonly name: string
+  readonly version: number
 
 interface ServiceKey<T>
   readonly kind: "serviceKey"
@@ -138,9 +152,11 @@ function defineAssetType<M extends FieldMap>(name: string, version: number, defi
 
 function defineComponent<M extends FieldMap>(name: string, version: number, fields: M, options?: ComponentOptions): ComponentDef<M>
 
-function defineFeature(feature: { readonly id: string; readonly components?: readonly ComponentDef[]; readonly assetTypes?: readonly BinaryAssetTypeDef[]; readonly subsystems?: readonly SubsystemDef[]; }): FeatureDef
+function defineFeature(feature: { readonly id: string; readonly components?: readonly ComponentDef[]; readonly assetTypes?: readonly BinaryAssetTypeDef[]; readonly saveStates?: readonly SaveStateDef[]; readonly subsystems?: readonly SubsystemDef[]; }): FeatureDef
 
 function defineGameModule(module: Omit<GameModuleDef, "kind" | "features"> & { readonly features?: readonly FeatureDef[]; }): GameModuleDef
+
+function defineSaveState<M extends FieldMap>(name: string, version: number, fields: M, options?: SaveStateOptions): SaveStateDef<M>
 
 function defineSubsystem(definition: { readonly id: string; readonly tickGroups?: readonly TickGroup[]; readonly create: (ctx: SubsystemContext) => SubsystemInstance; }): SubsystemDef
 
@@ -164,7 +180,7 @@ function vec4(options: VectorOptions<4>): VectorField<4>
 
 # src/editor-sdk/index.ts
 
-const SDK_VERSION: "0.1.0"
+const SDK_VERSION: "0.1.1"
 
 # referenced (not exported, part of the surface)
 
@@ -173,6 +189,7 @@ interface ActorRefField  // src/core/schema/fields.ts
   readonly hint?: string | undefined
   readonly kind: "actorRef"
   readonly label?: string | undefined
+  readonly persist?: boolean | undefined
 
 interface ArrayField<I>  // src/core/schema/fields.ts
   readonly default: ReadonlyArray<unknown>
@@ -180,6 +197,7 @@ interface ArrayField<I>  // src/core/schema/fields.ts
   readonly item: I
   readonly kind: "array"
   readonly label?: string | undefined
+  readonly persist?: boolean | undefined
 
 interface AssetRefField  // src/core/schema/fields.ts
   readonly assetType?: string | undefined
@@ -187,6 +205,7 @@ interface AssetRefField  // src/core/schema/fields.ts
   readonly hint?: string | undefined
   readonly kind: "assetRef"
   readonly label?: string | undefined
+  readonly persist?: boolean | undefined
 
 interface AssetTypeOptions  // src/core/assets/assetType.ts
   readonly hint?: string | undefined
@@ -198,12 +217,14 @@ interface BoolField  // src/core/schema/fields.ts
   readonly hint?: string | undefined
   readonly kind: "bool"
   readonly label?: string | undefined
+  readonly persist?: boolean | undefined
 
 interface ColorField  // src/core/schema/fields.ts
   readonly default: string
   readonly hint?: string | undefined
   readonly kind: "color"
   readonly label?: string | undefined
+  readonly persist?: boolean | undefined
 
 type ComponentMap = { [x: string]: ComponentRecord; }  // src/core/level/model.ts
 
@@ -211,8 +232,10 @@ interface ComponentOptions  // src/core/schema/component.ts
   readonly hint?: string | undefined
   readonly label?: string | undefined
   readonly migrations?: MigrationMap | undefined
+  readonly persistTransform?: boolean | undefined
   readonly singleton?: boolean | undefined
   readonly spatial?: boolean | undefined
+  readonly state?: FieldMap | undefined
 
 interface ComponentRecord  // src/core/level/model.ts
   [key: string]: unknown
@@ -228,11 +251,13 @@ interface EnumField<V>  // src/core/schema/fields.ts
   readonly kind: "enum"
   readonly label?: string | undefined
   readonly labels?: { readonly [K in V]?: string; } | undefined
+  readonly persist?: boolean | undefined
   readonly values: ReadonlyArray<V>
 
 interface FieldUi  // src/core/schema/fields.ts
   readonly hint?: string | undefined
   readonly label?: string | undefined
+  readonly persist?: boolean | undefined
 
 type FieldValue<F> = F extends NumberField ? number : F extends BoolField ? boolean : F extends EnumField<infer V extends string> ? V : F extends ColorField | TextField ? string : F extends VectorField<infer N extends VectorSize> ? VectorOf<N> : F extends TransformField ? Transform : F extends AssetRefField ? `ast_${string}` | null : F extends ActorRefField ? `act_${string}` | null : F extends ArrayField<infer I extends FieldDef> ? Array<FieldValue<I>> : F extends ObjectField<infer M extends FieldMap> ? FieldValues<M> : never  // src/core/schema/fields.ts
 
@@ -252,6 +277,7 @@ interface NumberField  // src/core/schema/fields.ts
   readonly label?: string | undefined
   readonly max?: number | undefined
   readonly min?: number | undefined
+  readonly persist?: boolean | undefined
   readonly slider?: readonly [number, number] | undefined
   readonly step?: number | undefined
 
@@ -260,6 +286,12 @@ interface ObjectField<M>  // src/core/schema/fields.ts
   readonly hint?: string | undefined
   readonly kind: "object"
   readonly label?: string | undefined
+  readonly persist?: boolean | undefined
+
+interface SaveStateOptions  // src/core/save/saveState.ts
+  readonly hint?: string | undefined
+  readonly label?: string | undefined
+  readonly migrations?: MigrationMap | undefined
 
 interface TextField  // src/core/schema/fields.ts
   readonly default: string
@@ -268,6 +300,7 @@ interface TextField  // src/core/schema/fields.ts
   readonly label?: string | undefined
   readonly multiline?: boolean | undefined
   readonly pattern?: string | undefined
+  readonly persist?: boolean | undefined
   readonly required?: boolean | undefined
 
 interface TransformField  // src/core/schema/fields.ts
@@ -275,6 +308,7 @@ interface TransformField  // src/core/schema/fields.ts
   readonly hint?: string | undefined
   readonly kind: "transform"
   readonly label?: string | undefined
+  readonly persist?: boolean | undefined
 
 interface VectorField<N>  // src/core/schema/fields.ts
   readonly default: Readonly<VectorOf<N>>
@@ -283,11 +317,12 @@ interface VectorField<N>  // src/core/schema/fields.ts
   readonly label?: string | undefined
   readonly max?: number | undefined
   readonly min?: number | undefined
+  readonly persist?: boolean | undefined
   readonly size: N
   readonly step?: number | undefined
 
 type VectorOf<N extends VectorSize> = N extends 2 ? Vec2 : N extends 3 ? Vec3 : Vec4  // src/core/schema/fields.ts
 
-type VectorOptions<N extends VectorSize> = { readonly default: Readonly<VectorOf<N>>; readonly min?: number; readonly max?: number; readonly step?: number; readonly label?: string; readonly hint?: string; }  // src/core/schema/fields.ts
+type VectorOptions<N extends VectorSize> = { readonly default: Readonly<VectorOf<N>>; readonly min?: number; readonly max?: number; readonly step?: number; readonly label?: string; readonly hint?: string; readonly persist?: boolean; }  // src/core/schema/fields.ts
 
 type VectorSize = 2 | 3 | 4  // src/core/schema/fields.ts

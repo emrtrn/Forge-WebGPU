@@ -16,6 +16,7 @@
 import type { BinaryAssetTypeDef } from "./assets/assetType.ts";
 import { COMPONENT_NAME_PATTERN, type ComponentDef } from "./schema/component.ts";
 import { deepFreeze, SchemaDefinitionError } from "./schema/fields.ts";
+import type { SaveStateDef } from "./save/saveState.ts";
 import type { SubsystemDef } from "./world/subsystem.ts";
 import type { SchemaRegistry } from "./schema/registry.ts";
 
@@ -25,6 +26,8 @@ export interface FeatureDef {
   readonly id: string;
   readonly components: readonly ComponentDef[];
   readonly assetTypes: readonly BinaryAssetTypeDef[];
+  /** Game-wide save states (A7) the feature owns. */
+  readonly saveStates: readonly SaveStateDef[];
   /** Run by the world in this order, after the subsystems of earlier features. */
   readonly subsystems: readonly SubsystemDef[];
 }
@@ -33,6 +36,7 @@ export function defineFeature(feature: {
   readonly id: string;
   readonly components?: readonly ComponentDef[];
   readonly assetTypes?: readonly BinaryAssetTypeDef[];
+  readonly saveStates?: readonly SaveStateDef[];
   readonly subsystems?: readonly SubsystemDef[];
 }): FeatureDef {
   if (!COMPONENT_NAME_PATTERN.test(feature.id)) {
@@ -49,11 +53,15 @@ export function defineFeature(feature: {
   if (new Set(assetTypes.map((type) => type.name)).size !== assetTypes.length) {
     throw new SchemaDefinitionError(`defineFeature ${feature.id}: an asset type is listed twice.`);
   }
+  const saveStates = [...(feature.saveStates ?? [])];
+  if (new Set(saveStates.map((state) => state.name)).size !== saveStates.length) {
+    throw new SchemaDefinitionError(`defineFeature ${feature.id}: a save state is listed twice.`);
+  }
   const subsystems = [...(feature.subsystems ?? [])];
   if (new Set(subsystems.map((subsystem) => subsystem.id)).size !== subsystems.length) {
     throw new SchemaDefinitionError(`defineFeature ${feature.id}: a subsystem is listed twice.`);
   }
-  return deepFreeze({ kind: "feature", id: feature.id, components, assetTypes, subsystems });
+  return deepFreeze({ kind: "feature", id: feature.id, components, assetTypes, saveStates, subsystems });
 }
 
 /**
@@ -74,6 +82,9 @@ export function installFeatures(features: readonly FeatureDef[], registry: Schem
     }
     for (const assetType of feature.assetTypes) {
       registry.registerAssetType(assetType);
+    }
+    for (const saveState of feature.saveStates) {
+      registry.registerSaveState(saveState);
     }
   }
 }
