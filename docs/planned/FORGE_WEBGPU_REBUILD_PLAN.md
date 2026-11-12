@@ -369,8 +369,10 @@ alt dizin (`base`) yayını testi Faz 4'e taşındı.
       *Worldbuilder taşındı (2026-11-12, seçenek B):* algoritmalar ve aşama
       üreticileri `src/engine/worldbuilder`'da; Stage Runner taşınmadı, köken
       `recipe.generatedBy`'da. Aşama kontrolleri Forge'un çalıştırıcısının
-      iskele kopyasıyla koşar. 53 kontrol yeşil, 15 D (payda 907); fixture'ı
-      `node:fs` ile okuyan 58 kontrol kural kararını bekliyor. İlerleme A 612 / 907.
+      iskele kopyasıyla koşar. 53 kontrol yeşil, 15 D (payda 907). İlerleme
+      A 612 / 907. Nötr bölge profili fixture'ını okuyan 58 kontrol `node:fs`
+      `src` testlerine açılınca (kullanıcı kararı, `src-tests-node-assert-only`
+      + kontrol fixture'ı) yeşil. İlerleme A 670 / 907.
 - [ ] Kayıt oyunu (`engine/persistence`) ve World Partition (`engine/world`)
       yeni modele göre yeniden kurulur; GUID anahtarlı. Kayıt oyunu `persist`
       işaretli bileşen alanlarını ve `defineSaveState` bölümlerini saklar;
@@ -730,3 +732,4 @@ silinebilir.
 | 2026-11-12 | v1.0 | 2b behavior: koddan kayıtlı davranış + script mesajları; olay / mesaj bağlamaları kod kaydında (`BehaviorDefinition`, kullanıcı kararı, K12 satırında); referans / arayüz / dispatcher / değişken / ses bileşeni yok. `behaviorSubsystem` bütçe için bölündü (tipler `behaviorTypes`). Forge fixture'ları test köprüsünden geçer; kontrol düzeyinde D listesi (payda 922). 33 kontrol yeşil. A 502 / 922 |
 | 2026-11-12 | v1.0 | 2b küçük alanlar: environment, loading, perception, vfx, perf'in kalanı; kalite profilleri / uyarlamalı kalite / donanım ipuçları / WebGL GPU timer Faz 3'e, Player Start Faz 6'ya, `lakeQuality` Faz 7'ye, `puddleWind` 5a'ya. 57 kontrol yeşil. A 559 / 922 |
 | 2026-11-12 | v1.0 | 2b worldbuilder (seçenek B, kullanıcı kararı): algoritmalar + aşama üreticileri; Stage Runner / sahiplik / Dry Run / üretici sürümleri taşınmadı, köken `recipe.generatedBy`, korumalı bölgeler üst düzeyde (World Builder kapsam kutusunda). 53 kontrol yeşil, 15 D (payda 907); 58 kontrol `node:fs` kararını bekliyor. A 612 / 907 |
+| 2026-11-12 | v1.0 | 2b: `node:fs` `src` testlerine açıldı (ortak test fixture'ı okumak için; kullanıcı kararı, `src-tests-node-assert-only` + kontrol fixture'ı, kasıtlı ihlal `node:child_process`'e geçti); nötr bölge profili fixture'ı `tests/engine/fixtures/`'ta, worldbuilder 58 kontrol yeşil. A 670 / 907 |

@@ -3,7 +3,7 @@
   { "rule": "three-only-in-render", "from": "src/core/typeOnlyThree.ts" },
   { "rule": "not-to-unresolvable", "from": "src/core/unresolvable.ts" },
   { "rule": "src-no-node-builtins", "from": "src/core/usesFs.ts" },
-  { "rule": "src-tests-node-assert-only", "from": "src/core/usesFs.test.ts" },
+  { "rule": "src-tests-node-assert-only", "from": "src/core/usesChildProcess.test.ts" },
   { "rule": "engine-imports-core-only", "from": "src/engine/reexportRender.ts" },
   { "rule": "three-only-in-render", "from": "src/engine/dynamicThree.ts" },
   { "rule": "render-imports-core-engine", "from": "src/render/usesRuntime.ts" },

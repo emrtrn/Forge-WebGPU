@@ -84,8 +84,9 @@ projenin sunucusunu yeniden kullanma.
   ayrımını çağıran parametreyle verir.
 - `src/engine` de DOM'suz ve Web Audio'suz, düz Node'da yüklenir; tarayıcı API'si
   gereken kod `src/runtime`'da (ör. `runtime/audio`). `src` altındaki testler
-  yalnız `node:assert` ve (bağımsız referans kodlayıcı olarak) `node:zlib`
-  import edebilir; Forge'dan taşınan kontroller birebir
+  yalnız `node:assert`, (bağımsız referans kodlayıcı olarak) `node:zlib` ve
+  (ortak test fixture'ı okumak için) `node:fs` import edebilir; Forge'dan
+  taşınan kontroller birebir
   kalır (`check` = Vitest `test`).
 - `src/engine/testing/` test iskelesidir (Forge'un eski döngüsü): yalnız testler
   import eder, ürün koduna girmez; Faz 6'da silinir. Taşınan alt sistemler

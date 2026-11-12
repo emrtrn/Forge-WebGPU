@@ -141,10 +141,10 @@ module.exports = {
     {
       name: "src-tests-node-assert-only",
       comment:
-        "A test under src/ runs in Node (Vitest) and never ships, so it may use node:assert: tests ported from Forge WebGL keep their assertions word for word (plan 2b). node:zlib is allowed as an independent reference codec (the heightmap PNG checks inflate / deflate with it; user decision 2026-11-12). Every other Node module stays out of src/, tests included.",
+        "A test under src/ runs in Node (Vitest) and never ships, so it may use node:assert: tests ported from Forge WebGL keep their assertions word for word (plan 2b). node:zlib is allowed as an independent reference codec (the heightmap PNG checks inflate / deflate with it; user decision 2026-11-12). node:fs is allowed to read a shared test fixture from disk (the World Builder checks read tests/engine/fixtures/neutral.regionprofile.json word for word; user decision 2026-11-12). Every other Node module stays out of src/, tests included.",
       severity: "error",
       from: { path: "^src/.*\\.test\\.ts$" },
-      to: { dependencyTypes: ["core"], pathNot: "^(node:)?(assert(/strict)?|zlib)$" },
+      to: { dependencyTypes: ["core"], pathNot: "^(node:)?(assert(/strict)?|zlib|fs)$" },
     },
     {
       name: "src-does-not-import-tools",
