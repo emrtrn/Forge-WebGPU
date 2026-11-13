@@ -54,6 +54,13 @@ export interface EditResult {
   readonly issues: readonly Issue[];
 }
 
+/** One actor as an edit, undo or redo left it: `before` and `after` in the direction it was applied. */
+export interface AppliedChange {
+  readonly id: ActorId;
+  readonly before: ActorDoc | null;
+  readonly after: ActorDoc | null;
+}
+
 export type SavePlan =
   | { readonly status: "clean" }
   | { readonly status: "needs-load"; readonly cells: readonly string[] }
@@ -84,6 +91,12 @@ export interface LevelSession {
   /** Drops a loaded cell's actors; refused while the cell has unsaved changes. */
   unloadCell(cell: string): { readonly ok: boolean; readonly reason?: string };
   planSave(): SavePlan;
+  /**
+   * Hears every change the session applies (an edit, an undo, a redo), in the
+   * order applied; the editor mirrors them into its world. Returns the
+   * unsubscribe.
+   */
+  onApplied(listener: (changes: readonly AppliedChange[], cause: "edit" | "undo" | "redo") => void): () => void;
   /** Applies the server's answer to a plan. Only a saved answer changes the session. */
   applySaveResult(plan: Extract<SavePlan, { status: "ready" }>, response: SaveResponseBody): void;
 }
@@ -121,11 +134,17 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
     versions.set(id, clock);
   };
 
-  const applyChanges = (changes: readonly ActorChange[], direction: "forward" | "back"): void => {
+  const listeners = new Set<(changes: readonly AppliedChange[], cause: "edit" | "undo" | "redo") => void>();
+  const applyChanges = (changes: readonly ActorChange[], direction: "forward" | "back", cause: "edit" | "undo" | "redo"): void => {
     const ordered = direction === "forward" ? changes : [...changes].reverse();
+    const applied: AppliedChange[] = [];
     for (const change of ordered) {
-      put(change.id, direction === "forward" ? change.after : change.before, change.beforeIndex);
+      const before = direction === "forward" ? change.before : change.after;
+      const after = direction === "forward" ? change.after : change.before;
+      put(change.id, after, change.beforeIndex);
+      applied.push({ id: change.id, before, after });
     }
+    for (const listener of listeners) listener(applied, cause);
   };
 
   const isLoaded = (cell: string): boolean => loaded.has(cell) || !onDisk.has(cell);
@@ -165,6 +184,20 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
           });
         }
       }
+      // A removed actor takes no child with it silently: its children go in the same edit or get another parent.
+      for (const [id, actor] of staged) {
+        if (actor !== null) continue;
+        // (A staged child pointing at it is caught above: its parent is gone.)
+        for (const other of level.actors) {
+          if (staged.has(other.id) || other.parent !== id) continue;
+          issues.push({
+            code: "invalid-parent",
+            severity: "error",
+            path: `${other.id}.parent`,
+            message: `Actor ${id} is removed but its child ${other.id} stays; remove or reparent the child in the same edit.`,
+          });
+        }
+      }
       if (issues.some((found) => found.severity === "error") || staged.size === 0) {
         return { ok: !issues.some((found) => found.severity === "error"), issues };
       }
@@ -175,7 +208,7 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
         if (before === null && after === null) continue;
         changes.push({ id, before, beforeIndex: beforeIndex >= 0 ? beforeIndex : level.actors.length, after });
       }
-      applyChanges(changes, "forward");
+      applyChanges(changes, "forward", "edit");
       const transaction: Transaction = { label, coalesce: editOptions.coalesce ?? null, changes };
       history.push(transaction);
       return { ok: true, issues };
@@ -184,14 +217,14 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
     undo() {
       const transaction = history.takeUndo();
       if (!transaction) return false;
-      applyChanges(transaction.changes, "back");
+      applyChanges(transaction.changes, "back", "undo");
       return true;
     },
 
     redo() {
       const transaction = history.takeRedo();
       if (!transaction) return false;
-      applyChanges(transaction.changes, "forward");
+      applyChanges(transaction.changes, "forward", "redo");
       return true;
     },
 
@@ -306,6 +339,11 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
       for (const key of touched) for (const id of plan.written.get(key) ?? []) fileOf.set(id, key);
       for (const [id, version] of plan.versions) saved.set(id, version);
       history.seal();
+    },
+
+    onApplied(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
     },
   };
   return session;

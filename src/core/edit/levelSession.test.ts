@@ -116,6 +116,24 @@ describe("opening and editing", () => {
     expect(plan.request.deletes).toEqual([{ path: `${FOLDER}/cells/1_0.json`, base: rev(3) }]);
   });
 
+  test("removing a parent refuses to leave its child behind; removing or reparenting the child in the same edit is fine", () => {
+    const session = open();
+    session.edit("Parent", (tx) => tx.setActor({ ...structuredClone(session.actor(actorId("b"))!), parent: actorId("a") }));
+    const refused = session.edit("Remove a", (tx) => tx.removeActor(actorId("a")));
+    expect(refused.ok).toBe(false);
+    expect(summary(refused.issues)).toEqual([`error invalid-parent ${actorId("b")}.parent`]);
+    expect(session.actor(actorId("a"))).toBeDefined();
+    expect(session.edit("Remove both", (tx) => {
+      tx.removeActor(actorId("a"));
+      tx.removeActor(actorId("b"));
+    }).ok).toBe(true);
+    session.undo();
+    expect(session.edit("Unparent and remove", (tx) => {
+      tx.setActor({ ...structuredClone(session.actor(actorId("b"))!), parent: null });
+      tx.removeActor(actorId("a"));
+    }).ok).toBe(true);
+  });
+
   test("an invalid edit is refused whole and changes nothing", () => {
     const session = open();
     const result = session.edit("Bad", (tx) => {
@@ -194,6 +212,31 @@ describe("undo and redo", () => {
     expect(session.history.redoStack).toHaveLength(1);
     move(session, "c", 160, 20);
     expect(session.history.redoStack).toHaveLength(0);
+  });
+
+  test("listeners hear each applied change in the direction applied (the editor mirrors them into its world)", () => {
+    const session = open();
+    const heard: string[] = [];
+    const describe = (doc: ActorDoc | null) => (doc === null ? "-" : `${doc.name}@${doc.transform.p[0]}`);
+    const stop = session.onApplied((changes, cause) =>
+      heard.push(`${cause} ${changes.map((change) => `${describe(change.before)}>${describe(change.after)}`).join(" ")}`),
+    );
+    move(session, "a", 30, 30);
+    session.edit("Add and remove", (tx) => {
+      tx.setActor(actor("f", 40, 40));
+      tx.removeActor(actorId("b"));
+    });
+    session.undo();
+    session.redo();
+    session.edit("Refused", (tx) => tx.setActor({ id: actorId("g"), layer: 1 }));
+    stop();
+    session.undo();
+    expect(heard).toEqual([
+      "edit a@10>a@30",
+      "edit ->f@40 b@20>-",
+      "undo ->b@20 f@40>-",
+      "redo ->f@40 b@20>-",
+    ]);
   });
 
   test("undoing back to the saved state still saves (the file must match memory)", () => {
