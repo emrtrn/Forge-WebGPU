@@ -22,6 +22,7 @@
 // only its instanced meshes and their buffers.
 
 import { Color, InstancedMesh, Matrix4, type BufferGeometry, type Material, type Object3D } from "three/webgpu";
+import { SCENE_SOURCE_KEY } from "../../engine/perf/sceneCost.ts";
 
 export interface InstancePart {
   readonly geometry: BufferGeometry;
@@ -46,6 +47,8 @@ export interface InstanceBatch {
 
 export interface InstanceBatchOptions {
   readonly name: string;
+  /** The `?debug` scene-cost bucket its meshes count in (`SCENE_SOURCE_KEY`), e.g. `staticMesh`. */
+  readonly source?: string;
   readonly parent: Object3D;
   readonly castShadow: boolean;
 }
@@ -129,6 +132,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
           mesh.castShadow = options.castShadow;
           mesh.receiveShadow = true;
           mesh.matrixAutoUpdate = false;
+          if (options.source !== undefined) mesh.userData[SCENE_SOURCE_KEY] = options.source;
           options.parent.add(mesh);
           return mesh;
         });

@@ -65,3 +65,22 @@ test("viewer camera: W moves the view, a right-drag turns it", async ({ page }) 
   expect(await difference(page, moved, turned), `a right-drag turned the camera (still noise ${noise.toFixed(3)})`).toBeGreaterThan(threshold);
   expect(pageErrors).toEqual([]);
 });
+
+test("?debug: the readout reports the frame, the pipeline and the scene cost; Scene cost opens its table", async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  const derekavak = SMOKE_SCENES.find((scene) => scene.id === "derekavak")!;
+  await openSmokeLevel(page, derekavak.level, derekavak.poses[0]!, "&debug");
+  const readout = page.locator("#debug-stats-readout");
+  await expect(readout).toContainText("draw calls", { timeout: 10_000 });
+  await expect(readout).toContainText("gpu ");
+  await expect(readout).toContainText("pipeline scene");
+  await expect(readout).toContainText("shadow casters");
+  await expect(readout).toContainText("terrain");
+  await page.locator("[data-forge-debug-action='scene-cost']").click();
+  const table = page.locator(".forge-debug-table[data-forge-debug-table='Scene cost']");
+  await expect(table).toBeVisible();
+  await expect(table.locator("tbody tr")).not.toHaveCount(0);
+  await expect(table).toContainText("staticMesh");
+  expect(pageErrors).toEqual([]);
+});

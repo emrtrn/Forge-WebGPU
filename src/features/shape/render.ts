@@ -44,7 +44,7 @@ export default defineRenderBinding({
       const primitive = data.primitive as ShapePrimitive;
       const doubleSided = primitive === "plane";
       const batch: Batch = {
-        instances: createInstanceBatch({ name: `shape/${primitive}`, parent: ctx.root, castShadow: data.castShadow }),
+        instances: createInstanceBatch({ name: `shape/${primitive}`, source: "shape", parent: ctx.root, castShadow: data.castShadow }),
         keys: [resourceKey.shape(primitive), shapeMaterialKey(SHAPE_BASE_COLOR, doubleSided)],
         disposed: false,
       };

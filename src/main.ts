@@ -12,6 +12,8 @@
 // `?level=<project-relative folder>` opens another level than the project's
 // start level (the render smoke and reference scenes use it); `?forceWebGL`
 // is the labelled WebGL2 test mode (architecture §4.10), never a WebGPU run.
+// `?debug` mounts the diagnostics panel (render/viewer/debug), loaded only
+// then, through a dynamic import.
 //
 // Development only: `window.__forgeDev` pauses the frame loop and steps it at
 // a fixed rate, pairing each frame with its GPU time and Sky Light captures,
@@ -166,6 +168,13 @@ async function start(): Promise<void> {
     scheduler,
     warn: (issues) => console.warn("Level data report", issues),
   });
+  if (booted && params.has("debug")) {
+    const { attachDebugPanel } = await import("./render/viewer/debug/debugPanel.ts");
+    attachDebugPanel(document, {
+      host: () => viewer.host,
+      environment: () => booted.world.services.get(WorldEnvironmentKey)?.controller.current() ?? null,
+    });
+  }
   if (import.meta.env.DEV && booted) {
     const environment = () => booted.world.services.get(WorldEnvironmentKey)?.controller ?? null;
     const transitions: { reached: boolean | null }[] = [];

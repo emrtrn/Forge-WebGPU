@@ -110,7 +110,7 @@ export default defineRenderBinding({
       const existing = batches.get(key);
       if (existing) return existing;
       const batch: Batch = {
-        instances: createInstanceBatch({ name: `staticMesh/${model}`, parent: ctx.root, castShadow: data.castShadow }),
+        instances: createInstanceBatch({ name: `staticMesh/${model}`, source: "staticMesh", parent: ctx.root, castShadow: data.castShadow }),
         keys: [resourceKey.model(model)],
         disposed: false,
       };

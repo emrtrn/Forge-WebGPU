@@ -30,8 +30,8 @@ export interface OpenedLevel {
   readonly cameraPose: { position: readonly [number, number, number]; quaternion: [number, number, number, number] };
 }
 
-/** Opens `level` at `pose` with the smoke profile and waits until it is ready; a boot error throws. */
-export async function openSmokeLevel(page: Page, level: string, pose: SmokePose): Promise<OpenedLevel> {
+/** Opens `level` at `pose` with the smoke profile and waits until it is ready; a boot error throws. `query` adds URL parameters (`&debug`). */
+export async function openSmokeLevel(page: Page, level: string, pose: SmokePose, query = ""): Promise<OpenedLevel> {
   const cameraPose = { position: pose.position, quaternion: quaternionOf(pose) };
   await page.addInitScript((value) => localStorage.setItem("forge.play.cameraPose", value), JSON.stringify(cameraPose));
   const settings = {
@@ -51,7 +51,7 @@ export async function openSmokeLevel(page: Page, level: string, pose: SmokePose)
     },
   };
   await page.addInitScript((value) => localStorage.setItem("forge.userSettings", value), JSON.stringify(settings));
-  await page.goto(`/?level=${encodeURIComponent(level)}`);
+  await page.goto(`/?level=${encodeURIComponent(level)}${query}`);
   const canvas = page.locator("canvas[data-forge-ready='1']");
   const bootError = page.getByTestId("boot-error");
   await expect(canvas.or(bootError)).toBeVisible({ timeout: READY_TIMEOUT_MS });

@@ -19,6 +19,7 @@
 
 import { Vector3 } from "three/webgpu";
 import { parseComponentTypeTag, type WorldActor } from "../../core/index.ts";
+import { tagSceneSource } from "../../engine/perf/sceneCost.ts";
 import { createTerrainView, type TerrainView } from "../../render/materials/terrain.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
 import { defineRenderBinding } from "../../render/sync/renderBinding.ts";
@@ -54,6 +55,7 @@ export default defineRenderBinding({
           view.mesh.name = `${actor.name}/${key}`;
           // Forge framed a level by its placements, never its terrain.
           view.mesh.userData.framing = false;
+          tagSceneSource(view.mesh, "terrain");
           entry.view = view;
           ctx.root.add(view.mesh);
         },

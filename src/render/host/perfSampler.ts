@@ -9,7 +9,8 @@
 import { TimestampQuery, type WebGPURenderer } from "three/webgpu";
 import { FrameMetricsMonitor } from "../../engine/perf/frameMetrics.ts";
 import { buildPerfWitness, serializePerfWitness } from "../../engine/perf/perfWitness.ts";
-import type { FrameMetrics } from "../../engine/perf/frameMetrics.ts";
+import type { FrameMetrics, FrameSpikeCounts } from "../../engine/perf/frameMetrics.ts";
+import type { GpuFrameStats } from "../../engine/perf/gpuFrameStats.ts";
 import type { BackendProof } from "./backendProof.ts";
 
 /** The quality fields of the witness. */
@@ -29,6 +30,10 @@ export interface PerfSampler {
   readonly frames: number;
   /** Frame times over the default window (the quality driver reads it). */
   metrics(): FrameMetrics;
+  /** Stall counts over the window (the `?debug` readout). */
+  spikes(): FrameSpikeCounts;
+  /** GPU frame times over the last samples; null without timestamp queries or samples yet. */
+  gpu(): GpuFrameStats | null;
 }
 
 export function createPerfSampler(
@@ -98,5 +103,10 @@ export function createPerfSampler(
       return monitor.frames;
     },
     metrics: () => monitor.metrics(),
+    spikes: () => monitor.spikeCounts(),
+    gpu: () =>
+      gpu.length === 0
+        ? null
+        : { lastMs: gpu[gpu.length - 1]!, averageMs: gpu.reduce((sum, ms) => sum + ms, 0) / gpu.length, maxMs: Math.max(...gpu), samples: gpu.length },
   };
 }
