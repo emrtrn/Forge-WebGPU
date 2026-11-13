@@ -455,7 +455,7 @@ tests/engine/groundCover.test.ts	86	check	A	yes		engine/worldbuilder	boundary-mo
 tests/engine/groundCover.test.ts	97	checkSlow	M			engine/worldbuilder,tools/world/worldBriefBuild	level-data:assets/trial/Cover.level.json		ground cover: the forest cover builds exactly what the pilot's paint built	
 tests/engine/groundCover.test.ts	109	checkSlow	M			engine/worldbuilder,tools/world/worldBriefBuild	level-data:assets/trial/Cover.level.json		ground cover: each cover paints what it says	
 tests/engine/groundCover.test.ts	137	checkSlow	M			engine/worldbuilder,tools/world/worldBriefBuild	level-data:assets/trial/Cover.level.json		ground cover: densities thin or thicken the forest and the rocks	
-tests/engine/heightFog.test.ts	17	check	A			engine/world			height fog: analytic integral matches numerical integration in both directions	5b
+tests/engine/heightFog.test.ts	17	check	A			engine/world		src/engine/world/heightFog.test.ts	height fog: analytic integral matches numerical integration in both directions	
 tests/engine/heightFog.test.ts	27	check	R			engine/render-three,engine/world	three-via:engine/render-three		height fog: clear distance, altitude and opacity cap affect far visibility	
 tests/engine/heightFog.test.ts	34	check	M			tools/saveValidator	model:tools/saveValidator		height fog: new settings survive save validation with precision	
 tests/engine/heightFog.test.ts	42	check	R			engine/render-three	three-via:engine/render-three,three:three		height fog: material patch chains existing shader code and follows scene state	
@@ -1322,15 +1322,15 @@ tests/engine/vfxModule.test.ts	409	checkAsync	R			engine/scene,src	three-via:src
 tests/engine/vfxModule.test.ts	454	checkAsync	R			engine/scene,src	three-via:src,three:three		vfx module separates the autoPlay path from a script trigger	
 tests/engine/vfxModule.test.ts	476	checkAsync	R			engine/scene,src	three-via:src,three:three		vfx module carries the quality profile's particle density	
 tests/engine/vfxModule.test.ts	496	checkAsync	R			src	three-via:src		a runtime with no scene to render into registers no vfx at all	
-tests/engine/viewDistance.test.ts	17	check	A			engine/world			view distance: Height Fog opacity follows its mode and hides when hidden or absent	5b
-tests/engine/viewDistance.test.ts	26	check	A			engine/world			view distance: quality multiplier scales the authored far plane	5b
-tests/engine/viewDistance.test.ts	33	check	A			engine/world			view distance: effective far plane is clamped to authored limits	5b
-tests/engine/viewDistance.test.ts	42	check	A			engine/world			view distance: absent or invalid authored distances keep camera defaults	5b
-tests/engine/viewDistance.test.ts	48	check	A			engine/world			view distance: far view mode starts strictly beyond 1000 metres	5b
-tests/engine/viewDistance.test.ts	54	check	A			engine/world			view distance: exponential fog reaches the target opacity at the far plane	5b
-tests/engine/viewDistance.test.ts	61	check	A			engine/world			view distance: exponential fog rejects invalid distances and opacities	5b
-tests/engine/viewDistance.test.ts	78	check	A			engine/world			view distance: linear fog interpolates and clamps opacity	5b
-tests/engine/viewDistance.test.ts	84	check	A			engine/world			view distance: collapsed or reversed linear fog ranges step at the end	5b
+tests/engine/viewDistance.test.ts	17	check	A			engine/world		src/engine/world/viewDistance.test.ts	view distance: Height Fog opacity follows its mode and hides when hidden or absent	
+tests/engine/viewDistance.test.ts	26	check	A			engine/world		src/engine/world/viewDistance.test.ts	view distance: quality multiplier scales the authored far plane	
+tests/engine/viewDistance.test.ts	33	check	A			engine/world		src/engine/world/viewDistance.test.ts	view distance: effective far plane is clamped to authored limits	
+tests/engine/viewDistance.test.ts	42	check	A			engine/world		src/engine/world/viewDistance.test.ts	view distance: absent or invalid authored distances keep camera defaults	
+tests/engine/viewDistance.test.ts	48	check	A			engine/world		src/engine/world/viewDistance.test.ts	view distance: far view mode starts strictly beyond 1000 metres	
+tests/engine/viewDistance.test.ts	54	check	A			engine/world		src/engine/world/viewDistance.test.ts	view distance: exponential fog reaches the target opacity at the far plane	
+tests/engine/viewDistance.test.ts	61	check	A			engine/world		src/engine/world/viewDistance.test.ts	view distance: exponential fog rejects invalid distances and opacities	
+tests/engine/viewDistance.test.ts	78	check	A			engine/world		src/engine/world/viewDistance.test.ts	view distance: linear fog interpolates and clamps opacity	
+tests/engine/viewDistance.test.ts	84	check	A			engine/world		src/engine/world/viewDistance.test.ts	view distance: collapsed or reversed linear fog ranges step at the end	
 tests/engine/waterFoam.test.ts	28	check	R			engine/render-three	three-via:engine/render-three		Water look: river foam trail decays downstream from rapids	
 tests/engine/waterFoam.test.ts	42	check	R			engine/render-three	three-via:engine/render-three		Water look: ribbon carries trail and lateral offsets per vertex	
 tests/engine/waterFoam.test.ts	91	check	M			engine/scene,engine/terrain	model:engine/scene		Water look: crest foam steepness keeps calm swell clear	

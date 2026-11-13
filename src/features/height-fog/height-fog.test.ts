@@ -8,6 +8,7 @@ import {
   normalizeLevel,
   openLevelSession,
 } from "../../core/index.ts";
+import { heightFogOpacityAt } from "../../engine/world/viewDistance.ts";
 import { assembleLevel } from "../../runtime/assembler.ts";
 import { createWorld } from "../../runtime/world.ts";
 import heightFogFeature from "./feature.ts";
@@ -62,6 +63,19 @@ describe("height fog schema", () => {
       "clamped heightFalloff",
       "clamped maxOpacity",
     ]);
+  });
+});
+
+describe("height fog CPU twin (Forge viewDistance.heightFogOpacityAt)", () => {
+  // Rewritten from Forge's "height fog: clear distance, altitude and opacity cap
+  // affect far visibility" (tests/engine/heightFog.test.ts): the component's own
+  // values instead of the legacy resolveHeightFog; the same assertions.
+  test("clear distance, altitude and opacity cap affect far visibility", () => {
+    const fog = { ...createComponent(HeightFog), density: 0.01, heightFalloff: 0.01, startDistance: 20, maxOpacity: 0.7, hidden: false };
+    expect(heightFogOpacityAt(fog, 20, 0)).toBe(0);
+    expect(heightFogOpacityAt(fog, 10000, 0)).toBe(0.7);
+    expect(heightFogOpacityAt(fog, 100, 200)).toBeLessThan(heightFogOpacityAt(fog, 100, 0));
+    expect(heightFogOpacityAt(fog, 100, 0, 200)).toBeGreaterThan(heightFogOpacityAt(fog, 100, 200));
   });
 });
 
