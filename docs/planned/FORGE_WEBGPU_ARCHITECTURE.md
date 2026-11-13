@@ -1,6 +1,10 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 4 — §4.5 isteğe
+**Sürüm:** v1.11 · 2026-11-13 (v1.10'dan fark: Faz 3 adım 5 — §4.9 çevrenin
+uygulaması: arka plan / ortam ışığı `forge.skyLight`'ta (kullanıcı kararı),
+gökyüzü varken ACES (kullanıcı kararı), WES yorumu ve bağlama `ctx`'inin
+`environment` / `output` / `capture` alanları, `WorldEnvironmentKey`.
+v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 4 — §4.5 isteğe
 bağlı renk; §4.6 şemalı JSON asset türünün ve `forge.material` / sürüm 2
 türlerin uygulaması, kullanıcı kararları (boş tint, `enabled` grupları,
 `name` / preset, `materialSlot` her slota); §4.9 materyalin uygulaması (slot
@@ -1128,8 +1132,9 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   `data-forge-ready` (World bağlı, yüklenen kaynak yok ve ardından 3 kare) ve
   `data-forge-resource-errors`. Işıksız level'a Forge'un varsayılan güneşi;
   ortam ışığı ve arka plan Forge world settings varsayılanları (ortam 0, Forge
-  gibi eklenmez; `#d7d7c7`) çevre adımına kadar. Pipeline adım 6'ya kadar
-  doğrudan çizim, ton eşleme yok. `?level=` başka level, `?forceWebGL`
+  gibi eklenmez; `#d7d7c7`) çevre adımına kadar (adım 5'te Sky Light'a
+  geçti, aşağıda). Pipeline adım 6'ya kadar doğrudan çizim, ton eşleme yok
+  (adım 5'ten beri gökyüzü varken ACES). `?level=` başka level, `?forceWebGL`
   etiketli WebGL2 kipi.
 - *Materyal:* `forge.material` (§4.6) → `MeshStandardNodeMaterial`, anizotropi
   / clearcoat gerekirse `MeshPhysicalNodeMaterial`; yalnız slotlar
@@ -1176,6 +1181,33 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   ve doku birimi bütçesi yok. Gölge bias'ı −0,0005, normal bias 0,02 (takipli
   harita dahil). Ana gölge anahtarı (`shadowsEnabled`) host'ta; çevrilince
   sahnenin lit materyalleri yeniden kurulur.
+- *Çevre, uygulama (adım 5, 2026-11-13):* tekiller `forge.skyAtmosphere` +
+  `forge.skyLight` (tek özellik `forge.sky`: Sky Light gökyüzünü yakalar),
+  `forge.cloudLayer`, `forge.worldEnvironment`. **Kullanıcı kararları
+  (2026-11-13):** Forge'un `worldSettings.backgroundColor / ambientColor /
+  ambientIntensity`'si `forge.skyLight`'ın (Sky Light = level'ın ortam
+  aydınlatması: yakalanan gökyüzü şiddeti, düz ortam ışığı, gökyüzü yokken
+  arka plan; Sky Light'sız level Forge varsayılanları `#d7d7c7` / ortam 0);
+  gökyüzü görünürken dünyanın çıktısı ACES + pozlama × 0,2 (Forge'un
+  `applySkyToneMapping`'i), adım 6'da pipeline'ın ton eşleme pass'ına geçer.
+  WES: sabit `hour` (gün uzunluğu alanı yok, karar 8), `sunPath`, `night`,
+  `season`, `weather` Forge biçiminde; `surface` 5a, `wind` 5c. Alt sistem
+  taşınmış `WorldEnvironmentController`'ı yükler ve `WorldEnvironmentKey`
+  (`engine/environment`, render okuyabilsin diye engine'de) ile verir.
+  Render: WES yorumu (`resolveEnvironment`) her karede bağlamalardan önce bir
+  kez `ctx.environment.override`'a; güneş ışığı ve varsayılan güneş rengini,
+  şiddetini, ay gölgesini ve yönünü (`render/sync/sunOverride.ts`), sis /
+  bulut / gökyüzü pusu / ay / yıldız / ortam tabanı / pozlama bağlamalarda
+  alınır, gece dolgusu `forge.worldEnvironment`'ın bağlamasında. Bileşenler
+  yazılmaz; yorum bitince bileşen yeniden çizilir. Bağlama `ctx`'ine
+  `environment`, `output` (ton eşleme, pozlama; host sunarken uygular) ve
+  `capture` (host'un PMREM'i) eklendi. Gökyüzü three'nin TSL `SkyMesh`'i
+  (iç bulutları kapalı) + Forge'un ayı ve yıldızları renk düğümünde
+  (`render/materials/sky.ts`); Sky Light güneş diski / ay / yıldızsız ayrı
+  bir gökyüzünü 256'lık PMREM'e yakalar, saçılım ya da güneş değişince,
+  WES altında Forge'un açı politikası ve parlaklık telafisiyle; bulut
+  kubbesi `render/materials/clouds.ts`. Sisin CPU ikizi için
+  `engine/world/viewDistance.ts` 5b'den öne alındı.
 - *Kalite:* Forge'un merdiveni (ultra / high / medium / low / custom),
   uyarlamalı kalite ve donanım ipuçları olduğu gibi taşınır (ilke #2: kalite
   yalnız kapatır / küçültür). WebGPU izin alanları ayrı adımda:

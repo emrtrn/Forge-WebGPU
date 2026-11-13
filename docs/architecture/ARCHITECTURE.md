@@ -113,7 +113,10 @@ bağlamalarını çalıştırır. Kaynak önbelleği host'undur, World'ün deği
 rapor §4.7, §4.9): `model:`, `texture:<guid>:<srgb|linear>`,
 `material:<guid>:<katkı imzası>`. Materyaller TSL slot düğümleriyle, özellik
 katkıları sabit sırayla (world mask → fade → rüzgâr → ıslaklık → göçük;
-rapor §4.9).
+rapor §4.9). Çevre tekillerdir (`forge.skyAtmosphere`, `forge.skyLight`:
+IBL + ortam ışığı + arka plan, `forge.cloudLayer`, `forge.worldEnvironment`:
+sabit saat); World Environment'ın yorumu kare başına bir kez
+`ctx.environment.override`'a, bağlamalar kendi parçasını çizer (rapor §4.9).
 
 ## Oyun projesi sözleşmesi
 
