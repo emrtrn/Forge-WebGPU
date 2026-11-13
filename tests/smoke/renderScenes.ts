@@ -13,6 +13,13 @@ export const REFERENCE_ROOT = process.env.FORGE_REFERENCE_ROOT ?? resolve(REPO_R
 export const REFERENCE_PROJECT = resolve(REFERENCE_ROOT, "webgpu-scenes");
 export const RENDER_REFS = resolve(REFERENCE_ROOT, "render-refs");
 export const SMOKE_PORT = 5283;
+/**
+ * The profile every smoke run draws with: a manual pick, adaptive quality and
+ * startup calibration off, so the image does not depend on the machine's
+ * speed (the Phase 0 baseline's rule). Written as the player's stored
+ * settings (`forge.userSettings`) before the page loads.
+ */
+export const SMOKE_QUALITY = "high";
 
 export interface SmokePose {
   readonly id: string;

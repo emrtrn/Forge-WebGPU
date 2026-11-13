@@ -453,6 +453,11 @@ const OLD_PARTITION =
 export const DROPPED_CHECKS: ReadonlyArray<{ readonly file: string; readonly label: string; readonly why: string }> = [
   {
     file: "tools/engine-tests.ts",
+    label: "GPU timer: tags late results, drops a disjoint batch, and returns every query on dispose",
+    why: "Forge's WebGL EXT_disjoint_timer_query pool; three times frames with its own timestamp queries on WebGPU and on the WebGL2 backend (phase 3 decision 6)",
+  },
+  {
+    file: "tools/engine-tests.ts",
     label: "audio subsystem records one-shot requests from a collision behavior",
     why: "K12 audio component (BehaviorContext.audioComponent)",
   },  {
@@ -640,7 +645,6 @@ export const DEFERRED_CHECKS: ReadonlyArray<{ readonly file: string; readonly la
     "hardware hints:",
     "quality ladder:",
     "measurement calibration:",
-    "GPU timer:",
     "adaptive quality:",
   ].map((labelPrefix) => ({ file: "tools/engine-tests.ts", labelPrefix, phase: "3", why: "quality profiles / adaptive quality rebuilt with the render pipeline (INV-G29)" })),
   { file: "tools/engine-tests.ts", labelPrefix: "asset perf:", phase: "3", why: "asset perf report (INV-H20)" },

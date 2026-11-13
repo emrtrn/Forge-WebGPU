@@ -2152,12 +2152,12 @@ tools/engine-tests.ts	16127	check	D			engine/persistence	dropped:Forge WebGL's s
 tools/engine-tests.ts	16166	check	M			engine/persistence	level-data:Levels/A.level.json,level-data:Levels/VehicleTest.level.json,model:engine/persistence		game save serializer: round-trips vehicles and the ride, dropping only bad vehicle entries	
 tools/engine-tests.ts	16214	check	D			engine/persistence	dropped:Forge WebGL's save payload (actor index keys, untyped flags, level path); forge.saveGame/1 keys by actor GUID + 		game save serializer: rejects bad player transforms and drops non-json flags	
 tools/engine-tests.ts	16245	check	D			engine/persistence,src	dropped:rewritten against forge.saveGame/1 (level by GUID); the new test lives next to src/core/save (user decision 2026		game save restore waits for the matching loaded level before applying	
-tools/engine-tests.ts	16267	check	A			engine/perf,engine/persistence			user settings store: round-trips locale and normalized audio bus volumes	3
-tools/engine-tests.ts	16303	check	A			engine/persistence			user settings store: corrupt data falls back without crashing and write errors return false	3
-tools/engine-tests.ts	16330	check	A			engine/audio,engine/perf,engine/persistence,engine/ui			user settings normalization drops unknown buses and applies stored audio + locale	3
-tools/engine-tests.ts	16356	check	A			engine/perf			graphics preferences: defaults are adaptive-on / 60fps / medium	3
-tools/engine-tests.ts	16371	check	A			engine/perf			graphics preferences: normalization validates each field and gates customSettings on level	3
-tools/engine-tests.ts	16441	check	A			engine/perf,engine/persistence			user settings store: round-trips graphics preferences alongside audio + locale	3
+tools/engine-tests.ts	16267	check	A			engine/perf,engine/persistence		src/engine/persistence/userSettingsStore.test.ts	user settings store: round-trips locale and normalized audio bus volumes	
+tools/engine-tests.ts	16303	check	A			engine/persistence		src/engine/persistence/userSettingsStore.test.ts	user settings store: corrupt data falls back without crashing and write errors return false	
+tools/engine-tests.ts	16330	check	A			engine/audio,engine/perf,engine/persistence,engine/ui		src/runtime/audio/userSettingsAudio.test.ts	user settings normalization drops unknown buses and applies stored audio + locale	
+tools/engine-tests.ts	16356	check	A			engine/perf		src/engine/perf/qualityProfiles.test.ts	graphics preferences: defaults are adaptive-on / 60fps / medium	
+tools/engine-tests.ts	16371	check	A			engine/perf		src/engine/perf/qualityProfiles.test.ts	graphics preferences: normalization validates each field and gates customSettings on level	
+tools/engine-tests.ts	16441	check	A			engine/perf,engine/persistence		src/engine/persistence/userSettingsStore.test.ts	user settings store: round-trips graphics preferences alongside audio + locale	
 tools/engine-tests.ts	16468	check	A			engine/persistence	opaque-level-path	src/engine/persistence/saveGameSlots.test.ts	save-game UI commands and ViewModel fields stay slot-scoped	
 tools/engine-tests.ts	16491	check	A			engine/persistence,engine/ui			starter save/load UI asset binds slots and emits reserved save messages	6
 tools/engine-tests.ts	16524	check	A			engine/loading		src/engine/loading/loadProgress.test.ts	load progress: counts loaded/failed/pending and derives fraction + done	
@@ -2173,23 +2173,23 @@ tools/engine-tests.ts	16785	check	A			engine/perf		src/engine/perf/frameMetrics.
 tools/engine-tests.ts	16811	check	A			engine/perf		src/engine/perf/frameMetrics.test.ts	frame metrics: P95 uses nearest-rank over the window	
 tools/engine-tests.ts	16822	check	A			engine/perf		src/engine/perf/frameMetrics.test.ts	frame metrics: window is time-bounded and estimates refresh from the low percentile	
 tools/engine-tests.ts	16846	check	A			engine/perf		src/engine/perf/frameMetrics.test.ts	frame metrics: clamps skew and drops non-finite deltas	
-tools/engine-tests.ts	16858	check	A			engine/perf			quality profiles: resolve returns fresh copies and layers custom over a base	3
-tools/engine-tests.ts	16887	check	A			engine/perf			quality profiles: effective pixel ratio caps the DPR then folds in render scale	3
+tools/engine-tests.ts	16858	check	A			engine/perf		src/engine/perf/qualityProfiles.test.ts	quality profiles: resolve returns fresh copies and layers custom over a base	
+tools/engine-tests.ts	16887	check	A			engine/perf		src/engine/perf/qualityProfiles.test.ts	quality profiles: effective pixel ratio caps the DPR then folds in render scale	
 tools/engine-tests.ts	16901	check	R			engine/perf,engine/render-three	three-via:engine/render-three		quality profiles: post-process merge only gates off, never re-authors (Principle #2)	
-tools/engine-tests.ts	16932	check	A			engine/perf			hardware hints: no signals default to Medium; strong/weak devices split apart	3
-tools/engine-tests.ts	16973	check	A			engine/perf			quality ladder: stepQualityLevel moves one rung and clamps at the ends	3
-tools/engine-tests.ts	16981	check	A			engine/perf			measurement calibration: steps down when over budget, up with headroom, holds otherwise	3
+tools/engine-tests.ts	16932	check	A			engine/perf		src/engine/perf/hardwareHints.test.ts	hardware hints: no signals default to Medium; strong/weak devices split apart	
+tools/engine-tests.ts	16973	check	A			engine/perf		src/engine/perf/hardwareHints.test.ts	quality ladder: stepQualityLevel moves one rung and clamps at the ends	
+tools/engine-tests.ts	16981	check	A			engine/perf		src/engine/perf/hardwareHints.test.ts	measurement calibration: steps down when over budget, up with headroom, holds otherwise	
 tools/engine-tests.ts	17047	check	A			engine/perf		src/engine/perf/bottleneckClassifier.test.ts	bottleneck classifier: passive signals separate spike / cpu / gpu / draw-call / unknown	
 tools/engine-tests.ts	17126	check	M			src	model:src		debug overlay: formats the bottleneck line with its top evidence	
 tools/engine-tests.ts	17142	check	M			src	model:src		debug overlay: formats the frame-time line from a metrics snapshot	
-tools/engine-tests.ts	17206	check	A			engine/perf			GPU timer: tags late results, drops a disjoint batch, and returns every query on dispose	3
+tools/engine-tests.ts	17206	check	D			engine/perf	dropped:Forge's WebGL EXT_disjoint_timer_query pool; three times frames with its own timestamp queries on WebGPU and on 		GPU timer: tags late results, drops a disjoint batch, and returns every query on dispose	
 tools/engine-tests.ts	17261	check	M			src	model:src		debug overlay: formats the GPU frame line at the precision the timer has	
-tools/engine-tests.ts	17287	check	A			engine/perf			adaptive quality: classifyFrameLoad splits degraded / stable / neutral around the target	3
-tools/engine-tests.ts	17294	check	A			engine/perf			adaptive quality: decideAdaptiveStep honours disable, cooldown, window and hysteresis	3
-tools/engine-tests.ts	17330	check	A			engine/perf			adaptive quality: reduction ladder is bottleneck-targeted and folds/reverses cleanly	3
-tools/engine-tests.ts	17362	check	A			engine/perf			adaptive quality: controller steps down under load, respects cooldown, raises when stable	3
-tools/engine-tests.ts	17419	check	A			engine/perf			adaptive quality: controller never rises above the base ceiling and setBase drops reductions	3
-tools/engine-tests.ts	17465	check	A			engine/perf			adaptive quality: formatAdaptiveChange summarises reduce (with bottleneck) and raise	3
+tools/engine-tests.ts	17287	check	A			engine/perf		src/engine/perf/adaptiveQuality.test.ts	adaptive quality: classifyFrameLoad splits degraded / stable / neutral around the target	
+tools/engine-tests.ts	17294	check	A			engine/perf		src/engine/perf/qualityProfiles.test.ts	adaptive quality: decideAdaptiveStep honours disable, cooldown, window and hysteresis	
+tools/engine-tests.ts	17330	check	A			engine/perf		src/engine/perf/qualityProfiles.test.ts	adaptive quality: reduction ladder is bottleneck-targeted and folds/reverses cleanly	
+tools/engine-tests.ts	17362	check	A			engine/perf		src/engine/perf/adaptiveQuality.test.ts	adaptive quality: controller steps down under load, respects cooldown, raises when stable	
+tools/engine-tests.ts	17419	check	A			engine/perf		src/engine/perf/adaptiveQuality.test.ts	adaptive quality: controller never rises above the base ceiling and setBase drops reductions	
+tools/engine-tests.ts	17465	check	A			engine/perf		src/engine/perf/adaptiveQuality.test.ts	adaptive quality: formatAdaptiveChange summarises reduce (with bottleneck) and raise	
 tools/engine-tests.ts	17484	check	M			engine/core,engine/perf,src	model:src		debug overlay: formats the frame account, memory and budget blocks	
 tools/engine-tests.ts	17536	check	A			tools/assetPerfReport			asset perf: parses a GLB container and counts triangles + vertices	3
 tools/engine-tests.ts	17564	check	A			tools/assetPerfReport			asset perf: decodes PNG / JPEG / WebP dimensions and embedded GLB textures	3

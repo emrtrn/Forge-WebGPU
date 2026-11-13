@@ -13,13 +13,15 @@
 //    user's acceptance (references are never written silently);
 // 6. a record goes to render-refs/runs/: commit, three, backend proof,
 //    browser, GPU, pose, resolution / DPR, profile, perf witness.
+//
+// The quality profile is fixed (SMOKE_QUALITY, adaptive off, no calibration).
 
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { Matrix4, Quaternion, Vector3 } from "three";
-import { RENDER_REFS, REPO_ROOT, SMOKE_SCENES, type SmokePose } from "./renderScenes.ts";
+import { RENDER_REFS, REPO_ROOT, SMOKE_QUALITY, SMOKE_SCENES, type SmokePose } from "./renderScenes.ts";
 
 /** Below this the image is blank or flat (luminance, 0 - 255). */
 const MIN_LUMINANCE_STD = 4;
@@ -57,6 +59,23 @@ for (const scene of SMOKE_SCENES) {
       });
       const cameraPose = { position: pose.position, quaternion: quaternionOf(pose) };
       await page.addInitScript((value) => localStorage.setItem("forge.play.cameraPose", value), JSON.stringify(cameraPose));
+      const settings = {
+        schema: 1,
+        updatedAt: new Date().toISOString(),
+        payload: {
+          audio: { busVolumes: {} },
+          locale: null,
+          graphics: {
+            adaptiveOptimizationEnabled: false,
+            targetFrameRate: 60,
+            selectedQualityLevel: SMOKE_QUALITY,
+            allowAdaptiveFineTuning: false,
+            manuallySelected: true,
+            startupCalibrated: true,
+          },
+        },
+      };
+      await page.addInitScript((value) => localStorage.setItem("forge.userSettings", value), JSON.stringify(settings));
       await page.goto(`/?level=${encodeURIComponent(scene.level)}`);
 
       const canvas = page.locator("canvas[data-forge-ready='1']");
@@ -129,7 +148,7 @@ for (const scene of SMOKE_SCENES) {
         pose: cameraPose,
         resolution: viewport,
         devicePixelRatio: await page.evaluate(() => window.devicePixelRatio),
-        profile: "default",
+        profile: (perf as { quality?: string } | null)?.quality ?? null,
         perf,
         resourceErrors,
         luminance,
@@ -140,6 +159,7 @@ for (const scene of SMOKE_SCENES) {
       writeFileSync(`${base}.json`, `${JSON.stringify(record, null, 2)}\n`);
 
       expect(pageErrors, "page errors").toEqual([]);
+      expect((perf as { quality?: string } | null)?.quality, "the run draws with the smoke profile").toBe(SMOKE_QUALITY);
       expect(proof?.isWebGPUBackend, "the renderer must run on WebGPU; a WebGL2 run is not a WebGPU acceptance run").toBe(true);
       expect(resourceErrors, "every resource loads").toBe(0);
       expect(luminance.mean, "the image is not black").toBeGreaterThan(MIN_LUMINANCE_MEAN);

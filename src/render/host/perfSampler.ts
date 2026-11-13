@@ -7,7 +7,15 @@
 import { TimestampQuery, type WebGPURenderer } from "three/webgpu";
 import { FrameMetricsMonitor } from "../../engine/perf/frameMetrics.ts";
 import { buildPerfWitness, serializePerfWitness } from "../../engine/perf/perfWitness.ts";
+import type { FrameMetrics } from "../../engine/perf/frameMetrics.ts";
 import type { BackendProof } from "./backendProof.ts";
+
+/** The quality fields of the witness. */
+export interface PerfQuality {
+  readonly level: string;
+  readonly adaptive: boolean;
+  readonly reductionDepth: number;
+}
 
 const PUBLISH_MS = 500;
 const GPU_SAMPLES = 120;
@@ -17,9 +25,16 @@ export interface PerfSampler {
   frame(now: number): void;
   /** Frames recorded so far. */
   readonly frames: number;
+  /** Frame times over the default window (the quality driver reads it). */
+  metrics(): FrameMetrics;
 }
 
-export function createPerfSampler(renderer: WebGPURenderer, proof: BackendProof, publish: (json: string) => void): PerfSampler {
+export function createPerfSampler(
+  renderer: WebGPURenderer,
+  proof: BackendProof,
+  quality: () => PerfQuality,
+  publish: (json: string) => void,
+): PerfSampler {
   const monitor = new FrameMetricsMonitor();
   const gpu: number[] = [];
   const started = performance.now();
@@ -66,10 +81,9 @@ export function createPerfSampler(renderer: WebGPURenderer, proof: BackendProof,
         textures: memory.textures,
         programs: memory.programs ?? 0,
         jsHeapBytes: heap,
-        // Quality profiles come with plan phase 3, step 2.
-        qualityLevel: "default",
-        adaptiveEnabled: false,
-        reductionDepth: 0,
+        qualityLevel: quality().level,
+        adaptiveEnabled: quality().adaptive,
+        reductionDepth: quality().reductionDepth,
         timeScale: 1,
         paused: false,
         sceneSeconds: (now - started) / 1000,
@@ -80,5 +94,6 @@ export function createPerfSampler(renderer: WebGPURenderer, proof: BackendProof,
     get frames() {
       return monitor.frames;
     },
+    metrics: () => monitor.metrics(),
   };
 }

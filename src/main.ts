@@ -5,6 +5,10 @@
 // (phase 3 decision 2: `feature.ts` never names them), and handed to the
 // render host through the level viewer.
 //
+// Quality: the player's stored graphics preferences (`forge.userSettings`)
+// pick the profile; the runtime quality driver (hardware hint, one-time
+// measurement, adaptive steps) feeds the renderer through the viewer.
+//
 // `?level=<project-relative folder>` opens another level than the project's
 // start level (the render smoke and reference scenes use it); `?forceWebGL`
 // is the labelled WebGL2 test mode (architecture §4.10), never a WebGPU run.
@@ -14,9 +18,13 @@ import { createSaveClient } from "./core/index.ts";
 import { loadDevAssetUrls, assetUrlsFromIndex, type AssetUrls } from "./render/resources/assetUrls.ts";
 import type { RenderBindingDef } from "./render/sync/renderBinding.ts";
 import { createLevelViewer } from "./render/viewer/levelViewer.ts";
-import { bootErrorView, bootGame } from "./runtime/boot.ts";
+import { UserSettingsStore } from "./engine/persistence/userSettingsStore.ts";
+import type { HardwareHintInputs } from "./engine/perf/hardwareHints.ts";
+import { bootErrorView, bootGame, type BootRender } from "./runtime/boot.ts";
 import { createBootScreen } from "./runtime/bootScreen.ts";
+import { createLocalStorageAdapter } from "./runtime/persistence/localStorageAdapter.ts";
 import { loadProjectLevel } from "./runtime/projectLevel.ts";
+import { createRuntimeQuality } from "./runtime/quality/runtimeQuality.ts";
 import gameModule from "virtual:forge/game-module";
 
 const featureModules = import.meta.glob<{ default: FeatureDef }>("./features/*/feature.ts", { eager: true });
@@ -57,6 +65,21 @@ function storage(): Storage | null {
   }
 }
 
+/** Coarse browser hints for the starting profile (Forge's collectHardwareHints); the GPU from the WebGPU adapter. */
+function hardwareHints(gpu: string | null): HardwareHintInputs {
+  const touch = navigator.maxTouchPoints > 0 || "ontouchstart" in window || window.matchMedia("(pointer: coarse)").matches;
+  const memory = (navigator as { deviceMemory?: number }).deviceMemory;
+  return {
+    hardwareConcurrency: navigator.hardwareConcurrency ?? null,
+    deviceMemoryGb: typeof memory === "number" ? memory : null,
+    screenWidth: window.screen.width,
+    screenHeight: window.screen.height,
+    devicePixelRatio: window.devicePixelRatio,
+    isTouch: touch,
+    webglRenderer: gpu,
+  };
+}
+
 async function start(): Promise<void> {
   let startLevel = "";
   try {
@@ -78,6 +101,7 @@ async function start(): Promise<void> {
     screen.error(bootErrorView("project", error));
     return;
   }
+  const pageStorage = storage();
   const viewer = createLevelViewer({
     document,
     container: viewport,
@@ -85,12 +109,42 @@ async function start(): Promise<void> {
     forceWebGL: params.has("forceWebGL"),
     bindings,
     assetUrls: urls,
-    storage: storage(),
+    storage: pageStorage,
   });
+  let settingsStore: UserSettingsStore | null = null;
+  try {
+    settingsStore = pageStorage ? new UserSettingsStore({ storage: createLocalStorageAdapter(pageStorage) }) : null;
+  } catch {
+    settingsStore = null;
+  }
+  const quality = createRuntimeQuality({
+    store: settingsStore,
+    apply: (state) => viewer.setQuality(state),
+    signals: () => viewer.signals() ?? { metrics: { frameTimeMs: 0, averageFrameTimeMs: 0, p95FrameTimeMs: 0, spikeCount: 0, sampleWindowSeconds: 0, sampleCount: 0, estimatedRefreshIntervalMs: 0 }, drawCalls: 0, triangles: 0, textures: 0 },
+    log: (message) => console.info(`forge quality: ${message}`),
+  });
+  window.addEventListener("storage", (event) => {
+    if (event.key === null || event.key === settingsStore?.storageKey()) quality.storageChanged();
+  });
+  let lastFrame: number | null = null;
+  const render: BootRender = {
+    init: async () => {
+      await viewer.init();
+      quality.start(hardwareHints(viewer.gpuName()));
+    },
+    feature: (installed) => viewer.feature(installed),
+    frame: (time) => {
+      viewer.frame(time);
+      if (lastFrame !== null) quality.tick((time - lastFrame) / 1000);
+      lastFrame = time;
+    },
+    onLost: (listener) => viewer.onLost(listener),
+    dispose: () => viewer.dispose(),
+  };
   await bootGame({
     features,
     ...(gameModule ? { gameModule } : {}),
-    render: viewer,
+    render,
     strict,
     loadLevel: async (registry) => (startLevel === "" ? null : loadProjectLevel(client, startLevel, registry, strict)),
     screen,

@@ -6,8 +6,10 @@
 //   proof written on the canvas (`data-forge-backend`, the full proof in
 //   `data-forge-backend-proof`) and the badge.
 // - Size follows the container (ResizeObserver); the pixel ratio is asked
-//   every frame, so a move to another monitor is picked up. Quality profiles
-//   bring `effectiveDevicePixelRatio` in plan phase 3, step 2.
+//   every frame, so a move to another monitor is picked up: the device ratio
+//   capped and scaled by the quality settings (`effectiveDevicePixelRatio`).
+// - Quality is handed in (`setQuality`, the runtime's quality driver); until
+//   then the renderer runs at `DEFAULT_QUALITY_LEVEL`.
 // - The camera is handed in (viewer, editor, game camera).
 // - Device loss, v1 (phase 3 decision 10): drawing stops for good and the
 //   listeners hear it; the page shows the renderer-free screen with "reload".
@@ -15,6 +17,7 @@
 
 import { PerspectiveCamera, WebGPURenderer, type Camera } from "three/webgpu";
 import type { FeatureDef } from "../../core/index.ts";
+import { effectiveDevicePixelRatio, resolveQualitySettings, type QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { createDirectPipeline } from "../pipeline/directPipeline.ts";
 import type { AssetUrls } from "../resources/assetUrls.ts";
 import { createGltfModelSource, type GltfModelSource } from "../resources/gltfModels.ts";
@@ -24,7 +27,15 @@ import type { RenderBindingDef } from "../sync/renderBinding.ts";
 import { createRenderFeature, type RenderWorld } from "../sync/renderWorld.ts";
 import { mountBadge } from "./badge.ts";
 import { readBackendProof, type BackendProof } from "./backendProof.ts";
-import { createPerfSampler, type PerfSampler } from "./perfSampler.ts";
+import { createPerfSampler, type PerfQuality, type PerfSampler } from "./perfSampler.ts";
+
+/** The effective quality the renderer draws with. */
+export interface RenderQuality extends PerfQuality {
+  readonly settings: QualitySettings;
+}
+
+/** Forge's renderer booted at Ultra's ratio (min(dpr, 2)) before any profile applied. */
+export const DEFAULT_QUALITY_LEVEL = "ultra";
 
 export interface RenderHostOptions {
   readonly document: Document;
@@ -36,8 +47,8 @@ export interface RenderHostOptions {
   readonly forceWebGL?: boolean;
   readonly bindings: readonly RenderBindingDef[];
   readonly assetUrls: AssetUrls;
-  /** Device pixels per CSS pixel; default the window's, at most 2. */
-  readonly pixelRatio?: () => number;
+  /** The device's pixels per CSS pixel; default the window's. */
+  readonly devicePixelRatio?: () => number;
 }
 
 export interface RenderHost {
@@ -50,6 +61,9 @@ export interface RenderHost {
   /** The `forge.render` feature for a world that installs `features`. */
   feature(features: readonly FeatureDef[], name: string): FeatureDef;
   setCamera(camera: Camera): void;
+  /** The effective quality (profile, adaptive reductions); applies the pixel ratio next frame. */
+  setQuality(quality: RenderQuality): void;
+  readonly quality: RenderQuality;
   /** Draws the presented world; `now` in ms. Does nothing once the device is lost. */
   frame(now: number): void;
   readonly perf: PerfSampler;
@@ -58,8 +72,6 @@ export interface RenderHost {
   readonly lost: boolean;
   dispose(): void;
 }
-
-const DEFAULT_MAX_PIXEL_RATIO = 2;
 
 export async function createRenderHost(options: RenderHostOptions): Promise<RenderHost> {
   const { document, container } = options;
@@ -96,7 +108,9 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       }),
   };
 
-  const pixelRatio = options.pixelRatio ?? (() => Math.min(document.defaultView?.devicePixelRatio ?? 1, DEFAULT_MAX_PIXEL_RATIO));
+  const deviceRatio = options.devicePixelRatio ?? (() => document.defaultView?.devicePixelRatio ?? 1);
+  let quality: RenderQuality = { settings: resolveQualitySettings(DEFAULT_QUALITY_LEVEL), level: DEFAULT_QUALITY_LEVEL, adaptive: false, reductionDepth: 0 };
+  const pixelRatio = (): number => effectiveDevicePixelRatio(deviceRatio(), quality.settings);
   let camera: Camera = new PerspectiveCamera();
   let world: RenderWorld | null = null;
   let width = 0;
@@ -132,7 +146,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   };
 
   const pipeline = createDirectPipeline(renderer);
-  const perf = createPerfSampler(renderer, proof, (json) => {
+  const perf = createPerfSampler(renderer, proof, () => quality, (json) => {
     canvas.dataset.forgePerf = json;
   });
 
@@ -163,6 +177,12 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       width = 0;
       height = 0;
       applySize();
+    },
+    setQuality(next) {
+      quality = next;
+    },
+    get quality() {
+      return quality;
     },
     frame(now) {
       if (lost || world === null) return;

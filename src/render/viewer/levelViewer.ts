@@ -12,7 +12,8 @@
 
 import { Box3, PerspectiveCamera, Quaternion, Sphere, Vector3 } from "three/webgpu";
 import type { FeatureDef } from "../../core/index.ts";
-import { createRenderHost, type RenderHost, type RenderHostOptions } from "../host/renderHost.ts";
+import type { FrameMetrics } from "../../engine/perf/frameMetrics.ts";
+import { createRenderHost, type RenderHost, type RenderHostOptions, type RenderQuality } from "../host/renderHost.ts";
 import { consumeCameraPose, type CameraPose } from "./cameraPose.ts";
 
 export const CAMERA_FOV = 44;
@@ -35,6 +36,12 @@ export interface LevelViewer {
   dispose(): void;
   readonly host: RenderHost | null;
   readonly camera: PerspectiveCamera;
+  /** The effective quality; kept until the host exists. */
+  setQuality(quality: RenderQuality): void;
+  /** What the quality driver reads each tick; null before init. */
+  signals(): { metrics: FrameMetrics; drawCalls: number; triangles: number; textures: number } | null;
+  /** The GPU as the adapter names it (the hardware hint's GPU string); null before init or without one. */
+  gpuName(): string | null;
 }
 
 export function applyCameraPose(camera: PerspectiveCamera, pose: CameraPose): void {
@@ -65,6 +72,7 @@ export function createLevelViewer(options: LevelViewerOptions): LevelViewer {
   let framed = false;
   let settledFrames = 0;
   let ready = false;
+  let quality: RenderQuality | null = null;
 
   return {
     get host() {
@@ -78,6 +86,7 @@ export function createLevelViewer(options: LevelViewerOptions): LevelViewer {
         framed = true;
       }
       host = await createRenderHost(options);
+      if (quality) host.setQuality(quality);
       host.setCamera(camera);
       for (const listener of pendingListeners.splice(0)) host.onDeviceLost(listener);
     },
@@ -100,6 +109,21 @@ export function createLevelViewer(options: LevelViewerOptions): LevelViewer {
         host.canvas.dataset.forgeResourceErrors = String(failed);
         host.canvas.dataset.forgeReady = "1";
       }
+    },
+    setQuality(next) {
+      quality = next;
+      host?.setQuality(next);
+    },
+    signals() {
+      if (!host) return null;
+      const { render, memory } = host.renderer.info;
+      return { metrics: host.perf.metrics(), drawCalls: render.drawCalls, triangles: render.triangles, textures: memory.textures };
+    },
+    gpuName() {
+      const adapter = host?.proof.adapter;
+      if (!adapter) return null;
+      const name = [adapter.description, adapter.device].find((part) => part !== undefined && part !== "") ?? [adapter.vendor, adapter.architecture].filter(Boolean).join(" ");
+      return name === "" ? null : name;
     },
     onLost(listener) {
       if (host) host.onDeviceLost(listener);

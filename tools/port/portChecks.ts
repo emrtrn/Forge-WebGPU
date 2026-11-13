@@ -251,15 +251,16 @@ export class CheckPorter {
   }
 
   /** Plans (and with `write`, writes) the port of the A checks in `areas`; returns a report. */
-  run(areas: RegExp, options: { write: boolean; why?: ReadonlySet<number> }): string[] {
+  run(areas: RegExp, options: { write: boolean; why?: ReadonlySet<number>; deferred?: string }): string[] {
     const report: string[] = [];
     const rows = readFileSync(`${this.roots.repo}docs/port/forge-engine-tests.tsv`, "utf8")
       .trim()
       .split("\n")
       .slice(1)
       .map((line) => line.split("\t"))
-      // Unported algorithm checks; a deferred one (column 10) waits for its phase.
-      .filter((row) => row[3] === "A" && !row[8] && !row[10] && areas.test(row[6] ?? ""));
+      // Unported algorithm checks; a deferred one (column 10) waits for its phase,
+      // unless that phase is the one being ported (`--deferred <phase>`).
+      .filter((row) => row[3] === "A" && !row[8] && (row[10] ? row[10] === options.deferred : true) && areas.test(row[6] ?? ""));
     const byFile = new Map<string, number[]>();
     for (const row of rows) {
       const lines = byFile.get(row[0]!) ?? [];

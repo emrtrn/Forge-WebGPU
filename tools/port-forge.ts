@@ -2,9 +2,10 @@
  * Porting toolkit for Forge WebGL → Forge WebGPU (plan Faz 2b). The workflow is
  * in docs/PORT_LOG.md §2 ("Taşıma kalıbı").
  *
- *   npm run port:forge -- tests <areaRegex> --forge <dir> [--write] [--why <line,line>]
+ *   npm run port:forge -- tests <areaRegex> --forge <dir> [--write] [--why <line,line>] [--deferred <phase>]
  *       Ports the A checks (docs/port/forge-engine-tests.tsv) in those areas whose
  *       every import is ported; without --write, reports what blocks the rest.
+ *       Checks deferred to a phase are left out unless `--deferred <phase>` names it.
  *       Rerun `npm run port:forge-tests` afterwards to refresh the counts.
  *   npm run port:forge -- closure <stopRegex> <forgeFile...> --forge <dir>
  *       Import closure (type imports included) of Forge files, stopping at modules
@@ -106,6 +107,7 @@ switch (command) {
     const report = porter.run(new RegExp(area), {
       write: argv.includes("--write"),
       ...(why ? { why: new Set(why.split(",").map(Number)) } : {}),
+      ...(option("--deferred") ? { deferred: option("--deferred")! } : {}),
     });
     console.log(report.join("\n"));
     break;
