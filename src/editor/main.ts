@@ -3,13 +3,10 @@
 // build never contains it (`editor-only-dynamic`).
 //
 //   project -> registry (engine + game features) -> actor classes -> level
-//   session (every cell, decision 11) -> viewer (render host) -> the editor's
-//   world (`mode: "editor"`: render, environment, fog; never physics or
-//   gameplay) -> shell -> frame loop
-//
-// The viewport draws with phase 3's level viewer for now (its camera and
-// framing); the editor's own viewport (overlay pass, picking, camera modes)
-// comes with step 3 in src/render/editor.
+//   session (every cell, decision 11) -> viewport (render host, editor
+//   camera, drawing layer; src/render/editor) -> the editor's world
+//   (`mode: "editor"`: render, environment, fog; never physics or gameplay)
+//   -> shell -> frame loop
 
 import {
   createSchemaRegistry,
@@ -25,13 +22,26 @@ import {
 } from "../core/index.ts";
 import type { AssetUrls } from "../render/resources/assetUrls.ts";
 import type { RenderBindingDef } from "../render/sync/renderBinding.ts";
-import { createLevelViewer } from "../render/viewer/levelViewer.ts";
+import { CAMERA_VIEWS, type CameraView } from "../render/editor/editorCamera.ts";
+import { createEditorViewport } from "../render/editor/editorViewport.ts";
 import { assembleLevel } from "../runtime/assembler.ts";
 import { createWorld } from "../runtime/world.ts";
 import { createEditorSession } from "./session/editorSession.ts";
 import { createShell } from "./shell/shell.ts";
 import { installShellStyle } from "./shell/shellStyle.ts";
 import { installKitStyle } from "./ui/kitStyle.ts";
+
+/** Forge's Camera menu labels. */
+const VIEW_LABELS: Readonly<Record<CameraView, string>> = { perspective: "Perspective", top: "Top", left: "Left", front: "Front" };
+
+/** The page's local storage (the viewport's remembered pose); null where the browser refuses it. */
+function pageStorage(doc: Document): Storage | null {
+  try {
+    return doc.defaultView?.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export interface EditorStartOptions {
   readonly document: Document;
@@ -73,7 +83,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       return;
     }
 
-    const viewer = createLevelViewer({
+    const viewport = createEditorViewport({
       document: doc,
       container: shell.viewport,
       dev: true,
@@ -81,12 +91,20 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       bindings: options.bindings,
       assetUrls: options.assetUrls,
       materialType: options.materialType,
-      storage: null,
+      storage: pageStorage(doc),
+      levelKey: `${options.projectName}/${options.level}`,
+      onStatus: (message) => shell.status(message),
     });
-    await viewer.init();
-    viewer.onLost((message) => shell.status(`The GPU device was lost: ${message}. Reload the page.`, "error"));
+    await viewport.init();
+    viewport.onLost((message) => shell.status(`The GPU device was lost: ${message}. Reload the page.`, "error"));
+    shell.attachViewport({
+      views: CAMERA_VIEWS.map((view) => [view, VIEW_LABELS[view]] as const),
+      view: () => viewport.view,
+      setView: (view) => viewport.setView(view as CameraView),
+      onViewChange: (listener) => viewport.onViewChange(listener),
+    });
 
-    const world = createWorld({ strict: true, registry, resolveClass, features: [...options.features, viewer.feature(options.features)], mode: "editor" });
+    const world = createWorld({ strict: true, registry, resolveClass, features: [...options.features, viewport.feature(options.features)], mode: "editor" });
     world.init();
     assembleLevel(world, opened.session.level, { strict: true, resolveClass });
     world.beginPlay();
@@ -102,7 +120,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       last = now;
       try {
         world.tick(dt);
-        viewer.frame(now);
+        viewport.frame(now);
       } catch (error) {
         shell.status(`The viewport stopped: ${error instanceof Error ? error.message : String(error)}`, "error");
         return;

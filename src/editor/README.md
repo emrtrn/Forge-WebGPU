@@ -13,3 +13,12 @@ feature's helper drawing in `features/*/editorRender.ts` (phase 4 decision 1).
   Styles in `kitStyle.ts` (Forge's tokens and classes), icons in `icons.ts`.
 - `?editor-kit` (dev server only) shows every engine component's generated
   form; `npm run smoke:editor` checks the kit there (in the gate and CI).
+- `main.ts`: `startEditor`, the `?editor` page (dev server only): the
+  project's level opened into the editor's world, the shell, the frame loop.
+- `shell/`: Forge's layout (top bar, Outliner, Details, viewport panel,
+  status toast) and the view controls' hover menus (Camera; keys 1-4).
+- `session/`: the editor session (level session, the editor's world kept in
+  step, selection, save).
+- The viewport (`src/render/editor`, three): the editor camera (Forge's
+  controls and presets, the pose remembered per level), the drawing layer
+  after the frame (scene-depth tested, no tone mapping) and its grid.

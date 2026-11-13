@@ -33,6 +33,7 @@ import {
   type Camera,
   type Node,
   type Scene,
+  type Texture,
   type ToneMapping,
   type UniformNode,
   type WebGPURenderer,
@@ -123,6 +124,8 @@ interface Built {
   readonly camera: Camera;
   readonly pipeline: RenderPipeline;
   readonly plan: PipelinePlan;
+  /** The scene pass's depth (single sample, the jittered camera's when TRAA runs). */
+  readonly depth: Texture | null;
   update(post: PostProcessSettings): void;
   dispose(): void;
 }
@@ -270,6 +273,7 @@ function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: Pip
     camera,
     pipeline,
     plan,
+    depth: scenePass.renderTarget.depthTexture,
     update(post) {
       u.aoIntensity.value = post.ao.intensity;
       if (gtao) gtao.radius.value = post.ao.radius * AO_RADIUS_SCALE;
@@ -305,6 +309,13 @@ export interface FramePipeline {
   readonly plan: PipelinePlan;
   /** Pipelines built so far (a rebuild counts). */
   readonly builds: number;
+  /**
+   * The last frame's scene depth when it went through the pipeline's scene
+   * pass; null when it was drawn straight to the canvas (its depth is the
+   * renderer's multisampled frame buffer, which cannot be sampled). The
+   * editor's overlay tests against it (plan phase 4 step 3).
+   */
+  readonly sceneDepth: Texture | null;
   dispose(): void;
 }
 
@@ -312,6 +323,7 @@ export function createFramePipeline(renderer: WebGPURenderer): FramePipeline {
   let built: Built | null = null;
   let plan = planPipeline(null, {} as QualitySettings);
   let builds = 0;
+  let direct = true;
   const release = (): void => {
     built?.dispose();
     built = null;
@@ -324,9 +336,11 @@ export function createFramePipeline(renderer: WebGPURenderer): FramePipeline {
       renderer.toneMappingExposure = frame.exposure;
       if (plan.direct || !frame.postProcess) {
         release();
+        direct = true;
         renderer.render(scene, camera);
         return;
       }
+      direct = false;
       if (!built || built.key !== plan.key || built.scene !== scene || built.camera !== camera) {
         release();
         built = build(renderer, scene, camera, plan);
@@ -340,6 +354,9 @@ export function createFramePipeline(renderer: WebGPURenderer): FramePipeline {
     },
     get builds() {
       return builds;
+    },
+    get sceneDepth() {
+      return direct || !built ? null : built.depth;
     },
     dispose: release,
   };

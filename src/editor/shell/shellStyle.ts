@@ -3,8 +3,9 @@
 // (`@media (min-width: 761px)` block: gap, top bar height, Outliner and
 // Details widths), the top bar with its brand and history buttons, the tool
 // buttons, the side panels, the viewport host panel, Outliner rows and the
-// status toast. Only the rules the shell of plan phase 4 step 2 uses; the
-// panels' own rules come with them (step 5). No redesign.
+// status toast; the view controls' hover menus (Camera, step 3). Only the
+// rules the shell uses so far; the panels' own rules come with them (step 5).
+// No redesign.
 
 export const SHELL_CSS = `
 html, body {
@@ -163,6 +164,97 @@ html, body {
   height: 14px;
   display: block;
   pointer-events: none;
+}
+
+.editor-view-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+  margin-left: auto;
+  /* Above the viewport, ending at the Details panel's left edge (Forge). */
+  margin-right: var(--editor-details-width);
+}
+
+.editor-shell .topbar-menu-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.editor-shell .topbar-menu-button svg:not(.menu-chevron) {
+  width: 14px;
+  height: 14px;
+}
+
+.menu-chevron {
+  color: #9aa4a9;
+  flex: 0 0 auto;
+}
+
+.topbar-menu {
+  position: relative;
+}
+
+.topbar-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 80;
+  min-width: 150px;
+  display: grid;
+  gap: 0;
+  padding: 6px;
+  border: 1px solid var(--forge-border-mid);
+  border-radius: 6px;
+  background: rgba(19, 22, 25, 0.98);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    visibility 0s linear 0.2s,
+    opacity 0.12s linear 0.2s;
+}
+
+.topbar-menu:hover .topbar-popover {
+  visibility: visible;
+  opacity: 1;
+  transition-delay: 0s;
+}
+
+.editor-shell .topbar-popover button {
+  width: 100%;
+  min-height: 29px;
+  justify-content: flex-start;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  box-shadow: none;
+  font-weight: 400;
+  text-align: left;
+}
+
+.editor-shell .topbar-popover button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.editor-shell .topbar-popover button.active {
+  color: var(--forge-accent-text);
+  background: var(--forge-accent);
+}
+
+.editor-shell .topbar-menu.force-closed .topbar-popover {
+  visibility: hidden;
+  opacity: 0;
+  transition: none;
 }
 
 .editor-panel {

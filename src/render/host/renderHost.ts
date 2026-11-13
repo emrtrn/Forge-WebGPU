@@ -17,6 +17,9 @@
 // - Quality is handed in (`setQuality`, the runtime's quality driver); until
 //   then the renderer runs at `DEFAULT_QUALITY_LEVEL`.
 // - The camera is handed in (viewer, editor, game camera).
+// - An overlay (the editor's drawing layer, plan phase 4 step 3) draws after
+//   the frame, before the perf witness reads it: it gets the frame's scene,
+//   camera and, when the frame went through the pipeline, its scene depth.
 // - Device loss, v1 (phase 3 decision 10): drawing stops for good and the
 //   listeners hear it; the page shows the renderer-free screen with "reload".
 //   Rebuilding on a new device is a later decision.
@@ -24,7 +27,7 @@
 //   witness's `skyCaptures`); `gpuTime()` resolves the last frame's GPU time,
 //   so a stepped measurement can pair the two (plan phase 3 step 7).
 
-import { PerspectiveCamera, PMREMGenerator, TimestampQuery, WebGPURenderer, type Camera } from "three/webgpu";
+import { PerspectiveCamera, PMREMGenerator, TimestampQuery, WebGPURenderer, type Camera, type Scene, type Texture } from "three/webgpu";
 import type { FeatureDef, JsonAssetTypeDef } from "../../core/index.ts";
 import { effectiveDevicePixelRatio, resolveQualitySettings, type QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { probeMrtBudget, type MrtProbeResult, type ProbeDevice } from "../pipeline/mrtProbe.ts";
@@ -59,6 +62,22 @@ export interface CaptureStats {
 /** Forge's renderer booted at Ultra's ratio (min(dpr, 2)) before any profile applied. */
 export const DEFAULT_QUALITY_LEVEL = "ultra";
 
+/** What an overlay draws a frame with. */
+export interface OverlayFrame {
+  readonly renderer: WebGPURenderer;
+  /** The presented world's scene. */
+  readonly scene: Scene;
+  /** The frame's camera, unjittered again (TRAA clears its view offset after the pipeline). */
+  readonly camera: Camera;
+  /** The scene pass's depth; null when the frame was drawn straight to the canvas. */
+  readonly sceneDepth: Texture | null;
+}
+
+/** Draws over the presented frame (the editor's drawing layer). */
+export interface RenderOverlay {
+  render(frame: OverlayFrame): void;
+}
+
 export interface RenderHostOptions {
   readonly document: Document;
   /** The element the canvas fills; its size is the drawing size. */
@@ -87,6 +106,9 @@ export interface RenderHost {
   /** The `forge.render` feature for a world that installs `features`. */
   feature(features: readonly FeatureDef[], name: string): FeatureDef;
   setCamera(camera: Camera): void;
+  readonly camera: Camera;
+  /** Draws after every frame; null removes it. */
+  setOverlay(overlay: RenderOverlay | null): void;
   /** The effective quality (profile, adaptive reductions); applies the pixel ratio next frame. */
   setQuality(quality: RenderQuality): void;
   readonly quality: RenderQuality;
@@ -175,6 +197,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   };
   let camera: Camera = new PerspectiveCamera();
   let world: RenderWorld | null = null;
+  let overlay: RenderOverlay | null = null;
   applyShadowSwitch();
   let width = 0;
   let height = 0;
@@ -280,6 +303,12 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       height = 0;
       applySize();
     },
+    get camera() {
+      return camera;
+    },
+    setOverlay(next) {
+      overlay = next;
+    },
     setQuality(next) {
       quality = next;
       applyShadowSwitch();
@@ -291,6 +320,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       if (lost || world === null) return;
       applySize();
       pipeline.render(world.scene, camera, world.output, quality.settings);
+      overlay?.render({ renderer, scene: world.scene, camera, sceneDepth: pipeline.sceneDepth });
       perf.frame(now);
     },
     perf,
