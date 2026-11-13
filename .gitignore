@@ -21,6 +21,9 @@ test-results/
 playwright-report/
 coverage/
 
+# Local procedural vegetation video research (keep the main Markdown report)
+/docs/research/procedural-vegetation-2026-11-11/
+
 # Claude Code local settings (machine-specific permissions)
 .claude/settings.local.json
 
@@ -32,3 +35,6 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 !.vscode/tasks.json
+
+# Hidden dev server logs from the Open Editor task
+.dev-server/
