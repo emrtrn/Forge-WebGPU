@@ -3,8 +3,9 @@ name: CI
 # Runs the same gate as the local pre-push ritual: type check (four tsconfigs:
 # app, src tests, Node tools, render smoke),
 # layer check + its self-test, file size budget, Node load check, asset gate
-# (type + licence + source, D16), unit tests, build, the editor's browser
-# checks (headless Chrome, preinstalled on the runner).
+# (type + licence + source, D16), unit tests, the project build with its
+# content and the dist scan, the editor's browser checks and the build served
+# from a sub folder (headless Chrome, preinstalled on the runner).
 # There is no GPU here: render acceptance is local, on a real WebGPU backend;
 # editor pages that draw run with WebGL forced (never a WebGPU acceptance).
 

@@ -21,7 +21,7 @@
 // phase 3 step 7: `npm run measure:sky-capture`).
 
 import type { FeatureDef } from "./core/index.ts";
-import { createSaveClient, isJsonAssetType } from "./core/index.ts";
+import { createSaveClient, createStaticContentClient, isJsonAssetType, STATIC_CONTENT_DIR, staticContentFile, type ContentClient } from "./core/index.ts";
 import { loadDevAssetUrls, assetUrlsFromIndex, type AssetUrls } from "./render/resources/assetUrls.ts";
 import type { RenderBindingDef } from "./render/sync/renderBinding.ts";
 import { benchmarkSkyCapture } from "./render/host/captureBench.ts";
@@ -51,22 +51,27 @@ const bindings = Object.keys(bindingModules)
 const root = document.querySelector<HTMLElement>("#app") ?? document.body;
 const viewport = document.querySelector<HTMLElement>("#viewport") ?? document.body;
 const screen = createBootScreen(document, root);
-const client = createSaveClient({ fetch: (input, init) => fetch(input, init as RequestInit | undefined) });
+const pageFetch = (input: string, init?: { method?: string; headers?: Record<string, string>; body?: string | Uint8Array }) =>
+  fetch(input, init as RequestInit | undefined);
+// Development reads (and the editor writes) through the dev server; a production build reads the
+// static content tools/build-content.ts wrote under the page's base URL (plan phase 4 step 2b). The
+// condition is a build-time constant, so the save client is not in a game build.
+const client: ContentClient = import.meta.env.DEV
+  ? createSaveClient({ fetch: pageFetch })
+  : createStaticContentClient({ fetch: pageFetch, baseUrl: import.meta.env.BASE_URL });
 const strict = import.meta.env.DEV;
 const params = new URLSearchParams(location.search);
 
 async function assetUrls(): Promise<AssetUrls> {
-  try {
-    return await loadDevAssetUrls(async (url, headers) => {
-      const response = await fetch(url, { headers });
-      if (!response.ok) throw new Error(`${url}: ${response.status}`);
-      return response.json();
-    });
-  } catch (error) {
-    // A production build has no dev server; its asset directory comes with the dist work (phase 4).
-    if (strict) throw error;
-    return assetUrlsFromIndex({}, (file) => file);
-  }
+  const fetchJson = async (url: string, headers: Record<string, string> = {}): Promise<unknown> => {
+    const response = await fetch(url, { headers });
+    if (!response.ok) throw new Error(`${url}: ${response.status}`);
+    return response.json();
+  };
+  if (import.meta.env.DEV) return loadDevAssetUrls(fetchJson);
+  const base = `${import.meta.env.BASE_URL.replace(/\/+$/, "")}/${STATIC_CONTENT_DIR}`;
+  const body = (await fetchJson(`${base}/asset-files.json`)) as { assets?: Parameters<typeof assetUrlsFromIndex>[0] };
+  return assetUrlsFromIndex(body.assets ?? {}, (file) => `${base}/${staticContentFile(file).split("/").map(encodeURIComponent).join("/")}`);
 }
 
 function storage(): Storage | null {
@@ -246,7 +251,7 @@ async function openEditor(): Promise<void> {
       document,
       features: [...features, ...(gameModule?.features ?? [])],
       bindings,
-      client,
+      client: createSaveClient({ fetch: pageFetch }),
       assetUrls: urls,
       materialType: materialType && isJsonAssetType(materialType) ? materialType : null,
       forceWebGL: params.has("forceWebGL"),

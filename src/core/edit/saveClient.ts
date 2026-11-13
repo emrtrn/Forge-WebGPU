@@ -20,15 +20,58 @@ type Fetch = (input: string, init?: { method?: string; headers?: Record<string, 
   json(): Promise<unknown>;
 }>;
 
-export interface SaveClient {
+/** What a game reads (plan phase 4 step 2b): the dev server, or the static files of a production build. */
+export interface ContentClient {
   /** A project file with its revision; null when it does not exist. */
   read(path: string): Promise<{ readonly text: string; readonly revision: string } | null>;
-  save(request: SaveRequestBody): Promise<SaveResponseBody>;
-  stageBinary(bytes: Uint8Array): Promise<{ readonly id: string; readonly size: number; readonly revision: string }>;
   /** Which engine and project the server serves. */
   identity(): Promise<ForgeIdentity>;
   /** The project's actor classes as the server holds them (not normalised here). */
   classes(): Promise<readonly unknown[]>;
+}
+
+/** The editor's client: reads and writes through the dev server's save service. */
+export interface SaveClient extends ContentClient {
+  save(request: SaveRequestBody): Promise<SaveResponseBody>;
+  stageBinary(bytes: Uint8Array): Promise<{ readonly id: string; readonly size: number; readonly revision: string }>;
+}
+
+/**
+ * Where a production build keeps its content, under the page's base URL
+ * (tools/build-content.ts writes it): `forge/identity.json`,
+ * `forge/classes.json`, `forge/asset-files.json`, and every readable file at
+ * `forge/files/<path>` with an `engine:` label written as `engine/`.
+ */
+export const STATIC_CONTENT_DIR = "forge";
+
+/** A project path (`content/levels/main/level.json`, `engine:content/x.png`) as a static file under the content dir. */
+export function staticContentFile(path: string): string {
+  const colon = path.indexOf(":");
+  const relative = colon > 0 && !path.slice(0, colon).includes("/") ? `${path.slice(0, colon)}/${path.slice(colon + 1)}` : `project/${path}`;
+  return `files/${relative}`;
+}
+
+/** Revision a static read reports: a production build only reads, nothing compares it. */
+export const STATIC_REVISION = "0000000000000000";
+
+/** A read-only client over a production build's static content; `baseUrl` is the page's base (`import.meta.env.BASE_URL`). */
+export function createStaticContentClient(options: { readonly fetch: Fetch; readonly baseUrl: string }): ContentClient {
+  const base = `${options.baseUrl.replace(/\/+$/, "")}/${STATIC_CONTENT_DIR}`;
+  const json = async (name: string): Promise<unknown> => {
+    const response = await options.fetch(`${base}/${name}`);
+    if (response.status !== 200) throw new SaveClientError(response.status, `No ${name} in the build: ${response.status}`);
+    return response.json();
+  };
+  return {
+    async read(path) {
+      const response = await options.fetch(`${base}/${staticContentFile(path).split("/").map(encodeURIComponent).join("/")}`);
+      if (response.status === 404) return null;
+      if (response.status !== 200) throw new SaveClientError(response.status, `Reading ${path} failed: ${response.status}`);
+      return { text: await response.text(), revision: STATIC_REVISION };
+    },
+    identity: async () => (await json("identity.json")) as ForgeIdentity,
+    classes: async () => ((await json("classes.json")) as { classes: unknown[] }).classes,
+  };
 }
 
 export class SaveClientError extends Error {
@@ -94,7 +137,7 @@ export interface OpenedLevel {
  * camera, A11).
  */
 export async function openLevelFromServer(
-  client: SaveClient,
+  client: ContentClient,
   folder: string,
   options: CellAssignOptions,
   pick: (cells: readonly string[]) => readonly string[] = (cells) => cells,

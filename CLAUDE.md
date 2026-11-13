@@ -61,8 +61,9 @@ kararları plan K12'de; taşınmayan Forge kodu `forge-webgl-final` etiketinde.
 | `npm run measure:sky-capture` | Sky Light (PMREM) yakalama ölçümü: smoke sunucusu ve profili, L03, kare döngüsü duraklatılıp 60 Hz adımlanır (`window.__forgeDev`, yalnız dev); yakalamanın tek başına GPU / CPU süresi ve gün saati geçişlerinde yakalama sayısı, kayıt `render-refs/runs/*-sky-capture.json`. Kapıda değil |
 | `npm run port:forge-tests -- --forge <Forge>` | 2b test sınıflaması ve ilerleme (A taşınan / payda); `docs/port/forge-engine-tests.tsv` |
 | `npm run port:forge -- <tests\|closure\|subset\|members> … --forge <Forge>` | Taşıma araçları: hazır kontrolleri taşı / neyin beklettiğini söyle (`--deferred <faz>` o faza ertelenmişleri de alır), import kapanışı, eski dosyadan alt küme, bölme planı (ayrıntı `tools/port-forge.ts` başında) |
-| `npm run build` | Vite üretim build'i |
-| `npm run verify:dist` | Build'den sonra dist taraması: editör işaretleri (kabuk CSS'i, test id'leri, kit) hata, dev server'ın yazma uçları uyarı (`--strict` hata). Gate'te |
+| `npm run build` | Projenin üretim build'i (`FORGE_PROJECT_ROOT`, yoksa `samples/starter`): Vite + `tools/build-content.ts` (proje içeriği, motor içeriği ve seçili paketler, kimlik / sınıf / asset dizinleri `dist/forge/`'a); oyun dev server'sız, `BASE_URL` altından okur |
+| `npm run verify:dist` | Build'den sonra dist taraması: editör işaretleri (kabuk CSS'i, test id'leri, kit) hata, dev server'ın yazma uçları uyarı; gate'te `--strict` (uyarı da hata) |
+| `npm run smoke:dist` | Üretim build'i alt dizinde (`--base /forge-base/`, geçici klasör, `vite preview`, port 5283): start level statik içerikten açılır, bütün istekler alt dizinde, `/__forge/` yok, editör yok (başsız Chrome, `forceWebGL`). Gate'te ve CI'da |
 
 `npm run dev` proje verilmezse `samples/starter`'ı salt okunur açar (kayıt 403).
 Motor içeriği `content/engine/`, içerik paketleri `content/packs/<id>/`: proje

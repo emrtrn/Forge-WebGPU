@@ -1,8 +1,10 @@
 // The engine's Vite plugin.
 //
-// - `virtual:forge/game-module`: the served project's game module (its
-//   `game.module`), or null. Resolved in every command; `vite build` of the
-//   engine has no project and gets null.
+// - `virtual:forge/game-module`: the project's game module (its
+//   `game.module`), or null. `npm run dev` serves the project; `vite build`
+//   builds it (FORGE_PROJECT_ROOT, then samples/starter: the game's code goes
+//   into the bundle, tools/build-content.ts writes its content beside it,
+//   plan phase 4 step 2b); preview and Vitest get null.
 // - In `npm run dev` only (not preview, not Vitest): picks the project
 //   (devProject.ts), lets Vite serve files from it, loads its game module's
 //   schemas into the registry, and registers the authoring endpoints.
@@ -54,17 +56,19 @@ export function forgeServerPlugin(options: ForgeServerPluginOptions = {}): Plugi
     async config(config, env) {
       serving =
         env.command === "serve" && env.isPreview !== true && (options.enable === true || process.env.VITEST === undefined);
-      if (!serving) return;
+      const building = env.command === "build" && process.env.VITEST === undefined;
+      if (!serving && !building) return;
       const engineRoot = resolve(config.root ?? process.cwd());
       const env2 = options.projectRoot === undefined ? process.env : { FORGE_PROJECT_ROOT: options.projectRoot };
       project = await resolveDevProject(engineRoot, env2);
+      if (building) return;
       return { server: { fs: { allow: [engineRoot, project.root] } } };
     },
     resolveId(id) {
       return id === GAME_MODULE_ID ? RESOLVED_GAME_MODULE : null;
     },
     load(id) {
-      return id === RESOLVED_GAME_MODULE ? gameModuleSource(serving ? project : null) : null;
+      return id === RESOLVED_GAME_MODULE ? gameModuleSource(project) : null;
     },
     async configureServer(server) {
       if (!serving || project === null) return;

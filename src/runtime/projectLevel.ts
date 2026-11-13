@@ -10,14 +10,14 @@ import {
   type AssetId,
   type ClassResolver,
   type Issue,
-  type SaveClient,
+  type ContentClient,
   type SchemaRegistry,
 } from "../core/index.ts";
 import type { LoadedLevel } from "./boot.ts";
 import { WorldError } from "./world.ts";
 
 export async function loadProjectLevel(
-  client: SaveClient,
+  client: ContentClient,
   folder: string,
   registry: SchemaRegistry,
   strict: boolean,

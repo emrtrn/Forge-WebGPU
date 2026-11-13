@@ -29,10 +29,11 @@
     "smoke:render": "playwright test -c tests/smoke/playwright.config.ts",
     "smoke:grid": "node tests/smoke/grid.ts",
     "smoke:editor": "playwright test -c tests/editor/playwright.config.ts",
+    "smoke:dist": "playwright test -c tests/production/playwright.config.ts",
     "measure:sky-capture": "playwright test -c tests/smoke/measure.config.ts",
-    "build": "vite build",
+    "build": "vite build && node tools/build-content.ts",
     "verify:dist": "node tools/verify-dist.ts",
-    "gate": "npm run typecheck && npm run verify:layers && npm run verify:file-size && npm run verify:node-load && npm run verify:assets && npm run verify:sdk-api && npm run check:projects && npm run test && npm run build && npm run verify:dist && npm run smoke:editor"
+    "gate": "npm run typecheck && npm run verify:layers && npm run verify:file-size && npm run verify:node-load && npm run verify:assets && npm run verify:sdk-api && npm run check:projects && npm run test && npm run build && npm run verify:dist -- --strict && npm run smoke:editor && npm run smoke:dist"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.19.3",

@@ -1,6 +1,7 @@
 {
   // The Playwright suites: the render smoke (tests/smoke; never in the gate or
-  // CI) and the editor's browser checks (tests/editor; in the gate and CI).
+  // CI), the editor's browser checks (tests/editor) and the production build
+  // under a sub folder (tests/production), both in the gate and CI.
   // Node for the runner, the DOM for code that runs in the page
   // (page.evaluate); type-checked with the rest.
   "extends": "./tsconfig.base.json",
@@ -8,5 +9,5 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["node"]
   },
-  "include": ["tests/smoke", "tests/editor"]
+  "include": ["tests/smoke", "tests/editor", "tests/production"]
 }
