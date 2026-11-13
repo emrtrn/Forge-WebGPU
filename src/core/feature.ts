@@ -6,12 +6,14 @@
 //
 // `defineFeature` carries only what core can type: `components`, `assetTypes`
 // (binary asset types; document types are built in) and `subsystems` (the
-// contract is in core, the world that runs them in src/runtime). `render`
-// joins with phase 3.
+// contract is in core, the world that runs them in src/runtime).
 // There is no `editor` slot and there never will be one here: `feature.ts`
 // does not name `editor.ts`, not even through a dynamic import. The editor
 // host collects `features/*/editor.ts` itself, so the editor stays out of the
-// game's import graph and out of the production build.
+// game's import graph and out of the production build. The same holds for
+// `render.ts` (phase 3 decision 2): the application entry collects
+// `features/*/render.ts` for the render host, so Node tools and a headless
+// boot load features without three.
 
 import type { BinaryAssetTypeDef } from "./assets/assetType.ts";
 import { COMPONENT_NAME_PATTERN, type ComponentDef } from "./schema/component.ts";

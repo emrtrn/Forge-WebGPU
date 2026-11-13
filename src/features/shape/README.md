@@ -8,5 +8,6 @@ renkli placeholder'ları ve Add Actor primitifleri bununla durur.
   `SHAPE_PRIMITIVE_SIZE`'ı); boyutu aktörün ölçeği verir.
 - `feature.ts`: yalnız bileşeni kurar.
 - Forge WebGL'de bunlar `shape:<tür>` sahte asset'inin yerleşimleriydi.
-- Şimdilik yalnız şema (plan 2b, kullanıcı kararı 2026-11-12). Çizim Faz 3'te,
-  collider Faz 6'da gelir.
+- `render.ts`: bileşen başına bir mesh; geometri prosedürel
+  (`shape:<tür>`, Forge'un ölçüleri), renge göre lit materyal; ikisi de render
+  host'unun kaynak önbelleğinden. Instancing Faz 3 adım 8'de, collider Faz 6'da.

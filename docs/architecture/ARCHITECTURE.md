@@ -35,9 +35,12 @@ kendini de sınar (rapor §4.2, A3).
 
 Bir özellik tek klasördür: `src/features/<ad>/{schema,runtime,render,editor,feature}.ts`
 + test + README. `feature.ts` `defineFeature({ id, components, assetTypes,
-saveStates, subsystems })` döner ve ne `editor.ts`'i ne `render.ts`'i anar;
-editör host'u ve render host'u onları kendisi toplar (`render.ts` →
-`defineRenderBinding`, rapor §4.3, §4.9). Başsız açılışta render yok. Yeni özellik kabuk dosyasına dokunmaz: `main.ts` özellikleri klasörden
+saveStates, subsystems })` döner ve ne `editor.ts`'i ne `render.ts`'i anar
+(`feature-does-not-name-editor`, `feature-does-not-name-render`); editör host'u
+`editor.ts`'leri toplar, `render.ts`'leri (`defineRenderBinding`) uygulama
+girişi `main.ts` Vite glob'uyla toplayıp render host'a verir, çünkü `render`
+katmanı `features/`'ı import edemez (rapor §4.3, §4.9). Başsız açılışta render
+yok. Yeni özellik kabuk dosyasına dokunmaz: `main.ts` özellikleri klasörden
 toplar. Örnek ve iskeletin kabul testi: `src/features/height-fog` (rapor §4.3).
 
 ## Veri modeli
@@ -89,7 +92,8 @@ rapor; sınır dışı sayı sınıra çekilir (rapor §4.5, A2).
 ya da ileri sarar), hücre dizinini sunucu yazar, dosya başına temel revizyon
 (uyuşmazlıkta 409), sunucuda sıkı şema doğrulaması ve kanonik yazım (422),
 ikili sahneleme. Uçlar `/__forge/save`, `/__forge/stage-binary`,
-`/__forge/read`; yalnız localhost ve `X-Forge-Request: 1`. Yazma yalnız
+`/__forge/read`, `/__forge/asset-files` (renderer'ın GUID → dosya tablosu);
+yalnız localhost ve `X-Forge-Request: 1`. Yazma yalnız
 projenin içerik köklerine; `samples/`, `tests/fixtures/` ve motor içeriği salt
 okunur. İstemci tarafı `src/core/edit`: işlem / undo, sürümlü kirli takibi,
 level oturumu (rapor §4.6).
@@ -131,9 +135,11 @@ projesinde (rapor §4.8, A9).
 
 ## Kapı
 
-`npm run gate`: iki tsconfig'le tip kontrolü, katman denetimi + öz-testi, dosya
+`npm run gate`: dört tsconfig'le (uygulama, `src` testleri, Node araçları,
+render smoke'u) tip kontrolü, katman denetimi + öz-testi, dosya
 boyutu bütçesi, Node yükleme, asset kapısı, SDK API kapısı, `check:projects`,
 Vitest, build. Aynı kapı CI'da. Render kabulü yerelde, gerçek WebGPU
 backend'inde: `npm run smoke:render` (Playwright, başlıklı Chrome, port 5283;
 gate'te ve CI'da değil, `render/**` ya da `features/*/render.ts` dokunan
-push'tan önce; referans görüntüler depo dışında; rapor §4.10).
+push'tan önce; `tests/smoke/`, referans görüntüler ve koşu kayıtları depo
+dışında `Games/ForgeReference/render-refs/`; rapor §4.10).

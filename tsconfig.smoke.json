@@ -1,0 +1,11 @@
+{
+  // The render smoke (tests/smoke, Playwright): Node for the runner, the DOM
+  // for code that runs in the page (page.evaluate). Never in the gate's test
+  // run or CI; type-checked with the rest.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"]
+  },
+  "include": ["tests/smoke"]
+}

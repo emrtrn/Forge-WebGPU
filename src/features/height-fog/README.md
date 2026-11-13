@@ -9,5 +9,8 @@ Mesafeye ve yüksekliğe bağlı atmosfer sisi. İskeletin örnek özelliği: bi
   `HeightFogStateKey` servisini yayınlar (canlı bileşen; yoksa `null`).
 - `feature.ts`: `defineFeature({ id, components, subsystems })`. Kabuk bu
   dosyayı kurar.
-- Henüz yok: `render.ts` (Faz 3; servisi okur), `editor.ts` (gerekirse;
-  Details formu şemadan otomatik üretilir).
+- `render.ts`: render bağlaması (`defineRenderBinding`). Servisi her karede
+  okur; Forge WebGL'in analitik yükseklik sisini TSL ile sahnenin sis düğümü
+  olarak kurar (değerler uniform; yalnız sisin gelip gitmesi shader'ı
+  değiştirir). `feature.ts` onu anmaz, `main.ts` toplar.
+- Henüz yok: `editor.ts` (gerekirse; Details formu şemadan otomatik üretilir).

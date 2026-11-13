@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { defineFeature, defineSubsystem, type FeatureDef } from "../core/index.ts";
 import { actorId, assetId, Collider, Driver, Fog, levelId, StaticMesh } from "../core/level/testKit.ts";
-import { bootErrorView, bootGame, type BootErrorView, type BootOptions, type BootScreen } from "./boot.ts";
+import { bootErrorView, bootGame, type BootErrorView, type BootOptions, type BootRender, type BootScreen } from "./boot.ts";
 import { createBootScreen } from "./bootScreen.ts";
 import { defineGameModule } from "./gameModule.ts";
 import { WorldError } from "./world.ts";
@@ -137,6 +137,88 @@ describe("bootGame", () => {
     const game = await bootGame(options);
     game!.stop();
     expect(log).toEqual(["feature beginPlay", "game beginPlay, 1 fog", "game endPlay stopped", "feature endPlay stopped"]);
+  });
+
+  describe("the render stage", () => {
+    function fakeRender(log: string[], options: { initFails?: boolean } = {}) {
+      let lost: ((message: string) => void) | null = null;
+      const render: BootRender = {
+        init: async () => {
+          log.push("render init");
+          if (options.initFails) throw new Error("WebGPU is not available");
+        },
+        feature: (features) => {
+          log.push(`render feature after ${features.map((feature) => feature.id).join(", ")}`);
+          return defineFeature({
+            id: "forge.render",
+            subsystems: [
+              defineSubsystem({
+                id: "forge.render",
+                tickGroups: ["renderSync"],
+                create: () => ({ tick: (group) => log.push(`render ${group}`) }),
+              }),
+            ],
+          });
+        },
+        frame: (time) => log.push(`draw ${time}`),
+        onLost: (listener) => void (lost = listener),
+        dispose: () => log.push("render dispose"),
+      };
+      return { render, lose: (message: string) => lost?.(message) };
+    }
+
+    test("init before the level; its feature installs last; each frame draws after the tick", async () => {
+      const log: string[] = [];
+      const { render } = fakeRender(log);
+      const { options, step } = harness({
+        features: [components, ticker(log)],
+        render,
+        loadLevel: async () => {
+          log.push("load level");
+          return { level: LEVEL };
+        },
+      });
+      const game = await bootGame(options);
+      step(10);
+      game!.stop();
+      expect(log).toEqual([
+        "render init",
+        "load level",
+        "render feature after test.components, test.ticker",
+        "feature beginPlay",
+        "tick 0",
+        "render renderSync",
+        "draw 10",
+        "feature endPlay stopped",
+        "render dispose",
+      ]);
+    });
+
+    test("a renderer that cannot start stops the boot at the render stage", async () => {
+      const log: string[] = [];
+      const { render } = fakeRender(log, { initFails: true });
+      const shown = await harnessBoot({ render, loadLevel: async () => (log.push("load level"), { level: LEVEL }) });
+      expect(shown).toMatchObject({ kind: "error", title: "The renderer could not be started", view: { message: "WebGPU is not available" } });
+      expect(log).toEqual(["render init", "render dispose"]);
+    });
+
+    test("a lost device stops the loop for good, ends play and offers a reload", async () => {
+      const log: string[] = [];
+      const { render, lose } = fakeRender(log);
+      const { options, shown, pending } = harness({ features: [components, ticker(log)], render });
+      const game = await bootGame(options);
+      lose("WebGPU device lost: GPU hung (unknown)");
+      expect(pending()).toBe(0);
+      expect(game!.world.state).toBe("ended");
+      expect(log.at(-1)).toBe("feature endPlay error");
+      expect(shown.at(-1)).toMatchObject({
+        kind: "error",
+        title: "The graphics device was lost",
+        view: { message: "WebGPU device lost: GPU hung (unknown)", reload: true },
+      });
+      lose("again");
+      expect(shown.filter((entry) => entry.kind === "error")).toHaveLength(1);
+    });
   });
 
   async function harnessBoot(overrides: Partial<BootOptions>) {

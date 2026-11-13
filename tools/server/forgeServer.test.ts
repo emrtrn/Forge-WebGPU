@@ -187,6 +187,13 @@ describe("read-only roots outside the project (engine content and packs, A9)", (
       expect((await read(`${label}/none.json`)).status).toBe(404);
       const classes = (await (await fetch(`${url}/__forge/classes`, { headers: HEADERS })).json()) as { classes: { id: string }[] };
       expect(classes.classes.map((one) => one.id)).toEqual(["ast_33333333333333333333333333333333"]);
+      // The renderer's GUID -> file table names files under their root label, readable as listed.
+      const files = (await (await fetch(`${url}/__forge/asset-files`, { headers: HEADERS })).json()) as {
+        assets: Record<string, { type: string; file: string }>;
+      };
+      expect(files.assets["ast_22222222222222222222222222222222"]).toEqual({ type: "test.mesh", file: `${label}/meshes/car.glb` });
+      expect(files.assets["ast_33333333333333333333333333333333"]).toBeUndefined();
+      expect((await read(files.assets["ast_22222222222222222222222222222222"]!.file)).status).toBe(200);
       const saved = await fetch(`${url}/__forge/save`, {
         method: "POST",
         headers: HEADERS,

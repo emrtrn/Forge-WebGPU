@@ -96,6 +96,14 @@ module.exports = {
       to: { path: ["^src/editor/", "^src/editor-sdk/", role("editor")] },
     },
     {
+      name: "feature-does-not-name-render",
+      comment:
+        "feature.ts never references the render layer or its own render.ts, statically or dynamically (phase 3 decision 2): Node tools and the headless boot (check:projects) load feature.ts, and three/webgpu must not come with it. The application entry collects features/*/render.ts and hands the bindings to the render host.",
+      severity: "error",
+      from: { path: role("feature") },
+      to: { path: ["^src/render/", role("render")] },
+    },
+    {
       name: "feature-runtime-no-render",
       severity: "error",
       from: { path: role("runtime") },

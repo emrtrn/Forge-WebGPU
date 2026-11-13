@@ -9,6 +9,8 @@
 //                               engine's content and packs (A9)
 //   GET  /__forge/identity      which engine and which project this server serves (D14)
 //   GET  /__forge/classes       the project's actor classes, normalised
+//   GET  /__forge/asset-files   every binary asset: GUID -> { type, file }, `file` for /__forge/read
+//                               (the renderer resolves model and texture GUIDs with it)
 //
 // A project opened read-only (the engine's samples and fixtures, A9) refuses
 // saves and uploads with 403; it can still be read. The engine's content and
@@ -28,7 +30,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
-import { buildAssetIndex, type SchemaRegistry } from "../../src/core/index.ts";
+import { buildAssetIndex, type AssetIndex, type SchemaRegistry } from "../../src/core/index.ts";
 import { fileRevision } from "../assets/revision.ts";
 import { projectContentRoots, scanRoots, type ContentRoot } from "../assets/scan.ts";
 import { defaultContentRoots } from "../assets/verify.ts";
@@ -149,6 +151,21 @@ function resolveReadOnlyPath(root: ContentRoot, path: string): string {
   return resolveProjectPath(root.dir, normalized);
 }
 
+/** A binary asset's file as `GET /__forge/asset-files` lists it; `file` is what `/__forge/read?path=` takes. */
+export interface AssetFileEntry {
+  readonly type: string;
+  readonly file: string;
+}
+
+/** Every binary asset of an index: GUID -> type and `<root label>/<path>`. */
+export function binaryAssetFiles(index: AssetIndex): Record<string, AssetFileEntry> {
+  const out: Record<string, AssetFileEntry> = {};
+  for (const entry of index.entries.values()) {
+    if (entry.storage === "binary") out[entry.id] = { type: entry.type, file: `${entry.root}/${entry.path}` };
+  }
+  return out;
+}
+
 export interface ForgeServer {
   readonly middleware: Middleware;
   readonly policy: WritePolicy;
@@ -165,16 +182,19 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
   await rm(stagingDir, { recursive: true, force: true });
 
   const readOnlyRoots = options.readOnlyRoots ?? [];
-  const scan = await scanRoots([
-    ...projectContentRoots(policy.root, options.contentRoots ?? defaultContentRoots(policy.root)),
-    ...readOnlyRoots,
-  ]);
-  const index = buildAssetIndex(scan.files, { strict: false, registry: options.registry });
+  const allRoots = [...projectContentRoots(policy.root, options.contentRoots ?? defaultContentRoots(policy.root)), ...readOnlyRoots];
+  const indexRoots = async () => buildAssetIndex((await scanRoots(allRoots)).files, { strict: false, registry: options.registry });
+  const index = await indexRoots();
   const classes = createClassStore(policy.root, options.registry, index);
+  // The renderer's GUID -> file table; a save can add or move a binary, so it is rebuilt on the next request.
+  let assetFiles: Promise<Record<string, AssetFileEntry>> | null = Promise.resolve(binaryAssetFiles(index));
   const saves = createSaveService({
     policy,
     check: createDocumentCheck(options.registry, classes),
-    afterSave: (files) => classes.refresh(files.map((file) => file.path)),
+    afterSave: (files) => {
+      assetFiles = null;
+      return classes.refresh(files.map((file) => file.path));
+    },
   });
   await saves.recover();
 
@@ -286,7 +306,9 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
               ? Promise.resolve(send(res, 200, options.identity ?? {}))
               : route === "GET /__forge/classes"
                 ? Promise.resolve(send(res, 200, { classes: classes.all() }))
-                : null;
+                : route === "GET /__forge/asset-files"
+                  ? (assetFiles ??= indexRoots().then(binaryAssetFiles)).then((assets) => send(res, 200, { assets }))
+                  : null;
     if (handle === null) {
       send(res, 404, { status: "rejected", reason: "request", message: `No endpoint ${route}.` });
       return;

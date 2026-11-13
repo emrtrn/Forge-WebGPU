@@ -1,7 +1,14 @@
-// Booting the game (architecture §4.7; F10): features -> registry -> level ->
-// world -> frame loop. A failure at any stage is shown on the boot screen,
-// which needs no renderer: an error before the renderer exists is still seen.
-// An error in a frame stops the loop and shows the same screen.
+// Booting the game (architecture §4.7; F10): features -> registry -> render ->
+// level -> world -> frame loop. A failure at any stage is shown on the boot
+// screen, which needs no renderer: an error before the renderer exists is
+// still seen. An error in a frame stops the loop and shows the same screen.
+//
+// The render stage is optional (phase 3 decision 2): a headless boot (Node,
+// check:projects) has none and its world runs without render. With one, the
+// renderer initialises before the level loads, the world installs the
+// render's `forge.render` feature after every other feature, and each frame
+// draws after the world ticked. When the GPU device is lost the loop stops
+// for good and the screen offers a reload (decision 10).
 //
 // Everything that touches the page is handed in (the screen, the frame
 // scheduler), so boot runs and is tested in Node too.
@@ -20,13 +27,15 @@ import { assembleLevel } from "./assembler.ts";
 import { gameModuleSubsystem, type GameModuleDef } from "./gameModule.ts";
 import { createWorld, WorldError, type World } from "./world.ts";
 
-export type BootStage = "project" | "features" | "level" | "world" | "frame";
+export type BootStage = "project" | "features" | "render" | "level" | "world" | "frame";
 
 export interface BootErrorView {
   readonly title: string;
   readonly message: string;
   /** One line per issue, then the stack when there is one. */
   readonly details: readonly string[];
+  /** The screen offers to reload the page (the GPU device was lost). */
+  readonly reload?: boolean;
 }
 
 export interface BootScreen {
@@ -42,6 +51,19 @@ export interface FrameScheduler {
   cancel(handle: number): void;
 }
 
+/** The render stage (src/render's level viewer has this shape). */
+export interface BootRender {
+  /** Creates the renderer; a failure stops the boot at the "render" stage. */
+  init(): Promise<void>;
+  /** The `forge.render` feature for a world that installs `features`. */
+  feature(features: readonly FeatureDef[]): FeatureDef;
+  /** Draws a frame after the world ticked; `time` in ms. */
+  frame(time: number): void;
+  /** Called once if the GPU device is lost. */
+  onLost(listener: (message: string) => void): void;
+  dispose(): void;
+}
+
 export interface LoadedLevel {
   /** The level document as read (it is normalised here). */
   readonly level: unknown;
@@ -52,6 +74,8 @@ export interface BootOptions {
   /** Engine features; the game module's come after them. */
   readonly features: readonly FeatureDef[];
   readonly gameModule?: GameModuleDef;
+  /** The renderer; none in a headless boot. */
+  readonly render?: BootRender;
   /** True in development: data loss stops the boot. */
   readonly strict: boolean;
   /** Null when there is nothing to open. Gets the registry the features were installed into. */
@@ -71,6 +95,7 @@ export interface RunningGame {
 const STAGE_TITLE: Record<BootStage, string> = {
   project: "The project cannot be opened",
   features: "The engine's features could not be installed",
+  render: "The renderer could not be started",
   level: "The level could not be loaded",
   world: "The world could not be started",
   frame: "The game stopped",
@@ -98,7 +123,7 @@ class StageError extends Error {
 
 /** Returns the running game, or null when the boot stopped (the screen says why). */
 export async function bootGame(options: BootOptions): Promise<RunningGame | null> {
-  const { screen } = options;
+  const { screen, render } = options;
   let stage: BootStage = "features";
   let world: World | null = null;
   try {
@@ -109,9 +134,15 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
     const registry = createSchemaRegistry();
     installFeatures(features, registry);
 
+    if (render) {
+      stage = "render";
+      await render.init();
+    }
+
     stage = "level";
     const loaded = await options.loadLevel(registry);
     if (loaded === null) {
+      if (render) disposeRenderQuietly(render);
       screen.info("Nothing to open", "No project is open. The project contract (samples/starter) brings the first one.");
       return null;
     }
@@ -123,7 +154,9 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
     const warnings = level.issues.filter((issue) => issue.severity === "warning");
 
     stage = "world";
-    world = createWorld({ strict: options.strict, registry, resolveClass, features });
+    // The render feature comes last: its renderSync runs after everything moved.
+    const worldFeatures = render ? [...features, render.feature(features)] : features;
+    world = createWorld({ strict: options.strict, registry, resolveClass, features: worldFeatures });
     world.init();
     const assembled = assembleLevel(world, level.value, { strict: options.strict, resolveClass });
     // A missing class is already reported by normalisation; report it once.
@@ -133,6 +166,7 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
     world.beginPlay();
   } catch (error) {
     if (world !== null) disposeQuietly(world);
+    if (render) disposeRenderQuietly(render);
     screen.error(bootErrorView(stage, error, error instanceof StageError ? error.issues : []));
     return null;
   }
@@ -140,34 +174,58 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
   const running = world;
   let handle: number | null = null;
   let last: number | null = null;
-  const frame = (time: number): void => {
+  let halted = false;
+  const halt = (view: BootErrorView): void => {
+    halted = true;
+    if (handle !== null) options.scheduler.cancel(handle);
     handle = null;
-    const dt = last === null ? 0 : (time - last) / 1000;
-    last = time;
-    try {
-      running.tick(dt);
-    } catch (error) {
+    if (running.state === "playing") {
       try {
         running.endPlay("error");
       } catch {
         // the world may be in no state to end; the report below is what matters
       }
-      screen.error(bootErrorView("frame", error));
+    }
+    screen.error(view);
+  };
+  const frame = (time: number): void => {
+    handle = null;
+    if (halted) return;
+    const dt = last === null ? 0 : (time - last) / 1000;
+    last = time;
+    try {
+      running.tick(dt);
+      render?.frame(time);
+    } catch (error) {
+      halt(bootErrorView("frame", error));
       return;
     }
     handle = options.scheduler.request(frame);
   };
+  render?.onLost((message) => {
+    if (!halted) halt({ ...bootErrorView("render", new Error(message)), title: "The graphics device was lost", reload: true });
+  });
   screen.clear();
   handle = options.scheduler.request(frame);
 
   return {
     world: running,
     stop() {
+      halted = true;
       if (handle !== null) options.scheduler.cancel(handle);
       handle = null;
       running.dispose();
+      render?.dispose();
     },
   };
+}
+
+function disposeRenderQuietly(render: BootRender): void {
+  try {
+    render.dispose();
+  } catch {
+    // the boot error is what gets reported
+  }
 }
 
 function disposeQuietly(world: World): void {

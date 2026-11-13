@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tests.json && tsc --noEmit -p tsconfig.tools.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tests.json && tsc --noEmit -p tsconfig.tools.json && tsc --noEmit -p tsconfig.smoke.json",
     "verify:layers": "node tools/verify-layers.ts",
     "verify:file-size": "node tools/verify-file-size.ts",
     "verify:node-load": "node tools/verify-node-load.ts",
@@ -26,6 +26,7 @@
     "port:forge-tests": "node tools/port-forge-tests.ts",
     "port:forge": "node tools/port-forge.ts",
     "test": "vitest run",
+    "smoke:render": "playwright test -c tests/smoke/playwright.config.ts",
     "build": "vite build",
     "gate": "npm run typecheck && npm run verify:layers && npm run verify:file-size && npm run verify:node-load && npm run verify:assets && npm run verify:sdk-api && npm run check:projects && npm run test && npm run build"
   },
@@ -35,6 +36,7 @@
     "three": "0.187.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.61.1",
     "@types/node": "^24.0.0",
     "@types/three": "0.187.0",
     "dependency-cruiser": "^18.7.2",

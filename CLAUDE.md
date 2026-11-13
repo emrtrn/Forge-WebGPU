@@ -40,7 +40,7 @@ kararları plan K12'de; taşınmayan Forge kodu `forge-webgl-final` etiketinde.
 |---|---|
 | `npm run dev` | Dev server, port **5183** (`strictPort`) |
 | `npm run gate` | Push öncesi kapı: aşağıdakilerin hepsi |
-| `npm run typecheck` | `tsconfig.json` (tarayıcı, `src/`, testler hariç) + `tsconfig.tests.json` (`src` testleri, Node tipleriyle) + `tsconfig.tools.json` (Node, `tools/`, `src/engine` ve import ettiği `src` modülleri; DOM yok) |
+| `npm run typecheck` | `tsconfig.json` (tarayıcı, `src/`, testler hariç) + `tsconfig.tests.json` (`src` testleri, Node tipleriyle) + `tsconfig.tools.json` (Node, `tools/`, `src/engine` ve import ettiği `src` modülleri; DOM yok) + `tsconfig.smoke.json` (`tests/smoke`, Node + DOM) |
 | `npm run verify:layers` | Katman denetimi + öz-testi |
 | `npm run verify:file-size` | Dosya bütçesi: 800 satırda uyarı, 1.500'de hata |
 | `npm run verify:node-load` | `src/core` ve `features/*/schema.ts` düz Node'da yüklenir |
@@ -55,6 +55,7 @@ kararları plan K12'de; taşınmayan Forge kodu `forge-webgl-final` etiketinde.
 | `npm run world:brief -- --project <yol> --brief <klasör>/<ad>.worldbrief.json` | Brief'ten level'ı yeniden kurar (aynı GUID'ler, aynı baytlar) |
 | `npm run bench:level` | 50.000 aktörlük ölçek ölçümü (kapıda değil) |
 | `npm run test` | Vitest; testler modülün yanında (`*.test.ts`) |
+| `npm run smoke:render` | Render smoke'u (Playwright, başlıklı Chrome, gerçek WebGPU, port 5283, referans projesi `Games/ForgeReference/webgpu-scenes`; `FORGE_REFERENCE_ROOT` değiştirir). Gate'te ve CI'da değil; `render/**` ya da `features/*/render.ts` dokunan push'tan önce. Referans yoksa çekim `render-refs/candidates/`'e, kayıt `render-refs/runs/`'a; referans yalnız kullanıcı kabulünden sonra `-- --update-snapshots` ile yazılır |
 | `npm run port:forge-tests -- --forge <Forge>` | 2b test sınıflaması ve ilerleme (A taşınan / payda); `docs/port/forge-engine-tests.tsv` |
 | `npm run port:forge -- <tests\|closure\|subset\|members> … --forge <Forge>` | Taşıma araçları: hazır kontrolleri taşı / neyin beklettiğini söyle, import kapanışı, eski dosyadan alt küme, bölme planı (ayrıntı `tools/port-forge.ts` başında) |
 | `npm run build` | Vite üretim build'i |
