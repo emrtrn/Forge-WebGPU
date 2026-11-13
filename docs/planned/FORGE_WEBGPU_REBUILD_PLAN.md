@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v1.14 · 2026-11-13 (v1.13'ten fark: Faz 4 adım 2'nin dilimi — editörün World'ü (`inEditor`, kullanıcı kararı), `actorsChanged`, `editorRender` kuralı, editör oturumu, `?editor` kabuğu, editör smoke'u, `verify:dist`; kalan 2b üretim build'i. v1.13 · 2026-11-13 (v1.12'den fark: Faz 4 adım 1 tamam — UI kiti (`src/editor/ui`), `?editor-kit`, editörün tarayıcı denetimleri gate ve CI'da. v1.12 · 2026-11-13 (v1.11'den fark: Faz 4 başladı — döküm (36 INV satırı, ertelenmiş A yok, 11 R), kararlar 1–12 (kullanıcı onayı), adım sırası 1–10; mimari v1.16. v1.11 · 2026-11-13 (v1.10'dan fark: Faz 3 kapandı — adım 9: smoke tam seti Faz 0 pozu ve boyutuyla, Faz 0 ile yan yana ızgara (`npm run smoke:grid`), yönlü ışıkların dünya çerçevesi düzeltmesi; kullanıcının görsel kabulü ve referanslar; view distance 5b'ye (kullanıcı kararı); bölüm `docs/archive/PHASE_3.md`'ye taşındı; mimari v1.15. v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 8 tamam — otomatik instancing, terrain salt çizimi, görüntüleyicinin varsayılan kamerası, `?debug` paneli, bütün çizen referans level'lar smoke'ta; kullanıcı kararları: terrain / örtü katman materyali GUID, paket manifesti `requires`, `?debug` kapsamı; referans projesi yeniden alındı; mimari v1.14. v1.9 · 2026-11-13 (v1.8'den fark: Faz 3 adım 7 tamam — olay bazlı gün saati: `timeTransition`, `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri), Sky Light yakalaması aynı PMREM'e, ölçülerek seçilen yakalama hızı (açı + 0,1 sn + durunca son yakalama), `npm run measure:sky-capture`; kullanıcı kararları; mimari v1.13. v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
+**Sürüm:** v1.15 · 2026-11-13 (v1.14'ten fark: Faz 4 adım 2 tamam — 2b üretim build'i (kullanıcı kararı: Faz 4), statik içerik, `verify:dist --strict`, alt dizin smoke'u; dist kutusu işaretli. v1.14 · 2026-11-13 (v1.13'ten fark: Faz 4 adım 2'nin dilimi — editörün World'ü (`inEditor`, kullanıcı kararı), `actorsChanged`, `editorRender` kuralı, editör oturumu, `?editor` kabuğu, editör smoke'u, `verify:dist`; kalan 2b üretim build'i. v1.13 · 2026-11-13 (v1.12'den fark: Faz 4 adım 1 tamam — UI kiti (`src/editor/ui`), `?editor-kit`, editörün tarayıcı denetimleri gate ve CI'da. v1.12 · 2026-11-13 (v1.11'den fark: Faz 4 başladı — döküm (36 INV satırı, ertelenmiş A yok, 11 R), kararlar 1–12 (kullanıcı onayı), adım sırası 1–10; mimari v1.16. v1.11 · 2026-11-13 (v1.10'dan fark: Faz 3 kapandı — adım 9: smoke tam seti Faz 0 pozu ve boyutuyla, Faz 0 ile yan yana ızgara (`npm run smoke:grid`), yönlü ışıkların dünya çerçevesi düzeltmesi; kullanıcının görsel kabulü ve referanslar; view distance 5b'ye (kullanıcı kararı); bölüm `docs/archive/PHASE_3.md`'ye taşındı; mimari v1.15. v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 8 tamam — otomatik instancing, terrain salt çizimi, görüntüleyicinin varsayılan kamerası, `?debug` paneli, bütün çizen referans level'lar smoke'ta; kullanıcı kararları: terrain / örtü katman materyali GUID, paket manifesti `requires`, `?debug` kapsamı; referans projesi yeniden alındı; mimari v1.14. v1.9 · 2026-11-13 (v1.8'den fark: Faz 3 adım 7 tamam — olay bazlı gün saati: `timeTransition`, `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri), Sky Light yakalaması aynı PMREM'e, ölçülerek seçilen yakalama hızı (açı + 0,1 sn + durunca son yakalama), `npm run measure:sky-capture`; kullanıcı kararları; mimari v1.13. v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
 `forge.skyAtmosphere` / `forge.skyLight` (arka plan ve ortam ışığı dahil,
 kullanıcı kararı) / `forge.cloudLayer` / `forge.worldEnvironment` (sabit
 saat), TSL gökyüzü + ay + yıldız, PMREM Sky Light, bulut, WES yorumu,
@@ -414,11 +414,11 @@ bölüm + §11, gerekirse mimari rapor ve harita, hafıza):
    gösterir; `npm run smoke:editor` (`tests/editor`, başsız Chrome) kiti orada sınar ve
    gate'e, dolayısıyla CI'a girdi (karar 12). Tarayıcı testi üç kit hatası yakaladı
    (renk temizle düğmesi, başvuru metni, eski diziyle silme). A 934 / 1.021 değişmedi.
-2. Dikey dilim: `?editor` (yalnız dev, dinamik import), editör host'u
+2. ~~Dikey dilim: `?editor` (yalnız dev, dinamik import), editör host'u
    (`features/*/editor.ts` + `editorRender.ts`, `defineFeatureEditor` editor-sdk'da),
    kabuk düzeni, level aç → oturum → World + render + editör kamerası, undo / redo +
-   kaydet, `actorsChanged`, ilk editör smoke'u, `verify:dist --strict` + `base` testi.
-   *Yapılanlar (2026-11-13):* `ba97b6f` editörün World'ü (**kullanıcı kararı:** alt sistem
+   kaydet, `actorsChanged`, ilk editör smoke'u, `verify:dist --strict` + `base` testi.~~ —
+   **tamam** (2026-11-13). *Yapılanlar:* `ba97b6f` editörün World'ü (**kullanıcı kararı:** alt sistem
    `inEditor: true` bildirir, editör World'ü `mode: "editor"` yalnız onları kurar: render,
    World Environment, Height Fog; fizik / oyun hiç) + `World.updateActors` ve
    `actorsChanged({ actor, previous, transformOnly })` (kancasız alt sistem / bağlama çıkar +
@@ -429,9 +429,14 @@ bölüm + §11, gerekirse mimari rapor ve harita, hafıza):
    Details transform'u kitle, undo / redo / kaydet, Ctrl+S / Z / Y; viewport şimdilik Faz 3
    görüntüleyicisi) + editör smoke'u (geçici proje kopyası, `forceWebGL`; gate ve CI);
    `d67845d` `verify:dist` (editör işareti hata; yazma uçları uyarı). `defineFeatureEditor`
-   ilk kullanan adıma (5) kaldı. **Kalan (2b):** oyunun üretim build'i içeriği statik
-   dosyalardan okur (motor içeriği + seçili paketler + proje içeriği dist'te, asset dizini,
-   salt okunur istemci), `base` yayını testi, `verify:dist --strict` kapıda.
+   ilk kullanan adıma (5) kaldı. *2b (`eea148b`; **kullanıcı kararı:** üretim build'i Faz
+   4'te):* `npm run build` projeyi derler (`FORGE_PROJECT_ROOT`, yoksa `samples/starter`),
+   `tools/build-content.ts` proje içeriğini, motor içeriğini ve seçili paketleri, kimlik
+   (salt okunur, makine yolu yok), sınıf ve asset dizinlerini `dist/forge/`'a yazar; oyun
+   çekirdeğin salt okunur `ContentClient`'ı ile `BASE_URL` altından okur, kayıt istemcisi
+   yalnız dev'de (oyun paketinde yazma ucu yok). Kapıya `verify:dist --strict` ve `npm run
+   smoke:dist` (`tests/production`: `--base /forge-base/`, `vite preview`, start level açılır,
+   bütün istekler alt dizinde, `/__forge/` yok, editör yok). A 934 / 1.021.
 3. Viewport: çizim katmanı (TRAA sonrası, jitter'sız, sahne derinliğine karşı), ızgara,
    seçim çerçevesi, picking (mesh, instance → aktör, terrain yükseklik alanı), kamera
    kipleri, view mode / show flags, kalite menüsü, yardımcı çizimler (G27).
@@ -466,10 +471,11 @@ bölüm + §11, gerekirse mimari rapor ve harita, hafıza):
       sahnesi). `data-testid` sözleşmesi korunur.
 - [ ] Kaydet / aç, Open Level, Play (runtime'ı yeni sekmede açar; kaydedilmemiş
       anlık görüntüyle, diske yazmadan — mimari A6; oturum katmanı, karar 8).
-- [ ] Dist doğrulaması (`verify:dist --strict`: editör sızıntısı yok; motor
+- [x] Dist doğrulaması (`verify:dist --strict`: editör sızıntısı yok; motor
       içeriği ve seçili paketler dist'te) ve alt dizin (`base`) yayını testi
       kapıya ve CI'a girer (mimari §4.8 build, §4.10, F06). 2a'dan taşındı
-      (2026-11-11).
+      (2026-11-11). *Adım 2 (2026-11-13):* `verify:dist --strict`, üretim build'i
+      statik içerikle (`tools/build-content.ts`), `npm run smoke:dist`.
 - [ ] **Genel veri editörü (mimari A13):** oyunun şemalı veri asset'leri
       (ekonomi, denge, tablolar) Content Browser'dan açılır, Details ile aynı
       kitle şemadan üretilen formda ve tablo görünümünde düzenlenir. Forge'daki
@@ -776,3 +782,4 @@ silinebilir.
 | 2026-11-13 | v1.12 | Faz 4 başladı: döküm (36 INV satırı; Faz 4'e ertelenmiş A yok; editör alanında 11 R, 27 M niyeti kabul ölçütü) ve tasarım kullanıcı onayıyla ("önerileri kabul ediyorum"; mimari v1.16): editörün 3B kodu `src/render/editor/` + rol `features/*/editorRender.ts`, Forge'un gizmo'su, World `actorsChanged`, ajan komutları kayıt servisi modülüyle + editörün canlı tazelenmesi + `find` / `show`, motor içeriği kipi `--engine-content`, asset editörleri genel veri editörü + önizleme, Play oturum katmanı, küçük resim önbelleği, grup = boş aktör, editörde bütün hücreler, editör smoke'ları CI'da `forceWebGL`. Adım sırası 1–10 |
 | 2026-11-13 | v1.13 | Faz 4 adım 1, UI kiti (`210ed40`): `src/editor/ui` — core form tanımından Details satırları (her alan türü, Forge'un parametre kuralları saf fonksiyonla, Türkçe sınır uyarısı, dönüş derece ↔ kuaterniyon `engine/math/euler.ts`), Forge'un ikonları ve CSS token'ları; `?editor-kit` geliştirme sayfası; `npm run smoke:editor` (başsız Chrome) gate'te ve CI'da. A 934 / 1.021 |
 | 2026-11-13 | v1.14 | Faz 4 adım 2 dilimi (`ba97b6f`, `9119c42`, `a67220d`, `f3ee39b`, `d67845d`): **kullanıcı kararı** editör World'ü yalnız `inEditor` alt sistemleri kurar (render, World Environment, Height Fog); `World.updateActors` + `actorsChanged` (SDK 0.1.4); `editor-render-is-editor-only`; editör oturumu (oturum → World yansıması, çocuğu kalan aktör silinmez); `?editor` kabuğu (Outliner, Details transform'u, undo / redo / kaydet); editör smoke'u geçici proje kopyasında, `forceWebGL`, gate'te ve CI'da; `verify:dist`. Kalan 2b: üretim build'i (içerik dist'te, salt okunur istemci), `base`, `--strict`. A 934 / 1.021 |
+| 2026-11-13 | v1.15 | Faz 4 adım 2 tamam, 2b (`eea148b`; **kullanıcı kararı:** üretim build'i Faz 4'te): `npm run build` projeyi derler, `tools/build-content.ts` içeriği ve dizinleri `dist/forge/`'a yazar, oyun salt okunur statik istemciyle `BASE_URL` altından okur; kapıda `verify:dist --strict` ve `npm run smoke:dist` (alt dizinde açılış, bütün istekler alt dizinde). Dist kutusu işaretli. A 934 / 1.021 |

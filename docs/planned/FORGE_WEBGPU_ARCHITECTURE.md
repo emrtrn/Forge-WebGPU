@@ -1,6 +1,7 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.17 · 2026-11-13 (v1.16'dan fark: §4.7 editör World'ü (`inEditor`, kullanıcı kararı) ve `actorsChanged`'ın kesin biçimi, çocuk silme kuralı.
+**Sürüm:** v1.18 · 2026-11-13 (v1.17'den fark: §4.8 build'in uygulaması (kullanıcı kararı: Faz 4): statik içerik, `ContentClient`, alt dizin.
+v1.17 · 2026-11-13 (v1.16'dan fark: §4.7 editör World'ü (`inEditor`, kullanıcı kararı) ve `actorsChanged`'ın kesin biçimi, çocuk silme kuralı.
 v1.16 · 2026-11-13 (v1.15'ten fark: Faz 4 tasarımı (kullanıcı kararları) — §4.2 editörün 3B kodu `src/render/editor/` ve rol `features/*/editorRender.ts`; §4.7 editör oturumu: `actorsChanged`, Forge'un gizmo'su, Play oturum katmanı, grup, hücreler; §4.8 motor içeriği kipi; §4.9 çizim katmanı ve küçük resimler; §4.10 editör smoke'ları; §4.11 ajan komutlarının yolu, okuyan komutlar, canlı tazeleme, asset editörleri.
 v1.15 · 2026-11-13 (v1.14'ten fark: Faz 3 adım 9 ve kapanış — §4.9 yönlü
 ışıklar dünya çerçevesinde (`CSMShadowNode`'un koşulu); §4.10 smoke tam seti Faz 0
@@ -1133,7 +1134,18 @@ düşen alan uyarı değil, **hatadır**.
     içeriğini tek başına ve her paketi motor içeriğiyle birlikte dizinleyip
     asılı referansı hata sayar.
   - *Build:* üretim build'i motor içeriğini ve seçili paketleri dist'e alır;
-    uygulaması dist doğrulamasıyla (editör gelince).
+    uygulaması dist doğrulamasıyla (editör gelince). *Uygulama (Faz 4 adım 2b,
+    kullanıcı kararı 2026-11-13):* `npm run build` bir projeyi derler
+    (`FORGE_PROJECT_ROOT`, yoksa `samples/starter`; eklenti oyun modülünü build'de de
+    çözer), `tools/build-content.ts` dev server'ın okuyabildiği her dosyayı (proje
+    içeriği, motor içeriği, seçili paketler) `dist/forge/files/` altına (`project/<yol>`,
+    `engine:` etiketi `engine/`) ve kimlik (salt okunur, makine yolu boş), sınıf, asset
+    dizinlerini `dist/forge/`'a yazar; sorunlu proje derlenmez. Oyunun okuduğu yüzey
+    çekirdekte `ContentClient` (`read`, `identity`, `classes`); `SaveClient` onu yazma
+    uçlarıyla genişletir ve yalnız dev'de kurulur (build-time sabit dal: oyun paketinde
+    yazma ucu yok, `verify:dist --strict`). Üretimde `createStaticContentClient`
+    `import.meta.env.BASE_URL` altından okur; alt dizin yayınını `npm run smoke:dist`
+    sınar (F06).
 - Model 1 oyunları Forge WebGL'de kalır.
 
 ### 4.9 Render mimarisi (özet)
