@@ -22,6 +22,7 @@ import { labelFromComponentName } from "../schema/label.ts";
 import { checkMigrations, type MigrationMap } from "../schema/migrate.ts";
 import { assertDefaultsAreNormal } from "../schema/normalize.ts";
 import { DATA_DOCUMENT_TYPES, type DataDocumentShape } from "./dataDocument.ts";
+import type { JsonAssetShape } from "./jsonAsset.ts";
 
 /** Lower-case file suffix without the leading dot: `glb`, `png`, `r16.bin`. */
 export const EXTENSION_PATTERN = /^[a-z0-9]+(\.[a-z0-9]+)*$/;
@@ -54,6 +55,13 @@ export interface DocumentAssetTypeDef {
   readonly idKind: Extract<IdKind, "asset" | "level">;
   /** Set on a data document (`dataDocument.ts`): its file name and its binary parts. */
   readonly dataFile?: DataDocumentShape;
+  /** Set on a schema-defined JSON asset (`jsonAsset.ts`): its fields, version and file name. */
+  readonly json?: JsonAssetShape;
+}
+
+/** The file-name suffix a document type asks for (`.terrain.json`, `.material.json`); null for none. */
+export function documentSuffix(def: DocumentAssetTypeDef): string | null {
+  return def.dataFile?.suffix ?? def.json?.suffix ?? null;
 }
 
 export type AssetTypeDef = BinaryAssetTypeDef | DocumentAssetTypeDef;

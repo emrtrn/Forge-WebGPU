@@ -222,7 +222,7 @@ function identifyDocument(
     return;
   }
   if (!hasDataDocumentName(def, file.path)) {
-    reportFatal(ctx, "invalid-document", "", `A ${def.label} file is named *${def.dataFile?.suffix ?? ""}.`);
+    reportFatal(ctx, "invalid-document", "", `A ${def.label} file is named *${def.dataFile?.suffix ?? def.json?.suffix ?? ""}.`);
     return;
   }
   const entry: AssetEntry = {

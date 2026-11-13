@@ -43,9 +43,9 @@ export type {
 export { defineSaveState } from "../core/index.ts";
 export type { SaveStateData, SaveStateDef } from "../core/index.ts";
 
-// Binary asset types a game brings
-export { defineAssetType } from "../core/index.ts";
-export type { BinaryAssetTypeDef } from "../core/index.ts";
+// Asset types a game brings: binary files with a meta file, and schema-defined JSON assets (A13)
+export { defineAssetType, defineJsonAssetType } from "../core/index.ts";
+export type { BinaryAssetTypeDef, FeatureAssetTypeDef, JsonAssetDoc, JsonAssetTypeDef } from "../core/index.ts";
 
 // Features, subsystems, services
 export { createServiceKey, defineFeature, defineSubsystem, TICK_GROUPS } from "../core/index.ts";

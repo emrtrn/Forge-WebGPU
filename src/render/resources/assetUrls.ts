@@ -1,21 +1,26 @@
 // Asset GUID -> URL (architecture §4.9): resolved from the asset index. In
 // development the dev server answers `GET /__forge/asset-files` (every binary
-// asset's file, read through `/__forge/read`); a production build gets its
-// own directory with the build (phase 4 dist work).
+// asset's file with its import settings, and every schema-defined JSON asset
+// such as a material, read through `/__forge/read`); a production build gets
+// its own directory with the build (phase 4 dist work).
 
-import { FORGE_REQUEST_HEADER } from "../../core/index.ts";
+import { FORGE_REQUEST_HEADER, type JsonObject } from "../../core/index.ts";
 
 export interface AssetFile {
   /** Asset type, e.g. `forge.model`. */
   readonly type: string;
   /** `<root label>/<path>`: what `/__forge/read?path=` takes. */
   readonly file: string;
+  /** A binary asset's normalised import settings; absent for a JSON asset. */
+  readonly import?: JsonObject;
 }
 
 export interface AssetUrls {
   /** Null when the index has no such asset. */
   url(guid: string): string | null;
   type(guid: string): string | null;
+  /** A binary asset's import settings; null when unknown or not binary. */
+  importSettings(guid: string): JsonObject | null;
   /** Headers a loader sends with each request. */
   readonly headers: Readonly<Record<string, string>>;
 }
@@ -27,6 +32,7 @@ export function assetUrlsFromIndex(files: Readonly<Record<string, AssetFile>>, r
       return found ? readUrl(found.file) : null;
     },
     type: (guid) => files[guid]?.type ?? null,
+    importSettings: (guid) => files[guid]?.import ?? null,
     headers,
   };
 }

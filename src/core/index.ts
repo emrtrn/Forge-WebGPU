@@ -7,6 +7,7 @@ export * from "./assets/assetType.ts";
 export * from "./assets/dataDocument.ts";
 export * from "./assets/identity.ts";
 export * from "./assets/integrity.ts";
+export * from "./assets/jsonAsset.ts";
 export * from "./assets/levelFolders.ts";
 export * from "./assets/jsonSchema.ts";
 export * from "./assets/meta.ts";

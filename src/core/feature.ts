@@ -5,7 +5,8 @@
 // installs a list of features; adding a feature changes no shell file.
 //
 // `defineFeature` carries only what core can type: `components`, `assetTypes`
-// (binary asset types; document types are built in) and `subsystems` (the
+// (binary asset types and schema-defined JSON asset types; the other document
+// types are built in) and `subsystems` (the
 // contract is in core, the world that runs them in src/runtime).
 // There is no `editor` slot and there never will be one here: `feature.ts`
 // does not name `editor.ts`, not even through a dynamic import. The editor
@@ -16,18 +17,22 @@
 // boot load features without three.
 
 import type { BinaryAssetTypeDef } from "./assets/assetType.ts";
+import type { JsonAssetTypeDef } from "./assets/jsonAsset.ts";
 import { COMPONENT_NAME_PATTERN, type ComponentDef } from "./schema/component.ts";
 import { deepFreeze, SchemaDefinitionError } from "./schema/fields.ts";
 import type { SaveStateDef } from "./save/saveState.ts";
 import type { SubsystemDef } from "./world/subsystem.ts";
 import type { SchemaRegistry } from "./schema/registry.ts";
 
+/** What a feature may register: a binary asset type or a schema-defined JSON one (`jsonAsset.ts`). */
+export type FeatureAssetTypeDef = BinaryAssetTypeDef | JsonAssetTypeDef;
+
 export interface FeatureDef {
   readonly kind: "feature";
   /** Namespaced like a component name, e.g. `forge.heightFog`. */
   readonly id: string;
   readonly components: readonly ComponentDef[];
-  readonly assetTypes: readonly BinaryAssetTypeDef[];
+  readonly assetTypes: readonly FeatureAssetTypeDef[];
   /** Game-wide save states (A7) the feature owns. */
   readonly saveStates: readonly SaveStateDef[];
   /** Run by the world in this order, after the subsystems of earlier features. */
@@ -37,7 +42,7 @@ export interface FeatureDef {
 export function defineFeature(feature: {
   readonly id: string;
   readonly components?: readonly ComponentDef[];
-  readonly assetTypes?: readonly BinaryAssetTypeDef[];
+  readonly assetTypes?: readonly FeatureAssetTypeDef[];
   readonly saveStates?: readonly SaveStateDef[];
   readonly subsystems?: readonly SubsystemDef[];
 }): FeatureDef {

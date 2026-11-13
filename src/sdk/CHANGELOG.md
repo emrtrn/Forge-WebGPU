@@ -8,6 +8,19 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.2
+
+API: 6153d070f1d75c42
+
+Schema-defined JSON asset types (architecture §4.6, phase 3 decision 5; the
+ground for A13), additive: `defineJsonAssetType(name, version, { suffix,
+fields }, { migrations })` for a JSON asset whose content is a field map
+(`{ "schema": "<type>/<version>", "id": "ast_…", …fields }`; normalised,
+migrated, its `assetRef` fields walked by the asset index, its form and JSON
+Schema from the fields), registered through `defineFeature({ assetTypes })`
+next to binary types (`FeatureAssetTypeDef`). `color({ default: null })`
+makes a colour optional: its value is `#rrggbb` or null ("none").
+
 ## 0.1.1
 
 API: d8bb500ca5f4f90d

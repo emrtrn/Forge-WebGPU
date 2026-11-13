@@ -12,6 +12,9 @@
 // - `forge.levelCell/1`: at `cells/<key>.json` of a level folder, with that
 //   key and the id of the folder's `level.json`.
 // - `forge.actorClass/1`.
+// - A schema-defined JSON asset (`jsonAsset.ts`, e.g. `forge.material/<n>`):
+//   its fields against its type (an older version migrates), with the file
+//   suffix of its type.
 // - A data document (terrain, World Builder inputs): its envelope, with the
 //   file suffix of its type; the content is the engine's (`dataDocument.ts`).
 // - Anything else, the server-owned cell index included, is refused.
@@ -28,7 +31,7 @@ import {
   cellKeyOfFile,
   claimsFile,
   hasDataDocumentName,
-  normalizeDataDocument,
+  isJsonAssetType,
   isJsonObject,
   LEVEL_CELL_INDEX_SCHEMA,
   LEVEL_CELL_SCHEMA,
@@ -37,6 +40,8 @@ import {
   metaTypeOf,
   normalizeActorClass,
   normalizeAssetMeta,
+  normalizeDataDocument,
+  normalizeJsonAsset,
   normalizeLevel,
   normalizeLevelCell,
   partFolderOf,
@@ -197,6 +202,13 @@ export function createDocumentCheck(registry: SchemaRegistry, classes: ClassStor
 
     if (schema === LEVEL_CELL_INDEX_SCHEMA) return refuse(path, "server-owned", "A level's cell index is written by the server only.");
     const dataType = registry.documentTypeForSchema(schema);
+    if (dataType !== undefined && isJsonAssetType(dataType)) {
+      if (!hasDataDocumentName(dataType, path)) {
+        return refuse(path, "invalid-document", `A ${dataType.label} file is named *${dataType.json.suffix}.`);
+      }
+      const result = normalizeJsonAsset(dataType, json, options);
+      return { text: result.value ? stringifyDocument(result.value) : "", issues: toSaveIssues(path, result.issues) };
+    }
     if (dataType?.dataFile !== undefined) {
       if (!hasDataDocumentName(dataType, path)) {
         return refuse(path, "invalid-document", `A ${dataType.label} file is named *${dataType.dataFile.suffix}.`);

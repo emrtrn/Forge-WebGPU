@@ -37,15 +37,17 @@ interface ComponentEntry
 
 type EndPlayReason = "error" | "stopped"
 
+type FeatureAssetTypeDef = BinaryAssetTypeDef<import("src/core/index").FieldMap> | JsonAssetTypeDef<import("src/core/index").FieldMap>
+
 interface FeatureDef
-  readonly assetTypes: ReadonlyArray<BinaryAssetTypeDef<import("src/core/index").FieldMap>>
+  readonly assetTypes: ReadonlyArray<FeatureAssetTypeDef>
   readonly components: ReadonlyArray<ComponentDef<import("src/core/index").FieldMap>>
   readonly id: string
   readonly kind: "feature"
   readonly saveStates: ReadonlyArray<SaveStateDef<import("src/core/index").FieldMap>>
   readonly subsystems: ReadonlyArray<SubsystemDef>
 
-type FieldDef = NumberField | BoolField | ColorField | TextField | TransformField | AssetRefField | ActorRefField | EnumField<string> | VectorField<VectorSize> | ArrayField<FieldDef> | ObjectField<FieldMap>
+type FieldDef = NumberField | BoolField | TextField | TransformField | AssetRefField | ActorRefField | EnumField<string> | ColorField<string | null> | VectorField<VectorSize> | ArrayField<FieldDef> | ObjectField<FieldMap>
 
 interface FieldMap
   readonly [key: string]: FieldDef
@@ -61,9 +63,22 @@ interface GameModuleDef
 
 type IdKind = "actor" | "asset" | "level"
 
+type JsonAssetDoc<M extends FieldMap = FieldMap> = { schema: string; id: AssetId; } & FieldValues<M>
+
+interface JsonAssetTypeDef<M>
+  readonly dataFile?: import("src/core/index").DataDocumentShape | undefined
+  readonly hint: string | null
+  readonly idKind: "asset"
+  readonly json: JsonAssetShape<M>
+  readonly kind: "assetType"
+  readonly label: string
+  readonly name: string
+  readonly schema: string
+  readonly storage: "document"
+
 type LevelId = `lvl_${string}`
 
-const SDK_VERSION: "0.1.1"
+const SDK_VERSION: "0.1.2"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -142,7 +157,8 @@ function assetRef(options?: Omit<AssetRefField, "kind" | "default">): AssetRefFi
 
 function bool(options: Omit<BoolField, "kind">): BoolField
 
-function color(options: Omit<ColorField, "kind">): ColorField
+function color(options: FieldUi & { readonly default: string; }): ColorField<string>
+function color(options: FieldUi & { readonly default: null; }): ColorField<null>
 
 function createId<K extends IdKind>(kind: K): IdOf<K>
 
@@ -152,9 +168,11 @@ function defineAssetType<M extends FieldMap>(name: string, version: number, defi
 
 function defineComponent<M extends FieldMap>(name: string, version: number, fields: M, options?: ComponentOptions): ComponentDef<M>
 
-function defineFeature(feature: { readonly id: string; readonly components?: readonly ComponentDef[]; readonly assetTypes?: readonly BinaryAssetTypeDef[]; readonly saveStates?: readonly SaveStateDef[]; readonly subsystems?: readonly SubsystemDef[]; }): FeatureDef
+function defineFeature(feature: { readonly id: string; readonly components?: readonly ComponentDef[]; readonly assetTypes?: readonly FeatureAssetTypeDef[]; readonly saveStates?: readonly SaveStateDef[]; readonly subsystems?: readonly SubsystemDef[]; }): FeatureDef
 
 function defineGameModule(module: Omit<GameModuleDef, "kind" | "features"> & { readonly features?: readonly FeatureDef[]; }): GameModuleDef
+
+function defineJsonAssetType<M extends FieldMap>(name: string, version: number, definition: { readonly suffix: string; readonly fields: M; }, options?: JsonAssetTypeOptions): JsonAssetTypeDef<M>
 
 function defineSaveState<M extends FieldMap>(name: string, version: number, fields: M, options?: SaveStateOptions): SaveStateDef<M>
 
@@ -180,7 +198,7 @@ function vec4(options: VectorOptions<4>): VectorField<4>
 
 # src/editor-sdk/index.ts
 
-const SDK_VERSION: "0.1.1"
+const SDK_VERSION: "0.1.2"
 
 # referenced (not exported, part of the surface)
 
@@ -219,8 +237,8 @@ interface BoolField  // src/core/schema/fields.ts
   readonly label?: string | undefined
   readonly persist?: boolean | undefined
 
-interface ColorField  // src/core/schema/fields.ts
-  readonly default: string
+interface ColorField<D>  // src/core/schema/fields.ts
+  readonly default: D
   readonly hint?: string | undefined
   readonly kind: "color"
   readonly label?: string | undefined
@@ -245,6 +263,21 @@ interface ComponentRecord  // src/core/level/model.ts
 
 type ComponentTypeTag = `${string}@${number}`  // src/core/schema/component.ts
 
+interface DataDocumentShape  // src/core/assets/dataDocument.ts
+  readonly parts: ReadonlyArray<string>
+  readonly suffix: string
+
+interface DocumentAssetTypeDef  // src/core/assets/assetType.ts
+  readonly dataFile?: DataDocumentShape | undefined
+  readonly hint: string | null
+  readonly idKind: "asset" | "level"
+  readonly json?: JsonAssetShape<FieldMap> | undefined
+  readonly kind: "assetType"
+  readonly label: string
+  readonly name: string
+  readonly schema: string
+  readonly storage: "document"
+
 interface EnumField<V>  // src/core/schema/fields.ts
   readonly default: V
   readonly hint?: string | undefined
@@ -259,9 +292,20 @@ interface FieldUi  // src/core/schema/fields.ts
   readonly label?: string | undefined
   readonly persist?: boolean | undefined
 
-type FieldValue<F> = F extends NumberField ? number : F extends BoolField ? boolean : F extends EnumField<infer V extends string> ? V : F extends ColorField | TextField ? string : F extends VectorField<infer N extends VectorSize> ? VectorOf<N> : F extends TransformField ? Transform : F extends AssetRefField ? `ast_${string}` | null : F extends ActorRefField ? `act_${string}` | null : F extends ArrayField<infer I extends FieldDef> ? Array<FieldValue<I>> : F extends ObjectField<infer M extends FieldMap> ? FieldValues<M> : never  // src/core/schema/fields.ts
+type FieldValue<F> = F extends NumberField ? number : F extends BoolField ? boolean : F extends EnumField<infer V extends string> ? V : F extends ColorField<infer D extends string | null> ? D extends null ? string | null : string : F extends TextField ? string : F extends VectorField<infer N extends VectorSize> ? VectorOf<N> : F extends TransformField ? Transform : F extends AssetRefField ? `ast_${string}` | null : F extends ActorRefField ? `act_${string}` | null : F extends ArrayField<infer I extends FieldDef> ? Array<FieldValue<I>> : F extends ObjectField<infer M extends FieldMap> ? FieldValues<M> : never  // src/core/schema/fields.ts
 
 type IdOf<K extends IdKind> = `${{ readonly actor: "act"; readonly asset: "ast"; readonly level: "lvl"; }[K]}_${string}`  // src/core/id.ts
+
+interface JsonAssetShape<M>  // src/core/assets/jsonAsset.ts
+  readonly fields: M
+  readonly migrations: MigrationMap
+  readonly suffix: string
+  readonly version: number
+
+interface JsonAssetTypeOptions  // src/core/assets/jsonAsset.ts
+  readonly hint?: string | undefined
+  readonly label?: string | undefined
+  readonly migrations?: MigrationMap | undefined
 
 type JsonObject = { [x: string]: unknown; }  // src/core/json.ts
 

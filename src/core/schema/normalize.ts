@@ -162,8 +162,9 @@ export function normalizeValue(
       return raw;
 
     case "color":
+      if (raw === null && field.default === null) return null;
       if (typeof raw !== "string" || !COLOR_INPUT_PATTERN.test(raw)) {
-        invalid(ctx, path, "a #rrggbb color", raw);
+        invalid(ctx, path, field.default === null ? "a #rrggbb color or null" : "a #rrggbb color", raw);
         return field.default;
       }
       return raw.toLowerCase();

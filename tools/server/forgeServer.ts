@@ -9,7 +9,8 @@
 //                               engine's content and packs (A9)
 //   GET  /__forge/identity      which engine and which project this server serves (D14)
 //   GET  /__forge/classes       the project's actor classes, normalised
-//   GET  /__forge/asset-files   every binary asset: GUID -> { type, file }, `file` for /__forge/read
+//   GET  /__forge/asset-files   every binary asset (with its import settings) and schema-defined JSON asset:
+//                               GUID -> { type, file, import? }, `file` for /__forge/read
 //                               (the renderer resolves model and texture GUIDs with it)
 //
 // A project opened read-only (the engine's samples and fixtures, A9) refuses
@@ -30,7 +31,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
-import { buildAssetIndex, type AssetIndex, type SchemaRegistry } from "../../src/core/index.ts";
+import { buildAssetIndex, type AssetIndex, type JsonObject, type SchemaRegistry } from "../../src/core/index.ts";
 import { fileRevision } from "../assets/revision.ts";
 import { projectContentRoots, scanRoots, type ContentRoot } from "../assets/scan.ts";
 import { defaultContentRoots } from "../assets/verify.ts";
@@ -151,17 +152,29 @@ function resolveReadOnlyPath(root: ContentRoot, path: string): string {
   return resolveProjectPath(root.dir, normalized);
 }
 
-/** A binary asset's file as `GET /__forge/asset-files` lists it; `file` is what `/__forge/read?path=` takes. */
+/** An asset's file as `GET /__forge/asset-files` lists it; `file` is what `/__forge/read?path=` takes. */
 export interface AssetFileEntry {
   readonly type: string;
   readonly file: string;
+  /** A binary asset's normalised import settings (texture anisotropy, a model's material slots). */
+  readonly import?: JsonObject;
 }
 
-/** Every binary asset of an index: GUID -> type and `<root label>/<path>`. */
-export function binaryAssetFiles(index: AssetIndex): Record<string, AssetFileEntry> {
+/**
+ * The assets the renderer loads by GUID: every binary asset, with the import
+ * settings of its meta file, and every schema-defined JSON asset (materials).
+ * Levels, classes and data documents are read otherwise.
+ */
+export function rendererAssetFiles(index: AssetIndex): Record<string, AssetFileEntry> {
   const out: Record<string, AssetFileEntry> = {};
   for (const entry of index.entries.values()) {
-    if (entry.storage === "binary") out[entry.id] = { type: entry.type, file: `${entry.root}/${entry.path}` };
+    const file = `${entry.root}/${entry.path}`;
+    if (entry.storage === "binary") {
+      const meta = index.metas.get(entry.id);
+      out[entry.id] = meta ? { type: entry.type, file, import: meta.import } : { type: entry.type, file };
+    } else if (index.jsonAssets.has(entry.id)) {
+      out[entry.id] = { type: entry.type, file };
+    }
   }
   return out;
 }
@@ -187,7 +200,7 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
   const index = await indexRoots();
   const classes = createClassStore(policy.root, options.registry, index);
   // The renderer's GUID -> file table; a save can add or move a binary, so it is rebuilt on the next request.
-  let assetFiles: Promise<Record<string, AssetFileEntry>> | null = Promise.resolve(binaryAssetFiles(index));
+  let assetFiles: Promise<Record<string, AssetFileEntry>> | null = Promise.resolve(rendererAssetFiles(index));
   const saves = createSaveService({
     policy,
     check: createDocumentCheck(options.registry, classes),
@@ -307,7 +320,7 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
               : route === "GET /__forge/classes"
                 ? Promise.resolve(send(res, 200, { classes: classes.all() }))
                 : route === "GET /__forge/asset-files"
-                  ? (assetFiles ??= indexRoots().then(binaryAssetFiles)).then((assets) => send(res, 200, { assets }))
+                  ? (assetFiles ??= indexRoots().then(rendererAssetFiles)).then((assets) => send(res, 200, { assets }))
                   : null;
     if (handle === null) {
       send(res, 404, { status: "rejected", reason: "request", message: `No endpoint ${route}.` });

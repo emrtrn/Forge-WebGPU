@@ -9,9 +9,12 @@
 //    level finds its classes by GUID wherever the class file lives;
 // 3. levels are normalised against that resolver, each with the cells and
 //    index of its folder (A11, `levelFolders.ts`);
-// 4. asset references are collected from levels, classes and meta files by
-//    walking the schema, and a reverse index (target -> referrers) is built;
-// 5. every reference is checked: dangling, or of the wrong asset type.
+// 4. schema-defined JSON assets (`jsonAsset.ts`, e.g. materials) are
+//    normalised against their type;
+// 5. asset references are collected from levels, classes, JSON assets and
+//    meta files by walking the schema, and a reverse index (target ->
+//    referrers) is built;
+// 6. every reference is checked: dangling, or of the wrong asset type.
 //
 // Like normalisation, building never throws on data: problems are issues,
 // with the file they are in. `ok` is false when one is an error.
@@ -21,6 +24,8 @@ import { normalizeActorClass, type ClassResolver } from "../level/actorClass.ts"
 import type { ActorClassDoc } from "../level/model.ts";
 import { ActorClassAssetType, LevelAssetType } from "./assetType.ts";
 import { normalizeDataDocument } from "./dataDocument.ts";
+import { isJsonAssetType, normalizeJsonAsset, type JsonAssetDoc } from "./jsonAsset.ts";
+import type { AssetMetaDoc } from "./meta.ts";
 import {
   fileLabel,
   identifyAssets,
@@ -39,7 +44,7 @@ import {
   reportOrphanParts,
   type LevelFolder,
 } from "./levelFolders.ts";
-import { actorClassReferences, metaReferences, type FoundReference } from "./references.ts";
+import { actorClassReferences, collectFieldReferences, metaReferences, type FoundReference } from "./references.ts";
 
 /** An asset reference with the asset it is in. */
 export interface AssetReference extends FoundReference {
@@ -63,6 +68,10 @@ export interface AssetIndex {
   readonly resolveClass: ClassResolver;
   /** Every readable level, by id: where its folder is and which cells it has. */
   readonly levels: ReadonlyMap<string, LevelFolder>;
+  /** Normalised meta files of binary assets, by GUID: their import settings (the renderer reads them). */
+  readonly metas: ReadonlyMap<string, AssetMetaDoc>;
+  /** Normalised schema-defined JSON assets, by GUID. */
+  readonly jsonAssets: ReadonlyMap<string, JsonAssetDoc>;
 }
 
 export function buildAssetIndex(files: readonly ContentFile[], options: AssetIndexOptions): AssetIndex {
@@ -85,6 +94,7 @@ export function buildAssetIndex(files: readonly ContentFile[], options: AssetInd
   const resolveClass: ClassResolver = (id: AssetId) => classes.get(id);
   const partGroups = groupLevelParts(identity.levelParts);
   const levels = new Map<string, LevelFolder>();
+  const jsonAssets = new Map<string, JsonAssetDoc>();
 
   for (const document of identity.documents) {
     const { entry } = document;
@@ -102,9 +112,19 @@ export function buildAssetIndex(files: readonly ContentFile[], options: AssetInd
       references.push(...result.references);
       if (result.folder) levels.set(entry.id, result.folder);
     } else {
-      // A data document: core checks the envelope; its content is the engine's.
       const def = registry.getAssetType(entry.type);
-      if (def?.storage === "document" && def.dataFile !== undefined) {
+      if (def && isJsonAssetType(def)) {
+        // A schema-defined JSON asset: its fields, and the asset references among them.
+        const result = normalizeJsonAsset(def, document.json, options);
+        withFile(file, result.issues, issues);
+        if (result.value) {
+          jsonAssets.set(entry.id, result.value);
+          const found: FoundReference[] = [];
+          collectFieldReferences(def.json.fields, result.value, "", found);
+          add(entry.id, file, found);
+        }
+      } else if (def?.storage === "document" && def.dataFile !== undefined) {
+        // A data document: core checks the envelope; its content is the engine's.
         withFile(file, normalizeDataDocument(document.json, def, options).issues, issues);
       }
     }
@@ -132,5 +152,7 @@ export function buildAssetIndex(files: readonly ContentFile[], options: AssetInd
     referrersOf: (id) => byTarget.get(id) ?? [],
     resolveClass,
     levels,
+    metas: identity.metas,
+    jsonAssets,
   };
 }

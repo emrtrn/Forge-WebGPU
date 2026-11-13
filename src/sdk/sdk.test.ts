@@ -17,6 +17,7 @@ describe("@forge/sdk", () => {
       "defineComponent",
       "defineFeature",
       "defineGameModule",
+      "defineJsonAssetType",
       "defineSaveState",
       "defineSubsystem",
       "enumOf",
@@ -36,5 +37,15 @@ describe("@forge/sdk", () => {
     const feature = sdk.defineFeature({ id: "mygame.cargo", components: [Cargo] });
     const module = sdk.defineGameModule({ id: "mygame.main", features: [feature] });
     expect(module.features[0]?.components[0]?.name).toBe("mygame.cargo");
+  });
+
+  test("a game can define a JSON asset type with an optional colour", () => {
+    const Recipe = sdk.defineJsonAssetType("mygame.recipe", 1, {
+      suffix: ".recipe.json",
+      fields: { tint: sdk.color({ default: null }), yield: sdk.num({ min: 1, default: 1 }) },
+    });
+    const feature = sdk.defineFeature({ id: "mygame.recipes", assetTypes: [Recipe] });
+    expect(feature.assetTypes[0]?.name).toBe("mygame.recipe");
+    expect(Recipe.schema).toBe("mygame.recipe/1");
   });
 });

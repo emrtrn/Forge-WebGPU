@@ -64,7 +64,7 @@ function shapeOf(field: FieldDef): JsonSchemaObject {
     case "enum":
       return { type: "string", enum: [...field.values] };
     case "color":
-      return { type: "string", pattern: "^#[0-9a-fA-F]{6}$" };
+      return { type: field.default === null ? ["string", "null"] : "string", pattern: "^#[0-9a-fA-F]{6}$" };
     case "text":
       return textShape(field);
     case "vector":

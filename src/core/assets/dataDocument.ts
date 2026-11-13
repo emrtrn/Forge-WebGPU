@@ -145,9 +145,12 @@ export function normalizeDataDocument(
   return finish(ctx, { schema: def.schema, id: raw.id, data: structuredClone(raw.data) });
 }
 
-/** True when `path` (a document path) has the file name the type asks for. */
+/**
+ * True when `path` (a document path) has the file name the type asks for: a
+ * data document's or a JSON asset's suffix (`documentSuffix`).
+ */
 export function hasDataDocumentName(def: DocumentAssetTypeDef, path: string): boolean {
-  const suffix = def.dataFile?.suffix;
+  const suffix = def.dataFile?.suffix ?? def.json?.suffix;
   if (suffix === undefined) return true;
   const name = path.slice(path.lastIndexOf("/") + 1);
   return name.length > suffix.length && name.endsWith(suffix);

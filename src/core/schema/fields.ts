@@ -61,10 +61,13 @@ export interface EnumField<V extends string = string> extends FieldUi {
   readonly labels?: { readonly [K in V]?: string };
 }
 
-export interface ColorField extends FieldUi {
+export interface ColorField<D extends string | null = string | null> extends FieldUi {
   readonly kind: "color";
-  /** `#rrggbb`, lower case. */
-  readonly default: string;
+  /**
+   * `#rrggbb`, lower case. A null default makes the colour optional: the
+   * value may be null ("none", e.g. a tint that leaves the material's own).
+   */
+  readonly default: D;
 }
 
 export interface VectorField<N extends VectorSize = VectorSize> extends FieldUi {
@@ -145,21 +148,25 @@ export type FieldValue<F> = F extends NumberField
     ? boolean
     : F extends EnumField<infer V>
       ? V
-      : F extends ColorField | TextField
-        ? string
-        : F extends VectorField<infer N>
-          ? VectorOf<N>
-          : F extends TransformField
-            ? Transform
-            : F extends AssetRefField
-              ? AssetId | null
-              : F extends ActorRefField
-                ? ActorId | null
-                : F extends ArrayField<infer I>
-                  ? FieldValue<I>[]
-                  : F extends ObjectField<infer M>
-                    ? FieldValues<M>
-                    : never;
+      : F extends ColorField<infer D>
+        ? D extends null
+          ? string | null
+          : string
+        : F extends TextField
+          ? string
+          : F extends VectorField<infer N>
+            ? VectorOf<N>
+            : F extends TransformField
+              ? Transform
+              : F extends AssetRefField
+                ? AssetId | null
+                : F extends ActorRefField
+                  ? ActorId | null
+                  : F extends ArrayField<infer I>
+                    ? FieldValue<I>[]
+                    : F extends ObjectField<infer M>
+                      ? FieldValues<M>
+                      : never;
 
 export type FieldValues<M extends FieldMap> = { -readonly [K in keyof M]: FieldValue<M[K]> };
 
@@ -259,9 +266,12 @@ export function enumOf<const V extends string>(
   return deepFreeze({ kind: "enum", values: [...values], ...options });
 }
 
-export function color(options: Omit<ColorField, "kind">): ColorField {
-  if (!COLOR_PATTERN.test(options.default)) {
-    fail(`color: default "${options.default}" must be lower-case #rrggbb.`);
+/** A colour. `default: null` makes it optional: null means "none". */
+export function color(options: FieldUi & { readonly default: string }): ColorField<string>;
+export function color(options: FieldUi & { readonly default: null }): ColorField<null>;
+export function color(options: FieldUi & { readonly default: string | null }): ColorField {
+  if (options.default !== null && !COLOR_PATTERN.test(options.default)) {
+    fail(`color: default "${options.default}" must be lower-case #rrggbb or null.`);
   }
   return deepFreeze({ kind: "color", ...options });
 }

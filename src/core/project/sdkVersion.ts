@@ -3,4 +3,4 @@
 // src/sdk/CHANGELOG.md. Before 1.0 every minor version may break: a project
 // written for 0.1 does not open on 0.2. It lives in core so that Node tools
 // (forge check, check:projects) read the same constant the SDK exports.
-export const SDK_VERSION = "0.1.1";
+export const SDK_VERSION = "0.1.2";

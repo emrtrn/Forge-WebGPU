@@ -57,10 +57,14 @@ export function createSchemaRegistry(): SchemaRegistry {
       throw new SchemaDefinitionError(`registerAssetType: "${def.name}" is already registered.`);
     }
     if (def.storage === "document") {
-      if (documentsBySchema.has(def.schema)) {
-        throw new SchemaDefinitionError(`registerAssetType: schema "${def.schema}" already has a type.`);
+      // A JSON asset is recognised at every version its migrations read (`forge.material/1` .. `/<current>`).
+      const tags = def.json ? Array.from({ length: def.json.version }, (_, index) => `${def.name}/${index + 1}`) : [def.schema];
+      for (const tag of tags) {
+        if (documentsBySchema.has(tag)) {
+          throw new SchemaDefinitionError(`registerAssetType: schema "${tag}" already has a type.`);
+        }
       }
-      documentsBySchema.set(def.schema, def);
+      for (const tag of tags) documentsBySchema.set(tag, def);
     }
     assetTypes.set(def.name, def);
   };

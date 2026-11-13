@@ -61,7 +61,10 @@ export interface EnumFormField extends FormFieldBase {
 
 export interface ColorFormField extends FormFieldBase {
   readonly kind: "color";
-  readonly default: string;
+  /** Null for an optional colour that starts empty. */
+  readonly default: string | null;
+  /** The value may be cleared to null ("none"). */
+  readonly optional: boolean;
 }
 
 export interface TextFormField extends FormFieldBase {
@@ -196,7 +199,7 @@ function formField(key: string, field: FieldDef, path: string, derivedLabel: str
         })),
       };
     case "color":
-      return { ...base, kind: "color", default: field.default };
+      return { ...base, kind: "color", default: field.default, optional: field.default === null };
     case "text":
       return {
         ...base,
