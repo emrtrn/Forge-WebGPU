@@ -64,7 +64,9 @@ kararları plan K12'de; taşınmayan Forge kodu `forge-webgl-final` etiketinde.
 `npm run dev` proje verilmezse `samples/starter`'ı salt okunur açar (kayıt 403).
 Motor içeriği `content/engine/`, içerik paketleri `content/packs/<id>/`: proje
 manifestte `contentPacks` ile seçer, içerik kopyalanmaz, proje dizinine
-`engine:` etiketiyle girer ve editörden yazılmaz (mimari §4.8, A9).
+`engine:` etiketiyle girer ve editörden yazılmaz (mimari §4.8, A9). Bir paket
+başka pakete yalnız `forge.pack.json`'daki `requires` ile başvurur (worldbuilder
+→ starter); onu seçen proje gerekenleri de seçer.
 Smoke portu **5283**. Forge WebGL 5173 / 5273, Ridgebound 5175 kullanır; başka
 projenin sunucusunu yeniden kullanma.
 

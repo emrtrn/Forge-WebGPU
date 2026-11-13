@@ -568,14 +568,14 @@ tests/engine/openWorldSetup.test.ts	41	check	M			engine/world	model:engine/world
 tests/engine/openWorldSetup.test.ts	53	check	M			engine/world	model:engine/world		open world setup: partition settings keep the foliage grid and stay absent when never enabled	
 tests/engine/openWorldSetup.test.ts	63	check	M			engine/world	model:engine/world		open world setup: the fitted fog is exponential and 98% opaque at the view distance	
 tests/engine/openWorldSetup.test.ts	70	check	M			engine/world	model:engine/world		open world setup: notes count cells and warn about far view without fog	
-tests/engine/perfReadout.test.ts	70	check	M			src	model:src		formatFrameSpikes keeps the three stall thresholds separate	
-tests/engine/perfReadout.test.ts	82	check	M			src	model:src		formatDrawingBuffer multiplies CSS size by the effective pixel ratio	
-tests/engine/perfReadout.test.ts	95	check	M			src	model:src		compactCount stays readable across the count ranges it reports	
-tests/engine/perfReadout.test.ts	103	check	M			src	model:src		buildSceneCostSnapshot counts what a render pass walks, visible only	
-tests/engine/perfReadout.test.ts	120	check	M			src	model:src		buildSceneCostSnapshot applies the InstancedMesh count to shadow casters	
-tests/engine/perfReadout.test.ts	135	check	M			src	model:src		scene-cost buckets come from the scene, never from an engine table	
-tests/engine/perfReadout.test.ts	150	check	M			src	model:src		buildSceneCostSnapshot collapses the tail of the buckets into other	
-tests/engine/perfReadout.test.ts	166	check	M			src	model:src		formatSceneCost aligns the bucket column and omits an empty inventory	
+tests/engine/perfReadout.test.ts	70	check	M			src	model:src	src/engine/perf/perfReadout.test.ts	formatFrameSpikes keeps the three stall thresholds separate	
+tests/engine/perfReadout.test.ts	82	check	M			src	model:src	src/engine/perf/perfReadout.test.ts	formatDrawingBuffer multiplies CSS size by the effective pixel ratio	
+tests/engine/perfReadout.test.ts	95	check	M			src	model:src	src/engine/perf/perfReadout.test.ts	compactCount stays readable across the count ranges it reports	
+tests/engine/perfReadout.test.ts	103	check	M			src	model:src	src/engine/perf/perfReadout.test.ts	buildSceneCostSnapshot counts what a render pass walks, visible only	
+tests/engine/perfReadout.test.ts	120	check	M			src	model:src	src/engine/perf/perfReadout.test.ts	buildSceneCostSnapshot applies the InstancedMesh count to shadow casters	
+tests/engine/perfReadout.test.ts	135	check	M			src	model:src	src/engine/perf/perfReadout.test.ts	scene-cost buckets come from the scene, never from an engine table	
+tests/engine/perfReadout.test.ts	150	check	M			src	model:src	src/engine/perf/perfReadout.test.ts	buildSceneCostSnapshot collapses the tail of the buckets into other	
+tests/engine/perfReadout.test.ts	166	check	M			src	model:src	src/engine/perf/perfReadout.test.ts	formatSceneCost aligns the bucket column and omits an empty inventory	
 tests/engine/perfReadout.test.ts	187	check	M			src	model:src		formatAudioBudget says nothing measured rather than reporting zeros	
 tests/engine/perfReadout.test.ts	192	check	M			src	model:src		formatAudioBudget reports the ceiling, the peak and the busy buses	
 tests/engine/perfReadout.test.ts	221	check	A			engine/audio		src/runtime/audio/perfReadout.test.ts	AudioSubsystem tracks the voice budget per bus and refuses over the ceiling	
@@ -2080,9 +2080,9 @@ tools/engine-tests.ts	13996	check	M			tools/saveValidator	model:tools/saveValida
 tools/engine-tests.ts	14030	check	M			src,tools/saveValidator	model:src,model:tools/saveValidator		save validator preserves worldSettings.gameRules + win/lose screens	
 tools/engine-tests.ts	14063	check	M			tools/saveValidator	model:tools/saveValidator		save validator rejects malformed gameRules	
 tools/engine-tests.ts	14080	check	M			tools/saveValidator	model:tools/saveValidator		save validator rejects a non-string gameMode	
-tools/engine-tests.ts	14093	check	M			src	model:src		cameraPlanarPan moves along the camera's horizontal forward	
-tools/engine-tests.ts	14102	check	M			src	model:src		cameraPlanarPan cancels opposing keys and keeps diagonals at unit speed	
-tools/engine-tests.ts	14115	check	M			src	model:src		cameraPlanarPan flies straight up/down on world +y/-y	
+tools/engine-tests.ts	14093	check	M			src	model:src	src/engine/camera/cameraControl.test.ts	cameraPlanarPan moves along the camera's horizontal forward	
+tools/engine-tests.ts	14102	check	M			src	model:src	src/engine/camera/cameraControl.test.ts	cameraPlanarPan cancels opposing keys and keeps diagonals at unit speed	
+tools/engine-tests.ts	14115	check	M			src	model:src	src/engine/camera/cameraControl.test.ts	cameraPlanarPan flies straight up/down on world +y/-y	
 tools/engine-tests.ts	14133	check	R			engine/input,src	three-via:src,three:three		runtime PlayerController owns possession and input policy	
 tools/engine-tests.ts	14174	check	R			engine/input,src	three-via:src,three:three		runtime PlayerController updates control rotation from mapped look input only	
 tools/engine-tests.ts	14211	check	R			src	three-via:src,three:three		PlayerCameraManager applies view targets and blends across camera sources	
@@ -2131,9 +2131,9 @@ tools/engine-tests.ts	15572	check	M			engine/physics,engine/scene	model:engine/s
 tools/engine-tests.ts	15601	check	D			engine/input,engine/movement,engine/physics	dropped:K12 moving platform		CharacterMovement subsystem: a rider is carried horizontally by a moving platform	
 tools/engine-tests.ts	15661	check	D			engine/input,engine/movement,engine/physics	dropped:K12 moving platform		CharacterMovement subsystem: a rising platform lifts the rider and isn't read as climbing	
 tools/engine-tests.ts	15727	check	M			tools/saveValidator	model:tools/saveValidator		save validator preserves a movingPlatform placement and rejects malformed motion	
-tools/engine-tests.ts	15769	check	M			src	model:src		applyMouseLook turns with the pointer delta and clamps pitch	
-tools/engine-tests.ts	15776	check	M			src	model:src		applyConfiguredMouseLook honors sensitivity and invert Y	
-tools/engine-tests.ts	15790	check	M			src	model:src		look angles round-trip through a forward direction	
+tools/engine-tests.ts	15769	check	M			src	model:src	src/engine/camera/cameraControl.test.ts	applyMouseLook turns with the pointer delta and clamps pitch	
+tools/engine-tests.ts	15776	check	M			src	model:src	src/engine/camera/cameraControl.test.ts	applyConfiguredMouseLook honors sensitivity and invert Y	
+tools/engine-tests.ts	15790	check	M			src	model:src	src/engine/camera/cameraControl.test.ts	look angles round-trip through a forward direction	
 tools/engine-tests.ts	15798	check	R			engine/input,src	three-via:src,three:three		default camera mode turns the view on a right-drag look delta	
 tools/engine-tests.ts	15810	check	R			engine/scene,src	three-via:src		player start marker is a procedural asset excluded from manifest loading	
 tools/engine-tests.ts	15833	check	R			engine/scene,src	three-via:src		ambient sound marker is a procedural, runtime-non-rendered marker asset	

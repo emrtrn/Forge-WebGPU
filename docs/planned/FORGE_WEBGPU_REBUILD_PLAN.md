@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v1.9 · 2026-11-13 (v1.8'den fark: Faz 3 adım 7 tamam — olay bazlı gün saati: `timeTransition`, `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri), Sky Light yakalaması aynı PMREM'e, ölçülerek seçilen yakalama hızı (açı + 0,1 sn + durunca son yakalama), `npm run measure:sky-capture`; kullanıcı kararları; mimari v1.13. v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
+**Sürüm:** v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 8 tamam — otomatik instancing, terrain salt çizimi, görüntüleyicinin varsayılan kamerası, `?debug` paneli, bütün çizen referans level'lar smoke'ta; kullanıcı kararları: terrain / örtü katman materyali GUID, paket manifesti `requires`, `?debug` kapsamı; referans projesi yeniden alındı; mimari v1.14. v1.9 · 2026-11-13 (v1.8'den fark: Faz 3 adım 7 tamam — olay bazlı gün saati: `timeTransition`, `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri), Sky Light yakalaması aynı PMREM'e, ölçülerek seçilen yakalama hızı (açı + 0,1 sn + durunca son yakalama), `npm run measure:sky-capture`; kullanıcı kararları; mimari v1.13. v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
 `forge.skyAtmosphere` / `forge.skyLight` (arka plan ve ortam ışığı dahil,
 kullanıcı kararı) / `forge.cloudLayer` / `forge.worldEnvironment` (sabit
 saat), TSL gökyüzü + ay + yıldız, PMREM Sky Light, bulut, WES yorumu,
@@ -538,20 +538,48 @@ harita, hafıza):
    köprülenir. Adımlı karenin GPU zamanı yakalamaya atanamıyor (yakalayan kare
    ~0,1 ms okur); GPU maliyeti tezgâhtan. Render smoke yeşil. **A 934 / 1.021**
    (kutunun ertelenmiş A'sı ve R'si yok).
-8. Görüntüleyiciyi tamamla: instancing (kip b), terrain salt çizimi, bütün
-   referans level'lar, kamera, `?debug`.
+8. ~~Görüntüleyiciyi tamamla: instancing (kip b), terrain salt çizimi, bütün
+   referans level'lar, kamera, `?debug`.~~ — **tamam** (2026-11-13, `992560a`
+   instancing, `5897915` katman materyali GUID + paket gereksinimi, `615cfdd` terrain,
+   `1f28c22` kamera, `e887fca` `?debug`, `432c7c3` smoke level'ları). *Instancing:* canlı batch
+   (`render/sync/instanceBatches.ts`, Forge'un `createInstancedModelGroup`'u):
+   static mesh model + slot override'ları + gölge başına, shape primitif + gölge
+   başına (beyaz materyal), yerleşim rengi instance rengi (Forge'un bölen kuralı),
+   batch'in bütün instance'larının sınırıyla kesim. *Terrain:* spike S2'nin TSL
+   CDLOD'u (`render/materials/terrain.ts`), belge + bütün tile'lar + katman
+   materyalleri `terrain:<guid>` önbelleğinde, kamera 0,1 m kıpırdayınca yeniden
+   seçim, frustum kesimi yok (Forge'un görüş + gölge kesimi 5a), landscape
+   materyali çizilmez (Forge runtime'ı gibi). **Kullanıcı kararları
+   (2026-11-13):** terrain ve zemin örtüsü katman materyali belgede GUID (içe
+   aktarıcı çevirir, World Builder ve örtüler starter materyallerini GUID'le
+   anar, starter'a `lt-snow` / `M_Sand_Dry`), veri belgesi tipi başvuru yollarını
+   adlandırır (`layers[].material`, asılı olan kapıda düşer; SDK 0.1.3); paket
+   manifesti `forge.pack.json` `requires` (worldbuilder → starter; `forge check`
+   ve asset kapısı uygular); `?debug` Faz 3'te okuma + tablolar. *Kamera:* Forge'un
+   `cameraControl.ts`'i olduğu gibi (6 kontrol), görüntüleyicide varsayılan kamera
+   kontrolleri (WASD / oklar, E / Q, sağ sürükleme, 6 m/s), çerçeve yerleşimlerin
+   oda sınırından (terrain hariç). *`?debug`:* Forge'un saf okuma biçimlendiricileri
+   ve sahne maliyeti taraması (8 kontrol), panel kabuğu, tablo modalı ve CSS;
+   0,5 sn'de bir okuma, "Scene cost" tablosu; dinamik import. *Smoke:* 4 terrain
+   level'ı Faz 0 P2 pozunda, PhysicsInteractionTest ve spline-test-range
+   görüntüleyicinin çerçevelemesiyle (Faz 0 pozu yok), `main` boş (check:projects
+   açar); kamera ve `?debug` smoke'ları. Referans projesi kullanıcı onayıyla
+   yeniden alındı (7 level `--compare`'de eşit). **A 934 / 1.021**; A dışından
+   etiketiyle taşınan 14. Adıma düşen R: 4 yeniden yazıldı, 2 düştü (`PORT_LOG` §2).
 9. Smoke tam set + Faz 0 görüntüleriyle yan yana ızgara → kullanıcı kabulü → kapı.
 
-- [ ] Render kaynak önbelleği (geometri, doku, materyal; pipeline three'nin)
+- [x] Render kaynak önbelleği (geometri, doku, materyal; pipeline three'nin)
       asset GUID'iyle anahtarlı ve renderer'a ait, World'den ayrı (mimari A6,
       §4.9). *Adım 1:* önbellek, World başına sayaç, iki World testi, model ve
       şekil anahtarları. *Adım 4:* `texture:<guid>:<srgb|linear>` ve
       `material:<guid>:<katkı imzası>` (materyalin dokuları host düzeyindeki
-      sahipte).
-- [ ] Renderer host: init, resize, DPR, cihaz kaybı (karar 10), gerçek backend
+      sahipte). *Adım 8:* `terrain:<guid>` (belge, tile'lar, katman girdileri).
+- [x] Renderer host: init, resize, DPR, cihaz kaybı (karar 10), gerçek backend
       rozeti; `?debug` overlay (`engine/perf` zaten three'siz) + GPU timestamp.
       *Adım 1:* `?debug` overlay dışında hepsi; overlay adım 8'de, DPR'nin
-      kalite bağı adım 2'de.
+      kalite bağı adım 2'de. *Adım 8:* `?debug` paneli (okuma + Scene cost
+      tablosu, dinamik import); GPU sweep, kare yakalama, terrain haritası, hız
+      kontrolü 5a / 6 (kullanıcı kararı).
 - [x] Materyal sistemi: `forge.material` (karar 5) → node material (§2.3);
       katman / anizotropi / ORM; GLB + KTX2 (three'nin `examples/jsm/libs`'i,
       yeni npm bağımlılığı ve vendor kopyası yok). *Adım 4 (2026-11-13):*
@@ -585,9 +613,11 @@ harita, hafıza):
       (Cinematic dahil) hazır; `RenderPipeline`, MRT ve profil başına bayt testi
       adım 6'da. *Adım 6 (2026-11-13):* `forge.postProcess`, kalite kapısı, TSL
       pipeline, MRT testi ve cihaz sondası, çıktı dönüşümü; görsel kabul kapıda.
-- [ ] Level görüntüleyici: level.json → statik mesh'ler, şekiller, instancing,
+- [x] Level görüntüleyici: level.json → statik mesh'ler, şekiller, instancing,
       terrain salt çizimi (karar 1); runtime route'unda salt görüntüleme. HLOD
-      5b'de (karar 9).
+      5b'de (karar 9). *Adım 8 (2026-11-13):* otomatik instancing, TSL CDLOD
+      terrain, varsayılan kamera, `?debug`, bütün çizen referans level'lar
+      smoke'ta. Görsel kabul kapıda.
 - [ ] **Render regresyon smoke'u** (`npm run smoke:render`, Playwright, başlıklı
       Chrome, port 5283): kabul edilen referans pozlar yerelde, gerçek WebGPU
       backend'inde yeniden çekilip referans görüntüyle karşılaştırılır.
@@ -923,3 +953,5 @@ silinebilir.
 | 2026-11-13 | v1.8 | Faz 3 adım 6 (`5d8c8cc`, `7e202d4`): `forge.postProcess` (+ TRAA, SSR seçimi) ve içe aktarıcı çeviricisi, `applyQualityToPostProcess` bileşen verisine; TSL `RenderPipeline` (MRT'li sahne pass'i, GTAO / SSGI / SSR / TRAA / SMAA / DoF / bloom / renk düzeltme / renk sapması / vignette / gren, ton eşleme), MRT 30 bayt + profil başına test + cihaz sondası, çıktı dönüşümü bağlamalardan önce. Kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA. 9 R yeniden yazıldı, 1 düştü; A 934 / 1.021 |
 | 2026-11-13 | v1.8 | Referans projesi (`webgpu-scenes`) kullanıcı onayıyla Post Process çeviricisiyle yeniden alındı: 7 level `--compare`'de eşit (L03 ve Derekavak'ta `forge.postProcess`), `check:projects` ve smoke (L03 pipeline'la, gerçek WebGPU) yeşil; ForgeReference README'si ve içe aktarma raporları güncellendi |
 | 2026-11-13 | v1.9 | Faz 3 adım 7, olay bazlı gün saati (`1930135`, `3e87850`, `66d34a6`, `dac9605`): `timeTransition` (saf, testli), `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri; kullanıcı kararları) alt sistemin tick'inde; Sky Light yakalaması aynı PMREM'e (materyal yeniden kurulumu kalktı), yakalama hızı ölçümle (kullanıcı kararı: Forge açı politikası + 0,1 sn sınır + güneş durunca son yakalama); `npm run measure:sky-capture` (NVIDIA Ampere: yakalama ~3,3–3,5 ms GPU, 5 sn geçişte 69 → 38 yakalama, ardışık en çok 1). A 934 / 1.021 değişmedi; render smoke yeşil |
+| 2026-11-13 | v1.10 | Faz 3 adım 8, görüntüleyici (`992560a` instancing, `5897915` katman materyali GUID + veri belgesi başvuruları + paket `requires` (SDK 0.1.3, starter'a 2 materyal), `615cfdd` terrain salt çizimi, `1f28c22` varsayılan kamera, `e887fca` `?debug` paneli, `432c7c3` smoke level'ları); kullanıcı kararları (katman materyali GUID, paket `requires`, `?debug` kapsamı); 6 + 8 Forge kontrolü M'den etiketle taşındı, A 934 / 1.021 değişmedi; smoke 7 level + kamera + `?debug` gerçek WebGPU'da yeşil |
+| 2026-11-13 | v1.10 | Referans projesi (`webgpu-scenes`) kullanıcı onayıyla yeniden alındı: terrain belgelerinde katman materyalleri GUID (Derekavak, Island, OpenWorldTest, WbPilotValley); 7 level `--compare`'de eşit, `check:projects` yeşil; ForgeReference README'si güncellendi |

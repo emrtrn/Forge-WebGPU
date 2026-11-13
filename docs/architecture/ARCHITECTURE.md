@@ -118,7 +118,9 @@ IBL + ortam ışığı + arka plan, `forge.cloudLayer`, `forge.worldEnvironment`
 sabit saat, oyun `transitionTo` ile zamanlı geçirir); World Environment'ın
 yorumu kare başına bir kez `ctx.environment.override`'a, bağlamalar kendi
 parçasını çizer; Sky Light aynı PMREM'e, ölçülmüş hızla yeniden yakalanır
-(rapor §4.9).
+(rapor §4.9). Static mesh ve şekiller otomatik instanced batch'lerle, terrain
+spike S2'nin TSL CDLOD'uyla salt çizilir; görüntüleyicinin varsayılan kamerası
+ve `?debug` paneli (dinamik import) var (rapor §4.9).
 
 ## Oyun projesi sözleşmesi
 

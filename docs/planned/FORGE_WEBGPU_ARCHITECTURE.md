@@ -1,6 +1,10 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.13 · 2026-11-13 (v1.12'den fark: Faz 3 adım 7 — §4.9 olay
+**Sürüm:** v1.14 · 2026-11-13 (v1.13'ten fark: Faz 3 adım 8 — §4.9 görüntüleyicinin
+uygulaması (instancing, terrain salt çizimi, kamera, `?debug`); §4.6 veri belgesi
+başvuru yolları ve katman materyali GUID; §4.8 paket manifesti `requires`
+(kullanıcı kararları).
+v1.13 · 2026-11-13 (v1.12'den fark: Faz 3 adım 7 — §4.9 olay
 bazlı gün saatinin uygulaması: `transitionTo` (`Promise<boolean>`, hep ileri;
 kullanıcı kararları), Sky Light yakalaması aynı PMREM'e, ölçülen yakalama hızı
 (açı + 0,1 sn + durunca son yakalama; kullanıcı kararı).
@@ -757,7 +761,11 @@ düşen alan uyarı değil, **hatadır**.
     (level'ın hücreleri gibi; asset değildir): terrain'in
     `<ad>.tiles/<x>_<z>.tile.bin` ve `<ad>.global.bin`'i (tile başına meta dosyası
     reddedildi: 64 tile'lık dünyada 65 meta). Sahibi olmayan parça yine
-    meta'sız ikilidir. Asset dizini ve kayıt servisi zarfı denetler. World
+    meta'sız ikilidir. **Başvuru yolları (Faz 3 adım 8, kullanıcı kararı
+    2026-11-13):** tür, `data` içinde asset başvurularının durduğu yolları
+    bildirir (`layers[].material`: terrain ve zemin örtüsünün katman
+    materyalleri, GUID); dizin onları toplar, asılı olan kapıda düşer. Çekirdek
+    içeriği yine okumaz. Asset dizini ve kayıt servisi zarfı denetler. World
     Builder girdileri birbirine dosya yoluyla başvurur (asset dizininin dosya
     etiketi: `content/levels/…`, `engine:content/packs/worldbuilder/…`):
     Forge'un normalize fonksiyonları ve kontrolleri yol kuralını sınıyor;
@@ -1057,8 +1065,13 @@ düşen alan uyarı değil, **hatadır**.
 - **Depo düzeni uygulaması (2a kararları, 2026-11-10):**
   - *Manifest:* `contentPacks` (varsayılan `[]`), paket kimlikleri küçük harf,
     rakam ve tire; tekrar eden kimlik bir kez tutulur. Şema `forge.project/1`
-    kalır. Paket kimliği `content/packs/` altındaki klasörün adıdır; paketin
-    kendi manifesti yok.
+    kalır. Paket kimliği `content/packs/` altındaki klasörün adıdır. **Paket
+    manifesti (Faz 3 adım 8, kullanıcı kararı 2026-11-13):** isteğe bağlı
+    `content/packs/<id>/forge.pack.json` (`{ "schema": "forge.pack/1",
+    "requires": [...] }`): paketin başvurduğu paketler. Onu seçen proje
+    gerekenleri de seçer (`forge check`), asset kapısı paketi gerekenleriyle
+    birlikte denetler, tarama manifesti asset saymaz. worldbuilder starter'ı
+    gerektirir (katman materyalleri ve dokuları).
   - *Etiketli kökler:* tarama `{ etiket, klasör }` çiftleriyle çalışır. Projenin
     kendi kökleri projeye göreli yollarıyla (`content`), motor içeriği ve
     paketler `engine:content/engine` ve `engine:content/packs/<id>` etiketiyle
@@ -1288,6 +1301,23 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
 - *Terrain:* Faz 3'te salt çizim (spike S2'nin TSL CDLOD'u: yükseklik, 8
   katman, normal, gölge); su birikintisi, kıyı, kostik, tile akışı ve üretim
   kalitesi 5a'da. HLOD 5b'de.
+- *Görüntüleyici, uygulama (adım 8, 2026-11-13):* **Instancing** canlı batch
+  (`render/sync/instanceBatches.ts`): parça başına `InstancedMesh`, yerleşim rengi
+  instance rengi (Forge'un bölen kuralı), batch anahtarı static mesh'te model + slot
+  override'ları + gölge, shape'te primitif + gölge (beyaz materyal); batch önbellek
+  kullanımlarını tutar, son yerleşimiyle gider. **Terrain** `render/materials/terrain.ts`
+  (spike'ın TSL CDLOD'u, untyped TSL yalnız bu modülde) + `render/resources/terrains.ts`
+  (`terrain:<guid>`: belge, bütün tile'lar, katman girdileri `SurfaceMaterials.terrainLayer`);
+  dev server veri belgelerini GUID tablosuna koyar, parçalar `AssetUrls.part` ile
+  belgenin yanından; kamera 0,1 m kıpırdayınca LOD yeniden seçilir, frustum kesimi
+  yok (5a), landscape materyali çizilmez. **Kamera** Forge'un varsayılan kamera
+  kontrolleri (`engine/camera/cameraControl.ts` olduğu gibi,
+  `render/viewer/flyCamera.ts`); çerçeve yerleşimlerin oda sınırından, terrain
+  hariç (`userData.framing = false`). **`?debug`** (`render/viewer/debug`, dinamik
+  import): Forge'un saf biçimlendiricileri `engine/perf/perfReadout.ts`, sahne
+  maliyeti `engine/perf/sceneCost.ts` (kaynak etiketi `staticMesh` / `shape` /
+  `terrain`), 0,5 sn'de bir okuma, "Scene cost" tablosu; GPU sweep, kare
+  yakalama, terrain haritası, hız kontrolü 5a / 6 (kullanıcı kararı).
 
 ### 4.10 Kalite altyapısı
 
