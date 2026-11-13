@@ -3,11 +3,12 @@
 //
 // - Sky Atmosphere: the TSL sky dome (src/render/materials/sky.ts) around the
 //   camera, its sun from `ctx.lighting.sunDirection` (the sun light, or the
-//   World Environment's true sun, which darkens the sky at night). While a sky
-//   shows the world is presented with ACES at its exposure x 0.2 (Forge's
-//   applySkyToneMapping; user decision 2026-11-13, until the pipeline's tone
-//   mapping in step 6). The World Environment adds its haze, moon, stars and
-//   night exposure.
+//   World Environment's true sun, which darkens the sky at night). The output
+//   transform is the pipeline's (render/sync/output.ts: while a sky shows and
+//   no Post Process does, ACES at the sky's exposure x 0.2, Forge's
+//   applySkyToneMapping); the dome is drawn at `ctx.output.skyRadiance`, the
+//   sky's exposure against a Post Process's (user decision 2026-11-13). The
+//   World Environment adds its haze, moon and stars.
 // - Sky Light: the sky captured into a PMREM as `scene.environment` (image
 //   based reflections and ambient bounce, at `intensity`), only with a sky.
 //   Captured when the scattering or the sun changes; under the World
@@ -20,7 +21,7 @@ import { AmbientLight, Color } from "three/webgpu";
 import { angleBetweenDeg, shouldRecapture, skyLightCompensation, type CaptureRecord } from "../../engine/environment/recapturePolicy.ts";
 import { createCaptureSky, createSkyDome, type CaptureSky, type SkyDome, type SkyScattering } from "../../render/materials/sky.ts";
 import { defineRenderBinding, type CapturedEnvironment } from "../../render/sync/renderBinding.ts";
-import { SKY_LIGHT_ABSENT, SkyAtmosphere, SkyLight, skyToneMappingExposure, type SkyAtmosphereData, type SkyLightData } from "./schema.ts";
+import { SKY_LIGHT_ABSENT, SkyAtmosphere, SkyLight, type SkyAtmosphereData, type SkyLightData } from "./schema.ts";
 
 /** Cube face size of the capture (Forge's default; three floors a PMREM at 256). */
 export const SKY_LIGHT_CAPTURE_SIZE = 256;
@@ -81,8 +82,6 @@ export default defineRenderBinding({
         if (!sky) {
           dome?.dispose();
           dome = null;
-          ctx.output.toneMapping = "none";
-          ctx.output.exposure = 1;
           releaseEnvironment();
           return;
         }
@@ -98,9 +97,8 @@ export default defineRenderBinding({
         }
         dome.apply(scattering, sun);
         dome.applyNight(override);
+        dome.setRadiance(ctx.output.skyRadiance);
         if (frame.camera) dome.follow(frame.camera.position);
-        ctx.output.toneMapping = "aces";
-        ctx.output.exposure = skyToneMappingExposure(sky.exposure) * (override?.exposureMultiplier ?? 1);
 
         if (!light || light.intensity <= 0 || !ctx.capture) {
           releaseEnvironment();
@@ -138,8 +136,6 @@ export default defineRenderBinding({
         captureSky = null;
         releaseEnvironment();
         removeAmbient();
-        ctx.output.toneMapping = "none";
-        ctx.output.exposure = 1;
       },
     };
   },

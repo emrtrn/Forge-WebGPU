@@ -2,7 +2,9 @@
 // Phase 0 harness fields from the ported `engine/perf/perfWitness`, sampled
 // every half second, never per frame. Frame times are rAF intervals (raw,
 // before the world clamps them); GPU time comes from timestamp queries,
-// resolved one frame at a time, null where the device has none.
+// resolved one frame at a time, null where the device has none: every render
+// of the frame (scene pass, screen-space passes, the pipeline's output).
+// Host fields (the pipeline's passes and MRT, the MRT probe) ride in `extra`.
 
 import { TimestampQuery, type WebGPURenderer } from "three/webgpu";
 import { FrameMetricsMonitor } from "../../engine/perf/frameMetrics.ts";
@@ -34,6 +36,7 @@ export function createPerfSampler(
   proof: BackendProof,
   quality: () => PerfQuality,
   publish: (json: string) => void,
+  extra: () => Readonly<Record<string, number | string | boolean | null>> = () => ({}),
 ): PerfSampler {
   const monitor = new FrameMetricsMonitor();
   const gpu: number[] = [];
@@ -87,7 +90,7 @@ export function createPerfSampler(
         timeScale: 1,
         paused: false,
         sceneSeconds: (now - started) / 1000,
-        extra: { backend: proof.backend, isWebGPUBackend: proof.isWebGPUBackend },
+        extra: { backend: proof.backend, isWebGPUBackend: proof.isWebGPUBackend, ...extra() },
       });
       publish(serializePerfWitness(witness));
     },

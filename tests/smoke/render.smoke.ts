@@ -12,7 +12,9 @@
 //    without one, the shot is written to render-refs/candidates/ for the
 //    user's acceptance (references are never written silently);
 // 6. a record goes to render-refs/runs/: commit, three, backend proof,
-//    browser, GPU, pose, resolution / DPR, profile, perf witness.
+//    browser, GPU, pose, resolution / DPR, profile, perf witness (with the
+//    pipeline's passes, MRT targets and the device's MRT probe);
+// 7. the full MRT set must fit the device (phase 3 decision 4).
 //
 // The quality profile is fixed (SMOKE_QUALITY, adaptive off, no calibration).
 
@@ -162,6 +164,11 @@ for (const scene of SMOKE_SCENES) {
       expect((perf as { quality?: string } | null)?.quality, "the run draws with the smoke profile").toBe(SMOKE_QUALITY);
       expect(proof?.isWebGPUBackend, "the renderer must run on WebGPU; a WebGL2 run is not a WebGPU acceptance run").toBe(true);
       expect(resourceErrors, "every resource loads").toBe(0);
+      // Phase 3 decision 4: the full MRT set (30 bytes per sample) fits this device without requiredLimits.
+      const witness = perf as { mrtProbeOk?: boolean; mrtProbeBytes?: number; pipeline?: string } | null;
+      expect(witness?.mrtProbeBytes, "the MRT probe ran").toBe(30);
+      expect(witness?.mrtProbeOk, "the full MRT set fits the device").toBe(true);
+      expect(typeof witness?.pipeline, "the pipeline's passes are recorded").toBe("string");
       expect(luminance.mean, "the image is not black").toBeGreaterThan(MIN_LUMINANCE_MEAN);
       expect(luminance.std, "the image is not blank or flat").toBeGreaterThan(MIN_LUMINANCE_STD);
       if (reference !== "candidate-written") {

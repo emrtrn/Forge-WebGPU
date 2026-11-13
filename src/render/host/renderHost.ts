@@ -1,10 +1,16 @@
 // The renderer host (architecture §4.7, §4.9): one WebGPURenderer per page,
 // the GPU device's resource cache, and the worlds it draws.
 //
-// - `WebGPURenderer` with timestamp tracking, a reversed depth buffer and no
-//   MSAA (anti-aliasing is the pipeline's), awaited `init()`, then the backend
-//   proof written on the canvas (`data-forge-backend`, the full proof in
-//   `data-forge-backend-proof`) and the badge.
+// - `WebGPURenderer` with timestamp tracking, a reversed depth buffer and
+//   MSAA on the canvas (`antialias`: a level drawn without a post-process
+//   pass gets it, as every Forge WebGL level did; user decision 2026-11-13;
+//   the pipeline's scene pass has none, its anti-aliasing is TRAA / SMAA),
+//   awaited `init()`, then the backend proof written on the canvas
+//   (`data-forge-backend`, the full proof in `data-forge-backend-proof`), the
+//   MRT budget probed on the device (`data-forge-mrt-probe`) and the badge.
+// - Frames go through the frame pipeline (render/pipeline): rebuilt when the
+//   plan (quality profile, Post Process switches), the world or the camera
+//   changes, never per frame.
 // - Size follows the container (ResizeObserver); the pixel ratio is asked
 //   every frame, so a move to another monitor is picked up: the device ratio
 //   capped and scaled by the quality settings (`effectiveDevicePixelRatio`).
@@ -18,7 +24,8 @@
 import { PerspectiveCamera, PMREMGenerator, WebGPURenderer, type Camera } from "three/webgpu";
 import type { FeatureDef, JsonAssetTypeDef } from "../../core/index.ts";
 import { effectiveDevicePixelRatio, resolveQualitySettings, type QualitySettings } from "../../engine/perf/qualityProfiles.ts";
-import { createDirectPipeline } from "../pipeline/directPipeline.ts";
+import { probeMrtBudget, type MrtProbeResult, type ProbeDevice } from "../pipeline/mrtProbe.ts";
+import { createFramePipeline } from "../pipeline/renderPipeline.ts";
 import type { AssetUrls } from "../resources/assetUrls.ts";
 import { createGltfModelSource, type GltfModelSource } from "../resources/gltfModels.ts";
 import { createResourceCache, type ResourceCache } from "../resources/resourceCache.ts";
@@ -62,6 +69,8 @@ export interface RenderHost {
   readonly canvas: HTMLCanvasElement;
   readonly renderer: WebGPURenderer;
   readonly proof: BackendProof;
+  /** The MRT budget on this device; null on the WebGL2 backend. */
+  readonly mrtProbe: MrtProbeResult | null;
   readonly cache: ResourceCache;
   /** The world being drawn, once one attached. */
   readonly world: RenderWorld | null;
@@ -89,7 +98,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
 
   const renderer = new WebGPURenderer({
     canvas,
-    antialias: false,
+    antialias: true,
     trackTimestamp: true,
     reversedDepthBuffer: true,
     forceWebGL: options.forceWebGL === true,
@@ -103,6 +112,12 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   const proof = readBackendProof(renderer, document.defaultView?.navigator.userAgent ?? "");
   canvas.dataset.forgeBackend = proof.backend;
   canvas.dataset.forgeBackendProof = JSON.stringify(proof);
+  const device = (renderer.backend as unknown as { device?: ProbeDevice }).device;
+  const mrtProbe = proof.isWebGPUBackend && device ? await probeMrtBudget(device) : null;
+  if (mrtProbe) {
+    canvas.dataset.forgeMrtProbe = JSON.stringify(mrtProbe);
+    if (!mrtProbe.ok) console.error(`forge render: the full MRT set (${mrtProbe.bytes} bytes per sample) does not fit this device: ${mrtProbe.error}`);
+  }
   const badge = mountBadge(document, container, proof, options.dev);
 
   const cache = createResourceCache();
@@ -172,7 +187,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     for (const listener of lostListeners) listener(message);
   };
 
-  const pipeline = createDirectPipeline(renderer);
+  const pipeline = createFramePipeline(renderer);
   // The Sky Light capture (Forge's captureSkyEnvironment): the scene seen from
   // its origin, prefiltered into a PMREM. A render target never gets the
   // output's tone mapping, so the map stays linear.
@@ -185,12 +200,23 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   };
   const perf = createPerfSampler(renderer, proof, () => quality, (json) => {
     canvas.dataset.forgePerf = json;
-  });
+  }, () => ({
+    pipeline: pipeline.plan.direct ? "direct" : pipeline.plan.passes.join(","),
+    mrt: pipeline.plan.mrt.map((target) => target.name).join(","),
+    mrtBytes: pipeline.plan.mrtBytes,
+    pipelineBuilds: pipeline.builds,
+    toneMapping: world?.output.toneMapping ?? null,
+    exposure: world ? Math.round(world.output.exposure * 1e4) / 1e4 : null,
+    mrtProbeBytes: mrtProbe?.bytes ?? null,
+    mrtProbeLimit: mrtProbe?.limit ?? null,
+    mrtProbeOk: mrtProbe?.ok ?? null,
+  }));
 
   return {
     canvas,
     renderer,
     proof,
+    mrtProbe,
     cache,
     get world() {
       return world;
@@ -229,7 +255,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     frame(now) {
       if (lost || world === null) return;
       applySize();
-      pipeline.render(world.scene, camera, world.output);
+      pipeline.render(world.scene, camera, world.output, quality.settings);
       perf.frame(now);
     },
     perf,

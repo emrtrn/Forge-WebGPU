@@ -6,7 +6,9 @@
 // releases those counts and nothing else: another world's resources stay.
 //
 // Each frame, before the bindings: the World Environment override is
-// resolved (environment.ts), then the default sun is drawn with it.
+// resolved (environment.ts), then the default sun is drawn with it and the
+// output transform (tone mapping, exposure, the gated Post Process) is
+// resolved (output.ts).
 //
 // A headless boot (Node, check:projects) installs no such subsystem, so the
 // world runs without render.
@@ -19,6 +21,7 @@ import type { SurfaceMaterials } from "../resources/surfaceMaterials.ts";
 import { createWorldResources, type ModelSource, type WorldResources } from "../resources/worldResources.ts";
 import { createDefaultLighting } from "./defaultLighting.ts";
 import { createEnvironmentOverride } from "./environment.ts";
+import { createOutputState } from "./output.ts";
 import type { EnvironmentCapture, RenderBindingDef, RenderBindingInstance, RenderOutput, RenderWorldView } from "./renderBinding.ts";
 
 export const RENDER_FEATURE_ID = "forge.render";
@@ -29,7 +32,7 @@ export interface RenderWorld {
   readonly scene: Scene;
   readonly root: Group;
   readonly resources: WorldResources;
-  /** Tone mapping and exposure the frame is presented with (the sky sets them). */
+  /** The output transform the frame is presented with, resolved each frame. */
   readonly output: RenderOutput;
 }
 
@@ -74,7 +77,8 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       };
       const lighting = createDefaultLighting(scene, view);
       const environment = createEnvironmentOverride(view, lighting);
-      const output: RenderOutput = { toneMapping: "none", exposure: 1 };
+      const outputState = createOutputState(view);
+      const output = outputState.output;
       const instances: RenderBindingInstance[] = bindings.map((binding) =>
         binding.create({
           world: view, scene, root, resources, lighting, environment: environment.environment, output,
@@ -96,6 +100,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           const frame = { dt, camera: options.camera() };
           environment.update();
           lighting.sync(frame.camera, options.quality(), environment.environment.override);
+          outputState.update(environment.environment.override, options.quality());
           for (const instance of instances) instance.sync?.(frame);
         },
         dispose() {

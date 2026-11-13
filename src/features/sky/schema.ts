@@ -5,7 +5,8 @@
 //   Atmosphere, engine/scene/skyAtmosphere.ts and its Details panel; three's
 //   Preetham sky). The sun is not stored here: the sky follows the sun light
 //   (`atmosphereSun`), or the World Environment's clock. `exposure` is the
-//   authored 1-based multiplier; the renderer scales it by Forge's 0.2.
+//   authored 1-based multiplier; the renderer scales it by Forge's 0.2
+//   (render/pipeline/output.ts).
 // - `forge.skyLight`: the level's ambient lighting and backdrop (user
 //   decision 2026-11-13, phase 3 decision 7): the sky captured into a
 //   prefiltered environment map (PMREM) for image-based reflections and
@@ -56,7 +57,7 @@ export const SkyAtmosphere = defineComponent(
       max: 4,
       default: 1,
       step: 0.05,
-      hint: "Gökyüzünün parlaklığı (1 Forge'un varsayılanı). Gökyüzü varken sahnenin ton eşleme pozlaması da budur.",
+      hint: "Gökyüzünün parlaklığı (1 Forge'un varsayılanı). Post Process yoksa sahnenin ton eşleme pozlaması da budur; Post Process varken gökyüzünü sahneye göre ölçekler.",
     }),
   },
   {
@@ -106,10 +107,3 @@ export type SkyLightData = ComponentData<typeof SkyLight>;
 
 /** Forge's level without a Sky Light (world settings defaults, `SceneRuntimeCore`). */
 export const SKY_LIGHT_ABSENT = { ambientColor: "#ffffff", ambientIntensity: 0, backgroundColor: "#d7d7c7" } as const;
-
-/** Forge's sky exposure scale (`SKY_ATMOSPHERE_RENDER_EXPOSURE_SCALE`): the authored 1 is tone mapping exposure 0.2. */
-export const SKY_EXPOSURE_SCALE = 0.2;
-
-export function skyToneMappingExposure(exposure: number): number {
-  return Math.max(0, exposure * SKY_EXPOSURE_SCALE);
-}

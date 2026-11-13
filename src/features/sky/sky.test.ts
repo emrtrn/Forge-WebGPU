@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { createComponent, createSchemaRegistry, formOf, installFeatures, normalizeComponent } from "../../core/index.ts";
 import skyFeature from "./feature.ts";
-import { SKY_LIGHT_ABSENT, SkyAtmosphere, SkyLight, skyToneMappingExposure } from "./schema.ts";
+import { SKY_LIGHT_ABSENT, SkyAtmosphere, SkyLight } from "./schema.ts";
 
 describe("sky atmosphere schema", () => {
   test("defaults are Forge WebGL's SKY_ATMOSPHERE_DEFAULTS", () => {
@@ -16,12 +16,6 @@ describe("sky atmosphere schema", () => {
     expect(rows).toEqual(["Rayleigh 0..6", "Turbidity 1..20", "Mie 0..0.1", "Mie Anisotropy 0..0.999", "Exposure 0..4"]);
     const result = normalizeComponent(SkyAtmosphere, { type: "forge.skyAtmosphere@1", turbidity: 0, exposure: 9 }, { strict: true });
     expect(result.value).toMatchObject({ turbidity: 1, exposure: 4 });
-  });
-
-  test("the authored exposure 1 is Forge's tone mapping exposure 0.2", () => {
-    expect(skyToneMappingExposure(1)).toBeCloseTo(0.2);
-    expect(skyToneMappingExposure(0.45)).toBeCloseTo(0.09);
-    expect(skyToneMappingExposure(-1)).toBe(0);
   });
 });
 

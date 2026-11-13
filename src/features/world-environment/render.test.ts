@@ -25,6 +25,8 @@ import { HeightFog } from "../height-fog/schema.ts";
 import fogBinding from "../height-fog/render.ts";
 import lightFeature from "../light/feature.ts";
 import lightBinding from "../light/render.ts";
+import postProcessFeature from "../post-process/feature.ts";
+import { PostProcess } from "../post-process/schema.ts";
 import skyFeature from "../sky/feature.ts";
 import { SkyAtmosphere, SkyLight } from "../sky/schema.ts";
 import skyBinding from "../sky/render.ts";
@@ -33,7 +35,7 @@ import environmentBinding from "./render.ts";
 import { WorldEnvironment } from "./schema.ts";
 
 const IDENTITY: Transform = { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] };
-const FEATURES: FeatureDef[] = [lightFeature, skyFeature, cloudFeature, fogFeature, environmentFeature];
+const FEATURES: FeatureDef[] = [lightFeature, skyFeature, cloudFeature, fogFeature, environmentFeature, postProcessFeature];
 const BINDINGS: RenderBindingDef[] = [cloudBinding, fogBinding, lightBinding, skyBinding, environmentBinding];
 /** -90 degrees about X: the sun light's -Z points straight down. */
 const SUN_TRANSFORM: Transform = { p: [0, 10, 0], r: [-Math.SQRT1_2, 0, 0, Math.SQRT1_2], s: [1, 1, 1] };
@@ -123,6 +125,7 @@ const stored = (def: ComponentDef, data: Record<string, unknown>) => {
 const sky = (data: Record<string, unknown> = {}) => ({ sky: stored(SkyAtmosphere, data) });
 const skyLight = (data: Record<string, unknown> = {}) => ({ skyLight: stored(SkyLight, data) });
 const environment = (data: Record<string, unknown> = {}) => ({ environment: stored(WorldEnvironment, data) });
+const post = (data: Record<string, unknown> = {}) => ({ post: stored(PostProcess, data) });
 /** light -> target, unit. */
 const aim = (sun: DirectionalLight): Vector3 => {
   const from = sun.getWorldPosition(new Vector3());
@@ -142,7 +145,38 @@ describe("sky and Sky Light", () => {
     near(mesh.sunPosition.value.clone().normalize(), [0, 1, 0]);
     expect(mesh.turbidity.value).toBe(3);
     expect(mesh.position.toArray()).toEqual(camera.position.toArray());
-    expect(out.output).toEqual({ toneMapping: "aces", exposure: 0.4 });
+    expect(out.output).toMatchObject({ toneMapping: "aces", exposure: 0.4, skyRadiance: 1, postProcess: null });
+    world.dispose();
+  });
+
+  // Rewritten from Forge tools/engine-tests.ts "post process tone mapping can override scene exposure
+  // after sky" (25333): the Post Process's tone mapper and exposure x 0.2 present the frame over the
+  // sky's; without one the sky's ACES comes back. The dome is drawn at the sky's own exposure against
+  // the scene (user decision 2026-11-13).
+  test("post process tone mapping can override scene exposure after sky", () => {
+    const { scene, out, world, add, remove, tick } = boot({ Sun: light(), Sky: sky({ exposure: 0.4 }) });
+    expect(out.output).toMatchObject({ toneMapping: "aces", skyRadiance: 1, postProcess: null });
+    expect(out.output.exposure).toBeCloseTo(0.08);
+    const [id] = add({ Post: post({ toneMapping: "neutral", exposure: 1.7, bloom: { enabled: true } }) });
+    tick();
+    expect(out.output.toneMapping).toBe("neutral");
+    expect(out.output.exposure).toBeCloseTo(0.34);
+    expect(out.output.skyRadiance).toBeCloseTo(0.4);
+    expect((skyMesh(scene)!.userData as unknown as { radiance: { value: number } }).radiance.value).toBeCloseTo(0.4);
+    expect(out.output.postProcess?.bloom.enabled).toBe(true);
+    remove([id!]);
+    tick();
+    expect(out.output).toMatchObject({ toneMapping: "aces", skyRadiance: 1, postProcess: null });
+    expect(out.output.exposure).toBeCloseTo(0.08);
+    world.dispose();
+  });
+
+  test("the Post Process reaches the pipeline gated by the quality profile, the component unchanged", () => {
+    const { out, world } = boot({ Post: post({ antialias: "smaa", ao: { enabled: true }, dof: { enabled: true } }) });
+    // The harness runs on "high": SMAA, AO and DoF allowed.
+    expect(out.output.postProcess).toMatchObject({ antialias: "smaa", ao: { enabled: true }, dof: { enabled: true } });
+    expect(out.output.toneMapping).toBe("aces");
+    expect(out.output.exposure).toBeCloseTo(0.2);
     world.dispose();
   });
 
@@ -181,7 +215,7 @@ describe("sky and Sky Light", () => {
     const bare = boot({});
     expect((bare.scene.background as { getHexString(): string }).getHexString()).toBe("d7d7c7");
     expect(ambients(bare.scene)).toEqual([]);
-    expect(bare.out.output).toEqual({ toneMapping: "none", exposure: 1 });
+    expect(bare.out.output).toMatchObject({ toneMapping: "none", exposure: 1, postProcess: null });
     const ids = bare.add({ Light: skyLight({ backgroundColor: "#a9c9df", ambientColor: "#ece6da", ambientIntensity: 1.1 }) });
     bare.tick();
     expect((bare.scene.background as { getHexString(): string }).getHexString()).toBe("a9c9df");

@@ -222,6 +222,8 @@ export interface SkyDome {
   apply(scattering: SkyScattering, sunDirection: Vector3): void;
   /** The World Environment's moon and stars; null hides them. */
   applyNight(environment: ResolvedEnvironment | null): void;
+  /** The dome's radiance against the scene (the sky's exposure under a Post Process; 1 otherwise). */
+  setRadiance(radiance: number): void;
   /** Keeps the dome around the camera. */
   follow(position: Vector3): void;
   dispose(): void;
@@ -246,13 +248,15 @@ export function createSkyDome(): SkyDome {
     moonDirection: uniform(new Vector3(0, 1, 0)),
     moonBrightness: uniform(0),
   };
-  // Diagnostics and tests read the night uniforms here.
+  const radiance = uniform(1);
+  // Diagnostics and tests read the night uniforms and the radiance here.
   mesh.userData.night = { moon, stars };
+  mesh.userData.radiance = radiance;
   const atmosphere = mesh.material.colorNode as unknown as Node<"vec4">;
   mesh.material.colorNode = Fn(() => {
     const direction = normalize(positionWorld.sub(cameraPosition)).toVar() as unknown as V3;
     const starred = starsNode(stars, direction, atmosphere.xyz as unknown as V3);
-    return vec4(moonNode(moon, direction, starred), 1);
+    return vec4(moonNode(moon, direction, starred).mul(radiance), 1);
   })();
   return {
     mesh,
@@ -273,6 +277,9 @@ export function createSkyDome(): SkyDome {
       stars.size.value = environment?.stars.size ?? 1;
       stars.moonBrightness.value = m?.brightness ?? 0;
       if (m) stars.moonDirection.value.set(...m.direction);
+    },
+    setRadiance(value) {
+      radiance.value = value;
     },
     follow: (position) => void mesh.position.copy(position),
     dispose() {
