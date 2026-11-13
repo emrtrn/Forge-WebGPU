@@ -42,4 +42,10 @@ export const SMOKE_SCENES: readonly SmokeScene[] = [
     level: "content/levels/L03",
     poses: [{ id: "p1", position: [5, 3.5, 6], target: [0, 0.5, 0] }],
   },
+  // Terrain levels at their Phase 0 pose P2 (60 m above ground, 20 degrees down; ForgeReference/baseline/poses.json).
+  // The full set (three poses each, every reference level) comes with step 9.
+  { id: "derekavak", level: "content/levels/Derekavak", poses: [{ id: "p2", position: [230.7, 299.9, 343.3], target: [155, 190.7, 53] }] },
+  { id: "wb-pilot", level: "content/levels/WbPilotValley", poses: [{ id: "p2", position: [-37.9, 150.5, 450], target: [-34.1, 41.3, 150] }] },
+  { id: "island", level: "content/levels/Island", poses: [{ id: "p2", position: [142.9, 73.4, -45.5], target: [-142.9, -35.8, 45.5] }] },
+  { id: "open-world", level: "content/levels/OpenWorldTest", poses: [{ id: "p2", position: [30.9, 60.7, 649.8], target: [16.6, -48.5, 350.2] }] },
 ];

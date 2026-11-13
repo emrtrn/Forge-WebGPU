@@ -33,6 +33,7 @@ import type { AssetUrls } from "../resources/assetUrls.ts";
 import { createGltfModelSource, type GltfModelSource } from "../resources/gltfModels.ts";
 import { createResourceCache, type ResourceCache } from "../resources/resourceCache.ts";
 import { createSurfaceMaterials } from "../resources/surfaceMaterials.ts";
+import { createTerrainSource } from "../resources/terrains.ts";
 import { createTextureSource } from "../resources/textures.ts";
 import type { ModelSource } from "../resources/worldResources.ts";
 import type { EnvironmentCapture, RenderBindingDef } from "../sync/renderBinding.ts";
@@ -148,6 +149,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     textureOwner: cache.owner("material textures"),
     strict: options.dev,
   });
+  const terrains = createTerrainSource({ urls: options.assetUrls, materials });
   const models: ModelSource = {
     load: (guid) =>
       gltf.load(guid).catch((error: unknown) => {
@@ -258,6 +260,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
         cache,
         models,
         materials,
+        terrains,
         bindings: options.bindings,
         features,
         name,

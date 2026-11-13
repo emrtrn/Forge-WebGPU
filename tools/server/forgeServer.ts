@@ -9,7 +9,7 @@
 //                               engine's content and packs (A9)
 //   GET  /__forge/identity      which engine and which project this server serves (D14)
 //   GET  /__forge/classes       the project's actor classes, normalised
-//   GET  /__forge/asset-files   every binary asset (with its import settings) and schema-defined JSON asset:
+//   GET  /__forge/asset-files   every binary asset (with its import settings), schema-defined JSON asset and data document:
 //                               GUID -> { type, file, import? }, `file` for /__forge/read
 //                               (the renderer resolves model and texture GUIDs with it)
 //
@@ -31,7 +31,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
-import { buildAssetIndex, type AssetIndex, type JsonObject, type SchemaRegistry } from "../../src/core/index.ts";
+import { buildAssetIndex, DATA_DOCUMENT_TYPES, type AssetIndex, type JsonObject, type SchemaRegistry } from "../../src/core/index.ts";
 import { fileRevision } from "../assets/revision.ts";
 import { projectContentRoots, scanRoots, type ContentRoot } from "../assets/scan.ts";
 import { defaultContentRoots } from "../assets/verify.ts";
@@ -160,10 +160,14 @@ export interface AssetFileEntry {
   readonly import?: JsonObject;
 }
 
+const DATA_DOCUMENT_NAMES = new Set(DATA_DOCUMENT_TYPES.map((def) => def.name));
+const isDataDocumentType = (type: string): boolean => DATA_DOCUMENT_NAMES.has(type);
+
 /**
  * The assets the renderer loads by GUID: every binary asset, with the import
- * settings of its meta file, and every schema-defined JSON asset (materials).
- * Levels, classes and data documents are read otherwise.
+ * settings of its meta file, every schema-defined JSON asset (materials) and
+ * every data document (a terrain; its parts are read beside it, plan phase 3
+ * step 8). Levels and classes are read otherwise.
  */
 export function rendererAssetFiles(index: AssetIndex): Record<string, AssetFileEntry> {
   const out: Record<string, AssetFileEntry> = {};
@@ -172,7 +176,7 @@ export function rendererAssetFiles(index: AssetIndex): Record<string, AssetFileE
     if (entry.storage === "binary") {
       const meta = index.metas.get(entry.id);
       out[entry.id] = meta ? { type: entry.type, file, import: meta.import } : { type: entry.type, file };
-    } else if (index.jsonAssets.has(entry.id)) {
+    } else if (index.jsonAssets.has(entry.id) || isDataDocumentType(entry.type)) {
       out[entry.id] = { type: entry.type, file };
     }
   }

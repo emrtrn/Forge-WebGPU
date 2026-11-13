@@ -5,9 +5,10 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { createAssetTestRegistry } from "../../src/core/assets/testKit.ts";
+import { buildAssetIndex } from "../../src/core/index.ts";
+import { binary, createAssetTestRegistry } from "../../src/core/assets/testKit.ts";
 import { fileRevision } from "../assets/revision.ts";
-import { createForgeServer, isLocalRequest, refuseReason, STAGING_DIR } from "./forgeServer.ts";
+import { createForgeServer, isLocalRequest, refuseReason, rendererAssetFiles, STAGING_DIR } from "./forgeServer.ts";
 
 const LEVEL = "lvl_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const HEADERS = { "X-Forge-Request": "1" };
@@ -215,5 +216,20 @@ describe("start-up", () => {
     await writeFile(join(project, STAGING_DIR, "f".repeat(32)), "old");
     await createForgeServer({ root: project, registry: createAssetTestRegistry() });
     await expect(readFile(join(project, STAGING_DIR, "f".repeat(32)))).rejects.toThrow();
+  });
+});
+
+describe("renderer asset files", () => {
+  test("a data document is listed by GUID for the renderer, its meta-less parts are not", () => {
+    const terrain = "ast_44444444444444444444444444444444";
+    const index = buildAssetIndex(
+      [
+        { root: "content", path: "levels/v/terrain/v.terrain.json", json: { schema: "forge.terrain/1", id: terrain, data: { schema: 1, type: "worldTerrain" } } },
+        binary("levels/v/terrain/v.global.bin"),
+        binary("levels/v/terrain/v.tiles/0_0.tile.bin"),
+      ],
+      { strict: false, registry: createAssetTestRegistry() },
+    );
+    expect(rendererAssetFiles(index)).toEqual({ [terrain]: { type: "forge.terrain", file: "content/levels/v/terrain/v.terrain.json" } });
   });
 });

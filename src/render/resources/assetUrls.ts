@@ -18,6 +18,12 @@ export interface AssetFile {
 export interface AssetUrls {
   /** Null when the index has no such asset. */
   url(guid: string): string | null;
+  /**
+   * A file beside the asset's own, `{stem}` being the asset file's name
+   * without `suffix`: a data document's part (`{stem}.tiles/0_0.tile.bin`).
+   * Null when the index has no such asset or its file does not end in `suffix`.
+   */
+  part(guid: string, suffix: string, name: string): string | null;
   type(guid: string): string | null;
   /** A binary asset's import settings; null when unknown or not binary. */
   importSettings(guid: string): JsonObject | null;
@@ -30,6 +36,13 @@ export function assetUrlsFromIndex(files: Readonly<Record<string, AssetFile>>, r
     url: (guid) => {
       const found = files[guid];
       return found ? readUrl(found.file) : null;
+    },
+    part: (guid, suffix, name) => {
+      const found = files[guid];
+      if (!found || !found.file.endsWith(suffix)) return null;
+      const slash = found.file.lastIndexOf("/");
+      const stem = found.file.slice(slash + 1, -suffix.length);
+      return readUrl(`${found.file.slice(0, slash + 1)}${name.replaceAll("{stem}", stem)}`);
     },
     type: (guid) => files[guid]?.type ?? null,
     importSettings: (guid) => files[guid]?.import ?? null,

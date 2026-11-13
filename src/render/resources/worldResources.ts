@@ -8,6 +8,7 @@ import { createShapeMaterial } from "../materials/shapeMaterial.ts";
 import { resourceKey, type ResourceCache, type ResourceOwner } from "./resourceCache.ts";
 import { createShapeGeometry, type ShapePrimitive } from "./shapes.ts";
 import type { SurfaceMaterials } from "./surfaceMaterials.ts";
+import type { TerrainData, TerrainSource } from "./terrains.ts";
 
 /** A loaded model: placements clone `scene` (geometry and materials are shared). */
 export interface ModelTemplate {
@@ -38,6 +39,8 @@ export interface WorldResources {
   material(guid: string, contributions?: MaterialContributions): Promise<Material>;
   /** The key `material(guid, contributions)` counts under, for `release`. */
   materialKey(guid: string, contributions?: MaterialContributions): string;
+  /** A `forge.terrain` data document with its tiles and layer inputs; key `terrain:<guid>`. */
+  terrain(guid: string): Promise<TerrainData>;
   /** Gives back one use of a key. */
   release(key: string): void;
   releaseAll(): void;
@@ -48,6 +51,7 @@ export function createWorldResources(
   name: string,
   models: ModelSource,
   materials: SurfaceMaterials | null = null,
+  terrains: TerrainSource | null = null,
 ): WorldResources {
   const owner = cache.owner(name);
   const materialKey = (guid: string, contributions: MaterialContributions = {}): string =>
@@ -60,6 +64,10 @@ export function createWorldResources(
         materials ? materials.build(guid, contributions) : Promise.reject(new Error(`forge render: no material source for ${guid}`)),
       ),
     materialKey,
+    terrain: (guid) =>
+      owner.acquire(resourceKey.terrain(guid), () =>
+        terrains ? terrains.load(guid) : Promise.reject(new Error(`forge render: no terrain source for ${guid}`)),
+      ),
     shapeGeometry: (primitive) => owner.acquire(resourceKey.shape(primitive), () => createShapeGeometry(primitive)),
     shapeMaterial: (color, doubleSided) =>
       owner.acquire(shapeMaterialKey(color, doubleSided), () => createShapeMaterial(color, doubleSided)),

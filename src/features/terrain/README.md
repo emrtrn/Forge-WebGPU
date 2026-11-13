@@ -10,5 +10,10 @@ Yükseklik haritalı arazi (Forge WebGL'deki Landscape aktörü).
 - `feature.ts`: yalnız bileşeni kurar.
 - Arazi hücreden büyük olduğu için aktörü kalıcı katmandadır
   (`spatiallyLoaded: false`).
-- Algoritmalar `src/engine/terrain`'de; salt çizim Faz 3 adım 8'de, üretim
-  kalitesi ve akış 5a'da, collider Faz 6'da gelir.
+- `render.ts`: salt çizim (Faz 3 adım 8, spike S2'nin TSL CDLOD'u,
+  `src/render/materials/terrain.ts`): belge, bütün tile'lar ve katman
+  materyalleri (GUID) host önbelleğinden (`terrain:<guid>`); kamera 0,1 m
+  kıpırdayınca LOD yeniden seçilir, frustum kesimi yok; landscape `material`'ı
+  çizilmez (Forge runtime'ı gibi).
+- Algoritmalar `src/engine/terrain`'de; üretim kalitesi, kesim ve akış 5a'da,
+  collider Faz 6'da gelir.

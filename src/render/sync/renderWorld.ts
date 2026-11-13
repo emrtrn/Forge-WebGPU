@@ -18,6 +18,7 @@ import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { defineFeature, defineSubsystem, type FeatureDef, type SubsystemContext } from "../../core/index.ts";
 import type { ResourceCache } from "../resources/resourceCache.ts";
 import type { SurfaceMaterials } from "../resources/surfaceMaterials.ts";
+import type { TerrainSource } from "../resources/terrains.ts";
 import { createWorldResources, type ModelSource, type WorldResources } from "../resources/worldResources.ts";
 import { createDefaultLighting } from "./defaultLighting.ts";
 import { createEnvironmentOverride } from "./environment.ts";
@@ -41,6 +42,8 @@ export interface RenderFeatureOptions {
   readonly models: ModelSource;
   /** `forge.material` assets; absent in tests that draw none. */
   readonly materials?: SurfaceMaterials;
+  /** `forge.terrain` data; absent in tests that draw none. */
+  readonly terrains?: TerrainSource;
   readonly bindings: readonly RenderBindingDef[];
   /** The world's features: a binding runs only when its feature is installed. */
   readonly features: readonly FeatureDef[];
@@ -69,7 +72,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       const root = new Group();
       root.name = "actors";
       scene.add(root);
-      const resources = createWorldResources(options.cache, options.name, options.models, options.materials ?? null);
+      const resources = createWorldResources(options.cache, options.name, options.models, options.materials ?? null, options.terrains ?? null);
       const view: RenderWorldView = {
         services: ctx.services,
         actor: (id) => ctx.actor(id),

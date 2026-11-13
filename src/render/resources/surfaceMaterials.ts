@@ -26,11 +26,25 @@ export class MaterialNotFoundError extends Error {
   }
 }
 
+/** What a terrain paint layer draws from its material (plan phase 3 step 8; Forge's loadForgeMaterialLayer, read-only drawing). */
+export interface TerrainLayerMaterial {
+  readonly baseColor: string;
+  /** The base colour texture (sRGB, shared through the cache); null without one or when it failed. */
+  readonly baseColorTexture: Texture | null;
+  readonly uvTiling: readonly [number, number];
+  readonly roughness: number;
+  /** Metres per texture repeat; 0 uses the terrain's default tiling. */
+  readonly terrainMetersPerRepeat: number;
+  readonly flipY: boolean;
+}
+
 export interface SurfaceMaterials {
   /** The cache key of a material with these contributions. */
   key(guid: string, contributions?: MaterialContributions): string;
   /** Builds the material (the cache calls this once per key). */
   build(guid: string, contributions?: MaterialContributions): Promise<Material>;
+  /** A terrain layer's inputs from the material; its texture is held by the host-level owner like a cached material's. */
+  terrainLayer(guid: string): Promise<TerrainLayerMaterial>;
 }
 
 export interface SurfaceMaterialOptions {
@@ -82,6 +96,25 @@ export function createSurfaceMaterials(options: SurfaceMaterialOptions): Surface
       const material = createSurfaceMaterial(fields, textures, contributions);
       material.name = guid;
       return material;
+    },
+    async terrainLayer(guid) {
+      const fields = (await data(guid)) as SurfaceMaterialData & { terrainMetersPerRepeat?: number };
+      let baseColorTexture: Texture | null = null;
+      if (fields.baseColorTexture) {
+        try {
+          baseColorTexture = await options.textureOwner.acquire(resourceKey.texture(fields.baseColorTexture, "srgb"), () => options.textures.load(fields.baseColorTexture!, "srgb"));
+        } catch (error) {
+          warn(`forge render: terrain layer material ${guid} draws without texture ${fields.baseColorTexture}`, error);
+        }
+      }
+      return {
+        baseColor: fields.baseColor,
+        baseColorTexture,
+        uvTiling: [fields.uvTiling[0], fields.uvTiling[1]],
+        roughness: fields.roughness,
+        terrainMetersPerRepeat: fields.terrainMetersPerRepeat ?? 0,
+        flipY: fields.flipY,
+      };
     },
   };
 }
