@@ -3,7 +3,7 @@
 // profile (cascades for a cascaded sun, the follow map otherwise).
 
 import { describe, expect, test } from "vitest";
-import { PerspectiveCamera, Vector3, type DirectionalLight, type Light, type Scene } from "three/webgpu";
+import { PerspectiveCamera, Quaternion, Vector3, type DirectionalLight, type Light, type Scene } from "three/webgpu";
 import { createSchemaRegistry, installFeatures, type ActorDoc, type Transform } from "../../core/index.ts";
 import { actorId } from "../../core/level/testKit.ts";
 import { resolveQualitySettings, type QualitySettings } from "../../engine/perf/qualityProfiles.ts";
@@ -158,5 +158,41 @@ describe("light binding", () => {
     expect(followSun.shadow.camera.right).toBeCloseTo(half);
     expect(followSun.shadow.camera.far).toBeCloseTo(300);
     plain.world.dispose();
+  });
+
+  test("a directional light lives in the world frame: CSMShadowNode reads its local position and target as world and adds the cascade lights to its parent", () => {
+    // Every imported level's sun actor sits at (3, 9, 4) and is turned. Under the actor's holder the
+    // cascades were fitted to the camera turned about that actor, so far from the origin (every
+    // terrain level) no cascade covered the view and nothing cast a shadow (phase 3 step 9 grid).
+    const turned: Transform = { p: [3, 9, 4], r: [-0.4403775, 0.2667293, -0.1388505, 0.8459573], s: [1, 1, 1] };
+    const registry = createSchemaRegistry();
+    installFeatures([lightFeature], registry);
+    const attached: RenderWorld[] = [];
+    const render = createRenderFeature({
+      cache: createResourceCache(),
+      models: { load: async () => ({ scene: null as never, slots: [], slotMaterials: [] }) },
+      bindings: [lightBinding],
+      features: [lightFeature],
+      name: "frame",
+      camera: () => null,
+      quality: () => resolveQualitySettings("high"),
+      attach: (world) => attached.push(world),
+    });
+    const world = createWorld({ strict: true, registry, resolveClass: () => undefined, features: [lightFeature, render] });
+    world.init();
+    world.addActors([{ id: actorId("1"), name: "Sun", class: null, parent: null, spatiallyLoaded: true, transform: turned, components: { light: { parent: null, local: IDENTITY, ...sun({ cascadedShadows: true }) } as never } }], "level");
+    world.beginPlay();
+    world.tick(0.016);
+    const light = lightsIn(attached[0]!.scene)[0] as DirectionalLight;
+    const parent = light.parent!;
+    parent.updateWorldMatrix(true, false);
+    expect(parent.matrixWorld.equals(parent.matrixWorld.clone().identity()), "the light's parent is the world frame").toBe(true);
+    expect(light.target.parent).toBe(parent);
+    const round = (vector: Vector3) => vector.toArray().map((value) => Math.round(value * 1e5) / 1e5 + 0);
+    expect(round(light.position)).toEqual([3, 9, 4]);
+    // The target one metre along the actor's -Z, in world space.
+    const ahead = new Vector3(0, 0, -1).applyQuaternion(new Quaternion(...turned.r)).add(new Vector3(...turned.p));
+    expect(round(light.target.position)).toEqual(round(ahead));
+    world.dispose();
   });
 });

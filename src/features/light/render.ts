@@ -1,6 +1,11 @@
 // Lights: render binding (plan phase 3 step 3, architecture §4.9). One three
 // light per component, placed by the component's world matrix: a directional
 // or spot light shines along its local -Z (its target sits one metre ahead).
+// Point and spot lights hang under the component's holder. A directional light
+// and its target sit in the root (the world frame) and are placed from the
+// holder each frame: CSMShadowNode reads the light's local position and target
+// as world and adds its cascade lights to the light's parent, so under a moved
+// or turned actor the cascades missed the view (phase 3 step 9).
 // Forge WebGL's light setup (engine/render-three/lights.ts) without the editor
 // gizmo: colour, intensity, reach, decay, cone angle and penumbra as authored.
 //
@@ -40,6 +45,21 @@ const lightWorld = new Vector3();
 const targetWorld = new Vector3();
 const forward = new Vector3();
 
+/** A directional light (a child of the world-frame root) at its holder, aimed along the holder's -Z. */
+function placeInWorld(light: DirectionalLight, holder: Object3D): void {
+  holder.updateWorldMatrix(true, false);
+  const parent = light.parent;
+  parent?.updateWorldMatrix(true, false);
+  light.position.setFromMatrixPosition(holder.matrixWorld);
+  light.target.position.set(0, 0, -1).applyMatrix4(holder.matrixWorld);
+  if (parent) {
+    parent.worldToLocal(light.position);
+    parent.worldToLocal(light.target.position);
+  }
+  light.updateMatrixWorld();
+  light.target.updateMatrixWorld();
+}
+
 export default defineRenderBinding({
   feature: "forge.light",
   create(ctx) {
@@ -70,16 +90,21 @@ export default defineRenderBinding({
         const light = new SpotLight(data.color, data.intensity, data.distance, MathUtils.degToRad(data.angle), data.penumbra, data.decay);
         entry = { kind, actor: actor.id, holder, light, data };
       }
-      // three's directional / spot constructors start at (0, 1, 0); the holder owns the position.
-      entry.light.position.set(0, 0, 0);
       entry.light.name = holder.name;
-      holder.add(entry.light);
-      if (entry.kind !== "point") {
-        entry.light.target.position.set(0, 0, -1);
-        holder.add(entry.light.target);
+      ctx.root.add(holder);
+      if (entry.kind === "directional") {
+        ctx.root.add(entry.light, entry.light.target);
+        placeInWorld(entry.light, holder);
+      } else {
+        // three's spot constructor starts at (0, 1, 0); the holder owns the position.
+        entry.light.position.set(0, 0, 0);
+        holder.add(entry.light);
+        if (entry.kind === "spot") {
+          entry.light.target.position.set(0, 0, -1);
+          holder.add(entry.light.target);
+        }
       }
       placed.set(`${actor.id}/${key}`, entry);
-      ctx.root.add(holder);
     };
 
     const remove = (id: string): void => {
@@ -88,6 +113,10 @@ export default defineRenderBinding({
       placed.delete(id);
       if (entry.kind === "directional") entry.cascades.deactivate();
       entry.holder.removeFromParent();
+      if (entry.kind === "directional") {
+        entry.light.removeFromParent();
+        entry.light.target.removeFromParent();
+      }
       entry.light.dispose();
     };
 
@@ -113,9 +142,7 @@ export default defineRenderBinding({
         const override = ctx.environment.override;
         if (theSun) {
           // The authored aim each frame; the override and the follow map move it from there.
-          theSun.light.position.set(0, 0, 0);
-          theSun.light.target.position.set(0, 0, -1);
-          theSun.holder.updateWorldMatrix(true, true);
+          placeInWorld(theSun.light, theSun.holder);
           if (override?.light) {
             applySunOverride(theSun.light, theSun.data.color, override.light);
           } else {
