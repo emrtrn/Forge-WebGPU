@@ -21,13 +21,17 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
-import { RENDER_REFS, REPO_ROOT, SMOKE_QUALITY, SMOKE_SCENES } from "./renderScenes.ts";
+import { RENDER_REFS, REPO_ROOT, SMOKE_QUALITY, SMOKE_SCENES, SMOKE_VIEWPORT } from "./renderScenes.ts";
 import { git, openSmokeLevel } from "./smokePage.ts";
 
 /** Below this the image is blank or flat (luminance, 0 - 255). */
 const MIN_LUMINANCE_STD = 4;
 /** A mostly black image is a failed draw, not a dark scene. */
 const MIN_LUMINANCE_MEAN = 8;
+
+// The Phase 0 shots' resolution, so a shot sits next to its WebGL counterpart pixel for pixel
+// (`npm run smoke:grid`). The viewer smoke and the measurements keep the config's 1280 x 720.
+test.use({ viewport: SMOKE_VIEWPORT, deviceScaleFactor: 1 });
 
 const threeVersion = (JSON.parse(readFileSync(join(REPO_ROOT, "node_modules/three/package.json"), "utf8")) as { version: string }).version;
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");

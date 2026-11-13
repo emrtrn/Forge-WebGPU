@@ -33,7 +33,8 @@ export interface OpenedLevel {
 
 /** Opens `level` at `pose` with the smoke profile and waits until it is ready; a boot error throws. `query` adds URL parameters (`&debug`). */
 export async function openSmokeLevel(page: Page, level: string, pose: SmokePose, query = ""): Promise<OpenedLevel> {
-  const cameraPose = pose.position && pose.target ? { position: pose.position, quaternion: quaternionOf(pose as Required<SmokePose>) } : null;
+  const quaternion = pose.quaternion ? [...pose.quaternion] as [number, number, number, number] : pose.position && pose.target ? quaternionOf(pose as Required<SmokePose>) : null;
+  const cameraPose = pose.position && quaternion ? { position: pose.position, quaternion } : null;
   if (cameraPose) await page.addInitScript((value) => localStorage.setItem("forge.play.cameraPose", value), JSON.stringify(cameraPose));
   const settings = {
     schema: 1,
