@@ -1,6 +1,9 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.14 · 2026-11-13 (v1.13'ten fark: Faz 3 adım 8 — §4.9 görüntüleyicinin
+**Sürüm:** v1.15 · 2026-11-13 (v1.14'ten fark: Faz 3 adım 9 ve kapanış — §4.9 yönlü
+ışıklar dünya çerçevesinde (`CSMShadowNode`'un koşulu); §4.10 smoke tam seti Faz 0
+pozları ve çözünürlüğüyle, yan yana ızgara, kabul edilen referanslar.
+v1.14 · 2026-11-13 (v1.13'ten fark: Faz 3 adım 8 — §4.9 görüntüleyicinin
 uygulaması (instancing, terrain salt çizimi, kamera, `?debug`); §4.6 veri belgesi
 başvuru yolları ve katman materyali GUID; §4.8 paket manifesti `requires`
 (kullanıcı kararları).
@@ -1202,7 +1205,13 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   haritayla gölge düşürür; Forge'un sınır haritası, kademeli kaskat yenileme
   ve doku birimi bütçesi yok. Gölge bias'ı −0,0005, normal bias 0,02 (takipli
   harita dahil). Ana gölge anahtarı (`shadowsEnabled`) host'ta; çevrilince
-  sahnenin lit materyalleri yeniden kurulur.
+  sahnenin lit materyalleri yeniden kurulur. *Adım 9 (2026-11-13):* yönlü
+  ışık ve hedefi render kökünde (dünya çerçevesi) durur, her karede bileşenin
+  holder'ından yerleşir; nokta / spot ışık holder'ın altında kalır.
+  `CSMShadowNode` ışığın yerel konumunu ve hedefini dünya sayar ve kaskat
+  ışıklarını ışığın ebeveynine ekler: dönük / taşınmış bir aktörün altında
+  kaskatlar görüşü ıskalıyordu (terrain level'larında hiç statik gölge yoktu;
+  Faz 0 ızgarasında bulundu).
 - *Çevre, uygulama (adım 5, 2026-11-13):* tekiller `forge.skyAtmosphere` +
   `forge.skyLight` (tek özellik `forge.sky`: Sky Light gökyüzünü yakalar),
   `forge.cloudLayer`, `forge.worldEnvironment`. **Kullanıcı kararları
@@ -1354,7 +1363,16 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   `-- --update-snapshots` ile yazılır; kayıt ve çekim `render-refs/runs/`'a;
   sunucu her koşuda yeniden başlatılır, var olan sunucu kullanılmaz. Gate'e
   ve CI'a girmez; `render/**` ya da `features/*/render.ts` dokunan push'tan
-  önce elle çalışır.
+  önce elle çalışır. *Tam set (adım 9, 2026-11-13):* terrain level'ları Faz 0
+  pozlarında (P1–P3, konum + kuaterniyon `baseline/poses.json`'dan), L03 p1,
+  Faz 0 pozu olmayan iki level görüntüleyicinin çerçevelemesiyle (15 çekim);
+  render smoke'u Faz 0 çekimlerinin boyutunda (1920 × 1080, DPR 1), kamera /
+  `?debug` smoke'ları ve ölçümler 1280 × 720. `npm run smoke:grid` her pozun
+  Faz 0 WebGL çekimini smoke'un son WebGPU çekimiyle yan yana koyan yerel
+  sayfayı (`render-refs/grid.html`) yazar; eşleşmeyenleri başta listeler.
+  Referanslar kullanıcı kabulüyle yazıldı (2026-11-13); karşılaştırma
+  `maxDiffPixelRatio` 0,01 (GTAO / gren gürültüsü bu eşiğin içinde, ikinci
+  koşu 15 / 15).
 - **Dağıtım tabanı:** bütün URL'ler `base`'e göre; alt dizin yayını ilk günden
   test edilir (F06).
 - **Asset kökeni:** içe aktarmada tür + lisans + kaynak zorunlu; CI'da kapı

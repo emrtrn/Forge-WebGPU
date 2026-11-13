@@ -156,4 +156,5 @@ Vitest, build. Aynı kapı CI'da. Render kabulü yerelde, gerçek WebGPU
 backend'inde: `npm run smoke:render` (Playwright, başlıklı Chrome, port 5283;
 gate'te ve CI'da değil, `render/**` ya da `features/*/render.ts` dokunan
 push'tan önce; `tests/smoke/`, referans görüntüler ve koşu kayıtları depo
-dışında `Games/ForgeReference/render-refs/`; rapor §4.10).
+dışında `Games/ForgeReference/render-refs/`; Faz 0 ile yan yana sayfa
+`npm run smoke:grid`; rapor §4.10).
