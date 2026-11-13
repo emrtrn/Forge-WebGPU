@@ -136,6 +136,19 @@ describe("light binding", () => {
     expect((csmSun.shadow as { shadowNode?: unknown }).shadowNode ?? null).toBeNull();
     cascaded.world.dispose();
 
+    // Forge's "count or sun changes rebuild the cascades": a new count is a new node, an unchanged one keeps it.
+    const rebuilt = boot({ Sun: sun({ cascadedShadows: true }) }, resolveQualitySettings("high"));
+    const rebuiltSun = rebuilt.lights()[0] as DirectionalLight;
+    const first = (rebuiltSun.shadow as { shadowNode?: unknown }).shadowNode;
+    rebuilt.world.tick(0.016);
+    expect((rebuiltSun.shadow as { shadowNode?: unknown }).shadowNode).toBe(first);
+    rebuilt.settings.current = { ...resolveQualitySettings("high"), shadowCascades: 2 };
+    rebuilt.world.tick(0.016);
+    const second = (rebuiltSun.shadow as { shadowNode?: unknown }).shadowNode as { cascades: number };
+    expect(second).not.toBe(first);
+    expect(second.cascades).toBe(2);
+    rebuilt.world.dispose();
+
     const plain = boot({ Sun: sun() }, resolveQualitySettings("medium"));
     const followSun = plain.lights()[0] as DirectionalLight;
     expect(followSun.castShadow).toBe(true);
