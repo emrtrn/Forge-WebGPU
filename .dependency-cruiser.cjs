@@ -57,9 +57,9 @@ module.exports = {
     },
     {
       name: "three-only-in-render",
-      comment: "three/webgpu and three/tsl belong to src/render and features/*/render.ts.",
+      comment: "three/webgpu and three/tsl belong to src/render, features/*/render.ts and features/*/editorRender.ts (phase 4 decision 1).",
       severity: "error",
-      from: { pathNot: ["^src/render/", role("render")] },
+      from: { pathNot: ["^src/render/", role("render"), role("editorRender")] },
       to: { path: THREE },
     },
     {
@@ -68,6 +68,14 @@ module.exports = {
       severity: "error",
       from: { pathNot: ["^src/editor/", "^src/editor-sdk/", role("editor")] },
       to: { path: ["^src/editor/", role("editor")], dynamic: false },
+    },
+    {
+      name: "editor-render-is-editor-only",
+      comment:
+        "The editor's 3D code (src/render/editor) and a feature's helper drawing (features/*/editorRender.ts) are reached only from the editor (phase 4 decision 1): nothing in the game names them, statically or dynamically, so no game chunk carries them.",
+      severity: "error",
+      from: { pathNot: ["^src/editor/", "^src/render/editor/", role("editor"), role("editorRender")] },
+      to: { path: ["^src/render/editor/", role("editorRender")] },
     },
     {
       name: "sdk-excludes-editor",
@@ -83,7 +91,7 @@ module.exports = {
       to: {
         path: [
           "^src/(engine|render|runtime|gameplay|editor|sdk|editor-sdk)/",
-          `${FEATURE}(runtime|render|editor|feature)\\.ts$`,
+          `${FEATURE}(runtime|render|editor|editorRender|feature)\\.ts$`,
         ],
       },
     },
@@ -93,7 +101,7 @@ module.exports = {
         "feature.ts never references the editor, not even lazily: Rollup emits a chunk for every import() and the editor would land in the game build. The editor host collects features/*/editor.ts itself.",
       severity: "error",
       from: { path: role("feature") },
-      to: { path: ["^src/editor/", "^src/editor-sdk/", role("editor")] },
+      to: { path: ["^src/editor/", "^src/editor-sdk/", role("editor"), role("editorRender")] },
     },
     {
       name: "feature-does-not-name-render",
@@ -117,7 +125,7 @@ module.exports = {
       to: {
         path: [
           "^src/(render|runtime|gameplay|editor|sdk|editor-sdk)/",
-          `${FEATURE}(runtime|render|editor|feature)\\.ts$`,
+          `${FEATURE}(runtime|render|editor|editorRender|feature)\\.ts$`,
           "^src/main\\.ts$",
         ],
       },

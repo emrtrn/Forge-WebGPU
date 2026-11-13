@@ -23,5 +23,9 @@
   { "rule": "tools-are-node-only", "from": "tools/usesRender.ts" },
   { "rule": "src-does-not-import-tools", "from": "src/engine/usesTools.ts" },
   { "rule": "engine-testing-is-test-only", "from": "src/engine/usesTestingLoop.ts" },
-  { "rule": "engine-legacy-stays-in-engine", "from": "src/runtime/usesLegacy.ts" }
+  { "rule": "engine-legacy-stays-in-engine", "from": "src/runtime/usesLegacy.ts" },
+  { "rule": "feature-does-not-name-editor", "from": "src/features/sleet/feature.ts" },
+  { "rule": "editor-render-is-editor-only", "from": "src/features/sleet/feature.ts" },
+  { "rule": "editor-render-is-editor-only", "from": "src/features/sleet/render.ts" },
+  { "rule": "editor-render-is-editor-only", "from": "src/render/usesEditorOverlay.ts" }
 ]

@@ -78,8 +78,10 @@ projenin sunucusunu yeniden kullanma.
 `gameplay`; `editor` hepsini görür ama yalnız dinamik import'la yüklenir.
 `tools/` Node'da çalışır; `core`, `engine` ve özellik şemalarını yükler.
 
-- three (`three/webgpu`, `three/tsl`) yalnız `src/render/**` ve
-  `src/features/*/render.ts` içinde. `import type` de sayılır.
+- three (`three/webgpu`, `three/tsl`) yalnız `src/render/**`,
+  `src/features/*/render.ts` ve `src/features/*/editorRender.ts` içinde.
+  `import type` de sayılır. Editörün 3B kodu `src/render/editor/`'da;
+  onu ve `editorRender.ts`'i yalnız editör anar (`editor-render-is-editor-only`).
 - Bir özellik tek klasördür: `src/features/<ad>/{schema,runtime,render,editor,feature}.ts`.
   `schema.ts` Node'da da yüklenir; yalnız `core` import eder. `feature.ts`
   `editor.ts`'i hiç anmaz (statik de dinamik de); editör host'u onu kendisi toplar.
