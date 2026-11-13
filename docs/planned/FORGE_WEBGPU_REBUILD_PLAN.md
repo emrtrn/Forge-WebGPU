@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
+**Sürüm:** v1.9 · 2026-11-13 (v1.8'den fark: Faz 3 adım 7 tamam — olay bazlı gün saati: `timeTransition`, `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri), Sky Light yakalaması aynı PMREM'e, ölçülerek seçilen yakalama hızı (açı + 0,1 sn + durunca son yakalama), `npm run measure:sky-capture`; kullanıcı kararları; mimari v1.13. v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
 `forge.skyAtmosphere` / `forge.skyLight` (arka plan ve ortam ışığı dahil,
 kullanıcı kararı) / `forge.cloudLayer` / `forge.worldEnvironment` (sabit
 saat), TSL gökyüzü + ay + yıldız, PMREM Sky Light, bulut, WES yorumu,
@@ -510,7 +510,34 @@ harita, hafıza):
    Referans projesi kullanıcı onayıyla yeniden alındı (7 level `--compare`'de eşit; L03
    smoke'ta `scene,gtao,smaa,bloom,output`, GPU 0,6 ms). **A 934 / 1.021**; adıma düşen
    R: 9 yeniden yazıldı, 1 düştü (`PORT_LOG` §2).
-7. Olay bazlı gün saati (`timeTransition`, ayrı commit) + yakalama sıklığı ölçümü.
+7. ~~Olay bazlı gün saati (`timeTransition`, ayrı commit) + yakalama sıklığı ölçümü.~~ —
+   **tamam** (2026-11-13, `1930135` saf modül, `3e87850` servis, `66d34a6` yakalama
+   hızı, `dac9605` render + ölçüm). `engine/environment/timeTransition.ts`: saat
+   simülasyon saniyesiyle smoothstep'le ileri yürür, sonra durur; yeni geçiş ulaştığı
+   saatten başlar. `WorldEnvironmentService.transitionTo({ hour, seconds })` taşınmış
+   controller'da, `forge.worldEnvironment` alt sisteminin `prePhysics` tick'inde
+   yürür. **Kullanıcı kararları (2026-11-13):** controller'a eklenir; bitiş
+   `Promise<boolean>` (vardı: true; yeni geçiş, `setHour`, level boşalması: false);
+   yön hep ileri (20 → 6 gece yarısını geçer, aynı saat geçiş değil); yakalama hızı
+   aşağıdaki ölçümden "açı + 0,1 sn sınır". **Ölçüm düzeneği:** `npm run
+   measure:sky-capture` (`tests/smoke/skyCapture.measure.ts`, smoke sunucusu ve
+   profili `high`, L03, 1280×720): dev'e özel `window.__forgeDev` kare döngüsünü
+   duraklatıp 60 Hz adımlar; önce yakalama tezgâhı (aynı PMREM'e 1 ve 20 ardışık
+   yakalama, timestamp sorgusu), sonra beş geçiş (10 → 22 ve 22 → 10 5 sn, 10 → 22
+   2 / 10 sn, 10 → 14 5 sn) kare kare: yakalama sayısı, en uzun ardışık yakalama,
+   kare ve yakalama CPU'su; kayıt `render-refs/runs/*-sky-capture.json`.
+   **Sonuç (NVIDIA Ampere, Chrome 157):** 256'lık PMREM yakalaması tek başına
+   ~3,3–3,5 ms GPU, ~1,3–2,2 ms CPU. Forge'un açı politikası 5 sn gündüz → gece
+   60 Hz'de 69 yakalama, ufukta 21 kare üst üste. Yakalama her seferinde yeni doku
+   üretiyordu, onu örnekleyen materyaller yeniden kuruluyordu (yakalayan kare ~11 ms
+   CPU): artık aynı hedefe yazılır (~2 ms). Seçilen kural (`recaptureRate.ts`):
+   Forge açı politikası + güneş hareket ederken yakalamalar arası en az 0,1 sn
+   (simülasyon zamanı) + güneş durunca son konumda bir yakalama (Forge'un politikası
+   durağan saati 3°'ye kadar eski bırakıyordu); hava / mevsim değişimi anında. Aynı
+   geçişte 38 yakalama, ardışık en çok 1; renk en çok ~6° geride, parlaklık telafiyle
+   köprülenir. Adımlı karenin GPU zamanı yakalamaya atanamıyor (yakalayan kare
+   ~0,1 ms okur); GPU maliyeti tezgâhtan. Render smoke yeşil. **A 934 / 1.021**
+   (kutunun ertelenmiş A'sı ve R'si yok).
 8. Görüntüleyiciyi tamamla: instancing (kip b), terrain salt çizimi, bütün
    referans level'lar, kamera, `?debug`.
 9. Smoke tam set + Faz 0 görüntüleriyle yan yana ızgara → kullanıcı kabulü → kapı.
@@ -542,11 +569,14 @@ harita, hafıza):
       SSR, düz yüzeyler planar (Faz 7). *Adım 5 (2026-11-13):* dört tekil +
       çeviriciler, TSL gökyüzü / ay / yıldız / bulut, PMREM Sky Light, WES
       yorumu, arka plan ve ortam ışığı Sky Light'ta. Görsel kabul kapıda.
-- [ ] Olay bazlı gün saati: level'da saat varsayılan olarak durur; gün / gece
+- [x] Olay bazlı gün saati: level'da saat varsayılan olarak durur; gün / gece
       değişimi zamanlı bir geçiştir (süre parametreli), sonra saat yine durur
       (karar 8). Geçiş sırasında sky light / IBL yeniden yakalama sıklığı
       ölçülerek seçilir. (Forge'da `setHour` anlık atlıyordu.) *Adım 5:* sabit
-      saat (`forge.worldEnvironment.hour`, gün uzunluğu yok); geçiş adım 7'de.
+      saat (`forge.worldEnvironment.hour`, gün uzunluğu yok). *Adım 7
+      (2026-11-13):* `transitionTo` (`Promise<boolean>`, hep ileri), yakalama aynı
+      PMREM'e, açı + 0,1 sn + durunca son yakalama; ölçüm `npm run
+      measure:sky-capture`. Görsel kabul kapıda.
 - [x] `RenderPipeline` + kalite profilleri (§2.4, karar 3). Profil tanımı S3'te
       (Faz 1). Post Process'te yansıma seçeneği `reflection: off | ssr`
       (kullanıcı kararı 2026-11-11); profil izin verir, zorla açmaz. MRT sınırı
@@ -892,3 +922,4 @@ silinebilir.
 | 2026-11-13 | v1.7 | Referans projesi (`webgpu-scenes`) kullanıcı onayıyla çevre çeviricileriyle yeniden alındı: 7 level'da gökyüzü / Sky Light / bulut / WES sayımları `--compare`'de eşit, `check:projects` ve smoke (L03) gerçek WebGPU'da yeşil; ForgeReference README'si ve içe aktarma raporları güncellendi |
 | 2026-11-13 | v1.8 | Faz 3 adım 6 (`5d8c8cc`, `7e202d4`): `forge.postProcess` (+ TRAA, SSR seçimi) ve içe aktarıcı çeviricisi, `applyQualityToPostProcess` bileşen verisine; TSL `RenderPipeline` (MRT'li sahne pass'i, GTAO / SSGI / SSR / TRAA / SMAA / DoF / bloom / renk düzeltme / renk sapması / vignette / gren, ton eşleme), MRT 30 bayt + profil başına test + cihaz sondası, çıktı dönüşümü bağlamalardan önce. Kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA. 9 R yeniden yazıldı, 1 düştü; A 934 / 1.021 |
 | 2026-11-13 | v1.8 | Referans projesi (`webgpu-scenes`) kullanıcı onayıyla Post Process çeviricisiyle yeniden alındı: 7 level `--compare`'de eşit (L03 ve Derekavak'ta `forge.postProcess`), `check:projects` ve smoke (L03 pipeline'la, gerçek WebGPU) yeşil; ForgeReference README'si ve içe aktarma raporları güncellendi |
+| 2026-11-13 | v1.9 | Faz 3 adım 7, olay bazlı gün saati (`1930135`, `3e87850`, `66d34a6`, `dac9605`): `timeTransition` (saf, testli), `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri; kullanıcı kararları) alt sistemin tick'inde; Sky Light yakalaması aynı PMREM'e (materyal yeniden kurulumu kalktı), yakalama hızı ölçümle (kullanıcı kararı: Forge açı politikası + 0,1 sn sınır + güneş durunca son yakalama); `npm run measure:sky-capture` (NVIDIA Ampere: yakalama ~3,3–3,5 ms GPU, 5 sn geçişte 69 → 38 yakalama, ardışık en çok 1). A 934 / 1.021 değişmedi; render smoke yeşil |

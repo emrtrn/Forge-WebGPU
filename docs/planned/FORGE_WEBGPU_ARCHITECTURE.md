@@ -1,6 +1,10 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.12 · 2026-11-13 (v1.11'den fark: Faz 3 adım 6 — §4.9 pipeline
+**Sürüm:** v1.13 · 2026-11-13 (v1.12'den fark: Faz 3 adım 7 — §4.9 olay
+bazlı gün saatinin uygulaması: `transitionTo` (`Promise<boolean>`, hep ileri;
+kullanıcı kararları), Sky Light yakalaması aynı PMREM'e, ölçülen yakalama hızı
+(açı + 0,1 sn + durunca son yakalama; kullanıcı kararı).
+v1.12 · 2026-11-13 (v1.11'den fark: Faz 3 adım 6 — §4.9 pipeline
 uygulaması: plan + tek `RenderPipeline`, MRT sondası, çıktı dönüşümü bağlamalardan
 önce (`ctx.output` salt okunur), renderer `antialias: true` (MSAA yalnız
 pipeline'sız çizimde), kullanıcı kararları: gökyüzü kubbesi Post Process altında,
@@ -1266,6 +1270,21 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   `engine/environment/timeTransition.ts`, taşımadan ayrı). Geçişte sky light /
   IBL yeniden yakalama sıklığı ölçülerek seçilir (`recapturePolicy`'nin açı
   eşiği ve PMREM maliyeti).
+- *Olay bazlı gün saati, uygulama (adım 7, 2026-11-13):* `timeTransition.ts`
+  saf (smoothstep, simülasyon saniyesi, adımların toplamı süreye yuvarlanır);
+  taşınmış `WorldEnvironmentController`'a `transitionTo` / `transitioning`
+  eklendi, `advance` geçişi yürütür, `forge.worldEnvironment` alt sistemi
+  `prePhysics`'te tick'ler. **Kullanıcı kararları (2026-11-13):** dönüş
+  `Promise<boolean>` (hedefe vardı: true; yeni geçiş, `setHour`, level boşalması
+  ya da WES yokluğu: false); zaman hep ileri (hedef küçükse gece yarısı geçilir,
+  aynı saat geçiş değil); süresiz / mesafesiz istek saati anında kurar. Sky Light:
+  yakalama aynı PMREM hedefine (`CapturedEnvironment.recapture`; yeni doku her
+  yakalamada onu örnekleyen materyalleri yeniden kuruyordu); WES altında karar
+  `recaptureRate.ts` (**kullanıcı kararı, ölçümden:** Forge açı politikası +
+  güneş hareket ederken en az 0,1 sn + güneş durunca son konumda bir yakalama;
+  hava / mevsim anında, kaydırılan saat hiç). Ölçüm: yakalama ~3,3–3,5 ms GPU
+  (256, NVIDIA Ampere); düzenek `npm run measure:sky-capture`, dev'e özel
+  `window.__forgeDev` (kare döngüsünü duraklatıp adımlar, `runtime/steppableScheduler`).
 - *Terrain:* Faz 3'te salt çizim (spike S2'nin TSL CDLOD'u: yükseklik, 8
   katman, normal, gölge); su birikintisi, kıyı, kostik, tile akışı ve üretim
   kalitesi 5a'da. HLOD 5b'de.

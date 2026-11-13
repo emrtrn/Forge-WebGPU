@@ -115,8 +115,10 @@ rapor §4.7, §4.9): `model:`, `texture:<guid>:<srgb|linear>`,
 katkıları sabit sırayla (world mask → fade → rüzgâr → ıslaklık → göçük;
 rapor §4.9). Çevre tekillerdir (`forge.skyAtmosphere`, `forge.skyLight`:
 IBL + ortam ışığı + arka plan, `forge.cloudLayer`, `forge.worldEnvironment`:
-sabit saat); World Environment'ın yorumu kare başına bir kez
-`ctx.environment.override`'a, bağlamalar kendi parçasını çizer (rapor §4.9).
+sabit saat, oyun `transitionTo` ile zamanlı geçirir); World Environment'ın
+yorumu kare başına bir kez `ctx.environment.override`'a, bağlamalar kendi
+parçasını çizer; Sky Light aynı PMREM'e, ölçülmüş hızla yeniden yakalanır
+(rapor §4.9).
 
 ## Oyun projesi sözleşmesi
 
