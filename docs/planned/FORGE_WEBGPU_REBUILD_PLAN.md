@@ -434,9 +434,9 @@ harita, hafıza):
    `forge.shape`'in `castShadow`'u (adım 4, varsayılan açık) ve içe aktarıcı
    Forge'un `staticObjectsCastShadow`'unu yerleşimlere çözer; gölge almak hep
    açık. O zamana kadar bütün şekil / mesh'ler gölge atıp alır. İçe aktarıcı
-   ışıkları çevirir; **referans projesinin yeniden içe aktarılması kullanıcı
-   onayını bekliyor** (`--force` dış projeye yazar; scratch kopyada `--compare`
-   eşit, smoke kaskatlı güneşle yeşil). Starter paketinde level yok, değişmez.
+   ışıkları çevirir; referans projesi kullanıcı onayıyla `--force` ile yeniden
+   alındı (7 level'da ışık ve aktör sayımları `--compare`'de eşit, smoke
+   çevrilmiş ışıkla yeşil). Starter paketinde level yok, değişmez.
    **A 920 / 1.021**; Faz 3'te kalan ertelenmiş A 4.
 4. Materyal: şemalı JSON asset türü, `forge.material`, `forge.model` / `texture`
    / `staticMesh` sürüm 2 + geçiş, node material + katkı sırası, çeviriciler,
@@ -463,7 +463,7 @@ harita, hafıza):
 - [ ] Işık ve gölge: `CSMShadowNode`, reversed-Z (`reversedDepthBuffer` yapıcı
       seçeneği; WebGL'deki `EXT_clip_control` hilesi gerekmez), view distance.
       *Adım 3:* ışık bileşenleri, CSM, takipli gölge, reversed-Z, çevirici hazır;
-      view distance 5b'de (mimari), referans projesinin yeniden alınması onayda.
+      view distance 5b'de (mimari); referans projesi yeniden alındı.
 - [ ] Çevre: sky atmosphere, height fog, cloud layer, WES bağlantısı
       (`engine/environment` three'siz), sky light / IBL (PMREM). Sphere
       reflection capture taşınmaz (kullanıcı kararı 2026-11-11): genel yansıma
@@ -809,3 +809,4 @@ silinebilir.
 | 2026-11-13 | v1.3 | Faz 3 adım 1, dikey dilim (`093a77c`): `src/render/{host,resources,materials,pipeline,sync,viewer}`; `WebGPURenderer` (timestamp, reversed-Z), backend kanıtı + `data-forge-perf` + rozet, DPR / resize, cihaz kaybı v1; boot'un `render` aşaması; `defineRenderBinding` + `main.ts` toplaması + `feature-does-not-name-render`; GUID anahtarlı kaynak önbelleği (iki World testi), `GET /__forge/asset-files`, glTF KTX2 + meshopt three'nin libs'iyle; `forge.shape` / `forge.staticMesh` / Height Fog (TSL) çizimi, varsayılan güneş; `npm run smoke:render` (`@playwright/test` 1.61.1) L03'te gerçek WebGPU'da yeşil, aday görüntü depo dışında. 1.537 test, kapı yeşil. A 885 / 1.022; R akıbetleri `PORT_LOG` §2. Mimari v1.7 |
 | 2026-11-13 | v1.4 | Faz 3 adım 2 (`620cb3e`, `dff1176`): `engine/perf/{qualityProfiles,adaptiveQuality,hardwareHints}` ve `engine/persistence/userSettingsStore` taşındı, 17 ertelenmiş A yeşil (`port:forge tests --deferred`), GPU timer kontrolü D (payda 1.021); `src/runtime/quality` kalite sürücüsü (Forge `RuntimeSceneApp`'in kuralları), renderer piksel oranı ve perf witness profili; WebGPU izin alanları (`traaAllowed`, `ssrAllowed`, `ssgiAllowed`, `aoResolutionScale`), eşleme Balanced / GTAO'suz Balanced / Compatibility, merdiven dışı `cinematic`. Smoke `high` profiliyle yeşil. 1.564 test, kapı yeşil. **A 902 / 1.021**. Mimari v1.8 |
 | 2026-11-13 | v1.5 | Faz 3 adım 3 (`c14e11f`, `4b9a640`): `engine/world/{sunCascades,followShadow}` taşındı (18 A); `forge.light` (`forge.directionalLight` / `pointLight` / `spotLight`, güneş `atmosphereSun`), kaskatlı güneş `CSMShadowNode` (Forge bölmeleri), öteki gölgeli yönlü ışıklar takipli harita, ana gölge anahtarı host'ta; içe aktarıcı `lights[]` çevirir (güneş Forge kuralıyla), rapor / `--compare` sayar. Kullanıcı kararı: statik gölge varsayılanları bileşen başına (`castShadow`, adım 4). Smoke gerçek ve scratch referansta yeşil; referans projesinin `--force` ile yeniden alınması kullanıcı onayında. 1.595 test, kapı yeşil. **A 920 / 1.021**. Mimari v1.9 |
+| 2026-11-13 | v1.5 | Referans projesi (`webgpu-scenes`) kullanıcı onayıyla ışık çevirisiyle yeniden alındı: 7 level'da `--compare` ışık 1 / 1 ve aktör sayımları eşit, `check:projects` ve smoke (L03, kaskatlı güneş) yeşil |
