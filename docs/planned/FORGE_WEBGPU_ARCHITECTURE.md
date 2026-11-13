@@ -1,6 +1,7 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.15 · 2026-11-13 (v1.14'ten fark: Faz 3 adım 9 ve kapanış — §4.9 yönlü
+**Sürüm:** v1.16 · 2026-11-13 (v1.15'ten fark: Faz 4 tasarımı (kullanıcı kararları) — §4.2 editörün 3B kodu `src/render/editor/` ve rol `features/*/editorRender.ts`; §4.7 editör oturumu: `actorsChanged`, Forge'un gizmo'su, Play oturum katmanı, grup, hücreler; §4.8 motor içeriği kipi; §4.9 çizim katmanı ve küçük resimler; §4.10 editör smoke'ları; §4.11 ajan komutlarının yolu, okuyan komutlar, canlı tazeleme, asset editörleri.
+v1.15 · 2026-11-13 (v1.14'ten fark: Faz 3 adım 9 ve kapanış — §4.9 yönlü
 ışıklar dünya çerçevesinde (`CSMShadowNode`'un koşulu); §4.10 smoke tam seti Faz 0
 pozları ve çözünürlüğüyle, yan yana ızgara, kabul edilen referanslar.
 v1.14 · 2026-11-13 (v1.13'ten fark: Faz 3 adım 8 — §4.9 görüntüleyicinin
@@ -299,6 +300,15 @@ iki tsconfig (uygulama + Node araçları; katman sınırı A3'e göre dependency
 `@forge/sdk` takma adı tsconfig `paths` ve Vite alias'ıyla. Tek `node_modules`, A8'deki "her şey motorun bağımlılıklarından
 çözülür, ikinci three kopyası yok" kuralını doğal olarak sağlar. İleride paketleme
 gerekirse paketlenecek sınır katmanlar değil, SDK yüzeyidir (A8 API snapshot'ı).
+
+- **Editörün 3B kodu (Faz 4 kararı, 2026-11-13):** three'yi yalnız render katmanı
+  görür kuralı editörde de geçerli. Çizim katmanı, gizmo çizimi, picking, ızgara,
+  seçim çerçevesi, küçük resim ve önizlemeler `src/render/editor/`'da; onu yalnız
+  editör (dinamik import) yükler, oyun build'ine girmediğini dist kapısı denetler.
+  `src/editor` DOM ve servistir, three'siz. Özelliğe özgü yardımcı çizim (ışık
+  ikonu, hacim, kamera) yeni rol `features/*/editorRender.ts`: three ve editör
+  görür, `feature.ts` ve `render.ts` onu anmaz, editör host'u toplar. Kural ve
+  kasıtlı ihlal fixture'ı dikey dilimde (Faz 4 adım 2).
 
 ### 4.3 Dikey özellik modülü
 
@@ -871,6 +881,21 @@ düşen alan uyarı değil, **hatadır**.
   AssetService, SaveService, ModeManager (landscape / foliage / paint modları
   birer özellik), PanelHost (Outliner / Details / Content). Her servis dosya
   bütçesine tabi.
+- **Editör oturumu, Faz 4 kararları (2026-11-13):**
+  - *Düzenleme → World:* World'e `actorsChanged(actors, { transformOnly })` kancası;
+    alt sistemler ve render bağlamaları uygular, uygulamayan bağlama için varsayılan
+    çıkar + ekle. Instancing batch'inde transform hızlı yolu (gizmo sürüklemesi her
+    karede). Oturumdaki (`src/core/edit`) işlem önce oturuma, sonra World'e gider.
+  - *Gizmo:* Forge'un kendi gizmo'su (move / rotate / scale, world / local, snap,
+    pivot, zemin / duvar yapıştırma); sürükleme matematiği three'siz saf modül, çizimi
+    çizim katmanında (§4.9). Three `TransformControls` kullanılmaz.
+  - *Gruplama:* grup bileşensiz boş aktördür, çocuklar `parent` ile bağlanır; çözme
+    çocukları grubun ebeveynine bağlar ve grubu siler. Çoğaltma yeni GUID verir (A1).
+  - *Hücreler:* 5b'deki editör akışına kadar editör bütün hücreleri yükler.
+  - *Play (A6'nın yolu):* dev server'da geçici oturum katmanı `.forge-session/<id>/`;
+    editör yalnız kirli dosyaları oraya yazar, oyun sekmesi `?play=<id>` ile level'ı
+    diskten bu katmanla okur. Play proje dosyalarına yazmaz; sekme yeniden yüklenince
+    de çalışır.
 - **Oyun uygulaması:** boot + World + GameModuleHost + UI; boot hataları
   renderer kurulmadan önce de gösterilir (F10).
 - **Editör Play:** v1'de bugünkü gibi yeni sekme (karar A6). Tek kurucu, editör
@@ -1089,7 +1114,10 @@ düşen alan uyarı değil, **hatadır**.
   - *Yazma:* motor içeriği ve paketler bir projenin dev server'ından salt
     okunurdur; `/__forge/read?path=engine:...` okur (kökten kaçış, bağlantı ve
     `.` ile başlayan ad 403), `engine:` yolu proje yolu olmadığı için kayıt onu
-    reddeder. Bunları düzenleyen editör modu Faz 4'te karara bağlanır.
+    reddeder. *Düzenleme (Faz 4 kararı, 2026-11-13):* proje dev server'ında salt
+    okunur kalır; motor deposunda `npm run dev -- --engine-content` kipinde motor
+    içeriği ve paketler aynı editörden yazılır, `verify:assets` (bağımlılık yönü,
+    asılı referans) korur.
   - *Bağımlılık yönü:* motor içeriği hiçbir pakete, bir paket başka bir pakete
     referans veremez; paket motor içeriğine verebilir. `verify:assets` motor
     içeriğini tek başına ve her paketi motor içeriğiyle birlikte dizinleyip
@@ -1212,6 +1240,12 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   ışıklarını ışığın ebeveynine ekler: dönük / taşınmış bir aktörün altında
   kaskatlar görüşü ıskalıyordu (terrain level'larında hiç statik gölge yoktu;
   Faz 0 ızgarasında bulundu).
+- *Editör çizim katmanı (Faz 4 kararı, 2026-11-13):* gizmo, ızgara, seçim çerçevesi
+  ve yardımcı çizimler pipeline'ın çıktısından sonra, jitter'sız kamerayla ayrı bir
+  pass'te çizilir; derinlik testi sahne pass'inin derinliğine karşı. Picking CPU'da:
+  mesh ve instance (instance → aktör tablosu), terrain yükseklik alanından. Küçük
+  resimler editörde aynı renderer'la üretilir, `.forge-cache/thumbnails/<guid>-
+  <revizyon>.png`'de tutulur (commit'lenmez).
 - *Çevre, uygulama (adım 5, 2026-11-13):* tekiller `forge.skyAtmosphere` +
   `forge.skyLight` (tek özellik `forge.sky`: Sky Light gökyüzünü yakalar),
   `forge.cloudLayer`, `forge.worldEnvironment`. **Kullanıcı kararları
@@ -1346,7 +1380,9 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   boyut / performans bütçeleri kapı olarak (F07). CI'da GPU yok: UI ve veri akışı
   smoke'ları açıkça etiketli `forceWebGL` test kipiyle çalışır (TSL WebGL2
   backend'inde de çalışır); render kabulü yerelde, gerçek GPU'da. Bu kip hiçbir
-  zaman "WebGPU çalışıyor" sayılmaz.
+  zaman "WebGPU çalışıyor" sayılmaz. *Editör smoke'ları (Faz 4 kararı,
+  2026-11-13):* CI'da bu kipte, her koşuda geçici bir proje kopyasında (D14);
+  Playwright Chromium CI'a girer. Yerelde gerçek WebGPU'da da koşar.
 - **Render regresyon smoke'u (Faz 3 kararı, 2026-11-12):** `npm run
   smoke:render`, Playwright (`@playwright/test`, Forge'daki sürüm, tam sabit),
   başlıklı Chrome (`channel: "chrome"`, gerçek GPU), port 5283, referans
@@ -1397,11 +1433,21 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   dosyasını okuyup yeniden yazmak yerine yapılandırılmış komutla değiştirir
   (aktör ekle / taşı / sil, bileşen alanı yaz, sınıf override'ı). Komutlar
   editörün kullandığı işlemlerdir, CLI'den çağrılır; çıktı kısa (yeni kimlik,
-  değişen dosyalar, doğrulama hataları). Faz 4.
+  değişen dosyalar, doğrulama hataları). Faz 4. *Faz 4 kararları (2026-11-13):*
+  `npm run forge -- edit --project … --level … <komut>`; yazanlar ekle / taşı /
+  sil / alan yaz / sınıf override'ı, okuyanlar `find` (ad, bileşen, yakınlık) ve
+  `show <id>`; kısa metin, `--json`. CLI kayıt servisinin modülünü doğrudan
+  çağırır (dev server gerekmez; aynı doğrulama, günlük, revizyon). Editör açıksa
+  dev server dosya değişikliğini bildirir: kirli olmayan dosyalar kendiliğinden
+  tazelenir, kirli dosyada "yeniden yükle / karşılaştır" şeridi.
 - **Genel veri editörü (A13):** oyun kendi veri türünü şemayla tanımlar
   (`registerAssetType`, A7); Content Browser'dan açılan asset, Details ile aynı
   form kitiyle şemadan üretilen bir formla düzenlenir (tablo görünümü dahil).
-  Oyuna özel düzenleme arayüzü yazılmaz. Faz 4.
+  Oyuna özel düzenleme arayüzü yazılmaz. Faz 4. *Faz 4 kararı (2026-11-13):*
+  motorun asset editörleri de bunun üstüne kurulur, özelliğin kaydettiği
+  önizlemeyle: materyal (küre), static mesh (`forge.model` içe aktarma ayarları +
+  model; çarpışma Faz 6), aktör sınıfı (bileşen ağacı, Add Component, sınıf
+  varsayılanları). Elle yazılmış ayrı asset editörü yok.
 - **Özellik "bitti" tanımı:** şema + runtime + render bağlaması + editör yüzeyi
   (otomatik ya da özel) + kayıt turu testi + özellik README'si.
 - Özellik README'leri, Ridgebound'daki `FORGE_INTEGRATION.md` gibi elle tutulan

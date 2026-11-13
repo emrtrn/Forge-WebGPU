@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v1.11 · 2026-11-13 (v1.10'dan fark: Faz 3 kapandı — adım 9: smoke tam seti Faz 0 pozu ve boyutuyla, Faz 0 ile yan yana ızgara (`npm run smoke:grid`), yönlü ışıkların dünya çerçevesi düzeltmesi; kullanıcının görsel kabulü ve referanslar; view distance 5b'ye (kullanıcı kararı); bölüm `docs/archive/PHASE_3.md`'ye taşındı; mimari v1.15. v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 8 tamam — otomatik instancing, terrain salt çizimi, görüntüleyicinin varsayılan kamerası, `?debug` paneli, bütün çizen referans level'lar smoke'ta; kullanıcı kararları: terrain / örtü katman materyali GUID, paket manifesti `requires`, `?debug` kapsamı; referans projesi yeniden alındı; mimari v1.14. v1.9 · 2026-11-13 (v1.8'den fark: Faz 3 adım 7 tamam — olay bazlı gün saati: `timeTransition`, `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri), Sky Light yakalaması aynı PMREM'e, ölçülerek seçilen yakalama hızı (açı + 0,1 sn + durunca son yakalama), `npm run measure:sky-capture`; kullanıcı kararları; mimari v1.13. v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
+**Sürüm:** v1.12 · 2026-11-13 (v1.11'den fark: Faz 4 başladı — döküm (36 INV satırı, ertelenmiş A yok, 11 R), kararlar 1–12 (kullanıcı onayı), adım sırası 1–10; mimari v1.16. v1.11 · 2026-11-13 (v1.10'dan fark: Faz 3 kapandı — adım 9: smoke tam seti Faz 0 pozu ve boyutuyla, Faz 0 ile yan yana ızgara (`npm run smoke:grid`), yönlü ışıkların dünya çerçevesi düzeltmesi; kullanıcının görsel kabulü ve referanslar; view distance 5b'ye (kullanıcı kararı); bölüm `docs/archive/PHASE_3.md`'ye taşındı; mimari v1.15. v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 8 tamam — otomatik instancing, terrain salt çizimi, görüntüleyicinin varsayılan kamerası, `?debug` paneli, bütün çizen referans level'lar smoke'ta; kullanıcı kararları: terrain / örtü katman materyali GUID, paket manifesti `requires`, `?debug` kapsamı; referans projesi yeniden alındı; mimari v1.14. v1.9 · 2026-11-13 (v1.8'den fark: Faz 3 adım 7 tamam — olay bazlı gün saati: `timeTransition`, `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri), Sky Light yakalaması aynı PMREM'e, ölçülerek seçilen yakalama hızı (açı + 0,1 sn + durunca son yakalama), `npm run measure:sky-capture`; kullanıcı kararları; mimari v1.13. v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
 `forge.skyAtmosphere` / `forge.skyLight` (arka plan ve ortam ışığı dahil,
 kullanıcı kararı) / `forge.cloudLayer` / `forge.worldEnvironment` (sabit
 saat), TSL gökyüzü + ay + yıldız, PMREM Sky Light, bulut, WES yorumu,
@@ -337,8 +337,95 @@ su 7, araçlar 6 / 8.
 
 ### Faz 4 — Editör çekirdeği
 
+**Başladı 2026-11-13.** Döküm ve tasarım kullanıcı onayıyla (2026-11-13, "önerileri
+kabul ediyorum"); kararlar mimari raporda (v1.16: §4.2, §4.7, §4.8, §4.9, §4.10,
+§4.11), bu bölüm kutuları, dökümü ve sırayı tutar. Forge kaynakları yalnız okunur
+(`forge-webgl-final`; `src/editor` ve `editor/` etiketten bu yana değişmedi).
+
+**Döküm (2026-11-13).** Fazı 4 olan 36 envanter satırı (`PORT_LOG` §1). Faz 4'e
+ertelenmiş A yok. Editör alanında 11 R (yeniden yazılır) ve 27 M var; M'ler eski
+modele bağlı, paydada değil, niyetleri (undo'da kimlik korunur, çoğaltma yeni GUID
+alır, çoklu seçimde Details düzenler, grup / ebeveyn işlemleri geri alınır) yeni
+testlerin kabul ölçütü.
+
+| Kutu | INV | Forge kaynağı | R |
+|---|---|---|---|
+| UI kiti (K7) | A02 | `src/editor/{paramFields,editorIcons}.ts`, `editorUi.css` | — |
+| Kabuk ve servisler | A01, A07, A10 (menü), A28, A31, A32 | `EditorUi.ts` (5.402), `editor/core`, `editor/scene/EditorSceneController.ts` (1.813), `editorSaveCoordinator`, `editor/input/bindings` | — |
+| Viewport | A03, A04, A09, G27 | `editor/input/editorCamera*`, `editor/render-three/scenePicker.ts` (615), `src/scene/editorSelectionOutline.ts`, `render-three` yardımcı çizimleri | — |
+| Gizmo, snap, pivot | A05, A06 | `editor/gizmos` (741), `editor/render-three/{floorSnap,wallSnap}` | 11 (sürükleme 7, zemin 2, duvar 1, pivot 1) |
+| Paneller | A08, A11–A16, A30 | `panels/outliner`, `panels/details` (genel, ortam, materyal), `specialActorDetails` (2.397; şemadan), `panels/world/worldSettingsPanel` | — |
+| Content Browser | A23–A27, H22 | `panels/content/contentPanel.ts` (616), `ThumbnailRenderer`, `tools/{optimize-mesh-glb,strip-embedded-textures}` | — |
+| Asset editörleri | C01, C07, C08, C12 | `StaticMeshEditor` (2.226), `ActorScriptEditor` + `Viewport` (yalnız prefab kısmı), `MaterialEditor` (1.182), `DataTableEditor` (772) | — |
+| Play ve kayıt çakışması | A29, A28 | `EditorUi` `playTest`, `editorSaveCoordinator` | — |
+| Ajan komutları | — (A12) | — | — |
+| Build ve smoke | H05, H07, H08, H17 | `builder/web/verify-dist.mjs`, `src/project/publicUrl.ts`, `tests/smoke` (`editor-authoring` + 13 editör spec'i) | — |
+
+Kapsam dışı: Details'in fizik / nav / değişken (6), su (7), su birikintisi (5a),
+kırılma (8) bölümleri; B modları (5a–7); C02–C06, C09, C13, C16 (6 / 8); Sound Cue,
+Dialogue, BT, State Tree (K12). Forge editör kodunun ~29.000 satırı kapsamda
+(`src/editor` ~22.600 + `editor/` 6.943), ~16.200 satırı dışarıda.
+
+**Kararlar (kullanıcı, 2026-11-13; ayrıntı mimari v1.16):**
+
+1. *Editörün 3B kodu:* `src/render/editor/` (çizim katmanı, gizmo, picking, ızgara,
+   küçük resim, önizleme); `src/editor` DOM + servis, three'siz. Özelliğe özgü
+   yardımcı çizim yeni rol `features/*/editorRender.ts` (three + editör; editör
+   host'u toplar, oyun build'ine girmez, dist kapısı denetler).
+2. *Gizmo:* Forge'un kendi gizmo'su; sürükleme matematiği three'siz saf modül (11 R),
+   çizimi çizim katmanında. Planın eski metnindeki `TransformControls` yerine.
+3. *Düzenleme → World:* World'e `actorsChanged(actors, { transformOnly })`;
+   uygulamayan bağlamada varsayılan çıkar + ekle; instancing batch'inde transform
+   hızlı yolu.
+4. *Ajan komutu editör açıkken:* CLI kayıt servisi modülünü doğrudan çağırır (dev
+   server gerekmez); dev server dosya değişikliğini editöre bildirir, kirli olmayan
+   dosyalar kendiliğinden tazelenir, kirliyse "yeniden yükle / karşılaştır" şeridi.
+5. *Ajan komut kümesi:* ekle / taşı / sil / alan yaz / sınıf override'ı + okuyan
+   `find` (ad, bileşen, yakınlık) ve `show <id>`; `npm run forge -- edit --project …
+   --level … <komut>`, kısa metin çıktı, `--json`.
+6. *Motor içeriği ve paketler:* proje dev server'ında salt okunur; motor deposunda
+   `npm run dev -- --engine-content` kipinde aynı editörden yazılır, `verify:assets`
+   korur.
+7. *Asset editörleri:* genel veri editörü (A13: şemadan form + dizi alanlarında tablo)
+   + özelliğin kaydettiği önizleme: materyal (küre), static mesh (`forge.model`
+   içe aktarma ayarları + model; çarpışma Faz 6), aktör sınıfı (bileşen ağacı, Add
+   Component, sınıf varsayılanları). Elle yazılmış ayrı editör yok.
+8. *Play:* dev server'da geçici oturum katmanı `.forge-session/<id>/` (yalnız kirli
+   dosyalar), oyun sekmesi `?play=<id>`; diske yazmaz, sekme yeniden yüklenince de
+   çalışır.
+9. *Küçük resimler:* editörde WebGPU ile, `.forge-cache/thumbnails/<guid>-<revizyon>.png`
+   (commit'lenmez).
+10. *Gruplama:* grup bileşensiz boş aktör, çocuklar `parent` ile; çözme çocukları üst
+    ebeveyne bağlayıp grubu siler.
+11. *Hücreler:* 5b'ye kadar editörde bütün hücreler yüklü.
+12. *Editör smoke'ları:* CI'da `forceWebGL` kipinde (mimari §4.10), her koşuda geçici
+    proje kopyası (D14), Playwright Chromium CI'a girer; yerelde gerçek WebGPU'da da.
+
+**Sıra** (her adım yeşilse ayrı commit + push; adımdan sonra `PORT_LOG` §2, bu
+bölüm + §11, gerekirse mimari rapor ve harita, hafıza):
+
+1. UI kiti (K7): token'lar, ikonlar, `paramFields`, şemadan form oluşturucu.
+2. Dikey dilim: `?editor` (yalnız dev, dinamik import), editör host'u
+   (`features/*/editor.ts` + `editorRender.ts`, `defineFeatureEditor` editor-sdk'da),
+   kabuk düzeni, level aç → oturum → World + render + editör kamerası, undo / redo +
+   kaydet, `actorsChanged`, ilk editör smoke'u, `verify:dist --strict` + `base` testi.
+3. Viewport: çizim katmanı (TRAA sonrası, jitter'sız, sahne derinliğine karşı), ızgara,
+   seçim çerçevesi, picking (mesh, instance → aktör, terrain yükseklik alanı), kamera
+   kipleri, view mode / show flags, kalite menüsü, yardımcı çizimler (G27).
+4. Gizmo, snap, pivot (11 R).
+5. Paneller: Outliner (50.000 aktör ölçümü), şemadan Details (çoklu seçim),
+   düzenleme işlemleri ve gruplama, Add Actor + sürükle-bırak, World Settings + ortam /
+   post-process ayrıntıları, kısayollar.
+6. Content Browser: ağaç / filtre / arama / küçük resim, referans güvenli taşıma ve
+   silme, içe aktarma (GLB / doku / ses + meta, GLB optimizasyonu), Open Level, motor
+   içeriği kipi.
+7. Asset editörleri (genel veri editörü + önizlemeler).
+8. Play (oturum katmanı) + 409 akışı (yeniden yükle / karşılaştır).
+9. Ajan komutları (A12) + editörün canlı tazelenmesi.
+10. Editör smoke tam seti → kapı → kapanış.
+
 - [ ] Editör kabuğu ve servisleri (§2.2): viewport host, kamera, seçim (CPU
-      raycast picking), `TransformControls` gizmo, pivot, grup / hiyerarşi,
+      raycast picking), gizmo (Forge'unki, karar 2), pivot, grup / hiyerarşi,
       undo / redo.
 - [ ] Editör çizim katmanı: gizmo, seçim çerçevesi, ızgara ve yardımcı
       çizimler TRAA'dan sonra, jitter'sız ayrı bir pass'te çizilir (TRAA
@@ -354,7 +441,7 @@ su 7, araçlar 6 / 8.
       Outliner sanallaştırılmış liste; 50.000 aktörde akıcı (mimari A1 ölçüm
       sahnesi). `data-testid` sözleşmesi korunur.
 - [ ] Kaydet / aç, Open Level, Play (runtime'ı yeni sekmede açar; kaydedilmemiş
-      anlık görüntüyle, diske yazmadan — mimari A6).
+      anlık görüntüyle, diske yazmadan — mimari A6; oturum katmanı, karar 8).
 - [ ] Dist doğrulaması (`verify:dist --strict`: editör sızıntısı yok; motor
       içeriği ve seçili paketler dist'te) ve alt dizin (`base`) yayını testi
       kapıya ve CI'a girer (mimari §4.8 build, §4.10, F06). 2a'dan taşındı
@@ -363,11 +450,17 @@ su 7, araçlar 6 / 8.
       (ekonomi, denge, tablolar) Content Browser'dan açılır, Details ile aynı
       kitle şemadan üretilen formda ve tablo görünümünde düzenlenir. Forge'daki
       Data Table editörünün yerini alır; oyuna özel düzenleme arayüzü yazılmaz.
+      Materyal, static mesh ve aktör sınıfı editörleri bunun üstüne önizlemeyle
+      (karar 7).
 - [ ] **Ajan düzenleme komutları (mimari A12):** editörün düzenleme modeli
       üzerinden CLI: aktör ekle / taşı / sil, bileşen alanı yaz, sınıf
-      override'ı. Kayıt servisinden geçer (doğrulama, çakışma); çıktı kısa.
-      Kabul: aynı değişiklik editörden ve komuttan aynı kanonik dosyayı yazar.
-- [ ] Kapı: Forge'daki `editor-authoring` smoke'unun karşılığı yeşil.
+      override'ı; okuyan `find` / `show` (karar 5). Kayıt servisinden geçer
+      (doğrulama, çakışma); çıktı kısa. Kabul: aynı değişiklik editörden ve
+      komuttan aynı kanonik dosyayı yazar.
+- [ ] Kapı: Forge'daki `editor-authoring` smoke'unun karşılığı yeşil (yerleştir,
+      gizmo araçları, Details'te X, undo / redo, kaydet, yeniden aç, Play; CI'da
+      `forceWebGL`, yerelde WebGPU); dist'te editör sızıntısı yok, `base` yayını
+      çalışıyor; Outliner 50.000 aktörde akıcı; A12 kabulü.
 
 ### Faz 5 — Açık dünya
 
@@ -656,3 +749,4 @@ silinebilir.
 | 2026-11-13 | v1.10 | Referans projesi (`webgpu-scenes`) kullanıcı onayıyla yeniden alındı: terrain belgelerinde katman materyalleri GUID (Derekavak, Island, OpenWorldTest, WbPilotValley); 7 level `--compare`'de eşit, `check:projects` yeşil; ForgeReference README'si güncellendi |
 | 2026-11-13 | v1.11 | Faz 3 adım 9 (`38dcc56`, `5a71a75`): render smoke tam seti (4 terrain level × Faz 0 P1–P3, L03, 2 çerçeveli level; 15 çekim, 1920 × 1080 DPR 1, pozlar `baseline/poses.json`'dan), `npm run smoke:grid` (Faz 0 WebGL | WebGPU yerel sayfası); ızgarada bulunan hata düzeltildi: güneş dönük aktörün altındayken `CSMShadowNode` kaskatları görüşü ıskalıyordu, terrain level'larında statik gölge yoktu (yönlü ışıklar dünya çerçevesinde, yeni test). Farklar kullanıcıya listelendi (foliage 5c, su 7, araçlar 6 / 8, gölge kenarı, orta mesafe tonu) |
 | 2026-11-13 | v1.11 | Faz 3 kapandı: kullanıcının görsel kabulü; referanslar `--update-snapshots` ile yazıldı, ikinci koşu 15 / 15 karşılaştırmada; kapı A 934 / 1.021, Faz 3'e ertelenmiş A yok; "Işık ve gölge" kutusu işaretlendi, view distance 5b'ye (kullanıcı kararı, seçenek a). Ayrıntı `docs/archive/PHASE_3.md`'ye taşındı, planda özet; mimari v1.15. Sıradaki: Faz 4 (editör çekirdeği) |
+| 2026-11-13 | v1.12 | Faz 4 başladı: döküm (36 INV satırı; Faz 4'e ertelenmiş A yok; editör alanında 11 R, 27 M niyeti kabul ölçütü) ve tasarım kullanıcı onayıyla ("önerileri kabul ediyorum"; mimari v1.16): editörün 3B kodu `src/render/editor/` + rol `features/*/editorRender.ts`, Forge'un gizmo'su, World `actorsChanged`, ajan komutları kayıt servisi modülüyle + editörün canlı tazelenmesi + `find` / `show`, motor içeriği kipi `--engine-content`, asset editörleri genel veri editörü + önizleme, Play oturum katmanı, küçük resim önbelleği, grup = boş aktör, editörde bütün hücreler, editör smoke'ları CI'da `forceWebGL`. Adım sırası 1–10 |
