@@ -61,14 +61,17 @@ toplar. Örnek ve iskeletin kabul testi: `src/features/height-fog` (rapor §4.3)
   zarf içinde engine'in içeriğini taşır; terrain'in tile'ları ve global
   haritası metasız parçalarıdır (rapor §4.6).
 - İlk ikili asset türleri `forge.model`, `forge.texture`, `forge.sound`
-  (`model` ve `texture`'ın içe aktarma ayarları Faz 3'te sürüm 2). Şemalı JSON
-  asset türü (DSL, başvurular dizinde yürünür, form şemadan) Faz 3'te
-  `forge.material` ile gelir; A13'ün de temeli (rapor §4.6). İçe aktarılan Forge
+  (`model@2`: slot materyalleri, UVW, köşe renkleri; `texture@2`: anizotropi,
+  mipmap). Şemalı JSON asset türü `defineJsonAssetType` (dosya
+  `{ schema: "<tür>/<sürüm>", id, …alanlar }`, sürüm geçişi, başvurular dizinde
+  yürünür, form şemadan; SDK'da) ilk `forge.material` ile; A13'ün de temeli
+  (rapor §4.6). İçe aktarılan Forge
   asset'lerinin lisans ve kaynağı yol önekli bir köken tablosundan; lisansı
   bilinmeyen `LicenseRef-forge-unverified` (rapor §4.6).
-- World Builder çıktısı ve içe aktarıcı için 2b'de yalnız şema olan bileşenler:
-  `forge.staticMesh`, `forge.shape`, `forge.worldRole` (rol + üreten aşama),
-  `forge.terrain`; yerleşim → aktör çevirisi ikisinde ortak
+- World Builder çıktısı ve içe aktarıcı için bileşenler: `forge.staticMesh@2`
+  (slot materyalleri, isteğe bağlı tint, `castShadow`), `forge.shape@2`
+  (`castShadow`), `forge.worldRole` (rol + üreten aşama), `forge.terrain@2`
+  (`material`); yerleşim → aktör çevirisi ikisinde ortak
   (`src/engine/forgeImport/`, rapor §4.4).
 - Tek dünya ızgarası `src/core/grid/worldGrid.ts`: level hücreleri (sıfır
   orijin), terrain tile'ları ve akış politikası onu kullanır; hücre yerleşim
@@ -92,7 +95,8 @@ rapor; sınır dışı sayı sınıra çekilir (rapor §4.5, A2).
 ya da ileri sarar), hücre dizinini sunucu yazar, dosya başına temel revizyon
 (uyuşmazlıkta 409), sunucuda sıkı şema doğrulaması ve kanonik yazım (422),
 ikili sahneleme. Uçlar `/__forge/save`, `/__forge/stage-binary`,
-`/__forge/read`, `/__forge/asset-files` (renderer'ın GUID → dosya tablosu);
+`/__forge/read`, `/__forge/asset-files` (renderer'ın GUID → dosya tablosu,
+ikililerin içe aktarma ayarlarıyla, JSON asset'ler dahil);
 yalnız localhost ve `X-Forge-Request: 1`. Yazma yalnız
 projenin içerik köklerine; `samples/`, `tests/fixtures/` ve motor içeriği salt
 okunur. İstemci tarafı `src/core/edit`: işlem / undo, sürümlü kirli takibi,
@@ -106,7 +110,10 @@ değişebilir durum yok), editör / Play / oyunun ortak sahne kurucusu
 (rapor §4.7, A6). Boot'un `render` aşaması renderer host'u kurar; host World'e
 `renderSync` grubunda tek bir `forge.render` alt sistemi ekler ve render
 bağlamalarını çalıştırır. Kaynak önbelleği host'undur, World'ün değil (A6;
-rapor §4.7, §4.9).
+rapor §4.7, §4.9): `model:`, `texture:<guid>:<srgb|linear>`,
+`material:<guid>:<katkı imzası>`. Materyaller TSL slot düğümleriyle, özellik
+katkıları sabit sırayla (world mask → fade → rüzgâr → ıslaklık → göçük;
+rapor §4.9).
 
 ## Oyun projesi sözleşmesi
 

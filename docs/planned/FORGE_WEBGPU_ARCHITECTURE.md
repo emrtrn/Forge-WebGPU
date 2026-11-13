@@ -1,6 +1,11 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.9 · 2026-11-13 (v1.8'den fark: §4.6 statik gölge varsayılanları
+**Sürüm:** v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 4 — §4.5 isteğe
+bağlı renk; §4.6 şemalı JSON asset türünün ve `forge.material` / sürüm 2
+türlerin uygulaması, kullanıcı kararları (boş tint, `enabled` grupları,
+`name` / preset, `materialSlot` her slota); §4.9 materyalin uygulaması (slot
+düğümleri, katkı sırası, doku / materyal anahtarları).
+v1.9 · 2026-11-13 (v1.8'den fark: §4.6 statik gölge varsayılanları
 bileşen başına (kullanıcı kararı); §4.9 ışık ve gölgenin uygulaması.
 v1.8 · 2026-11-13 (v1.7'den fark: §4.9 kalitenin uygulaması —
 Cinematic merdiven dışı `cinematic` seviyesi, runtime kalite sürücüsü,
@@ -573,7 +578,10 @@ düşen alan uyarı değil, **hatadır**.
   kütüphanesi (Zod / Valibot) kullanılmaz; böylece `@forge/sdk`'nın şema yüzeyi
   dış bir kütüphanenin sürüm döngüsüne bağlanmaz.
 - 2a alan türleri: sayı, bool, enum, renk, vektör, transform, asset ref, aktör
-  ref, dizi, nesne, metin. Yenisi ihtiyaç olunca eklenir (§7).
+  ref, dizi, nesne, metin. Yenisi ihtiyaç olunca eklenir (§7). *Faz 3 adım 4
+  (kullanıcı kararı 2026-11-13):* renk isteğe bağlı olabilir —
+  `color({ default: null })`, değer `#rrggbb` ya da null ("yok"; form temizle
+  düğmesi, JSON Schema `["string", "null"]`). İlk kullanan static mesh tint'i.
 - **Metin alanı (2a kararı, 2026-11-10):** `text({ default, required, pattern,
   multiline })`; ilk ihtiyaç asset meta'sındaki lisans ve kaynak. Eksik ya da
   boş zorunlu metin `missing-required` kaybıdır (geliştirmede hata); desen
@@ -690,6 +698,26 @@ düşen alan uyarı değil, **hatadır**.
     `staticObjectsReceiveShadow`'u taşınmaz; `castShadow` bileşenin alanıdır
     (varsayılan açık, Unreal gibi), içe aktarıcı Forge level'ının ayarını her
     yerleşime çözer (Forge'da kapalıysa `false` yazar); gölge almak hep açık.
+  - *Uygulama (Faz 3 adım 4, 2026-11-13):* `defineJsonAssetType(ad, sürüm,
+    { suffix, fields }, { migrations })` (`src/core/assets/jsonAsset.ts`),
+    tanım `DocumentAssetTypeDef` + `json` (sürüm, sonek, alanlar, geçişler);
+    kayıt defteri `<ad>/1` … `<ad>/<sürüm>` etiketlerinin hepsini tanır, kayıt
+    son sürümü yazar. Asset dizini normalize edilmiş JSON asset'leri
+    (`jsonAssets`) ve meta'ları (`metas`) tutar; `assetRef` alanları level'larla
+    aynı kurala göre yürünür. `defineFeature({ assetTypes })` ikili ve JSON
+    türleri alır (`FeatureAssetTypeDef`); SDK 0.1.2 `defineJsonAssetType`'ı
+    oyunlara açar. Dev server `/__forge/asset-files` ikililerin içe aktarma
+    ayarlarını ve JSON asset'leri de verir (renderer onlarla yükler).
+    **Kullanıcı kararları (2026-11-13):** Forge'da null olabilen materyal
+    grupları (`normalMotion`, `layerBlend`, `sway`) `enabled` anahtarıyla,
+    `terrainDetail` normal haritası yoksa kapalı; materyalde `name` yok (asset
+    adı dosya adı), preset'ler saklanmaz (editörün yeni materyal şablonu,
+    `MATERIAL_PRESET_VALUES`); Forge yerleşiminin tek `materialSlot`'u modelin
+    her GLB slotuna yazılır (slot sayısı içe aktarıcıda GLB JSON'undan).
+    `forge.model@2` slot sırası: yüklenen modelde karşılaşılan benzersiz
+    materyaller (Forge'un `collectAssetMaterialElements`'i). `forge.terrain@2`
+    `material` (Forge Landscape materyali). Modelin `vertexColors`'u Mesh
+    Paint varsayılanıdır, render uygulamaz (Forge runtime'ı da uygulamıyordu).
   - *İçe aktarılan asset'lerin kökeni (kullanıcı kararı 2026-11-12):* lisans
     sorumluluğu kullanıcıdadır; lisansı bilinmeyen Forge asset'i de alınır,
     oyun projesine girmez (kullanıcı kendi varlıklarını üretene kadar durur;
@@ -1109,6 +1137,23 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   `emissiveNode`, `opacityNode`, `positionNode`). Özellik katkıları TSL
   fonksiyonu olarak sabit sırayla: world mask → fade (5b) → rüzgâr (5c) →
   ıslaklık (5a) → göçük (8).
+  *Uygulama (adım 4, 2026-11-13):* `src/render/materials/surfaceMaterial.ts`
+  standart harita özelliklerini kullanmaz: dokular slot düğümlerinde,
+  materyalin UV düğümünde tiling ve flipY ile örneklenir, böylece doku
+  `texture:<guid>:<srgb|linear>` anahtarıyla bütün materyallerce paylaşılır
+  (sıkıştırılmış doku Forge'daki gibi çevrilmez); temel renk / pürüzlülük /
+  metaliklik / opaklık / emissive materyalin kendi özelliklerinden okunur, bu
+  yüzden yerleşim rengi `color`'ı değişmiş bir kopyadır. Katman karışımı ve
+  normal hareketi TSL'de; köşe rengi sürücüsü geometride `color` yoksa 0 okur
+  (öznitelikler program anahtarında). Katkılar `contributions.ts`:
+  `contributionSignature` (`none` ya da sıradaki adlar), world mask
+  `maskNode` + `maskShadowNode` (henüz süren sistem yok). Materyal belgesi
+  GUID'le okunur ve uygulamanın host'a verdiği `forge.material` türüyle
+  normalize edilir (render özellik import edemez); dokuları host düzeyindeki
+  bir sahipte sayılır (materyale aittir, ilk isteyen World'e değil). Model
+  yüklenince eksik normal, GLB dokularına varsayılan anizotropi (8, GPU
+  sınırı), UVW izdüşümü ve slot listesi. Static mesh slot önceliği: yerleşimin
+  `materials[i]`'si → modelin varsayılanı → GLB'nin materyali.
 - *Işık ve çevre bileşenleri:* `forge.directionalLight` / `forge.pointLight` /
   `forge.spotLight` (aktör başına; güneş `atmosphereSun` işaretli tek
   directional; ışıksız level'a varsayılan güneş + ortam ışığı, Forge kuralı);

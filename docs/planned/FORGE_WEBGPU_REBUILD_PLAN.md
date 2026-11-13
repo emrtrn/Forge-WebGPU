@@ -1,6 +1,10 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v1.5 · 2026-11-13 (v1.4'ten fark: Faz 3 adım 3 tamam — ışık
+**Sürüm:** v1.6 · 2026-11-13 (v1.5'ten fark: Faz 3 adım 4 tamam — şemalı
+JSON asset türü, `forge.material`, model / texture / staticMesh / shape /
+terrain sürüm 2, TSL materyal ve katkı sırası, materyal çeviricileri, starter
+materyalleri, 4 A; Faz 3'te ertelenmiş A kalmadı; mimari v1.10. v1.5: Faz 3
+adım 3 tamam — ışık
 bileşenleri, CSMShadowNode + takipli gölge, ışık çevirisi, 18 A; statik gölge
 varsayılanları bileşen başına (kullanıcı kararı); mimari v1.9. v1.4: Faz 3 adım 2 tamam — kalite
 profilleri, uyarlamalı kalite, donanım ipuçları ve kullanıcı ayarları taşındı
@@ -438,9 +442,29 @@ harita, hafıza):
    alındı (7 level'da ışık ve aktör sayımları `--compare`'de eşit, smoke
    çevrilmiş ışıkla yeşil). Starter paketinde level yok, değişmez.
    **A 920 / 1.021**; Faz 3'te kalan ertelenmiş A 4.
-4. Materyal: şemalı JSON asset türü, `forge.material`, `forge.model` / `texture`
+4. ~~Materyal: şemalı JSON asset türü, `forge.material`, `forge.model` / `texture`
    / `staticMesh` sürüm 2 + geçiş, node material + katkı sırası, çeviriciler,
-   starter'a 10 materyal (1 A), asset perf raporu (3 A).
+   starter'a 10 materyal (1 A), asset perf raporu (3 A).~~ — **tamam**
+   (2026-11-13, `f6aa509` asset perf, `203714e` çekirdek, `04409af` şemalar +
+   çeviriciler + starter, `6f02c42` render). Çekirdek `defineJsonAssetType`
+   (dosya `{ schema: "<tür>/<sürüm>", id, …alanlar }`, sürüm geçişi, dizin
+   başvuruları yürür, kayıt servisi tanır; SDK 0.1.2) ve isteğe bağlı renk
+   (`color({ default: null })`). **Kullanıcı kararları (2026-11-13):** boş
+   tint isteğe bağlı renk; Forge'da null olabilen materyal grupları `enabled`
+   anahtarıyla; materyalde `name` yok, preset'ler editör şablonu; yerleşimin
+   tek `materialSlot`'u modelin her GLB slotuna yazılır. Render: slot
+   düğümleriyle node material (tiling ve flipY UV düğümünde, doku paylaşılır),
+   katman karışımı ve normal hareketi TSL'de, katkı sırası iskeleti + world
+   mask (`maskNode`); static mesh slot önceliği yerleşim → model → GLB,
+   renkli yerleşim kendi kopyası, `castShadow` bileşenden. İçe aktarıcı
+   materyalleri, model yan dosyalarını, yerleşim renk / gölge / materyalini
+   (gölge yoksa Forge'un `staticObjectsCastShadow`'u, varsayılanı kapalı) ve
+   landscape materyalini çevirir; `worldSettings` alanları tek tek raporlanır.
+   Starter paketine 10 materyal; referans projesi kullanıcı onayıyla yeniden
+   alındı (7 level `--compare`'de açıklanmayan fark yok), L03 zemini modelin
+   slot materyaliyle çiziliyor (smoke, gerçek WebGPU). **A 924 / 1.021**;
+   Faz 3'te ertelenmiş A kalmadı. Adıma düşen R: 6 yeniden yazıldı, 6 düştü
+   (`PORT_LOG` §2).
 5. Çevre: gökyüzü, sky light / IBL, bulut, WES bağlaması (ay, yıldız, gece),
    world settings alanları + çeviriciler.
 6. `RenderPipeline` + Post Process + kalite eşlemesi + MRT.
@@ -452,14 +476,20 @@ harita, hafıza):
 - [ ] Render kaynak önbelleği (geometri, doku, materyal; pipeline three'nin)
       asset GUID'iyle anahtarlı ve renderer'a ait, World'den ayrı (mimari A6,
       §4.9). *Adım 1:* önbellek, World başına sayaç, iki World testi, model ve
-      şekil anahtarları; doku / materyal anahtarları adım 4'te.
+      şekil anahtarları. *Adım 4:* `texture:<guid>:<srgb|linear>` ve
+      `material:<guid>:<katkı imzası>` (materyalin dokuları host düzeyindeki
+      sahipte).
 - [ ] Renderer host: init, resize, DPR, cihaz kaybı (karar 10), gerçek backend
       rozeti; `?debug` overlay (`engine/perf` zaten three'siz) + GPU timestamp.
       *Adım 1:* `?debug` overlay dışında hepsi; overlay adım 8'de, DPR'nin
       kalite bağı adım 2'de.
-- [ ] Materyal sistemi: `forge.material` (karar 5) → node material (§2.3);
+- [x] Materyal sistemi: `forge.material` (karar 5) → node material (§2.3);
       katman / anizotropi / ORM; GLB + KTX2 (three'nin `examples/jsm/libs`'i,
-      yeni npm bağımlılığı ve vendor kopyası yok).
+      yeni npm bağımlılığı ve vendor kopyası yok). *Adım 4 (2026-11-13):*
+      şemalı JSON asset türü, `forge.material`, sürüm 2 türler, TSL slot
+      düğümleri + katkı sırası (world mask), çeviriciler, starter 10 materyal,
+      asset perf raporu. `sway` 5c'de, `terrainDetail` 5a'da çizilir; editör
+      (INV-C08) Faz 4'te.
 - [ ] Işık ve gölge: `CSMShadowNode`, reversed-Z (`reversedDepthBuffer` yapıcı
       seçeneği; WebGL'deki `EXT_clip_control` hilesi gerekmez), view distance.
       *Adım 3:* ışık bileşenleri, CSM, takipli gölge, reversed-Z, çevirici hazır;
@@ -498,7 +528,8 @@ harita, hafıza):
       kontrolleri yeşil (`npm run port:forge-tests`, TSV `deferred` `3`, 39:
       kalite profilleri / uyarlamalı kalite 13, asset perf 3, starter
       materyal 1, güneş kaskatları 9, takipli gölge 9, kullanıcı ayarları 4;
-      GPU timer 1 D, karar 6).
+      GPU timer 1 D, karar 6). *Adım 4'ten sonra:* 39'un hepsi taşındı; kalan
+      görsel kabul.
 
 ### Faz 4 — Editör çekirdeği
 
@@ -810,3 +841,4 @@ silinebilir.
 | 2026-11-13 | v1.4 | Faz 3 adım 2 (`620cb3e`, `dff1176`): `engine/perf/{qualityProfiles,adaptiveQuality,hardwareHints}` ve `engine/persistence/userSettingsStore` taşındı, 17 ertelenmiş A yeşil (`port:forge tests --deferred`), GPU timer kontrolü D (payda 1.021); `src/runtime/quality` kalite sürücüsü (Forge `RuntimeSceneApp`'in kuralları), renderer piksel oranı ve perf witness profili; WebGPU izin alanları (`traaAllowed`, `ssrAllowed`, `ssgiAllowed`, `aoResolutionScale`), eşleme Balanced / GTAO'suz Balanced / Compatibility, merdiven dışı `cinematic`. Smoke `high` profiliyle yeşil. 1.564 test, kapı yeşil. **A 902 / 1.021**. Mimari v1.8 |
 | 2026-11-13 | v1.5 | Faz 3 adım 3 (`c14e11f`, `4b9a640`): `engine/world/{sunCascades,followShadow}` taşındı (18 A); `forge.light` (`forge.directionalLight` / `pointLight` / `spotLight`, güneş `atmosphereSun`), kaskatlı güneş `CSMShadowNode` (Forge bölmeleri), öteki gölgeli yönlü ışıklar takipli harita, ana gölge anahtarı host'ta; içe aktarıcı `lights[]` çevirir (güneş Forge kuralıyla), rapor / `--compare` sayar. Kullanıcı kararı: statik gölge varsayılanları bileşen başına (`castShadow`, adım 4). Smoke gerçek ve scratch referansta yeşil; referans projesinin `--force` ile yeniden alınması kullanıcı onayında. 1.595 test, kapı yeşil. **A 920 / 1.021**. Mimari v1.9 |
 | 2026-11-13 | v1.5 | Referans projesi (`webgpu-scenes`) kullanıcı onayıyla ışık çevirisiyle yeniden alındı: 7 level'da `--compare` ışık 1 / 1 ve aktör sayımları eşit, `check:projects` ve smoke (L03, kaskatlı güneş) yeşil |
+| 2026-11-13 | v1.6 | Faz 3 adım 4 (`f6aa509`, `203714e`, `04409af`, `6f02c42`): asset perf raporu taşındı (3 A; taşıma araçları `tools/`'u da tarar); çekirdek şemalı JSON asset türü + isteğe bağlı renk, SDK 0.1.2; `forge.material` ve sürüm 2 `forge.texture` / `model` / `staticMesh` / `shape` / `terrain`; Forge materyal normalize'ı içe aktarıcı okuyucusu, materyal / model yan dosyası / yerleşim renk-gölge-materyal / landscape materyali çeviricileri; starter paketine 10 materyal ve uyarlanan A kontrolü; TSL materyal (slot düğümleri, katman karışımı, normal hareketi), katkı sırası + world mask, doku / materyal önbellek anahtarları, model hazırlığı (normal, anizotropi, UVW, slotlar), static mesh slot / tint / `castShadow`. Kullanıcı kararları: boş tint, `enabled` grupları, `name` / preset, `materialSlot` her slota. Referans projesi kullanıcı onayıyla yeniden alındı; smoke gerçek WebGPU'da, L03 zemini slot materyaliyle. 1.643 test, kapı yeşil. **A 924 / 1.021**, Faz 3'te ertelenmiş A kalmadı. Mimari v1.10 |
