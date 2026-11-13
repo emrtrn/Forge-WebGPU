@@ -1,6 +1,11 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.6 · 2026-11-12 (v1.5'ten fark: Faz 3 render tasarımı, kullanıcı
+**Sürüm:** v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 1'in uygulama
+notları — §4.3 / §4.9 `render.ts`'leri uygulama girişi toplayıp render host'a
+verir (`render` katmanı `features/`'ı import edemez), kural
+`feature-does-not-name-render`; §4.9 bağlama bağlamı, kaynak anahtarları, GUID
+→ URL ucu, hazır sinyali, varsayılan ışık; §4.10 smoke'un aday / kayıt düzeni.
+v1.6 · 2026-11-12 (v1.5'ten fark: Faz 3 render tasarımı, kullanıcı
 onayı — §4.3 `render.ts`'i render host toplar, `feature.ts` render'ı anmaz;
 §4.6 şemalı JSON asset türü ve `forge.material`, `forge.model` / `texture` /
 `staticMesh` sürüm 2; §4.7 boot'un `render` aşaması ve render senkronu; §4.9
@@ -297,9 +302,11 @@ features/height-fog/
   sistem sözleşmesi çekirdekte, onu çalıştıran World `src/runtime`'da).
 - **`feature.ts` render'ı da anmaz (Faz 3 kararı, 2026-11-12):** `render.ts`
   editör deseniyle kendi kayıt birimidir: `defineRenderBinding({ feature, create })`
-  ile kendini tanımlar ve render host `features/*/render.ts` dosyalarını
-  kendisi toplar (motor: Vite glob; oyun projesi: aynı desen, ilk ihtiyaçta
-  Faz 6'da). Gerekçe: `check:projects` ve araçlar `feature.ts`'i Node'da
+  ile kendini tanımlar; `features/*/render.ts` dosyalarını uygulama girişi
+  (`main.ts`, Vite glob) toplayıp render host'a verir, çünkü `render` katmanı
+  `features/`'ı import edemez (Faz 3 adım 1; oyun projesi: aynı desen, ilk
+  ihtiyaçta Faz 6'da). Kural `feature-does-not-name-render`, kasıtlı
+  ihlalleri `features/snow` (statik) ve `features/hail` (dinamik). Gerekçe: `check:projects` ve araçlar `feature.ts`'i Node'da
   yükler, başsız açılışta World render'sız çalışır; `feature.ts` render.ts'i
   anarsa three/webgpu Node'a ve başsız açılışa girer. Statik ve dinamik her
   gönderme bir katman kuralıyla yakalanır (kasıtlı ihlal fixture'ında).
@@ -1069,6 +1076,23 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   (static mesh, shape) ekle / çıkar ile kurulur; alan ve transform değişikliği
   bildirimi Faz 4'te editörle World'e girer. Editör ve runtime aynı host'u ve
   bağlamaları kullanır; editör çizim katmanı TRAA'dan sonra (Faz 4).
+- *Adım 1'in uygulama notları (2026-11-13):* bağlama `ctx`'i şimdilik
+  `world` (`services`, `actor`, `componentsOf`), `scene`, `root`, `resources`
+  (World'ün sayaçlı görünümü: `model(guid)`, `shapeGeometry`,
+  `shapeMaterial`, `release`) ve `lighting.sunDirection`; kalite ayarları adım
+  2'de. Bağlama yalnız özelliği World'de kuruluysa çalışır. Her World'ün kendi
+  `Scene`'i var; host son bağlanan World'ü çizer. Şekil anahtarları
+  `shape:<primitive>` ve `shapeMaterial:<renk>:<single|double>`. GUID → URL
+  geliştirmede `GET /__forge/asset-files` (ikili asset'ler: GUID → tür +
+  `<kök etiketi>/<yol>`, `/__forge/read`'le okunur; kayıttan sonra yeniden
+  kurulur). Kanvas öznitelikleri: `data-forge-backend` (`webgpu | webgl2`),
+  `data-forge-backend-proof` (kanıtın tamamı), `data-forge-perf`,
+  `data-forge-ready` (World bağlı, yüklenen kaynak yok ve ardından 3 kare) ve
+  `data-forge-resource-errors`. Işıksız level'a Forge'un varsayılan güneşi;
+  ortam ışığı ve arka plan Forge world settings varsayılanları (ortam 0, Forge
+  gibi eklenmez; `#d7d7c7`) çevre adımına kadar. Pipeline adım 6'ya kadar
+  doğrudan çizim, ton eşleme yok. `?level=` başka level, `?forceWebGL`
+  etiketli WebGL2 kipi.
 - *Materyal:* `forge.material` (§4.6) → `MeshStandardNodeMaterial`, anizotropi
   / clearcoat gerekirse `MeshPhysicalNodeMaterial`; yalnız slotlar
   (`colorNode`, `normalNode`, `roughnessNode`, `metalnessNode`, `aoNode`,
@@ -1142,7 +1166,11 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   sapması eşiği), eşikli karşılaştırma (`toHaveScreenshot`). Kayıt: commit,
   three, backend kanıtı, tarayıcı, GPU / sürücü, poz, çözünürlük / DPR,
   profil. Referans görüntüler depo dışında (`Games/ForgeReference/render-refs/`;
-  içerik lisansı doğrulanmadı), kullanıcı kabulünden sonra güncellenir. Gate'e
+  içerik lisansı doğrulanmadı), kullanıcı kabulünden sonra güncellenir.
+  Uygulama (adım 1): `tests/smoke/`; referans yoksa çekim
+  `render-refs/candidates/`'e yazılır ve koşu geçer, referans yalnız
+  `-- --update-snapshots` ile yazılır; kayıt ve çekim `render-refs/runs/`'a;
+  sunucu her koşuda yeniden başlatılır, var olan sunucu kullanılmaz. Gate'e
   ve CI'a girmez; `render/**` ya da `features/*/render.ts` dokunan push'tan
   önce elle çalışır.
 - **Dağıtım tabanı:** bütün URL'ler `base`'e göre; alt dizin yayını ilk günden

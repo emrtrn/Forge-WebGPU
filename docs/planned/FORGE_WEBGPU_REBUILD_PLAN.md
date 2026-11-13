@@ -1,6 +1,9 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v1.2 · 2026-11-12 (v1.1'den fark: Faz 3 başladı — döküm, içe
+**Sürüm:** v1.3 · 2026-11-13 (v1.2'den fark: Faz 3 adım 1, dikey dilim
+tamam — renderer host, boot'un `render` aşaması, render bağlamaları, GUID
+anahtarlı kaynak önbelleği, şekil / static mesh / Height Fog çizimi, render
+smoke iskeleti; mimari v1.7. v1.2: Faz 3 başladı — döküm, içe
 aktarıcı çeviricileri, tasarım kararları 1–11 ve adım sırası Faz 3 bölümünde,
 kararlar mimari v1.6'da; HLOD 5b'de, terrain salt çizimi Faz 3'te, GPU timer
 kontrolü D. v1.1: Faz 2b kapandı ve arşivlendi —
@@ -388,14 +391,24 @@ level'ları `world:brief` ile, greybox ışık / gökyüzü `worldBuild`'in
 §2.1, bu bölüm + §11, `npm run port:forge-tests`, gerekirse mimari rapor ve
 harita, hafıza):
 
-1. **Dikey dilim:** `@playwright/test` (Forge'daki sürüm, tam sabit);
+1. ~~**Dikey dilim:** `@playwright/test` (Forge'daki sürüm, tam sabit);
    `src/render` iskeleti; renderer host (backend kanıtı + rozet, DPR, resize,
    cihaz kaybı, `data-forge-perf` + timestamp); boot'un `render` aşaması;
    render bağlaması sözleşmesi + host toplaması (karar 2); GUID anahtarlı
    kaynak önbelleği + iki World testi; `forge.shape` + `forge.staticMesh`
    (GLB kendi materyalleriyle) + Height Fog `render.ts` + ışıksız level'a
    varsayılan güneş / ortam ışığı; terrain'siz level (PhysicsInteractionTest /
-   L03); smoke iskeleti (1 level × 1 poz, boş görüntü, backend kanıtı).
+   L03); smoke iskeleti (1 level × 1 poz, boş görüntü, backend kanıtı).~~ —
+   **tamam** (2026-11-13, `093a77c`). `render.ts`'leri `main.ts` Vite glob'uyla
+   toplayıp host'a verir (`render` katmanı `features/`'ı import edemez; yeni
+   kural `feature-does-not-name-render`). GUID → URL için dev server'a
+   `GET /__forge/asset-files`. Height Fog Forge formülüyle TSL sis düğümü.
+   Varsayılan güneş Forge'un; ortam ışığı Forge world settings varsayılanıyla
+   0 (Forge gibi eklenmez), gölge adım 3'te. Smoke: L03 × 1 poz, gerçek WebGPU
+   (NVIDIA Ampere), kaynak hatası yok; referans yok, aday
+   `render-refs/candidates/l03/p1.png` (kabul adım 9'da). A 885 / 1.022
+   değişmedi; adıma düşen R: 1 yeniden yazıldı, 5 düştü, 4 adım 4 / 5 / 8'e
+   (`PORT_LOG` §2).
 2. Kalite profilleri / uyarlamalı kalite / donanım ipuçları / kullanıcı ayarları
    taşınır (17 A), GPU timer D; WebGPU izin alanları ayrı commit.
 3. Işık ve gölge: ışık bileşenleri + çevirici, `sunCascades` / `followShadow`
@@ -414,9 +427,12 @@ harita, hafıza):
 
 - [ ] Render kaynak önbelleği (geometri, doku, materyal; pipeline three'nin)
       asset GUID'iyle anahtarlı ve renderer'a ait, World'den ayrı (mimari A6,
-      §4.9).
+      §4.9). *Adım 1:* önbellek, World başına sayaç, iki World testi, model ve
+      şekil anahtarları; doku / materyal anahtarları adım 4'te.
 - [ ] Renderer host: init, resize, DPR, cihaz kaybı (karar 10), gerçek backend
       rozeti; `?debug` overlay (`engine/perf` zaten three'siz) + GPU timestamp.
+      *Adım 1:* `?debug` overlay dışında hepsi; overlay adım 8'de, DPR'nin
+      kalite bağı adım 2'de.
 - [ ] Materyal sistemi: `forge.material` (karar 5) → node material (§2.3);
       katman / anizotropi / ORM; GLB + KTX2 (three'nin `examples/jsm/libs`'i,
       yeni npm bağımlılığı ve vendor kopyası yok).
@@ -440,6 +456,7 @@ harita, hafıza):
 - [ ] **Render regresyon smoke'u** (`npm run smoke:render`, Playwright, başlıklı
       Chrome, port 5283): kabul edilen referans pozlar yerelde, gerçek WebGPU
       backend'inde yeniden çekilip referans görüntüyle karşılaştırılır.
+      *Adım 1:* iskele (`tests/smoke`, L03 × 1 poz); tam set adım 9'da.
       Kurallar: görüntü `page.screenshot({ clip })` ile alınır, hazır sinyali
       `data-forge-ready` (gizli doğan katmana bakılmaz), boş / siyah görüntü
       kontrolü zorunlu, `isWebGPUBackend` false ise koşu başarısız, backend
@@ -760,3 +777,4 @@ silinebilir.
 | 2026-11-12 | v1.0 | 2b kayıt oyunu + World Partition tasarımı (kullanıcı kararları; mimari v1.5): sınıflama `engine/world` / `engine/persistence`'ı modül düzeyinde eski model sayar (129 M → A, 40 D; `4bdc041`), tek dünya ızgarası `src/core/grid` (`e005bc2`), slot deposu (`8b8449f`), hücre yerleşim planlayıcısı + durum belleği (`38aca39`), `forge.saveGame/1` + `persist` / `state` / `defineSaveState` + durum defteri, SDK 0.1.1 (`3f9b423`). Kutu kapandı; runtime akışı 5b, runtime kayıt özelliği Faz 6. Ertelenen A: Faz 3 40, 5a 4, 5b 54, 5c 8, 5d 4, Faz 6 5, Faz 7 20, Faz 8 2. A 885 / 1.022 |
 | 2026-11-12 | v1.1 | Faz 2b kapandı (CI `4d844ce`'ye kadar yeşil, kullanıcı teyidi): ayrıntı `docs/archive/PHASE_2B.md`'ye taşındı, planda özet; A 885 / 1.022, ertelenen Forge kontrolleri faz kapılarında. Sıradaki: Faz 3 |
 | 2026-11-12 | v1.2 | Faz 3 başladı: döküm (36 INV satırı, ertelenen 40 A, Faz 3'e düşen 92 R: 58 yeniden yaz / 34 düşer), içe aktarıcının Faz 3 çeviricileri ve tasarım kullanıcı onayıyla ("hepsi öneri gibi"; mimari v1.6): terrain salt çizimi Faz 3'te, `render.ts`'i render host toplar, Forge kalite merdiveni + WebGPU izin alanları (Cinematic merdiven dışı), MRT biçim sıkıştırmasıyla 30 bayt, `forge.material` şemalı JSON asset türü, GPU timer kontrolü D (payda 1.021, kalite adımında), worldSettings alanları sahibi özelliğin tekiline, sürekli gün döngüsü yok, HLOD 5b, cihaz kaybında v1 yeniden yükle. Kod yok; sırada adım 1 (dikey dilim) |
+| 2026-11-13 | v1.3 | Faz 3 adım 1, dikey dilim (`093a77c`): `src/render/{host,resources,materials,pipeline,sync,viewer}`; `WebGPURenderer` (timestamp, reversed-Z), backend kanıtı + `data-forge-perf` + rozet, DPR / resize, cihaz kaybı v1; boot'un `render` aşaması; `defineRenderBinding` + `main.ts` toplaması + `feature-does-not-name-render`; GUID anahtarlı kaynak önbelleği (iki World testi), `GET /__forge/asset-files`, glTF KTX2 + meshopt three'nin libs'iyle; `forge.shape` / `forge.staticMesh` / Height Fog (TSL) çizimi, varsayılan güneş; `npm run smoke:render` (`@playwright/test` 1.61.1) L03'te gerçek WebGPU'da yeşil, aday görüntü depo dışında. 1.537 test, kapı yeşil. A 885 / 1.022; R akıbetleri `PORT_LOG` §2. Mimari v1.7 |
