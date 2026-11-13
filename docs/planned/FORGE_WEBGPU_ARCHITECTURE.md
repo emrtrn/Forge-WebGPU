@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.8 · 2026-11-13 (v1.7'den fark: §4.9 kalitenin uygulaması —
+**Sürüm:** v1.9 · 2026-11-13 (v1.8'den fark: §4.6 statik gölge varsayılanları
+bileşen başına (kullanıcı kararı); §4.9 ışık ve gölgenin uygulaması.
+v1.8 · 2026-11-13 (v1.7'den fark: §4.9 kalitenin uygulaması —
 Cinematic merdiven dışı `cinematic` seviyesi, runtime kalite sürücüsü,
 `applyQualityToPostProcess` adım 6'da.
 v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 1'in uygulama
@@ -683,6 +685,11 @@ düşen alan uyarı değil, **hatadır**.
     belirler (Forge'daki gibi). `forge.staticMesh` sürüm 2: `materials` (slot
     override'ı, boş = modelin), `color` (tint, boş = materyal), `castShadow`;
     `forge.shape`'e `castShadow`. Her biri sürüm 1'den geçiş zinciriyle.
+    **Statik gölge varsayılanları (kullanıcı kararı 2026-11-13):** Forge'un
+    level düzeyindeki `worldSettings.staticObjectsCastShadow` /
+    `staticObjectsReceiveShadow`'u taşınmaz; `castShadow` bileşenin alanıdır
+    (varsayılan açık, Unreal gibi), içe aktarıcı Forge level'ının ayarını her
+    yerleşime çözer (Forge'da kapalıysa `false` yazar); gölge almak hep açık.
   - *İçe aktarılan asset'lerin kökeni (kullanıcı kararı 2026-11-12):* lisans
     sorumluluğu kullanıcıdadır; lisansı bilinmeyen Forge asset'i de alınır,
     oyun projesine girmez (kullanıcı kendi varlıklarını üretene kadar durur;
@@ -1115,6 +1122,15 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   tekilleri tek yerde gösterir. Gölge: güneşte `CSMShadowNode` (Forge'un
   bölmeleri `customSplitsCallback` ile, kamerayı düğüm kendi alır), öteki
   durumda takipli tek harita; taşınan `engine/world/{sunCascades,followShadow}`.
+  *Uygulama (adım 3, 2026-11-13):* özellik `src/features/light` (üç bileşen,
+  aktörün -Z'si boyunca parlar), gölge yardımcıları `src/render/sync/sunShadow.ts`.
+  Bağlama `ctx`'ine `quality()`, kareye `camera` eklendi; ortak
+  `lighting.sunDirection`'ı varsayılan güneş ya da `atmosphereSun` ışığı
+  yazar. Gölgeli öteki yönlü ışıklar (Forge'da susturuluyordu) takipli
+  haritayla gölge düşürür; Forge'un sınır haritası, kademeli kaskat yenileme
+  ve doku birimi bütçesi yok. Gölge bias'ı −0,0005, normal bias 0,02 (takipli
+  harita dahil). Ana gölge anahtarı (`shadowsEnabled`) host'ta; çevrilince
+  sahnenin lit materyalleri yeniden kurulur.
 - *Kalite:* Forge'un merdiveni (ultra / high / medium / low / custom),
   uyarlamalı kalite ve donanım ipuçları olduğu gibi taşınır (ilke #2: kalite
   yalnız kapatır / küçültür). WebGPU izin alanları ayrı adımda:
