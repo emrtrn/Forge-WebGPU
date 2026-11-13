@@ -14,7 +14,8 @@
 // compared every frame in `sync`. Notification of field and transform edits
 // comes with the editor (phase 4).
 
-import type { Group, Scene, Vector3 } from "three/webgpu";
+import type { Camera, Group, Scene, Vector3 } from "three/webgpu";
+import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { COMPONENT_NAME_PATTERN, SchemaDefinitionError, type ActorId, type ComponentEntry, type Services, type WorldActor } from "../../core/index.ts";
 import type { WorldResources } from "../resources/worldResources.ts";
 
@@ -28,7 +29,10 @@ export interface RenderWorldView {
 
 /** The lights other bindings read (fog's sun tint, later sky and clouds). */
 export interface RenderLighting {
-  /** Ground -> sun, unit length. */
+  /**
+   * Ground -> sun, unit length. One shared vector: the default sun writes it
+   * while it shows, the light binding writes its `atmosphereSun` light's.
+   */
   readonly sunDirection: Vector3;
 }
 
@@ -41,11 +45,15 @@ export interface RenderBindingContext {
   /** The host's resource cache, counted for this world. */
   readonly resources: WorldResources;
   readonly lighting: RenderLighting;
+  /** The effective quality settings now (profile and adaptive reductions). */
+  quality(): QualitySettings;
 }
 
 export interface RenderFrame {
   /** Seconds since the last frame, as the world ticked it. */
   readonly dt: number;
+  /** The camera the frame is drawn with; null before one is set. */
+  readonly camera: Camera | null;
 }
 
 export interface RenderBindingInstance {

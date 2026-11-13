@@ -111,8 +111,21 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   const deviceRatio = options.devicePixelRatio ?? (() => document.defaultView?.devicePixelRatio ?? 1);
   let quality: RenderQuality = { settings: resolveQualitySettings(DEFAULT_QUALITY_LEVEL), level: DEFAULT_QUALITY_LEVEL, adaptive: false, reductionDepth: 0 };
   const pixelRatio = (): number => effectiveDevicePixelRatio(deviceRatio(), quality.settings);
+  // The profile's master shadow switch. Lit materials are rebuilt when it flips
+  // (Forge's invalidateMaterialsForShadowToggle: a program compiled for the
+  // other state would sample a missing shadow map).
+  const applyShadowSwitch = (): void => {
+    if (renderer.shadowMap.enabled === quality.settings.shadowsEnabled) return;
+    renderer.shadowMap.enabled = quality.settings.shadowsEnabled;
+    world?.scene.traverse((object) => {
+      const material = (object as { material?: { needsUpdate: boolean } | { needsUpdate: boolean }[] }).material;
+      if (!material) return;
+      for (const one of Array.isArray(material) ? material : [material]) one.needsUpdate = true;
+    });
+  };
   let camera: Camera = new PerspectiveCamera();
   let world: RenderWorld | null = null;
+  applyShadowSwitch();
   let width = 0;
   let height = 0;
   let lost = false;
@@ -165,6 +178,8 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
         bindings: options.bindings,
         features,
         name,
+        camera: () => camera,
+        quality: () => quality.settings,
         attach: (attached) => {
           world = attached;
         },
@@ -180,6 +195,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     },
     setQuality(next) {
       quality = next;
+      applyShadowSwitch();
     },
     get quality() {
       return quality;

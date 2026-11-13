@@ -6,6 +6,7 @@
 import { describe, expect, test } from "vitest";
 import { createSchemaRegistry, defineFeature, installFeatures, type FeatureDef } from "../core/index.ts";
 import { actorId, assetId, StaticMesh } from "../core/level/testKit.ts";
+import { resolveQualitySettings } from "../engine/perf/qualityProfiles.ts";
 import { createResourceCache, resourceKey } from "../render/resources/resourceCache.ts";
 import type { ModelSource, ModelTemplate } from "../render/resources/worldResources.ts";
 import { defineRenderBinding } from "../render/sync/renderBinding.ts";
@@ -81,6 +82,8 @@ describe("render worlds share the host's resource cache", () => {
         bindings: [meshBinding, strayBinding],
         features: [meshes],
         name,
+        camera: () => null,
+        quality: () => resolveQualitySettings("high"),
         attach: (world) => attached.push(world),
         detach: (world) => attached.splice(attached.indexOf(world), 1),
       });
@@ -127,6 +130,8 @@ describe("render worlds share the host's resource cache", () => {
       bindings: [],
       features: [meshes],
       name: "a",
+      camera: () => null,
+      quality: () => resolveQualitySettings("high"),
       attach: (world) => attached.push(world),
     });
     const world = boot("a", [meshes], render);

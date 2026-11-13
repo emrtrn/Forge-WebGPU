@@ -19,7 +19,7 @@ export function formatImportReport(result: ImportRunResult): string {
     const c = report.converted;
     lines.push(`## ${report.source} → ${folder}`, "");
     lines.push(`- Converted: ${c.actors} actors (placements ${c.placements}: shapes ${c.placeholders}, meshes ${c.meshes}; `
-      + `Player Start ${c.playerStarts}; terrains ${c.terrains}; height fog ${c.heightFog}); source cells ${c.sourceCells}.`);
+      + `Player Start ${c.playerStarts}; terrains ${c.terrains}; height fog ${c.heightFog}; lights ${c.lights}); source cells ${c.sourceCells}.`);
     if (sidecars.length) lines.push(`- Sidecars: ${sidecars.join(", ")}.`);
     if (report.missingAssets.length) {
       lines.push(`- Placements left out (no model in the target): ${report.missingAssets.map((entry) => `${entry.assetId} ${entry.placements}`).join(", ")}.`);

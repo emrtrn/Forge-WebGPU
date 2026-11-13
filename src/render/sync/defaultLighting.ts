@@ -4,11 +4,15 @@
 // and the background come from Forge's world settings defaults (white ambient
 // at intensity 0, which Forge leaves out; background #d7d7c7) until those
 // fields move to their owning singletons (plan phase 3, step 5; decision 7).
-// Light components replace the default in step 3; shadows are set up there too.
+// A level with any light component (forge.light) draws its own lights instead.
+// The default sun casts its shadow through the camera-following map
+// (sunShadow.ts), sized by the quality profile.
 
-import { AmbientLight, Color, DirectionalLight, Vector3, type Scene } from "three/webgpu";
+import { AmbientLight, Color, DirectionalLight, Vector3, type Camera, type Scene } from "three/webgpu";
 import { sunDirectionFromRotation } from "../../engine/environment/sunPath.ts";
+import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import type { RenderLighting, RenderWorldView } from "./renderBinding.ts";
+import { configureShadow, FOLLOW_SHADOW_HALF_EXTENT, updateFollowShadow } from "./sunShadow.ts";
 
 export const DEFAULT_SUN = { rotation: [-55, 35, 0] as [number, number, number], color: "#ffffff", intensity: 2, castShadow: true } as const;
 export const DEFAULT_AMBIENT = { color: "#ffffff", intensity: 0 } as const;
@@ -23,14 +27,18 @@ const SUN_DISTANCE = 100;
 export interface DefaultLighting extends RenderLighting {
   /** Adds or removes the defaults after actors came or went. */
   refresh(): void;
+  /** Once per frame: the default sun's shadow follows the camera. */
+  sync(camera: Camera | null, quality: QualitySettings): void;
   dispose(): void;
 }
 
 export function createDefaultLighting(scene: Scene, world: Pick<RenderWorldView, "componentsOf">): DefaultLighting {
-  const sunDirection = new Vector3(...sunDirectionFromRotation(DEFAULT_SUN.rotation)).normalize();
+  const defaultDirection = new Vector3(...sunDirectionFromRotation(DEFAULT_SUN.rotation)).normalize();
+  const sunDirection = defaultDirection.clone();
+  const forward = new Vector3();
   const sun = new DirectionalLight(DEFAULT_SUN.color, DEFAULT_SUN.intensity);
   sun.name = "Default Sun";
-  sun.position.copy(sunDirection).multiplyScalar(SUN_DISTANCE);
+  sun.position.copy(defaultDirection).multiplyScalar(SUN_DISTANCE);
   sun.target.position.set(0, 0, 0);
   const ambient = new AmbientLight(DEFAULT_AMBIENT.color, DEFAULT_AMBIENT.intensity);
   ambient.name = "Default Ambient";
@@ -45,6 +53,7 @@ export function createDefaultLighting(scene: Scene, world: Pick<RenderWorldView,
       sun.target.removeFromParent();
       ambient.removeFromParent();
     } else {
+      sunDirection.copy(defaultDirection);
       scene.add(sun, sun.target);
       // Forge adds no ambient light at intensity 0.
       if (ambient.intensity > 0) scene.add(ambient);
@@ -55,6 +64,13 @@ export function createDefaultLighting(scene: Scene, world: Pick<RenderWorldView,
   return {
     sunDirection,
     refresh,
+    sync(camera, quality) {
+      sun.castShadow = shown && DEFAULT_SUN.castShadow && quality.shadowsEnabled;
+      if (!sun.castShadow || camera === null) return;
+      configureShadow(sun, quality.shadowMapSize);
+      camera.getWorldDirection(forward);
+      updateFollowShadow(sun, camera.position, forward, FOLLOW_SHADOW_HALF_EXTENT * quality.shadowDistanceScale);
+    },
     dispose() {
       sun.removeFromParent();
       sun.target.removeFromParent();

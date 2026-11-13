@@ -44,14 +44,14 @@ function fixture(patch: Record<string, unknown> = {}, cells: ForgeLevelInput["ce
 }
 
 describe("importForgeLevel", () => {
-  test("placements become shape / static mesh / Player Start actors after the terrain and the fog", () => {
+  test("placements become shape / static mesh / Player Start actors after the terrain, the fog and the lights", () => {
     const { level, report } = importForgeLevel(fixture(), { meshAsset });
     expect(level.id).toBe(forgeLevelId(PATH));
     expect(level.settings).toEqual({ cellSize: 64 });
     expect(level.actors.map((actor) => actor.name)).toEqual([
-      "WB Valley", "Fog", "Player Start", "building.house", "rock#0", "rock#1",
+      "WB Valley", "Fog", "directional#0", "Player Start", "building.house", "rock#0", "rock#1",
     ]);
-    const [, , start, house, rock, bare] = level.actors;
+    const [, , , start, house, rock, bare] = level.actors;
     expect(start).toMatchObject({ components: {}, transform: { p: [1, 2, 3], r: eulerXyzQuaternion(0, 90, 0) } });
     expect(house!.class === null && house!.components).toEqual({
       shape: { type: "forge.shape@1", parent: null, local: { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] }, primitive: "cube", color: "#f2a65a", collision: true },
@@ -63,7 +63,7 @@ describe("importForgeLevel", () => {
     expect(rock!.transform.s).toEqual([2, 2, 2]);
     expect(bare!.class === null && bare!.components.mesh).toMatchObject({ collision: false });
     expect(report.converted).toEqual({
-      placements: 3, placeholders: 1, meshes: 2, playerStarts: 1, actors: 6, terrains: 1, heightFog: 1, sourceCells: 0,
+      placements: 3, placeholders: 1, meshes: 2, playerStarts: 1, actors: 7, terrains: 1, heightFog: 1, lights: 1, sourceCells: 0,
     });
     expect(report.missingAssets).toEqual([{ assetId: "kenney-tree", placements: 1 }]);
   });
@@ -96,7 +96,7 @@ describe("importForgeLevel", () => {
       { field: "instances[].fracture", count: 1, phase: "8" },
       { field: "instances[].materialSlot", count: 1, phase: "3" },
       { field: "landscapes[].material", count: 1, phase: "3" },
-      { field: "lights", count: 2, phase: "3" },
+      { field: "lights[type=ambient]", count: 1, phase: "?" },
       { field: "mystery", count: 1, phase: "?" },
       { field: "worldSettings", count: 1, phase: "3" },
     ]);
@@ -136,7 +136,7 @@ describe("importForgeLevel", () => {
     const { level, report } = importForgeLevel(fixture({
       instances: [{ assetId: "marker:spawnPoint", placements: [{ position: [0, 0, 0] }] }],
     }), { meshAsset });
-    expect(level.actors.map((actor) => actor.name)).toEqual(["WB Valley", "Fog"]);
+    expect(level.actors.map((actor) => actor.name)).toEqual(["WB Valley", "Fog", "directional#0"]);
     expect(report.notConverted).toContainEqual({ field: "instances[marker:spawnPoint]", count: 1, phase: "6" });
   });
 

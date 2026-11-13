@@ -8,7 +8,8 @@
 // A headless boot (Node, check:projects) installs no such subsystem, so the
 // world runs without render.
 
-import { Group, Scene } from "three/webgpu";
+import { Group, Scene, type Camera } from "three/webgpu";
+import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { defineFeature, defineSubsystem, type FeatureDef, type SubsystemContext } from "../../core/index.ts";
 import type { ResourceCache } from "../resources/resourceCache.ts";
 import { createWorldResources, type ModelSource, type WorldResources } from "../resources/worldResources.ts";
@@ -33,6 +34,10 @@ export interface RenderFeatureOptions {
   readonly features: readonly FeatureDef[];
   /** For messages and the cache owner. */
   readonly name: string;
+  /** The camera frames are drawn with (follow shadows, cascades). */
+  readonly camera: () => Camera | null;
+  /** The effective quality settings now. */
+  readonly quality: () => QualitySettings;
   /** The world's scene exists (the host presents it). */
   readonly attach?: (world: RenderWorld) => void;
   /** The world is going away. */
@@ -58,7 +63,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       };
       const lighting = createDefaultLighting(scene, view);
       const instances: RenderBindingInstance[] = bindings.map((binding) =>
-        binding.create({ world: view, scene, root, resources, lighting }),
+        binding.create({ world: view, scene, root, resources, lighting, quality: options.quality }),
       );
       const world: RenderWorld = { name: options.name, scene, root, resources };
       options.attach?.(world);
@@ -72,7 +77,9 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           for (const instance of instances) instance.actorsRemoved?.(actors);
         },
         tick(_group, dt) {
-          for (const instance of instances) instance.sync?.({ dt });
+          const frame = { dt, camera: options.camera() };
+          lighting.sync(frame.camera, options.quality());
+          for (const instance of instances) instance.sync?.(frame);
         },
         dispose() {
           for (const instance of [...instances].reverse()) instance.dispose?.();

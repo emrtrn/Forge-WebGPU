@@ -26,10 +26,17 @@ interface SourceCounts {
   otherMarkers: number;
   landscapes: number;
   heightFog: number;
+  /** Directional, point and spot lights of the level and its cells (other types are not Forge's). */
+  lights: number;
   cells: number;
   cellKeys: string[];
   foliageInstances: number;
   foliageRules: number;
+}
+
+function sourceLights(doc: unknown): number {
+  if (!isJsonObject(doc) || !Array.isArray(doc.lights)) return 0;
+  return doc.lights.filter((light) => isJsonObject(light) && ["directional", "point", "spot"].includes(String(light.type))).length;
 }
 
 function sourcePlacements(doc: JsonObject, counts: SourceCounts): void {
@@ -50,6 +57,7 @@ async function sourceCounts(source: ForgeSource, path: string): Promise<SourceCo
     shapes: 0, models: 0, playerStarts: 0, otherMarkers: 0,
     landscapes: Array.isArray(layout.landscapes) ? layout.landscapes.length : 0,
     heightFog: isJsonObject(layout.heightFog) ? 1 : 0,
+    lights: sourceLights(layout) + level.input.cells.reduce((sum, cell) => sum + sourceLights(cell.doc), 0),
     cells: level.input.cells.length,
     cellKeys: level.input.cells.map((cell) => cell.key),
     foliageInstances: 0,
@@ -77,6 +85,7 @@ interface TargetCounts {
   roles: number;
   terrains: number;
   heightFog: number;
+  lights: number;
   playerStarts: number;
   cells: number;
   persistent: number;
@@ -86,7 +95,7 @@ interface TargetCounts {
 
 async function targetCounts(projectRoot: string, folder: string): Promise<TargetCounts> {
   const counts: TargetCounts = {
-    actors: 0, shapes: 0, meshes: 0, roles: 0, terrains: 0, heightFog: 0, playerStarts: 0, cells: 0, persistent: 0, cellActors: new Map(),
+    actors: 0, shapes: 0, meshes: 0, roles: 0, terrains: 0, heightFog: 0, lights: 0, playerStarts: 0, cells: 0, persistent: 0, cellActors: new Map(),
   };
   const count = (doc: unknown, persistent: boolean): void => {
     const key = isJsonObject(doc) && typeof doc.cell === "string" ? doc.cell : null;
@@ -104,6 +113,7 @@ async function targetCounts(projectRoot: string, folder: string): Promise<Target
         else if (type === "forge.worldRole") counts.roles += 1;
         else if (type === "forge.terrain") counts.terrains += 1;
         else if (type === "forge.heightFog") counts.heightFog += 1;
+        else if (type === "forge.directionalLight" || type === "forge.pointLight" || type === "forge.spotLight") counts.lights += 1;
       }
     }
   };
@@ -152,8 +162,9 @@ export async function compareImport(projectRoot: string, source: ForgeSource, re
       row("other markers", s.otherMarkers, 0, "no converter yet (reported, phase 6)"),
       row("landscapes → forge.terrain", s.landscapes, t.terrains, "?"),
       row("heightFog → forge.heightFog", s.heightFog, t.heightFog, "?"),
-      row("actors (placements + terrain + fog)", s.shapes + s.models + s.playerStarts + s.landscapes + s.heightFog, t.actors,
-        t.actors === s.shapes + s.models - missing + s.playerStarts + s.landscapes + s.heightFog ? `placements without a model: ${missing}` : "?"),
+      row("lights → light actors", s.lights, t.lights, "?"),
+      row("actors (placements + terrain + fog + lights)", s.shapes + s.models + s.playerStarts + s.landscapes + s.heightFog + s.lights, t.actors,
+        t.actors === s.shapes + s.models - missing + s.playerStarts + s.landscapes + s.heightFog + s.lights ? `placements without a model: ${missing}` : "?"),
       row("cells", s.cells, t.cells, s.cells === 0
         ? "the source level is not partitioned; every level has a grid now and actors are assigned by position (A11)"
         : cellDifference(s.cellKeys, t.cellActors)),

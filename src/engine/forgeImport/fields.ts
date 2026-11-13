@@ -6,6 +6,8 @@
  * A field in neither table is reported with phase `?`, so nothing is dropped
  * without a line in the report.
  *
+ * Lights have their own table (`lights.ts`).
+ *
  * Phases: 3 render (light, sky, post process, WES, materials), 4 editor,
  * 5a terrain surface, 5b streaming, 5c foliage, 6 gameplay runtime (collider,
  * splines, prefab instances, vehicles), 7 water and reflections, 8 fracture.
@@ -14,13 +16,12 @@
 
 /** Level (and cell) fields the importer converts. */
 export const CONVERTED_LEVEL_FIELDS: ReadonlySet<string> = new Set([
-  "schema", "name", "type", "grid", "key", "instances", "worldCells", "landscapes", "heightFog",
+  "schema", "name", "type", "grid", "key", "instances", "worldCells", "landscapes", "heightFog", "lights",
 ]);
 
 export const LEVEL_FIELD_PHASES: Readonly<Record<string, string>> = {
   worldSettings: "3",
   skyAtmosphere: "3",
-  lights: "3",
   cloudLayer: "3",
   postProcess: "3",
   worldEnvironment: "3",

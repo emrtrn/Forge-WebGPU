@@ -36,6 +36,11 @@ export default defineRenderBinding({
           const object = model.scene.clone();
           object.name = `${actor.name}/${key}`;
           object.matrixAutoUpdate = false;
+          // Every mesh casts and receives until forge.staticMesh version 2 brings castShadow (plan phase 3 step 4).
+          object.traverse((child) => {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          });
           componentWorldMatrix(ctx.world, actor, key, object.matrix);
           object.matrixWorldNeedsUpdate = true;
           entry.object = object;

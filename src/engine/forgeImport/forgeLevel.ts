@@ -8,7 +8,8 @@
  * the converter World Builder shares (`placements.ts`), `landscapes` as
  * terrain actors with `forge.terrain` data documents (the definition is
  * copied as it is; its tiles and global map are copied by the importer),
- * `heightFog` as a `forge.heightFog` actor, the main grid's cell size. Cells
+ * `heightFog` as a `forge.heightFog` actor, `lights` (the level's and its
+ * cells') as light actors (`lights.ts`, plan phase 3), the main grid's cell size. Cells
  * are not carried over as files: the new level assigns every actor to a cell
  * by its position (A11). Every other field is counted in the report with the
  * phase that converts it (`fields.ts`).
@@ -43,6 +44,7 @@ import {
   fieldPhase,
 } from "./fields.ts";
 import { forgeLevelId, stableHex } from "./ids.ts";
+import { forgeLightSources, LIGHT_FIELD_PHASES, lightActors } from "./lights.ts";
 import {
   HEIGHT_FOG_TAG,
   SHAPE_PREFIX,
@@ -110,6 +112,7 @@ export interface ForgeLevelReport {
     readonly actors: number;
     readonly terrains: number;
     readonly heightFog: number;
+    readonly lights: number;
     readonly sourceCells: number;
   };
   readonly notConverted: readonly NotConvertedField[];
@@ -266,6 +269,11 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
     }
   }
 
+  const lights = lightActors(forgeLightSources(layout, input.cells), actorId);
+  actors.push(...lights.actors);
+  for (const [type, count] of lights.unknownTypes) note(`lights[type=${type}]`, count, "?");
+  for (const [field, count] of lights.unread) note(`lights[].${field}`, count, fieldPhase(LIGHT_FIELD_PHASES, field));
+
   noteLevelFields(layout);
   place(placementGroups(layout.instances, input.path), "");
   for (const cell of input.cells) {
@@ -280,7 +288,7 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
     report: {
       source: input.path,
       name: typeof layout.name === "string" ? layout.name : "",
-      converted: { ...counts, actors: actors.length, terrains: terrains.length, heightFog, sourceCells: input.cells.length },
+      converted: { ...counts, actors: actors.length, terrains: terrains.length, heightFog, lights: lights.actors.length, sourceCells: input.cells.length },
       notConverted: [...fields].map(([field, { count, phase }]) => ({ field, count, phase }))
         .sort((a, b) => a.field.localeCompare(b.field)),
       missingAssets: [...missing].map(([assetId, placements]) => ({ assetId, placements }))

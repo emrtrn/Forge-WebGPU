@@ -287,16 +287,16 @@ tests/engine/foliageRing.test.ts	84	check	A			engine/world			foliage ring: built
 tests/engine/foliageRing.test.ts	97	check	A			engine/world			foliage ring: a camera on a band edge does not rebuild the cell each frame	5c
 tests/engine/foliageRing.test.ts	113	check	A			engine/world			foliage ring: density changes rebuild every cell, zero density unloads all	5c
 tests/engine/foliageRing.test.ts	125	check	A			engine/world			foliage ring: the plan stays on the surface and an unbounded radius covers it at full density	5c
-tests/engine/followShadow.test.ts	50	check	A		yes	engine/world			`follow shadow: orthonormal basis for direction ${lightDirection.join(", ")}`	3
+tests/engine/followShadow.test.ts	50	check	A		yes	engine/world		src/engine/world/followShadow.test.ts	`follow shadow: orthonormal basis for direction ${lightDirection.join(", ")}`	
 tests/engine/followShadow.test.ts	58	check	R		yes	engine/world	three:three		`follow shadow: basis matches three lookAt for direction ${lightDirection.join(", ")}`	
-tests/engine/followShadow.test.ts	82	check	A		yes	engine/world			`follow shadow: target snaps laterally and preserves depth for direction ${lightDirection.join(", ")}`	3
-tests/engine/followShadow.test.ts	94	check	A			engine/world			follow shadow: sub-texel motion inside a rounding boundary keeps the target stable	3
-tests/engine/followShadow.test.ts	105	check	A			engine/world			follow shadow: a one-texel focus move advances the target by one texel	3
-tests/engine/followShadow.test.ts	117	check	A			engine/world			follow shadow: frustum and light position cover the requested extent and depth	3
-tests/engine/followShadow.test.ts	129	check	A			engine/world			follow shadow: direction magnitude does not change the frame	3
-tests/engine/followShadow.test.ts	139	check	A			engine/world			follow shadow: zero depths remain valid	3
-tests/engine/followShadow.test.ts	145	check	A			engine/world			follow shadow: invalid direction, extent, map size or depth returns null	3
-tests/engine/followShadow.test.ts	158	check	A			engine/world			follow shadow: non-finite vector components and scalars return null	3
+tests/engine/followShadow.test.ts	82	check	A		yes	engine/world		src/engine/world/followShadow.test.ts	`follow shadow: target snaps laterally and preserves depth for direction ${lightDirection.join(", ")}`	
+tests/engine/followShadow.test.ts	94	check	A			engine/world		src/engine/world/followShadow.test.ts	follow shadow: sub-texel motion inside a rounding boundary keeps the target stable	
+tests/engine/followShadow.test.ts	105	check	A			engine/world		src/engine/world/followShadow.test.ts	follow shadow: a one-texel focus move advances the target by one texel	
+tests/engine/followShadow.test.ts	117	check	A			engine/world		src/engine/world/followShadow.test.ts	follow shadow: frustum and light position cover the requested extent and depth	
+tests/engine/followShadow.test.ts	129	check	A			engine/world		src/engine/world/followShadow.test.ts	follow shadow: direction magnitude does not change the frame	
+tests/engine/followShadow.test.ts	139	check	A			engine/world		src/engine/world/followShadow.test.ts	follow shadow: zero depths remain valid	
+tests/engine/followShadow.test.ts	145	check	A			engine/world		src/engine/world/followShadow.test.ts	follow shadow: invalid direction, extent, map size or depth returns null	
+tests/engine/followShadow.test.ts	158	check	A			engine/world		src/engine/world/followShadow.test.ts	follow shadow: non-finite vector components and scalars return null	
 tests/engine/forgeGameModule.test.ts	95	checkAsync	R			engine/core,src	three:three		a runtime with no game module runs the whole lifecycle as a no-op	
 tests/engine/forgeGameModule.test.ts	105	checkAsync	R			engine/core,src	three:three		setup runs in registration order, teardown in reverse	
 tests/engine/forgeGameModule.test.ts	133	check	R			src	three:three		a game module publishes services through the same container as Layer 2	
@@ -840,15 +840,15 @@ tests/engine/sunCascadeShadow.test.ts	149	check	R			engine/render-three	three-vi
 tests/engine/sunCascadeShadow.test.ts	168	check	R			engine/render-three	three-via:engine/render-three,three:three		sun cascade shadow: other shadowed directional lights are muted with one warning	
 tests/engine/sunCascadeShadow.test.ts	186	check	R			engine/render-three	three-via:engine/render-three,three:three		sun cascade shadow: stagger redraws cascades 2+ on alternate frames and keeps their frames	
 tests/engine/sunCascadeShadow.test.ts	206	check	R			engine/render-three	three-via:engine/render-three,three:three		sun cascade shadow: the material patch chains, keys by state and is a no-op while inactive	
-tests/engine/sunCascades.test.ts	91	check	A			engine/world			sun cascades: practical splits match the approved profile table	3
-tests/engine/sunCascades.test.ts	104	check	A			engine/world			sun cascades: unusable split input yields no cascades	3
-tests/engine/sunCascades.test.ts	115	check	A			engine/world			sun cascades: slice sphere reaches the eye and the far corners exactly	3
-tests/engine/sunCascades.test.ts	131	check	A			engine/world			sun cascades: each cascade box holds its whole frustum slice, and every nearer slice	3
-tests/engine/sunCascades.test.ts	147	check	A			engine/world			sun cascades: box size is constant under camera rotation and frames are texel-snapped	3
-tests/engine/sunCascades.test.ts	171	check	A			engine/world			sun cascades: distance and fade follow the quality distance scale	3
-tests/engine/sunCascades.test.ts	179	check	A			engine/world			sun cascades: staggered refresh alternates cascades 2+ and draws everything on frame 0	3
-tests/engine/sunCascades.test.ts	189	check	A			engine/world			sun cascades: the texture-unit budget caps the cascade count	3
-tests/engine/sunCascades.test.ts	197	check	A			engine/perf,engine/world			sun cascades: quality profiles carry the approved cascade counts	3
+tests/engine/sunCascades.test.ts	91	check	A			engine/world		src/engine/world/sunCascades.test.ts	sun cascades: practical splits match the approved profile table	
+tests/engine/sunCascades.test.ts	104	check	A			engine/world		src/engine/world/sunCascades.test.ts	sun cascades: unusable split input yields no cascades	
+tests/engine/sunCascades.test.ts	115	check	A			engine/world		src/engine/world/sunCascades.test.ts	sun cascades: slice sphere reaches the eye and the far corners exactly	
+tests/engine/sunCascades.test.ts	131	check	A			engine/world		src/engine/world/sunCascades.test.ts	sun cascades: each cascade box holds its whole frustum slice, and every nearer slice	
+tests/engine/sunCascades.test.ts	147	check	A			engine/world		src/engine/world/sunCascades.test.ts	sun cascades: box size is constant under camera rotation and frames are texel-snapped	
+tests/engine/sunCascades.test.ts	171	check	A			engine/world		src/engine/world/sunCascades.test.ts	sun cascades: distance and fade follow the quality distance scale	
+tests/engine/sunCascades.test.ts	179	check	A			engine/world		src/engine/world/sunCascades.test.ts	sun cascades: staggered refresh alternates cascades 2+ and draws everything on frame 0	
+tests/engine/sunCascades.test.ts	189	check	A			engine/world		src/engine/world/sunCascades.test.ts	sun cascades: the texture-unit budget caps the cascade count	
+tests/engine/sunCascades.test.ts	197	check	A			engine/perf,engine/world		src/engine/world/sunCascades.test.ts	sun cascades: quality profiles carry the approved cascade counts	
 tests/engine/sunFollowShadow.test.ts	31	check	R			engine/render-three	three-via:engine/render-three,three:three		sun follow shadow: re-centres ahead of the camera without turning the light	
 tests/engine/sunFollowShadow.test.ts	53	check	R			engine/render-three	three-via:engine/render-three,three:three		sun follow shadow: sub-texel camera motion keeps the frustum still	
 tests/engine/surfaceResponse.test.ts	32	check	A	yes		engine/physics	boundary-model:engine/physics	src/engine/physics/surface/surfaceResponse.test.ts	soft ground speed: progressive entry drag fades with soft participation and preserves launch	

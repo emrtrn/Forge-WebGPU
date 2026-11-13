@@ -38,6 +38,9 @@ export default defineRenderBinding({
           const mesh = new Mesh(geometry, material);
           mesh.name = `${actor.name}/${key}`;
           mesh.matrixAutoUpdate = false;
+          // Every shape casts and receives until forge.shape gains castShadow (plan phase 3 step 4).
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
           componentWorldMatrix(ctx.world, actor, key, mesh.matrix);
           mesh.matrixWorldNeedsUpdate = true;
           entry.mesh = mesh;
