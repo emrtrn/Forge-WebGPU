@@ -32,6 +32,14 @@ interface SourceCounts {
   cellKeys: string[];
   foliageInstances: number;
   foliageRules: number;
+  /** Model placements with a colour (a shape's colour is its own row). */
+  tintedModels: number;
+  /** Placements that cast no shadow: their own `castShadow: false`, else the level's switch off. */
+  shadowless: number;
+  /** Model placements with a material override. */
+  materialOverrides: number;
+  /** Landscapes with a material. */
+  landscapeMaterials: number;
 }
 
 function sourceLights(doc: unknown): number {
@@ -39,18 +47,27 @@ function sourceLights(doc: unknown): number {
   return doc.lights.filter((light) => isJsonObject(light) && ["directional", "point", "spot"].includes(String(light.type))).length;
 }
 
-function sourcePlacements(doc: JsonObject, counts: SourceCounts): void {
+/** `missing`: groups whose placements were left out (no model in the target): their colour, shadow and material are not counted. */
+function sourcePlacements(doc: JsonObject, counts: SourceCounts, staticCastShadow: boolean, missing: ReadonlySet<string>): void {
   for (const group of Array.isArray(doc.instances) ? doc.instances : []) {
     if (!isJsonObject(group) || typeof group.assetId !== "string" || !Array.isArray(group.placements)) continue;
     const n = group.placements.length;
-    if (group.assetId.startsWith("shape:")) counts.shapes += n;
+    const placements = group.placements.filter(isJsonObject);
+    const shape = group.assetId.startsWith("shape:");
+    const marker = group.assetId.startsWith("marker:");
+    if (shape) counts.shapes += n;
     else if (group.assetId === "marker:playerStart") counts.playerStarts += n;
-    else if (group.assetId.startsWith("marker:")) counts.otherMarkers += n;
+    else if (marker) counts.otherMarkers += n;
     else counts.models += n;
+    if (marker || missing.has(group.assetId)) continue;
+    counts.shadowless += placements.filter((placement) => (typeof placement.castShadow === "boolean" ? placement.castShadow : staticCastShadow) === false).length;
+    if (shape) continue;
+    counts.tintedModels += placements.filter((placement) => typeof placement.color === "string").length;
+    counts.materialOverrides += placements.filter((placement) => typeof placement.materialSlot === "string" && placement.materialSlot !== "").length;
   }
 }
 
-async function sourceCounts(source: ForgeSource, path: string): Promise<SourceCounts> {
+async function sourceCounts(source: ForgeSource, path: string, missing: ReadonlySet<string>): Promise<SourceCounts> {
   const level = await readForgeLevel(source, path);
   const layout = level.input.layout as JsonObject;
   const counts: SourceCounts = {
@@ -62,9 +79,17 @@ async function sourceCounts(source: ForgeSource, path: string): Promise<SourceCo
     cellKeys: level.input.cells.map((cell) => cell.key),
     foliageInstances: 0,
     foliageRules: 0,
+    tintedModels: 0,
+    shadowless: 0,
+    materialOverrides: 0,
+    landscapeMaterials: (Array.isArray(layout.landscapes) ? layout.landscapes : [])
+      .filter((landscape) => isJsonObject(landscape) && typeof landscape.material === "string" && landscape.material !== "").length,
   };
-  sourcePlacements(layout, counts);
-  for (const cell of level.input.cells) if (isJsonObject(cell.doc)) sourcePlacements(cell.doc, counts);
+  // Forge's static shadow switch, off when a level does not say (SceneRuntimeCore).
+  const settings = isJsonObject(layout.worldSettings) ? layout.worldSettings : {};
+  const staticCastShadow = settings.staticObjectsCastShadow === true;
+  sourcePlacements(layout, counts, staticCastShadow, missing);
+  for (const cell of level.input.cells) if (isJsonObject(cell.doc)) sourcePlacements(cell.doc, counts, staticCastShadow, missing);
   const foliage = path.replace(/\.level\.json$/, ".foliage.json");
   if (await source.exists(foliage)) {
     const doc = await source.readJson(foliage);
@@ -89,6 +114,10 @@ interface TargetCounts {
   playerStarts: number;
   cells: number;
   persistent: number;
+  tintedMeshes: number;
+  shadowless: number;
+  materialOverrides: number;
+  terrainMaterials: number;
   /** Actor names per cell key. */
   cellActors: Map<string, string[]>;
 }
@@ -96,6 +125,7 @@ interface TargetCounts {
 async function targetCounts(projectRoot: string, folder: string): Promise<TargetCounts> {
   const counts: TargetCounts = {
     actors: 0, shapes: 0, meshes: 0, roles: 0, terrains: 0, heightFog: 0, lights: 0, playerStarts: 0, cells: 0, persistent: 0, cellActors: new Map(),
+    tintedMeshes: 0, shadowless: 0, materialOverrides: 0, terrainMaterials: 0,
   };
   const count = (doc: unknown, persistent: boolean): void => {
     const key = isJsonObject(doc) && typeof doc.cell === "string" ? doc.cell : null;
@@ -108,10 +138,18 @@ async function targetCounts(projectRoot: string, folder: string): Promise<Target
       if (components.length === 0 && actor.name === "Player Start") counts.playerStarts += 1;
       for (const component of components) {
         const type = isJsonObject(component) && typeof component.type === "string" ? component.type.split("@")[0] : "";
+        const data = isJsonObject(component) ? component : {};
+        if ((type === "forge.shape" || type === "forge.staticMesh") && data.castShadow === false) counts.shadowless += 1;
         if (type === "forge.shape") counts.shapes += 1;
-        else if (type === "forge.staticMesh") counts.meshes += 1;
-        else if (type === "forge.worldRole") counts.roles += 1;
-        else if (type === "forge.terrain") counts.terrains += 1;
+        else if (type === "forge.staticMesh") {
+          counts.meshes += 1;
+          if (typeof data.color === "string") counts.tintedMeshes += 1;
+          if (Array.isArray(data.materials) && data.materials.length > 0) counts.materialOverrides += 1;
+        } else if (type === "forge.worldRole") counts.roles += 1;
+        else if (type === "forge.terrain") {
+          counts.terrains += 1;
+          if (typeof data.material === "string") counts.terrainMaterials += 1;
+        }
         else if (type === "forge.heightFog") counts.heightFog += 1;
         else if (type === "forge.directionalLight" || type === "forge.pointLight" || type === "forge.spotLight") counts.lights += 1;
       }
@@ -148,7 +186,7 @@ function cellDifference(source: readonly string[], target: ReadonlyMap<string, r
 export async function compareImport(projectRoot: string, source: ForgeSource, result: ImportRunResult): Promise<Map<string, CountRow[]>> {
   const tables = new Map<string, CountRow[]>();
   for (const { folder, report } of result.levels) {
-    const s = await sourceCounts(source, report.source);
+    const s = await sourceCounts(source, report.source, new Set(report.missingAssets.map((entry) => entry.assetId)));
     const t = await targetCounts(projectRoot, folder);
     const missing = report.missingAssets.reduce((sum, entry) => sum + entry.placements, 0);
     const row = (what: string, sourceCount: number, targetCount: number, note: string): CountRow =>
@@ -163,6 +201,12 @@ export async function compareImport(projectRoot: string, source: ForgeSource, re
       row("landscapes → forge.terrain", s.landscapes, t.terrains, "?"),
       row("heightFog → forge.heightFog", s.heightFog, t.heightFog, "?"),
       row("lights → light actors", s.lights, t.lights, "?"),
+      row("model placement colours → forge.staticMesh color", s.tintedModels, t.tintedMeshes, "?"),
+      row("placements casting no shadow → castShadow false", s.shadowless, t.shadowless, "?"),
+      row("model materialSlot → forge.staticMesh materials", s.materialOverrides, t.materialOverrides,
+        report.notConverted.some((entry) => entry.field.startsWith("instances[].materialSlot=")) ? "material or model slots not in the target (report)" : "?"),
+      row("landscape materials → forge.terrain material", s.landscapeMaterials, t.terrainMaterials,
+        report.notConverted.some((entry) => entry.field.startsWith("landscapes[].material=")) ? "material not in the target (report)" : "?"),
       row("actors (placements + terrain + fog + lights)", s.shapes + s.models + s.playerStarts + s.landscapes + s.heightFog + s.lights, t.actors,
         t.actors === s.shapes + s.models - missing + s.playerStarts + s.landscapes + s.heightFog + s.lights ? `placements without a model: ${missing}` : "?"),
       row("cells", s.cells, t.cells, s.cells === 0

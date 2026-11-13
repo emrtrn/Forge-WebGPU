@@ -5,8 +5,9 @@
 // WebGL stored them as placements of the synthetic `shape:<type>` asset with a
 // colour; here the primitive and colour are the component's. The primitive's
 // base size is 0.5 m (Forge's SHAPE_PRIMITIVE_SIZE): the actor's scale sizes
-// it. Schema only for now (plan 2b, user decision 2026-11-12); drawn from
-// Faz 3, collider from Faz 6.
+// it. Drawn from phase 3, collider from phase 6. Version 2 (phase 3 step 4)
+// adds `castShadow` (default on, user decision 2026-11-13); receiving shadows
+// is always on.
 
 import { bool, color, defineComponent, enumOf, type ComponentData } from "../../core/index.ts";
 
@@ -17,7 +18,7 @@ export const SHAPE_PRIMITIVES = ["cube", "sphere", "cylinder", "cone", "plane"] 
 
 export const Shape = defineComponent(
   "forge.shape",
-  1,
+  2,
   {
     primitive: enumOf(SHAPE_PRIMITIVES, {
       default: "cube",
@@ -28,6 +29,10 @@ export const Shape = defineComponent(
       default: "#c8c8c8",
       hint: "Biçimin rengi. World Builder placeholder'ında rolün rengi.",
     }),
+    castShadow: bool({
+      default: true,
+      hint: "Gölge düşürür. Gölge almak her zaman açık.",
+    }),
     collision: bool({
       default: true,
       hint: "Oyunda çarpışır. Kapalıysa içinden geçilir.",
@@ -37,6 +42,7 @@ export const Shape = defineComponent(
     label: "Shape",
     hint: "Geometrik biçim: placeholder ya da basit katı.",
     spatial: true,
+    migrations: { 1: (data) => ({ ...data }) },
   },
 );
 

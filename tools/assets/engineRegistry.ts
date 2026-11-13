@@ -1,5 +1,5 @@
-// The schema registry Node tools work with: every component and binary asset
-// type that the engine's feature schemas export (architecture §4.5: the dev
+// The schema registry Node tools work with: every component, binary asset
+// type and schema-defined JSON asset type that the engine's feature schemas export (architecture §4.5: the dev
 // server and tools load the same schemas). Tools may not import a feature's
 // `feature.ts` (it can pull in runtime and render code), so the definitions
 // are collected from `src/features/*/schema.ts` exports.
@@ -12,6 +12,7 @@ import {
   isJsonObject,
   type BinaryAssetTypeDef,
   type ComponentDef,
+  type JsonAssetTypeDef,
   type SchemaRegistry,
 } from "../../src/core/index.ts";
 
@@ -34,7 +35,7 @@ export function findFeatureSchemaFiles(repoRoot: string): string[] {
   return files.sort();
 }
 
-/** Registers what the modules export: component definitions and binary asset types. */
+/** Registers what the modules export: component definitions, binary and JSON asset types. */
 export function registerExports(registry: SchemaRegistry, modules: readonly Record<string, unknown>[]): void {
   for (const module of modules) {
     for (const value of Object.values(module)) {
@@ -43,6 +44,8 @@ export function registerExports(registry: SchemaRegistry, modules: readonly Reco
         registry.registerComponent(value as unknown as ComponentDef);
       } else if (value.kind === "assetType" && value.storage === "binary") {
         registry.registerAssetType(value as unknown as BinaryAssetTypeDef);
+      } else if (value.kind === "assetType" && value.storage === "document" && isJsonObject(value.json)) {
+        registry.registerAssetType(value as unknown as JsonAssetTypeDef);
       }
     }
   }

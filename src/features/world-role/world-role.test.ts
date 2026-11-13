@@ -20,18 +20,22 @@ describe("World Builder output components", () => {
       "forge.worldRole",
       "forge.terrain",
     ]);
+    // Version 1 files migrate to version 2 (phase 3 step 4): new fields take their defaults.
     const shape = normalizeComponent(Shape, { type: "forge.shape@1" }, { strict: true });
     expect(shape.ok).toBe(true);
     expect(shape.value).toEqual({
-      type: "forge.shape@1",
+      type: "forge.shape@2",
       parent: null,
       local: { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] },
       primitive: "cube",
       color: "#c8c8c8",
+      castShadow: true,
       collision: true,
     });
-    expect(normalizeComponent(StaticMesh, { type: "forge.staticMesh@1" }, { strict: true }).value).toMatchObject({ mesh: null, collision: true });
-    expect(normalizeComponent(Terrain, { type: "forge.terrain@1" }, { strict: true }).value).toMatchObject({ data: null });
+    expect(normalizeComponent(StaticMesh, { type: "forge.staticMesh@1", collision: false }, { strict: true }).value).toMatchObject({
+      type: "forge.staticMesh@2", mesh: null, materials: [], color: null, castShadow: true, collision: false,
+    });
+    expect(normalizeComponent(Terrain, { type: "forge.terrain@1" }, { strict: true }).value).toMatchObject({ type: "forge.terrain@2", data: null, material: null });
     expect(WorldRole.spatial).toBe(false);
   });
 

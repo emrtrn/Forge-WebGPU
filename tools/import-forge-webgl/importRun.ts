@@ -11,6 +11,12 @@
 //   GUID comes from the Forge id and whose licence comes from the provenance
 //   table. An asset the project already sees under that GUID elsewhere (a
 //   content pack) is not copied again: references point at it.
+// - Materials (phase 3 step 4) become `forge.material` JSON assets at the same
+//   place, read with Forge's normaliser, their textures by GUID
+//   (`forgeMaterial.ts`). A model's `*.materials.json`, `*.uvw.json` and
+//   `*.vertexcolors.json` become its import settings (`forge.model@2`,
+//   `modelSidecars.ts`). A placement's `materialSlot` is written on every
+//   slot of its model (the GLB's unique materials, `glbMaterials.ts`).
 // - Everything is one atomic save through the save service. A level folder
 //   that exists is replaced only with `force`; the importer's own files in it
 //   that it no longer writes are deleted. Assets are rewritten in place (same
@@ -25,7 +31,9 @@ import {
   createAssetMeta,
   dataDocument,
   fileLabel,
+  isJsonAssetType,
   isJsonObject,
+  normalizeJsonAsset,
   LEVEL_FILE,
   normalizeLevel,
   RegionProfileAssetType,
@@ -34,13 +42,16 @@ import {
   WorldBriefAssetType,
   WorldRecipeAssetType,
   buildAssetIndex,
+  type AssetId,
   type AssetIndex,
   type BinaryAssetTypeDef,
   type JsonObject,
   type LevelDoc,
 } from "../../src/core/index.ts";
 import { importForgeLevel, type ForgeLevelReport } from "../../src/engine/forgeImport/forgeLevel.ts";
+import { convertForgeMaterial } from "../../src/engine/forgeImport/forgeMaterial.ts";
 import { forgeAssetId, stableHex } from "../../src/engine/forgeImport/ids.ts";
+import { convertModelSidecars } from "../../src/engine/forgeImport/modelSidecars.ts";
 import { normalizeWorldRecipe } from "../../src/engine/worldbuilder/recipe.ts";
 import { fileRevision } from "../assets/revision.ts";
 import { createClassStore, createDocumentCheck } from "../save/documentCheck.ts";
@@ -51,7 +62,8 @@ import { loadEngineRegistry } from "../assets/engineRegistry.ts";
 import { scanRoots } from "../assets/scan.ts";
 import { openWorldProject } from "../world/worldProject.ts";
 import { planAssets, type AssetPlan } from "./assetPlan.ts";
-import { openForgeSource, type ForgeSource } from "./forgeSource.ts";
+import { openForgeSource, stemOf, type ForgeSource } from "./forgeSource.ts";
+import { glbMaterialSlotCount } from "./glbMaterials.ts";
 import { profileAssetIds, readForgeLevel, type ForgeLevelFiles } from "./levelRead.ts";
 import { provenanceOf } from "./provenance.ts";
 
@@ -82,11 +94,22 @@ export interface ImportedLevelSummary {
   readonly sidecars: readonly string[];
 }
 
+/** A Forge id an imported asset names that the target does not have: the slot stays empty. */
+export interface MissingReference {
+  /** Forge id of the asset that names it. */
+  readonly in: string;
+  /** Where: a material's texture slot, a model's `materials`. */
+  readonly slot: string;
+  readonly id: string;
+}
+
 export interface ImportRunResult {
   readonly levels: readonly ImportedLevelSummary[];
   readonly plan: AssetPlan;
   /** Forge ids of planned assets the project already has under their GUID elsewhere. */
   readonly reused: readonly string[];
+  /** Textures of materials and materials of models that are not in the target. */
+  readonly missingReferences: readonly MissingReference[];
   /** Project-relative files written (the importer's own; the cell indexes too). */
   readonly written: readonly string[];
   readonly removed: readonly string[];
@@ -177,42 +200,73 @@ interface PendingWrites {
   readonly binaries: Map<string, { readonly from: string }>;
 }
 
-export async function runForgeImport(options: ImportRunOptions): Promise<ImportRunResult> {
-  const assetsFolder = posix.normalize(options.assetsFolder ?? (options.pack !== undefined ? `content/packs/${options.pack}` : "content/forge"));
-  const levelsFolder = posix.normalize(options.levelsFolder ?? "content/levels");
-  const project = await openTarget(options);
-  const source = await openForgeSource(options.forgeRoot);
+export async function runForgeImport(runOptions: ImportRunOptions): Promise<ImportRunResult> {
+  const assetsFolder = posix.normalize(runOptions.assetsFolder ?? (runOptions.pack !== undefined ? `content/packs/${runOptions.pack}` : "content/forge"));
+  const levelsFolder = posix.normalize(runOptions.levelsFolder ?? "content/levels");
+  const project = await openTarget(runOptions);
+  const source = await openForgeSource(runOptions.forgeRoot);
   const levels: ForgeLevelFiles[] = [];
-  for (const path of options.levels) levels.push(await readForgeLevel(source, path));
-  const plan = await planAssets(source, [...levels.flatMap((level) => level.seeds), ...(options.assets ?? [])]);
+  for (const path of runOptions.levels) levels.push(await readForgeLevel(source, path));
+  const plan = await planAssets(source, [...levels.flatMap((level) => level.seeds), ...(runOptions.assets ?? [])]);
 
   const pending: PendingWrites = { texts: new Map(), binaries: new Map() };
   const labels = new Map<string, string>();
   const reused: string[] = [];
-  const modelGuids = new Set<string>();
+  const missingReferences: MissingReference[] = [];
+  const plannedTypes = new Map<string, string>();
+  for (const [id, planned] of plan.imported) plannedTypes.set(forgeAssetId(id), planned.type);
+  /** The GUID of a Forge id when the target will have it as `type`. */
+  const assetOfType = (type: string) => (id: string): AssetId | null => {
+    const guid = forgeAssetId(id);
+    return plannedTypes.get(guid) === type || project.index.entries.get(guid)?.type === type ? guid : null;
+  };
+  const textureAsset = assetOfType("forge.texture");
+  const materialAsset = assetOfType("forge.material");
+  const meshAsset = assetOfType("forge.model");
+  const options = { strict: true, registry: project.registry };
   for (const [id, planned] of plan.imported) {
     const guid = forgeAssetId(id);
     const target = `${assetsFolder}/${planned.asset.path.replace(/^assets\//, "")}`;
     const existing = project.index.entries.get(guid);
     const existingLabel = existing ? fileLabel(existing.root, existing.path) : null;
-    if (planned.type === "forge.model") modelGuids.add(guid);
     if (existingLabel !== null && existingLabel !== target) {
       reused.push(id);
       labels.set(planned.asset.path, existingLabel);
       continue;
     }
     labels.set(planned.asset.path, target);
-    const type = project.registry.getAssetType(planned.type) as BinaryAssetTypeDef | undefined;
+    const type = project.registry.getAssetType(planned.type);
     if (!type) throw new Error(`the engine has no ${planned.type} asset type`);
-    const meta = createAssetMeta(type, planned.provenance, { strict: true, registry: project.registry }, guid);
+    if (isJsonAssetType(type)) {
+      const converted = convertForgeMaterial(await source.readJson(planned.asset.path), guid, textureAsset);
+      for (const missing of converted.missingTextures) missingReferences.push({ in: id, slot: missing.slot, id: missing.textureId });
+      const material = normalizeJsonAsset(type, converted.document, options);
+      if (!material.value || !material.ok) {
+        throw new Error(`${planned.asset.path}: ${material.issues.map((issue) => `${issue.path} ${issue.message}`).join("; ")}`);
+      }
+      pending.texts.set(target, stringifyDocument(material.value));
+      continue;
+    }
+    let settings: JsonObject = {};
+    if (planned.type === "forge.model") {
+      const converted = convertModelSidecars(await readModelSidecars(source, planned.asset.path), materialAsset);
+      settings = converted.settings;
+      for (const slot of converted.missingMaterials) missingReferences.push({ in: id, slot: "materials", id: slot });
+    }
+    const meta = createAssetMeta(type as BinaryAssetTypeDef, planned.provenance, options, guid, settings);
     if (!meta.value || !meta.ok) throw new Error(`${planned.asset.path}: meta: ${meta.issues.map((issue) => issue.message).join("; ")}`);
     pending.binaries.set(target, { from: planned.asset.path });
     pending.texts.set(`${target}.meta.json`, stringifyDocument(meta.value));
   }
-  const meshAsset = (id: string): string | null => {
-    const guid = forgeAssetId(id);
-    return modelGuids.has(guid) || project.index.entries.get(guid)?.type === "forge.model" ? guid : null;
-  };
+  // Slot counts of the models a placement overrides the material of (its GLB's unique materials).
+  const slotCounts = new Map<string, number | null>();
+  for (const level of levels) {
+    for (const assetId of materialOverrideAssets(level)) {
+      const asset = source.assets.get(assetId);
+      if (slotCounts.has(assetId) || !asset || meshAsset(assetId) === null) continue;
+      slotCounts.set(assetId, /\.glb$/i.test(asset.path) ? glbMaterialSlotCount(await source.readBytes(asset.path)) : null);
+    }
+  }
 
   const summaries: ImportedLevelSummary[] = [];
   const folders: string[] = [];
@@ -221,7 +275,9 @@ export async function runForgeImport(options: ImportRunOptions): Promise<ImportR
     folders.push(folder);
     const sidecars = levelSidecars(level, folder, labels, pending, project);
     const stages = oldLedgerStages(level.recipe?.json);
-    const imported = importForgeLevel(level.input, { meshAsset, stageOf: (id) => stages.get(id) });
+    const imported = importForgeLevel(level.input, {
+      meshAsset, materialAsset, materialSlotCount: (id) => slotCounts.get(id) ?? null, stageOf: (id) => stages.get(id),
+    });
     writeLevel(project, folder, imported.level, pending);
     for (const terrain of imported.terrains) {
       pending.texts.set(`${folder}/${terrain.file}`, stringifyDocument(terrain.document));
@@ -233,9 +289,37 @@ export async function runForgeImport(options: ImportRunOptions): Promise<ImportR
     summaries.push({ folder, report: imported.report, deferredSidecars: level.deferred, sidecars });
   }
 
-  if (options.dryRun) return { levels: summaries, plan, reused, written: [], removed: [] };
-  const { written, removed } = await commit(project, source, pending, folders, options.force === true);
-  return { levels: summaries, plan, reused, written, removed };
+  if (runOptions.dryRun) return { levels: summaries, plan, reused, missingReferences, written: [], removed: [] };
+  const { written, removed } = await commit(project, source, pending, folders, runOptions.force === true);
+  return { levels: summaries, plan, reused, missingReferences, written, removed };
+}
+
+/** The model sidecars Forge kept next to a model, parsed; absent ones left out. */
+async function readModelSidecars(source: ForgeSource, modelPath: string): Promise<{ materials?: unknown; uvw?: unknown; vertexColors?: unknown }> {
+  const base = stemOf(modelPath);
+  const read = async (suffix: string): Promise<unknown> => (await source.exists(`${base}${suffix}`) ? source.readJson(`${base}${suffix}`) : undefined);
+  const [materials, uvw, vertexColors] = [await read(".materials.json"), await read(".uvw.json"), await read(".vertexcolors.json")];
+  return {
+    ...(materials === undefined ? {} : { materials }),
+    ...(uvw === undefined ? {} : { uvw }),
+    ...(vertexColors === undefined ? {} : { vertexColors }),
+  };
+}
+
+/** Forge asset ids of the model groups whose placements override the material (`materialSlot`), level and cells. */
+function materialOverrideAssets(level: ForgeLevelFiles): Set<string> {
+  const ids = new Set<string>();
+  const scan = (doc: unknown): void => {
+    for (const group of isJsonObject(doc) && Array.isArray(doc.instances) ? doc.instances : []) {
+      if (!isJsonObject(group) || typeof group.assetId !== "string" || !Array.isArray(group.placements)) continue;
+      if (group.placements.some((placement) => isJsonObject(placement) && typeof placement.materialSlot === "string" && placement.materialSlot !== "")) {
+        ids.add(group.assetId);
+      }
+    }
+  };
+  scan(level.input.layout);
+  for (const cell of level.input.cells) scan(cell.doc);
+  return ids;
 }
 
 /** The level's World Builder sidecars into its folder, their inner paths relabelled. */

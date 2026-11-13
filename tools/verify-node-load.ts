@@ -30,10 +30,10 @@ for (const file of schemaFiles) {
   const label = file.slice(repoRoot.length + 1).replaceAll("\\", "/");
   try {
     const module: Record<string, unknown> = await import(pathToFileURL(file).href);
-    // A feature schema defines components, binary asset types or both (what registerExports takes).
+    // A feature schema defines components, binary or JSON asset types (what registerExports takes).
     const definitions = Object.values(module).filter(
       (value) => core.isJsonObject(value)
-        && (value.kind === "component" || (value.kind === "assetType" && value.storage === "binary")),
+        && (value.kind === "component" || (value.kind === "assetType" && (value.storage === "binary" || core.isJsonObject(value.json)))),
     );
     if (definitions.length === 0) {
       failures.push(`${label} loaded but exports no component or asset type definition.`);

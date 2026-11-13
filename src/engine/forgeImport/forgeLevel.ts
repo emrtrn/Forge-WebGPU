@@ -9,7 +9,9 @@
  * terrain actors with `forge.terrain` data documents (the definition is
  * copied as it is; its tiles and global map are copied by the importer),
  * `heightFog` as a `forge.heightFog` actor, `lights` (the level's and its
- * cells') as light actors (`lights.ts`, plan phase 3), the main grid's cell size. Cells
+ * cells') as light actors (`lights.ts`, plan phase 3), the main grid's cell
+ * size, the static shadow switch (resolved into each placement's
+ * `castShadow`, phase 3 step 4) and a landscape's material. Cells
  * are not carried over as files: the new level assigns every actor to a cell
  * by its position (A11). Every other field is counted in the report with the
  * phase that converts it (`fields.ts`).
@@ -25,6 +27,7 @@ import {
   isJsonObject,
   type ActorDoc,
   type ActorId,
+  type AssetId,
   type ComponentMap,
   type DataDocument,
   type JsonObject,
@@ -37,17 +40,19 @@ import {
   CONVERTED_LANDSCAPE_FIELDS,
   CONVERTED_LEVEL_FIELDS,
   CONVERTED_PLACEMENT_FIELDS,
+  CONVERTED_WORLD_SETTINGS_FIELDS,
+  FORGE_STATIC_OBJECTS_CAST_SHADOW,
   HEIGHT_FOG_FIELD_PHASES,
   LANDSCAPE_FIELD_PHASES,
   LEVEL_FIELD_PHASES,
   PLACEMENT_FIELD_PHASES,
+  WORLD_SETTINGS_FIELD_PHASES,
   fieldPhase,
 } from "./fields.ts";
 import { forgeLevelId, stableHex } from "./ids.ts";
 import { forgeLightSources, LIGHT_FIELD_PHASES, lightActors } from "./lights.ts";
 import {
   HEIGHT_FOG_TAG,
-  SHAPE_PREFIX,
   emptyPlacementCounts,
   placementGroupActors,
   terrainActor,
@@ -84,6 +89,14 @@ export interface ForgeLevelOptions {
   readonly levelId?: LevelId;
   /** The World Builder stage that placed a placement, from the level's recipe ledger. */
   readonly stageOf?: (placementId: string) => string | undefined;
+  /** GUID of the `forge.material` a Forge material id names; null when the target has none (reported). */
+  readonly materialAsset?: (forgeMaterialId: string) => string | null;
+  /**
+   * Material slots of the model a Forge asset id shows (its unique GLB
+   * materials); a placement's single `materialSlot` override is written on
+   * each. Null when unknown: the override is reported, not converted.
+   */
+  readonly materialSlotCount?: (forgeAssetId: string) => number | null;
 }
 
 export interface ImportedTerrain {
@@ -114,6 +127,8 @@ export interface ForgeLevelReport {
     readonly heightFog: number;
     readonly lights: number;
     readonly sourceCells: number;
+    /** Forge's level-wide static shadow switch, as resolved into the placements that do not say. */
+    readonly staticCastShadow: boolean;
   };
   readonly notConverted: readonly NotConvertedField[];
   /** Placements left out because their Forge asset has no model in the target, by asset id. */
@@ -182,19 +197,20 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
     for (const [field, value] of Object.entries(doc)) {
       if (CONVERTED_LEVEL_FIELDS.has(field) || isEmpty(value)) continue;
       if (field === "worldSettings" && isJsonObject(value)) {
-        // The main grid's cell size is converted; the rest of the settings is not.
-        const rest = Object.keys(value).filter((key) => key !== "partition");
-        if (rest.length === 0) continue;
+        // Each setting has its own owner (phase 3 decision 7): reported one by one.
+        for (const key of Object.keys(value)) {
+          if (!CONVERTED_WORLD_SETTINGS_FIELDS.has(key)) note(`worldSettings.${key}`, 1, fieldPhase(WORLD_SETTINGS_FIELD_PHASES, key));
+        }
+        continue;
       }
       note(field, Array.isArray(value) ? value.length : 1, fieldPhase(LEVEL_FIELD_PHASES, field));
     }
   };
   const notePlacementFields = (groups: readonly PlacementGroup[]): void => {
     for (const group of groups) {
-      const shape = group.assetId.startsWith(SHAPE_PREFIX);
       for (const placement of group.placements) {
         for (const field of Object.keys(placement)) {
-          if (CONVERTED_PLACEMENT_FIELDS.has(field) || (field === "color" && shape)) continue;
+          if (CONVERTED_PLACEMENT_FIELDS.has(field)) continue;
           note(`instances[].${field}`, 1, fieldPhase(PLACEMENT_FIELD_PHASES, field));
         }
       }
@@ -204,11 +220,24 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
   const actors: ActorDoc[] = [];
   const counts = emptyPlacementCounts();
   const missing = new Map<string, number>();
+  const settings = isJsonObject(layout.worldSettings) ? layout.worldSettings : {};
+  const staticCastShadow = typeof settings.staticObjectsCastShadow === "boolean"
+    ? settings.staticObjectsCastShadow
+    : FORGE_STATIC_OBJECTS_CAST_SHADOW;
+  const materialSlots = (materialId: string, assetId: string): string[] | null => {
+    const material = options.materialAsset?.(materialId) ?? null;
+    const slots = options.materialSlotCount?.(assetId) ?? null;
+    return material === null || slots === null ? null : Array.from({ length: Math.max(1, slots) }, () => material);
+  };
   const place = (groups: readonly PlacementGroup[], keyPrefix: string): void => {
     notePlacementFields(groups);
     const placed = placementGroupActors(groups, {
-      actorId, keyPrefix, meshAsset: options.meshAsset, ...(options.stageOf ? { stageOf: options.stageOf } : {}),
+      actorId, keyPrefix, meshAsset: options.meshAsset, castShadow: staticCastShadow, materials: materialSlots,
+      ...(options.stageOf ? { stageOf: options.stageOf } : {}),
     });
+    for (const [materialId, count] of placed.unresolvedMaterials) {
+      note(`instances[].materialSlot=${materialId}`, count, "- (materyal ya da model slotları hedefte yok)");
+    }
     actors.push(...placed.actors);
     counts.placements += placed.counts.placements;
     counts.placeholders += placed.counts.placeholders;
@@ -235,7 +264,12 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
     terrainFiles.add(file);
     const data = `ast_${stableHex(`forge-webgl/terrain/${landscape.dataRef}`)}` as const;
     const name = typeof landscape.name === "string" ? landscape.name : def.name;
-    actors.push(terrainActor(actorId(`terrain/${landscape.id}`), name, def, data));
+    let material: AssetId | null = null;
+    if (typeof landscape.material === "string" && landscape.material !== "") {
+      material = (options.materialAsset?.(landscape.material) ?? null) as AssetId | null;
+      if (material === null) note(`landscapes[].material=${landscape.material}`, 1, "- (materyal hedefte yok)");
+    }
+    actors.push(terrainActor(actorId(`terrain/${landscape.id}`), name, def, data, material));
     terrains.push({
       file,
       source: landscape.dataRef,
@@ -288,7 +322,9 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
     report: {
       source: input.path,
       name: typeof layout.name === "string" ? layout.name : "",
-      converted: { ...counts, actors: actors.length, terrains: terrains.length, heightFog, lights: lights.actors.length, sourceCells: input.cells.length },
+      converted: {
+        ...counts, actors: actors.length, terrains: terrains.length, heightFog, lights: lights.actors.length, sourceCells: input.cells.length, staticCastShadow,
+      },
       notConverted: [...fields].map(([field, { count, phase }]) => ({ field, count, phase }))
         .sort((a, b) => a.field.localeCompare(b.field)),
       missingAssets: [...missing].map(([assetId, placements]) => ({ assetId, placements }))

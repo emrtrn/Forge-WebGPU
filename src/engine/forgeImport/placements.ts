@@ -7,8 +7,13 @@
  * - Every placement becomes a plain actor. A `shape:<type>` group (World
  *   Builder's placeholders, Add Actor primitives) gives a `forge.shape`
  *   component with the placement's colour, a model group a `forge.staticMesh`
- *   of that asset. `forge.worldRole` carries the role and the World Builder
- *   stage that placed it.
+ *   of that asset with the placement's colour as its tint and its material
+ *   override (`materialSlot`, one Forge material for every slot) as the slot
+ *   list the writer resolves. `forge.worldRole` carries the role and the
+ *   World Builder stage that placed it.
+ * - `castShadow` is the placement's own value, else the writer's default
+ *   (the importer resolves Forge's level-wide `staticObjectsCastShadow`; user
+ *   decision 2026-11-13). Receiving shadows is always on.
  * - A `marker:playerStart` placement is an actor named "Player Start" without
  *   components until the Player Start feature (Faz 6). Another marker is left
  *   out and counted.
@@ -28,10 +33,10 @@ import { SHAPE_PRIMITIVE_TYPES } from "../legacy/shapes.ts";
 import type { WorldTerrainDef } from "../terrain/terrainTypes.ts";
 import { worldTerrainActorPosition } from "../terrain/worldTerrainActor.ts";
 
-export const STATIC_MESH_TAG = "forge.staticMesh@1";
-export const SHAPE_TAG = "forge.shape@1";
+export const STATIC_MESH_TAG = "forge.staticMesh@2";
+export const SHAPE_TAG = "forge.shape@2";
 export const WORLD_ROLE_TAG = "forge.worldRole@1";
-export const TERRAIN_TAG = "forge.terrain@1";
+export const TERRAIN_TAG = "forge.terrain@2";
 export const HEIGHT_FOG_TAG = "forge.heightFog@1";
 
 export const SHAPE_PREFIX = "shape:";
@@ -56,6 +61,15 @@ export interface PlacementActorsOptions {
   readonly stageOf?: (placementId: string) => string | undefined;
   /** Mesh asset of a model group; null leaves the group out (counted in `skipped`). Default: the group's asset id. */
   readonly meshAsset?: (assetId: string) => string | null;
+  /** `castShadow` of a placement that does not say. Default true (the component's default). */
+  readonly castShadow?: boolean;
+  /**
+   * The slot list of a model placement's material override (`materialSlot`: a
+   * material id) on the group's asset; null when it cannot be resolved (the
+   * placement keeps the model's materials and is counted in `unresolvedMaterials`).
+   * Without it a `materialSlot` is left alone (and counted).
+   */
+  readonly materials?: (materialId: string, assetId: string) => readonly string[] | null;
 }
 
 export interface PlacementCounts {
@@ -70,6 +84,8 @@ export interface PlacementActors {
   readonly counts: PlacementCounts;
   /** Placements left out, by group asset id: an asset nothing resolves, a marker without a converter. */
   readonly skipped: Map<string, number>;
+  /** Material overrides that did not resolve, by material id: how many placements. */
+  readonly unresolvedMaterials: Map<string, number>;
 }
 
 export function emptyPlacementCounts(): PlacementCounts {
@@ -81,6 +97,7 @@ export function placementGroupActors(groups: readonly PlacementGroup[], options:
   const actors: ActorDoc[] = [];
   const counts = emptyPlacementCounts();
   const skipped = new Map<string, number>();
+  const unresolvedMaterials = new Map<string, number>();
   const skip = (assetId: string, count: number): void => {
     if (count > 0) skipped.set(assetId, (skipped.get(assetId) ?? 0) + count);
   };
@@ -108,14 +125,29 @@ export function placementGroupActors(groups: readonly PlacementGroup[], options:
         return;
       }
       const collision = placement.collision !== false;
+      const castShadow = placement.castShadow ?? options.castShadow ?? true;
+      const color = placement.color === undefined ? {} : { color: placement.color.toLowerCase() };
+      let materials: { materials?: string[] } = {};
+      if (placement.materialSlot !== undefined && placement.materialSlot !== "") {
+        // A shape has no material slots (its material is its colour): its override is counted, not kept.
+        const slots = shape === null ? (options.materials?.(placement.materialSlot, group.assetId) ?? null) : null;
+        if (slots === null) {
+          unresolvedMaterials.set(placement.materialSlot, (unresolvedMaterials.get(placement.materialSlot) ?? 0) + 1);
+        } else {
+          materials = { materials: [...slots] };
+        }
+      }
       const components: ComponentMap = shape !== null
         ? {
           shape: {
-            type: SHAPE_TAG, parent: null, local: structuredClone(IDENTITY_LOCAL), primitive: shape,
-            ...(placement.color === undefined ? {} : { color: placement.color.toLowerCase() }), collision,
+            type: SHAPE_TAG, parent: null, local: structuredClone(IDENTITY_LOCAL), primitive: shape, ...color, castShadow, collision,
           },
         }
-        : { mesh: { type: STATIC_MESH_TAG, parent: null, local: structuredClone(IDENTITY_LOCAL), mesh: mesh!, collision } };
+        : {
+          mesh: {
+            type: STATIC_MESH_TAG, parent: null, local: structuredClone(IDENTITY_LOCAL), mesh: mesh!, ...materials, ...color, castShadow, collision,
+          },
+        };
       const stage = placement.id === undefined ? undefined : options.stageOf?.(placement.id);
       if (placement.role !== undefined || stage !== undefined) {
         components.role = { type: WORLD_ROLE_TAG, role: placement.role ?? "", stage: stage ?? "" };
@@ -134,7 +166,7 @@ export function placementGroupActors(groups: readonly PlacementGroup[], options:
       else counts.meshes += 1;
     });
   }
-  return { actors, counts, skipped };
+  return { actors, counts, skipped, unresolvedMaterials };
 }
 
 /** The Player Start: an actor of that name without components until the Player Start feature (Faz 6). */
@@ -142,12 +174,13 @@ export function playerStartActor(id: ActorId, transform: Transform): ActorDoc {
   return { id, name: PLAYER_START_NAME, class: null, parent: null, spatiallyLoaded: true, transform, components: {} };
 }
 
-/** A terrain actor in the persistent layer, at the centre of its tile grid. */
+/** A terrain actor in the persistent layer, at the centre of its tile grid; `material` is Forge's Landscape material. */
 export function terrainActor(
   id: ActorId,
   name: string,
   def: Pick<WorldTerrainDef, "tileQuads" | "spacing" | "tilesX" | "tilesZ" | "origin">,
   data: AssetId,
+  material: AssetId | null = null,
 ): ActorDoc {
   return {
     id,
@@ -156,7 +189,7 @@ export function terrainActor(
     parent: null,
     spatiallyLoaded: false,
     transform: { p: worldTerrainActorPosition(def), r: [0, 0, 0, 1], s: [1, 1, 1] },
-    components: { terrain: { type: TERRAIN_TAG, parent: null, local: structuredClone(IDENTITY_LOCAL), data } },
+    components: { terrain: { type: TERRAIN_TAG, parent: null, local: structuredClone(IDENTITY_LOCAL), data, material } },
   };
 }
 

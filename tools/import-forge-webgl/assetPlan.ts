@@ -3,24 +3,25 @@
 //
 // From seed asset ids (the models the levels place, the materials of their
 // terrain layers, any asset asked for), the plan follows Forge's chain
-// model -> `<model>.materials.json` slots -> material -> textures, so the
-// textures are there when materials are converted (Faz 3). Three Forge types
-// become binary assets now (`forge.model`, `forge.texture`, `forge.sound`);
-// every other type is reported with the phase that brings it, the K12 types
-// are skipped and listed, and the licence decides through the provenance
-// table (`provenance.ts`).
+// model -> `<model>.materials.json` slots -> material -> textures. Three Forge
+// types become binary assets (`forge.model`, `forge.texture`, `forge.sound`)
+// and materials JSON assets (`forge.material`, phase 3 step 4); every other
+// type is reported with the phase that brings it, the K12 types are skipped
+// and listed, and the licence decides through the provenance table
+// (`provenance.ts`; a JSON asset carries no licence, its textures do).
 
 import type { ForgeManifestAsset, ForgeSource } from "./forgeSource.ts";
 import { provenanceOf, type Provenance } from "./provenance.ts";
 
 export type BinaryTarget = "forge.model" | "forge.texture" | "forge.sound";
+export type ImportTarget = BinaryTarget | "forge.material";
 
-/** Forge manifest types: the binary type they become now, or the phase that brings them. */
-export const FORGE_ASSET_TYPES: Readonly<Record<string, { readonly type: BinaryTarget } | { readonly phase: string }>> = {
+/** Forge manifest types: the asset type they become now, or the phase that brings them. */
+export const FORGE_ASSET_TYPES: Readonly<Record<string, { readonly type: ImportTarget } | { readonly phase: string }>> = {
   staticMesh: { type: "forge.model" },
   texture: { type: "forge.texture" },
   sound: { type: "forge.sound" },
-  material: { phase: "3" },
+  material: { type: "forge.material" },
   foliageType: { phase: "5c" },
   effect: { phase: "6" },
   skeletalMesh: { phase: "6" },
@@ -39,11 +40,14 @@ export const FORGE_ASSET_TYPES: Readonly<Record<string, { readonly type: BinaryT
   soundCue: { phase: "- (K12)" },
 };
 
-/** Forge model sidecars: the phase that converts each. */
+/** Forge model sidecars converted into the model's import settings (`forge.model@2`, `modelSidecars.ts`). */
+export const CONVERTED_MODEL_SIDECARS: readonly string[] = [".materials.json", ".uvw.json", ".vertexcolors.json"];
+
+/** Forge model sidecars: the phase that converts each; `converted` for those converted now. */
 export const MODEL_SIDECAR_PHASES: Readonly<Record<string, string>> = {
-  ".materials.json": "3",
-  ".uvw.json": "3",
-  ".vertexcolors.json": "3",
+  ".materials.json": "converted",
+  ".uvw.json": "converted",
+  ".vertexcolors.json": "converted",
   ".collision.json": "6",
   ".fracture.json": "8",
   ".deformable.json": "8",
@@ -51,7 +55,7 @@ export const MODEL_SIDECAR_PHASES: Readonly<Record<string, string>> = {
 
 export interface PlannedAsset {
   readonly asset: ForgeManifestAsset;
-  readonly type: BinaryTarget;
+  readonly type: ImportTarget;
   readonly provenance: Provenance;
   readonly rule: string;
 }
@@ -110,13 +114,13 @@ export async function planAssets(source: ForgeSource, seeds: Iterable<string>): 
     const target = FORGE_ASSET_TYPES[asset.assetType] ?? { phase: "?" };
     if ("phase" in target) {
       plan.deferred.set(id, { asset, phase: target.phase });
-      // A material comes in Faz 3; the textures it names come now.
-      if (asset.assetType === "material" && await source.exists(asset.path)) {
-        queue.push(...materialTextureIds(await source.readJson(asset.path)));
-      }
       continue;
     }
     plan.imported.set(id, { asset, type: target.type, provenance: decision.provenance, rule: decision.rule });
+    // A material brings the textures it names.
+    if (target.type === "forge.material" && await source.exists(asset.path)) {
+      queue.push(...materialTextureIds(await source.readJson(asset.path)));
+    }
     if (target.type !== "forge.model") continue;
     for (const suffix of Object.keys(MODEL_SIDECAR_PHASES)) {
       const sidecar = `${modelBase(asset.path)}${suffix}`;
@@ -124,7 +128,7 @@ export async function planAssets(source: ForgeSource, seeds: Iterable<string>): 
       plan.sidecars.set(suffix, (plan.sidecars.get(suffix) ?? 0) + 1);
       if (suffix !== ".materials.json") continue;
       const slots = (await source.readJson(sidecar)) as { slots?: unknown };
-      for (const slot of Array.isArray(slots.slots) ? slots.slots : []) if (typeof slot === "string") queue.push(slot);
+      for (const slot of Array.isArray(slots.slots) ? slots.slots : []) if (typeof slot === "string" && slot !== "") queue.push(slot);
     }
   }
   return plan;

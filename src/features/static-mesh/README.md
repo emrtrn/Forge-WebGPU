@@ -3,11 +3,15 @@
 Yerleştirilmiş model. Her yerleşim bir aktördür (mimari §4.4); instancing veri
 türü değil, render katmanının toplu çizimidir.
 
-- `schema.ts`: `forge.staticMesh@1` bileşeni. Uzamsal (`parent`, `local`):
+- `schema.ts`: `forge.staticMesh@2` bileşeni. Uzamsal (`parent`, `local`):
   aktör sınıfında başka bir bileşene bağlanabilir. Alanlar: `mesh`
-  (`forge.model` asset'i), `collision`.
+  (`forge.model` asset'i), `materials` (slot başına `forge.material`
+  değişikliği; boş = modelin), `color` (boş = materyalin rengi; doluysa temel
+  rengi değiştirir, dokular kalır), `castShadow` (varsayılan açık; gölge almak
+  hep açık), `collision`. Sürüm 1'den geçiş zinciriyle.
 - `feature.ts`: yalnız bileşeni kurar.
-- `render.ts`: modelin GLB'si kendi materyalleriyle, kaynak önbelleğinden
-  (`model:<guid>`); yerleşimler yüklenen sahnenin klonudur (geometri ve
-  materyal ortak). Renk / gölge / materyal slotu sürüm 2'yle (Faz 3 adım 4),
-  instancing adım 8'de, collider Faz 6'da.
+- `render.ts`: model kaynak önbelleğinden (`model:<guid>`); yerleşimler
+  yüklenen sahnenin klonudur (geometri ortak). Slot materyali önceliği:
+  yerleşimin `materials`'ı, modelin `materials`'ı, GLB'nin kendisi; materyaller
+  `material:<guid>:<katkı imzası>` anahtarıyla ortak, renkli yerleşim kendi
+  kopyasını alır. Instancing adım 8'de, collider Faz 6'da.

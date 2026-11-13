@@ -191,16 +191,18 @@ function normalizeTypeAndImport(
 
 /**
  * A new meta file for an asset being brought in. Normalised like a loaded
- * one, so a missing licence or source shows up in the issues.
+ * one, so a missing licence or source shows up in the issues. `settings` are
+ * the import settings it is brought in with (the rest take defaults).
  */
 export function createAssetMeta(
   type: BinaryAssetTypeDef,
   provenance: { readonly license: string; readonly source: Partial<AssetProvenance["source"]> },
   options: AssetMetaNormalizeOptions,
   id: AssetId = createId("asset"),
+  settings: JsonObject = {},
 ): NormalizeResult<AssetMetaDoc | null> {
   return normalizeAssetMeta(
-    { schema: ASSET_META_SCHEMA, id, type: assetTypeTag(type), ...provenance },
+    { schema: ASSET_META_SCHEMA, id, type: assetTypeTag(type), ...provenance, import: settings },
     options,
   );
 }

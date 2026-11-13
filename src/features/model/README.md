@@ -2,10 +2,13 @@
 
 3B model dosyası (glTF / GLB) asset türü (mimari §4.6).
 
-- `schema.ts`: `forge.model@1` ikili asset türü; `glb`, `gltf` uzantılarını
-  iddia eder. Sürüm 1'de içe aktarma ayarı yok (meta dosyasında `import: {}`).
+- `schema.ts`: `forge.model@2` ikili asset türü; `glb`, `gltf` uzantılarını
+  iddia eder. İçe aktarma ayarları (Faz 3 adım 4), Forge'un yan dosyalarından:
+  `materials` (slot başına varsayılan `forge.material`, benzersiz GLB materyal
+  sırası; boş = GLB'ninki), `uvw` (izdüşüm: none / planar / box / sphere /
+  cylinder, gizmo konum / dönüş / ölçek), `vertexColors` (primitive başına
+  RGBA köşe renkleri). Sürüm 1 (ayarsız) dosyaları varsayılanlara geçer.
 - `feature.ts`: yalnız asset türünü kurar.
-- Şimdilik yalnız şema (plan 2b içe aktarıcı, kullanıcı kararı 2026-11-12):
-  Forge WebGL içe aktarıcısı ve kullanıcı modelleri bu türle kaydeder,
-  `forge.staticMesh.mesh` bu türü gösterir. İçe aktarma ayarları Faz 3'te
-  sürüm 2 ve geçiş zinciriyle, yükleme ve çizim Faz 3'te.
+- Yükleme render katmanında (`model:<guid>`): slot materyalleri, UVW ve köşe
+  renkleri yüklenen sahneye uygulanır; yerleşim `forge.staticMesh.materials`
+  ile slotları değiştirebilir.

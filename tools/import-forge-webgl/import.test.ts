@@ -24,6 +24,21 @@ let forge: string;
 let project: string;
 
 const json = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
+
+/** A GLB container with only a JSON chunk: enough for the material slot count. */
+function glb(gltf: unknown): Uint8Array {
+  const body = new TextEncoder().encode(JSON.stringify(gltf));
+  const padded = Math.ceil(body.byteLength / 4) * 4;
+  const bytes = new Uint8Array(20 + padded).fill(0x20, 20);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(0, 0x46546c67, true);
+  view.setUint32(4, 2, true);
+  view.setUint32(8, bytes.byteLength, true);
+  view.setUint32(12, padded, true);
+  view.setUint32(16, 0x4e4f534a, true);
+  bytes.set(body, 20);
+  return bytes;
+}
 async function put(path: string, content: string | Uint8Array): Promise<void> {
   await mkdir(dirname(join(forge, path)), { recursive: true });
   await writeFile(join(forge, path), content);
@@ -50,11 +65,20 @@ beforeAll(async () => {
       asset("bt", "behaviorTree", "assets/ai/Patrol.behavior.json", "Unknown"),
     ],
   }));
-  for (const path of ["assets/meshes/Rock.glb", "assets/world-builder/structures/wp-cabin.glb", "assets/meshes/Road.glb",
+  for (const path of ["assets/world-builder/structures/wp-cabin.glb", "assets/meshes/Road.glb",
     "assets/textures/T_Rock.png", "assets/textures/T_Sand.png", "assets/sounds/Beep.wav"]) {
     await put(path, new Uint8Array([1, 2, 3, path.length]));
   }
-  await put("assets/meshes/Rock.materials.json", json({ schema: 1, slots: ["m-rock"] }));
+  // Two materials on two primitives, the second also on a child node: two slots.
+  await put("assets/meshes/Rock.glb", glb({
+    scene: 0, scenes: [{ nodes: [0] }], nodes: [{ mesh: 0, children: [1] }, { mesh: 1 }],
+    meshes: [{ primitives: [{ material: 1 }, { material: 0 }] }, { primitives: [{ material: 1 }] }],
+  }));
+  await put("assets/meshes/Rock.materials.json", json({ schema: 1, slots: ["m-rock", "", "m-gone"] }));
+  await put("assets/meshes/Rock.uvw.json", json({ schema: 1, mapType: "box", scale: [-2, 1, 1] }));
+  await put("assets/meshes/Rock.vertexcolors.json", json({
+    schema: 1, type: "vertexColors", target: "asset", meshes: [{ meshName: "Rock", primitiveIndex: 0, vertexCount: 1, colors: [1, 0, 0, 2] }],
+  }));
   await put("assets/meshes/Rock.collision.json", json({ schema: 1 }));
   await put("assets/materials/Rock.material.json", json({ schema: 1, type: "material", baseColorTexture: "t-rock", layerBlend: { layer1: { normalTexture: "t-sand" } } }));
 
@@ -68,7 +92,7 @@ beforeAll(async () => {
     worldCells: ["0_0"],
     lights: [{ type: "directional" }],
     heightFog: { mode: "exp", color: "#80bdff", density: 0.001 },
-    landscapes: [{ id: "valley", position: [0, 0, 0], dataRef: "layouts/Valley.landscapes/valley.terrain.json", name: "Valley Terrain" }],
+    landscapes: [{ id: "valley", position: [0, 0, 0], dataRef: "layouts/Valley.landscapes/valley.terrain.json", name: "Valley Terrain", material: "m-rock" }],
     instances: [
       { assetId: "marker:playerStart", placements: [{ position: [1, 2, 3], name: "Player Start" }] },
       { assetId: "shape:cube", placements: [{ id: "house-1", role: "building.house", position: [10, 0, 10], color: "#ff0000" }] },
@@ -78,7 +102,10 @@ beforeAll(async () => {
   }));
   await put("layouts/Valley.cells/main/0_0.cell.json", json({
     schema: 1, type: "worldCell", grid: "main", key: "0_0",
-    instances: [{ assetId: "rock", placements: [{ id: "rock-1", role: "prop.rock", position: [20, 0, 20], fracture: { enabled: false } }] }],
+    instances: [{ assetId: "rock", placements: [
+      { id: "rock-1", role: "prop.rock", position: [20, 0, 20], fracture: { enabled: false }, color: "#00FF00", castShadow: true, materialSlot: "m-rock" },
+      { id: "rock-2", position: [22, 0, 20], materialSlot: "m-gone" },
+    ] }],
   }));
   await put("layouts/Valley.worldbrief.json", json({
     schema: 1, type: "worldBrief", id: "valley", name: "Valley",
@@ -140,6 +167,12 @@ describe("import:forge", () => {
     expect(report).toContain("lights 1); source cells");
     expect(report).not.toContain("| `lights` |");
     expect(report).toContain("| `instances[].fracture` | 1 | 8 |");
+    expect(report).toContain("| `worldSettings.viewDistance` | 1 | 5b |");
+    expect(report).not.toContain("| `worldSettings` |");
+    expect(report).toContain("| `instances[].materialSlot=m-gone` | 1 |");
+    expect(report).toContain("Static shadow switch (`worldSettings.staticObjectsCastShadow`): off");
+    expect(report).toContain("converted into the model's import settings: .materials.json 1, .uvw.json 1, .vertexcolors.json 1; not converted: .collision.json → 6 1");
+    expect(report).toContain("rock materials → m-gone");
     expect(report).toContain("layouts/Valley.foliage.json → phase 5c");
     expect(report).toContain("grass (no Kenney or Quaternius content");
   });
@@ -148,23 +181,48 @@ describe("import:forge", () => {
     const result = await run();
     const [level] = result.levels;
     expect(level!.folder).toBe("content/levels/Valley");
-    expect(level!.report.converted).toMatchObject({ placements: 2, placeholders: 1, meshes: 1, playerStarts: 1, terrains: 1, heightFog: 1, sourceCells: 1 });
+    expect(level!.report.converted).toMatchObject({
+      placements: 3, placeholders: 1, meshes: 2, playerStarts: 1, terrains: 1, heightFog: 1, sourceCells: 1, staticCastShadow: false,
+    });
     expect(level!.report.missingAssets).toEqual([{ assetId: "ghost", placements: 1 }, { assetId: "grass", placements: 1 }]);
-    expect([...result.plan.imported.keys()].sort()).toEqual(["cabin", "road", "rock", "t-rock", "t-sand"]);
-    expect([...result.plan.deferred.keys()]).toEqual(["m-rock"]);
-    expect([...result.plan.unknownIds]).toEqual(["ghost"]);
-    expect(Object.fromEntries(result.plan.sidecars)).toEqual({ ".materials.json": 1, ".collision.json": 1 });
+    expect([...result.plan.imported.keys()].sort()).toEqual(["cabin", "m-rock", "road", "rock", "t-rock", "t-sand"]);
+    expect([...result.plan.deferred.keys()]).toEqual([]);
+    expect([...result.plan.unknownIds].sort()).toEqual(["ghost", "m-gone"]);
+    expect(result.missingReferences).toEqual([{ in: "rock", slot: "materials", id: "m-gone" }]);
+    expect(Object.fromEntries(result.plan.sidecars)).toEqual({ ".materials.json": 1, ".uvw.json": 1, ".vertexcolors.json": 1, ".collision.json": 1 });
 
     expect((await read("content/levels/Valley/level.json")).id).toBe(forgeLevelId(LEVEL));
     const cell = await read("content/levels/Valley/cells/0_0.json");
-    const rock = (cell.actors as Array<{ name: string; components: Record<string, Record<string, unknown>> }>).find((actor) => actor.name === "prop.rock")!;
-    expect(rock.components.mesh!.mesh).toBe(forgeAssetId("rock"));
+    type Actor = { name: string; components: Record<string, Record<string, unknown>> };
+    const rock = (cell.actors as Actor[]).find((actor) => actor.name === "prop.rock")!;
+    const rock2 = (cell.actors as Actor[]).find((actor) => actor.name === "rock-2")!;
+    expect(rock.components.mesh).toMatchObject({
+      type: "forge.staticMesh@2", mesh: forgeAssetId("rock"), materials: [forgeAssetId("m-rock"), forgeAssetId("m-rock")], color: "#00ff00", castShadow: true,
+    });
+    // Forge's static shadow switch is off in this level (absent): a placement that does not say casts none.
+    expect(rock2.components.mesh).toMatchObject({ materials: [], color: null, castShadow: false });
     expect(rock.components.role).toMatchObject({ role: "prop.rock", stage: "scatter" });
+    const persistent = await read("content/levels/Valley/level.json");
+    const terrain = (persistent.actors as Actor[]).find((actor) => actor.components.terrain)!;
+    expect(terrain.components.terrain).toMatchObject({ type: "forge.terrain@2", material: forgeAssetId("m-rock") });
     expect(await read("content/forge/meshes/Rock.glb.meta.json")).toMatchObject({
-      id: forgeAssetId("rock"), type: "forge.model@1", license: UNVERIFIED_LICENSE, import: {},
+      id: forgeAssetId("rock"), type: "forge.model@2", license: UNVERIFIED_LICENSE,
+      import: {
+        materials: [forgeAssetId("m-rock"), null, null],
+        uvw: { mapType: "box", position: [0, 0, 0], rotation: [0, 0, 0], scale: [2, 1, 1] },
+        vertexColors: [{ meshName: "Rock", primitiveIndex: 0, vertexCount: 1, colors: [1, 0, 0, 1], positions: [] }],
+      },
       source: { origin: "Forge WebGL manifest: Low Poly Forest Tree Pack, Tree_Pack.blend (license: Unknown)" },
     });
-    expect(await read("content/forge/textures/T_Sand.png.meta.json")).toMatchObject({ type: "forge.texture@1", license: "CC0-1.0" });
+    expect(await read("content/forge/textures/T_Sand.png.meta.json")).toMatchObject({
+      type: "forge.texture@2", license: "CC0-1.0", import: { anisotropy: 8, mipmaps: true },
+    });
+    const material = await read("content/forge/materials/Rock.material.json");
+    expect(material).toMatchObject({
+      schema: "forge.material/1", id: forgeAssetId("m-rock"), baseColorTexture: forgeAssetId("t-rock"), roughness: 0.8,
+      layerBlend: { enabled: true, layer1: { normalTexture: forgeAssetId("t-sand") } }, normalMotion: { enabled: false }, sway: { enabled: false },
+    });
+    expect(material.name).toBeUndefined();
     expect(await readFile(join(project, "content/levels/Valley/terrain/valley.tiles/1_0.tile.bin"))).toEqual(Buffer.from([7, 7, 3]));
 
     const brief = (await read("content/levels/Valley/Valley.worldbrief.json")).data as Record<string, unknown>;
@@ -187,7 +245,7 @@ describe("import:forge", () => {
     await expect(runForgeImport({ ...pack, levels: [LEVEL] })).rejects.toThrow(/assets only/);
     await expect(runForgeImport({ ...pack, projectRoot: project, levels: [] })).rejects.toThrow(/not both/);
     const dry = await runForgeImport({ ...pack, levels: [], assets: ["beep", "m-rock", "bt"], dryRun: true });
-    expect([...dry.plan.imported.keys()].sort()).toEqual(["beep", "t-rock", "t-sand"]);
+    expect([...dry.plan.imported.keys()].sort()).toEqual(["beep", "m-rock", "t-rock", "t-sand"]);
     expect(dry.plan.deferred.get("bt")?.phase).toBe("- (K12)");
     expect(formatImportReport(dry)).toContain("behaviorTree → - (K12) 1");
   });
@@ -197,9 +255,15 @@ describe("import:forge", () => {
     const tables = compareImport(project, await openForgeSource(forge), result);
     const rows = (await tables).get(`${LEVEL} → content/levels/Valley`)!;
     expect(unexplained(await tables)).toEqual([]);
-    expect(rows.find((row) => row.what.startsWith("model placements"))).toEqual({
-      what: "model placements → forge.staticMesh", source: 3, target: 1, note: "no model in the target: ghost 1, grass 1",
+    expect(rows.find((row) => row.what.startsWith("model placements →"))).toEqual({
+      what: "model placements → forge.staticMesh", source: 4, target: 2, note: "no model in the target: ghost 1, grass 1",
     });
+    expect(rows.find((row) => row.what.startsWith("placements casting no shadow"))).toMatchObject({ source: 2, target: 2, note: "" });
+    expect(rows.find((row) => row.what.startsWith("model placement colours"))).toMatchObject({ source: 1, target: 1, note: "" });
+    expect(rows.find((row) => row.what.startsWith("model materialSlot"))).toMatchObject({
+      source: 2, target: 1, note: "material or model slots not in the target (report)",
+    });
+    expect(rows.find((row) => row.what.startsWith("landscape materials"))).toMatchObject({ source: 1, target: 1, note: "" });
     expect(rows.find((row) => row.what === "cells")).toMatchObject({ source: 1, target: 1, note: "" });
     expect(formatComparison(await tables)).toContain("| shape placements → forge.shape | 1 | 1 | = |");
   });

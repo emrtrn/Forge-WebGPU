@@ -28,7 +28,9 @@ describe("worldLevel", () => {
     expect(actor).toMatchObject({ class: null, parent: null, spatiallyLoaded: true });
     expect(actor.transform).toEqual({ p: [300, 4, -20], r: [0, 0.7071068, 0, 0.7071068], s: [20, 12, 16] });
     expect(actor.class === null && actor.components).toEqual({
-      shape: { type: "forge.shape@1", parent: null, local: { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] }, primitive: "cube", color: "#f2a65a", collision: true },
+      shape: {
+        type: "forge.shape@2", parent: null, local: { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] }, primitive: "cube", color: "#f2a65a", castShadow: true, collision: true,
+      },
       role: { type: "forge.worldRole@1", role: "building.residential.detached", stage: "buildings" },
     });
     expect(level.counts).toEqual({ placements: 1, placeholders: 1, meshes: 0 });
@@ -45,7 +47,7 @@ describe("worldLevel", () => {
     }]), { levelId: LEVEL, terrainId: "valley" });
     const [rock, bare] = level.level.actors.slice(1);
     expect(rock!.class === null && rock!.components).toMatchObject({
-      mesh: { type: "forge.staticMesh@1", mesh, collision: false },
+      mesh: { type: "forge.staticMesh@2", mesh, castShadow: true, collision: false },
       role: { role: "prop.rock", stage: "" },
     });
     expect(rock!.transform).toEqual({ p: [1, 2, 3], r: [0, 1, 0, 0], s: [2, 2, 2] });
@@ -59,7 +61,7 @@ describe("worldLevel", () => {
     const level = worldLevel(build, { levelId: LEVEL, terrainId: "valley" });
     const [terrain, start] = level.level.actors;
     expect(terrain).toMatchObject({ name: "Valley", spatiallyLoaded: false });
-    expect(terrain!.class === null && terrain!.components.terrain).toMatchObject({ type: "forge.terrain@1", data: level.terrain.id });
+    expect(terrain!.class === null && terrain!.components.terrain).toMatchObject({ type: "forge.terrain@2", data: level.terrain.id, material: null });
     expect(level.terrain.schema).toBe(TerrainAssetType.schema);
     expect(level.terrain.data).toEqual(build.def);
     expect(level.terrainFile).toBe("terrain/valley.terrain.json");

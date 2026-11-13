@@ -2308,7 +2308,7 @@ tools/engine-tests.ts	20244	check	A			engine/animation		src/engine/animation/ble
 tools/engine-tests.ts	20289	check	M			engine/assets,tools/saveValidator	model:tools/saveValidator		material save payload requires a material path and canonical fields	
 tools/engine-tests.ts	20504	check	R			engine/assets,engine/render-three,tools/saveValidator	three-via:engine/render-three,three:three		material flipY survives normalize and save, and reaches every texture map	
 tools/engine-tests.ts	20594	check	R			engine/assets,engine/render-three,tools/saveValidator	three-via:engine/render-three,three:three		forge normal motion patches the normal shader and updates a shared time uniform	
-tools/engine-tests.ts	20637	check	A			engine/assets			starter material assets normalize to the canonical material shape	3
+tools/engine-tests.ts	20637	check	A			engine/assets		src/features/material/material.test.ts	starter material assets normalize to the canonical material shape	
 tools/engine-tests.ts	20655	check	R			engine/assets,engine/render-three	three-via:engine/render-three,three:three		forge material mapping creates matching Three material types and fields	
 tools/engine-tests.ts	20969	check	M			tools/saveValidator	model:tools/saveValidator		uvw save payload requires a .uvw.json path and valid map type	
 tools/engine-tests.ts	21002	check	M			tools/saveValidator	model:tools/saveValidator		content-new payload validates kind/name and rejects unsafe names	

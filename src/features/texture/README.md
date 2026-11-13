@@ -2,10 +2,10 @@
 
 Doku görseli asset türü (mimari §4.6).
 
-- `schema.ts`: `forge.texture@1` ikili asset türü; `png`, `jpg`, `webp`, `ktx2`
-  uzantılarını iddia eder. Sürüm 1'de içe aktarma ayarı yok (meta dosyasında
-  `import: {}`).
+- `schema.ts`: `forge.texture@2` ikili asset türü; `png`, `jpg`, `webp`, `ktx2`
+  uzantılarını iddia eder. İçe aktarma ayarları (Faz 3 adım 4): `anisotropy`
+  (1–16, varsayılan 8, GPU sınırına çekilir), `mipmaps`. Renk uzayı dokunun
+  değil, onu kullanan materyal slotunundur (Forge kuralı). Sürüm 1 (ayarsız)
+  dosyaları varsayılanlara geçer.
 - `feature.ts`: yalnız asset türünü kurar.
-- Şimdilik yalnız şema (plan 2b içe aktarıcı, kullanıcı kararı 2026-11-12).
-  İçe aktarma ayarları (renk uzayı, mipmap, sıkıştırma) Faz 3'te sürüm 2 ve
-  geçiş zinciriyle, materyallerle birlikte.
+- Yükleme render katmanında, kaynak önbelleğinde `texture:<guid>:<srgb|linear>`.

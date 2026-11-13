@@ -20,7 +20,6 @@ export const CONVERTED_LEVEL_FIELDS: ReadonlySet<string> = new Set([
 ]);
 
 export const LEVEL_FIELD_PHASES: Readonly<Record<string, string>> = {
-  worldSettings: "3",
   skyAtmosphere: "3",
   cloudLayer: "3",
   postProcess: "3",
@@ -43,15 +42,46 @@ export const LEVEL_FIELD_PHASES: Readonly<Record<string, string>> = {
   loadGroups: "- (asset ön yükleme grupları; başvurular GUID)",
 };
 
-/** Placement fields the importer converts (`placements.ts`). `color` only on a shape. */
+/**
+ * `worldSettings` fields the importer converts: the main grid's cell size
+ * (`partition`), and the static shadow switch, resolved into every
+ * placement's `castShadow` (user decision 2026-11-13). Each other field is
+ * reported on its own (`worldSettings.<field>`), with the phase of the
+ * singleton that takes it (phase 3 decision 7).
+ */
+export const CONVERTED_WORLD_SETTINGS_FIELDS: ReadonlySet<string> = new Set(["partition", "staticObjectsCastShadow"]);
+
+export const WORLD_SETTINGS_FIELD_PHASES: Readonly<Record<string, string>> = {
+  staticObjectsReceiveShadow: "- (gölge almak hep açık, kullanıcı kararı 2026-11-13)",
+  backgroundColor: "3",
+  ambientColor: "3",
+  ambientIntensity: "3",
+  viewDistance: "5b",
+  wind: "5c",
+  gravity: "6",
+  killZ: "6",
+  gameMode: "6",
+  hudWidget: "6",
+  pauseMenuWidget: "6",
+  winScreenWidget: "6",
+  loseScreenWidget: "6",
+  gameRules: "6",
+};
+
+/** Forge's `staticObjectsCastShadow` when a level does not say (`SceneRuntimeCore` default). */
+export const FORGE_STATIC_OBJECTS_CAST_SHADOW = false;
+
+/**
+ * Placement fields the importer converts (`placements.ts`): `color` (a
+ * shape's colour, a mesh's tint), `castShadow` (else the level's static
+ * shadow switch) and `materialSlot` (a mesh's override on every slot).
+ */
 export const CONVERTED_PLACEMENT_FIELDS: ReadonlySet<string> = new Set([
   "id", "role", "name", "position", "rotation", "rotationYDeg", "scale", "collision", "spatiallyLoaded",
+  "color", "castShadow", "materialSlot",
 ]);
 
 export const PLACEMENT_FIELD_PHASES: Readonly<Record<string, string>> = {
-  color: "3",
-  materialSlot: "3",
-  castShadow: "3",
   hidden: "4",
   locked: "4",
   groupId: "4",
@@ -79,11 +109,10 @@ export const PLACEMENT_FIELD_PHASES: Readonly<Record<string, string>> = {
   movingPlatform: "- (hareketli platform, K12)",
 };
 
-/** Landscape fields the importer converts: the definition places the terrain (Forge's rule). */
-export const CONVERTED_LANDSCAPE_FIELDS: ReadonlySet<string> = new Set(["id", "name", "position", "rotation", "dataRef"]);
+/** Landscape fields the importer converts: the definition places the terrain (Forge's rule); `material` -> `forge.terrain.material`. */
+export const CONVERTED_LANDSCAPE_FIELDS: ReadonlySet<string> = new Set(["id", "name", "position", "rotation", "dataRef", "material"]);
 
 export const LANDSCAPE_FIELD_PHASES: Readonly<Record<string, string>> = {
-  material: "3",
   collision: "6",
   hidden: "4",
   locked: "4",

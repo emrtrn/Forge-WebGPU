@@ -1,12 +1,15 @@
 {
   "schema": "forge.assetMeta/1",
   "id": "ast_e4bab7d6fe1ced4bb536be323a4d8bd9",
-  "type": "forge.texture@1",
+  "type": "forge.texture@2",
   "license": "LicenseRef-forge-unverified",
   "source": {
     "origin": "Forge WebGL manifest: no source (license: Unknown)",
     "author": "",
     "url": ""
   },
-  "import": {}
+  "import": {
+    "anisotropy": 8,
+    "mipmaps": true
+  }
 }
