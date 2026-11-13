@@ -11,35 +11,35 @@
         "id": "sand",
         "name": "Sand",
         "color": "#d8c08a",
-        "material": "m-sand-dry",
+        "material": "ast_6a568eb7744bd026ed95c740af8767c5",
         "physicalMaterial": "sand"
       },
       {
         "id": "forest",
         "name": "Forest Floor",
         "color": "#3f4f2c",
-        "material": "starter-mat-grass",
+        "material": "ast_2b965fe6c9e2c168ee0a2cf0ee81633b",
         "physicalMaterial": "default"
       },
       {
         "id": "rock",
         "name": "Rock",
         "color": "#8b8a84",
-        "material": "lt-rock",
+        "material": "ast_a0f2761841bb4a2c535ab90e138a4d06",
         "physicalMaterial": "default"
       },
       {
         "id": "dirt",
         "name": "Dirt",
         "color": "#9a7448",
-        "material": "lt-earth",
+        "material": "ast_a44f386e641435b2260732fd15a1f5df",
         "physicalMaterial": "default"
       },
       {
         "id": "riverbed",
         "name": "River Bed",
         "color": "#6f6a5c",
-        "material": "m-gravel-material",
+        "material": "ast_b6843662e370e3097a6e49ed478bac75",
         "physicalMaterial": "default"
       },
       {
@@ -52,7 +52,7 @@
         "id": "meadow",
         "name": "Meadow",
         "color": "#6f9a4a",
-        "material": "lt-meadow",
+        "material": "ast_23112d5005133ab41ee14b6af7c2cf41",
         "physicalMaterial": "default"
       }
     ],

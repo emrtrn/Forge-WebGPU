@@ -1,0 +1,15 @@
+{
+  "schema": "forge.assetMeta/1",
+  "id": "ast_1682599e3da3e572c637398af7e9ffe9",
+  "type": "forge.texture@2",
+  "license": "CC0-1.0",
+  "source": {
+    "origin": "Poly Haven",
+    "author": "",
+    "url": "https://polyhaven.com/a/gravelly_sand"
+  },
+  "import": {
+    "anisotropy": 8,
+    "mipmaps": true
+  }
+}

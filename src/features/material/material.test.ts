@@ -21,7 +21,7 @@ check("starter material assets normalize to the canonical material shape", () =>
   installFeatures([materialFeature], registry);
   const materialDir = "content/packs/starter/starter-content/Materials";
   const files = readdirSync(materialDir).filter((fileName) => fileName.endsWith(".material.json"));
-  assert.equal(files.length, 10);
+  assert.equal(files.length, 12);
   for (const fileName of files) {
     const data = JSON.parse(readFileSync(`${materialDir}/${fileName}`, "utf8")) as unknown;
     const result = normalizeJsonAsset(MaterialAssetType, data, STRICT);

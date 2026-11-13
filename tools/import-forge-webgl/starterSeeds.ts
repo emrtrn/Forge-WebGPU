@@ -16,6 +16,9 @@ export const STARTER_SEEDS: Readonly<Record<string, string>> = {
   "lt-rock": "World Builder terrain layer material",
   "m-gravel-material": "World Builder road material",
   "starter-mat-grass": "World Builder terrain layer material",
+  // Ground cover presets' other layers (content/packs/worldbuilder/covers: alpine snow, desert sand).
+  "lt-snow": "World Builder ground cover layer material",
+  "m-sand-dry": "World Builder ground cover layer material",
   "ground": "World Builder default ground material",
   // Particle presets (src/engine/vfx/particleEffectPresets.ts).
   "t-explosion-subuv": "explosion flipbook",

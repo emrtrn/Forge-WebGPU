@@ -5,8 +5,9 @@ A content pack: a project picks it in `forge.project.json` with
 `engine:content/packs/starter/`. Nothing is copied into the game and the
 editor does not write here (architecture A9).
 
-A pack may refer to engine content, never to another pack
-(`npm run verify:assets` checks).
+A pack may refer to engine content and to the packs its `forge.pack.json`
+requires, never to another pack (`npm run verify:assets` checks). The
+worldbuilder pack requires this one.
 
 - `classes/exponential-height-fog.json`: a height fog actor class.
 - `starter-content/`, `DevelopmentContent/`: Forge WebGL assets the engine's

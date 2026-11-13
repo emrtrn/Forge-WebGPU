@@ -7,7 +7,9 @@
  * Converted now: placements (`instances`, in the level and its cells) through
  * the converter World Builder shares (`placements.ts`), `landscapes` as
  * terrain actors with `forge.terrain` data documents (the definition is
- * copied as it is; its tiles and global map are copied by the importer),
+ * copied as it is but for its paint layers' materials, Forge ids made GUIDs:
+ * plan phase 3 step 8, user decision 2026-11-13; its tiles and global map
+ * are copied by the importer),
  * `heightFog` as a `forge.heightFog` actor, `lights` (the level's and its
  * cells') as light actors (`lights.ts`, plan phase 3), the environment
  * singletons (sky, Sky Light with the background and ambient world settings,
@@ -149,6 +151,30 @@ export interface ForgeLevelImport {
   readonly report: ForgeLevelReport;
 }
 
+/**
+ * The Forge terrain definition with each paint layer's material as the
+ * material asset's GUID; a material the target does not have leaves the
+ * layer without one (it paints with its colour) and is counted in the report.
+ */
+function terrainWithLayerMaterialIds(
+  raw: JsonObject,
+  materialAsset: ((forgeMaterialId: string) => string | null) | undefined,
+  note: (field: string, count: number, phase: string) => void,
+): JsonObject {
+  const def = structuredClone(raw);
+  for (const layer of arrayOf(def.layers)) {
+    if (!isJsonObject(layer) || typeof layer.material !== "string" || layer.material === "") continue;
+    const guid = materialAsset?.(layer.material) ?? null;
+    if (guid === null) {
+      note(`terrain layers[].material=${layer.material}`, 1, "- (materyal hedefte yok)");
+      delete layer.material;
+    } else {
+      layer.material = guid;
+    }
+  }
+  return def;
+}
+
 function arrayOf(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
@@ -279,7 +305,7 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
     terrains.push({
       file,
       source: landscape.dataRef,
-      document: dataDocument(TerrainAssetType, data, structuredClone(raw) as JsonObject),
+      document: dataDocument(TerrainAssetType, data, terrainWithLayerMaterialIds(raw as JsonObject, options.materialAsset, note)),
       tileKeys: def.tiles.map((tile) => tile.key),
     });
     for (const field of Object.keys(landscape)) {

@@ -78,7 +78,7 @@ interface JsonAssetTypeDef<M>
 
 type LevelId = `lvl_${string}`
 
-const SDK_VERSION: "0.1.2"
+const SDK_VERSION: "0.1.3"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -198,7 +198,7 @@ function vec4(options: VectorOptions<4>): VectorField<4>
 
 # src/editor-sdk/index.ts
 
-const SDK_VERSION: "0.1.2"
+const SDK_VERSION: "0.1.3"
 
 # referenced (not exported, part of the surface)
 
@@ -263,8 +263,13 @@ interface ComponentRecord  // src/core/level/model.ts
 
 type ComponentTypeTag = `${string}@${number}`  // src/core/schema/component.ts
 
+interface DataDocumentReference  // src/core/assets/dataDocument.ts
+  readonly assetType: string | null
+  readonly path: string
+
 interface DataDocumentShape  // src/core/assets/dataDocument.ts
   readonly parts: ReadonlyArray<string>
+  readonly references: ReadonlyArray<DataDocumentReference>
   readonly suffix: string
 
 interface DocumentAssetTypeDef  // src/core/assets/assetType.ts

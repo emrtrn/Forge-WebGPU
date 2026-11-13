@@ -1,0 +1,4 @@
+{
+  "schema": "forge.pack/1",
+  "requires": ["starter"]
+}

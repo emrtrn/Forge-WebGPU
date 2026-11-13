@@ -4,6 +4,7 @@ import { buildAssetIndex } from "./assetIndex.ts";
 import {
   DATA_DOCUMENT_TYPES,
   dataDocument,
+  dataDocumentReferences,
   dataDocumentPartMatchers,
   GroundCoverAssetType,
   hasDataDocumentName,
@@ -45,6 +46,28 @@ describe("data documents", () => {
       ".regionprofile.json",
       ".cover.json",
     ]);
+  });
+
+  test("a terrain's and a ground cover's paint layer materials are asset references; other values are not", () => {
+    const moss = assetId("b1");
+    const rock = assetId("b2");
+    const data = { layers: [{ id: "a", material: moss }, { id: "b" }, { id: "c", material: "lt-rock" }, "junk", { id: "d", material: rock }] };
+    const expected = [
+      { path: "data.layers[0].material", target: moss, assetType: "forge.material", via: "field" },
+      { path: "data.layers[4].material", target: rock, assetType: "forge.material", via: "field" },
+    ];
+    expect(dataDocumentReferences(TerrainAssetType, data)).toEqual(expected);
+    expect(dataDocumentReferences(GroundCoverAssetType, data)).toEqual(expected);
+    expect(dataDocumentReferences(WorldBriefAssetType, data)).toEqual([]);
+    expect(dataDocumentReferences(TerrainAssetType, { layers: "none" })).toEqual([]);
+  });
+
+  test("the asset index reports a paint layer material that is not there", () => {
+    const missing = assetId("b9");
+    const files = terrainFiles("content/levels/valley");
+    (files[0]!.json as { data: Record<string, unknown> }).data.layers = [{ id: "meadow", material: missing }];
+    const index = buildAssetIndex(files, { strict: true, registry: createAssetTestRegistry() });
+    expect(index.issues.map((issue) => [issue.code, issue.path])).toEqual([["dangling-reference", "data.layers[0].material"]]);
   });
 
   test("the envelope keeps data as written and reports what it cannot keep", () => {

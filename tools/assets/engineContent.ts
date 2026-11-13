@@ -7,11 +7,16 @@
 // the project's asset index reads these folders from the engine, under
 // `engine:` labels, and the editor does not write to them.
 //
-// A pack id is its folder name; a pack has no manifest of its own yet.
+// A pack id is its folder name. A pack may have a manifest,
+// `content/packs/<id>/forge.pack.json` (`{ "schema": "forge.pack/1",
+// "requires": ["starter"] }`; plan phase 3 step 8, user decision 2026-11-13):
+// the packs it refers to. A project that picks it picks those too (`forge
+// check`), and the asset gate checks the pack with them. Without a manifest
+// a pack requires nothing.
 
-import { readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { projectContentRoots, type ContentRoot } from "./scan.ts";
+import { PACK_MANIFEST_FILE, projectContentRoots, type ContentRoot } from "./scan.ts";
 
 export const ENGINE_CONTENT_DIR = "content/engine";
 export const CONTENT_PACKS_DIR = "content/packs";
@@ -31,14 +36,51 @@ export async function listContentPacks(engineRoot: string): Promise<string[]> {
   }
 }
 
-/** One line per pack the engine does not have; empty when all are there. */
+export const PACK_MANIFEST_SCHEMA = "forge.pack/1";
+
+/** The packs a pack requires (its `forge.pack.json`); none without a manifest. A broken manifest throws. */
+export async function packRequires(engineRoot: string, pack: string): Promise<string[]> {
+  let text: string;
+  try {
+    text = await readFile(join(engineRoot, CONTENT_PACKS_DIR, pack, PACK_MANIFEST_FILE), "utf8");
+  } catch {
+    return [];
+  }
+  const manifest = JSON.parse(text) as { schema?: unknown; requires?: unknown };
+  if (manifest.schema !== PACK_MANIFEST_SCHEMA) throw new Error(`content pack ${pack}: ${PACK_MANIFEST_FILE} needs "schema": "${PACK_MANIFEST_SCHEMA}".`);
+  const requires = manifest.requires ?? [];
+  if (!Array.isArray(requires) || !requires.every((entry) => typeof entry === "string")) {
+    throw new Error(`content pack ${pack}: "requires" is a list of pack ids.`);
+  }
+  return [...requires];
+}
+
+/** `pack` and every pack it requires, at any depth, `pack` first. */
+export async function packWithRequired(engineRoot: string, pack: string): Promise<string[]> {
+  const out: string[] = [];
+  const visit = async (id: string): Promise<void> => {
+    if (out.includes(id)) return;
+    out.push(id);
+    for (const required of await packRequires(engineRoot, id)) await visit(required);
+  };
+  await visit(pack);
+  return out;
+}
+
+/** One line per pack the engine does not have, or a picked pack's required pack the project does not pick; empty when all is well. */
 export async function contentPackProblems(engineRoot: string, packs: readonly string[]): Promise<string[]> {
   if (packs.length === 0) return [];
   const known = await listContentPacks(engineRoot);
   const have = known.length === 0 ? "none" : known.join(", ");
-  return packs
+  const problems = packs
     .filter((pack) => !known.includes(pack))
     .map((pack) => `Unknown content pack "${pack}"; the engine has: ${have}.`);
+  for (const pack of packs.filter((id) => known.includes(id))) {
+    for (const required of await packRequires(engineRoot, pack)) {
+      if (!packs.includes(required)) problems.push(`Content pack "${pack}" requires "${required}"; add it to contentPacks.`);
+    }
+  }
+  return problems;
 }
 
 /** The engine's content, then the given packs, as read-only roots of a project. */

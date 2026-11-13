@@ -1,0 +1,15 @@
+{
+  "schema": "forge.assetMeta/1",
+  "id": "ast_6fe11c39f3f41c9a8b1fd788c1025f96",
+  "type": "forge.texture@2",
+  "license": "LicenseRef-forge-project",
+  "source": {
+    "origin": "ai-generated",
+    "author": "",
+    "url": ""
+  },
+  "import": {
+    "anisotropy": 8,
+    "mipmaps": true
+  }
+}

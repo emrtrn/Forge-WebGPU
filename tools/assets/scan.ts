@@ -12,7 +12,8 @@
 //   listed, not read.
 // - Names starting with "." (`.forge-cache`, `.git`, editor droppings) are
 //   skipped, files and folders alike; so are `*.md` files (a README in a
-//   content folder is documentation, not an asset).
+//   content folder is documentation, not an asset) and `forge.pack.json` (a
+//   content pack's manifest, engineContent.ts).
 // - A root that does not exist is listed as missing, not an error: a project
 //   may have no samples, and the engine repo has no content yet.
 
@@ -20,6 +21,9 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
 import type { ContentFile } from "../../src/core/index.ts";
 import { fileRevision } from "./revision.ts";
+
+/** A content pack's manifest (engineContent.ts); not an asset. */
+export const PACK_MANIFEST_FILE = "forge.pack.json";
 
 /** A content root: the label its files carry, and its folder on disk. */
 export interface ContentRoot {
@@ -102,7 +106,7 @@ async function walk(directory: string, relative: string, root: string, out: Cont
   entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
-    if (entry.isFile() && entry.name.toLowerCase().endsWith(".md")) continue;
+    if (entry.isFile() && (entry.name.toLowerCase().endsWith(".md") || entry.name === PACK_MANIFEST_FILE)) continue;
     const path = relative === "" ? entry.name : `${relative}/${entry.name}`;
     const absolute = join(directory, entry.name);
     if (entry.isDirectory()) {

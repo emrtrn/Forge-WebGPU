@@ -8,6 +8,17 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.3
+
+API: 0a371596f209279c
+
+Data document references (plan phase 3 step 8, user decision 2026-11-13),
+additive: a data document type names where in its `data` asset references
+sit (`DataDocumentShape.references`, `DataDocumentReference`: a dotted path,
+`[]` walking an array, and the accepted asset type), so the asset index
+collects them and a dangling one fails the asset gate. The terrain's and the
+ground cover's paint layer materials (`layers[].material`) are GUIDs.
+
 ## 0.1.2
 
 API: 6153d070f1d75c42

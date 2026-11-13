@@ -79,6 +79,18 @@ describe("importForgeLevel", () => {
     expect(report.missingAssets).toEqual([{ assetId: "kenney-tree", placements: 1 }]);
   });
 
+  test("the terrain's paint layer materials become GUIDs; one the target lacks leaves its layer to its colour, reported", () => {
+    const input = fixture();
+    const raw = input.terrains.get(TERRAIN_REF) as { layers: Record<string, unknown>[] };
+    raw.layers = [{ id: "meadow", name: "Meadow", color: "#6f9a4a", material: "lt-meadow" }, { id: "snow", name: "Snow", color: "#ffffff", material: "lt-snow" }];
+    const { terrains, report } = importForgeLevel(input, resolvers);
+    const layers = (terrains[0]!.document.data as { layers: Record<string, unknown>[] }).layers;
+    expect(layers.map((layer) => layer.material)).toEqual([forgeAssetId("lt-meadow"), undefined]);
+    expect(raw.layers[1]!.material).toBe("lt-snow");
+    expect(report.notConverted).toContainEqual(expect.objectContaining({ field: "terrain layers[].material=lt-snow" }));
+    expect(normalizeWorldTerrain(terrains[0]!.document.data).layers.map((layer) => layer.material)).toEqual([forgeAssetId("lt-meadow"), undefined]);
+  });
+
   test("the terrain is a persistent actor of a copied definition, placed by the definition", () => {
     const input = fixture();
     const { level, terrains } = importForgeLevel(input, resolvers);

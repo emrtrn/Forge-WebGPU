@@ -5,12 +5,17 @@ World Builder's default content (plan 2b `tools/world`, user decision
 `forge.project.json` with `"contentPacks": ["worldbuilder"]`; a brief refers
 to these files by their asset index label, `engine:content/packs/worldbuilder/…`.
 
+The pack requires the starter pack (`forge.pack.json`: its terrain layer
+materials and their textures live there), so a project picks both:
+`"contentPacks": ["starter", "worldbuilder"]`; `forge check` reports one
+that does not.
+
 - `covers/*.cover.json`: the six ground cover presets of Forge WebGL (forest,
   meadow, farmland, steppe, desert, alpine), as `forge.groundCover` data
-  documents. The content is Forge's as it was: paint layers name Forge
-  material ids (materials come with phase 3) and plant rules name Forge
-  foliage types (foliage comes with 5c); until then the layers paint with
-  their colour and the plant rules are reported as deferred.
+  documents. The content is Forge's but for the paint layers' materials,
+  which are the starter pack's material GUIDs (phase 3 step 8, user decision
+  2026-11-13); plant rules name Forge foliage types (foliage comes with 5c)
+  and are reported as deferred until then.
 - `profiles/neutral.regionprofile.json`: a culture-neutral region profile,
   the random world's default. Region profiles of a game live in the game's
   repository.

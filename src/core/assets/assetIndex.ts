@@ -23,7 +23,7 @@ import type { AssetId } from "../id.ts";
 import { normalizeActorClass, type ClassResolver } from "../level/actorClass.ts";
 import type { ActorClassDoc } from "../level/model.ts";
 import { ActorClassAssetType, LevelAssetType } from "./assetType.ts";
-import { normalizeDataDocument } from "./dataDocument.ts";
+import { dataDocumentReferences, normalizeDataDocument } from "./dataDocument.ts";
 import { isJsonAssetType, normalizeJsonAsset, type JsonAssetDoc } from "./jsonAsset.ts";
 import type { AssetMetaDoc } from "./meta.ts";
 import {
@@ -124,8 +124,10 @@ export function buildAssetIndex(files: readonly ContentFile[], options: AssetInd
           add(entry.id, file, found);
         }
       } else if (def?.storage === "document" && def.dataFile !== undefined) {
-        // A data document: core checks the envelope; its content is the engine's.
-        withFile(file, normalizeDataDocument(document.json, def, options).issues, issues);
+        // A data document: core checks the envelope; its content is the engine's, but for the references its type names.
+        const result = normalizeDataDocument(document.json, def, options);
+        withFile(file, result.issues, issues);
+        if (result.value) add(entry.id, file, dataDocumentReferences(def, result.value.data));
       }
     }
   }

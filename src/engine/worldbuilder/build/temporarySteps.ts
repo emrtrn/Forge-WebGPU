@@ -39,11 +39,11 @@ export const PILOT_TUNING = {
   /** A yard fence on the north and west of every `building.cabin` landmark. */
   fence: { role: "building.cabin", module: 3 },
   layers: [
-    { id: "meadow", name: "Meadow", color: "#6f9a4a", material: "lt-meadow", physicalMaterial: "default" },
-    { id: "forest", name: "Forest Floor", color: "#3f4f2c", material: "starter-mat-grass", physicalMaterial: "default" },
-    { id: "rock", name: "Rock", color: "#8b8a84", material: "lt-rock", physicalMaterial: "default" },
-    { id: "dirt", name: "Dirt", color: "#8a6441", material: "lt-earth", physicalMaterial: "default" },
-    { id: "riverbed", name: "River Bed", color: "#6f6a5c", material: "m-gravel-material", physicalMaterial: "default" },
+    { id: "meadow", name: "Meadow", color: "#6f9a4a", material: "ast_23112d5005133ab41ee14b6af7c2cf41" /* starter: lt-meadow */, physicalMaterial: "default" },
+    { id: "forest", name: "Forest Floor", color: "#3f4f2c", material: "ast_2b965fe6c9e2c168ee0a2cf0ee81633b" /* starter: starter-mat-grass */, physicalMaterial: "default" },
+    { id: "rock", name: "Rock", color: "#8b8a84", material: "ast_a0f2761841bb4a2c535ab90e138a4d06" /* starter: lt-rock */, physicalMaterial: "default" },
+    { id: "dirt", name: "Dirt", color: "#8a6441", material: "ast_a44f386e641435b2260732fd15a1f5df" /* starter: lt-earth */, physicalMaterial: "default" },
+    { id: "riverbed", name: "River Bed", color: "#6f6a5c", material: "ast_b6843662e370e3097a6e49ed478bac75" /* starter: m-gravel-material */, physicalMaterial: "default" },
     // Paint of the region profile's collector and arterial roads; no asphalt material yet, the tint stands in.
     { id: "asphalt", name: "Asphalt", color: "#3d3d3f", physicalMaterial: "stone" },
   ] satisfies WorldTerrainLayerDef[],

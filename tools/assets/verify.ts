@@ -4,14 +4,15 @@
 // loss is an error.
 //
 // The engine's content and packs (A9) are also checked the way a project sees
-// them: `content/engine/` alone, and each pack with `content/engine/`. Engine
-// content may refer to no pack, a pack to no other pack; such a reference
-// dangles in the narrower index and fails the gate.
+// them: `content/engine/` alone, and each pack with `content/engine/` and the
+// packs it requires (`forge.pack.json`). Engine content may refer to no pack,
+// a pack to no pack it does not require; such a reference dangles in the
+// narrower index and fails the gate.
 
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { buildAssetIndex, type AssetIndex, type SchemaRegistry } from "../../src/core/index.ts";
-import { engineContentRoots, listContentPacks } from "./engineContent.ts";
+import { engineContentRoots, listContentPacks, packWithRequired } from "./engineContent.ts";
 import { scanContentRoots, scanRoots, type ScanResult } from "./scan.ts";
 
 /** `content/` and every `samples/<name>/content/`. Missing ones are skipped by the scan. */
@@ -47,8 +48,9 @@ export async function verifyAssets(
   const where = scan.roots.length === 0 ? "no content root yet" : `${scan.roots.length} root(s): ${scan.roots.join(", ")}`;
   let errors = index.issues.filter((issue) => issue.severity === "error").length;
   for (const pack of [null, ...(await listContentPacks(projectRoot))]) {
-    const seen = pack === null ? "engine content alone" : `pack ${pack} with engine content`;
-    const narrow = buildAssetIndex((await scanRoots(engineContentRoots(projectRoot, pack === null ? [] : [pack]))).files, {
+    const packs = pack === null ? [] : await packWithRequired(projectRoot, pack);
+    const seen = pack === null ? "engine content alone" : `pack ${packs.join(" + ")} with engine content`;
+    const narrow = buildAssetIndex((await scanRoots(engineContentRoots(projectRoot, packs))).files, {
       strict: true,
       registry: options.registry,
     });

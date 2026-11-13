@@ -16,6 +16,12 @@
 // tiles and global map. A part pattern is relative to the document's folder;
 // `{stem}` is the document's file name without the suffix and `*` matches
 // within one path segment (`{stem}.tiles/*.tile.bin`).
+//
+// Core does not read the content, but a type may name where in `data` its
+// asset references sit (plan phase 3 step 8, user decision 2026-11-13: the
+// paint layers' materials are GUIDs): `layers[].material` is the `material`
+// of every element of `layers`. The asset index collects them, so a dangling
+// one fails the asset gate like any other reference.
 
 import { isId, type AssetId } from "../id.ts";
 import { isJsonObject, type JsonObject } from "../json.ts";
@@ -29,12 +35,21 @@ import {
   type NormalizeResult,
 } from "../schema/issues.ts";
 import type { DocumentAssetTypeDef } from "./assetType.ts";
+import type { FoundReference } from "./references.ts";
 
 export interface DataDocumentShape {
   /** The file name ends with this, e.g. `.terrain.json`. */
   readonly suffix: string;
   /** Meta-less binary files that belong to the document; see the header. */
   readonly parts: readonly string[];
+  /** Where in `data` asset references sit, and the type each accepts; see the header. */
+  readonly references: readonly DataDocumentReference[];
+}
+
+export interface DataDocumentReference {
+  /** Dotted path in `data`; `[]` after a key walks every element of that array. */
+  readonly path: string;
+  readonly assetType: string | null;
 }
 
 export interface DataDocument {
@@ -51,6 +66,7 @@ function dataDocumentType(
   hint: string,
   suffix: string,
   parts: readonly string[] = [],
+  references: readonly DataDocumentReference[] = [],
 ): DocumentAssetTypeDef {
   return deepFreeze({
     kind: "assetType",
@@ -60,7 +76,7 @@ function dataDocumentType(
     hint,
     schema: `${name}/1`,
     idKind: "asset",
-    dataFile: { suffix, parts: [...parts] },
+    dataFile: { suffix, parts: [...parts], references: references.map((reference) => ({ ...reference })) },
   });
 }
 
@@ -70,6 +86,7 @@ export const TerrainAssetType = dataDocumentType(
   "Arazi tanımı: tile ızgarası, yükseklik aralığı, boya katmanları ve yol spline'ları. Tile'lar ve global harita yanındaki parçalardır.",
   ".terrain.json",
   ["{stem}.global.bin", "{stem}.tiles/*.tile.bin"],
+  [{ path: "layers[].material", assetType: "forge.material" }],
 );
 
 export const WorldBriefAssetType = dataDocumentType(
@@ -98,6 +115,8 @@ export const GroundCoverAssetType = dataDocumentType(
   "Ground Cover",
   "Zemin örtüsü ön ayarı: boya katmanları, eğim / yükseklik kuralları, kaya ve bitki yoğunlukları.",
   ".cover.json",
+  [],
+  [{ path: "layers[].material", assetType: "forge.material" }],
 );
 
 export const DATA_DOCUMENT_TYPES: readonly DocumentAssetTypeDef[] = [
@@ -143,6 +162,32 @@ export function normalizeDataDocument(
     if (!ENVELOPE_KEYS.includes(key)) reportLoss(ctx, "unknown-field", key, "A data document has no such field; dropped.");
   }
   return finish(ctx, { schema: def.schema, id: raw.id, data: structuredClone(raw.data) });
+}
+
+/** The asset references at the type's reference paths in `data`; values that are not asset ids are not references. */
+export function dataDocumentReferences(def: DocumentAssetTypeDef, data: JsonObject): FoundReference[] {
+  const found: FoundReference[] = [];
+  for (const reference of def.dataFile?.references ?? []) {
+    const walk = (value: unknown, steps: readonly string[], at: string): void => {
+      if (steps.length === 0) {
+        if (isId(value, "asset")) found.push({ path: at, target: value, assetType: reference.assetType, via: "field" });
+        return;
+      }
+      const [step, ...rest] = steps as [string, ...string[]];
+      const each = step.endsWith("[]");
+      const key = each ? step.slice(0, -2) : step;
+      if (!isJsonObject(value) || !Object.hasOwn(value, key)) return;
+      const next = value[key];
+      const here = at === "" ? key : `${at}.${key}`;
+      if (!each) {
+        walk(next, rest, here);
+        return;
+      }
+      if (Array.isArray(next)) next.forEach((element: unknown, index) => walk(element, rest, `${here}[${index}]`));
+    };
+    walk(data, reference.path.split("."), "data");
+  }
+  return found;
 }
 
 /**
