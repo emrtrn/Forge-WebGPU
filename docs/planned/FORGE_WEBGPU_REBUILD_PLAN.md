@@ -1,6 +1,9 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v1.3 · 2026-11-13 (v1.2'den fark: Faz 3 adım 1, dikey dilim
+**Sürüm:** v1.4 · 2026-11-13 (v1.3'ten fark: Faz 3 adım 2 tamam — kalite
+profilleri, uyarlamalı kalite, donanım ipuçları ve kullanıcı ayarları taşındı
+(17 A), runtime kalite sürücüsü, GPU timer D, WebGPU izin alanları ve
+merdiven dışı Cinematic; mimari v1.8. v1.3: Faz 3 adım 1, dikey dilim
 tamam — renderer host, boot'un `render` aşaması, render bağlamaları, GUID
 anahtarlı kaynak önbelleği, şekil / static mesh / Height Fog çizimi, render
 smoke iskeleti; mimari v1.7. v1.2: Faz 3 başladı — döküm, içe
@@ -409,8 +412,16 @@ harita, hafıza):
    `render-refs/candidates/l03/p1.png` (kabul adım 9'da). A 885 / 1.022
    değişmedi; adıma düşen R: 1 yeniden yazıldı, 5 düştü, 4 adım 4 / 5 / 8'e
    (`PORT_LOG` §2).
-2. Kalite profilleri / uyarlamalı kalite / donanım ipuçları / kullanıcı ayarları
-   taşınır (17 A), GPU timer D; WebGPU izin alanları ayrı commit.
+2. ~~Kalite profilleri / uyarlamalı kalite / donanım ipuçları / kullanıcı ayarları
+   taşınır (17 A), GPU timer D; WebGPU izin alanları ayrı commit.~~ — **tamam**
+   (2026-11-13, `620cb3e` taşıma + sürücü, `dff1176` izin alanları). Forge
+   modülleri olduğu gibi; `applyQualityToPostProcess` adım 6'ya (eski
+   `ResolvedPostProcess`'e bağlı). Kalite sürücüsü `src/runtime/quality`
+   (Forge `RuntimeSceneApp`'in kalite kuralları); renderer piksel oranını
+   `effectiveDevicePixelRatio`'dan alır, `data-forge-perf` profili ve uyarlama
+   derinliğini yazar. Cinematic merdiven dışı `cinematic` seviyesi. Smoke
+   profili sabit (`high`, uyarlama ve kalibrasyon kapalı). **A 902 / 1.021**;
+   Faz 3'te kalan ertelenmiş A 22 (gölge 18, asset perf 3, starter materyal 1).
 3. Işık ve gölge: ışık bileşenleri + çevirici, `sunCascades` / `followShadow`
    taşınır (18 A), `CSMShadowNode` (Forge bölmeleri, kamerayı düğüm kendi alır),
    takipli gölge, reversed-Z.
@@ -449,7 +460,10 @@ harita, hafıza):
 - [ ] `RenderPipeline` + kalite profilleri (§2.4, karar 3). Profil tanımı S3'te
       (Faz 1). Post Process'te yansıma seçeneği `reflection: off | ssr`
       (kullanıcı kararı 2026-11-11); profil izin verir, zorla açmaz. MRT sınırı
-      biçim sıkıştırmayla (karar 4).
+      biçim sıkıştırmayla (karar 4). *Adım 2:* kalite merdiveni, uyarlamalı
+      kalite, donanım ipuçları, kullanıcı ayarları ve WebGPU izin alanları
+      (Cinematic dahil) hazır; `RenderPipeline`, MRT ve profil başına bayt testi
+      adım 6'da.
 - [ ] Level görüntüleyici: level.json → statik mesh'ler, şekiller, instancing,
       terrain salt çizimi (karar 1); runtime route'unda salt görüntüleme. HLOD
       5b'de (karar 9).
@@ -778,3 +792,4 @@ silinebilir.
 | 2026-11-12 | v1.1 | Faz 2b kapandı (CI `4d844ce`'ye kadar yeşil, kullanıcı teyidi): ayrıntı `docs/archive/PHASE_2B.md`'ye taşındı, planda özet; A 885 / 1.022, ertelenen Forge kontrolleri faz kapılarında. Sıradaki: Faz 3 |
 | 2026-11-12 | v1.2 | Faz 3 başladı: döküm (36 INV satırı, ertelenen 40 A, Faz 3'e düşen 92 R: 58 yeniden yaz / 34 düşer), içe aktarıcının Faz 3 çeviricileri ve tasarım kullanıcı onayıyla ("hepsi öneri gibi"; mimari v1.6): terrain salt çizimi Faz 3'te, `render.ts`'i render host toplar, Forge kalite merdiveni + WebGPU izin alanları (Cinematic merdiven dışı), MRT biçim sıkıştırmasıyla 30 bayt, `forge.material` şemalı JSON asset türü, GPU timer kontrolü D (payda 1.021, kalite adımında), worldSettings alanları sahibi özelliğin tekiline, sürekli gün döngüsü yok, HLOD 5b, cihaz kaybında v1 yeniden yükle. Kod yok; sırada adım 1 (dikey dilim) |
 | 2026-11-13 | v1.3 | Faz 3 adım 1, dikey dilim (`093a77c`): `src/render/{host,resources,materials,pipeline,sync,viewer}`; `WebGPURenderer` (timestamp, reversed-Z), backend kanıtı + `data-forge-perf` + rozet, DPR / resize, cihaz kaybı v1; boot'un `render` aşaması; `defineRenderBinding` + `main.ts` toplaması + `feature-does-not-name-render`; GUID anahtarlı kaynak önbelleği (iki World testi), `GET /__forge/asset-files`, glTF KTX2 + meshopt three'nin libs'iyle; `forge.shape` / `forge.staticMesh` / Height Fog (TSL) çizimi, varsayılan güneş; `npm run smoke:render` (`@playwright/test` 1.61.1) L03'te gerçek WebGPU'da yeşil, aday görüntü depo dışında. 1.537 test, kapı yeşil. A 885 / 1.022; R akıbetleri `PORT_LOG` §2. Mimari v1.7 |
+| 2026-11-13 | v1.4 | Faz 3 adım 2 (`620cb3e`, `dff1176`): `engine/perf/{qualityProfiles,adaptiveQuality,hardwareHints}` ve `engine/persistence/userSettingsStore` taşındı, 17 ertelenmiş A yeşil (`port:forge tests --deferred`), GPU timer kontrolü D (payda 1.021); `src/runtime/quality` kalite sürücüsü (Forge `RuntimeSceneApp`'in kuralları), renderer piksel oranı ve perf witness profili; WebGPU izin alanları (`traaAllowed`, `ssrAllowed`, `ssgiAllowed`, `aoResolutionScale`), eşleme Balanced / GTAO'suz Balanced / Compatibility, merdiven dışı `cinematic`. Smoke `high` profiliyle yeşil. 1.564 test, kapı yeşil. **A 902 / 1.021**. Mimari v1.8 |

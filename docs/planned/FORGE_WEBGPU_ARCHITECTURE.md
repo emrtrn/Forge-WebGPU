@@ -1,6 +1,9 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 1'in uygulama
+**Sürüm:** v1.8 · 2026-11-13 (v1.7'den fark: §4.9 kalitenin uygulaması —
+Cinematic merdiven dışı `cinematic` seviyesi, runtime kalite sürücüsü,
+`applyQualityToPostProcess` adım 6'da.
+v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 1'in uygulama
 notları — §4.3 / §4.9 `render.ts`'leri uygulama girişi toplayıp render host'a
 verir (`render` katmanı `features/`'ı import edemez), kural
 `feature-does-not-name-render`; §4.9 bağlama bağlamı, kaynak anahtarları, GUID
@@ -1120,6 +1123,16 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   SSR yarım), medium → GTAO'suz Balanced, low → Compatibility; **Cinematic**
   (SSGI + SSR tam) merdivenin dışında ayrı bir seçim, uyarlamalı kalite ona
   çıkmaz. Profil efekti açmaz, level'ın yazdığına izin verir.
+  *Uygulama (adım 2, 2026-11-13):* modüller `src/engine/perf` ve
+  `src/engine/persistence/userSettingsStore`; Cinematic `QualityLevel`'da ayrı
+  `cinematic` değeri (`CINEMATIC_PROFILE` = Ultra + SSGI + SSR tam), merdiven
+  (`QUALITY_LEVELS`), donanım ipucu, ölçüm kalibrasyonu ve adım fonksiyonları
+  onu görmez, yalnız oyuncu seçer. Forge `RuntimeSceneApp`'in kalite kuralları
+  (açılış ipucu, 12 sn ölçüm, 0,5 sn uyarlama, başka sekmeden seçim)
+  `src/runtime/quality/runtimeQuality.ts`'te; renderer'a `setQuality` ile
+  gider, piksel oranı `effectiveDevicePixelRatio`. Donanım ipucunun GPU dizesi
+  WebGPU adaptöründen. `applyQualityToPostProcess` eski `ResolvedPostProcess`'e
+  bağlı olduğu için `forge.postProcess` ile adım 6'da taşınır.
 - *Pipeline:* MRT'li sahne pass'i → GTAO / SSGI / SSR → TRAA → bloom / DoF →
   tonemap + pozlama; profil ya da Post Process değişince yeniden kurulur, her
   karede değil. **MRT bütçesi:** biçim sıkıştırma, `requiredLimits` yok:

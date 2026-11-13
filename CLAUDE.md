@@ -57,7 +57,7 @@ kararları plan K12'de; taşınmayan Forge kodu `forge-webgl-final` etiketinde.
 | `npm run test` | Vitest; testler modülün yanında (`*.test.ts`) |
 | `npm run smoke:render` | Render smoke'u (Playwright, başlıklı Chrome, gerçek WebGPU, port 5283, referans projesi `Games/ForgeReference/webgpu-scenes`; `FORGE_REFERENCE_ROOT` değiştirir). Gate'te ve CI'da değil; `render/**` ya da `features/*/render.ts` dokunan push'tan önce. Referans yoksa çekim `render-refs/candidates/`'e, kayıt `render-refs/runs/`'a; referans yalnız kullanıcı kabulünden sonra `-- --update-snapshots` ile yazılır |
 | `npm run port:forge-tests -- --forge <Forge>` | 2b test sınıflaması ve ilerleme (A taşınan / payda); `docs/port/forge-engine-tests.tsv` |
-| `npm run port:forge -- <tests\|closure\|subset\|members> … --forge <Forge>` | Taşıma araçları: hazır kontrolleri taşı / neyin beklettiğini söyle, import kapanışı, eski dosyadan alt küme, bölme planı (ayrıntı `tools/port-forge.ts` başında) |
+| `npm run port:forge -- <tests\|closure\|subset\|members> … --forge <Forge>` | Taşıma araçları: hazır kontrolleri taşı / neyin beklettiğini söyle (`--deferred <faz>` o faza ertelenmişleri de alır), import kapanışı, eski dosyadan alt küme, bölme planı (ayrıntı `tools/port-forge.ts` başında) |
 | `npm run build` | Vite üretim build'i |
 
 `npm run dev` proje verilmezse `samples/starter`'ı salt okunur açar (kayıt 403).
