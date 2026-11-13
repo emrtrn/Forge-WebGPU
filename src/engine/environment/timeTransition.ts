@@ -66,10 +66,14 @@ export function transitionHour(transition: TimeTransition): number {
   return wrapHour(transition.fromHour + transition.hours * transitionProgress(transition));
 }
 
+/** Steps that sum to the duration land on it despite rounding (ten 0.1 s steps are one second). */
+const END_EPSILON_SECONDS = 1e-9;
+
 /** Runs the transition by simulation seconds; negative or non-finite steps are ignored. */
 export function advanceTimeTransition(transition: TimeTransition, seconds: number): TimeTransition {
   if (!(seconds > 0) || !Number.isFinite(seconds)) return transition;
-  return { ...transition, elapsed: Math.min(transition.seconds, transition.elapsed + seconds) };
+  const elapsed = transition.elapsed + seconds;
+  return { ...transition, elapsed: elapsed >= transition.seconds - END_EPSILON_SECONDS ? transition.seconds : elapsed };
 }
 
 export function transitionDone(transition: TimeTransition): boolean {

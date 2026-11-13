@@ -10,8 +10,8 @@
 // back.
 //
 // No continuous day cycle (phase 3 decision 8, the user's event-based time of
-// day): the hour is fixed; a timed transition (`transitionTo`) comes in phase
-// 3 step 7. Forge's `dayLengthMinutes` has no field. Not here yet: the visual
+// day): the hour is fixed; gameplay moves it with a timed transition
+// (`transitionTo`, phase 3 step 7). Forge's `dayLengthMinutes` has no field. Not here yet: the visual
 // snow / wetness cover (`surface`, phase 5a) and the sway wind (`wind`, 5c).
 
 import { color, defineComponent, enumOf, num, object, type ComponentData } from "../../core/index.ts";

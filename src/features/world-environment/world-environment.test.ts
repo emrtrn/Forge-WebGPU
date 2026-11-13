@@ -72,6 +72,26 @@ describe("world environment end to end: level -> world -> service", () => {
     expect(runtime.environment).toBeNull();
   });
 
+  test("a timed transition runs on the world's tick, then the hour stands still", async () => {
+    const world = play([{ id: actor, name: "World Environment", components: { environment: { type: "forge.worldEnvironment@1", hour: 20 } } }]);
+    const controller = world.services.require(WorldEnvironmentKey).controller;
+    const reached = controller.transitionTo({ hour: 6, seconds: 2 });
+    expect(controller.transitioning).toBe(true);
+    // The world clamps a step to MAX_TICK_SECONDS (0.1): ten steps are one second.
+    for (let i = 0; i < 10; i += 1) world.tick(0.1);
+    expect(controller.current()?.hour).toBeCloseTo(1, 9);
+    for (let i = 0; i < 11; i += 1) world.tick(0.1);
+    expect(controller.current()?.hour).toBe(6);
+    expect(controller.transitioning).toBe(false);
+    await expect(reached).resolves.toBe(true);
+    world.tick(0.1);
+    expect(controller.current()?.hour).toBe(6);
+    // Ending the level cuts a running transition short.
+    const cut = controller.transitionTo({ hour: 12, seconds: 5 });
+    world.dispose();
+    await expect(cut).resolves.toBe(false);
+  });
+
   test("no World Environment: inactive; one spawned or destroyed at runtime follows", () => {
     const world = play([]);
     const runtime = world.services.require(WorldEnvironmentKey);

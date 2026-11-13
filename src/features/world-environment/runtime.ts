@@ -5,7 +5,9 @@
 // surface state started from the level defaults, which gameplay changes
 // through the controller (`WorldEnvironmentService`). The component is only
 // read: the live state is never written back (WES §4.4). The hour stays where
-// it is set; there is no day length (phase 3 decision 8).
+// it is set; there is no day length (phase 3 decision 8). A timed transition
+// (`transitionTo`, plan phase 3 step 7) runs on the world's tick, before
+// physics, so the frame drawn after it sees the hour it reached.
 
 import { defineSubsystem } from "../../core/index.ts";
 import { normalizeWorldEnvironment, resolveWorldEnvironment, type ResolvedWorldEnvironment } from "../../engine/environment/worldEnvironment.ts";
@@ -26,6 +28,7 @@ export function forgeWorldEnvironment(data: WorldEnvironmentData) {
 
 export const WorldEnvironmentSubsystem = defineSubsystem({
   id: "forge.worldEnvironment",
+  tickGroups: ["prePhysics"],
   create(ctx) {
     const controller = new WorldEnvironmentController();
     const runtime: { controller: WorldEnvironmentController; environment: ResolvedWorldEnvironment | null } = { controller, environment: null };
@@ -47,6 +50,7 @@ export const WorldEnvironmentSubsystem = defineSubsystem({
     return {
       actorsAdded: refresh,
       actorsRemoved: refresh,
+      tick: (_group, dt) => controller.advance(dt),
       dispose: () => {
         controller.clear();
         runtime.environment = null;

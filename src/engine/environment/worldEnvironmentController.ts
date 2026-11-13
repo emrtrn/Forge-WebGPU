@@ -1,7 +1,18 @@
 // Ported from Forge WebGL engine/environment/worldEnvironmentController.ts @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
+// Added here (plan phase 3 step 7): the timed hour transition (`transitionTo`,
+// timeTransition.ts), which `advance` runs; Forge's methods are unchanged
+// apart from `setHour` / `load` ending a running transition.
 import type { LayoutWorldEnvironment } from "../legacy/layout.ts";
 import type { WorldEnvironmentState } from "./environmentResolve.ts";
 import { stateFromDefaults } from "./environmentResolve.ts";
+import {
+  advanceTimeTransition,
+  startTimeTransition,
+  transitionDone,
+  transitionHour,
+  type TimeTransition,
+  type TimeTransitionRequest,
+} from "./timeTransition.ts";
 import { WorldClock } from "./worldClock.ts";
 import {
   normalizeWorldEnvironment,
@@ -19,7 +30,19 @@ import {
  */
 export interface WorldEnvironmentService {
   getState(): Readonly<WorldEnvironmentState>;
+  /** Jumps to the hour at once; ends a running transition (its promise resolves false). */
   setHour(hour: number): void;
+  /**
+   * Runs the hour forward to `hour` over `seconds` of simulation time, eased
+   * in and out, then the hour stands still again (the event-based time of
+   * day, plan phase 3 decision 8). An earlier hour crosses midnight; no
+   * seconds jumps at once. Resolves true when the transition reached its
+   * hour, false when a new transition, `setHour` or the level ending cut it
+   * short, or when the level has no World Environment.
+   */
+  transitionTo(request: TimeTransitionRequest): Promise<boolean>;
+  /** A timed transition is running. */
+  readonly transitioning: boolean;
   setSeason(season: Season): void;
   /** K1: the change is immediate; timed transitions arrive with precipitation (K3). */
   setWeather(preset: WeatherPreset, intensity?: number): void;
@@ -39,9 +62,12 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
   private state: WorldEnvironmentState | null = null;
   private readonly listeners = new Set<(state: Readonly<WorldEnvironmentState>) => void>();
   private stateRevision = 0;
+  private transition: TimeTransition | null = null;
+  private settle: ((reached: boolean) => void) | null = null;
 
   /** Starts from a level's actor; null (no actor, or a hidden one) leaves no state. */
   load(actor: LayoutWorldEnvironment | null | undefined): void {
+    this.endTransition(false);
     this.clock = null;
     this.state = null;
     this.stateRevision += 1;
@@ -67,6 +93,10 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
     return this.clock !== null && this.clock.dayLength > 0;
   }
 
+  get transitioning(): boolean {
+    return this.transition !== null;
+  }
+
   get revision(): number {
     return this.stateRevision;
   }
@@ -76,8 +106,24 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
     return this.state;
   }
 
-  /** Advances the clock by simulation seconds (already paused/scaled by `TimeControl`). */
+  /**
+   * Advances by simulation seconds (already paused/scaled by `TimeControl`).
+   * A running transition moves the hour; the clock's own day length waits
+   * until it is done.
+   */
   advance(simulationSeconds: number): void {
+    if (this.transition && this.clock && this.state) {
+      this.transition = advanceTimeTransition(this.transition, simulationSeconds);
+      const hour = transitionHour(this.transition);
+      const done = transitionDone(this.transition);
+      if (hour !== this.state.hour) {
+        this.clock.setHour(hour);
+        this.state = { ...this.state, hour: this.clock.hour };
+        this.emit();
+      }
+      if (done) this.endTransition(true);
+      return;
+    }
     if (!this.clock || !this.state || !(this.clock.dayLength > 0)) return;
     const before = this.clock.hour;
     this.clock.advance(simulationSeconds);
@@ -94,9 +140,25 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
 
   setHour(hour: number): void {
     if (!this.clock || !this.state || !Number.isFinite(hour)) return;
+    this.endTransition(false);
     this.clock.setHour(hour);
     this.state = { ...this.state, hour: this.clock.hour };
     this.emit();
+  }
+
+  transitionTo(request: TimeTransitionRequest): Promise<boolean> {
+    if (!this.clock || !this.state || !Number.isFinite(request.hour)) return Promise.resolve(false);
+    const next = startTimeTransition(this.state.hour, request);
+    if (!next) {
+      // No time or no distance: the hour is set at once, and that is reaching it.
+      this.setHour(request.hour);
+      return Promise.resolve(true);
+    }
+    this.endTransition(false);
+    this.transition = next;
+    return new Promise((resolve) => {
+      this.settle = resolve;
+    });
   }
 
   setSeason(season: Season): void {
@@ -125,6 +187,13 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
   onChanged(listener: (state: Readonly<WorldEnvironmentState>) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  private endTransition(reached: boolean): void {
+    const settle = this.settle;
+    this.transition = null;
+    this.settle = null;
+    settle?.(reached);
   }
 
   private emit(): void {

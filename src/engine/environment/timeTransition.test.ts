@@ -53,7 +53,8 @@ describe("time transition", () => {
   test("lands exactly on the target and stops there, whatever the frame steps", () => {
     const start = startTimeTransition(10, { hour: 22, seconds: 5 })!;
     for (const fps of [30, 60, 144]) {
-      const done = run(start, Array.from({ length: Math.ceil(5 * fps) + 3 }, () => 1 / fps));
+      // Exactly the frames of the duration: rounding in the sum does not leave it a frame short.
+      const done = run(start, Array.from({ length: 5 * fps }, () => 1 / fps));
       expect(transitionDone(done)).toBe(true);
       expect(done.elapsed).toBe(5);
       expect(transitionHour(done)).toBe(22);
