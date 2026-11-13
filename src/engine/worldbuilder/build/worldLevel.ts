@@ -12,13 +12,20 @@
  *   map as parts.
  * - The Player Start is an actor of that name without components until the
  *   Player Start feature (Faz 6).
+ * - Forge's greybox look (tools/world/worldBriefBuild.ts `GREYBOX_LOOK`: a sun,
+ *   a sky, its Sky Light with Forge's background and ambient world settings)
+ *   until the user sets light and colour in the editor; never tuned here. It
+ *   goes through the importer's light and environment converters (phase 3
+ *   steps 3 and 5), so it is written as Forge would have read it.
  * - Ids are derived from the level id: an actor's from its placement id, the
  *   terrain's and the recipe's asset ids from their names. A rebuild of the
  *   same level gives the same GUIDs.
  */
 import type { ActorDoc, ActorId, AssetId, DataDocument, LevelDoc, LevelId } from "../../../core/index.ts";
 import { LEVEL_SCHEMA, TerrainAssetType, WorldRecipeAssetType, dataDocument } from "../../../core/index.ts";
+import { environmentActors } from "../../forgeImport/environment.ts";
 import { stableHex } from "../../forgeImport/ids.ts";
+import { forgeLightSources, lightActors } from "../../forgeImport/lights.ts";
 import { placementGroupActors, playerStartActor, terrainActor } from "../../forgeImport/placements.ts";
 import type { WorldRecipe } from "../recipe.ts";
 import type { WorldBuild } from "./worldBuild.ts";
@@ -32,6 +39,13 @@ export {
   TERRAIN_TAG,
   WORLD_ROLE_TAG,
 } from "../../forgeImport/placements.ts";
+
+/** Forge's greybox look (`GREYBOX_LOOK`), in Forge's level fields; never tuned here. */
+export const WORLD_GREYBOX_LOOK = {
+  worldSettings: { backgroundColor: "#a9c9df", ambientColor: "#ece6da", ambientIntensity: 1.1 },
+  skyAtmosphere: { rayleigh: 1.4, turbidity: 3, mie: 0.003, mieDirectionalG: 0.8, skyLightCapture: { intensity: 0.5 } },
+  lights: [{ id: "sun", type: "directional", position: [3, 9, 4], name: "Sun", rotation: [-48, 35, 0], color: "#fff4e6", intensity: 4.2, castShadow: true }],
+} as const;
 
 /** Default level grid (A11). */
 export const WORLD_LEVEL_CELL_SIZE = 128;
@@ -67,6 +81,8 @@ export function worldLevel(build: WorldBuild, options: WorldLevelOptions): World
   }
   const placed = placementGroupActors(build.groups, { actorId, stageOf: (id) => stageOf[id]?.stage });
   actors.push(...placed.actors);
+  const look = structuredClone(WORLD_GREYBOX_LOOK) as unknown as Parameters<typeof environmentActors>[0];
+  actors.push(...environmentActors(look, actorId).actors, ...lightActors(forgeLightSources(look, []), actorId).actors);
   const { placements, placeholders, meshes } = placed.counts;
 
   const recipe: WorldRecipe = { ...structuredClone(build.recipe), generatedBy: { placements: {}, splines: {} } };

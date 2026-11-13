@@ -9,8 +9,10 @@
  * terrain actors with `forge.terrain` data documents (the definition is
  * copied as it is; its tiles and global map are copied by the importer),
  * `heightFog` as a `forge.heightFog` actor, `lights` (the level's and its
- * cells') as light actors (`lights.ts`, plan phase 3), the main grid's cell
- * size, the static shadow switch (resolved into each placement's
+ * cells') as light actors (`lights.ts`, plan phase 3), the environment
+ * singletons (sky, Sky Light with the background and ambient world settings,
+ * clouds, World Environment; `environment.ts`, phase 3 step 5), the main
+ * grid's cell size, the static shadow switch (resolved into each placement's
  * `castShadow`, phase 3 step 4) and a landscape's material. Cells
  * are not carried over as files: the new level assigns every actor to a cell
  * by its position (A11). Every other field is counted in the report with the
@@ -49,6 +51,7 @@ import {
   WORLD_SETTINGS_FIELD_PHASES,
   fieldPhase,
 } from "./fields.ts";
+import { environmentActors } from "./environment.ts";
 import { forgeLevelId, stableHex } from "./ids.ts";
 import { forgeLightSources, LIGHT_FIELD_PHASES, lightActors } from "./lights.ts";
 import {
@@ -126,6 +129,8 @@ export interface ForgeLevelReport {
     readonly terrains: number;
     readonly heightFog: number;
     readonly lights: number;
+    /** Sky Atmosphere, Sky Light, Cloud Layer and World Environment singletons. */
+    readonly environment: number;
     readonly sourceCells: number;
     /** Forge's level-wide static shadow switch, as resolved into the placements that do not say. */
     readonly staticCastShadow: boolean;
@@ -303,6 +308,10 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
     }
   }
 
+  const environment = environmentActors(layout, actorId);
+  actors.push(...environment.actors);
+  for (const entry of environment.notes) note(entry.field, entry.count, entry.phase);
+
   const lights = lightActors(forgeLightSources(layout, input.cells), actorId);
   actors.push(...lights.actors);
   for (const [type, count] of lights.unknownTypes) note(`lights[type=${type}]`, count, "?");
@@ -323,7 +332,7 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
       source: input.path,
       name: typeof layout.name === "string" ? layout.name : "",
       converted: {
-        ...counts, actors: actors.length, terrains: terrains.length, heightFog, lights: lights.actors.length, sourceCells: input.cells.length, staticCastShadow,
+        ...counts, actors: actors.length, terrains: terrains.length, heightFog, lights: lights.actors.length, environment: environment.actors.length, sourceCells: input.cells.length, staticCastShadow,
       },
       notConverted: [...fields].map(([field, { count, phase }]) => ({ field, count, phase }))
         .sort((a, b) => a.field.localeCompare(b.field)),

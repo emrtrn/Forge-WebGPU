@@ -6,7 +6,8 @@
  * A field in neither table is reported with phase `?`, so nothing is dropped
  * without a line in the report.
  *
- * Lights have their own table (`lights.ts`).
+ * Lights have their own table (`lights.ts`), the environment singletons
+ * theirs (`environment.ts`).
  *
  * Phases: 3 render (light, sky, post process, WES, materials), 4 editor,
  * 5a terrain surface, 5b streaming, 5c foliage, 6 gameplay runtime (collider,
@@ -17,14 +18,11 @@
 /** Level (and cell) fields the importer converts. */
 export const CONVERTED_LEVEL_FIELDS: ReadonlySet<string> = new Set([
   "schema", "name", "type", "grid", "key", "instances", "worldCells", "landscapes", "heightFog", "lights",
+  "skyAtmosphere", "reflection", "cloudLayer", "worldEnvironment",
 ]);
 
 export const LEVEL_FIELD_PHASES: Readonly<Record<string, string>> = {
-  skyAtmosphere: "3",
-  cloudLayer: "3",
   postProcess: "3",
-  worldEnvironment: "3",
-  reflection: "3",
   puddleWaters: "5a",
   blockingVolumes: "6",
   aiNavigationVolumes: "6",
@@ -44,18 +42,19 @@ export const LEVEL_FIELD_PHASES: Readonly<Record<string, string>> = {
 
 /**
  * `worldSettings` fields the importer converts: the main grid's cell size
- * (`partition`), and the static shadow switch, resolved into every
- * placement's `castShadow` (user decision 2026-11-13). Each other field is
- * reported on its own (`worldSettings.<field>`), with the phase of the
- * singleton that takes it (phase 3 decision 7).
+ * (`partition`), the static shadow switch, resolved into every placement's
+ * `castShadow` (user decision 2026-11-13), and the background and ambient
+ * light, which `forge.skyLight` owns (phase 3 step 5, user decision
+ * 2026-11-13). Each other field is reported on its own
+ * (`worldSettings.<field>`), with the phase of the singleton that takes it
+ * (phase 3 decision 7).
  */
-export const CONVERTED_WORLD_SETTINGS_FIELDS: ReadonlySet<string> = new Set(["partition", "staticObjectsCastShadow"]);
+export const CONVERTED_WORLD_SETTINGS_FIELDS: ReadonlySet<string> = new Set([
+  "partition", "staticObjectsCastShadow", "backgroundColor", "ambientColor", "ambientIntensity",
+]);
 
 export const WORLD_SETTINGS_FIELD_PHASES: Readonly<Record<string, string>> = {
   staticObjectsReceiveShadow: "- (gölge almak hep açık, kullanıcı kararı 2026-11-13)",
-  backgroundColor: "3",
-  ambientColor: "3",
-  ambientIntensity: "3",
   viewDistance: "5b",
   wind: "5c",
   gravity: "6",

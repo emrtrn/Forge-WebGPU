@@ -80,7 +80,7 @@ describe("buildWorldFromBrief", () => {
     expect(result.deferred).toEqual(expect.arrayContaining([
       expect.stringMatching(/^rivers: 1 bed\(s\) carved/),
       expect.stringMatching(/^foliage: /),
-      expect.stringMatching(/^light and sky: /),
     ]));
+    expect(result.deferred.some((line) => line.startsWith("light and sky"))).toBe(false);
   });
 });

@@ -14,8 +14,9 @@
  * `stageRun.ts` (Forge's Stage Runner is not ported); the level and its files
  * are written by `worldLevel.ts` and `tools/world`, not by Forge's save
  * validators. Not built here, reported in `deferred`: Lake / River / Ocean
- * actors (Faz 7; the beds are carved), foliage rules (5c), the greybox light
- * and sky (Faz 3; the look is the user's). A model row whose file is not an
+ * actors (Faz 7; the beds are carved), foliage rules (5c). The greybox light
+ * and sky are written by `worldLevel.ts` (Forge's look, the user's to set). A
+ * model row whose file is not an
  * asset of the project becomes a role-coloured placeholder (Forge refused the
  * build): placeholders first.
  *
@@ -425,7 +426,6 @@ export function buildWorldFromBrief(input: WorldBuildInput): WorldBuild {
   if (ground.lakes.length) deferred.push(`lakes: ${ground.lakes.length} bed(s) carved; Lake actors wait for Faz 7`);
   if (brief.ocean) deferred.push("ocean: the coast is shaped; the Ocean actor waits for Faz 7");
   deferred.push(cover ? "foliage: the ground cover's plant rules wait for foliage (5c)" : "foliage: the pilot's plant rules wait for foliage (5c)");
-  deferred.push("light and sky: none written; the look is set in the editor (Faz 3)");
   if (brief.environment) deferred.push("environment: season/weather/hour are read, not written to the level yet (WES link, plan §12)");
   if (brief.regions.length) deferred.push("regions: in the recipe plan only");
   deferred.push(...ground.deferred);

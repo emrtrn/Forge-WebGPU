@@ -36,6 +36,18 @@ describe("worldLevel", () => {
     expect(level.counts).toEqual({ placements: 1, placeholders: 1, meshes: 0 });
   });
 
+  test("Forge's greybox look is written: sky, Sky Light with its background and ambient, the sun; all persistent", () => {
+    const level = worldLevel(buildWith([]), { levelId: LEVEL, terrainId: "valley" });
+    const look = level.level.actors.slice(1);
+    expect(look.map((actor) => actor.name)).toEqual(["Sky Atmosphere", "Sky Light", "Sun"]);
+    expect(look.every((actor) => actor.spatiallyLoaded === false)).toBe(true);
+    const [sky, skyLight, sun] = look.map((actor) => (actor.class === null ? Object.values(actor.components)[0] : null));
+    expect(sky).toMatchObject({ type: "forge.skyAtmosphere@1", rayleigh: 1.4, turbidity: 3, mie: 0.003, exposure: 1 });
+    expect(skyLight).toEqual({ type: "forge.skyLight@1", intensity: 0.5, ambientColor: "#ece6da", ambientIntensity: 1.1, backgroundColor: "#a9c9df" });
+    expect(sun).toMatchObject({ type: "forge.directionalLight@1", color: "#fff4e6", intensity: 4.2, castShadow: true, atmosphereSun: true });
+    expect(look[2]!.transform).toMatchObject({ p: [3, 9, 4], r: eulerXyzQuaternion(-48, 35, 0) });
+  });
+
   test("a model group becomes static mesh actors; a hand-placed role has no stage; no role, no role component", () => {
     const mesh = "ast_ffffffffffffffffffffffffffffffff";
     const level = worldLevel(buildWith([{
@@ -84,7 +96,7 @@ describe("worldLevel", () => {
     const other = worldLevel(buildWith(groups), { levelId: "lvl_ffffffffffffffffffffffffffffffff", terrainId: "valley" });
     const ids = (level: typeof a) => [...level.level.actors.map((actor) => actor.id), level.terrain.id, level.recipe.id];
     expect(ids(a)).toEqual(ids(b));
-    expect(new Set(ids(a)).size).toBe(5);
+    expect(new Set(ids(a)).size).toBe(8);
     expect(ids(a).every((id) => isId(id, "actor") || isId(id, "asset"))).toBe(true);
     expect(ids(other).some((id) => ids(a).includes(id))).toBe(false);
     expect(stableHex("x")).toMatch(/^[0-9a-f]{32}$/);

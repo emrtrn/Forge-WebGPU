@@ -28,6 +28,11 @@ interface SourceCounts {
   heightFog: number;
   /** Directional, point and spot lights of the level and its cells (other types are not Forge's). */
   lights: number;
+  skyAtmosphere: number;
+  /** A sky, a `reflection` actor or a background / ambient world setting: Forge lit the level with them. */
+  skyLight: number;
+  cloudLayer: number;
+  worldEnvironment: number;
   cells: number;
   cellKeys: string[];
   foliageInstances: number;
@@ -75,6 +80,12 @@ async function sourceCounts(source: ForgeSource, path: string, missing: Readonly
     landscapes: Array.isArray(layout.landscapes) ? layout.landscapes.length : 0,
     heightFog: isJsonObject(layout.heightFog) ? 1 : 0,
     lights: sourceLights(layout) + level.input.cells.reduce((sum, cell) => sum + sourceLights(cell.doc), 0),
+    skyAtmosphere: isJsonObject(layout.skyAtmosphere) ? 1 : 0,
+    skyLight: isJsonObject(layout.skyAtmosphere) || isJsonObject(layout.reflection)
+      || (isJsonObject(layout.worldSettings) && ["backgroundColor", "ambientColor", "ambientIntensity"].some((key) => (layout.worldSettings as JsonObject)[key] !== undefined))
+      ? 1 : 0,
+    cloudLayer: isJsonObject(layout.cloudLayer) ? 1 : 0,
+    worldEnvironment: isJsonObject(layout.worldEnvironment) ? 1 : 0,
     cells: level.input.cells.length,
     cellKeys: level.input.cells.map((cell) => cell.key),
     foliageInstances: 0,
@@ -111,6 +122,10 @@ interface TargetCounts {
   terrains: number;
   heightFog: number;
   lights: number;
+  skyAtmosphere: number;
+  skyLight: number;
+  cloudLayer: number;
+  worldEnvironment: number;
   playerStarts: number;
   cells: number;
   persistent: number;
@@ -124,7 +139,8 @@ interface TargetCounts {
 
 async function targetCounts(projectRoot: string, folder: string): Promise<TargetCounts> {
   const counts: TargetCounts = {
-    actors: 0, shapes: 0, meshes: 0, roles: 0, terrains: 0, heightFog: 0, lights: 0, playerStarts: 0, cells: 0, persistent: 0, cellActors: new Map(),
+    actors: 0, shapes: 0, meshes: 0, roles: 0, terrains: 0, heightFog: 0, lights: 0, playerStarts: 0,
+    skyAtmosphere: 0, skyLight: 0, cloudLayer: 0, worldEnvironment: 0, cells: 0, persistent: 0, cellActors: new Map(),
     tintedMeshes: 0, shadowless: 0, materialOverrides: 0, terrainMaterials: 0,
   };
   const count = (doc: unknown, persistent: boolean): void => {
@@ -152,6 +168,10 @@ async function targetCounts(projectRoot: string, folder: string): Promise<Target
         }
         else if (type === "forge.heightFog") counts.heightFog += 1;
         else if (type === "forge.directionalLight" || type === "forge.pointLight" || type === "forge.spotLight") counts.lights += 1;
+        else if (type === "forge.skyAtmosphere") counts.skyAtmosphere += 1;
+        else if (type === "forge.skyLight") counts.skyLight += 1;
+        else if (type === "forge.cloudLayer") counts.cloudLayer += 1;
+        else if (type === "forge.worldEnvironment") counts.worldEnvironment += 1;
       }
     }
   };
@@ -191,6 +211,7 @@ export async function compareImport(projectRoot: string, source: ForgeSource, re
     const missing = report.missingAssets.reduce((sum, entry) => sum + entry.placements, 0);
     const row = (what: string, sourceCount: number, targetCount: number, note: string): CountRow =>
       ({ what, source: sourceCount, target: targetCount, note: sourceCount === targetCount ? "" : note });
+    const environment = s.skyAtmosphere + s.skyLight + s.cloudLayer + s.worldEnvironment;
     const missingNote = report.missingAssets.map((entry) => `${entry.assetId} ${entry.placements}`).join(", ");
     tables.set(`${report.source} → ${folder}`, [
       row("shape placements → forge.shape", s.shapes, t.shapes, "?"),
@@ -201,14 +222,18 @@ export async function compareImport(projectRoot: string, source: ForgeSource, re
       row("landscapes → forge.terrain", s.landscapes, t.terrains, "?"),
       row("heightFog → forge.heightFog", s.heightFog, t.heightFog, "?"),
       row("lights → light actors", s.lights, t.lights, "?"),
+      row("skyAtmosphere → forge.skyAtmosphere", s.skyAtmosphere, t.skyAtmosphere, "?"),
+      row("sky / reflection / background and ambient → forge.skyLight", s.skyLight, t.skyLight, "?"),
+      row("cloudLayer → forge.cloudLayer", s.cloudLayer, t.cloudLayer, "?"),
+      row("worldEnvironment → forge.worldEnvironment", s.worldEnvironment, t.worldEnvironment, "?"),
       row("model placement colours → forge.staticMesh color", s.tintedModels, t.tintedMeshes, "?"),
       row("placements casting no shadow → castShadow false", s.shadowless, t.shadowless, "?"),
       row("model materialSlot → forge.staticMesh materials", s.materialOverrides, t.materialOverrides,
         report.notConverted.some((entry) => entry.field.startsWith("instances[].materialSlot=")) ? "material or model slots not in the target (report)" : "?"),
       row("landscape materials → forge.terrain material", s.landscapeMaterials, t.terrainMaterials,
         report.notConverted.some((entry) => entry.field.startsWith("landscapes[].material=")) ? "material not in the target (report)" : "?"),
-      row("actors (placements + terrain + fog + lights)", s.shapes + s.models + s.playerStarts + s.landscapes + s.heightFog + s.lights, t.actors,
-        t.actors === s.shapes + s.models - missing + s.playerStarts + s.landscapes + s.heightFog + s.lights ? `placements without a model: ${missing}` : "?"),
+      row("actors (placements + terrain + fog + lights + environment)", s.shapes + s.models + s.playerStarts + s.landscapes + s.heightFog + s.lights + environment, t.actors,
+        t.actors === s.shapes + s.models - missing + s.playerStarts + s.landscapes + s.heightFog + s.lights + environment ? `placements without a model: ${missing}` : "?"),
       row("cells", s.cells, t.cells, s.cells === 0
         ? "the source level is not partitioned; every level has a grid now and actors are assigned by position (A11)"
         : cellDifference(s.cellKeys, t.cellActors)),

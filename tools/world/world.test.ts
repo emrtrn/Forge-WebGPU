@@ -61,7 +61,7 @@ describe("world:random", () => {
     expect(types).toEqual(["forge.level", "forge.terrain", "forge.worldBrief", "forge.worldRecipe"]);
     expect(index.levels.get(result.levelId)?.cells.length).toBeGreaterThan(0);
 
-    // The level reads back whole: every actor of the build, the terrain in the persistent layer.
+    // The level reads back whole: every actor of the build, the terrain and the greybox look (sky, Sky Light, sun) in the persistent layer.
     const options = { strict: true, registry, resolveClass: index.resolveClass };
     const persistent = normalizeLevel(JSON.parse(await text("content/levels/plain/level.json")), options).value!;
     const cells = await Promise.all(index.levels.get(result.levelId)!.cells.map(async (key) =>
@@ -69,7 +69,7 @@ describe("world:random", () => {
     const merged = mergeLevelParts(persistent, cells, options);
     expect(merged.ok).toBe(true);
     expect(merged.ok && merged.value.level.actors.length).toBe(result.level.level.actors.length);
-    expect(persistent.actors.map((actor) => actor.name)).toEqual([result.build.def.name]);
+    expect(persistent.actors.map((actor) => actor.name)).toEqual([result.build.def.name, "Sky Atmosphere", "Sky Light", "Sun"]);
     const recipe = JSON.parse(await text("content/levels/plain/plain.worldrecipe.json")) as { data: { generatedBy: unknown } };
     expect(recipe.data.generatedBy).toEqual({ placements: {}, splines: {} });
   });

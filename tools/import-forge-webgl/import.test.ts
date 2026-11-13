@@ -164,7 +164,7 @@ describe("import:forge", () => {
     expect(result.written).toEqual([]);
     expect(await readdir(join(project, "content")).then((names) => names.includes("forge"))).toBe(false);
     const report = formatImportReport(result);
-    expect(report).toContain("lights 1); source cells");
+    expect(report).toContain("lights 1; environment 0); source cells");
     expect(report).not.toContain("| `lights` |");
     expect(report).toContain("| `instances[].fracture` | 1 | 8 |");
     expect(report).toContain("| `worldSettings.viewDistance` | 1 | 5b |");

@@ -48,14 +48,14 @@ function fixture(patch: Record<string, unknown> = {}, cells: ForgeLevelInput["ce
 }
 
 describe("importForgeLevel", () => {
-  test("placements become shape / static mesh / Player Start actors after the terrain, the fog and the lights", () => {
+  test("placements become shape / static mesh / Player Start actors after the terrain, the fog, the environment and the lights", () => {
     const { level, report } = importForgeLevel(fixture(), resolvers);
     expect(level.id).toBe(forgeLevelId(PATH));
     expect(level.settings).toEqual({ cellSize: 64 });
     expect(level.actors.map((actor) => actor.name)).toEqual([
-      "WB Valley", "Fog", "directional#0", "Player Start", "building.house", "rock#0", "rock#1",
+      "WB Valley", "Fog", "Sky Light", "directional#0", "Player Start", "building.house", "rock#0", "rock#1",
     ]);
-    const [, , , start, house, rock, bare] = level.actors;
+    const [, , , , start, house, rock, bare] = level.actors;
     expect(start).toMatchObject({ components: {}, transform: { p: [1, 2, 3], r: eulerXyzQuaternion(0, 90, 0) } });
     // The level does not say `staticObjectsCastShadow`: Forge's default (off) goes on every placement.
     expect(house!.class === null && house!.components).toEqual({
@@ -74,7 +74,7 @@ describe("importForgeLevel", () => {
     expect(rock!.transform.s).toEqual([2, 2, 2]);
     expect(bare!.class === null && bare!.components.mesh).toMatchObject({ collision: false, castShadow: false });
     expect(report.converted).toEqual({
-      placements: 3, placeholders: 1, meshes: 2, playerStarts: 1, actors: 7, terrains: 1, heightFog: 1, lights: 1, sourceCells: 0, staticCastShadow: false,
+      placements: 3, placeholders: 1, meshes: 2, playerStarts: 1, actors: 8, terrains: 1, heightFog: 1, lights: 1, environment: 1, sourceCells: 0, staticCastShadow: false,
     });
     expect(report.missingAssets).toEqual([{ assetId: "kenney-tree", placements: 1 }]);
   });
@@ -140,13 +140,52 @@ describe("importForgeLevel", () => {
     });
   });
 
+  test("environment singletons: Forge's values with its defaults written out; the Sky Light takes the capture and the world settings", () => {
+    const { level, report } = importForgeLevel(fixture({
+      worldSettings: { ambientColor: "#ECE6DA", ambientIntensity: 1.1 },
+      skyAtmosphere: { name: "Sky", hidden: true, rayleigh: 1.4, turbidity: 3, skyLightCapture: { intensity: 0.5 } },
+      reflection: { name: "Reflection Environment", source: "sky", intensity: 2 },
+      cloudLayer: { coverage: 0.4, speed: 0.1, flavour: "x" },
+      worldEnvironment: {
+        name: "World Environment", time: { hour: 10, dayLengthMinutes: 1 }, sunPath: { azimuthDeg: 96.056 },
+        night: { moonIntensity: 0.1 }, weather: { preset: "rain", intensity: 0.5 }, surface: { wetness: 0.3 }, wind: { strength: 2 },
+      },
+    }), resolvers);
+    const singletons = level.actors.filter((actor) => actor.class === null && Object.keys(actor.components).length === 1
+      && ["sky", "skyLight", "clouds", "environment"].includes(Object.keys(actor.components)[0]!));
+    expect(singletons.map((actor) => actor.name)).toEqual(["Sky", "Sky Light", "Cloud Layer", "World Environment"]);
+    expect(singletons.every((actor) => !actor.spatiallyLoaded)).toBe(true);
+    const component = (index: number) => Object.values(singletons[index]!.class === null ? singletons[index]!.components : {})[0];
+    expect(component(0)).toEqual({ type: "forge.skyAtmosphere@1", rayleigh: 1.4, turbidity: 3, mie: 0.005, mieDirectionalG: 0.8, exposure: 1 });
+    expect(component(1)).toEqual({ type: "forge.skyLight@1", intensity: 0.5, ambientColor: "#ece6da", ambientIntensity: 1.1, backgroundColor: "#d7d7c7" });
+    expect(component(2)).toEqual({ type: "forge.cloudLayer@1", color: "#ffffff", coverage: 0.4, density: 0.85, softness: 0.3, scale: 2, speed: 0.1 });
+    expect(component(3)).toMatchObject({
+      type: "forge.worldEnvironment@1", hour: 10, season: "summer", weather: { preset: "rain", intensity: 0.5 },
+      sunPath: { azimuthDeg: 96.056, noonElevationDeg: 60, sunriseHour: 6, sunsetHour: 18 },
+      night: { moonIntensity: 0.1, moonColor: "#9fb4ff", ambientIntensity: 1.5 },
+    });
+    expect(report.converted.environment).toBe(4);
+    expect(report.notConverted).toEqual(expect.arrayContaining([
+      { field: "skyAtmosphere.hidden", count: 1, phase: "4" },
+      { field: "cloudLayer.flavour", count: 1, phase: "?" },
+      { field: "worldEnvironment.surface", count: 1, phase: "5a" },
+      { field: "worldEnvironment.wind", count: 1, phase: "5c" },
+      { field: "worldEnvironment.time.dayLengthMinutes", count: 1, phase: "- (sürekli gün döngüsü yok, kullanıcı kararı)" },
+    ]));
+    // A level with only a legacy reflection actor still gets the Sky Light, at its intensity.
+    const legacy = importForgeLevel(fixture({ worldSettings: {}, reflection: { intensity: 2 } }), resolvers);
+    expect(legacy.level.actors.find((actor) => actor.name === "Sky Light")).toMatchObject({ components: { skyLight: { intensity: 2 } } });
+    // No sky, no reflection and no background / ambient: no Sky Light (the renderer draws Forge's defaults).
+    const none = importForgeLevel(fixture({ worldSettings: {} }), resolvers);
+    expect(none.level.actors.some((actor) => actor.name === "Sky Light")).toBe(false);
+  });
+
   test("every field not converted is reported with its phase; a field nobody knows with ?", () => {
     const { report } = importForgeLevel(fixture({ mystery: { a: 1 }, puddleWaters: [] }), resolvers);
     expect(report.notConverted).toEqual([
       { field: "instances[].fracture", count: 1, phase: "8" },
       { field: "lights[type=ambient]", count: 1, phase: "?" },
       { field: "mystery", count: 1, phase: "?" },
-      { field: "worldSettings.backgroundColor", count: 1, phase: "3" },
     ]);
     const bare = importForgeLevel(fixture({ worldSettings: { partition: { enabled: false } }, lights: [] }), resolvers);
     expect(bare.report.notConverted.map((entry) => entry.field).filter((field) => field.startsWith("worldSettings"))).toEqual([]);
@@ -184,7 +223,7 @@ describe("importForgeLevel", () => {
     const { level, report } = importForgeLevel(fixture({
       instances: [{ assetId: "marker:spawnPoint", placements: [{ position: [0, 0, 0] }] }],
     }), { meshAsset });
-    expect(level.actors.map((actor) => actor.name)).toEqual(["WB Valley", "Fog", "directional#0"]);
+    expect(level.actors.map((actor) => actor.name)).toEqual(["WB Valley", "Fog", "Sky Light", "directional#0"]);
     expect(report.notConverted).toContainEqual({ field: "instances[marker:spawnPoint]", count: 1, phase: "6" });
   });
 

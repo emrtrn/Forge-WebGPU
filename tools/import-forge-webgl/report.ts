@@ -19,7 +19,7 @@ export function formatImportReport(result: ImportRunResult): string {
     const c = report.converted;
     lines.push(`## ${report.source} → ${folder}`, "");
     lines.push(`- Converted: ${c.actors} actors (placements ${c.placements}: shapes ${c.placeholders}, meshes ${c.meshes}; `
-      + `Player Start ${c.playerStarts}; terrains ${c.terrains}; height fog ${c.heightFog}; lights ${c.lights}); source cells ${c.sourceCells}.`);
+      + `Player Start ${c.playerStarts}; terrains ${c.terrains}; height fog ${c.heightFog}; lights ${c.lights}; environment ${c.environment}); source cells ${c.sourceCells}.`);
     lines.push(`- Static shadow switch (\`worldSettings.staticObjectsCastShadow\`): ${c.staticCastShadow ? "on" : "off"}, `
       + "written as `castShadow` on every placement that does not say.");
     if (sidecars.length) lines.push(`- Sidecars: ${sidecars.join(", ")}.`);
