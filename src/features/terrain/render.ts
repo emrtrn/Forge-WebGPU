@@ -52,6 +52,8 @@ export default defineRenderBinding({
           if (entry.removed) return;
           const view = createTerrainView(terrain, camera);
           view.mesh.name = `${actor.name}/${key}`;
+          // Forge framed a level by its placements, never its terrain.
+          view.mesh.userData.framing = false;
           entry.view = view;
           ctx.root.add(view.mesh);
         },
