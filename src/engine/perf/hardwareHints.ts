@@ -28,7 +28,8 @@ import type { FrameMetrics } from "./frameMetrics.ts";
 import { QUALITY_LEVELS, type QualityLevel } from "./qualityProfiles.ts";
 
 /** A concrete (non-custom) profile — the only thing calibration selects. */
-export type ConcreteQualityLevel = Exclude<QualityLevel, "custom">;
+/** A rung of the ladder: neither `custom` nor Cinematic (off the ladder, the player's pick only). */
+export type ConcreteQualityLevel = Exclude<QualityLevel, "custom" | "cinematic">;
 
 /**
  * Coarse browser signals for the starting-profile hint. Every field is optional:

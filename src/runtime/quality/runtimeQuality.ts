@@ -70,7 +70,7 @@ export interface RuntimeQuality {
   readonly preferences: GraphicsPreferences;
 }
 
-const isConcrete = (level: QualityLevel): level is ConcreteQualityLevel => level !== "custom";
+const isConcrete = (level: QualityLevel): level is ConcreteQualityLevel => level !== "custom" && level !== "cinematic";
 
 export function createRuntimeQuality(options: RuntimeQualityOptions): RuntimeQuality {
   const { store } = options;

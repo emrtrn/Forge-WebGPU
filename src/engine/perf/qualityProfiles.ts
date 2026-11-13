@@ -2,6 +2,15 @@
 // `applyQualityToPostProcess` is not here yet: it merges onto Forge's old
 // `ResolvedPostProcess` (engine/scene) and comes with the `forge.postProcess`
 // component (plan phase 3, step 6).
+// WebGPU permission fields (plan phase 3 decision 3, architecture §4.9):
+// `traaAllowed`, `ssrAllowed`, `ssgiAllowed` and `aoResolutionScale` gate the
+// RenderPipeline's passes the same way Forge's fields gate its composer (a
+// profile allows, the level authors). The ladder maps onto the phase 1
+// pipeline profiles: ultra / high -> Balanced (TRAA, GTAO, bloom, half
+// resolution SSR), medium -> Balanced without GTAO, low -> Compatibility (no
+// screen-space pass). Cinematic (SSGI, full resolution SSR) is a level of its
+// own outside the ladder: hardware hints, calibration and adaptive quality
+// never reach it; only the player picks it.
 /**
  * Pure quality-profile definitions and resolution (Adaptive Performance &
  * Graphics Quality, Faz 2).
@@ -21,10 +30,13 @@
  * the layout file is never written by the quality layer.
  */
 
-export type QualityLevel = "ultra" | "high" | "medium" | "low" | "custom";
+export type QualityLevel = "ultra" | "high" | "medium" | "low" | "custom" | "cinematic";
+
+/** A level with a fixed profile of its own (every level but `custom`). */
+export type ProfileQualityLevel = Exclude<QualityLevel, "custom">;
 
 /** The four concrete profiles, ordered highest → lowest (adaptive ladder). */
-export const QUALITY_LEVELS: readonly Exclude<QualityLevel, "custom">[] = [
+export const QUALITY_LEVELS: readonly Exclude<QualityLevel, "custom" | "cinematic">[] = [
   "ultra",
   "high",
   "medium",
@@ -33,6 +45,9 @@ export const QUALITY_LEVELS: readonly Exclude<QualityLevel, "custom">[] = [
 
 /** Shadow map resolutions the quality layer may select (256 = lowest usable). */
 export type ShadowMapSize = 256 | 512 | 1024 | 2048;
+
+/** {@link QualitySettings.ssrAllowed}. */
+export type SsrAllowance = "off" | "half" | "full";
 
 /** Sun shadow cascades in far view mode (OPEN_WORLD_PLAN Faz 7c2; 1 = the 7c1 follow shadow). */
 export type ShadowCascadeCount = 1 | 2 | 3 | 4;
@@ -58,6 +73,14 @@ export interface QualitySettings {
   bloomResolutionScale: 1 | 0.5;
   /** Allow authored SMAA (MSAA is fixed at context creation, so runtime AA = SMAA). */
   smaaAllowed: boolean;
+  /** Allow authored TRAA (the pipeline's temporal anti-aliasing; WebGPU). */
+  traaAllowed: boolean;
+  /** Screen-space reflections a level that chose `reflection: ssr` may get: none, half or full resolution (WebGPU). */
+  ssrAllowed: SsrAllowance;
+  /** Allow screen-space global illumination (Cinematic only; WebGPU). */
+  ssgiAllowed: boolean;
+  /** GTAO render-target scale when GTAO is on (WebGPU). */
+  aoResolutionScale: 1 | 0.5;
 
   /** Master shadow toggle (`renderer.shadowMap.enabled`). */
   shadowsEnabled: boolean;
@@ -139,7 +162,7 @@ export interface QualityExtensions {
  * and a tiny service game have different budgets); the **names** and setting
  * **keys** stay shared across forks (plan §6.1).
  */
-export const QUALITY_PROFILES: Record<Exclude<QualityLevel, "custom">, QualitySettings> = {
+export const QUALITY_PROFILES: Record<Exclude<QualityLevel, "custom" | "cinematic">, QualitySettings> = {
   ultra: {
     renderScale: 1.0,
     maxPixelRatio: 2.0,
@@ -148,6 +171,10 @@ export const QUALITY_PROFILES: Record<Exclude<QualityLevel, "custom">, QualitySe
     bloomAllowed: true,
     bloomResolutionScale: 1,
     smaaAllowed: true,
+    traaAllowed: true,
+    ssrAllowed: "half",
+    ssgiAllowed: false,
+    aoResolutionScale: 1,
     shadowsEnabled: true,
     shadowMapSize: 2048,
     shadowDistanceScale: 1.0,
@@ -177,6 +204,10 @@ export const QUALITY_PROFILES: Record<Exclude<QualityLevel, "custom">, QualitySe
     bloomAllowed: true,
     bloomResolutionScale: 1,
     smaaAllowed: true,
+    traaAllowed: true,
+    ssrAllowed: "half",
+    ssgiAllowed: false,
+    aoResolutionScale: 1,
     shadowsEnabled: true,
     shadowMapSize: 1024,
     shadowDistanceScale: 0.75,
@@ -206,6 +237,10 @@ export const QUALITY_PROFILES: Record<Exclude<QualityLevel, "custom">, QualitySe
     bloomAllowed: true,
     bloomResolutionScale: 0.5,
     smaaAllowed: true,
+    traaAllowed: true,
+    ssrAllowed: "half",
+    ssgiAllowed: false,
+    aoResolutionScale: 1,
     shadowsEnabled: true,
     shadowMapSize: 512,
     shadowDistanceScale: 0.5,
@@ -235,6 +270,10 @@ export const QUALITY_PROFILES: Record<Exclude<QualityLevel, "custom">, QualitySe
     bloomAllowed: false,
     bloomResolutionScale: 0.5,
     smaaAllowed: false,
+    traaAllowed: false,
+    ssrAllowed: "off",
+    ssgiAllowed: false,
+    aoResolutionScale: 1,
     shadowsEnabled: false,
     shadowMapSize: 256,
     shadowDistanceScale: 0.35,
@@ -257,6 +296,21 @@ export const QUALITY_PROFILES: Record<Exclude<QualityLevel, "custom">, QualitySe
     lakeMaxRipples: 8,
   },
 };
+
+/**
+ * Cinematic (phase 1 S3, user decision 2026-11-11): Ultra with SSGI and full
+ * resolution SSR. Off the ladder: picked by the player only.
+ */
+export const CINEMATIC_PROFILE: QualitySettings = {
+  ...QUALITY_PROFILES.ultra,
+  ssrAllowed: "full",
+  ssgiAllowed: true,
+};
+
+/** The fixed profile of a level (the ladder's four and Cinematic). */
+function profileOf(level: ProfileQualityLevel): QualitySettings {
+  return level === "cinematic" ? CINEMATIC_PROFILE : QUALITY_PROFILES[level];
+}
 
 /** Player-facing graphics preferences persisted in {@link UserSettings.graphics}.
  *
@@ -292,7 +346,7 @@ export interface GraphicsPreferences {
 export const TARGET_FRAME_RATES = [30, 60] as const;
 
 /** Every valid {@link QualityLevel}, for menu enumeration + normalization. */
-export const QUALITY_LEVEL_VALUES: readonly QualityLevel[] = [...QUALITY_LEVELS, "custom"];
+export const QUALITY_LEVEL_VALUES: readonly QualityLevel[] = [...QUALITY_LEVELS, "custom", "cinematic"];
 
 /** Narrow guard: a valid {@link QualityLevel} string. */
 export function isQualityLevel(value: unknown): value is QualityLevel {
@@ -383,6 +437,14 @@ function normalizeCustomSettings(value: unknown): Partial<QualitySettings> | nul
     out.bloomResolutionScale = raw.bloomResolutionScale;
   }
   bool("smaaAllowed");
+  bool("traaAllowed");
+  if (raw.ssrAllowed === "off" || raw.ssrAllowed === "half" || raw.ssrAllowed === "full") {
+    out.ssrAllowed = raw.ssrAllowed;
+  }
+  bool("ssgiAllowed");
+  if (raw.aoResolutionScale === 1 || raw.aoResolutionScale === 0.5) {
+    out.aoResolutionScale = raw.aoResolutionScale;
+  }
   bool("shadowsEnabled");
   if (raw.shadowMapSize === 256 || raw.shadowMapSize === 512 || raw.shadowMapSize === 1024 || raw.shadowMapSize === 2048) {
     out.shadowMapSize = raw.shadowMapSize;
@@ -417,7 +479,7 @@ function normalizeCustomSettings(value: unknown): Partial<QualitySettings> | nul
 }
 
 /** Fallback base for `custom` when no explicit base level is supplied. */
-const DEFAULT_CUSTOM_BASE: Exclude<QualityLevel, "custom"> = "medium";
+const DEFAULT_CUSTOM_BASE: ProfileQualityLevel = "medium";
 
 /**
  * Resolves a {@link QualityLevel} to concrete {@link QualitySettings}.
@@ -430,12 +492,12 @@ const DEFAULT_CUSTOM_BASE: Exclude<QualityLevel, "custom"> = "medium";
 export function resolveQualitySettings(
   level: QualityLevel,
   customSettings?: Partial<QualitySettings>,
-  baseLevel: Exclude<QualityLevel, "custom"> = DEFAULT_CUSTOM_BASE,
+  baseLevel: ProfileQualityLevel = DEFAULT_CUSTOM_BASE,
 ): QualitySettings {
   if (level === "custom") {
-    return { ...QUALITY_PROFILES[baseLevel], ...customSettings };
+    return { ...profileOf(baseLevel), ...customSettings };
   }
-  return { ...QUALITY_PROFILES[level] };
+  return { ...profileOf(level) };
 }
 
 /**
