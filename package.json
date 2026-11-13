@@ -31,7 +31,8 @@
     "smoke:editor": "playwright test -c tests/editor/playwright.config.ts",
     "measure:sky-capture": "playwright test -c tests/smoke/measure.config.ts",
     "build": "vite build",
-    "gate": "npm run typecheck && npm run verify:layers && npm run verify:file-size && npm run verify:node-load && npm run verify:assets && npm run verify:sdk-api && npm run check:projects && npm run test && npm run build && npm run smoke:editor"
+    "verify:dist": "node tools/verify-dist.ts",
+    "gate": "npm run typecheck && npm run verify:layers && npm run verify:file-size && npm run verify:node-load && npm run verify:assets && npm run verify:sdk-api && npm run check:projects && npm run test && npm run build && npm run verify:dist && npm run smoke:editor"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.19.3",
