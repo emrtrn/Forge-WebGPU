@@ -1,62 +1,86 @@
-// Shape: render binding. One mesh per `forge.shape` component, its geometry
-// procedural (`shape:<primitive>`) and its lit material by colour, both from
-// the host's resource cache. It casts a shadow when `castShadow` says so
-// (phase 3 step 4); every shape receives shadows. Instancing comes with the
-// level viewer (plan phase 3, step 8); edits reach the binding with the
-// editor (phase 4).
+// Shape: render binding. `forge.shape` components draw instanced (plan phase
+// 3 step 8, spike mode (b); render/sync/instanceBatches.ts): one batch per
+// primitive, sidedness (a plane is seen from both sides) and shadow switch,
+// with the procedural geometry (`shape:<primitive>`) and a white lit material
+// from the host's resource cache. Each shape's colour is its instance colour
+// over that white, so it draws exactly its colour (Forge's applyInstanceColors
+// rule). It casts a shadow when `castShadow` says so (phase 3 step 4); every
+// shape receives shadows. Edits reach the binding with the editor (phase 4).
 
-import { Mesh } from "three/webgpu";
+import { Matrix4 } from "three/webgpu";
 import { parseComponentTypeTag, type WorldActor } from "../../core/index.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
+import type { ShapePrimitive } from "../../render/resources/shapes.ts";
 import { shapeMaterialKey } from "../../render/resources/worldResources.ts";
+import { createInstanceBatch, type InstanceBatch } from "../../render/sync/instanceBatches.ts";
 import { defineRenderBinding } from "../../render/sync/renderBinding.ts";
 import { componentWorldMatrix } from "../../render/sync/transforms.ts";
 import { Shape, type ShapeData } from "./schema.ts";
 
-interface Placed {
-  mesh: Mesh | null;
-  removed: boolean;
+/** The material every shape batch draws with; the shape's colour is per instance. */
+export const SHAPE_BASE_COLOR = "#ffffff";
+
+interface Batch {
+  readonly instances: InstanceBatch;
   readonly keys: readonly string[];
+  disposed: boolean;
 }
+
+/** Shapes that draw alike: the primitive, its sidedness and the shadow switch. */
+export const shapeBatchKey = (data: ShapeData): string => `${data.primitive}|${data.castShadow ? "cast" : "none"}`;
 
 export default defineRenderBinding({
   feature: "forge.shape",
   create(ctx) {
-    const placed = new Map<string, Placed>();
+    const batches = new Map<string, Batch>();
+    const placed = new Map<string, string>();
+    const matrix = new Matrix4();
     const shapesOf = (actor: WorldActor) =>
       Object.entries(actor.components).filter(([, component]) => parseComponentTypeTag(component.type)?.name === Shape.name);
 
-    const add = (actor: WorldActor, key: string, data: ShapeData): void => {
-      const doubleSided = data.primitive === "plane";
-      const entry: Placed = {
-        mesh: null,
-        removed: false,
-        keys: [resourceKey.shape(data.primitive), shapeMaterialKey(data.color, doubleSided)],
+    const batchFor = (key: string, data: ShapeData): Batch => {
+      const existing = batches.get(key);
+      if (existing) return existing;
+      const primitive = data.primitive as ShapePrimitive;
+      const doubleSided = primitive === "plane";
+      const batch: Batch = {
+        instances: createInstanceBatch({ name: `shape/${primitive}`, parent: ctx.root, castShadow: data.castShadow }),
+        keys: [resourceKey.shape(primitive), shapeMaterialKey(SHAPE_BASE_COLOR, doubleSided)],
+        disposed: false,
       };
-      placed.set(`${actor.id}/${key}`, entry);
-      void Promise.all([ctx.resources.shapeGeometry(data.primitive), ctx.resources.shapeMaterial(data.color, doubleSided)]).then(
+      batches.set(key, batch);
+      void Promise.all([ctx.resources.shapeGeometry(primitive), ctx.resources.shapeMaterial(SHAPE_BASE_COLOR, doubleSided)]).then(
         ([geometry, material]) => {
-          if (entry.removed) return;
-          const mesh = new Mesh(geometry, material);
-          mesh.name = `${actor.name}/${key}`;
-          mesh.matrixAutoUpdate = false;
-          mesh.castShadow = data.castShadow;
-          mesh.receiveShadow = true;
-          componentWorldMatrix(ctx.world, actor, key, mesh.matrix);
-          mesh.matrixWorldNeedsUpdate = true;
-          entry.mesh = mesh;
-          ctx.root.add(mesh);
+          if (batch.disposed) return;
+          batch.instances.setParts([{ geometry, material, local: new Matrix4(), name: primitive }]);
         },
       );
+      return batch;
+    };
+
+    const disposeBatch = (key: string, batch: Batch): void => {
+      batches.delete(key);
+      batch.disposed = true;
+      batch.instances.dispose();
+      for (const resource of batch.keys) ctx.resources.release(resource);
+    };
+
+    const add = (actor: WorldActor, key: string, data: ShapeData): void => {
+      const id = `${actor.id}/${key}`;
+      const batchKey = shapeBatchKey(data);
+      placed.set(id, batchKey);
+      componentWorldMatrix(ctx.world, actor, key, matrix);
+      batchFor(batchKey, data).instances.set(id, matrix, data.color);
     };
 
     const remove = (id: string): void => {
-      const entry = placed.get(id);
-      if (!entry) return;
+      const batchKey = placed.get(id);
+      if (batchKey === undefined) return;
       placed.delete(id);
-      entry.removed = true;
-      entry.mesh?.removeFromParent();
-      for (const key of entry.keys) ctx.resources.release(key);
+      const batch = batches.get(batchKey);
+      if (!batch) return;
+      batch.instances.delete(id);
+      if (batch.instances.size === 0) disposeBatch(batchKey, batch);
     };
 
     return {
@@ -68,8 +92,12 @@ export default defineRenderBinding({
       actorsRemoved(actors) {
         for (const actor of actors) for (const [key] of shapesOf(actor)) remove(`${actor.id}/${key}`);
       },
+      sync() {
+        for (const batch of batches.values()) batch.instances.flush();
+      },
       dispose() {
-        for (const id of [...placed.keys()]) remove(id);
+        for (const [key, batch] of [...batches]) disposeBatch(key, batch);
+        placed.clear();
       },
     };
   },
