@@ -74,7 +74,10 @@ function expandBraces(path: string): string[] {
   return match ? match[2]!.split(",").map((part) => `${match[1]}${part}${match[3]}`) : [path];
 }
 
-/** Forge source -> repo files ported from it, and each repo file's exports (name -> is value). */
+/**
+ * Forge source -> repo files ported from it, and each repo file's exports (name -> is value).
+ * Under src/ and tools/: a Forge tool's pure module is ported into tools/ with its checks.
+ */
 export function scanPorted(repo: string): { bySource: Map<string, string[]>; exports: Map<string, Map<string, boolean>> } {
   const bySource = new Map<string, string[]>();
   const exports = new Map<string, Map<string, boolean>>();
@@ -118,6 +121,7 @@ export function scanPorted(repo: string): { bySource: Map<string, string[]>; exp
     }
   };
   walk("src");
+  walk("tools");
   return { bySource, exports };
 }
 

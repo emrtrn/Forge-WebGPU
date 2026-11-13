@@ -2191,9 +2191,9 @@ tools/engine-tests.ts	17362	check	A			engine/perf		src/engine/perf/adaptiveQuali
 tools/engine-tests.ts	17419	check	A			engine/perf		src/engine/perf/adaptiveQuality.test.ts	adaptive quality: controller never rises above the base ceiling and setBase drops reductions	
 tools/engine-tests.ts	17465	check	A			engine/perf		src/engine/perf/adaptiveQuality.test.ts	adaptive quality: formatAdaptiveChange summarises reduce (with bottleneck) and raise	
 tools/engine-tests.ts	17484	check	M			engine/core,engine/perf,src	model:src		debug overlay: formats the frame account, memory and budget blocks	
-tools/engine-tests.ts	17536	check	A			tools/assetPerfReport			asset perf: parses a GLB container and counts triangles + vertices	3
-tools/engine-tests.ts	17564	check	A			tools/assetPerfReport			asset perf: decodes PNG / JPEG / WebP dimensions and embedded GLB textures	3
-tools/engine-tests.ts	17584	check	A			tools/assetPerfReport			asset perf: thresholds flag oversized assets and topBy ranks descending	3
+tools/engine-tests.ts	17536	check	A			tools/assetPerfReport		tools/assets/assetPerfReport.test.ts	asset perf: parses a GLB container and counts triangles + vertices	
+tools/engine-tests.ts	17564	check	A			tools/assetPerfReport		tools/assets/assetPerfReport.test.ts	asset perf: decodes PNG / JPEG / WebP dimensions and embedded GLB textures	
+tools/engine-tests.ts	17584	check	A			tools/assetPerfReport		tools/assets/assetPerfReport.test.ts	asset perf: thresholds flag oversized assets and topBy ranks descending	
 tools/engine-tests.ts	17622	check	A	yes		engine/gameplay	boundary-model:engine/gameplay		hasPlayerCharacter: true for tagged or input-move, false otherwise	6
 tools/engine-tests.ts	17648	check	M			engine/gameplay,engine/scene	model:engine/scene		findPlayerStartTransform: reads the first marker's position/yaw, else null	
 tools/engine-tests.ts	17662	check	A	yes		engine/gameplay	boundary-model:engine/gameplay		createDefaultPlayerCharacter: tagged input-move pawn placed at the spawn	6

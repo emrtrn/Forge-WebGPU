@@ -185,9 +185,10 @@ interface Row {
 
 /**
  * Labels of the checks this repo already carries: every `check(...)` in a
- * `*.test.ts` under src/. A ported Forge check keeps its label word for word,
- * so a label match is the port record; a label built at run time (a template
- * in a loop) is matched by its source text, which is copied unchanged too.
+ * `*.test.ts` under src/ and tools/ (a Forge tool's checks stay next to the
+ * tool). A ported Forge check keeps its label word for word, so a label match
+ * is the port record; a label built at run time (a template in a loop) is
+ * matched by its source text, which is copied unchanged too.
  */
 function collectPortedLabels(repoRoot: string): Map<string, string> {
   const labels = new Map<string, string>();
@@ -203,6 +204,7 @@ function collectPortedLabels(repoRoot: string): Map<string, string> {
     }
   };
   walk("src");
+  walk("tools");
   return labels;
 }
 
