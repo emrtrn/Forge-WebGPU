@@ -1,7 +1,10 @@
 // Ported from Forge WebGL engine/perf/qualityProfiles.ts @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
-// `applyQualityToPostProcess` is not here yet: it merges onto Forge's old
-// `ResolvedPostProcess` (engine/scene) and comes with the `forge.postProcess`
-// component (plan phase 3, step 6).
+// `applyQualityToPostProcess` (plan phase 3 step 6) merges onto the
+// `forge.postProcess` component instead of Forge's old `ResolvedPostProcess`
+// (engine/scene): the engine cannot import a feature, so it gates any value
+// with the authored switches it reads ({@link PostProcessGates}). Same
+// algorithm, plus the WebGPU passes: TRAA (`traaAllowed`) and SSR
+// (`ssrAllowed` other than `off`).
 // WebGPU permission fields (plan phase 3 decision 3, architecture §4.9):
 // `traaAllowed`, `ssrAllowed`, `ssgiAllowed` and `aoResolutionScale` gate the
 // RenderPipeline's passes the same way Forge's fields gate its composer (a
@@ -520,4 +523,37 @@ export function effectiveDevicePixelRatio(
   const capped = Math.min(dpr, cap);
   const scaled = capped * quality.renderScale;
   return scaled > 0 ? scaled : capped;
+}
+
+/** The authored Post Process switches the quality layer gates (`forge.postProcess`). */
+export interface PostProcessGates {
+  readonly antialias: "none" | "traa" | "smaa";
+  readonly reflection: "off" | "ssr";
+  readonly bloom: { readonly enabled: boolean };
+  readonly dof: { readonly enabled: boolean };
+  readonly ao: { readonly enabled: boolean };
+}
+
+/**
+ * Merges the quality profile onto authored post-process: an effect stays on
+ * only when the author turned it on and the profile allows it (Principle #2).
+ * Numeric authored values pass through untouched; nothing is ever enabled.
+ */
+export function applyQualityToPostProcess<T extends PostProcessGates>(
+  authored: T,
+  quality: QualitySettings,
+): T {
+  const antialias = authored.antialias === "smaa"
+    ? (quality.smaaAllowed ? "smaa" : "none")
+    : authored.antialias === "traa"
+      ? (quality.traaAllowed ? "traa" : "none")
+      : "none";
+  return {
+    ...authored,
+    antialias,
+    reflection: authored.reflection === "ssr" && quality.ssrAllowed !== "off" ? "ssr" : "off",
+    bloom: { ...authored.bloom, enabled: authored.bloom.enabled && quality.bloomAllowed },
+    dof: { ...authored.dof, enabled: authored.dof.enabled && quality.dofAllowed },
+    ao: { ...authored.ao, enabled: authored.ao.enabled && quality.aoAllowed },
+  };
 }

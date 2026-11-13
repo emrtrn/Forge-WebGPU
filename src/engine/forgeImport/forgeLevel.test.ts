@@ -180,6 +180,44 @@ describe("importForgeLevel", () => {
     expect(none.level.actors.some((actor) => actor.name === "Sky Light")).toBe(false);
   });
 
+  test("post process: Forge's resolvePostProcess rule (defaults per field and group member), reflection off", () => {
+    const { level, report } = importForgeLevel(fixture({
+      postProcess: {
+        name: "Look", hidden: true, exposure: 1.35, toneMapping: "neutral", antialias: "smaa",
+        bloom: { enabled: true, intensity: 1.2 }, ao: { enabled: true, radius: "wide" }, saturation: 1.25, tint: -0.2, lut: "x",
+      },
+    }), resolvers);
+    const isPost = (entry: (typeof level.actors)[number]): boolean => entry.class === null && Object.keys(entry.components)[0] === "post";
+    const actor = level.actors.find(isPost);
+    expect(actor).toMatchObject({ name: "Look", class: null, spatiallyLoaded: false });
+    expect(actor && actor.class === null ? actor.components.post : null).toEqual({
+      type: "forge.postProcess@1",
+      exposure: 1.35,
+      toneMapping: "neutral",
+      antialias: "smaa",
+      reflection: "off",
+      bloom: { enabled: true, threshold: 1, intensity: 1.2, radius: 1 },
+      saturation: 1.25,
+      contrast: 1,
+      temperature: 0,
+      tint: -0.2,
+      vignette: { enabled: false, intensity: 0.35, offset: 1 },
+      dof: { enabled: false, focusDistance: 10, aperture: 1, maxBlur: 1 },
+      ao: { enabled: true, radius: 1, intensity: 1 },
+      chromaticAberration: { enabled: false, amount: 0.5 },
+      grain: { enabled: false, intensity: 0.5 },
+    });
+    expect(report.converted.environment).toBe(2);
+    expect(report.notConverted).toEqual(expect.arrayContaining([
+      { field: "postProcess.hidden", count: 1, phase: "4" },
+      { field: "postProcess.lut", count: 1, phase: "?" },
+    ]));
+    // Derekavak's partial actor: everything else Forge's default, the name too.
+    const partial = importForgeLevel(fixture({ postProcess: { antialias: "smaa", bloom: { enabled: true } } }), resolvers);
+    const post = partial.level.actors.find(isPost);
+    expect(post).toMatchObject({ name: "Post Process", components: { post: { exposure: 1, toneMapping: "aces", antialias: "smaa", bloom: { enabled: true } } } });
+  });
+
   test("every field not converted is reported with its phase; a field nobody knows with ?", () => {
     const { report } = importForgeLevel(fixture({ mystery: { a: 1 }, puddleWaters: [] }), resolvers);
     expect(report.notConverted).toEqual([

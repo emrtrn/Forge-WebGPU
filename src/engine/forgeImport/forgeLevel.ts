@@ -11,7 +11,8 @@
  * `heightFog` as a `forge.heightFog` actor, `lights` (the level's and its
  * cells') as light actors (`lights.ts`, plan phase 3), the environment
  * singletons (sky, Sky Light with the background and ambient world settings,
- * clouds, World Environment; `environment.ts`, phase 3 step 5), the main
+ * clouds, World Environment; `environment.ts`, phase 3 step 5; Post Process,
+ * step 6), the main
  * grid's cell size, the static shadow switch (resolved into each placement's
  * `castShadow`, phase 3 step 4) and a landscape's material. Cells
  * are not carried over as files: the new level assigns every actor to a cell
@@ -129,7 +130,7 @@ export interface ForgeLevelReport {
     readonly terrains: number;
     readonly heightFog: number;
     readonly lights: number;
-    /** Sky Atmosphere, Sky Light, Cloud Layer and World Environment singletons. */
+    /** Sky Atmosphere, Sky Light, Cloud Layer, World Environment and Post Process singletons. */
     readonly environment: number;
     readonly sourceCells: number;
     /** Forge's level-wide static shadow switch, as resolved into the placements that do not say. */

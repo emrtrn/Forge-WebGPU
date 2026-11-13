@@ -33,6 +33,7 @@ interface SourceCounts {
   skyLight: number;
   cloudLayer: number;
   worldEnvironment: number;
+  postProcess: number;
   cells: number;
   cellKeys: string[];
   foliageInstances: number;
@@ -86,6 +87,7 @@ async function sourceCounts(source: ForgeSource, path: string, missing: Readonly
       ? 1 : 0,
     cloudLayer: isJsonObject(layout.cloudLayer) ? 1 : 0,
     worldEnvironment: isJsonObject(layout.worldEnvironment) ? 1 : 0,
+    postProcess: isJsonObject(layout.postProcess) ? 1 : 0,
     cells: level.input.cells.length,
     cellKeys: level.input.cells.map((cell) => cell.key),
     foliageInstances: 0,
@@ -126,6 +128,7 @@ interface TargetCounts {
   skyLight: number;
   cloudLayer: number;
   worldEnvironment: number;
+  postProcess: number;
   playerStarts: number;
   cells: number;
   persistent: number;
@@ -140,7 +143,7 @@ interface TargetCounts {
 async function targetCounts(projectRoot: string, folder: string): Promise<TargetCounts> {
   const counts: TargetCounts = {
     actors: 0, shapes: 0, meshes: 0, roles: 0, terrains: 0, heightFog: 0, lights: 0, playerStarts: 0,
-    skyAtmosphere: 0, skyLight: 0, cloudLayer: 0, worldEnvironment: 0, cells: 0, persistent: 0, cellActors: new Map(),
+    skyAtmosphere: 0, skyLight: 0, cloudLayer: 0, worldEnvironment: 0, postProcess: 0, cells: 0, persistent: 0, cellActors: new Map(),
     tintedMeshes: 0, shadowless: 0, materialOverrides: 0, terrainMaterials: 0,
   };
   const count = (doc: unknown, persistent: boolean): void => {
@@ -172,6 +175,7 @@ async function targetCounts(projectRoot: string, folder: string): Promise<Target
         else if (type === "forge.skyLight") counts.skyLight += 1;
         else if (type === "forge.cloudLayer") counts.cloudLayer += 1;
         else if (type === "forge.worldEnvironment") counts.worldEnvironment += 1;
+        else if (type === "forge.postProcess") counts.postProcess += 1;
       }
     }
   };
@@ -211,7 +215,7 @@ export async function compareImport(projectRoot: string, source: ForgeSource, re
     const missing = report.missingAssets.reduce((sum, entry) => sum + entry.placements, 0);
     const row = (what: string, sourceCount: number, targetCount: number, note: string): CountRow =>
       ({ what, source: sourceCount, target: targetCount, note: sourceCount === targetCount ? "" : note });
-    const environment = s.skyAtmosphere + s.skyLight + s.cloudLayer + s.worldEnvironment;
+    const environment = s.skyAtmosphere + s.skyLight + s.cloudLayer + s.worldEnvironment + s.postProcess;
     const missingNote = report.missingAssets.map((entry) => `${entry.assetId} ${entry.placements}`).join(", ");
     tables.set(`${report.source} → ${folder}`, [
       row("shape placements → forge.shape", s.shapes, t.shapes, "?"),
@@ -226,6 +230,7 @@ export async function compareImport(projectRoot: string, source: ForgeSource, re
       row("sky / reflection / background and ambient → forge.skyLight", s.skyLight, t.skyLight, "?"),
       row("cloudLayer → forge.cloudLayer", s.cloudLayer, t.cloudLayer, "?"),
       row("worldEnvironment → forge.worldEnvironment", s.worldEnvironment, t.worldEnvironment, "?"),
+      row("postProcess → forge.postProcess", s.postProcess, t.postProcess, "?"),
       row("model placement colours → forge.staticMesh color", s.tintedModels, t.tintedMeshes, "?"),
       row("placements casting no shadow → castShadow false", s.shadowless, t.shadowless, "?"),
       row("model materialSlot → forge.staticMesh materials", s.materialOverrides, t.materialOverrides,

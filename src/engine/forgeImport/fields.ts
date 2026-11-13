@@ -18,11 +18,10 @@
 /** Level (and cell) fields the importer converts. */
 export const CONVERTED_LEVEL_FIELDS: ReadonlySet<string> = new Set([
   "schema", "name", "type", "grid", "key", "instances", "worldCells", "landscapes", "heightFog", "lights",
-  "skyAtmosphere", "reflection", "cloudLayer", "worldEnvironment",
+  "skyAtmosphere", "reflection", "cloudLayer", "worldEnvironment", "postProcess",
 ]);
 
 export const LEVEL_FIELD_PHASES: Readonly<Record<string, string>> = {
-  postProcess: "3",
   puddleWaters: "5a",
   blockingVolumes: "6",
   aiNavigationVolumes: "6",

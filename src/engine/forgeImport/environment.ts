@@ -12,7 +12,11 @@
  * - `worldEnvironment` -> `forge.worldEnvironment`, through Forge's own
  *   normalizer (clamps, sunrise / sunset rule) and defaults. There is no day
  *   cycle (decision 8): a `dayLengthMinutes` above 0 is reported as not
- *   converted, the hour stays. `surface` waits for 5a, `wind` for 5c.
+ *   converted, the hour stays. `surface` waits for 5a, `wind` for 5c;
+ * - `postProcess` -> `forge.postProcess` (phase 3 step 6), Forge's
+ *   `resolvePostProcess` rule: each field or group member left out takes
+ *   Forge's default. `antialias` keeps its value (`none | smaa`; TRAA is new),
+ *   `reflection` is written `off` (Forge had no SSR).
  *
  * Forge's defaults are written out where a field is left out, as for lights,
  * so an imported level looks the same if a component default changes later.
@@ -27,11 +31,30 @@ export const SKY_ATMOSPHERE_TAG = "forge.skyAtmosphere@1";
 export const SKY_LIGHT_TAG = "forge.skyLight@1";
 export const CLOUD_LAYER_TAG = "forge.cloudLayer@1";
 export const WORLD_ENVIRONMENT_TAG = "forge.worldEnvironment@1";
+export const POST_PROCESS_TAG = "forge.postProcess@1";
 
 /** Forge's `SKY_ATMOSPHERE_DEFAULTS` (engine/scene/skyAtmosphere.ts). */
 const FORGE_SKY = { rayleigh: 2, turbidity: 10, mie: 0.005, mieDirectionalG: 0.8, exposure: 1 } as const;
 /** Forge's `CLOUD_LAYER_DEFAULTS` (engine/scene/cloudLayer.ts). */
 const FORGE_CLOUD = { color: "#ffffff", coverage: 0.5, density: 0.85, softness: 0.3, scale: 2, speed: 0 } as const;
+/** Forge's `POST_PROCESS_DEFAULTS` (engine/scene/postProcess.ts), without `name` / `hidden`. */
+const FORGE_POST = {
+  exposure: 1,
+  toneMapping: "aces",
+  antialias: "none",
+  bloom: { enabled: false, threshold: 1, intensity: 1, radius: 1 },
+  vignette: { enabled: false, intensity: 0.35, offset: 1 },
+  chromaticAberration: { enabled: false, amount: 0.5 },
+  grain: { enabled: false, intensity: 0.5 },
+  dof: { enabled: false, focusDistance: 10, aperture: 1, maxBlur: 1 },
+  ao: { enabled: false, radius: 1, intensity: 1 },
+  saturation: 1,
+  contrast: 1,
+  temperature: 0,
+  tint: 0,
+} as const;
+const POST_GROUPS = ["bloom", "vignette", "chromaticAberration", "grain", "dof", "ao"] as const;
+const POST_SCALARS = ["exposure", "saturation", "contrast", "temperature", "tint"] as const;
 /** Forge's world settings defaults (`SceneRuntimeCore`) and its sky light capture intensity. */
 const FORGE_SKY_LIGHT = { intensity: 1, ambientColor: "#ffffff", ambientIntensity: 0, backgroundColor: "#d7d7c7" } as const;
 
@@ -51,6 +74,7 @@ const CONVERTED: Readonly<Record<string, readonly string[]>> = {
   reflection: ["name", "source", "intensity"],
   cloudLayer: ["name", ...Object.keys(FORGE_CLOUD)],
   worldEnvironment: ["name", "time", "sunPath", "night", "season", "weather"],
+  postProcess: ["name", ...Object.keys(FORGE_POST)],
 };
 
 const NAMES = {
@@ -58,6 +82,7 @@ const NAMES = {
   skyLight: "Sky Light",
   cloudLayer: "Cloud Layer",
   worldEnvironment: "World Environment",
+  postProcess: "Post Process",
 } as const;
 
 export interface EnvironmentNote {
@@ -69,10 +94,19 @@ export interface EnvironmentNote {
 export interface EnvironmentActors {
   readonly actors: ActorDoc[];
   readonly notes: readonly EnvironmentNote[];
-  readonly counts: { readonly skyAtmosphere: number; readonly skyLight: number; readonly cloudLayer: number; readonly worldEnvironment: number };
+  readonly counts: {
+    readonly skyAtmosphere: number;
+    readonly skyLight: number;
+    readonly cloudLayer: number;
+    readonly worldEnvironment: number;
+    readonly postProcess: number;
+  };
 }
 
 const num = (value: unknown, fallback: number): number => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
+const bool = (value: unknown, fallback: boolean): boolean => (typeof value === "boolean" ? value : fallback);
+const oneOf = <V extends string>(value: unknown, values: readonly V[], fallback: V): V =>
+  (typeof value === "string" && (values as readonly string[]).includes(value) ? (value as V) : fallback);
 const hex = (value: unknown, fallback: string): string =>
   typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : fallback;
 
@@ -91,7 +125,7 @@ function singleton(id: ActorId, name: string, key: string, component: JsonObject
 export function environmentActors(layout: JsonObject, actorId: (key: string) => ActorId): EnvironmentActors {
   const actors: ActorDoc[] = [];
   const notes: EnvironmentNote[] = [];
-  const counts = { skyAtmosphere: 0, skyLight: 0, cloudLayer: 0, worldEnvironment: 0 };
+  const counts = { skyAtmosphere: 0, skyLight: 0, cloudLayer: 0, worldEnvironment: 0, postProcess: 0 };
   const name = (actor: JsonObject, fallback: string): string => (typeof actor.name === "string" && actor.name !== "" ? actor.name : fallback);
   const noteRest = (field: keyof typeof CONVERTED, actor: JsonObject): void => {
     for (const key of Object.keys(actor)) {
@@ -166,6 +200,40 @@ export function environmentActors(layout: JsonObject, actorId: (key: string) => 
     if (env.time.dayLengthMinutes > 0) {
       notes.push({ field: "worldEnvironment.time.dayLengthMinutes", count: 1, phase: ENVIRONMENT_FIELD_PHASES["worldEnvironment.time.dayLengthMinutes"]! });
     }
+  }
+
+  const post = isJsonObject(layout.postProcess) ? layout.postProcess : null;
+  if (post) {
+    const group = (key: (typeof POST_GROUPS)[number]): JsonObject => {
+      const authored = isJsonObject(post[key]) ? post[key] : {};
+      const values: JsonObject = {};
+      for (const [field, fallback] of Object.entries(FORGE_POST[key])) {
+        values[field] = typeof fallback === "boolean" ? bool(authored[field], fallback) : num(authored[field], fallback);
+      }
+      return values;
+    };
+    const scalar = (key: (typeof POST_SCALARS)[number]): number => num(post[key], FORGE_POST[key]);
+    // The schema's field order.
+    const component: JsonObject = {
+      type: POST_PROCESS_TAG,
+      exposure: scalar("exposure"),
+      toneMapping: oneOf(post.toneMapping, ["aces", "neutral", "none"], FORGE_POST.toneMapping),
+      antialias: oneOf(post.antialias, ["none", "smaa"], FORGE_POST.antialias),
+      reflection: "off",
+      bloom: group("bloom"),
+      saturation: scalar("saturation"),
+      contrast: scalar("contrast"),
+      temperature: scalar("temperature"),
+      tint: scalar("tint"),
+      vignette: group("vignette"),
+      dof: group("dof"),
+      ao: group("ao"),
+      chromaticAberration: group("chromaticAberration"),
+      grain: group("grain"),
+    };
+    actors.push(singleton(actorId("postProcess"), name(post, NAMES.postProcess), "post", component));
+    counts.postProcess = 1;
+    noteRest("postProcess", post);
   }
 
   return { actors, notes, counts };
