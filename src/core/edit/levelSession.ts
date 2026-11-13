@@ -135,7 +135,8 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
   };
 
   const listeners = new Set<(changes: readonly AppliedChange[], cause: "edit" | "undo" | "redo") => void>();
-  const applyChanges = (changes: readonly ActorChange[], direction: "forward" | "back", cause: "edit" | "undo" | "redo"): void => {
+  /** Applies changes; returns them as applied. Listeners hear them once the history is up to date (`announce`). */
+  const applyChanges = (changes: readonly ActorChange[], direction: "forward" | "back"): AppliedChange[] => {
     const ordered = direction === "forward" ? changes : [...changes].reverse();
     const applied: AppliedChange[] = [];
     for (const change of ordered) {
@@ -144,7 +145,10 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
       put(change.id, after, change.beforeIndex);
       applied.push({ id: change.id, before, after });
     }
-    for (const listener of listeners) listener(applied, cause);
+    return applied;
+  };
+  const announce = (applied: readonly AppliedChange[], cause: "edit" | "undo" | "redo"): void => {
+    for (const listener of [...listeners]) listener(applied, cause);
   };
 
   const isLoaded = (cell: string): boolean => loaded.has(cell) || !onDisk.has(cell);
@@ -208,23 +212,24 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
         if (before === null && after === null) continue;
         changes.push({ id, before, beforeIndex: beforeIndex >= 0 ? beforeIndex : level.actors.length, after });
       }
-      applyChanges(changes, "forward", "edit");
+      const applied = applyChanges(changes, "forward");
       const transaction: Transaction = { label, coalesce: editOptions.coalesce ?? null, changes };
       history.push(transaction);
+      announce(applied, "edit");
       return { ok: true, issues };
     },
 
     undo() {
       const transaction = history.takeUndo();
       if (!transaction) return false;
-      applyChanges(transaction.changes, "back", "undo");
+      announce(applyChanges(transaction.changes, "back"), "undo");
       return true;
     },
 
     redo() {
       const transaction = history.takeRedo();
       if (!transaction) return false;
-      applyChanges(transaction.changes, "forward", "redo");
+      announce(applyChanges(transaction.changes, "forward"), "redo");
       return true;
     },
 

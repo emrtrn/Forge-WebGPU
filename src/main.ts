@@ -221,6 +221,40 @@ async function start(): Promise<void> {
 // The condition is a build-time constant, so a production build drops the import and its chunk.
 if (import.meta.env.DEV && params.has("editor-kit")) {
   void import("./editor/ui/gallery.ts").then(({ showKitGallery }) => showKitGallery(document, features));
+} else if (import.meta.env.DEV && params.has("editor")) {
+  void openEditor();
 } else {
   void start();
+}
+
+/** Development only: the editor (plan phase 4), the project's start level or `?level=`. */
+async function openEditor(): Promise<void> {
+  try {
+    const identity = await client.identity();
+    if (identity.project.problems.length > 0) {
+      screen.error({ ...bootErrorView("project", new Error(identity.project.root)), details: identity.project.problems });
+      return;
+    }
+    const level = params.get("level") ?? identity.project.startLevel;
+    if (level === "") {
+      screen.info("Nothing to open", "The project has no start level; open one with ?editor&level=<folder>.");
+      return;
+    }
+    const urls = await assetUrls();
+    const { startEditor } = await import("./editor/main.ts");
+    await startEditor({
+      document,
+      features: [...features, ...(gameModule?.features ?? [])],
+      bindings,
+      client,
+      assetUrls: urls,
+      materialType: materialType && isJsonAssetType(materialType) ? materialType : null,
+      forceWebGL: params.has("forceWebGL"),
+      projectName: identity.project.name ?? identity.project.id ?? "Project",
+      level,
+      readOnly: identity.project.readOnly,
+    });
+  } catch (error) {
+    screen.error(bootErrorView("project", error));
+  }
 }

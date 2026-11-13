@@ -218,9 +218,12 @@ describe("undo and redo", () => {
     const session = open();
     const heard: string[] = [];
     const describe = (doc: ActorDoc | null) => (doc === null ? "-" : `${doc.name}@${doc.transform.p[0]}`);
-    const stop = session.onApplied((changes, cause) =>
-      heard.push(`${cause} ${changes.map((change) => `${describe(change.before)}>${describe(change.after)}`).join(" ")}`),
-    );
+    // The history is already up to date when listeners run (an editor enables Undo from it).
+    const stacks: string[] = [];
+    const stop = session.onApplied((changes, cause) => {
+      heard.push(`${cause} ${changes.map((change) => `${describe(change.before)}>${describe(change.after)}`).join(" ")}`);
+      stacks.push(`${session.history.undoStack.length}/${session.history.redoStack.length}`);
+    });
     move(session, "a", 30, 30);
     session.edit("Add and remove", (tx) => {
       tx.setActor(actor("f", 40, 40));
@@ -237,6 +240,7 @@ describe("undo and redo", () => {
       "undo ->b@20 f@40>-",
       "redo ->f@40 b@20>-",
     ]);
+    expect(stacks).toEqual(["1/0", "2/0", "1/1", "2/0"]);
   });
 
   test("undoing back to the saved state still saves (the file must match memory)", () => {
