@@ -489,8 +489,9 @@ harita, hafıza):
    parçasını çizer, bileşenler yazılmaz; varsayılan güneş de yorumu alır.
    İçe aktarıcı dört tekili çevirir (`dayLengthMinutes > 0` "çevrilmedi
    (kullanıcı kararı)"); World Builder Forge'un greybox gökyüzü / Sky Light /
-   güneşini yazar. Smoke (L03) yeniden alınmış kopyada gerçek WebGPU'da yeşil;
-   referans projesinin yeniden alınması kullanıcı onayında. **A 934 / 1.021**.
+   güneşini yazar. Referans projesi kullanıcı onayıyla yeniden alındı (7 level
+   `--compare`'de eşit; `check:projects` ve smoke, L03, gerçek WebGPU'da yeşil).
+   **A 934 / 1.021**.
    Adıma düşen R: 19 yeniden yazıldı (sis ikizi dahil), 6 düştü (`PORT_LOG` §2).
 6. `RenderPipeline` + Post Process + kalite eşlemesi + MRT.
 7. Olay bazlı gün saati (`timeTransition`, ayrı commit) + yakalama sıklığı ölçümü.
@@ -871,3 +872,4 @@ silinebilir.
 | 2026-11-13 | v1.5 | Referans projesi (`webgpu-scenes`) kullanıcı onayıyla ışık çevirisiyle yeniden alındı: 7 level'da `--compare` ışık 1 / 1 ve aktör sayımları eşit, `check:projects` ve smoke (L03, kaskatlı güneş) yeşil |
 | 2026-11-13 | v1.6 | Faz 3 adım 4 (`f6aa509`, `203714e`, `04409af`, `6f02c42`): asset perf raporu taşındı (3 A; taşıma araçları `tools/`'u da tarar); çekirdek şemalı JSON asset türü + isteğe bağlı renk, SDK 0.1.2; `forge.material` ve sürüm 2 `forge.texture` / `model` / `staticMesh` / `shape` / `terrain`; Forge materyal normalize'ı içe aktarıcı okuyucusu, materyal / model yan dosyası / yerleşim renk-gölge-materyal / landscape materyali çeviricileri; starter paketine 10 materyal ve uyarlanan A kontrolü; TSL materyal (slot düğümleri, katman karışımı, normal hareketi), katkı sırası + world mask, doku / materyal önbellek anahtarları, model hazırlığı (normal, anizotropi, UVW, slotlar), static mesh slot / tint / `castShadow`. Kullanıcı kararları: boş tint, `enabled` grupları, `name` / preset, `materialSlot` her slota. Referans projesi kullanıcı onayıyla yeniden alındı; smoke gerçek WebGPU'da, L03 zemini slot materyaliyle. 1.643 test, kapı yeşil. **A 924 / 1.021**, Faz 3'te ertelenmiş A kalmadı. Mimari v1.10 |
 | 2026-11-13 | v1.7 | Faz 3 adım 5, çevre (`69a9be7`, `c3c4d07`, `f092bc5`): `engine/world/viewDistance` 5b'den öne alındı (10 A, sisin CPU ikizi R'si yeniden yazıldı); `forge.skyAtmosphere` / `forge.skyLight` / `forge.cloudLayer` / `forge.worldEnvironment` (sabit saat, WES servisi); içe aktarıcı çeviricileri (rapor ve `--compare` sayar), World Builder greybox görünümü; TSL gökyüzü + ay + yıldız, PMREM Sky Light, bulut kubbesi, WES yorumu kare başına, gökyüzü varken ACES × 0,2. Kullanıcı kararları: arka plan / ortam ışığı Sky Light'ta, ton eşleme Forge kuralıyla şimdi, `viewDistance` öne. Smoke yeniden alınmış kopyada gerçek WebGPU'da yeşil; referans projesinin yeniden alınması kullanıcı onayında. 1.683 test, kapı yeşil. **A 934 / 1.021**. Mimari v1.11 |
+| 2026-11-13 | v1.7 | Referans projesi (`webgpu-scenes`) kullanıcı onayıyla çevre çeviricileriyle yeniden alındı: 7 level'da gökyüzü / Sky Light / bulut / WES sayımları `--compare`'de eşit, `check:projects` ve smoke (L03) gerçek WebGPU'da yeşil; ForgeReference README'si ve içe aktarma raporları güncellendi |
