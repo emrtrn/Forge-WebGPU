@@ -14,7 +14,7 @@
 // is the labelled WebGL2 test mode (architecture §4.10), never a WebGPU run.
 
 import type { FeatureDef } from "./core/index.ts";
-import { createSaveClient } from "./core/index.ts";
+import { createSaveClient, isJsonAssetType } from "./core/index.ts";
 import { loadDevAssetUrls, assetUrlsFromIndex, type AssetUrls } from "./render/resources/assetUrls.ts";
 import type { RenderBindingDef } from "./render/sync/renderBinding.ts";
 import { createLevelViewer } from "./render/viewer/levelViewer.ts";
@@ -31,6 +31,8 @@ const featureModules = import.meta.glob<{ default: FeatureDef }>("./features/*/f
 const features = Object.keys(featureModules)
   .sort()
   .map((path) => featureModules[path]!.default);
+// The renderer reads material assets with their type (render cannot import a feature).
+const materialType = features.flatMap((feature) => feature.assetTypes).find((type) => type.name === "forge.material" && isJsonAssetType(type)) ?? null;
 const bindingModules = import.meta.glob<{ default: RenderBindingDef }>("./features/*/render.ts", { eager: true });
 const bindings = Object.keys(bindingModules)
   .sort()
@@ -109,6 +111,7 @@ async function start(): Promise<void> {
     forceWebGL: params.has("forceWebGL"),
     bindings,
     assetUrls: urls,
+    materialType: materialType && isJsonAssetType(materialType) ? materialType : null,
     storage: pageStorage,
   });
   let settingsStore: UserSettingsStore | null = null;

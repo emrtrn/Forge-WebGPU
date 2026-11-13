@@ -16,7 +16,7 @@ import { createWorld } from "./world.ts";
 const MESH = assetId("7");
 /** Every model a binding got, in order; runtime code does not import three, so the template is a token. */
 const received: ModelTemplate[] = [];
-const template = (): ModelTemplate => ({ scene: null as unknown as ModelTemplate["scene"] });
+const template = (): ModelTemplate => ({ scene: null as unknown as ModelTemplate["scene"], slots: [], slotMaterials: [] });
 const meshes = defineFeature({ id: "test.meshes", components: [StaticMesh] });
 
 /** Puts one object per test.staticMesh component under the world's root, once its model is in. */

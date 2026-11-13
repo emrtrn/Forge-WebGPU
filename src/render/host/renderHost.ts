@@ -16,12 +16,14 @@
 //   Rebuilding on a new device is a later decision.
 
 import { PerspectiveCamera, WebGPURenderer, type Camera } from "three/webgpu";
-import type { FeatureDef } from "../../core/index.ts";
+import type { FeatureDef, JsonAssetTypeDef } from "../../core/index.ts";
 import { effectiveDevicePixelRatio, resolveQualitySettings, type QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { createDirectPipeline } from "../pipeline/directPipeline.ts";
 import type { AssetUrls } from "../resources/assetUrls.ts";
 import { createGltfModelSource, type GltfModelSource } from "../resources/gltfModels.ts";
 import { createResourceCache, type ResourceCache } from "../resources/resourceCache.ts";
+import { createSurfaceMaterials } from "../resources/surfaceMaterials.ts";
+import { createTextureSource } from "../resources/textures.ts";
 import type { ModelSource } from "../resources/worldResources.ts";
 import type { RenderBindingDef } from "../sync/renderBinding.ts";
 import { createRenderFeature, type RenderWorld } from "../sync/renderWorld.ts";
@@ -47,6 +49,8 @@ export interface RenderHostOptions {
   readonly forceWebGL?: boolean;
   readonly bindings: readonly RenderBindingDef[];
   readonly assetUrls: AssetUrls;
+  /** The `forge.material` asset type, to read material assets (render cannot import the feature). */
+  readonly materialType?: JsonAssetTypeDef | null;
   /** The device's pixels per CSS pixel; default the window's. */
   readonly devicePixelRatio?: () => number;
 }
@@ -100,6 +104,13 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
 
   const cache = createResourceCache();
   const gltf: GltfModelSource = createGltfModelSource(renderer, options.assetUrls);
+  const materials = createSurfaceMaterials({
+    urls: options.assetUrls,
+    type: options.materialType ?? null,
+    textures: createTextureSource(options.assetUrls, gltf.ktx2, () => renderer.getMaxAnisotropy()),
+    textureOwner: cache.owner("material textures"),
+    strict: options.dev,
+  });
   const models: ModelSource = {
     load: (guid) =>
       gltf.load(guid).catch((error: unknown) => {
@@ -175,6 +186,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       createRenderFeature({
         cache,
         models,
+        materials,
         bindings: options.bindings,
         features,
         name,

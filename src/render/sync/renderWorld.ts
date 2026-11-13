@@ -12,6 +12,7 @@ import { Group, Scene, type Camera } from "three/webgpu";
 import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { defineFeature, defineSubsystem, type FeatureDef, type SubsystemContext } from "../../core/index.ts";
 import type { ResourceCache } from "../resources/resourceCache.ts";
+import type { SurfaceMaterials } from "../resources/surfaceMaterials.ts";
 import { createWorldResources, type ModelSource, type WorldResources } from "../resources/worldResources.ts";
 import { createDefaultLighting } from "./defaultLighting.ts";
 import type { RenderBindingDef, RenderBindingInstance, RenderWorldView } from "./renderBinding.ts";
@@ -29,6 +30,8 @@ export interface RenderWorld {
 export interface RenderFeatureOptions {
   readonly cache: ResourceCache;
   readonly models: ModelSource;
+  /** `forge.material` assets; absent in tests that draw none. */
+  readonly materials?: SurfaceMaterials;
   readonly bindings: readonly RenderBindingDef[];
   /** The world's features: a binding runs only when its feature is installed. */
   readonly features: readonly FeatureDef[];
@@ -55,7 +58,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       const root = new Group();
       root.name = "actors";
       scene.add(root);
-      const resources = createWorldResources(options.cache, options.name, options.models);
+      const resources = createWorldResources(options.cache, options.name, options.models, options.materials ?? null);
       const view: RenderWorldView = {
         services: ctx.services,
         actor: (id) => ctx.actor(id),

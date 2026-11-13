@@ -26,7 +26,7 @@ function boot(components: Record<string, Record<string, unknown>>, quality: Qual
   camera.position.set(0, 2, 10);
   const render = createRenderFeature({
     cache: createResourceCache(),
-    models: { load: async () => ({ scene: null as never }) },
+    models: { load: async () => ({ scene: null as never, slots: [], slotMaterials: [] }) },
     bindings: [lightBinding],
     features: [lightFeature],
     name: "lights",
@@ -106,7 +106,7 @@ describe("light binding", () => {
     };
     const render = createRenderFeature({
       cache: createResourceCache(),
-      models: { load: async () => ({ scene: null as never }) },
+      models: { load: async () => ({ scene: null as never, slots: [], slotMaterials: [] }) },
       bindings: [lightBinding, probe],
       features: [lightFeature],
       name: "probe",

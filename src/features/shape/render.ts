@@ -1,7 +1,9 @@
 // Shape: render binding. One mesh per `forge.shape` component, its geometry
 // procedural (`shape:<primitive>`) and its lit material by colour, both from
-// the host's resource cache. Instancing comes with the level viewer (plan
-// phase 3, step 8); edits reach the binding with the editor (phase 4).
+// the host's resource cache. It casts a shadow when `castShadow` says so
+// (phase 3 step 4); every shape receives shadows. Instancing comes with the
+// level viewer (plan phase 3, step 8); edits reach the binding with the
+// editor (phase 4).
 
 import { Mesh } from "three/webgpu";
 import { parseComponentTypeTag, type WorldActor } from "../../core/index.ts";
@@ -38,8 +40,7 @@ export default defineRenderBinding({
           const mesh = new Mesh(geometry, material);
           mesh.name = `${actor.name}/${key}`;
           mesh.matrixAutoUpdate = false;
-          // Every shape casts and receives until forge.shape gains castShadow (plan phase 3 step 4).
-          mesh.castShadow = true;
+          mesh.castShadow = data.castShadow;
           mesh.receiveShadow = true;
           componentWorldMatrix(ctx.world, actor, key, mesh.matrix);
           mesh.matrixWorldNeedsUpdate = true;

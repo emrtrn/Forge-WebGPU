@@ -3,13 +3,19 @@
 // counts go to the world's owner, and `releaseAll` runs when the world goes.
 
 import type { BufferGeometry, Material, Object3D } from "three/webgpu";
+import type { MaterialContributions } from "../materials/contributions.ts";
 import { createShapeMaterial } from "../materials/shapeMaterial.ts";
 import { resourceKey, type ResourceCache, type ResourceOwner } from "./resourceCache.ts";
 import { createShapeGeometry, type ShapePrimitive } from "./shapes.ts";
+import type { SurfaceMaterials } from "./surfaceMaterials.ts";
 
 /** A loaded model: placements clone `scene` (geometry and materials are shared). */
 export interface ModelTemplate {
   readonly scene: Object3D;
+  /** The GLB's unique materials in traversal order: slot i (`modelMaterialSlots`). */
+  readonly slots: readonly Material[];
+  /** The model's default material per slot (`forge.model` `materials`); null keeps the GLB's. */
+  readonly slotMaterials: readonly (string | null)[];
 }
 
 /** Loads a model asset by GUID (the host's glTF loader and asset URLs). */
@@ -28,16 +34,32 @@ export interface WorldResources {
   shapeGeometry(primitive: ShapePrimitive): Promise<BufferGeometry>;
   /** Key `shapeMaterial:<color>:<sides>`. */
   shapeMaterial(color: string, doubleSided: boolean): Promise<Material>;
+  /** A `forge.material` asset with these contributions; key `material:<guid>:<signature>`. */
+  material(guid: string, contributions?: MaterialContributions): Promise<Material>;
+  /** The key `material(guid, contributions)` counts under, for `release`. */
+  materialKey(guid: string, contributions?: MaterialContributions): string;
   /** Gives back one use of a key. */
   release(key: string): void;
   releaseAll(): void;
 }
 
-export function createWorldResources(cache: ResourceCache, name: string, models: ModelSource): WorldResources {
+export function createWorldResources(
+  cache: ResourceCache,
+  name: string,
+  models: ModelSource,
+  materials: SurfaceMaterials | null = null,
+): WorldResources {
   const owner = cache.owner(name);
+  const materialKey = (guid: string, contributions: MaterialContributions = {}): string =>
+    materials ? materials.key(guid, contributions) : resourceKey.material(guid, "none");
   return {
     owner,
     model: (guid) => owner.acquire(resourceKey.model(guid), () => models.load(guid)),
+    material: (guid, contributions = {}) =>
+      owner.acquire(materialKey(guid, contributions), () =>
+        materials ? materials.build(guid, contributions) : Promise.reject(new Error(`forge render: no material source for ${guid}`)),
+      ),
+    materialKey,
     shapeGeometry: (primitive) => owner.acquire(resourceKey.shape(primitive), () => createShapeGeometry(primitive)),
     shapeMaterial: (color, doubleSided) =>
       owner.acquire(shapeMaterialKey(color, doubleSided), () => createShapeMaterial(color, doubleSided)),
