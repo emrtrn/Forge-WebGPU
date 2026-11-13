@@ -5,6 +5,9 @@
 // counts the world's resources in the host's cache. Disposing the world
 // releases those counts and nothing else: another world's resources stay.
 //
+// An edit in the editor (`actorsChanged`) reaches each binding through its
+// own hook, or as removed (the previous actors) + added without one.
+//
 // Each frame, before the bindings: the World Environment override is
 // resolved (environment.ts), then the default sun is drawn with it and the
 // output transform (tone mapping, exposure, the gated Post Process) is
@@ -67,6 +70,8 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
   const subsystem = defineSubsystem({
     id: RENDER_FEATURE_ID,
     tickGroups: ["renderSync"],
+    // The editor's viewport draws with it too (plan phase 4).
+    inEditor: true,
     create(ctx: SubsystemContext) {
       const scene = new Scene();
       const root = new Group();
@@ -98,6 +103,18 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
         actorsRemoved(actors) {
           lighting.refresh();
           for (const instance of instances) instance.actorsRemoved?.(actors);
+        },
+        actorsChanged(changes) {
+          lighting.refresh();
+          const previous = changes.map((change) => change.previous);
+          const actors = changes.map((change) => change.actor);
+          for (const instance of instances) {
+            if (instance.actorsChanged) instance.actorsChanged(changes);
+            else {
+              instance.actorsRemoved?.(previous);
+              instance.actorsAdded?.(actors);
+            }
+          }
         },
         tick(_group, dt) {
           const frame = { dt, camera: options.camera() };

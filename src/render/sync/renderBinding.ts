@@ -17,7 +17,7 @@
 import type { Camera, Group, Scene, Texture, Vector3 } from "three/webgpu";
 import type { ResolvedEnvironment } from "../../engine/environment/environmentResolve.ts";
 import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
-import { COMPONENT_NAME_PATTERN, SchemaDefinitionError, type ActorId, type ComponentEntry, type Services, type WorldActor } from "../../core/index.ts";
+import { COMPONENT_NAME_PATTERN, SchemaDefinitionError, type ActorId, type ComponentEntry, type Services, type WorldActor, type WorldActorChange } from "../../core/index.ts";
 import type { FrameOutput } from "../pipeline/output.ts";
 import type { WorldResources } from "../resources/worldResources.ts";
 
@@ -102,6 +102,8 @@ export interface RenderFrame {
 export interface RenderBindingInstance {
   actorsAdded?(actors: readonly WorldActor[]): void;
   actorsRemoved?(actors: readonly WorldActor[]): void;
+  /** Edited actors (the editor); without this hook the binding gets `actorsRemoved(previous)` then `actorsAdded(actor)`. */
+  actorsChanged?(changes: readonly WorldActorChange[]): void;
   /** Once per frame, in the world's `renderSync` group. */
   sync?(frame: RenderFrame): void;
   dispose?(): void;

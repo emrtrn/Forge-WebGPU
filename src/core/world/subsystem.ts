@@ -16,6 +16,17 @@
 // order their features were installed. Only the groups a subsystem lists
 // call its `tick`.
 //
+// The editor edits actors in a running world (plan phase 4, decision 3): an
+// edited actor reaches the subsystems through `actorsChanged`, with the actor
+// as it was; a subsystem without that hook hears `actorsRemoved` (the
+// previous actors) then `actorsAdded` (the new ones). A moved actor's
+// descendants come along as transform-only changes (their world placement
+// moved with it).
+//
+// The editor's world installs only the subsystems marked `inEditor` (user
+// decision 2026-11-13): what the viewport needs to look like the game (render,
+// environment, fog), never physics or gameplay.
+//
 // This file is the contract only. The world that honours it is in
 // src/runtime; a feature's runtime.ts needs nothing but core.
 
@@ -70,9 +81,21 @@ export interface SubsystemContext {
   destroyActors(ids: readonly ActorId[]): void;
 }
 
+/** One edited actor (the editor's `World.updateActors`). */
+export interface WorldActorChange {
+  /** The actor now. */
+  readonly actor: WorldActor;
+  /** The actor before the edit; the same object when only its transform moved (it is updated in place). */
+  readonly previous: WorldActor;
+  /** Name, parent, class and components are unchanged; only the (world) transform moved. */
+  readonly transformOnly: boolean;
+}
+
 export interface SubsystemInstance {
   actorsAdded?(actors: readonly WorldActor[]): void;
   actorsRemoved?(actors: readonly WorldActor[]): void;
+  /** Edited actors; without this hook the world calls `actorsRemoved(previous)` then `actorsAdded(actor)`. */
+  actorsChanged?(changes: readonly WorldActorChange[]): void;
   beginPlay?(): void;
   tick?(group: TickGroup, dt: number): void;
   endPlay?(reason: EndPlayReason): void;
@@ -85,6 +108,8 @@ export interface SubsystemDef {
   readonly id: string;
   /** The groups whose tick calls this subsystem. */
   readonly tickGroups: readonly TickGroup[];
+  /** Also installed in the editor's world (render, environment); default false. */
+  readonly inEditor: boolean;
   /** Init: called once when the world is initialised. */
   readonly create: (ctx: SubsystemContext) => SubsystemInstance;
 }
@@ -92,6 +117,7 @@ export interface SubsystemDef {
 export function defineSubsystem(definition: {
   readonly id: string;
   readonly tickGroups?: readonly TickGroup[];
+  readonly inEditor?: boolean;
   readonly create: (ctx: SubsystemContext) => SubsystemInstance;
 }): SubsystemDef {
   if (!COMPONENT_NAME_PATTERN.test(definition.id)) {
@@ -106,5 +132,11 @@ export function defineSubsystem(definition: {
   if (new Set(tickGroups).size !== tickGroups.length) {
     throw new SchemaDefinitionError(`defineSubsystem ${definition.id}: a tick group is listed twice.`);
   }
-  return Object.freeze({ kind: "subsystem", id: definition.id, tickGroups: Object.freeze(tickGroups), create: definition.create });
+  return Object.freeze({
+    kind: "subsystem",
+    id: definition.id,
+    tickGroups: Object.freeze(tickGroups),
+    inEditor: definition.inEditor ?? false,
+    create: definition.create,
+  });
 }

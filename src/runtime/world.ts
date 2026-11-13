@@ -9,6 +9,12 @@
 //   state, so two worlds can run side by side and be torn down (A6).
 // - Actors from the level and actors spawned at runtime go through the same
 //   path and reach every subsystem through `actorsAdded` (F11).
+// - The editor replaces actors with their edited documents (`updateActors`);
+//   subsystems hear `actorsChanged`, or removed + added without that hook. A
+//   moved actor's descendants come along as transform-only changes.
+// - The editor's world (`mode: "editor"`) installs only the subsystems marked
+//   `inEditor` (plan phase 4; user decision 2026-11-13): render, environment,
+//   fog, never physics or gameplay.
 // - Removing an actor removes its child actors with it.
 // - Teardown runs backwards: endPlay and dispose call the subsystems in the
 //   reverse of their install order.
@@ -35,6 +41,7 @@ import {
   type SubsystemDef,
   type SubsystemInstance,
   type WorldActor,
+  type WorldActorChange,
   type WorldState,
 } from "../core/index.ts";
 
@@ -56,6 +63,8 @@ export interface WorldOptions {
   readonly strict: boolean;
   /** Their subsystems run in this order. */
   readonly features: readonly FeatureDef[];
+  /** `editor`: only the subsystems marked `inEditor` are installed. Default `game`. */
+  readonly mode?: "game" | "editor";
 }
 
 export interface World {
@@ -69,6 +78,13 @@ export interface World {
   addActors(actors: readonly ActorDoc[], origin: WorldActor["origin"]): WorldActor[];
   /** Removes actors and their child actors. */
   removeActors(ids: readonly ActorId[]): void;
+  /**
+   * Replaces actors (by id) with their edited, normalised documents (the
+   * editor). Returns the changes the subsystems heard: the edited actors, then
+   * their descendants as transform-only changes. An unchanged document is no
+   * change.
+   */
+  updateActors(actors: readonly ActorDoc[]): WorldActorChange[];
   beginPlay(): void;
   /** One frame: every tick group in order. `dt` in seconds, clamped to [0, 0.1]. */
   tick(dt: number): void;
@@ -89,11 +105,13 @@ export function createWorld(options: WorldOptions): World {
   const byType = new Map<string, ComponentEntry[]>();
   const subsystems: Running[] = [];
   const definitions: SubsystemDef[] = [];
+  const editor = (options.mode ?? "game") === "editor";
   for (const feature of options.features) {
     for (const def of feature.subsystems) {
       if (definitions.some((other) => other.id === def.id)) {
         throw new WorldError(`Subsystem "${def.id}" is installed twice.`);
       }
+      if (editor && !def.inEditor) continue;
       definitions.push(def);
     }
   }
@@ -173,6 +191,65 @@ export function createWorld(options: WorldOptions): World {
     for (const running of subsystems) running.instance.actorsRemoved?.(removed);
   };
 
+  const update = (docs: readonly ActorDoc[]): WorldActorChange[] => {
+    expect(["initialized", "playing"], "update actors in");
+    const changes: WorldActorChange[] = [];
+    const seen = new Set<ActorId>();
+    let reindex = false;
+    for (const doc of docs) {
+      const previous = actors.get(doc.id);
+      if (!previous) throw new WorldError(`Actor ${doc.id} is not in the world.`);
+      if (seen.has(doc.id)) throw new WorldError(`Actor ${doc.id} is updated twice in one batch.`);
+      seen.add(doc.id);
+      if (doc.parent !== null) {
+        if (!actors.has(doc.parent)) throw new WorldError(`Actor ${doc.id}: its parent ${doc.parent} is not in the world.`);
+        for (let at: ActorId | null = doc.parent; at !== null; at = actors.get(at)?.parent ?? null) {
+          if (at === doc.id) throw new WorldError(`Actor ${doc.id}: parenting it to ${doc.parent} makes a cycle.`);
+        }
+      }
+      const cls = doc.class === null ? undefined : options.resolveClass(doc.class);
+      if (doc.class !== null && !cls) throw new WorldError(`Actor ${doc.id}: its class ${doc.class} is not available.`);
+      const components = effectiveComponents(doc, cls);
+      const sameShape = doc.name === previous.name && doc.parent === previous.parent && JSON.stringify(components) === JSON.stringify(previous.components);
+      if (sameShape) {
+        if (JSON.stringify(doc.transform) === JSON.stringify(previous.transform)) continue;
+        previous.transform = structuredClone(doc.transform);
+        changes.push({ actor: previous, previous, transformOnly: true });
+        continue;
+      }
+      const actor: WorldActor = { id: doc.id, name: doc.name, parent: doc.parent, transform: structuredClone(doc.transform), components, origin: previous.origin };
+      actors.set(actor.id, actor); // Keeps the actor's place in the world's order.
+      changes.push({ actor, previous, transformOnly: false });
+      reindex = true;
+    }
+    if (changes.length === 0) return changes;
+    if (reindex) {
+      byType.clear();
+      for (const actor of actors.values()) index(actor);
+    }
+    // Descendants: their world placement moved with their ancestor.
+    const changed = new Set(changes.map((change) => change.actor.id));
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const actor of actors.values()) {
+        if (actor.parent !== null && changed.has(actor.parent) && !changed.has(actor.id)) {
+          changed.add(actor.id);
+          changes.push({ actor, previous: actor, transformOnly: true });
+          grew = true;
+        }
+      }
+    }
+    for (const running of subsystems) {
+      if (running.instance.actorsChanged) running.instance.actorsChanged(changes);
+      else {
+        running.instance.actorsRemoved?.(changes.map((change) => change.previous));
+        running.instance.actorsAdded?.(changes.map((change) => change.actor));
+      }
+    }
+    return changes;
+  };
+
   const context: SubsystemContext = {
     get state() {
       return state;
@@ -210,6 +287,7 @@ export function createWorld(options: WorldOptions): World {
     },
     addActors: add,
     removeActors: remove,
+    updateActors: update,
     beginPlay() {
       expect(["initialized"], "begin play in");
       state = "playing";

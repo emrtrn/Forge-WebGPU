@@ -8,6 +8,18 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.4
+
+API: ee63abe72d9159bd
+
+The editor's world and edits (plan phase 4 step 2, user decisions 2026-11-13),
+additive: `defineSubsystem({ inEditor })` marks a subsystem the editor's world
+installs too (default false: physics and gameplay never run in the editor);
+`SubsystemInstance.actorsChanged(changes)` hears edited actors as
+`WorldActorChange { actor, previous, transformOnly }` (a moved actor's
+descendants come along as transform-only changes). A subsystem without the hook
+hears `actorsRemoved(previous)` then `actorsAdded(actor)`.
+
 ## 0.1.3
 
 API: 0a371596f209279c

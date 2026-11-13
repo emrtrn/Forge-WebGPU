@@ -78,7 +78,7 @@ interface JsonAssetTypeDef<M>
 
 type LevelId = `lvl_${string}`
 
-const SDK_VERSION: "0.1.3"
+const SDK_VERSION: "0.1.4"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -113,11 +113,13 @@ interface SubsystemContext
 interface SubsystemDef
   readonly create: (ctx: SubsystemContext) => SubsystemInstance
   readonly id: string
+  readonly inEditor: boolean
   readonly kind: "subsystem"
   readonly tickGroups: ReadonlyArray<"prePhysics" | "physics" | "postPhysics" | "renderSync">
 
 interface SubsystemInstance
   actorsAdded?: ((actors: readonly WorldActor[]) => void) | undefined
+  actorsChanged?: ((changes: readonly WorldActorChange[]) => void) | undefined
   actorsRemoved?: ((actors: readonly WorldActor[]) => void) | undefined
   beginPlay?: (() => void) | undefined
   dispose?: (() => void) | undefined
@@ -176,7 +178,7 @@ function defineJsonAssetType<M extends FieldMap>(name: string, version: number, 
 
 function defineSaveState<M extends FieldMap>(name: string, version: number, fields: M, options?: SaveStateOptions): SaveStateDef<M>
 
-function defineSubsystem(definition: { readonly id: string; readonly tickGroups?: readonly TickGroup[]; readonly create: (ctx: SubsystemContext) => SubsystemInstance; }): SubsystemDef
+function defineSubsystem(definition: { readonly id: string; readonly tickGroups?: readonly TickGroup[]; readonly inEditor?: boolean; readonly create: (ctx: SubsystemContext) => SubsystemInstance; }): SubsystemDef
 
 function enumOf<const V extends string>(values: readonly V[], options: FieldUi & { readonly default: NoInfer<V>; readonly labels?: { readonly [K in NoInfer<V>]?: string; }; }): EnumField<V>
 
@@ -198,7 +200,7 @@ function vec4(options: VectorOptions<4>): VectorField<4>
 
 # src/editor-sdk/index.ts
 
-const SDK_VERSION: "0.1.3"
+const SDK_VERSION: "0.1.4"
 
 # referenced (not exported, part of the surface)
 
@@ -375,3 +377,8 @@ type VectorOf<N extends VectorSize> = N extends 2 ? Vec2 : N extends 3 ? Vec3 : 
 type VectorOptions<N extends VectorSize> = { readonly default: Readonly<VectorOf<N>>; readonly min?: number; readonly max?: number; readonly step?: number; readonly label?: string; readonly hint?: string; readonly persist?: boolean; }  // src/core/schema/fields.ts
 
 type VectorSize = 2 | 3 | 4  // src/core/schema/fields.ts
+
+interface WorldActorChange  // src/core/world/subsystem.ts
+  readonly actor: WorldActor
+  readonly previous: WorldActor
+  readonly transformOnly: boolean

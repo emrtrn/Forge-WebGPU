@@ -8,7 +8,8 @@ describe("defineSubsystem", () => {
   test("a frozen definition with its tick groups", () => {
     const create = () => ({});
     const def = defineSubsystem({ id: "test.wind", tickGroups: ["physics", "renderSync"], create });
-    expect(def).toEqual({ kind: "subsystem", id: "test.wind", tickGroups: ["physics", "renderSync"], create });
+    expect(def).toEqual({ kind: "subsystem", id: "test.wind", tickGroups: ["physics", "renderSync"], inEditor: false, create });
+    expect(defineSubsystem({ id: "test.look", inEditor: true, create }).inEditor).toBe(true);
     expect(Object.isFrozen(def)).toBe(true);
     expect(defineSubsystem({ id: "test.idle", create }).tickGroups).toEqual([]);
     expect(TICK_GROUPS).toEqual(["prePhysics", "physics", "postPhysics", "renderSync"]);

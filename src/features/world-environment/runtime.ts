@@ -28,6 +28,8 @@ export function forgeWorldEnvironment(data: WorldEnvironmentData) {
 
 export const WorldEnvironmentSubsystem = defineSubsystem({
   id: "forge.worldEnvironment",
+  // The editor's viewport shows it as the game does (plan phase 4).
+  inEditor: true,
   tickGroups: ["prePhysics"],
   create(ctx) {
     const controller = new WorldEnvironmentController();

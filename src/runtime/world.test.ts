@@ -228,3 +228,90 @@ describe("isolation (A6)", () => {
     second.dispose();
   });
 });
+
+describe("the editor's world (plan phase 4; user decision 2026-11-13)", () => {
+  test("installs only the subsystems marked inEditor", () => {
+    const log: string[] = [];
+    const editorSafe = defineSubsystem({ id: "test.look", inEditor: true, create: () => (log.push("look init"), {}) });
+    const gameplay = defineSubsystem({ id: "test.physics", create: () => (log.push("physics init"), {}) });
+    const features = [defineFeature({ id: "test.mixed", subsystems: [gameplay, editorSafe] })];
+    const editorWorld = createWorld({ ...OPTIONS, features, mode: "editor" });
+    editorWorld.init();
+    expect(log).toEqual(["look init"]);
+    log.length = 0;
+    createWorld({ ...OPTIONS, features }).init();
+    expect(log).toEqual(["physics init", "look init"]);
+    expect(defineSubsystem({ id: "test.plain", create: () => ({}) }).inEditor).toBe(false);
+  });
+});
+
+describe("updating actors (the editor's edits)", () => {
+  const changes = (log: string[]) =>
+    defineSubsystem({
+      id: "test.changes",
+      create: () => ({
+        actorsChanged: (list) => log.push(`changed ${list.map((change) => `${change.actor.name}${change.transformOnly ? "(t)" : ""}${change.previous === change.actor ? "" : "*"}`).join(",")}`),
+      }),
+    });
+
+  function edited(subject: World, id: string, patch: Record<string, unknown>): ActorDoc {
+    const actor = subject.context.actor(actorId(id))!;
+    return docs([{ id: actor.id, name: actor.name, parent: actor.parent, transform: actor.transform, components: actor.components, ...patch }])[0]!;
+  }
+
+  test("a moved actor changes in place; its descendants come along; unchanged documents are no change", () => {
+    const log: string[] = [];
+    const subject = world([defineFeature({ id: "test.c", subsystems: [changes(log)] })]);
+    subject.init();
+    subject.addActors(
+      docs([
+        { id: actorId("1"), name: "root" },
+        { id: actorId("2"), name: "child", parent: actorId("1") },
+        { id: actorId("3"), name: "grandchild", parent: actorId("2") },
+        { id: actorId("4"), name: "other" },
+      ]),
+      "level",
+    );
+    const before = subject.context.actor(actorId("1"));
+    const result = subject.updateActors([edited(subject, "1", { transform: { p: [1, 2, 3] } })]);
+    expect(log).toEqual(["changed root(t),child(t),grandchild(t)"]);
+    expect(result.map((change) => change.actor.name)).toEqual(["root", "child", "grandchild"]);
+    expect(subject.context.actor(actorId("1"))).toBe(before);
+    expect(before!.transform.p).toEqual([1, 2, 3]);
+    expect(subject.updateActors([edited(subject, "4", {})])).toEqual([]);
+    expect(log).toHaveLength(1);
+  });
+
+  test("a component edit replaces the actor object (keeping its place) and reindexes; previous is the old actor", () => {
+    const log: string[] = [];
+    const subject = world([defineFeature({ id: "test.c", subsystems: [changes(log)] })]);
+    subject.init();
+    subject.addActors(docs([{ id: actorId("1"), name: "a" }, { id: actorId("2"), name: "b" }]), "level");
+    const old = subject.context.actor(actorId("1"))!;
+    subject.updateActors([edited(subject, "1", { components: { d: { type: "test.driver@1", targetSpeed: 20 } } })]);
+    expect(log).toEqual(["changed a*"]);
+    const now = subject.context.actor(actorId("1"))!;
+    expect(now).not.toBe(old);
+    expect(names([...subject.context.actors()])).toEqual(["a", "b"]);
+    expect(subject.context.componentsOf("test.driver").map((entry) => [entry.actor, entry.component.targetSpeed])).toEqual([[now, 20]]);
+  });
+
+  test("without actorsChanged a subsystem hears removed (previous) then added (now)", () => {
+    const log: string[] = [];
+    const subject = world([defineFeature({ id: "test.a", subsystems: [recorder("test.a", log)] })]);
+    subject.init();
+    subject.addActors(docs([{ id: actorId("1"), name: "a" }]), "level");
+    log.length = 0;
+    subject.updateActors([edited(subject, "1", { name: "renamed" })]);
+    expect(log).toEqual(["test.a removed a", "test.a added renamed"]);
+  });
+
+  test("a missing actor, a missing parent or a cycle is refused", () => {
+    const subject = world();
+    subject.init();
+    subject.addActors(docs([{ id: actorId("1"), name: "root" }, { id: actorId("2"), name: "child", parent: actorId("1") }]), "level");
+    expect(() => subject.updateActors(docs([{ id: actorId("9") }]))).toThrow(/not in the world/);
+    expect(() => subject.updateActors([{ ...edited(subject, "1", {}), parent: actorId("8") }])).toThrow(/parent/);
+    expect(() => subject.updateActors([{ ...edited(subject, "1", {}), parent: actorId("2") }])).toThrow(/cycle/);
+  });
+});

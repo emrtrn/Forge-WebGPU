@@ -20,6 +20,8 @@ export const HeightFogStateKey = createServiceKey<HeightFogState>("forge.heightF
 
 export const HeightFogSubsystem = defineSubsystem({
   id: "forge.heightFog",
+  // The editor's viewport shows it as the game does (plan phase 4).
+  inEditor: true,
   create(ctx) {
     const state: { fog: HeightFogData | null; actor: ActorId | null } = { fog: null, actor: null };
     const refresh = (): void => {
