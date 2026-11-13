@@ -12,7 +12,9 @@ ekseni boyunca parlar.
   ilk yönlü ışık: gökyüzü / sis / bulut onun yönünü okur, `cascadedShadows`
   açıksa gölgesi `CSMShadowNode` ile (Forge bölmeleri). Öteki gölgeli yönlü
   ışıklar kamerayı izleyen tek harita; harita boyu, mesafe ve aç / kapa
-  kalite profilinden (`src/render/sync/sunShadow.ts`).
+  kalite profilinden (`src/render/sync/sunShadow.ts`). World Environment
+  etkinken güneşin rengi, şiddeti, ay gölgesi ve yönü onun saatinden
+  (`src/render/sync/sunOverride.ts`); bileşen değişmez.
 - `feature.ts`: üç bileşeni kurar; `render.ts`'i anmaz.
 - Işık bileşeni olmayan level'a render katmanı Forge'un varsayılan güneşini
   koyar. İçe aktarıcı Forge'un güneşini (`sun` kimliği, yoksa ilk yönlü ışık)

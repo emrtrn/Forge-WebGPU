@@ -5,6 +5,9 @@
 // counts the world's resources in the host's cache. Disposing the world
 // releases those counts and nothing else: another world's resources stay.
 //
+// Each frame, before the bindings: the World Environment override is
+// resolved (environment.ts), then the default sun is drawn with it.
+//
 // A headless boot (Node, check:projects) installs no such subsystem, so the
 // world runs without render.
 
@@ -15,7 +18,8 @@ import type { ResourceCache } from "../resources/resourceCache.ts";
 import type { SurfaceMaterials } from "../resources/surfaceMaterials.ts";
 import { createWorldResources, type ModelSource, type WorldResources } from "../resources/worldResources.ts";
 import { createDefaultLighting } from "./defaultLighting.ts";
-import type { RenderBindingDef, RenderBindingInstance, RenderWorldView } from "./renderBinding.ts";
+import { createEnvironmentOverride } from "./environment.ts";
+import type { EnvironmentCapture, RenderBindingDef, RenderBindingInstance, RenderOutput, RenderWorldView } from "./renderBinding.ts";
 
 export const RENDER_FEATURE_ID = "forge.render";
 
@@ -25,6 +29,8 @@ export interface RenderWorld {
   readonly scene: Scene;
   readonly root: Group;
   readonly resources: WorldResources;
+  /** Tone mapping and exposure the frame is presented with (the sky sets them). */
+  readonly output: RenderOutput;
 }
 
 export interface RenderFeatureOptions {
@@ -41,6 +47,8 @@ export interface RenderFeatureOptions {
   readonly camera: () => Camera | null;
   /** The effective quality settings now. */
   readonly quality: () => QualitySettings;
+  /** The Sky Light capture; absent where there is no GPU (tests). */
+  readonly capture?: EnvironmentCapture;
   /** The world's scene exists (the host presents it). */
   readonly attach?: (world: RenderWorld) => void;
   /** The world is going away. */
@@ -65,10 +73,15 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
         componentsOf: (type) => ctx.componentsOf(type),
       };
       const lighting = createDefaultLighting(scene, view);
+      const environment = createEnvironmentOverride(view, lighting);
+      const output: RenderOutput = { toneMapping: "none", exposure: 1 };
       const instances: RenderBindingInstance[] = bindings.map((binding) =>
-        binding.create({ world: view, scene, root, resources, lighting, quality: options.quality }),
+        binding.create({
+          world: view, scene, root, resources, lighting, environment: environment.environment, output,
+          capture: options.capture ?? null, quality: options.quality,
+        }),
       );
-      const world: RenderWorld = { name: options.name, scene, root, resources };
+      const world: RenderWorld = { name: options.name, scene, root, resources, output };
       options.attach?.(world);
       return {
         actorsAdded(actors) {
@@ -81,7 +94,8 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
         },
         tick(_group, dt) {
           const frame = { dt, camera: options.camera() };
-          lighting.sync(frame.camera, options.quality());
+          environment.update();
+          lighting.sync(frame.camera, options.quality(), environment.environment.override);
           for (const instance of instances) instance.sync?.(frame);
         },
         dispose() {

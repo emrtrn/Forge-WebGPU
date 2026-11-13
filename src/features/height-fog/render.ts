@@ -5,8 +5,9 @@
 // GLSL patch on every material: the exponential density integral along the
 // view ray with height falloff, the clear distance, the maximum opacity, the
 // linear mode, and the sun tint lobe (alignment^4, faded out below the
-// horizon). Values are uniforms, refreshed from `HeightFogState` each frame;
-// only the fog appearing or going away changes the shaders.
+// horizon). Values are uniforms, refreshed from `HeightFogState` each frame
+// (or the World Environment's override of it); only the fog appearing or going
+// away changes the shaders.
 
 import { cameraPosition, clamp, exp, float, Fn, fog, max, min, mix, positionView, positionWorld, select, smoothstep, uniform } from "three/tsl";
 import { Color, Vector3 } from "three/webgpu";
@@ -97,7 +98,8 @@ export default defineRenderBinding({
     return {
       sync() {
         const state = ctx.world.services.get(HeightFogStateKey);
-        const data = state?.fog ?? null;
+        // The World Environment's reading of the fog (weather, night, dusk) while it is active.
+        const data = state?.fog ? ((ctx.environment.override?.fog as HeightFogData | null | undefined) ?? state.fog) : null;
         if (data) apply(data);
         if ((data !== null) !== shown) {
           shown = data !== null;

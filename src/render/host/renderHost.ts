@@ -15,7 +15,7 @@
 //   listeners hear it; the page shows the renderer-free screen with "reload".
 //   Rebuilding on a new device is a later decision.
 
-import { PerspectiveCamera, WebGPURenderer, type Camera } from "three/webgpu";
+import { PerspectiveCamera, PMREMGenerator, WebGPURenderer, type Camera } from "three/webgpu";
 import type { FeatureDef, JsonAssetTypeDef } from "../../core/index.ts";
 import { effectiveDevicePixelRatio, resolveQualitySettings, type QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { createDirectPipeline } from "../pipeline/directPipeline.ts";
@@ -25,7 +25,7 @@ import { createResourceCache, type ResourceCache } from "../resources/resourceCa
 import { createSurfaceMaterials } from "../resources/surfaceMaterials.ts";
 import { createTextureSource } from "../resources/textures.ts";
 import type { ModelSource } from "../resources/worldResources.ts";
-import type { RenderBindingDef } from "../sync/renderBinding.ts";
+import type { EnvironmentCapture, RenderBindingDef } from "../sync/renderBinding.ts";
 import { createRenderFeature, type RenderWorld } from "../sync/renderWorld.ts";
 import { mountBadge } from "./badge.ts";
 import { readBackendProof, type BackendProof } from "./backendProof.ts";
@@ -35,6 +35,9 @@ import { createPerfSampler, type PerfQuality, type PerfSampler } from "./perfSam
 export interface RenderQuality extends PerfQuality {
   readonly settings: QualitySettings;
 }
+
+/** Far plane of the Sky Light capture's cube camera (Forge's CAPTURE_FAR). */
+const ENVIRONMENT_CAPTURE_FAR = 1000;
 
 /** Forge's renderer booted at Ultra's ratio (min(dpr, 2)) before any profile applied. */
 export const DEFAULT_QUALITY_LEVEL = "ultra";
@@ -170,6 +173,16 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   };
 
   const pipeline = createDirectPipeline(renderer);
+  // The Sky Light capture (Forge's captureSkyEnvironment): the scene seen from
+  // its origin, prefiltered into a PMREM. A render target never gets the
+  // output's tone mapping, so the map stays linear.
+  const pmrem = new PMREMGenerator(renderer);
+  const capture: EnvironmentCapture = {
+    capture(scene, size) {
+      const target = pmrem.fromScene(scene, 0, 0.1, ENVIRONMENT_CAPTURE_FAR, { size });
+      return { texture: target.texture, dispose: () => target.dispose() };
+    },
+  };
   const perf = createPerfSampler(renderer, proof, () => quality, (json) => {
     canvas.dataset.forgePerf = json;
   });
@@ -192,6 +205,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
         name,
         camera: () => camera,
         quality: () => quality.settings,
+        capture,
         attach: (attached) => {
           world = attached;
         },
@@ -215,7 +229,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     frame(now) {
       if (lost || world === null) return;
       applySize();
-      pipeline.render(world.scene, camera);
+      pipeline.render(world.scene, camera, world.output);
       perf.frame(now);
     },
     perf,
@@ -229,6 +243,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       observer.disconnect();
       badge?.remove();
       gltf.dispose();
+      pmrem.dispose();
       pipeline.dispose();
       renderer.dispose();
       canvas.remove();

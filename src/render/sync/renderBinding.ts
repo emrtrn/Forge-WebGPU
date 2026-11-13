@@ -14,7 +14,8 @@
 // compared every frame in `sync`. Notification of field and transform edits
 // comes with the editor (phase 4).
 
-import type { Camera, Group, Scene, Vector3 } from "three/webgpu";
+import type { Camera, Group, Scene, Texture, Vector3 } from "three/webgpu";
+import type { ResolvedEnvironment } from "../../engine/environment/environmentResolve.ts";
 import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { COMPONENT_NAME_PATTERN, SchemaDefinitionError, type ActorId, type ComponentEntry, type Services, type WorldActor } from "../../core/index.ts";
 import type { WorldResources } from "../resources/worldResources.ts";
@@ -27,13 +28,42 @@ export interface RenderWorldView {
   componentsOf(type: string): ComponentEntry[];
 }
 
-/** The lights other bindings read (fog's sun tint, later sky and clouds). */
+/** The lights other bindings read (fog's sun tint, the sky, the Sky Light capture). */
 export interface RenderLighting {
   /**
    * Ground -> sun, unit length. One shared vector: the default sun writes it
-   * while it shows, the light binding writes its `atmosphereSun` light's.
+   * while it shows, the light binding writes its `atmosphereSun` light's; while
+   * a World Environment is active, its true sun (below the horizon at night).
    */
   readonly sunDirection: Vector3;
+}
+
+/**
+ * The World Environment's reading of the authored look this frame (Forge's
+ * WES override, engine/environment/environmentResolve.ts): the sun light,
+ * sky haze, moon, stars, fog, clouds, ambient and exposure it changes. Worked
+ * out once per frame before any binding syncs; null renders what is authored.
+ * The components are never written.
+ */
+export interface RenderEnvironment {
+  readonly override: ResolvedEnvironment | null;
+}
+
+/** The world's output transform until the pipeline's tone mapping pass (phase 3 step 6). */
+export interface RenderOutput {
+  toneMapping: "none" | "aces";
+  exposure: number;
+}
+
+/** A prefiltered environment map (PMREM) the caller owns. */
+export interface CapturedEnvironment {
+  readonly texture: Texture;
+  dispose(): void;
+}
+
+/** Renders a scene seen from its origin into a PMREM (the Sky Light capture). */
+export interface EnvironmentCapture {
+  capture(scene: Scene, size: number): CapturedEnvironment;
 }
 
 export interface RenderBindingContext {
@@ -45,6 +75,11 @@ export interface RenderBindingContext {
   /** The host's resource cache, counted for this world. */
   readonly resources: WorldResources;
   readonly lighting: RenderLighting;
+  readonly environment: RenderEnvironment;
+  /** Written by the sky: ACES and its exposure while a sky shows, else none. */
+  readonly output: RenderOutput;
+  /** Null where there is no GPU (tests). */
+  readonly capture: EnvironmentCapture | null;
   /** The effective quality settings now (profile and adaptive reductions). */
   quality(): QualitySettings;
 }

@@ -9,12 +9,18 @@
 // casts through CSMShadowNode; every other shadow-casting directional light
 // through one map that follows the camera; point and spot lights through
 // their own maps. The sun's direction is published for fog, sky and clouds.
+//
+// While a World Environment is active (phase 3 step 5) the sun is its clock's:
+// the resolved colour, intensity, moon shadow strength and aim
+// (render/sync/sunOverride.ts); the environment publishes the true sun
+// direction itself. Otherwise the component's own values each frame.
 
 import { DirectionalLight, MathUtils, Object3D, PointLight, SpotLight, Vector3 } from "three/webgpu";
 import { sunCascadeDistance } from "../../engine/world/sunCascades.ts";
 import { parseComponentTypeTag, type ActorId, type ComponentRecord, type WorldActor } from "../../core/index.ts";
 import { defineRenderBinding } from "../../render/sync/renderBinding.ts";
 import { configureShadow, createSunCascades, FOLLOW_SHADOW_HALF_EXTENT, updateFollowShadow, type SunCascades } from "../../render/sync/sunShadow.ts";
+import { applySunOverride } from "../../render/sync/sunOverride.ts";
 import { componentWorldMatrix } from "../../render/sync/transforms.ts";
 import { DirectionalLight as DirectionalLightComponent, PointLight as PointLightComponent, SpotLight as SpotLightComponent } from "./schema.ts";
 import type { DirectionalLightData, PointLightData, SpotLightData } from "./schema.ts";
@@ -104,12 +110,23 @@ export default defineRenderBinding({
       sync(frame) {
         const quality = ctx.quality();
         const theSun = sun();
+        const override = ctx.environment.override;
         if (theSun) {
+          // The authored aim each frame; the override and the follow map move it from there.
+          theSun.light.position.set(0, 0, 0);
+          theSun.light.target.position.set(0, 0, -1);
           theSun.holder.updateWorldMatrix(true, true);
-          theSun.light.getWorldPosition(lightWorld);
-          theSun.light.target.getWorldPosition(targetWorld);
-          const direction = lightWorld.sub(targetWorld);
-          if (direction.lengthSq() > 0) ctx.lighting.sunDirection.copy(direction.normalize());
+          if (override?.light) {
+            applySunOverride(theSun.light, theSun.data.color, override.light);
+          } else {
+            theSun.light.color.set(theSun.data.color);
+            theSun.light.intensity = theSun.data.intensity;
+            theSun.light.shadow.intensity = 1;
+            theSun.light.getWorldPosition(lightWorld);
+            theSun.light.target.getWorldPosition(targetWorld);
+            const direction = lightWorld.sub(targetWorld);
+            if (!override && direction.lengthSq() > 0) ctx.lighting.sunDirection.copy(direction.normalize());
+          }
         }
         for (const entry of placed.values()) {
           const cast = entry.data.castShadow && quality.shadowsEnabled;
