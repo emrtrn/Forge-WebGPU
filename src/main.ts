@@ -217,4 +217,10 @@ async function start(): Promise<void> {
   }
 }
 
-void start();
+// Development only: the editor UI kit's page, every component's generated form (plan phase 4 step 1).
+// The condition is a build-time constant, so a production build drops the import and its chunk.
+if (import.meta.env.DEV && params.has("editor-kit")) {
+  void import("./editor/ui/gallery.ts").then(({ showKitGallery }) => showKitGallery(document, features));
+} else {
+  void start();
+}

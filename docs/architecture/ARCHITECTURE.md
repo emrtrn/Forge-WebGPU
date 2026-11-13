@@ -154,7 +154,8 @@ projesinde (rapor §4.8, A9).
 `npm run gate`: dört tsconfig'le (uygulama, `src` testleri, Node araçları,
 render smoke'u) tip kontrolü, katman denetimi + öz-testi, dosya
 boyutu bütçesi, Node yükleme, asset kapısı, SDK API kapısı, `check:projects`,
-Vitest, build. Aynı kapı CI'da. Render kabulü yerelde, gerçek WebGPU
+Vitest, build, editörün tarayıcı denetimleri (`npm run smoke:editor`, başsız
+Chrome; çizen sayfalar `forceWebGL`). Aynı kapı CI'da. Render kabulü yerelde, gerçek WebGPU
 backend'inde: `npm run smoke:render` (Playwright, başlıklı Chrome, port 5283;
 gate'te ve CI'da değil, `render/**` ya da `features/*/render.ts` dokunan
 push'tan önce; `tests/smoke/`, referans görüntüler ve koşu kayıtları depo
