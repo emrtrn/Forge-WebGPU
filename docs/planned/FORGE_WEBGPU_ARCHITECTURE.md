@@ -1,6 +1,7 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.16 · 2026-11-13 (v1.15'ten fark: Faz 4 tasarımı (kullanıcı kararları) — §4.2 editörün 3B kodu `src/render/editor/` ve rol `features/*/editorRender.ts`; §4.7 editör oturumu: `actorsChanged`, Forge'un gizmo'su, Play oturum katmanı, grup, hücreler; §4.8 motor içeriği kipi; §4.9 çizim katmanı ve küçük resimler; §4.10 editör smoke'ları; §4.11 ajan komutlarının yolu, okuyan komutlar, canlı tazeleme, asset editörleri.
+**Sürüm:** v1.17 · 2026-11-13 (v1.16'dan fark: §4.7 editör World'ü (`inEditor`, kullanıcı kararı) ve `actorsChanged`'ın kesin biçimi, çocuk silme kuralı.
+v1.16 · 2026-11-13 (v1.15'ten fark: Faz 4 tasarımı (kullanıcı kararları) — §4.2 editörün 3B kodu `src/render/editor/` ve rol `features/*/editorRender.ts`; §4.7 editör oturumu: `actorsChanged`, Forge'un gizmo'su, Play oturum katmanı, grup, hücreler; §4.8 motor içeriği kipi; §4.9 çizim katmanı ve küçük resimler; §4.10 editör smoke'ları; §4.11 ajan komutlarının yolu, okuyan komutlar, canlı tazeleme, asset editörleri.
 v1.15 · 2026-11-13 (v1.14'ten fark: Faz 3 adım 9 ve kapanış — §4.9 yönlü
 ışıklar dünya çerçevesinde (`CSMShadowNode`'un koşulu); §4.10 smoke tam seti Faz 0
 pozları ve çözünürlüğüyle, yan yana ızgara, kabul edilen referanslar.
@@ -882,10 +883,19 @@ düşen alan uyarı değil, **hatadır**.
   birer özellik), PanelHost (Outliner / Details / Content). Her servis dosya
   bütçesine tabi.
 - **Editör oturumu, Faz 4 kararları (2026-11-13):**
-  - *Düzenleme → World:* World'e `actorsChanged(actors, { transformOnly })` kancası;
-    alt sistemler ve render bağlamaları uygular, uygulamayan bağlama için varsayılan
-    çıkar + ekle. Instancing batch'inde transform hızlı yolu (gizmo sürüklemesi her
-    karede). Oturumdaki (`src/core/edit`) işlem önce oturuma, sonra World'e gider.
+  - *Düzenleme → World:* `World.updateActors(docs)` ve alt sistem / render bağlaması
+    kancası `actorsChanged(changes)`, `WorldActorChange { actor, previous, transformOnly }`
+    (`previous` gerekir: varsayılan çıkarma eski bileşen anahtarlarını bilmeli); kancası
+    olmayan çıkar (previous) + ekle (actor) duyar. Yalnız transform değişen aktör yerinde
+    güncellenir, başka düzenleme aktör nesnesini yerinde değiştirir ve dizini yeniler;
+    torunlar transform değişikliği olarak gelir. Instancing batch'inde transform hızlı
+    yolu (adım 4). Oturumdaki (`src/core/edit`) işlem önce oturuma, `onApplied` ile
+    World'e gider: eklenenler (ebeveyn önce), güncellenenler, silinenler. Çekirdek
+    kuralı: çocuğu kalan aktör silinmez (aynı işlemde çocuk da silinir ya da taşınır).
+  - *Editör World'ü (kullanıcı kararı 2026-11-13):* alt sistem `defineSubsystem({
+    inEditor: true })` ile bildirir (varsayılan false); `createWorld({ mode: "editor" })`
+    yalnız onları kurar: render, World Environment, Height Fog. Fizik, davranış,
+    hareket ve oyun modülü editörde hiç kurulmaz (SDK 0.1.4).
   - *Gizmo:* Forge'un kendi gizmo'su (move / rotate / scale, world / local, snap,
     pivot, zemin / duvar yapıştırma); sürükleme matematiği three'siz saf modül, çizimi
     çizim katmanında (§4.9). Three `TransformControls` kullanılmaz.
