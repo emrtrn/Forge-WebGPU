@@ -12,6 +12,7 @@ import { createComponent, createSchemaRegistry, installFeatures, type ActorDoc, 
 import { actorId } from "../../core/level/testKit.ts";
 import { directionFromAngles, evaluateSunLight, sunDirectionFromRotation } from "../../engine/environment/sunPath.ts";
 import { resolveWorldEnvironment } from "../../engine/environment/worldEnvironment.ts";
+import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
 import { resolveQualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { createResourceCache } from "../../render/resources/resourceCache.ts";
 import type { RenderBindingDef } from "../../render/sync/renderBinding.ts";
@@ -46,7 +47,7 @@ function boot(actors: Record<string, Components>) {
   const registry = createSchemaRegistry();
   installFeatures(FEATURES, registry);
   const attached: RenderWorld[] = [];
-  const captures: { size: number; disposed: boolean }[] = [];
+  const captures: { size: number; disposed: boolean; recaptures: number }[] = [];
   const camera = new PerspectiveCamera(44, 1, 0.1, 2000);
   camera.position.set(1, 2, 3);
   const render = createRenderFeature({
@@ -59,9 +60,9 @@ function boot(actors: Record<string, Components>) {
     quality: () => resolveQualitySettings("high"),
     capture: {
       capture: (_scene, size) => {
-        const entry = { size, disposed: false };
+        const entry = { size, disposed: false, recaptures: 0 };
         captures.push(entry);
-        return { texture: new Texture(), dispose: () => void (entry.disposed = true) };
+        return { texture: new Texture(), recapture: () => void (entry.recaptures += 1), dispose: () => void (entry.disposed = true) };
       },
     },
     attach: (world) => attached.push(world),
@@ -186,28 +187,52 @@ describe("sky and Sky Light", () => {
     world.dispose();
   });
 
-  test("the Sky Light captures the sky once, recaptures when the scattering changes, and clears with the sky", () => {
+  test("the Sky Light captures the sky once, recaptures into the same map when the scattering changes, and clears with the sky", () => {
     const { scene, captures, world, remove, tick, add } = boot({ Sun: light(), Sky: sky(), Light: skyLight({ intensity: 0.5 }) });
-    expect(captures).toEqual([{ size: 256, disposed: false }]);
+    expect(captures).toEqual([{ size: 256, disposed: false, recaptures: 0 }]);
     expect(scene.environment).toBeTruthy();
+    const map = scene.environment;
     expect(scene.environmentIntensity).toBe(0.5);
     tick();
-    expect(captures).toHaveLength(1);
+    expect(captures[0]!.recaptures).toBe(0);
     (world.context.componentsOf("forge.skyAtmosphere")[0]!.component as unknown as { rayleigh: number }).rayleigh = 3;
     tick();
-    expect(captures).toHaveLength(2);
-    expect(captures[0]!.disposed).toBe(true);
+    // Same map, so the materials sampling it are not rebuilt.
+    expect(captures).toHaveLength(1);
+    expect(captures[0]).toEqual({ size: 256, disposed: false, recaptures: 1 });
+    expect(scene.environment).toBe(map);
     // The sky goes: no dome, no environment, the capture freed, no tone mapping.
     remove([world.context.componentsOf("forge.skyAtmosphere")[0]!.actor.id]);
     tick();
     expect(skyMesh(scene)).toBeUndefined();
     expect(scene.environment).toBeNull();
-    expect(captures[1]!.disposed).toBe(true);
+    expect(captures[0]!.disposed).toBe(true);
     // A rebuilt sky captures again.
     add({ Sky: sky() });
     tick();
     expect(skyMesh(scene)).toBeTruthy();
-    expect(captures).toHaveLength(3);
+    expect(captures).toHaveLength(2);
+    world.dispose();
+  });
+
+  test("a timed transition recaptures the Sky Light at most every 0.1 s and once more where the sun stops", async () => {
+    const { world, captures, tick } = boot({ Sun: light(), Sky: sky(), Light: skyLight(), Environment: environment({ hour: 10 }) });
+    const controller = world.services.require(WorldEnvironmentKey).controller;
+    expect(captures).toHaveLength(1);
+    const reached = controller.transitionTo({ hour: 22, seconds: 5 });
+    // 60 Hz frames (world ticks of 1/60 s) through the transition.
+    for (let i = 0; i < 300; i += 1) world.tick(1 / 60);
+    await expect(reached).resolves.toBe(true);
+    const during = captures[0]!.recaptures;
+    // Forge's angle policy alone took 69 here; at most one per 0.1 s over 5 s.
+    expect(during).toBeGreaterThan(20);
+    expect(during).toBeLessThanOrEqual(51);
+    for (let i = 0; i < 30; i += 1) tick();
+    const settled = captures[0]!.recaptures;
+    expect(settled - during).toBeLessThanOrEqual(1);
+    for (let i = 0; i < 30; i += 1) tick();
+    expect(captures[0]!.recaptures).toBe(settled);
+    expect(captures).toHaveLength(1);
     world.dispose();
   });
 

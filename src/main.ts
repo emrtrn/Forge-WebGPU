@@ -12,19 +12,27 @@
 // `?level=<project-relative folder>` opens another level than the project's
 // start level (the render smoke and reference scenes use it); `?forceWebGL`
 // is the labelled WebGL2 test mode (architecture §4.10), never a WebGPU run.
+//
+// Development only: `window.__forgeDev` pauses the frame loop and steps it at
+// a fixed rate, pairing each frame with its GPU time and Sky Light captures,
+// and starts World Environment transitions (the capture measurement, plan
+// phase 3 step 7: `npm run measure:sky-capture`).
 
 import type { FeatureDef } from "./core/index.ts";
 import { createSaveClient, isJsonAssetType } from "./core/index.ts";
 import { loadDevAssetUrls, assetUrlsFromIndex, type AssetUrls } from "./render/resources/assetUrls.ts";
 import type { RenderBindingDef } from "./render/sync/renderBinding.ts";
+import { benchmarkSkyCapture } from "./render/host/captureBench.ts";
 import { createLevelViewer } from "./render/viewer/levelViewer.ts";
 import { UserSettingsStore } from "./engine/persistence/userSettingsStore.ts";
 import type { HardwareHintInputs } from "./engine/perf/hardwareHints.ts";
+import { WorldEnvironmentKey } from "./engine/environment/worldEnvironmentRuntime.ts";
 import { bootErrorView, bootGame, type BootRender } from "./runtime/boot.ts";
 import { createBootScreen } from "./runtime/bootScreen.ts";
 import { createLocalStorageAdapter } from "./runtime/persistence/localStorageAdapter.ts";
 import { loadProjectLevel } from "./runtime/projectLevel.ts";
 import { createRuntimeQuality } from "./runtime/quality/runtimeQuality.ts";
+import { createSteppableScheduler } from "./runtime/steppableScheduler.ts";
 import gameModule from "virtual:forge/game-module";
 
 const featureModules = import.meta.glob<{ default: FeatureDef }>("./features/*/feature.ts", { eager: true });
@@ -144,19 +152,60 @@ async function start(): Promise<void> {
     onLost: (listener) => viewer.onLost(listener),
     dispose: () => viewer.dispose(),
   };
-  await bootGame({
+  const scheduler = createSteppableScheduler(
+    { request: (frame) => requestAnimationFrame(frame), cancel: (handle) => cancelAnimationFrame(handle) },
+    () => performance.now(),
+  );
+  const booted = await bootGame({
     features,
     ...(gameModule ? { gameModule } : {}),
     render,
     strict,
     loadLevel: async (registry) => (startLevel === "" ? null : loadProjectLevel(client, startLevel, registry, strict)),
     screen,
-    scheduler: {
-      request: (frame) => requestAnimationFrame(frame),
-      cancel: (handle) => cancelAnimationFrame(handle),
-    },
+    scheduler,
     warn: (issues) => console.warn("Level data report", issues),
   });
+  if (import.meta.env.DEV && booted) {
+    const environment = () => booted.world.services.get(WorldEnvironmentKey)?.controller ?? null;
+    const transitions: { reached: boolean | null }[] = [];
+    (window as unknown as { __forgeDev?: unknown }).__forgeDev = {
+      pause: () => scheduler.pause(),
+      resume: () => scheduler.resume(),
+      /** One frame `ms` after the last: its CPU time, GPU time, Sky Light captures and hour. */
+      async step(ms: number) {
+        const before = viewer.host?.captures ?? { count: 0, cpuMs: 0 };
+        const counted = { count: before.count, cpuMs: before.cpuMs };
+        const started = performance.now();
+        const ran = scheduler.step(ms);
+        const cpuMs = performance.now() - started;
+        const gpuMs = ran ? ((await viewer.host?.gpuTime()) ?? null) : null;
+        const after = viewer.host?.captures ?? counted;
+        return {
+          ran,
+          cpuMs,
+          gpuMs,
+          captures: after.count - counted.count,
+          captureCpuMs: after.cpuMs - counted.cpuMs,
+          hour: environment()?.current()?.hour ?? null,
+          transitioning: environment()?.transitioning ?? false,
+        };
+      },
+      /** Starts a transition; its outcome lands in `transitions[index]`. */
+      transitionTo(request: { hour: number; seconds: number }) {
+        const entry: { reached: boolean | null } = { reached: null };
+        transitions.push(entry);
+        void (environment()?.transitionTo(request) ?? Promise.resolve(false)).then((reached) => {
+          entry.reached = reached;
+        });
+        return transitions.length - 1;
+      },
+      transitions,
+      setHour: (hour: number) => environment()?.setHour(hour),
+      /** The Sky Light capture alone, `count` times back to back (pause first). */
+      captureBench: (count: number) => (viewer.host ? benchmarkSkyCapture(viewer.host, count) : Promise.resolve(null)),
+    };
+  }
 }
 
 void start();

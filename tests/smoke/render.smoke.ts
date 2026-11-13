@@ -18,34 +18,16 @@
 //
 // The quality profile is fixed (SMOKE_QUALITY, adaptive off, no calibration).
 
-import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
-import { Matrix4, Quaternion, Vector3 } from "three";
-import { RENDER_REFS, REPO_ROOT, SMOKE_QUALITY, SMOKE_SCENES, type SmokePose } from "./renderScenes.ts";
+import { RENDER_REFS, REPO_ROOT, SMOKE_QUALITY, SMOKE_SCENES } from "./renderScenes.ts";
+import { git, openSmokeLevel } from "./smokePage.ts";
 
 /** Below this the image is blank or flat (luminance, 0 - 255). */
 const MIN_LUMINANCE_STD = 4;
 /** A mostly black image is a failed draw, not a dark scene. */
 const MIN_LUMINANCE_MEAN = 8;
-const READY_TIMEOUT_MS = 120_000;
-
-function quaternionOf(pose: SmokePose): [number, number, number, number] {
-  const eye = new Vector3(...pose.position);
-  const target = new Vector3(...pose.target);
-  const rotation = new Matrix4().lookAt(eye, target, new Vector3(0, 1, 0));
-  const q = new Quaternion().setFromRotationMatrix(rotation);
-  return [q.x, q.y, q.z, q.w];
-}
-
-function git(args: string[]): string {
-  try {
-    return execFileSync("git", args, { cwd: REPO_ROOT, encoding: "utf8" }).trim();
-  } catch {
-    return "";
-  }
-}
 
 const threeVersion = (JSON.parse(readFileSync(join(REPO_ROOT, "node_modules/three/package.json"), "utf8")) as { version: string }).version;
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -59,31 +41,8 @@ for (const scene of SMOKE_SCENES) {
       page.on("console", (message) => {
         if (message.type() === "error") consoleErrors.push(message.text());
       });
-      const cameraPose = { position: pose.position, quaternion: quaternionOf(pose) };
-      await page.addInitScript((value) => localStorage.setItem("forge.play.cameraPose", value), JSON.stringify(cameraPose));
-      const settings = {
-        schema: 1,
-        updatedAt: new Date().toISOString(),
-        payload: {
-          audio: { busVolumes: {} },
-          locale: null,
-          graphics: {
-            adaptiveOptimizationEnabled: false,
-            targetFrameRate: 60,
-            selectedQualityLevel: SMOKE_QUALITY,
-            allowAdaptiveFineTuning: false,
-            manuallySelected: true,
-            startupCalibrated: true,
-          },
-        },
-      };
-      await page.addInitScript((value) => localStorage.setItem("forge.userSettings", value), JSON.stringify(settings));
-      await page.goto(`/?level=${encodeURIComponent(scene.level)}`);
-
+      const { cameraPose } = await openSmokeLevel(page, scene.level, pose);
       const canvas = page.locator("canvas[data-forge-ready='1']");
-      const bootError = page.getByTestId("boot-error");
-      await expect(canvas.or(bootError)).toBeVisible({ timeout: READY_TIMEOUT_MS });
-      if (await bootError.isVisible()) throw new Error(`The boot stopped: ${await bootError.innerText()}`);
 
       const proof = JSON.parse((await canvas.getAttribute("data-forge-backend-proof")) ?? "null") as {
         isWebGPUBackend: boolean;

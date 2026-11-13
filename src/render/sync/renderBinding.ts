@@ -60,6 +60,12 @@ export type RenderOutput = FrameOutput;
 /** A prefiltered environment map (PMREM) the caller owns. */
 export interface CapturedEnvironment {
   readonly texture: Texture;
+  /**
+   * Renders a scene into the same map again. The texture object stays, so
+   * the materials that sample it keep their environment node: a new texture
+   * on every capture rebuilt them (plan phase 3 step 7 measurement).
+   */
+  recapture(scene: Scene): void;
   dispose(): void;
 }
 

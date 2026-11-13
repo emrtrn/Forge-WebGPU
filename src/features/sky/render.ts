@@ -12,13 +12,17 @@
 // - Sky Light: the sky captured into a PMREM as `scene.environment` (image
 //   based reflections and ambient bounce, at `intensity`), only with a sky.
 //   Captured when the scattering or the sun changes; under the World
-//   Environment by Forge's recapture policy (by how far the sun moved), with
-//   the brightness bridged between captures. Its flat ambient light and the
+//   Environment by Forge's recapture policy (by how far the sun moved), at
+//   most every 0.1 s while the sun moves and once more where it stops
+//   (engine/environment/recaptureRate.ts, plan phase 3 step 7), with the
+//   brightness bridged between captures. Each capture renders into the same
+//   PMREM, so the materials keep their environment. Its flat ambient light and the
 //   background colour (seen where no sky is drawn); a level without a Sky
 //   Light draws Forge's defaults (#d7d7c7, no ambient).
 
 import { AmbientLight, Color } from "three/webgpu";
-import { angleBetweenDeg, shouldRecapture, skyLightCompensation, type CaptureRecord } from "../../engine/environment/recapturePolicy.ts";
+import { angleBetweenDeg, skyLightCompensation, type CaptureRecord } from "../../engine/environment/recapturePolicy.ts";
+import { decideRecapture } from "../../engine/environment/recaptureRate.ts";
 import { createCaptureSky, createSkyDome, type CaptureSky, type SkyDome, type SkyScattering } from "../../render/materials/sky.ts";
 import { defineRenderBinding, type CapturedEnvironment } from "../../render/sync/renderBinding.ts";
 import { SKY_LIGHT_ABSENT, SkyAtmosphere, SkyLight, type SkyAtmosphereData, type SkyLightData } from "./schema.ts";
@@ -40,6 +44,10 @@ export default defineRenderBinding({
     let capturedSun: [number, number, number] = [0, 1, 0];
     let capturedOverride = false;
     let lastCapture: CaptureRecord | null = null;
+    // Simulation seconds this binding has run, when it last captured, and the previous frame's World Environment sun.
+    let clock = 0;
+    let capturedAt = Number.NEGATIVE_INFINITY;
+    let previousSun: [number, number, number] | null = null;
     let ambient: AmbientLight | null = null;
     const background = new Color(SKY_LIGHT_ABSENT.backgroundColor);
     const ambientColor = new Color();
@@ -58,10 +66,13 @@ export default defineRenderBinding({
 
     return {
       sync(frame) {
+        clock += frame.dt;
         const sky = (ctx.world.componentsOf(SkyAtmosphere.name)[0]?.component as unknown as SkyAtmosphereData | undefined) ?? null;
         const light = (ctx.world.componentsOf(SkyLight.name)[0]?.component as unknown as SkyLightData | undefined) ?? null;
         const override = ctx.environment.override;
         const sun = ctx.lighting.sunDirection;
+        const sunBefore = previousSun;
+        previousSun = override ? override.sunDirection : null;
 
         background.set(light?.backgroundColor ?? SKY_LIGHT_ABSENT.backgroundColor);
         if (ctx.scene.background !== background) ctx.scene.background = background;
@@ -108,19 +119,26 @@ export default defineRenderBinding({
         const sunNow: [number, number, number] = [sun.x, sun.y, sun.z];
         let recapture = captured === null || key !== capturedScattering || (override !== null) !== capturedOverride;
         if (!recapture && override) {
-          recapture = shouldRecapture(lastCapture, { sunDirection: override.sunDirection, sunElevationDeg: override.sunElevationDeg, captureKey: override.captureKey });
+          recapture = decideRecapture({
+            last: lastCapture,
+            lastAt: capturedAt,
+            now: clock,
+            previousSun: sunBefore,
+            request: { sunDirection: override.sunDirection, sunElevationDeg: override.sunElevationDeg, captureKey: override.captureKey },
+          });
         } else if (!recapture) {
           recapture = angleBetweenDeg(capturedSun, sunNow) >= STATIC_RECAPTURE_ANGLE_DEG;
         }
         if (recapture) {
           captureSky ??= createCaptureSky();
           captureSky.apply(scattering, sun);
-          const next = ctx.capture.capture(captureSky.scene, SKY_LIGHT_CAPTURE_SIZE);
-          releaseEnvironment();
-          captured = next;
+          // Into the same map: a new texture would rebuild every material that samples it.
+          if (captured) captured.recapture(captureSky.scene);
+          else captured = ctx.capture.capture(captureSky.scene, SKY_LIGHT_CAPTURE_SIZE);
           capturedScattering = key;
           capturedSun = sunNow;
           capturedOverride = override !== null;
+          capturedAt = clock;
           lastCapture = override ? { sunDirection: override.sunDirection, sunElevationDeg: override.sunElevationDeg, captureKey: override.captureKey } : null;
         }
         ctx.scene.environment = captured!.texture;

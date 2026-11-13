@@ -20,8 +20,11 @@
 // - Device loss, v1 (phase 3 decision 10): drawing stops for good and the
 //   listeners hear it; the page shows the renderer-free screen with "reload".
 //   Rebuilding on a new device is a later decision.
+// - Sky Light captures are counted with their CPU time (`captures`, the perf
+//   witness's `skyCaptures`); `gpuTime()` resolves the last frame's GPU time,
+//   so a stepped measurement can pair the two (plan phase 3 step 7).
 
-import { PerspectiveCamera, PMREMGenerator, WebGPURenderer, type Camera } from "three/webgpu";
+import { PerspectiveCamera, PMREMGenerator, TimestampQuery, WebGPURenderer, type Camera } from "three/webgpu";
 import type { FeatureDef, JsonAssetTypeDef } from "../../core/index.ts";
 import { effectiveDevicePixelRatio, resolveQualitySettings, type QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { probeMrtBudget, type MrtProbeResult, type ProbeDevice } from "../pipeline/mrtProbe.ts";
@@ -45,6 +48,12 @@ export interface RenderQuality extends PerfQuality {
 
 /** Far plane of the Sky Light capture's cube camera (Forge's CAPTURE_FAR). */
 const ENVIRONMENT_CAPTURE_FAR = 1000;
+
+/** Sky Light captures so far and the CPU time they took. */
+export interface CaptureStats {
+  readonly count: number;
+  readonly cpuMs: number;
+}
 
 /** Forge's renderer booted at Ultra's ratio (min(dpr, 2)) before any profile applied. */
 export const DEFAULT_QUALITY_LEVEL = "ultra";
@@ -83,6 +92,16 @@ export interface RenderHost {
   /** Draws the presented world; `now` in ms. Does nothing once the device is lost. */
   frame(now: number): void;
   readonly perf: PerfSampler;
+  /** Sky Light (PMREM) captures since the host started. */
+  readonly captures: CaptureStats;
+  /** The host's PMREM capture (the bindings get it as `ctx.capture`). */
+  readonly capture: EnvironmentCapture;
+  /**
+   * GPU time (ms) of the renders since the last resolve, the last frame's
+   * when several frames are pending; null without timestamp queries. Shares
+   * three's pending resolve with the perf witness.
+   */
+  gpuTime(): Promise<number | null>;
   /** Called once if the GPU device is lost. */
   onDeviceLost(listener: (message: string) => void): void;
   readonly lost: boolean;
@@ -192,10 +211,22 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   // its origin, prefiltered into a PMREM. A render target never gets the
   // output's tone mapping, so the map stays linear.
   const pmrem = new PMREMGenerator(renderer);
+  const captures = { count: 0, cpuMs: 0 };
+  const counted = <T>(run: () => T): T => {
+    const started = performance.now();
+    const result = run();
+    captures.count += 1;
+    captures.cpuMs += performance.now() - started;
+    return result;
+  };
   const capture: EnvironmentCapture = {
     capture(scene, size) {
-      const target = pmrem.fromScene(scene, 0, 0.1, ENVIRONMENT_CAPTURE_FAR, { size });
-      return { texture: target.texture, dispose: () => target.dispose() };
+      const target = counted(() => pmrem.fromScene(scene, 0, 0.1, ENVIRONMENT_CAPTURE_FAR, { size }));
+      return {
+        texture: target.texture,
+        recapture: (next) => void counted(() => pmrem.fromScene(next, 0, 0.1, ENVIRONMENT_CAPTURE_FAR, { size, renderTarget: target })),
+        dispose: () => target.dispose(),
+      };
     },
   };
   const perf = createPerfSampler(renderer, proof, () => quality, (json) => {
@@ -210,6 +241,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     mrtProbeBytes: mrtProbe?.bytes ?? null,
     mrtProbeLimit: mrtProbe?.limit ?? null,
     mrtProbeOk: mrtProbe?.ok ?? null,
+    skyCaptures: captures.count,
   }));
 
   return {
@@ -259,6 +291,13 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       perf.frame(now);
     },
     perf,
+    captures,
+    capture,
+    async gpuTime() {
+      if (!proof.timestampQuery || lost) return null;
+      const ms = await renderer.resolveTimestampsAsync(TimestampQuery.RENDER);
+      return typeof ms === "number" && Number.isFinite(ms) ? ms : null;
+    },
     onDeviceLost(listener) {
       lostListeners.push(listener);
     },
