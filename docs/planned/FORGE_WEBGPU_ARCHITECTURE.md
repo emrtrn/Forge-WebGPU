@@ -1,6 +1,11 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.11 · 2026-11-13 (v1.10'dan fark: Faz 3 adım 5 — §4.9 çevrenin
+**Sürüm:** v1.12 · 2026-11-13 (v1.11'den fark: Faz 3 adım 6 — §4.9 pipeline
+uygulaması: plan + tek `RenderPipeline`, MRT sondası, çıktı dönüşümü bağlamalardan
+önce (`ctx.output` salt okunur), renderer `antialias: true` (MSAA yalnız
+pipeline'sız çizimde), kullanıcı kararları: gökyüzü kubbesi Post Process altında,
+SSGI AO'nun yerine.
+v1.11 · 2026-11-13 (v1.10'dan fark: Faz 3 adım 5 — §4.9 çevrenin
 uygulaması: arka plan / ortam ışığı `forge.skyLight`'ta (kullanıcı kararı),
 gökyüzü varken ACES (kullanıcı kararı), WES yorumu ve bağlama `ctx`'inin
 `environment` / `output` / `capture` alanları, `WorldEnvironmentKey`.
@@ -1089,7 +1094,7 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
 - *Klasörler:* `src/render/{host,resources,materials,pipeline,sync,viewer}`.
   three (`three/webgpu`, `three/tsl`) yalnız burada ve `features/*/render.ts`'te.
 - *Renderer host:* `WebGPURenderer` (`trackTimestamp`, `reversedDepthBuffer`,
-  `antialias: false`), `await init()`. Backend kanıtı Faz 1 S1 biçiminde
+  `antialias: true`: MSAA yalnız pipeline'sız çizimde, adım 6), `await init()`. Backend kanıtı Faz 1 S1 biçiminde
   (`isWebGPUBackend`, adaptör, özellikler, sınırlar) tutulur ve
   `data-forge-backend` ile `data-forge-perf`'e (Faz 0 düzeneğinin alanları,
   taşınmış `perfWitness`) yazılır. Rozet geliştirmede her zaman, üretimde
@@ -1233,6 +1238,28 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   (2) + diffuse RGBA8 (8) = 30 ≤ 32 bayt / örnek; bir test her profilin
   toplamını sınar. Post Process `reflection: off | ssr`, `antialias: none |
   traa | smaa`.
+- *Pipeline, uygulama (adım 6, 2026-11-13):* `src/render/pipeline`: `pipelinePlan`
+  (üç'süz: geçitlenmiş Post Process + kalite → sıralı pass'lar, MRT hedefleri, bayt,
+  yeniden kurma anahtarı), `renderPipeline` (tek three `RenderPipeline`; sahne pass'i
+  MSAA'sız, MRT hedefleri yalnız okuyan pass'lar için; sıra sahne → GTAO ya da SSGI
+  → SSR → TRAA ya da SMAA → DoF → bloom → renk düzeltme → renk sapması → vignette →
+  gren → ton eşleme + pozlama; anahtar, World ya da kamera değişince yeniden kurulur,
+  yazılan sayılar uniform), `output` (Forge'un pozlama kuralı), `mrtProbe` (açılışta
+  cihazda tam MRT setiyle doğrulama hatası kapsamında bir pipeline; sonuç perf ve
+  smoke kaydında). Pass'sız plan doğrudan çizilir; renderer `antialias: true`, MSAA bu
+  yolda (Forge her level'ı MSAA ile çiziyordu; kullanıcı kararı 2026-11-13). Post
+  Process özelliğinin render bağlaması yok: `render/sync/output.ts` her karede
+  bağlamalardan önce `forge.skyAtmosphere` ve `forge.postProcess`'i adıyla okur,
+  Post Process'i `applyQualityToPostProcess`'ten geçirir (bileşen verisine
+  uyarlandı, + TRAA / SSR) ve `ctx.output`'u (salt okunur: ton eşleme, pozlama,
+  `skyRadiance`, geçitlenmiş Post Process) yazar. Kural: Post Process varken onun ton
+  eşleyicisi ve pozlama × 0,2, yoksa gökyüzü varken ACES × 0,2, yoksa ton eşlemesiz;
+  WES çarpanı hepsine. **Kullanıcı kararları (2026-11-13):** Post Process varken
+  gökyüzü kubbesi kendi pozlamasıyla (× 0,2'siz) sahneye göre çizilir; SSGI, profil
+  izin verirse (Cinematic) level'ın AO'sunun yerine çalışır (yeni alan yok). Forge
+  ölçekleri korunur (bloom ×0,001, RGB shift ×0,01, GTAO yarıçapı ×0,1); DoF three'de
+  CoC modeli (tam bulanıklık uzaklığı Forge'un `maxBlur / aperture` oranı). MRT
+  toplamları: ultra / high / medium 22, low 8, cinematic 30 bayt.
 - *Olay bazlı gün saati:* `forge.worldEnvironment`'ta sabit `hour`; sürekli
   gün döngüsü yok. `WorldEnvironmentService.transitionTo({ hour, seconds })`
   saati yumuşak geçişle ilerletir, sonra durur (saf modül

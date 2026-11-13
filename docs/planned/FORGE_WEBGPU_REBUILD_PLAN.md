@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
+**Sürüm:** v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
 `forge.skyAtmosphere` / `forge.skyLight` (arka plan ve ortam ışığı dahil,
 kullanıcı kararı) / `forge.cloudLayer` / `forge.worldEnvironment` (sabit
 saat), TSL gökyüzü + ay + yıldız, PMREM Sky Light, bulut, WES yorumu,
@@ -493,7 +493,23 @@ harita, hafıza):
    `--compare`'de eşit; `check:projects` ve smoke, L03, gerçek WebGPU'da yeşil).
    **A 934 / 1.021**.
    Adıma düşen R: 19 yeniden yazıldı (sis ikizi dahil), 6 düştü (`PORT_LOG` §2).
-6. `RenderPipeline` + Post Process + kalite eşlemesi + MRT.
+6. ~~`RenderPipeline` + Post Process + kalite eşlemesi + MRT.~~ — **tamam**
+   (2026-11-13, `5d8c8cc` şema + kalite kapısı + çevirici, `7e202d4` render).
+   `forge.postProcess` Forge'un alanları ve aralıklarıyla + `antialias: none | traa |
+   smaa`, `reflection: off | ssr`; `applyQualityToPostProcess` bileşen verisine
+   uyarlandı (+ TRAA, SSR). Pipeline planı (pass sırası, MRT, yeniden kurma anahtarı)
+   + tek three `RenderPipeline`: MRT'li sahne pass'i → GTAO / SSGI → SSR → TRAA / SMAA →
+   DoF → bloom → renk düzeltme → renk sapması → vignette → gren → ton eşleme;
+   pass'sız plan doğrudan. MRT biçim sıkıştırması 30 bayt, profil başına test
+   (ultra / high / medium 22, low 8, cinematic 30), açılışta cihazda tam set sondası
+   (NVIDIA Ampere: 30 / 32 kabul). **Kullanıcı kararları (2026-11-13):** Post Process
+   varken çıktı onun ton eşleyicisi ve pozlamasıyla, gökyüzü kubbesi kendi pozlamasıyla
+   (× 0,2'siz) sahneye göre; SSGI, profil izin verirse AO'nun yerine (yeni alan yok);
+   renderer `antialias: true`, MSAA yalnız pipeline'sız çizimde (Forge gibi). Post
+   Process'siz level Forge'daki gibi (gökyüzü varken ACES, yokken ton eşlemesiz).
+   Referans projesi kullanıcı onayıyla yeniden alındı (7 level `--compare`'de eşit; L03
+   smoke'ta `scene,gtao,smaa,bloom,output`, GPU 0,6 ms). **A 934 / 1.021**; adıma düşen
+   R: 9 yeniden yazıldı, 1 düştü (`PORT_LOG` §2).
 7. Olay bazlı gün saati (`timeTransition`, ayrı commit) + yakalama sıklığı ölçümü.
 8. Görüntüleyiciyi tamamla: instancing (kip b), terrain salt çizimi, bütün
    referans level'lar, kamera, `?debug`.
@@ -531,13 +547,14 @@ harita, hafıza):
       (karar 8). Geçiş sırasında sky light / IBL yeniden yakalama sıklığı
       ölçülerek seçilir. (Forge'da `setHour` anlık atlıyordu.) *Adım 5:* sabit
       saat (`forge.worldEnvironment.hour`, gün uzunluğu yok); geçiş adım 7'de.
-- [ ] `RenderPipeline` + kalite profilleri (§2.4, karar 3). Profil tanımı S3'te
+- [x] `RenderPipeline` + kalite profilleri (§2.4, karar 3). Profil tanımı S3'te
       (Faz 1). Post Process'te yansıma seçeneği `reflection: off | ssr`
       (kullanıcı kararı 2026-11-11); profil izin verir, zorla açmaz. MRT sınırı
       biçim sıkıştırmayla (karar 4). *Adım 2:* kalite merdiveni, uyarlamalı
       kalite, donanım ipuçları, kullanıcı ayarları ve WebGPU izin alanları
       (Cinematic dahil) hazır; `RenderPipeline`, MRT ve profil başına bayt testi
-      adım 6'da.
+      adım 6'da. *Adım 6 (2026-11-13):* `forge.postProcess`, kalite kapısı, TSL
+      pipeline, MRT testi ve cihaz sondası, çıktı dönüşümü; görsel kabul kapıda.
 - [ ] Level görüntüleyici: level.json → statik mesh'ler, şekiller, instancing,
       terrain salt çizimi (karar 1); runtime route'unda salt görüntüleme. HLOD
       5b'de (karar 9).
@@ -873,3 +890,5 @@ silinebilir.
 | 2026-11-13 | v1.6 | Faz 3 adım 4 (`f6aa509`, `203714e`, `04409af`, `6f02c42`): asset perf raporu taşındı (3 A; taşıma araçları `tools/`'u da tarar); çekirdek şemalı JSON asset türü + isteğe bağlı renk, SDK 0.1.2; `forge.material` ve sürüm 2 `forge.texture` / `model` / `staticMesh` / `shape` / `terrain`; Forge materyal normalize'ı içe aktarıcı okuyucusu, materyal / model yan dosyası / yerleşim renk-gölge-materyal / landscape materyali çeviricileri; starter paketine 10 materyal ve uyarlanan A kontrolü; TSL materyal (slot düğümleri, katman karışımı, normal hareketi), katkı sırası + world mask, doku / materyal önbellek anahtarları, model hazırlığı (normal, anizotropi, UVW, slotlar), static mesh slot / tint / `castShadow`. Kullanıcı kararları: boş tint, `enabled` grupları, `name` / preset, `materialSlot` her slota. Referans projesi kullanıcı onayıyla yeniden alındı; smoke gerçek WebGPU'da, L03 zemini slot materyaliyle. 1.643 test, kapı yeşil. **A 924 / 1.021**, Faz 3'te ertelenmiş A kalmadı. Mimari v1.10 |
 | 2026-11-13 | v1.7 | Faz 3 adım 5, çevre (`69a9be7`, `c3c4d07`, `f092bc5`): `engine/world/viewDistance` 5b'den öne alındı (10 A, sisin CPU ikizi R'si yeniden yazıldı); `forge.skyAtmosphere` / `forge.skyLight` / `forge.cloudLayer` / `forge.worldEnvironment` (sabit saat, WES servisi); içe aktarıcı çeviricileri (rapor ve `--compare` sayar), World Builder greybox görünümü; TSL gökyüzü + ay + yıldız, PMREM Sky Light, bulut kubbesi, WES yorumu kare başına, gökyüzü varken ACES × 0,2. Kullanıcı kararları: arka plan / ortam ışığı Sky Light'ta, ton eşleme Forge kuralıyla şimdi, `viewDistance` öne. Smoke yeniden alınmış kopyada gerçek WebGPU'da yeşil; referans projesinin yeniden alınması kullanıcı onayında. 1.683 test, kapı yeşil. **A 934 / 1.021**. Mimari v1.11 |
 | 2026-11-13 | v1.7 | Referans projesi (`webgpu-scenes`) kullanıcı onayıyla çevre çeviricileriyle yeniden alındı: 7 level'da gökyüzü / Sky Light / bulut / WES sayımları `--compare`'de eşit, `check:projects` ve smoke (L03) gerçek WebGPU'da yeşil; ForgeReference README'si ve içe aktarma raporları güncellendi |
+| 2026-11-13 | v1.8 | Faz 3 adım 6 (`5d8c8cc`, `7e202d4`): `forge.postProcess` (+ TRAA, SSR seçimi) ve içe aktarıcı çeviricisi, `applyQualityToPostProcess` bileşen verisine; TSL `RenderPipeline` (MRT'li sahne pass'i, GTAO / SSGI / SSR / TRAA / SMAA / DoF / bloom / renk düzeltme / renk sapması / vignette / gren, ton eşleme), MRT 30 bayt + profil başına test + cihaz sondası, çıktı dönüşümü bağlamalardan önce. Kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA. 9 R yeniden yazıldı, 1 düştü; A 934 / 1.021 |
+| 2026-11-13 | v1.8 | Referans projesi (`webgpu-scenes`) kullanıcı onayıyla Post Process çeviricisiyle yeniden alındı: 7 level `--compare`'de eşit (L03 ve Derekavak'ta `forge.postProcess`), `check:projects` ve smoke (L03 pipeline'la, gerçek WebGPU) yeşil; ForgeReference README'si ve içe aktarma raporları güncellendi |
