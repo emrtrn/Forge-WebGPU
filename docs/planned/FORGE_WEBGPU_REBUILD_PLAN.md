@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v1.12 · 2026-11-13 (v1.11'den fark: Faz 4 başladı — döküm (36 INV satırı, ertelenmiş A yok, 11 R), kararlar 1–12 (kullanıcı onayı), adım sırası 1–10; mimari v1.16. v1.11 · 2026-11-13 (v1.10'dan fark: Faz 3 kapandı — adım 9: smoke tam seti Faz 0 pozu ve boyutuyla, Faz 0 ile yan yana ızgara (`npm run smoke:grid`), yönlü ışıkların dünya çerçevesi düzeltmesi; kullanıcının görsel kabulü ve referanslar; view distance 5b'ye (kullanıcı kararı); bölüm `docs/archive/PHASE_3.md`'ye taşındı; mimari v1.15. v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 8 tamam — otomatik instancing, terrain salt çizimi, görüntüleyicinin varsayılan kamerası, `?debug` paneli, bütün çizen referans level'lar smoke'ta; kullanıcı kararları: terrain / örtü katman materyali GUID, paket manifesti `requires`, `?debug` kapsamı; referans projesi yeniden alındı; mimari v1.14. v1.9 · 2026-11-13 (v1.8'den fark: Faz 3 adım 7 tamam — olay bazlı gün saati: `timeTransition`, `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri), Sky Light yakalaması aynı PMREM'e, ölçülerek seçilen yakalama hızı (açı + 0,1 sn + durunca son yakalama), `npm run measure:sky-capture`; kullanıcı kararları; mimari v1.13. v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
+**Sürüm:** v1.13 · 2026-11-13 (v1.12'den fark: Faz 4 adım 1 tamam — UI kiti (`src/editor/ui`), `?editor-kit`, editörün tarayıcı denetimleri gate ve CI'da. v1.12 · 2026-11-13 (v1.11'den fark: Faz 4 başladı — döküm (36 INV satırı, ertelenmiş A yok, 11 R), kararlar 1–12 (kullanıcı onayı), adım sırası 1–10; mimari v1.16. v1.11 · 2026-11-13 (v1.10'dan fark: Faz 3 kapandı — adım 9: smoke tam seti Faz 0 pozu ve boyutuyla, Faz 0 ile yan yana ızgara (`npm run smoke:grid`), yönlü ışıkların dünya çerçevesi düzeltmesi; kullanıcının görsel kabulü ve referanslar; view distance 5b'ye (kullanıcı kararı); bölüm `docs/archive/PHASE_3.md`'ye taşındı; mimari v1.15. v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 8 tamam — otomatik instancing, terrain salt çizimi, görüntüleyicinin varsayılan kamerası, `?debug` paneli, bütün çizen referans level'lar smoke'ta; kullanıcı kararları: terrain / örtü katman materyali GUID, paket manifesti `requires`, `?debug` kapsamı; referans projesi yeniden alındı; mimari v1.14. v1.9 · 2026-11-13 (v1.8'den fark: Faz 3 adım 7 tamam — olay bazlı gün saati: `timeTransition`, `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri), Sky Light yakalaması aynı PMREM'e, ölçülerek seçilen yakalama hızı (açı + 0,1 sn + durunca son yakalama), `npm run measure:sky-capture`; kullanıcı kararları; mimari v1.13. v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
 `forge.skyAtmosphere` / `forge.skyLight` (arka plan ve ortam ışığı dahil,
 kullanıcı kararı) / `forge.cloudLayer` / `forge.worldEnvironment` (sabit
 saat), TSL gökyüzü + ay + yıldız, PMREM Sky Light, bulut, WES yorumu,
@@ -404,7 +404,16 @@ Dialogue, BT, State Tree (K12). Forge editör kodunun ~29.000 satırı kapsamda
 **Sıra** (her adım yeşilse ayrı commit + push; adımdan sonra `PORT_LOG` §2, bu
 bölüm + §11, gerekirse mimari rapor ve harita, hafıza):
 
-1. UI kiti (K7): token'lar, ikonlar, `paramFields`, şemadan form oluşturucu.
+1. ~~UI kiti (K7): token'lar, ikonlar, `paramFields`, şemadan form oluşturucu.~~ — **tamam**
+   (2026-11-13, `210ed40`). `src/editor/ui`: `createFormView` core form tanımını Details
+   satırlarına çevirir (her alan türü; sınırlı sayı kaydırıcı + kutu, aralık adın altında,
+   sınıra çekme Türkçe uyarıyla; vektör / transform X / Y / Z, dönüş derecede, kuaterniyon
+   saklanır; başvurular Browse / Clear; dizi Add / Remove; nesne bölüm). Forge'un ikonları
+   olduğu gibi, CSS'in kit kısmı token ve sınıf adlarıyla; `paramFields` saf fonksiyon.
+   `?editor-kit` (yalnız dev, build'e girmez) motorun her bileşeninin üretilen formunu
+   gösterir; `npm run smoke:editor` (`tests/editor`, başsız Chrome) kiti orada sınar ve
+   gate'e, dolayısıyla CI'a girdi (karar 12). Tarayıcı testi üç kit hatası yakaladı
+   (renk temizle düğmesi, başvuru metni, eski diziyle silme). A 934 / 1.021 değişmedi.
 2. Dikey dilim: `?editor` (yalnız dev, dinamik import), editör host'u
    (`features/*/editor.ts` + `editorRender.ts`, `defineFeatureEditor` editor-sdk'da),
    kabuk düzeni, level aç → oturum → World + render + editör kamerası, undo / redo +
@@ -431,10 +440,11 @@ bölüm + §11, gerekirse mimari rapor ve harita, hafıza):
       çizimler TRAA'dan sonra, jitter'sız ayrı bir pass'te çizilir (TRAA
       geçmişine girerlerse titrer ve iz bırakır); derinlik testi sahne
       derinliğine karşı yapılır.
-- [ ] **Önce UI kiti (K7):** tasarım token'ları + Forge `paramFields` mantığı
+- [x] **Önce UI kiti (K7):** tasarım token'ları + Forge `paramFields` mantığı
       (kaydırıcı + kutu, sınıra çekme, %30/%70, TR ipucu / EN ad) küçük bir kit
       olarak taşınır; şemadan üretilen Details ve taşınan paneller aynı kiti
-      kullanır.
+      kullanır. *Adım 1 (2026-11-13):* `src/editor/ui` (form görünümü, parametre
+      kuralları, token'lar, ikonlar), `?editor-kit`, `npm run smoke:editor`.
 - [ ] DOM panelleri uyarlanarak taşınır (framework yok, redesign yok): Outliner,
       Details (şema tabanlı), Content Browser, World Settings, ortam ve
       post-process ayrıntıları (görünüm ayarı burada yapılır), Add Actor menüsü.
@@ -750,3 +760,4 @@ silinebilir.
 | 2026-11-13 | v1.11 | Faz 3 adım 9 (`38dcc56`, `5a71a75`): render smoke tam seti (4 terrain level × Faz 0 P1–P3, L03, 2 çerçeveli level; 15 çekim, 1920 × 1080 DPR 1, pozlar `baseline/poses.json`'dan), `npm run smoke:grid` (Faz 0 WebGL | WebGPU yerel sayfası); ızgarada bulunan hata düzeltildi: güneş dönük aktörün altındayken `CSMShadowNode` kaskatları görüşü ıskalıyordu, terrain level'larında statik gölge yoktu (yönlü ışıklar dünya çerçevesinde, yeni test). Farklar kullanıcıya listelendi (foliage 5c, su 7, araçlar 6 / 8, gölge kenarı, orta mesafe tonu) |
 | 2026-11-13 | v1.11 | Faz 3 kapandı: kullanıcının görsel kabulü; referanslar `--update-snapshots` ile yazıldı, ikinci koşu 15 / 15 karşılaştırmada; kapı A 934 / 1.021, Faz 3'e ertelenmiş A yok; "Işık ve gölge" kutusu işaretlendi, view distance 5b'ye (kullanıcı kararı, seçenek a). Ayrıntı `docs/archive/PHASE_3.md`'ye taşındı, planda özet; mimari v1.15. Sıradaki: Faz 4 (editör çekirdeği) |
 | 2026-11-13 | v1.12 | Faz 4 başladı: döküm (36 INV satırı; Faz 4'e ertelenmiş A yok; editör alanında 11 R, 27 M niyeti kabul ölçütü) ve tasarım kullanıcı onayıyla ("önerileri kabul ediyorum"; mimari v1.16): editörün 3B kodu `src/render/editor/` + rol `features/*/editorRender.ts`, Forge'un gizmo'su, World `actorsChanged`, ajan komutları kayıt servisi modülüyle + editörün canlı tazelenmesi + `find` / `show`, motor içeriği kipi `--engine-content`, asset editörleri genel veri editörü + önizleme, Play oturum katmanı, küçük resim önbelleği, grup = boş aktör, editörde bütün hücreler, editör smoke'ları CI'da `forceWebGL`. Adım sırası 1–10 |
+| 2026-11-13 | v1.13 | Faz 4 adım 1, UI kiti (`210ed40`): `src/editor/ui` — core form tanımından Details satırları (her alan türü, Forge'un parametre kuralları saf fonksiyonla, Türkçe sınır uyarısı, dönüş derece ↔ kuaterniyon `engine/math/euler.ts`), Forge'un ikonları ve CSS token'ları; `?editor-kit` geliştirme sayfası; `npm run smoke:editor` (başsız Chrome) gate'te ve CI'da. A 934 / 1.021 |
