@@ -10,7 +10,7 @@ import { REPO_ROOT, SMOKE_QUALITY, type SmokePose } from "./renderScenes.ts";
 
 export const READY_TIMEOUT_MS = 120_000;
 
-export function quaternionOf(pose: SmokePose): [number, number, number, number] {
+export function quaternionOf(pose: Required<SmokePose>): [number, number, number, number] {
   const eye = new Vector3(...pose.position);
   const target = new Vector3(...pose.target);
   const rotation = new Matrix4().lookAt(eye, target, new Vector3(0, 1, 0));
@@ -27,13 +27,14 @@ export function git(args: string[]): string {
 }
 
 export interface OpenedLevel {
-  readonly cameraPose: { position: readonly [number, number, number]; quaternion: [number, number, number, number] };
+  /** Null when the viewer framed the level itself. */
+  readonly cameraPose: { position: readonly [number, number, number]; quaternion: [number, number, number, number] } | null;
 }
 
 /** Opens `level` at `pose` with the smoke profile and waits until it is ready; a boot error throws. `query` adds URL parameters (`&debug`). */
 export async function openSmokeLevel(page: Page, level: string, pose: SmokePose, query = ""): Promise<OpenedLevel> {
-  const cameraPose = { position: pose.position, quaternion: quaternionOf(pose) };
-  await page.addInitScript((value) => localStorage.setItem("forge.play.cameraPose", value), JSON.stringify(cameraPose));
+  const cameraPose = pose.position && pose.target ? { position: pose.position, quaternion: quaternionOf(pose as Required<SmokePose>) } : null;
+  if (cameraPose) await page.addInitScript((value) => localStorage.setItem("forge.play.cameraPose", value), JSON.stringify(cameraPose));
   const settings = {
     schema: 1,
     updatedAt: new Date().toISOString(),

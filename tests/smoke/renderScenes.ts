@@ -23,9 +23,10 @@ export const SMOKE_QUALITY = "high";
 
 export interface SmokePose {
   readonly id: string;
-  readonly position: readonly [number, number, number];
+  /** Absent with `target`: the viewer's own framing of the level (a level with no Phase 0 pose). */
+  readonly position?: readonly [number, number, number];
   /** The point the camera looks at; the quaternion is derived from it. */
-  readonly target: readonly [number, number, number];
+  readonly target?: readonly [number, number, number];
 }
 
 export interface SmokeScene {
@@ -48,4 +49,8 @@ export const SMOKE_SCENES: readonly SmokeScene[] = [
   { id: "wb-pilot", level: "content/levels/WbPilotValley", poses: [{ id: "p2", position: [-37.9, 150.5, 450], target: [-34.1, 41.3, 150] }] },
   { id: "island", level: "content/levels/Island", poses: [{ id: "p2", position: [142.9, 73.4, -45.5], target: [-142.9, -35.8, 45.5] }] },
   { id: "open-world", level: "content/levels/OpenWorldTest", poses: [{ id: "p2", position: [30.9, 60.7, 649.8], target: [16.6, -48.5, 350.2] }] },
+  // No Phase 0 pose: the viewer frames the placements (Forge's room bounds). `main`, the empty
+  // start level, has nothing to draw; check:projects opens it.
+  { id: "physics-interaction", level: "content/levels/PhysicsInteractionTest", poses: [{ id: "framed" }] },
+  { id: "spline-test-range", level: "content/levels/spline-test-range", poses: [{ id: "framed" }] },
 ];
