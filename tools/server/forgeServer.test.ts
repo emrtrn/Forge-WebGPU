@@ -76,6 +76,22 @@ describe("authoring endpoints", () => {
     expect(Buffer.from(await binary.arrayBuffer())).toEqual(png);
   });
 
+  test("thumbnails: stored and read back by GUID and revision, an older revision goes, only PNGs, ids and revisions checked", async () => {
+    const id = `ast_${"a".repeat(32)}`;
+    const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from("rest")]);
+    const url = (rev: string, guid = id) => `${base}/__forge/thumbnail?id=${guid}&rev=${rev}`;
+    expect((await fetch(url("0".repeat(16)), { headers: HEADERS })).status).toBe(404);
+    expect((await fetch(url("0".repeat(16)), { method: "POST", headers: HEADERS, body: png })).status).toBe(200);
+    const read = await fetch(url("0".repeat(16)), { headers: HEADERS });
+    expect(read.headers.get("content-type")).toBe("image/png");
+    expect(Buffer.from(await read.arrayBuffer())).toEqual(png);
+    expect((await fetch(url("1".repeat(16)), { method: "POST", headers: HEADERS, body: png })).status).toBe(200);
+    expect(await readdir(join(project, ".forge-cache/thumbnails"))).toEqual([`${id}-${"1".repeat(16)}.png`]);
+    expect((await fetch(url("2".repeat(16)), { method: "POST", headers: HEADERS, body: "not a png" })).status).toBe(400);
+    expect((await fetch(url("../../x"), { headers: HEADERS })).status).toBe(400);
+    expect((await fetch(url("0".repeat(16), "ast_../../etc"), { headers: HEADERS })).status).toBe(400);
+  });
+
   test("status codes: conflict 409, refused path 403, refused document 422, bad request 400, too large 413", async () => {
     await writeFile(join(project, "content/x.png.meta.json"), "{}");
     const conflict = await post("/__forge/save", { writes: [{ path: "content/x.png.meta.json", base: null, text: "{}" }] });

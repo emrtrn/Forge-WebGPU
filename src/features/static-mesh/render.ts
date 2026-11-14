@@ -25,8 +25,9 @@
 // placements in their batches (`changeInstances`); any other is removed and
 // added again.
 
-import { Matrix4, Mesh, type Material, type Object3D } from "three/webgpu";
+import { Matrix4, Mesh, type Material } from "three/webgpu";
 import { parseComponentTypeTag, type WorldActor } from "../../core/index.ts";
+import { assignSlotMaterials, slotMaterialIds, slotResolver } from "../../render/resources/modelSlots.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
 import type { ModelTemplate } from "../../render/resources/worldResources.ts";
 import { changeInstances, createInstanceBatch, type InstanceBatch, type InstancePart } from "../../render/sync/instanceBatches.ts";
@@ -41,29 +42,8 @@ interface Batch {
   disposed: boolean;
 }
 
-/** The material GUID each model slot draws with: the placement's override, else the model's default, else null (the GLB's). */
-export function slotMaterialIds(model: Pick<ModelTemplate, "slots" | "slotMaterials">, overrides: readonly (string | null)[]): (string | null)[] {
-  return model.slots.map((_, index) => overrides[index] ?? model.slotMaterials[index] ?? null);
-}
-
-/** The material a mesh's material takes: its slot's chosen one (`chosen[i]` for template slot i). */
-function slotResolver(slots: readonly Material[], chosen: readonly Material[]): (material: Material, local: number) => Material {
-  const slotOf = new Map<Material, number>();
-  slots.forEach((material, index) => slotOf.set(material, index));
-  return (material, local) => chosen[slotOf.get(material) ?? local] ?? material;
-}
-
-/** Puts each mesh's slot materials on the clone; `chosen[i]` replaces the template's slot i material. */
-export function assignSlotMaterials(object: Object3D, slots: readonly Material[], chosen: readonly Material[]): void {
-  const resolve = slotResolver(slots, chosen);
-  object.traverse((child) => {
-    if (!(child instanceof Mesh)) return;
-    const mesh = child as Mesh;
-    mesh.material = Array.isArray(mesh.material)
-      ? (mesh.material as Material[]).map((material, local) => resolve(material, local))
-      : resolve(mesh.material as Material, 0);
-  });
-}
+// The slot rules live in render/resources/modelSlots.ts (the editor's thumbnails use them too).
+export { assignSlotMaterials, slotMaterialIds };
 
 /** The template's renderable parts with their slot materials and their matrices under the template root. */
 export function modelParts(model: ModelTemplate, chosen: readonly Material[]): InstancePart[] {

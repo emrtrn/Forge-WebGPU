@@ -29,10 +29,19 @@ export interface AssetUrls {
   importSettings(guid: string): JsonObject | null;
   /** Headers a loader sends with each request. */
   readonly headers: Readonly<Record<string, string>>;
+  /**
+   * Takes a new index (the editor, after an import or a move: plan phase 4
+   * step 6); loaders read it from their next request.
+   */
+  update(files: Readonly<Record<string, AssetFile>>): void;
 }
 
-export function assetUrlsFromIndex(files: Readonly<Record<string, AssetFile>>, readUrl: (file: string) => string, headers: Record<string, string> = {}): AssetUrls {
+export function assetUrlsFromIndex(initial: Readonly<Record<string, AssetFile>>, readUrl: (file: string) => string, headers: Record<string, string> = {}): AssetUrls {
+  let files = initial;
   return {
+    update: (next) => {
+      files = next;
+    },
     url: (guid) => {
       const found = files[guid];
       return found ? readUrl(found.file) : null;

@@ -32,6 +32,7 @@ import {
   type ContentItem,
 } from "./contentModel.ts";
 import type { ContentStore } from "./contentStore.ts";
+import { thumbnailKind, type ContentThumbnails } from "./contentThumbnails.ts";
 
 export interface ContentPanelOptions {
   readonly document: Document;
@@ -46,6 +47,8 @@ export interface ContentPanelOptions {
   readonly status: (message: string, tone?: "info" | "warning" | "error") => void;
   /** Save All (the level). */
   readonly save: () => void;
+  /** Card images (step 6b); without them cards show their type's text. */
+  readonly thumbnails?: ContentThumbnails;
 }
 
 export interface ContentPanel {
@@ -260,7 +263,16 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
       "content-folder-menu",
     );
   const assetMenu = (event: MouseEvent, item: ContentAssetItem): void =>
-    menuAt(event, [{ label: "Copy Path", run: () => copyPath(item.levelFolder ?? item.file), testId: "content-menu-copy-path" }], "content-asset-menu");
+    menuAt(
+      event,
+      [
+        ...(options.thumbnails && thumbnailKind(item) !== null
+          ? [{ label: "Refresh Thumbnail", run: () => options.thumbnails!.refresh(item), testId: "content-menu-refresh-thumbnail" }, { separator: true as const }]
+          : []),
+        { label: "Copy Path", run: () => copyPath(item.levelFolder ?? item.file), testId: "content-menu-copy-path" },
+      ],
+      "content-asset-menu",
+    );
 
   const describe = (item: ContentAssetItem): void => {
     const prefix = `${item.name} · ${contentTypeLabel(item.type)}`;
@@ -296,6 +308,7 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
     }
     const thumb = el("span", "asset-thumb", item.type === "forge.actorClass" ? "BP" : item.ext);
     thumb.dataset.assetThumb = "";
+    options.thumbnails?.attach(item, thumb);
     const meta = el("span", "asset-meta");
     meta.append(el("strong", "", item.name), el("span", "asset-type-line", contentTypeLabel(item.type)));
     card.append(thumb, meta);
@@ -350,6 +363,7 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
     document: doc,
     list,
     card: (item) => (item.kind === "folder" ? folderCard(item.folder) : assetCard(item)),
+    drawn: (shown) => options.thumbnails?.retain(shown.filter((item): item is ContentAssetItem => item.kind === "asset")),
   });
 
   // ---- tree ----

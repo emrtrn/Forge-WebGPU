@@ -14,6 +14,7 @@
 
 import type { AssetIndex, ContentFileBody, ContentIssueBody, ContentListingBody, FileIssue } from "../../src/core/index.ts";
 import { fileLabel } from "../../src/core/index.ts";
+import { fileRevision } from "./revision.ts";
 import type { ScanResult } from "./scan.ts";
 
 function parentOf(label: string): string | null {
@@ -26,14 +27,15 @@ function issueBody(issue: FileIssue): ContentIssueBody {
 }
 
 export function buildContentListing(scan: ScanResult, index: AssetIndex, writable: (label: string) => boolean): ContentListingBody {
-  const assetOf = new Map<string, { readonly id: string; readonly type: string }>();
+  const assetOf = new Map<string, { readonly id: string; readonly type: string; readonly meta: string | null }>();
+  const revisionOf = new Map(scan.files.filter((file) => file.revision !== undefined).map((file) => [fileLabel(file.root, file.path), file.revision!]));
   /** A meta file -> its binary. */
   const binaryOfMeta = new Map<string, string>();
   /** A level's folder -> its `level.json`. */
   const levelOfFolder = new Map<string, string>();
   for (const entry of index.entries.values()) {
     const file = fileLabel(entry.root, entry.path);
-    assetOf.set(file, { id: entry.id, type: entry.type });
+    assetOf.set(file, { id: entry.id, type: entry.type, meta: entry.meta === null ? null : fileLabel(entry.root, entry.meta) });
     if (entry.meta !== null) binaryOfMeta.set(fileLabel(entry.root, entry.meta), file);
     if (entry.type === "forge.level") {
       const folder = parentOf(file);
@@ -64,10 +66,14 @@ export function buildContentListing(scan: ScanResult, index: AssetIndex, writabl
     if (index.parts.has(label) || binaryOfMeta.has(label)) continue;
     const asset = assetOf.get(label);
     const found = issues.get(label);
+    // A binary asset's revision: its size and time with its meta file's bytes (what its thumbnail is keyed by).
+    const stamp = scan.stamps?.get(label);
+    const revision =
+      file.revision ?? (stamp !== undefined && asset?.meta ? fileRevision(`${stamp}:${revisionOf.get(asset.meta) ?? ""}`) : undefined);
     files.push({
       file: label,
       ...(asset ? { id: asset.id, type: asset.type } : {}),
-      ...(file.revision !== undefined ? { revision: file.revision } : {}),
+      ...(revision !== undefined ? { revision } : {}),
       ...(found ? { issues: found } : {}),
     });
   }

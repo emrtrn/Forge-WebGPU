@@ -57,6 +57,8 @@ export interface ContentAssetItem {
   readonly type: string | null;
   readonly issues: readonly ContentIssueBody[];
   readonly writable: boolean;
+  /** The listing's revision (what the thumbnail is keyed by); null when it has none. */
+  readonly revision: string | null;
   /** A level: its folder. */
   readonly levelFolder: string | null;
 }
@@ -188,6 +190,7 @@ export function buildContentIndex(listing: ContentListingBody): ContentIndex {
       type,
       issues: file.issues ?? [],
       writable: root.writable,
+      revision: file.revision ?? null,
       levelFolder: isLevel ? folder.path : null,
     };
     if (isLevel) folder.level = item;

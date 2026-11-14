@@ -60,6 +60,8 @@ export function createContentGrid<T>(options: {
   /** The scrolling `.content-list`. */
   readonly list: HTMLElement;
   readonly card: (item: T) => HTMLElement;
+  /** The items drawn, after each draw (the thumbnails keep only their work). */
+  readonly drawn?: (items: readonly T[]) => void;
 }): ContentGrid<T> {
   const doc = options.document;
   const sizer = doc.createElement("div");
@@ -78,7 +80,9 @@ export function createContentGrid<T>(options: {
     grid.style.top = `${view.top}px`;
     grid.style.gridTemplateColumns = `repeat(${view.columns}, minmax(0, 1fr))`;
     grid.style.gridAutoRows = `${CONTENT_VIEW_SIZES[size].row}px`;
-    grid.replaceChildren(...items.slice(view.first, view.end).map(options.card));
+    const shown = items.slice(view.first, view.end);
+    grid.replaceChildren(...shown.map(options.card));
+    options.drawn?.(shown);
   };
   const schedule = (): void => {
     if (frame !== null) return;

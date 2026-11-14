@@ -22,10 +22,21 @@ describe("content listing", () => {
       "content/classes/car.json",
       "content/levels/main/level.json",
     ]);
-    expect(listing.files[0]).toEqual({ file: "content/textures/paint.png", id: TEX, type: "test.texture" });
+    expect(listing.files[0]).toEqual({ file: "content/textures/paint.png", id: TEX, type: "test.texture" }); // no stamp: no revision
     expect(listing.files[1]).toMatchObject({ id: MESH, type: "test.mesh" });
     expect(listing.files[4]).toMatchObject({ id: levelId("a"), type: "forge.level" });
     expect(listing.files.every((file) => file.issues === undefined)).toBe(true);
+  });
+
+  test("a binary asset's revision follows its size, time and meta file; a JSON file's is its bytes'", () => {
+    const files = projectFiles().map((file) => (file.path.endsWith(".json") ? { ...file, revision: `r-${file.path}` } : file));
+    const scan = (stamp: string): ScanResult => ({ ...scanOf(files), stamps: new Map([["content/textures/paint.png", stamp]]) });
+    const index = build(files);
+    const revision = (stamp: string) => buildContentListing(scan(stamp), index, () => true).files.find((file) => file.id === TEX)?.revision;
+    expect(revision("4-100")).toMatch(/^[0-9a-f]{16}$/);
+    expect(revision("4-100")).toBe(revision("4-100"));
+    expect(revision("4-200")).not.toBe(revision("4-100"));
+    expect(buildContentListing(scan("4-100"), index, () => true).files.find((file) => file.file === "content/classes/car.json")?.revision).toBe("r-classes/car.json");
   });
 
   test("a file that is no asset is listed without a GUID, with its issues; a meta file's issues go on its binary", () => {

@@ -11,6 +11,10 @@
 //   GET  /__forge/classes       the project's actor classes, normalised
 //   GET  /__forge/content       what the Content Browser lists: roots (writable or not), folders, files with
 //                               their GUID, type and issues (contentListing.ts); `?refresh=1` rescans the disk
+//   GET  /__forge/thumbnail?id=&rev=   a Content Browser thumbnail from the cache (PNG), 404 when not drawn yet
+//   POST /__forge/thumbnail?id=&rev=   stores one the editor drew (PNG body); older revisions of the asset go
+//                               (`.forge-cache/thumbnails/<guid>-<revision>.png`, decision 9; a cache, so a
+//                               read-only project takes it too)
 //   GET  /__forge/asset-files   every binary asset (with its import settings), schema-defined JSON asset and data document:
 //                               GUID -> { type, file, import? }, `file` for /__forge/read
 //                               (the renderer resolves model and texture GUIDs with it)
@@ -28,7 +32,7 @@
 
 import { randomBytes } from "node:crypto";
 import { createWriteStream } from "node:fs";
-import { mkdir, readFile, rm, stat } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -50,6 +54,12 @@ import {
 } from "./projectPaths.ts";
 
 export const STAGING_DIR = ".forge-staging";
+export const THUMBNAIL_DIR = ".forge-cache/thumbnails";
+/** A thumbnail is a small PNG (192 px). */
+export const MAX_THUMBNAIL_BYTES = 2 * 1024 * 1024;
+const THUMBNAIL_ID = /^(ast|lvl)_[0-9a-f]{32}$/;
+const THUMBNAIL_REVISION = /^[0-9a-f]{16}$/;
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 /** One staged binary, and one JSON save request (a full save of a 50.000-actor level is ~38 MB). */
 export const MAX_BODY_BYTES = 64 * 1024 * 1024;
 export const FORGE_REQUEST_HEADER = "x-forge-request";
@@ -309,6 +319,47 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
     res.end(bytes);
   };
 
+  const thumbnailDir = join(policy.root, ...THUMBNAIL_DIR.split("/"));
+  const thumbnail = async (req: IncomingMessage, url: URL, res: ServerResponse): Promise<void> => {
+    const id = url.searchParams.get("id") ?? "";
+    const revision = url.searchParams.get("rev") ?? "";
+    if (!THUMBNAIL_ID.test(id) || !THUMBNAIL_REVISION.test(revision)) {
+      req.resume();
+      send(res, 400, { status: "rejected", reason: "request", message: "A thumbnail needs an asset id and a 16-digit revision." });
+      return;
+    }
+    const file = join(thumbnailDir, `${id}-${revision}.png`);
+    if (req.method === "GET") {
+      try {
+        const bytes = await readFile(file);
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "image/png");
+        res.setHeader("Cache-Control", "no-store");
+        res.end(bytes);
+      } catch {
+        send(res, 404, { status: "missing" });
+      }
+      return;
+    }
+    let bytes: Buffer;
+    try {
+      bytes = await readBody(req, MAX_THUMBNAIL_BYTES);
+    } catch (error) {
+      send(res, 413, { status: "rejected", reason: "request", message: error instanceof Error ? error.message : String(error) });
+      return;
+    }
+    if (bytes.length < PNG_SIGNATURE.length || !bytes.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)) {
+      send(res, 400, { status: "rejected", reason: "request", message: "A thumbnail must be a PNG." });
+      return;
+    }
+    await mkdir(thumbnailDir, { recursive: true });
+    for (const old of await readdir(thumbnailDir)) {
+      if (old.startsWith(`${id}-`) && old !== `${id}-${revision}.png`) await rm(join(thumbnailDir, old), { force: true });
+    }
+    await writeFile(file, bytes);
+    send(res, 200, { status: "saved" });
+  };
+
   const middleware: Middleware = (req, res, next) => {
     const url = new URL(req.url ?? "/", "http://localhost");
     if (!url.pathname.startsWith("/__forge/")) {
@@ -321,24 +372,21 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
       return;
     }
     const route = `${req.method ?? "GET"} ${url.pathname}`;
-    const handle =
-      route === "POST /__forge/save"
-        ? save(req, res)
-        : route === "POST /__forge/stage-binary"
-          ? stage(req, res)
-          : route === "GET /__forge/read"
-            ? read(url, res)
-            : route === "GET /__forge/identity"
-              ? Promise.resolve(send(res, 200, options.identity ?? {}))
-              : route === "GET /__forge/classes"
-                ? Promise.resolve(send(res, 200, { classes: classes.all() }))
-                : route === "GET /__forge/asset-files"
-                  ? current().then(({ index }) => send(res, 200, { assets: rendererAssetFiles(index) }))
-                  : route === "GET /__forge/content"
-                    ? (url.searchParams.get("refresh") === "1" ? (snapshot = indexRoots()) : current()).then(({ scan, index }) =>
-                        send(res, 200, buildContentListing(scan, index, writableLabel)),
-                      )
-                    : null;
+    const routes: Readonly<Record<string, () => Promise<void>>> = {
+      "POST /__forge/save": () => save(req, res),
+      "POST /__forge/stage-binary": () => stage(req, res),
+      "GET /__forge/read": () => read(url, res),
+      "GET /__forge/identity": async () => send(res, 200, options.identity ?? {}),
+      "GET /__forge/classes": async () => send(res, 200, { classes: classes.all() }),
+      "GET /__forge/asset-files": () => current().then(({ index }) => send(res, 200, { assets: rendererAssetFiles(index) })),
+      "GET /__forge/content": () =>
+        (url.searchParams.get("refresh") === "1" ? (snapshot = indexRoots()) : current()).then(({ scan, index }) =>
+          send(res, 200, buildContentListing(scan, index, writableLabel)),
+        ),
+      "GET /__forge/thumbnail": () => thumbnail(req, url, res),
+      "POST /__forge/thumbnail": () => thumbnail(req, url, res),
+    };
+    const handle = Object.hasOwn(routes, route) ? routes[route]!() : null;
     if (handle === null) {
       send(res, 404, { status: "rejected", reason: "request", message: `No endpoint ${route}.` });
       return;

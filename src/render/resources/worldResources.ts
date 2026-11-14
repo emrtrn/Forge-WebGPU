@@ -2,13 +2,14 @@
 // Bindings ask for what they draw by asset GUID or procedural recipe; the
 // counts go to the world's owner, and `releaseAll` runs when the world goes.
 
-import type { BufferGeometry, Material, Object3D } from "three/webgpu";
+import type { BufferGeometry, Material, Object3D, Texture } from "three/webgpu";
 import type { MaterialContributions } from "../materials/contributions.ts";
 import { createShapeMaterial } from "../materials/shapeMaterial.ts";
 import { resourceKey, type ResourceCache, type ResourceOwner } from "./resourceCache.ts";
 import { createShapeGeometry, type ShapePrimitive } from "./shapes.ts";
 import type { SurfaceMaterials } from "./surfaceMaterials.ts";
 import type { TerrainData, TerrainSource } from "./terrains.ts";
+import type { TextureSource } from "./textures.ts";
 
 /** A loaded model: placements clone `scene` (geometry and materials are shared). */
 export interface ModelTemplate {
@@ -41,6 +42,8 @@ export interface WorldResources {
   materialKey(guid: string, contributions?: MaterialContributions): string;
   /** A `forge.terrain` data document with its tiles and layer inputs; key `terrain:<guid>`. */
   terrain(guid: string): Promise<TerrainData>;
+  /** A `forge.texture` asset; key `texture:<guid>:<colour space>` (the editor's thumbnails). */
+  texture(guid: string, colorSpace: "srgb" | "linear"): Promise<Texture>;
   /** Gives back one use of a key. */
   release(key: string): void;
   releaseAll(): void;
@@ -52,6 +55,7 @@ export function createWorldResources(
   models: ModelSource,
   materials: SurfaceMaterials | null = null,
   terrains: TerrainSource | null = null,
+  textures: TextureSource | null = null,
 ): WorldResources {
   const owner = cache.owner(name);
   const materialKey = (guid: string, contributions: MaterialContributions = {}): string =>
@@ -67,6 +71,10 @@ export function createWorldResources(
     terrain: (guid) =>
       owner.acquire(resourceKey.terrain(guid), () =>
         terrains ? terrains.load(guid) : Promise.reject(new Error(`forge render: no terrain source for ${guid}`)),
+      ),
+    texture: (guid, colorSpace) =>
+      owner.acquire(resourceKey.texture(guid, colorSpace), () =>
+        textures ? textures.load(guid, colorSpace) : Promise.reject(new Error(`forge render: no texture source for ${guid}`)),
       ),
     shapeGeometry: (primitive) => owner.acquire(resourceKey.shape(primitive), () => createShapeGeometry(primitive)),
     shapeMaterial: (color, doubleSided) =>

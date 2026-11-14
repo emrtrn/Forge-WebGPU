@@ -6,16 +6,21 @@
 // the thumbnail size cycles, Back / Forward walk the folders visited, the
 // open level's card is the Active one, an outside click closes the drawer
 // unless it is locked, and the folder is remembered across a reload; a large
-// folder draws only the rows in view (virtualised grid). The level
+// folder draws only the rows in view (virtualised grid); a model's and a
+// material's thumbnails are drawn once, then come from the server's cache
+// (step 6b). The level
 // and the files are written into this run's temporary project copy (D14).
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { cubeGlb } from "./glb.ts";
 
 const LEVEL = "content/levels/content-smoke";
 const MODEL = "ast_000000000000000000000000000c0001";
 const TEXTURE = "ast_000000000000000000000000000c0002";
+const CUBE = "ast_000000000000000000000000000c0003";
+const MATERIALS = "engine:content/packs/starter/starter-content/Materials";
 const MANY = 1500;
 const webgl = process.env.FORGE_EDITOR_WEBGPU === "1" ? "" : "&forceWebGL";
 
@@ -37,6 +42,9 @@ test.beforeAll(() => {
   writeFileSync(at("content/props/wood.png"), "png");
   writeFileSync(at("content/props/wood.png.meta.json"), meta(TEXTURE, "forge.texture@2"));
   writeFileSync(at("content/props/loose.png"), "png");
+  mkdirSync(at("content/thumbs"), { recursive: true });
+  writeFileSync(at("content/thumbs/cube.glb"), cubeGlb());
+  writeFileSync(at("content/thumbs/cube.glb.meta.json"), meta(CUBE, "forge.model@2"));
   mkdirSync(at("content/many"), { recursive: true });
   for (let i = 0; i < MANY; i += 1) writeFileSync(at(`content/many/item${String(i).padStart(4, "0")}.bin`), "x");
 });
@@ -156,4 +164,53 @@ test("a folder of 1.500 files draws only the cards in view, and scrolling draws 
   await page.locator(".content-list").evaluate((list) => (list.scrollTop = list.scrollHeight));
   await expect(card(page, `content/many/item${String(MANY - 1).padStart(4, "0")}.bin`)).toBeVisible();
   await expect(card(page, "content/many/item0000.bin")).toHaveCount(0);
+});
+
+/** The thumbnail's centre pixel (what the card shows), read from its image. */
+const centre = (thumb: Locator) =>
+  thumb.locator("img").evaluate(async (image: HTMLImageElement) => {
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d")!;
+    context.drawImage(image, 0, 0);
+    return [...context.getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data];
+  });
+
+test("thumbnails: a model and a material are drawn once, stored in the server's cache, and read from it after a reload", async ({ page }) => {
+  await open(page);
+  await page.locator("[data-content-toggle]").click();
+  await folderRow(page, "content/thumbs").click();
+  const cubeThumb = card(page, "content/thumbs/cube.glb").locator("[data-asset-thumb]");
+  await expect(cubeThumb).toHaveAttribute("data-thumbnail", "ready", { timeout: 30_000 });
+  // The cube fills the centre: not Forge's background (#191b1f).
+  expect((await centre(cubeThumb)).slice(0, 3)).not.toEqual([0x19, 0x1b, 0x1f]);
+
+  // A pack's material, on a sphere: the pack's root is folded at first.
+  await folderRow(page, "engine:content/packs/starter").click();
+  await folderRow(page, "engine:content/packs/starter/starter-content").click();
+  await folderRow(page, MATERIALS).click();
+  const ground = card(page, `${MATERIALS}/Ground.material.json`).locator("[data-asset-thumb]");
+  await expect(ground).toHaveAttribute("data-thumbnail", "ready", { timeout: 30_000 });
+
+  // Both stored in the server's cache (the image shows before it is stored).
+  const groundId = (await card(page, `${MATERIALS}/Ground.material.json`).getAttribute("data-asset-id"))!;
+  const cached = () => readdirSync(join(process.env.FORGE_EDITOR_SMOKE_PROJECT!, ".forge-cache", "thumbnails"));
+  await expect.poll(() => [CUBE, groundId].every((id) => cached().some((file) => file.startsWith(`${id}-`)))).toBe(true);
+
+  // After a reload the server's cache answers: neither is drawn or stored again (the folder's other
+  // materials may still be drawing).
+  const stored: string[] = [];
+  page.on("request", (request) => {
+    const url = request.url();
+    if (request.method() === "POST" && url.includes("/__forge/thumbnail") && (url.includes(CUBE) || url.includes(groundId))) stored.push(url);
+  });
+  await page.reload();
+  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
+  await page.locator("[data-content-toggle]").click();
+  await expect(ground).toHaveAttribute("data-thumbnail", "ready", { timeout: 30_000 });
+  await folderRow(page, "content/thumbs").click();
+  await expect(cubeThumb).toHaveAttribute("data-thumbnail", "ready", { timeout: 30_000 });
+  expect(stored).toEqual([]);
 });

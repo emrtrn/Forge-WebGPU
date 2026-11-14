@@ -19,6 +19,7 @@
 
 import {
   createSchemaRegistry,
+  FORGE_REQUEST_HEADER,
   installFeatures,
   normalizeActorClass,
   openLevelFromServer,
@@ -34,11 +35,14 @@ import type { AssetUrls } from "../render/resources/assetUrls.ts";
 import type { RenderBindingDef } from "../render/sync/renderBinding.ts";
 import type { EditorRenderBindingDef } from "../render/editor/editorBinding.ts";
 import { createEditorViewport } from "../render/editor/editorViewport.ts";
+import { createThumbnailRenderer } from "../render/editor/thumbnails.ts";
+import type { AssetFile } from "../render/resources/assetUrls.ts";
 import { assembleLevel } from "../runtime/assembler.ts";
 import { createWorld, type World } from "../runtime/world.ts";
 import { createContentPanel } from "./content/contentPanel.ts";
 import { installContentStyle } from "./content/contentStyle.ts";
 import { createContentStore } from "./content/contentStore.ts";
+import { createContentThumbnails, type ContentThumbnails } from "./content/contentThumbnails.ts";
 import { installDetailsStyle } from "./details/detailsStyle.ts";
 import { createEditCommands, pageClipboard, type EditCommands } from "./edit/editCommands.ts";
 import { createEditorCatalog } from "./host/editorCatalog.ts";
@@ -144,6 +148,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     let editor: EditorSession | null = null;
     let tools: TransformTools | null = null;
     let commands: EditCommands | null = null;
+    let thumbnails: ContentThumbnails | null = null;
     /** Who hears each frame (a Details preview that plays). */
     const frameListeners = new Set<(dt: number) => void>();
     const viewport = createEditorViewport({
@@ -199,6 +204,24 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     });
     const content = await createContentStore((input, init) => fetch(input, init));
     const assets = content.catalog;
+    // The renderer's GUID -> file table follows the listing (a file added since the page loaded, step 6).
+    const refreshAssetUrls = async (): Promise<void> => {
+      try {
+        const response = await fetch("/__forge/asset-files", { headers: { [FORGE_REQUEST_HEADER]: "1" } });
+        if (response.ok) options.assetUrls.update(((await response.json()) as { assets?: Record<string, AssetFile> }).assets ?? {});
+      } catch {
+        // The table read at boot stays.
+      }
+    };
+    await refreshAssetUrls();
+    content.onChange(() => void refreshAssetUrls());
+    const host = viewport.host;
+    const thumbnailRenderer = host ? createThumbnailRenderer({ renderer: host.renderer, resources: host.resources("thumbnails"), document: doc }) : null;
+    thumbnails = createContentThumbnails({
+      document: doc,
+      fetch: (input, init) => fetch(input, init),
+      draw: thumbnailRenderer ? (kind, guid) => thumbnailRenderer.render(kind, guid) : null,
+    });
     commands = createEditCommands({
       editor: session,
       registry,
@@ -253,6 +276,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         activeLevel: options.level,
         status: (message, tone) => shell.status(message, tone),
         save: () => shell.save(),
+        thumbnails,
       }),
     );
     const warnings = opened.issues.filter((issue) => issue.severity === "warning");
@@ -267,6 +291,8 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         for (const listener of [...frameListeners]) listener(dt);
         world!.tick(dt);
         viewport.frame(now);
+        // A thumbnail draws between the viewport's frames, one at a time (step 6b).
+        thumbnails?.pump();
       } catch (error) {
         shell.status(`The viewport stopped: ${error instanceof Error ? error.message : String(error)}`, "error");
         return;

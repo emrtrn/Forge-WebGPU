@@ -38,7 +38,7 @@ import { createResourceCache, type ResourceCache } from "../resources/resourceCa
 import { createSurfaceMaterials } from "../resources/surfaceMaterials.ts";
 import { createTerrainSource } from "../resources/terrains.ts";
 import { createTextureSource } from "../resources/textures.ts";
-import type { ModelSource } from "../resources/worldResources.ts";
+import { createWorldResources, type ModelSource, type WorldResources } from "../resources/worldResources.ts";
 import type { EnvironmentCapture, RenderBindingDef } from "../sync/renderBinding.ts";
 import { createRenderFeature, type RenderWorld } from "../sync/renderWorld.ts";
 import { mountBadge } from "./badge.ts";
@@ -101,6 +101,12 @@ export interface RenderHost {
   /** The MRT budget on this device; null on the WebGL2 backend. */
   readonly mrtProbe: MrtProbeResult | null;
   readonly cache: ResourceCache;
+  /**
+   * A typed view of the cache for a user that is no world (the editor's
+   * thumbnails, plan phase 4 step 6b): the same model, material, terrain and
+   * texture sources the worlds draw with.
+   */
+  resources(name: string): WorldResources;
   /** The world being drawn, once one attached. */
   readonly world: RenderWorld | null;
   /** The `forge.render` feature for a world that installs `features`. */
@@ -164,10 +170,11 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
 
   const cache = createResourceCache();
   const gltf: GltfModelSource = createGltfModelSource(renderer, options.assetUrls);
+  const textures = createTextureSource(options.assetUrls, gltf.ktx2, () => renderer.getMaxAnisotropy());
   const materials = createSurfaceMaterials({
     urls: options.assetUrls,
     type: options.materialType ?? null,
-    textures: createTextureSource(options.assetUrls, gltf.ktx2, () => renderer.getMaxAnisotropy()),
+    textures,
     textureOwner: cache.owner("material textures"),
     strict: options.dev,
   });
@@ -306,6 +313,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     get camera() {
       return camera;
     },
+    resources: (name) => createWorldResources(cache, name, models, materials, terrains, textures),
     setOverlay(next) {
       overlay = next;
     },

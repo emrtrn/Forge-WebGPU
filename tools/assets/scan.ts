@@ -42,6 +42,11 @@ export interface ScanResult {
   readonly files: readonly ContentFile[];
   /** Every folder under a root (`<label>/<path>`, empty ones too), in walk order; the Content Browser's tree. */
   readonly folders: readonly string[];
+  /**
+   * A binary file's size and modification time (`<size>-<ms>`), by `<label>/<path>`: what the
+   * Content Browser's thumbnails are keyed by (the bytes are not read). Absent for JSON files.
+   */
+  readonly stamps?: ReadonlyMap<string, string>;
 }
 
 function normalizeRoot(root: string): string {
@@ -88,15 +93,16 @@ export async function scanRoots(roots: readonly ContentRoot[]): Promise<ScanResu
   const missing: string[] = [];
   const files: ContentFile[] = [];
   const folders: string[] = [];
+  const stamps = new Map<string, string>();
   for (const root of roots) {
     if (!(await isDirectory(root.dir))) {
       missing.push(root.label);
       continue;
     }
     present.push(root.label);
-    await walk(root.dir, "", root.label, files, folders);
+    await walk(root.dir, "", root.label, files, folders, stamps);
   }
-  return { roots: present, missing, files, folders };
+  return { roots: present, missing, files, folders, stamps };
 }
 
 /** `roots` are relative to `projectRoot`, with forward slashes. */
@@ -104,7 +110,7 @@ export async function scanContentRoots(projectRoot: string, roots: readonly stri
   return scanRoots(projectContentRoots(projectRoot, roots));
 }
 
-async function walk(directory: string, relative: string, root: string, out: ContentFile[], folders: string[]): Promise<void> {
+async function walk(directory: string, relative: string, root: string, out: ContentFile[], folders: string[], stamps: Map<string, string>): Promise<void> {
   const entries = await readdir(directory, { withFileTypes: true });
   entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   for (const entry of entries) {
@@ -114,9 +120,13 @@ async function walk(directory: string, relative: string, root: string, out: Cont
     const absolute = join(directory, entry.name);
     if (entry.isDirectory()) {
       folders.push(`${root}/${path}`);
-      await walk(absolute, path, root, out, folders);
+      await walk(absolute, path, root, out, folders, stamps);
     } else if (entry.isFile()) {
       out.push(await readContentFile(absolute, root, path));
+      if (!path.toLowerCase().endsWith(".json")) {
+        const info = await stat(absolute);
+        stamps.set(`${root}/${path}`, `${info.size}-${Math.round(info.mtimeMs)}`);
+      }
     }
   }
 }
