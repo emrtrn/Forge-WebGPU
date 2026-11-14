@@ -12,8 +12,8 @@
 // Ctrl+S / Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) save, undo, redo.
 // The viewport's view controls (step 3) sit in the work bar as Forge's hover
 // menus: Camera (Perspective / Top / Left / Front; keys 1 Top, 2 Front,
-// 3 Left, 4 Perspective). The shell holds no viewport state: it asks the
-// viewport and follows its changes.
+// 3 Left, 4 Perspective), F focuses the selection, Escape clears it. The
+// shell holds no viewport state: it asks the viewport and follows its changes.
 // Text is set with textContent; the only markup is the kit's static icons.
 
 import { formFields, transform, type ActorDoc, type ActorId } from "../../core/index.ts";
@@ -45,6 +45,8 @@ export interface ViewportMenus {
   view(): string;
   setView(view: string): void;
   onViewChange(listener: (view: string) => void): void;
+  /** Frames the selection (key F). */
+  focusSelection(): void;
 }
 
 const TRANSFORM_FIELDS = formFields({ transform: transform({ label: "Transform", hint: "Aktörün konumu, dönüşü ve ölçeği (ebeveynine göre)." }) });
@@ -206,6 +208,11 @@ export function createShell(options: ShellOptions): EditorShell {
         if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
         const target = event.target as HTMLElement | null;
         if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable)) return;
+        if (event.code === "KeyF") {
+          event.preventDefault();
+          menus.focusSelection();
+          return;
+        }
         const view = VIEW_KEYS[event.code];
         if (!view) return;
         event.preventDefault();
@@ -299,6 +306,12 @@ export function createShell(options: ShellOptions): EditorShell {
       save.addEventListener("click", () => void runSave());
       undo.addEventListener("click", runUndo);
       redo.addEventListener("click", runRedo);
+      doc.defaultView?.addEventListener("keydown", (event) => {
+        if (event.code !== "Escape" || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+        const target = event.target as HTMLElement | null;
+        if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT")) return;
+        editor.selection.set([]);
+      });
       doc.defaultView?.addEventListener("keydown", (event) => {
         if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
         const target = event.target as HTMLElement | null;

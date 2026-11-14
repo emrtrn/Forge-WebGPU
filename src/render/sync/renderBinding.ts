@@ -11,8 +11,10 @@
 // Gameplay code never touches three objects: a binding watches components.
 // Components that come in numbers (static mesh, shape) are built on
 // `actorsAdded` / `actorsRemoved`, in batches (F11); singletons (fog) are
-// compared every frame in `sync`. Notification of field and transform edits
-// comes with the editor (phase 4).
+// compared every frame in `sync`. Edits in the editor arrive through
+// `actorsChanged` (phase 4). What a binding adds under the root carries its
+// actor (pickTags.ts: an object's actor, an instanced batch's table, a pick
+// surface), so the editor can pick it and outline it.
 
 import type { Camera, Group, Scene, Texture, Vector3 } from "three/webgpu";
 import type { ResolvedEnvironment } from "../../engine/environment/environmentResolve.ts";

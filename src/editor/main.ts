@@ -25,8 +25,8 @@ import type { RenderBindingDef } from "../render/sync/renderBinding.ts";
 import { CAMERA_VIEWS, type CameraView } from "../render/editor/editorCamera.ts";
 import { createEditorViewport } from "../render/editor/editorViewport.ts";
 import { assembleLevel } from "../runtime/assembler.ts";
-import { createWorld } from "../runtime/world.ts";
-import { createEditorSession } from "./session/editorSession.ts";
+import { createWorld, type World } from "../runtime/world.ts";
+import { createEditorSession, type EditorSession } from "./session/editorSession.ts";
 import { createShell } from "./shell/shell.ts";
 import { installShellStyle } from "./shell/shellStyle.ts";
 import { installKitStyle } from "./ui/kitStyle.ts";
@@ -83,6 +83,9 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       return;
     }
 
+    // Set once the world and the session exist; the viewport reads them through these.
+    let world: World | null = null;
+    let editor: EditorSession | null = null;
     const viewport = createEditorViewport({
       document: doc,
       container: shell.viewport,
@@ -94,6 +97,16 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       storage: pageStorage(doc),
       levelKey: `${options.projectName}/${options.level}`,
       onStatus: (message) => shell.status(message),
+      selected: () => editor?.selection.ids() ?? [],
+      actor: (id) => world?.context.actor(id),
+      // Forge: a plain click selects what is under it (nothing: clears); Ctrl / Shift adds or takes out.
+      onClick: (clientX, clientY, additive) => {
+        if (!editor) return;
+        const actor = viewport.pick(clientX, clientY);
+        if (additive) {
+          if (actor) editor.selection.toggle(actor);
+        } else editor.selection.set(actor ? [actor] : []);
+      },
     });
     await viewport.init();
     viewport.onLost((message) => shell.status(`The GPU device was lost: ${message}. Reload the page.`, "error"));
@@ -102,14 +115,18 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       view: () => viewport.view,
       setView: (view) => viewport.setView(view as CameraView),
       onViewChange: (listener) => viewport.onViewChange(listener),
+      focusSelection: () => {
+        if (!viewport.focusSelection()) shell.status("No selected object to focus.", "warning");
+      },
     });
 
-    const world = createWorld({ strict: true, registry, resolveClass, features: [...options.features, viewport.feature(options.features)], mode: "editor" });
+    world = createWorld({ strict: true, registry, resolveClass, features: [...options.features, viewport.feature(options.features)], mode: "editor" });
     world.init();
     assembleLevel(world, opened.session.level, { strict: true, resolveClass });
     world.beginPlay();
-    const editor = createEditorSession({ level: opened.session, world, client: options.client });
-    shell.attach(editor);
+    const session = createEditorSession({ level: opened.session, world, client: options.client });
+    editor = session;
+    shell.attach(session);
     const warnings = opened.issues.filter((issue) => issue.severity === "warning");
     if (warnings.length > 0) shell.status(`Level read with ${warnings.length} warning(s): ${warnings[0]!.message}`, "warning");
 
@@ -119,7 +136,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       const dt = last === null ? 0 : (now - last) / 1000;
       last = now;
       try {
-        world.tick(dt);
+        world!.tick(dt);
         viewport.frame(now);
       } catch (error) {
         shell.status(`The viewport stopped: ${error instanceof Error ? error.message : String(error)}`, "error");

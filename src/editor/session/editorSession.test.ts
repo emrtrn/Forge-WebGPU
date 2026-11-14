@@ -98,6 +98,17 @@ describe("the editor session mirrors edits into its world", () => {
     expect(heard).toBe(2);
   });
 
+  test("toggle adds an actor to the selection or takes it out (Ctrl / Shift click)", () => {
+    const editor = open();
+    editor.selection.toggle(actorId("a"));
+    editor.selection.toggle(actorId("b"));
+    expect(editor.selection.ids()).toEqual([actorId("a"), actorId("b")]);
+    editor.selection.toggle(actorId("a"));
+    expect(editor.selection.ids()).toEqual([actorId("b")]);
+    editor.selection.toggle(actorId("f"));
+    expect(editor.selection.ids()).toEqual([actorId("b")]);
+  });
+
   test("save sends the dirty parts and reports in a few words; a clean level has nothing to save", async () => {
     const saves: SaveRequestBody[] = [];
     const editor = open(saves);

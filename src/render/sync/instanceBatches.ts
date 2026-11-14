@@ -17,12 +17,15 @@
 //   the capacity grows or the colour buffer appears / goes; otherwise the
 //   instance buffers are rewritten in place.
 // - Each mesh is frustum culled by the bounds of all its instances.
+// - Each mesh carries its instance -> actor table (pickTags.ts) for picking.
 //
 // Geometry and materials are the batch owner's (cache uses); the batch owns
 // only its instanced meshes and their buffers.
 
 import { Color, InstancedMesh, Matrix4, type BufferGeometry, type Material, type Object3D } from "three/webgpu";
+import type { ActorId } from "../../core/index.ts";
 import { SCENE_SOURCE_KEY } from "../../engine/perf/sceneCost.ts";
+import { tagInstanceActors } from "./pickTags.ts";
 
 export interface InstancePart {
   readonly geometry: BufferGeometry;
@@ -33,8 +36,8 @@ export interface InstancePart {
 }
 
 export interface InstanceBatch {
-  /** Adds or moves a placement; `color` is `#rrggbb` or null. */
-  set(id: string, matrix: Matrix4, color: string | null): void;
+  /** Adds or moves a placement of `actor`; `color` is `#rrggbb` or null. */
+  set(id: string, matrix: Matrix4, color: string | null, actor: ActorId): void;
   delete(id: string): void;
   readonly size: number;
   /** The parts to draw; until set, placements wait and nothing is drawn. */
@@ -78,7 +81,7 @@ const capacityFor = (count: number): number => {
 };
 
 export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatch {
-  const placements = new Map<string, { matrix: Matrix4; color: string | null }>();
+  const placements = new Map<string, { matrix: Matrix4; color: string | null; actor: ActorId }>();
   let parts: readonly InstancePart[] | null = null;
   let meshes: InstancedMesh[] = [];
   let capacity = 0;
@@ -98,8 +101,8 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
   };
 
   return {
-    set(id, placement, placementColor) {
-      placements.set(id, { matrix: placement.clone(), color: placementColor });
+    set(id, placement, placementColor, actor) {
+      placements.set(id, { matrix: placement.clone(), color: placementColor, actor });
       dirty = true;
     },
     delete(id) {
@@ -137,7 +140,9 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
           return mesh;
         });
       }
+      const actors = [...placements.values()].map((entry) => entry.actor);
       meshes.forEach((mesh, partIndex) => {
+        tagInstanceActors(mesh, actors);
         const part = parts![partIndex]!;
         const base = baseColorOf(part.material);
         let index = 0;

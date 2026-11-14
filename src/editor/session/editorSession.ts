@@ -56,6 +56,8 @@ export interface Selection {
   ids(): readonly ActorId[];
   primary(): ActorId | null;
   set(ids: readonly ActorId[]): void;
+  /** Adds the actor, or takes it out when it is selected (Forge's Ctrl / Shift click). */
+  toggle(id: ActorId): void;
   has(id: ActorId): boolean;
 }
 
@@ -107,6 +109,9 @@ export function createEditorSession(options: { readonly level: LevelSession; rea
       if (next.length === selected.length && next.every((id, index) => id === selected[index])) return;
       selected = next;
       notify();
+    },
+    toggle(id) {
+      selection.set(selected.includes(id) ? selected.filter((one) => one !== id) : [...selected, id]);
     },
   };
 

@@ -70,7 +70,7 @@ export default defineRenderBinding({
       const batchKey = shapeBatchKey(data);
       placed.set(id, batchKey);
       componentWorldMatrix(ctx.world, actor, key, matrix);
-      batchFor(batchKey, data).instances.set(id, matrix, data.color);
+      batchFor(batchKey, data).instances.set(id, matrix, data.color, actor.id);
     };
 
     const remove = (id: string): void => {

@@ -58,10 +58,14 @@ const OCCLUSION_BIAS = 0.02;
 /** Overlay target MSAA samples: lines and edges are drawn antialiased. */
 const OVERLAY_SAMPLES = 4;
 
-/** Something the layer draws after its scene (the selection outline, step 3b). */
+/** Something the layer draws after its scene (the selection outline). */
 export interface OverlayPass {
-  /** Draws into the overlay target, already bound; `size` is the drawing buffer's. */
-  render(renderer: WebGPURenderer, camera: Camera, size: Vector2): void;
+  /**
+   * Draws into the layer's `target`, bound when it is called; a pass that
+   * draws elsewhere first binds `target` again before it draws there.
+   * `size` is the drawing buffer's; auto clear is off.
+   */
+  render(renderer: WebGPURenderer, camera: Camera, size: Vector2, target: RenderTarget): void;
 }
 
 export interface EditorOverlay extends RenderOverlay {
@@ -191,7 +195,10 @@ export function createEditorOverlay(renderer: WebGPURenderer): EditorOverlay {
         renderer.setClearColor(0x000000, 0);
         renderer.clear();
         renderer.render(scene, frame.camera);
-        for (const pass of passes) pass.render(renderer, frame.camera, size);
+        for (const pass of passes) {
+          pass.render(renderer, frame.camera, size, target);
+          renderer.setRenderTarget(target);
+        }
         renderer.setRenderTarget(null);
         renderer.toneMapping = NoToneMapping;
         renderer.outputColorSpace = ColorManagement.workingColorSpace;

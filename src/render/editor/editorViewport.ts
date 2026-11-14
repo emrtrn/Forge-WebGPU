@@ -9,18 +9,25 @@
 //   without one the level is framed once its resources are in (the viewer's
 //   framing), unless the user moved first.
 // - Input on the canvas: the camera takes what is its (editorCamera.ts); a
-//   plain left press goes to `onClick` (the editor's selection, step 3b).
+//   plain left press goes to `onClick`, which picks (picker.ts) for the
+//   editor's selection.
+// - The selection (the editor's, read each frame) is outlined in the drawing
+//   layer (selectionOutline.ts); its bounds are the orbit target and what
+//   focus frames.
 // - The view (Perspective / Top / Left / Front) is the camera's; listeners
 //   hear every change, so the editor's menu label follows the shortcuts.
 
-import { type Box3, type Vector3 } from "three/webgpu";
-import type { FeatureDef } from "../../core/index.ts";
+import { Vector2, Vector3, type Box3 } from "three/webgpu";
+import type { ActorId, FeatureDef, WorldActor } from "../../core/index.ts";
+import { actorWorldMatrix } from "../sync/transforms.ts";
 import { createRenderHost, type RenderHost, type RenderHostOptions, type RenderQuality } from "../host/renderHost.ts";
 import { CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR, frameBounds, READY_FRAMES, sceneRoomBounds } from "../viewer/levelViewer.ts";
 import { createEditorCameraPoseStore, type PoseStorage } from "./cameraPoseStore.ts";
 import { createEditorCamera, type CameraView, type EditorCamera, type ViewportCamera } from "./editorCamera.ts";
 import { createEditorGrid, type EditorGrid, type GridPlane } from "./grid.ts";
 import { createEditorOverlay, type EditorOverlay } from "./overlay.ts";
+import { createScenePicker, type ScenePicker } from "./picker.ts";
+import { createSelectionOutline, type SelectionOutline } from "./selectionOutline.ts";
 
 export interface EditorViewportOptions extends RenderHostOptions {
   /** Where the camera pose is remembered; null keeps nothing. */
@@ -28,9 +35,11 @@ export interface EditorViewportOptions extends RenderHostOptions {
   /** The level the pose belongs to (project and level folder). */
   readonly levelKey: string;
   readonly onStatus?: (message: string) => void;
-  /** The selection's centre (the orbit target); null without one. */
-  readonly selectionCentre?: () => Vector3 | null;
-  /** A plain left press in the viewport, in client pixels; `additive` with Ctrl or Shift (selection, step 3b). */
+  /** The editor's selection, read every frame (outline, orbit target, focus). */
+  readonly selected?: () => readonly ActorId[];
+  /** The editor's world's actors (focus on an actor that draws nothing). */
+  readonly actor?: (id: ActorId) => WorldActor | undefined;
+  /** A plain left press in the viewport, in client pixels; `additive` with Ctrl or Shift. */
   readonly onClick?: (clientX: number, clientY: number, additive: boolean) => void;
 }
 
@@ -45,8 +54,17 @@ export interface EditorViewport {
   readonly view: CameraView;
   setView(view: CameraView): void;
   onViewChange(listener: (view: CameraView) => void): void;
+  /** The actor drawn under a point of the page (client pixels); null for none. */
+  pick(clientX: number, clientY: number): ActorId | null;
+  /** World bounds of what these actors draw; null when they draw nothing. */
+  bounds(actors: readonly ActorId[]): Box3 | null;
   /** Frames a box; a null or empty box looks at `fallback`. */
   focus(box: Box3 | null, fallback: Vector3): void;
+  /**
+   * Frames the selection (Forge's focusSelected, key F): what it draws, else
+   * the primary actor's position; false when nothing is selected.
+   */
+  focusSelection(): boolean;
   readonly gridVisible: boolean;
   setGridVisible(visible: boolean): void;
   setQuality(quality: RenderQuality): void;
@@ -63,19 +81,26 @@ function editableTarget(target: EventTarget | null): boolean {
 }
 
 export function createEditorViewport(options: EditorViewportOptions): EditorViewport {
+  let host: RenderHost | null = null;
+  const picker: ScenePicker = createScenePicker(() => host?.world?.root ?? null);
+  const selected = options.selected ?? ((): readonly ActorId[] => []);
   const camera = createEditorCamera({
     fov: CAMERA_FOV,
     near: CAMERA_NEAR,
     far: CAMERA_FAR,
-    ...(options.selectionCentre ? { selectionCentre: options.selectionCentre } : {}),
+    selectionCentre: () => {
+      const ids = selected();
+      return ids.length === 0 ? null : (picker.bounds(new Set(ids))?.getCenter(new Vector3()) ?? null);
+    },
     ...(options.onStatus ? { onStatus: options.onStatus } : {}),
   });
   const poses = createEditorCameraPoseStore(options.storage, options.levelKey);
   const viewListeners: ((view: CameraView) => void)[] = [];
   const pendingLost: ((message: string) => void)[] = [];
   const unbind: (() => void)[] = [];
-  let host: RenderHost | null = null;
   let overlay: EditorOverlay | null = null;
+  let outline: SelectionOutline | null = null;
+  const ndc = new Vector2();
   let grid: EditorGrid | null = null;
   let gridVisible = true;
   let quality: RenderQuality | null = null;
@@ -143,6 +168,8 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       grid = createEditorGrid(overlay.sceneVisibility);
       grid.mesh.visible = gridVisible;
       overlay.scene.add(grid.mesh);
+      outline = createSelectionOutline(picker, selected);
+      overlay.addPass(outline);
       host.setOverlay(overlay);
       const window = options.document.defaultView;
       if (window) wireInput(host.canvas, window);
@@ -188,8 +215,28 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
     onViewChange(listener) {
       viewListeners.push(listener);
     },
+    pick(clientX, clientY) {
+      if (!host) return null;
+      const rect = host.canvas.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return null;
+      ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+      return picker.pick(ndc, camera.active())?.actor ?? null;
+    },
+    bounds(actors) {
+      return picker.bounds(new Set(actors));
+    },
     focus(box, fallback) {
       camera.focus(box, fallback);
+    },
+    focusSelection() {
+      const ids = selected();
+      const primary = ids[0] === undefined ? undefined : options.actor?.(ids[0]);
+      if (!primary) return false;
+      const lookup = { actor: (id: ActorId) => options.actor?.(id) };
+      // Forge: an actor without bounds is looked at 0.65 m above its origin.
+      const fallback = new Vector3().setFromMatrixPosition(actorWorldMatrix(lookup, primary)).add(new Vector3(0, 0.65, 0));
+      camera.focus(picker.bounds(new Set(ids)), fallback);
+      return true;
     },
     get gridVisible() {
       return gridVisible;
@@ -210,6 +257,7 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       if (camera.view === "perspective") poses.save(camera.perspective);
       for (const off of unbind.splice(0).reverse()) off();
       host?.setOverlay(null);
+      outline?.dispose();
       grid?.dispose();
       overlay?.dispose();
       host?.dispose();
