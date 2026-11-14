@@ -47,6 +47,7 @@ const CANONICAL = {
       parent: null,
       spatiallyLoaded: true,
       transform: { p: [12, 0, 4], r: [0, 0, 0, 1], s: [1, 1, 1] },
+      pivot: [0, 0.5, -1.25],
       overrides: {
         chassis: { type: "test.collider@1", local: { p: [0, 1.2, 0], r: [0, 0, 0, 1], s: [1, 1, 1] } },
         driver: { type: "test.driver@1", targetSpeed: 18 },
@@ -98,6 +99,7 @@ describe("serialisation round trip", () => {
           class: CAR_CLASS_ID,
           transform: { p: [12, 0, 4] },
           // driver before chassis, a partial local, and an override equal to the class value
+          pivot: [0, 0.5, -1.25],
           overrides: { driver: { targetSpeed: 18, target: null }, chassis: { local: { p: [0, 1.2, 0] } } },
         },
       ],
@@ -349,5 +351,19 @@ describe("level settings and the streaming flag (A11)", () => {
     const result = normalizeLevel(level([plain("a", {}, { spatiallyLoaded: "no" })]), LENIENT);
     expect(summary(result.issues)).toEqual(["warning invalid-value actors[0].spatiallyLoaded"]);
     expect(result.value?.actors[0]?.spatiallyLoaded).toBe(true);
+  });
+});
+
+describe("the authoring pivot (editor data)", () => {
+  test("an origin pivot is left out of the canonical document", () => {
+    const result = normalizeLevel(level([plain("a", {}, { pivot: [0, 0, 0] }), plain("b", {})]), STRICT);
+    expect(result.issues).toEqual([]);
+    expect(result.value?.actors.map((actor) => "pivot" in actor)).toEqual([false, false]);
+  });
+
+  test("a pivot that is not a vector is a loss and reads as the origin", () => {
+    const result = normalizeLevel(level([plain("a", {}, { pivot: "centre" })]), LENIENT);
+    expect(summary(result.issues)).toEqual(["warning invalid-value actors[0].pivot"]);
+    expect(result.value?.actors[0]).not.toHaveProperty("pivot");
   });
 });

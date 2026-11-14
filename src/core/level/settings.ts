@@ -8,8 +8,12 @@
 // - `spatiallyLoaded` is defined here, once, for every actor (D10, D4). A root
 //   actor with `spatiallyLoaded: false` stays in the persistent layer; a child
 //   actor follows its root and its own flag is not read.
+// - `pivot` (Forge's authoring pivot, user decision 2026-11-14): a point in the
+//   actor's local space the editor's rotate and scale act around. Editor data:
+//   the world and the game never read it. Absent means the origin; the
+//   canonical document leaves an origin pivot out.
 
-import { bool, num, type FieldValues } from "../schema/fields.ts";
+import { bool, num, vec3, type FieldValues } from "../schema/fields.ts";
 
 export const DEFAULT_CELL_SIZE = 128;
 
@@ -33,3 +37,9 @@ export const ActorStreamingFields = {
     hint: "Açıkken aktör konumunun düştüğü hücreyle birlikte yüklenir. Kapalıyken kalıcı katmanda durur ve hep yüklüdür. Alt aktör kökünü izler.",
   }),
 };
+
+export const ActorPivotField = vec3({
+  default: [0, 0, 0],
+  label: "Pivot",
+  hint: "Döndürme ve ölçeğin etrafında yapıldığı nokta, aktörün yerel uzayında (metre). Yalnız editör kullanır; oyun okumaz.",
+});

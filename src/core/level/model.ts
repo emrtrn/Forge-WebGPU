@@ -18,7 +18,7 @@
 import type { ActorId, AssetId, LevelId } from "../id.ts";
 import type { JsonObject } from "../json.ts";
 import type { ComponentTypeTag } from "../schema/component.ts";
-import type { Transform } from "../schema/fields.ts";
+import type { Transform, Vec3 } from "../schema/fields.ts";
 import type { LevelSettings } from "./settings.ts";
 
 export const LEVEL_SCHEMA = "forge.level/1";
@@ -60,6 +60,8 @@ interface ActorBase {
   /** False keeps a root actor in the persistent layer; a child follows its root. */
   spatiallyLoaded: boolean;
   transform: Transform;
+  /** Editor-only authoring pivot in the actor's local space (`ActorPivotField`); absent is the origin. */
+  pivot?: Vec3;
 }
 
 export interface PlainActor extends ActorBase {
