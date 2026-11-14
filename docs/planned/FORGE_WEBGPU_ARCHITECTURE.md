@@ -1,6 +1,7 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.18 · 2026-11-13 (v1.17'den fark: §4.8 build'in uygulaması (kullanıcı kararı: Faz 4): statik içerik, `ContentClient`, alt dizin.
+**Sürüm:** v1.19 · 2026-11-14 (v1.18'den fark: §4.2 editör yardımcı bağlamaları (`defineEditorRenderBinding`, `forge.editorHelpers`); §4.9 çizim katmanının uygulaması (sahne derinliği, derinlik ön geçişi, ton eşlemesiz bileşim) ve picking etiketleri.
+v1.18 · 2026-11-13 (v1.17'den fark: §4.8 build'in uygulaması (kullanıcı kararı: Faz 4): statik içerik, `ContentClient`, alt dizin.
 v1.17 · 2026-11-13 (v1.16'dan fark: §4.7 editör World'ü (`inEditor`, kullanıcı kararı) ve `actorsChanged`'ın kesin biçimi, çocuk silme kuralı.
 v1.16 · 2026-11-13 (v1.15'ten fark: Faz 4 tasarımı (kullanıcı kararları) — §4.2 editörün 3B kodu `src/render/editor/` ve rol `features/*/editorRender.ts`; §4.7 editör oturumu: `actorsChanged`, Forge'un gizmo'su, Play oturum katmanı, grup, hücreler; §4.8 motor içeriği kipi; §4.9 çizim katmanı ve küçük resimler; §4.10 editör smoke'ları; §4.11 ajan komutlarının yolu, okuyan komutlar, canlı tazeleme, asset editörleri.
 v1.15 · 2026-11-13 (v1.14'ten fark: Faz 3 adım 9 ve kapanış — §4.9 yönlü
@@ -310,7 +311,14 @@ gerekirse paketlenecek sınır katmanlar değil, SDK yüzeyidir (A8 API snapshot
   `src/editor` DOM ve servistir, three'siz. Özelliğe özgü yardımcı çizim (ışık
   ikonu, hacim, kamera) yeni rol `features/*/editorRender.ts`: three ve editör
   görür, `feature.ts` ve `render.ts` onu anmaz, editör host'u toplar. Kural ve
-  kasıtlı ihlal fixture'ı dikey dilimde (Faz 4 adım 2).
+  kasıtlı ihlal fixture'ı dikey dilimde (Faz 4 adım 2). *Uygulama (adım 3,
+  2026-11-14):* `editorRender.ts` `defineEditorRenderBinding({ feature, create })`
+  döner (`render/editor/editorBinding.ts`); editör onları glob'la toplar, viewport
+  editör World'ünde tek `forge.editorHelpers` alt sistemiyle (`inEditor`) çalıştırır,
+  render bağlamaları gibi (`actorsAdded` / `actorsRemoved` / `actorsChanged` / `sync`).
+  Bağlam: dünya görünümü, çizim katmanındaki kök, seçim, `sceneVisibility`, Forge'un
+  billboard ikonları. Bir yardımcının çizdiği aktörünü taşır; picking'de yardımcılar
+  önce gelir (sahnenin üstünde çizilirler).
 
 ### 4.3 Dikey özellik modülü
 
@@ -1267,7 +1275,20 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   pass'te çizilir; derinlik testi sahne pass'inin derinliğine karşı. Picking CPU'da:
   mesh ve instance (instance → aktör tablosu), terrain yükseklik alanından. Küçük
   resimler editörde aynı renderer'la üretilir, `.forge-cache/thumbnails/<guid>-
-  <revizyon>.png`'de tutulur (commit'lenmez).
+  <revizyon>.png`'de tutulur (commit'lenmez). *Uygulama (adım 3, 2026-11-14):* host'un
+  overlay kancası her karenin sonunda çağrılır (TRAA view offset'ini pipeline'dan sonra
+  kaldırır, kamera jitter'sızdır). Katman kendi MSAA hedefine çizer, parçalar sahne
+  derinliğiyle shader'da karşılaştırılır (`sceneVisibility`), hedef canvas'a ton
+  eşlemesiz, sRGB kodlanarak bindirilir (yardımcı renkleri level'ın pozlamasından
+  bağımsız). Sahne derinliği pipeline'ın sahne pass'inden gelir; pipeline'sız çizilen
+  kare (MSAA) three'nin çok örnekli çerçeve tamponuna gider ve WebGPU derinliği
+  çözemez: o karelerde yalnız editör, derinlik yazan görünür nesneleri tek ışıksız
+  materyalle bir kez daha çizer (derinlik ön geçişi; gölge pass'i yok). Picking
+  etiketleri render bağlama sözleşmesinin parçası (`render/sync/pickTags.ts`): nesnenin
+  aktörü, instance batch'inin instance → aktör tablosu, kendi ışınını yanıtlayan yüzey
+  (terrain: `raycastTerrain`; çizilen yama GPU'da yer değiştirdiği için üçgenleri
+  denenmez). Seçim çerçevesi katmanın pass'i: seçili parçalar maskeye, maskenin dış
+  kenarı katmana (Forge'un rengi; örtülen kenar da görünür).
 - *Çevre, uygulama (adım 5, 2026-11-13):* tekiller `forge.skyAtmosphere` +
   `forge.skyLight` (tek özellik `forge.sky`: Sky Light gökyüzünü yakalar),
   `forge.cloudLayer`, `forge.worldEnvironment`. **Kullanıcı kararları

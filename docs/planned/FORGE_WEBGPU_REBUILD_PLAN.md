@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v1.15 · 2026-11-13 (v1.14'ten fark: Faz 4 adım 2 tamam — 2b üretim build'i (kullanıcı kararı: Faz 4), statik içerik, `verify:dist --strict`, alt dizin smoke'u; dist kutusu işaretli. v1.14 · 2026-11-13 (v1.13'ten fark: Faz 4 adım 2'nin dilimi — editörün World'ü (`inEditor`, kullanıcı kararı), `actorsChanged`, `editorRender` kuralı, editör oturumu, `?editor` kabuğu, editör smoke'u, `verify:dist`; kalan 2b üretim build'i. v1.13 · 2026-11-13 (v1.12'den fark: Faz 4 adım 1 tamam — UI kiti (`src/editor/ui`), `?editor-kit`, editörün tarayıcı denetimleri gate ve CI'da. v1.12 · 2026-11-13 (v1.11'den fark: Faz 4 başladı — döküm (36 INV satırı, ertelenmiş A yok, 11 R), kararlar 1–12 (kullanıcı onayı), adım sırası 1–10; mimari v1.16. v1.11 · 2026-11-13 (v1.10'dan fark: Faz 3 kapandı — adım 9: smoke tam seti Faz 0 pozu ve boyutuyla, Faz 0 ile yan yana ızgara (`npm run smoke:grid`), yönlü ışıkların dünya çerçevesi düzeltmesi; kullanıcının görsel kabulü ve referanslar; view distance 5b'ye (kullanıcı kararı); bölüm `docs/archive/PHASE_3.md`'ye taşındı; mimari v1.15. v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 8 tamam — otomatik instancing, terrain salt çizimi, görüntüleyicinin varsayılan kamerası, `?debug` paneli, bütün çizen referans level'lar smoke'ta; kullanıcı kararları: terrain / örtü katman materyali GUID, paket manifesti `requires`, `?debug` kapsamı; referans projesi yeniden alındı; mimari v1.14. v1.9 · 2026-11-13 (v1.8'den fark: Faz 3 adım 7 tamam — olay bazlı gün saati: `timeTransition`, `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri), Sky Light yakalaması aynı PMREM'e, ölçülerek seçilen yakalama hızı (açı + 0,1 sn + durunca son yakalama), `npm run measure:sky-capture`; kullanıcı kararları; mimari v1.13. v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
+**Sürüm:** v1.16 · 2026-11-14 (v1.15'ten fark: Faz 4 adım 3 tamam — editör viewport'u: editör kamerası ve kipleri, çizim katmanı (sahne derinliğine karşı; pipeline'sız karede derinlik ön geçişi), ızgara, CPU picking ve seçim çerçevesi, View Mode / Show / Quality menüleri, `editorRender` bağlamaları ve ışığın yardımcıları; mimari v1.19. v1.15 · 2026-11-13 (v1.14'ten fark: Faz 4 adım 2 tamam — 2b üretim build'i (kullanıcı kararı: Faz 4), statik içerik, `verify:dist --strict`, alt dizin smoke'u; dist kutusu işaretli. v1.14 · 2026-11-13 (v1.13'ten fark: Faz 4 adım 2'nin dilimi — editörün World'ü (`inEditor`, kullanıcı kararı), `actorsChanged`, `editorRender` kuralı, editör oturumu, `?editor` kabuğu, editör smoke'u, `verify:dist`; kalan 2b üretim build'i. v1.13 · 2026-11-13 (v1.12'den fark: Faz 4 adım 1 tamam — UI kiti (`src/editor/ui`), `?editor-kit`, editörün tarayıcı denetimleri gate ve CI'da. v1.12 · 2026-11-13 (v1.11'den fark: Faz 4 başladı — döküm (36 INV satırı, ertelenmiş A yok, 11 R), kararlar 1–12 (kullanıcı onayı), adım sırası 1–10; mimari v1.16. v1.11 · 2026-11-13 (v1.10'dan fark: Faz 3 kapandı — adım 9: smoke tam seti Faz 0 pozu ve boyutuyla, Faz 0 ile yan yana ızgara (`npm run smoke:grid`), yönlü ışıkların dünya çerçevesi düzeltmesi; kullanıcının görsel kabulü ve referanslar; view distance 5b'ye (kullanıcı kararı); bölüm `docs/archive/PHASE_3.md`'ye taşındı; mimari v1.15. v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 8 tamam — otomatik instancing, terrain salt çizimi, görüntüleyicinin varsayılan kamerası, `?debug` paneli, bütün çizen referans level'lar smoke'ta; kullanıcı kararları: terrain / örtü katman materyali GUID, paket manifesti `requires`, `?debug` kapsamı; referans projesi yeniden alındı; mimari v1.14. v1.9 · 2026-11-13 (v1.8'den fark: Faz 3 adım 7 tamam — olay bazlı gün saati: `timeTransition`, `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri), Sky Light yakalaması aynı PMREM'e, ölçülerek seçilen yakalama hızı (açı + 0,1 sn + durunca son yakalama), `npm run measure:sky-capture`; kullanıcı kararları; mimari v1.13. v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
 `forge.skyAtmosphere` / `forge.skyLight` (arka plan ve ortam ışığı dahil,
 kullanıcı kararı) / `forge.cloudLayer` / `forge.worldEnvironment` (sabit
 saat), TSL gökyüzü + ay + yıldız, PMREM Sky Light, bulut, WES yorumu,
@@ -437,9 +437,31 @@ bölüm + §11, gerekirse mimari rapor ve harita, hafıza):
    yalnız dev'de (oyun paketinde yazma ucu yok). Kapıya `verify:dist --strict` ve `npm run
    smoke:dist` (`tests/production`: `--base /forge-base/`, `vite preview`, start level açılır,
    bütün istekler alt dizinde, `/__forge/` yok, editör yok). A 934 / 1.021.
-3. Viewport: çizim katmanı (TRAA sonrası, jitter'sız, sahne derinliğine karşı), ızgara,
+3. ~~Viewport: çizim katmanı (TRAA sonrası, jitter'sız, sahne derinliğine karşı), ızgara,
    seçim çerçevesi, picking (mesh, instance → aktör, terrain yükseklik alanı), kamera
-   kipleri, view mode / show flags, kalite menüsü, yardımcı çizimler (G27).
+   kipleri, view mode / show flags, kalite menüsü, yardımcı çizimler (G27).~~ — **tamam**
+   (2026-11-14). `src/render/editor` Faz 3 görüntüleyicisinin editördeki yerini aldı.
+   `af6b334`: editör kamerası (Forge'un `EditorCameraController`'ı ve sabitleri: sağ
+   sürükle uçuş + WASD/QE, Alt+sol yörünge, orta kaydırma, Alt+sağ dolly, tekerlek;
+   Perspective / Top / Left / Front, teknik görünümler ortografik ve 1.000 m geride — Forge
+   3–10 m'de tutuyordu, uzun şeyler kesiliyordu; poz level başına hatırlanır), çizim
+   katmanı (kendi MSAA hedefi, parçalar sahne derinliğiyle shader'da karşılaştırılır, ton
+   eşlemesiz bileşim; sahne derinliği pipeline'ın sahne pass'inden, pipeline'sız karede —
+   three MSAA çerçeve tamponuna çizer, WebGPU derinliği çözemez — yalnız editörde derinlik
+   ön geçişi), 1 m / 10 m ızgara, Camera menüsü + 1–4. `1bfeffe`: picking etiketleri
+   (`render/sync/pickTags.ts`: nesnenin aktörü, instance → aktör tablosu, kendi ışınını
+   yanıtlayan yüzey — terrain'in yükseklik alanı), CPU picker, seçim çerçevesi (Forge'un
+   vurgu rengi, gizli kenar da çizilir; terrain'de yok, Forge gibi), tıkla / Ctrl+tıkla /
+   boşluk / Esc, F odaklar. `2cbed7f`: View Mode (Lit / Wireframe; teknik görünüm
+   Wireframe'e geçer, Forge), Quality (Auto / profiller; oyunla aynı kullanıcı ayarı, Auto'da
+   viewport Ultra), Show (Grid, Stats = `?debug` paneli viewport'ta). `1cf02e4`:
+   `defineEditorRenderBinding` (`features/*/editorRender.ts`, editör toplar, editör
+   World'ünde `forge.editorHelpers` alt sistemiyle çalışır), Forge'un billboard ikonları,
+   ışığın yardımcıları (güneş / ampul ikonu seçer; erim teli yalnız seçiliyken); yardımcılar
+   picking'de önce gelir. Ses ve Player Start ikonları özellikleri gelince, kamera / hedef
+   noktası / hacimler / çarpışma görünümü Faz 6'da; Show'un Collision ve AI Navigation'ı da.
+   Editör smoke'u: viewport menüleri, tıklayarak seçim (koşunun proje kopyasında tek küplü
+   level). A 934 / 1.021.
 4. Gizmo, snap, pivot (11 R).
 5. Paneller: Outliner (50.000 aktör ölçümü), şemadan Details (çoklu seçim),
    düzenleme işlemleri ve gruplama, Add Actor + sürükle-bırak, World Settings + ortam /
@@ -455,10 +477,11 @@ bölüm + §11, gerekirse mimari rapor ve harita, hafıza):
 - [ ] Editör kabuğu ve servisleri (§2.2): viewport host, kamera, seçim (CPU
       raycast picking), gizmo (Forge'unki, karar 2), pivot, grup / hiyerarşi,
       undo / redo.
-- [ ] Editör çizim katmanı: gizmo, seçim çerçevesi, ızgara ve yardımcı
+- [x] Editör çizim katmanı: gizmo, seçim çerçevesi, ızgara ve yardımcı
       çizimler TRAA'dan sonra, jitter'sız ayrı bir pass'te çizilir (TRAA
       geçmişine girerlerse titrer ve iz bırakır); derinlik testi sahne
-      derinliğine karşı yapılır.
+      derinliğine karşı yapılır. *Adım 3 (2026-11-14):* `render/editor/overlay.ts`;
+      gizmo adım 4'te bu katmana çizilir.
 - [x] **Önce UI kiti (K7):** tasarım token'ları + Forge `paramFields` mantığı
       (kaydırıcı + kutu, sınıra çekme, %30/%70, TR ipucu / EN ad) küçük bir kit
       olarak taşınır; şemadan üretilen Details ve taşınan paneller aynı kiti
@@ -783,3 +806,4 @@ silinebilir.
 | 2026-11-13 | v1.13 | Faz 4 adım 1, UI kiti (`210ed40`): `src/editor/ui` — core form tanımından Details satırları (her alan türü, Forge'un parametre kuralları saf fonksiyonla, Türkçe sınır uyarısı, dönüş derece ↔ kuaterniyon `engine/math/euler.ts`), Forge'un ikonları ve CSS token'ları; `?editor-kit` geliştirme sayfası; `npm run smoke:editor` (başsız Chrome) gate'te ve CI'da. A 934 / 1.021 |
 | 2026-11-13 | v1.14 | Faz 4 adım 2 dilimi (`ba97b6f`, `9119c42`, `a67220d`, `f3ee39b`, `d67845d`): **kullanıcı kararı** editör World'ü yalnız `inEditor` alt sistemleri kurar (render, World Environment, Height Fog); `World.updateActors` + `actorsChanged` (SDK 0.1.4); `editor-render-is-editor-only`; editör oturumu (oturum → World yansıması, çocuğu kalan aktör silinmez); `?editor` kabuğu (Outliner, Details transform'u, undo / redo / kaydet); editör smoke'u geçici proje kopyasında, `forceWebGL`, gate'te ve CI'da; `verify:dist`. Kalan 2b: üretim build'i (içerik dist'te, salt okunur istemci), `base`, `--strict`. A 934 / 1.021 |
 | 2026-11-13 | v1.15 | Faz 4 adım 2 tamam, 2b (`eea148b`; **kullanıcı kararı:** üretim build'i Faz 4'te): `npm run build` projeyi derler, `tools/build-content.ts` içeriği ve dizinleri `dist/forge/`'a yazar, oyun salt okunur statik istemciyle `BASE_URL` altından okur; kapıda `verify:dist --strict` ve `npm run smoke:dist` (alt dizinde açılış, bütün istekler alt dizinde). Dist kutusu işaretli. A 934 / 1.021 |
+| 2026-11-14 | v1.16 | Faz 4 adım 3 tamam, editör viewport'u (`af6b334`, `1bfeffe`, `2cbed7f`, `1cf02e4`): editör kamerası (Forge'un denetleyicisi ve kipleri, ortografik kamera 1.000 m geride), çizim katmanı (sahne derinliğine karşı; pipeline'sız karede derinlik ön geçişi), ızgara, picking etiketleri ve CPU picker (instance → aktör, terrain yükseklik alanı), seçim çerçevesi, F / Esc / Ctrl+tıkla, View Mode / Quality / Show menüleri, `editorRender` bağlamaları + ışığın yardımcıları. Çizim katmanı kutusu işaretli. A 934 / 1.021 |

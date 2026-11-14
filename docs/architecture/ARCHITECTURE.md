@@ -21,7 +21,7 @@ kendini de sınar (rapor §4.2, A3).
 |---|---|---|
 | `core` | aktör / bileşen modeli, şema DSL'i ve kaydı, kimlik, level ve hücre modeli, asset modeli, düzenleme modeli, alt sistem sözleşmesi, proje manifesti | yok; DOM ve `import.meta.env` de yok |
 | `engine` | three'siz alt sistemler (fizik, terrain verisi, nav, hareket, ses…; 2b'de taşınır, kapsam K12); DOM ve Web Audio yok, düz Node'da yüklenir | yok |
-| `render` | renderer host, GUID anahtarlı kaynak önbelleği, render bağlamaları, materyaller, pipeline, görüntüleyici (Faz 3; rapor §4.9); editörün 3B kodu `render/editor/` (çizim katmanı, gizmo, picking; yalnız editör yükler, Faz 4) | tek sahip (`three/webgpu`, `three/tsl`) |
+| `render` | renderer host, GUID anahtarlı kaynak önbelleği, render bağlamaları, materyaller, pipeline, görüntüleyici (Faz 3; rapor §4.9); editörün 3B kodu `render/editor/` (viewport, editör kamerası, çizim katmanı, ızgara, picking, seçim çerçevesi, yardımcı bağlamalar; gizmo adım 4; yalnız editör yükler, Faz 4) | tek sahip (`three/webgpu`, `three/tsl`) |
 | `runtime` | World, sahne kurucu, oyun modülü host'u, boot; tarayıcı API'si gereken alt sistem kodu (`runtime/audio`) | dolaylı |
 | `gameplay` | yeniden kullanılabilir oyun çatısı (Faz 6) | yok |
 | `editor` | editör: DOM ve servisler; yalnız dinamik import, oyun bundle'ına girmez (Faz 4) | yok; 3B kodu `render/editor/`'da |
@@ -42,8 +42,10 @@ girişi `main.ts` Vite glob'uyla toplayıp render host'a verir, çünkü `render
 katmanı `features/`'ı import edemez (rapor §4.3, §4.9). Başsız açılışta render
 yok. Yeni özellik kabuk dosyasına dokunmaz: `main.ts` özellikleri klasörden
 toplar. Örnek ve iskeletin kabul testi: `src/features/height-fog` (rapor §4.3).
-Özelliğe özgü editör yardımcı çizimi `editorRender.ts` (three + editör; editör host'u
-toplar, Faz 4; rapor §4.2).
+Özelliğe özgü editör yardımcı çizimi `editorRender.ts` (three + editör;
+`defineEditorRenderBinding`, editör toplar ve editör World'ünde `forge.editorHelpers`
+ile çalıştırır; rapor §4.2). Render bağlamaları çizdiklerine aktörünü etiketler
+(`render/sync/pickTags.ts`); editörün picking'i ve seçim çerçevesi bunu okur.
 
 ## Veri modeli
 
