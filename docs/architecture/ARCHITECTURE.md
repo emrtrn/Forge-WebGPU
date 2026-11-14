@@ -152,6 +152,11 @@ derleyip başsız açar (rapor §4.8, A7, A8).
 Motor içeriği hiçbir pakete, paket başka pakete referans veremez; ikisi de
 projeden salt okunur. Ağır referans içerik depo dışında, yerel içerik
 projesinde (rapor §4.8, A9).
+Motor deposunun `npm run dev -- --engine-content` kipi bütün paketleri aynı
+editörden yazılabilir açar (`tools/server/engineContentMode.ts`, Faz 4 / 6g).
+Motor işlemi tek kökte, mevcut kayıt servisinden geçer; motor level'ı kendi
+kökünün izniyle kaydedilir. Normal projeler ve motor örneklerinin salt
+okunurluğu korunur (rapor §4.8).
 
 ## Kapı
 

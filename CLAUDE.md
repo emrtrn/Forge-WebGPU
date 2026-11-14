@@ -39,6 +39,7 @@ kararları plan K12'de; taşınmayan Forge kodu `forge-webgl-final` etiketinde.
 | Komut | Ne yapar |
 |---|---|
 | `npm run dev` | Dev server, port **5183** (`strictPort`) |
+| `npm run dev -- --engine-content` | Aynı editörde motor içeriği ve bütün paketler yazılabilir; örnek proje salt okunur kalır |
 | `npm run gate` | Push öncesi kapı: aşağıdakilerin hepsi |
 | `npm run typecheck` | `tsconfig.json` (tarayıcı, `src/`, testler hariç) + `tsconfig.tests.json` (`src` testleri, Node tipleriyle) + `tsconfig.tools.json` (Node, `tools/`, `src/engine` ve import ettiği `src` modülleri; DOM yok) + `tsconfig.smoke.json` (`tests/smoke`, Node + DOM) |
 | `npm run verify:layers` | Katman denetimi + öz-testi |
@@ -72,6 +73,12 @@ manifestte `contentPacks` ile seçer, içerik kopyalanmaz, proje dizinine
 `engine:` etiketiyle girer ve editörden yazılmaz (mimari §4.8, A9). Bir paket
 başka pakete yalnız `forge.pack.json`'daki `requires` ile başvurur (worldbuilder
 → starter); onu seçen proje gerekenleri de seçer.
+Motor deposunda `npm run dev -- --engine-content` bu kuralın düzenleme kipidir:
+motor içeriği ve bütün paketler mevcut kayıt servisinden yazılır; bir motor
+işlemi aynı içerik kökünde kalır. Motor / paketten projeye kopyalama çalışır.
+Açılan motor level'ı kaydedilebilir; `samples/starter` ve fixture'lar salt
+okunur kalır. Projenin `forge dev` komutu bu kipi açmaz. `verify:assets` paket
+bağımlılık yönünü ve asılı referansları kapıda denetler.
 Smoke portu **5283**. Forge WebGL 5173 / 5273, Ridgebound 5175 kullanır; başka
 projenin sunucusunu yeniden kullanma.
 

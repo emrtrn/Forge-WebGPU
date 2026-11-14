@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.21 · 2026-11-14 (v1.20'den fark: §4.3 bir özelliğin editör tarafı `defineFeatureEditor` (Outliner görünüşü, Add Actor girişleri, Details eklentileri; SDK 0.1.5–0.1.7); §4.4 aktörün editöre özgü `locked`'u (kullanıcı kararı); §4.7 paneller: gizleme yalnız görünüm, Details'in şemadan formu ve override'ları, düzenleme işlemleri, gruplama ve pano (kullanıcı kararları 2026-11-14).
+**Sürüm:** v1.22 · 2026-11-14 (v1.21’den fark: §4.8 motor içeriği kipinin uygulaması — kayıtlı kökler için ayrı kayıt politikası, Content Browser ve level kayıt yönlendirmesi, etiketli 409 / hücre dizini yolları, sınıf tazeleme ve geçici içerikle kabul). v1.21 · 2026-11-14 (v1.20'den fark: §4.3 bir özelliğin editör tarafı `defineFeatureEditor` (Outliner görünüşü, Add Actor girişleri, Details eklentileri; SDK 0.1.5–0.1.7); §4.4 aktörün editöre özgü `locked`'u (kullanıcı kararı); §4.7 paneller: gizleme yalnız görünüm, Details'in şemadan formu ve override'ları, düzenleme işlemleri, gruplama ve pano (kullanıcı kararları 2026-11-14).
 v1.20 · 2026-11-14 (v1.19'dan fark: §4.4 aktörün editöre özgü `pivot`'u (kullanıcı kararı); §4.7 gizmo'nun uygulaması (three'siz sürükleme, tek transaction, instancing hızlı yolu); §4.9 gizmo katmanın son pass'i.
 v1.19 · 2026-11-14 (v1.18'den fark: §4.2 editör yardımcı bağlamaları (`defineEditorRenderBinding`, `forge.editorHelpers`); §4.9 çizim katmanının uygulaması (sahne derinliği, derinlik ön geçişi, ton eşlemesiz bileşim) ve picking etiketleri.
 v1.18 · 2026-11-13 (v1.17'den fark: §4.8 build'in uygulaması (kullanıcı kararı: Faz 4): statik içerik, `ContentClient`, alt dizin.
@@ -1185,6 +1185,17 @@ düşen alan uyarı değil, **hatadır**.
     okunur kalır; motor deposunda `npm run dev -- --engine-content` kipinde motor
     içeriği ve paketler aynı editörden yazılır, `verify:assets` (bağımlılık yönü,
     asılı referans) korur.
+    *Uygulama (Faz 4 adım 6g, 2026-11-14):* `tools/dev.ts` seçeneği Vite'tan
+    önce ayırır; sunucu bütün paketleri listeler. `server/engineContentMode.ts`
+    yalnız kayıtlı motor / paket köklerine ayrı yazma politikası kurar;
+    `POST /__forge/content` ve `/save` mevcut işlemli kayıt servisini kullanır.
+    Motor tarafına taşıma / kopyalamada kaynak ve hedef aynı kökte kalır;
+    motor / paketten projeye kopyalama korunur. Kayıt yanıtında üretilen hücre
+    dizinleri, hatalar ve 409 yolları `engine:` etiketlidir. Kayıttan sonra
+    sınıf deposu ve editörün sınıf listesi tazelenir. Editör Save iznini açılan
+    level'ın içerik kökünden alır; örnek projelerin salt okunurluğu açılmaz.
+    `forge dev` motor yazma kipini devralmaz. Entegrasyon ve tarayıcı testleri
+    geçici motor içeriğiyle çalışır; gerçek motor asset'lerine yazmaz.
   - *Bağımlılık yönü:* motor içeriği hiçbir pakete, bir paket başka bir pakete
     referans veremez; paket motor içeriğine verebilir. `verify:assets` motor
     içeriğini tek başına ve her paketi motor içeriğiyle birlikte dizinleyip
