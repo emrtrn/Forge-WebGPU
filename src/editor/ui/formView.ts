@@ -8,8 +8,14 @@
 //   the name (paramFields.ts); vectors and transforms are X / Y / Z axis fields;
 //   objects and arrays are collapsible sections.
 // - Every edit is reported as (path, value) with the whole next value; `input`
-//   while a slider or colour moves, `commit` when the edit lands. The caller
+//   while a slider or colour moves, `commit` when the edit lands. The path is
+//   the leaf edited (a vector's axis: `size[1]`, a transform's `p[0]`), so a
+//   caller can write just that leaf to several actors; a rotation axis comes
+//   as the quaternion plus the axis and degrees (`rotation`). The caller
 //   decides what a change is (Details: a transaction, merged while dragging).
+// - Details of several actors (step 5b): `mixed` paths show "Multiple Values"
+//   (an empty box, an indeterminate checkbox); `overridden` top-level fields
+//   (a class actor's overrides) carry a reset arrow (`onReset`).
 // - Out-of-range numbers are clamped and `warn` gets Forge's Turkish message;
 //   an unparsable number puts the old value back. The schema's normalisation
 //   stays the authority: the kit only keeps the user inside the limits.
@@ -29,6 +35,8 @@ export interface FormChange {
   readonly next: Record<string, unknown>;
   /** `input`: still moving (slider, colour). `commit`: the edit landed. */
   readonly phase: "input" | "commit";
+  /** A rotation axis typed in degrees: `value` is the quaternion the form shows; this is what was typed. */
+  readonly rotation?: { readonly axis: 0 | 1 | 2; readonly degrees: number };
 }
 
 export interface FormViewOptions {
@@ -49,7 +57,15 @@ export interface FormViewOptions {
   readonly pickAsset?: (assetType: string | null) => Promise<string | null>;
   readonly actorLabel?: (id: string) => string | null;
   readonly pickActor?: () => Promise<string | null>;
+  /** Paths (`pathKey`) whose value differs between the actors shown: drawn as "Multiple Values". */
+  readonly mixed?: ReadonlySet<string>;
+  /** Top-level field keys that differ from a default the caller knows (a class's): highlighted, with a reset arrow. */
+  readonly overridden?: ReadonlySet<string>;
+  readonly onReset?: (key: string) => void;
 }
+
+/** What a mixed field shows (Unreal's wording). */
+export const MIXED_TEXT = "Multiple Values";
 
 export interface FormView {
   readonly element: HTMLElement;
@@ -76,9 +92,17 @@ export function createFormView(options: FormViewOptions): FormView {
     return node;
   };
 
-  const emit = (path: FormPath, value: unknown, phase: FormChange["phase"]): void => {
+  const emit = (path: FormPath, value: unknown, phase: FormChange["phase"], rotation?: FormChange["rotation"]): void => {
     current = setAtPath(current, path, value);
-    options.onChange({ path, value, next: current, phase });
+    options.onChange({ path, value, next: current, phase, ...(rotation ? { rotation } : {}) });
+  };
+  const isMixed = (path: FormPath): boolean => options.mixed?.has(pathKey(path)) ?? false;
+  /** A mixed control shows nothing of its own (the primary's value would read as everyone's). */
+  const showMixed = (input: HTMLInputElement | HTMLTextAreaElement, path: FormPath): void => {
+    if (!isMixed(path)) return;
+    input.value = "";
+    input.placeholder = MIXED_TEXT;
+    input.classList.add("is-mixed");
   };
 
   const testId = (path: FormPath): string => `${prefix}-${pathKey(path)}`;
@@ -130,6 +154,7 @@ export function createFormView(options: FormViewOptions): FormView {
     const input = numberInput(path, old, label, field.hint, field.step);
     if (field.range.min !== null) input.min = String(field.range.min);
     if (field.range.max !== null) input.max = String(field.range.max);
+    showMixed(input, path);
     let last = old;
     input.addEventListener("change", () => {
       last = readNumber(input, { label, range: field.range }, last);
@@ -166,7 +191,15 @@ export function createFormView(options: FormViewOptions): FormView {
     return row;
   }
 
-  function vectorRow(path: FormPath, values: readonly number[], label: string, hint: string | null, field: { range: NumberFormField["range"]; step: number | null }, write: (values: number[]) => void): HTMLElement {
+  function vectorRow(
+    path: FormPath,
+    values: readonly number[],
+    label: string,
+    hint: string | null,
+    field: { range: NumberFormField["range"]; step: number | null },
+    write: (index: number, value: number) => void,
+    mixedAxis: (index: number) => boolean = (index) => isMixed([...path, index]),
+  ): HTMLElement {
     const row = el("div", "detail-vector");
     row.append(Object.assign(labelSpan(label, hint), { className: "detail-vector-label" }));
     const fields = el("div", "vector-fields");
@@ -179,9 +212,15 @@ export function createFormView(options: FormViewOptions): FormView {
       const input = numberInput([...path, index], component, `${label} ${axis.toUpperCase()}`, hint, field.step);
       if (field.range.min !== null) input.min = String(field.range.min);
       if (field.range.max !== null) input.max = String(field.range.max);
+      if (mixedAxis(index)) {
+        input.value = "";
+        input.placeholder = "—";
+        input.title = MIXED_TEXT;
+        input.classList.add("is-mixed");
+      }
       input.addEventListener("change", () => {
         state[index] = readNumber(input, { label: `${label} ${axis.toUpperCase()}`, range: field.range }, state[index]!);
-        write([...state]);
+        write(index, state[index]!);
       });
       cell.append(input);
       fields.append(cell);
@@ -195,7 +234,7 @@ export function createFormView(options: FormViewOptions): FormView {
     row.append(labelSpan(label, hint));
     const control = el("span", "ref-control");
     const id = typeof value === "string" ? value : null;
-    const shown = el("output", "", id === null ? "None" : (describe(id) ?? id));
+    const shown = el("output", "", isMixed(path) ? MIXED_TEXT : id === null ? "None" : (describe(id) ?? id));
     shown.dataset.testid = testId(path);
     if (id !== null) shown.title = id;
     control.append(shown);
@@ -237,6 +276,7 @@ export function createFormView(options: FormViewOptions): FormView {
         const input = el("input");
         input.type = "checkbox";
         input.checked = typeof value === "boolean" ? value : field.default;
+        input.indeterminate = isMixed(path);
         input.dataset.testid = testId(path);
         input.setAttribute("aria-label", label);
         if (field.hint) input.title = field.hint;
@@ -255,6 +295,13 @@ export function createFormView(options: FormViewOptions): FormView {
           select.append(entry);
         }
         select.value = typeof value === "string" ? value : field.default;
+        if (isMixed(path)) {
+          const blank = el("option", "", MIXED_TEXT);
+          blank.value = "";
+          blank.disabled = true;
+          select.prepend(blank);
+          select.value = "";
+        }
         select.dataset.testid = testId(path);
         select.setAttribute("aria-label", label);
         if (field.hint) select.title = field.hint;
@@ -276,6 +323,8 @@ export function createFormView(options: FormViewOptions): FormView {
         if (field.hint) input.title = field.hint;
         input.disabled = options.disabled ?? false;
         control.classList.toggle("is-empty", color === null);
+        control.classList.toggle("is-mixed", isMixed(path));
+        if (isMixed(path)) input.title = MIXED_TEXT;
         let clear: HTMLButtonElement | null = null;
         const set = (phase: FormChange["phase"]) => () => {
           control.classList.remove("is-empty");
@@ -308,6 +357,7 @@ export function createFormView(options: FormViewOptions): FormView {
         row.append(labelSpan(label, field.hint));
         const input = field.multiline ? el("textarea") : el("input");
         input.value = typeof value === "string" ? value : field.default;
+        showMixed(input, path);
         input.dataset.testid = testId(path);
         input.setAttribute("aria-label", label);
         if (field.hint) input.title = field.hint;
@@ -326,7 +376,7 @@ export function createFormView(options: FormViewOptions): FormView {
       }
       case "vector": {
         const values = Array.isArray(value) && value.length === field.size ? (value as number[]) : [...field.default];
-        return vectorRow(path, values, label, field.hint, field, (next) => emit(path, next, "commit"));
+        return vectorRow(path, values, label, field.hint, field, (index, next) => emit([...path, index], next, "commit"));
       }
       case "transform":
         return transformRows(path, (value ?? field.default) as Transform, label, field.hint);
@@ -384,29 +434,52 @@ export function createFormView(options: FormViewOptions): FormView {
   function transformRows(path: FormPath, value: Transform, label: string, hint: string | null): HTMLElement {
     const { section, body } = sectionOf(label, hint, path);
     const open = { min: null, max: null };
-    let transform: Transform = value;
-    const write = (next: Transform) => {
-      transform = next;
-      emit(path, next, "commit");
-    };
+    const degrees = quaternionToEulerDegrees(value.r).map((angle) => Number(angle.toFixed(3))) as [number, number, number];
+    // A quaternion's components are not Euler axes: any mixed component mixes all three.
+    const rotationMixed = [0, 1, 2, 3].some((index) => isMixed([...path, "r", index]));
     body.append(
-      vectorRow([...path, "p"], transform.p, "Location", "Konum (m)", { range: open, step: 0.1 }, (p) => write({ ...transform, p: p as [number, number, number] })),
+      vectorRow([...path, "p"], value.p, "Location", "Konum (m)", { range: open, step: 0.1 }, (index, next) => emit([...path, "p", index], next, "commit")),
       vectorRow(
         [...path, "r"],
-        quaternionToEulerDegrees(transform.r).map((angle) => Number(angle.toFixed(3))),
+        degrees,
         "Rotation",
         "Dönüş (derece, XYZ)",
         { range: open, step: 1 },
-        (degrees) => write({ ...transform, r: eulerDegreesToQuaternion(degrees as [number, number, number]) }),
+        (index, next) => {
+          degrees[index] = next;
+          emit([...path, "r"], eulerDegreesToQuaternion(degrees), "commit", { axis: index as 0 | 1 | 2, degrees: next });
+        },
+        () => rotationMixed,
       ),
-      vectorRow([...path, "s"], transform.s, "Scale", "Ölçek", { range: open, step: 0.1 }, (s) => write({ ...transform, s: s as [number, number, number] })),
+      vectorRow([...path, "s"], value.s, "Scale", "Ölçek", { range: open, step: 0.1 }, (index, next) => emit([...path, "s", index], next, "commit")),
     );
     return section;
   }
 
+  /** An overridden top-level field: highlighted name and the reset arrow (Unreal's). */
+  const decorate = (row: HTMLElement, key: string): HTMLElement => {
+    if (!options.overridden?.has(key)) return row;
+    row.classList.add("is-overridden");
+    const reset = el("button", "detail-reset-button");
+    reset.type = "button";
+    reset.innerHTML = UI_ICONS.refresh; // The kit's static SVG.
+    reset.title = "Sınıf değerine dön";
+    reset.setAttribute("aria-label", "Reset to class value");
+    reset.dataset.testid = `${testId([key])}-reset`;
+    reset.disabled = options.disabled ?? false;
+    reset.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      options.onReset?.(key);
+    });
+    const heading = row.querySelector(":scope > .detail-section-heading");
+    (heading ?? row.firstElementChild ?? row).append(reset);
+    return row;
+  };
+
   function render(): void {
     const focused = doc.activeElement instanceof HTMLElement && element.contains(doc.activeElement) ? doc.activeElement.dataset.testid : undefined;
-    element.replaceChildren(...options.fields.map((field) => fieldRow(field, [field.key], getAtPath(current, [field.key]))));
+    element.replaceChildren(...options.fields.map((field) => decorate(fieldRow(field, [field.key], getAtPath(current, [field.key])), field.key)));
     if (focused) element.querySelector<HTMLElement>(`[data-testid="${CSS.escape(focused)}"]`)?.focus();
   }
 

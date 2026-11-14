@@ -36,6 +36,8 @@ import type { EditorRenderBindingDef } from "../render/editor/editorBinding.ts";
 import { createEditorViewport } from "../render/editor/editorViewport.ts";
 import { assembleLevel } from "../runtime/assembler.ts";
 import { createWorld, type World } from "../runtime/world.ts";
+import { loadAssetCatalog } from "./assets/assetCatalog.ts";
+import { installDetailsStyle } from "./details/detailsStyle.ts";
 import { createEditorCatalog } from "./host/editorCatalog.ts";
 import type { FeatureEditorDef } from "./host/featureEditor.ts";
 import { installOutlinerStyle } from "./outliner/outlinerStyle.ts";
@@ -104,6 +106,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
   installKitStyle(doc);
   installShellStyle(doc);
   installOutlinerStyle(doc);
+  installDetailsStyle(doc);
   doc.title = `${options.projectName} · Editor`;
   const shell = createShell({ document: doc, projectName: options.projectName, levelFolder: options.level, readOnly: options.readOnly });
   doc.body.replaceChildren(shell.root);
@@ -178,7 +181,8 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       hiddenKey = key;
       writeHidden(storage, levelKey, ids);
     });
-    shell.attach(session, { catalog: createEditorCatalog(FEATURE_EDITORS, registry), resolveClass });
+    const assets = await loadAssetCatalog((input, init) => fetch(input, init));
+    shell.attach(session, { catalog: createEditorCatalog(FEATURE_EDITORS, registry), registry, resolveClass, assets });
     tools = createTransformTools({ editor: session, viewport, storage: pageStorage(doc), status: (message, tone) => shell.status(message, tone) });
     shell.attachTools(tools, () => viewport.camera.navigating);
     const warnings = opened.issues.filter((issue) => issue.severity === "warning");

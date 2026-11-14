@@ -14,6 +14,8 @@
 //   writes the actor's `pivot` (one undo step). Presets set it to the model's
 //   origin, centre or base (its local bounds).
 // - Snap settings are the page's (localStorage), not the project's.
+// - While dragging, `preview(id)` gives the dragged transform (and pivot) so
+//   Details follows the gizmo live (step 5b); `onPreview` hears each step.
 // - A locked actor (Lock Movement, step 5a) or one hidden in the editor's view
 //   is never dragged, snapped or given a pivot: the gizmo leaves it out.
 
@@ -80,6 +82,10 @@ export interface TransformTools {
   setPivotPreset(preset: PivotPreset): void;
   /** Tool, space, snap or pivot editing changed. */
   onChange(listener: () => void): () => void;
+  /** What a drag shows for an actor now; nulls when it is not being dragged. */
+  preview(id: ActorId): { readonly transform: Transform | null; readonly pivot: Vec3 | null };
+  /** Each drag step (and its end). */
+  onPreview(listener: () => void): () => void;
 }
 
 export interface TransformToolsOptions {
@@ -101,6 +107,10 @@ export function createTransformTools(options: TransformToolsOptions): TransformT
   const listeners = new Set<() => void>();
   const changed = (): void => {
     for (const listener of [...listeners]) listener();
+  };
+  const previewListeners = new Set<() => void>();
+  const previewed = (): void => {
+    for (const listener of [...previewListeners]) listener();
   };
   let tool: EditorTool = "move";
   let space: TransformSpace = "world";
@@ -280,12 +290,14 @@ export function createTransformTools(options: TransformToolsOptions): TransformT
       drag.transforms = result.transforms;
       drag.pivot = result.pivot;
       if (result.transforms.size > 0) show(drag.docs, result.transforms);
+      previewed();
       return "grab";
     },
     pointerUp(event) {
       if (!drag || event.pointerId !== drag.pointerId) return;
       const done = drag;
       drag = null;
+      previewed();
       if (done.pivot) {
         const primary = [...done.docs.values()][0]!;
         const before = primary.pivot ?? [0, 0, 0];
@@ -309,6 +321,7 @@ export function createTransformTools(options: TransformToolsOptions): TransformT
       const dropped = drag;
       drag = null;
       show(dropped.docs, null);
+      previewed();
       status("Drag cancelled");
       return true;
     },
@@ -398,6 +411,15 @@ export function createTransformTools(options: TransformToolsOptions): TransformT
     onChange(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    preview(id) {
+      if (!drag) return { transform: null, pivot: null };
+      const primary = [...drag.docs.keys()][0];
+      return { transform: drag.transforms.get(id) ?? null, pivot: id === primary ? drag.pivot : null };
+    },
+    onPreview(listener) {
+      previewListeners.add(listener);
+      return () => previewListeners.delete(listener);
     },
   };
   return tools;
