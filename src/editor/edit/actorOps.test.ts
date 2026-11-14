@@ -150,6 +150,16 @@ describe("the commands on the editor session", () => {
     expect(editor.level.actor(editor.selection.primary()!)?.name).toBe("Cube b");
   });
 
+  test("Parent to active puts the others under the primary; Unparent takes a child off even with its parent selected", () => {
+    const { editor, commands } = open();
+    editor.selection.set([actorId("a"), actorId("e")]);
+    commands.parentToActive();
+    expect(editor.level.actor(actorId("e"))?.parent).toBe(actorId("a"));
+    commands.unparent();
+    expect(editor.level.actor(actorId("e"))?.parent).toBeNull();
+    expect(commands.canUngroup()).toBe(false);
+  });
+
   test("Alt + drag: the duplicate and the move merge into one undo step", () => {
     const { editor, commands } = open();
     editor.selection.set([actorId("a")]);

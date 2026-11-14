@@ -10,7 +10,9 @@
 // and lock) selects; Details (details/detailsPanel.ts, step 5b) shows the
 // selection's name, transform, pivot / placement and every component's form
 // from its schema, one undo step per edit.
-// Ctrl+S / Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) save, undo, redo.
+// The keys are Forge's table (input/shortcuts.ts, step 5f) in one handler:
+// each part of the shell adds its actions as it is attached; no shortcut runs
+// while the camera flies (WASD / QE are the camera's then).
 // The viewport's view controls (step 3) sit in the work bar as Forge's hover
 // menus: View Mode (Lit / Wireframe), Quality (Auto and the profiles), Show
 // (toggles: Grid, Stats) and Camera (Perspective / Top / Left / Front; keys 1 Top, 2 Front,
@@ -26,7 +28,7 @@ import type { AssetCatalog } from "../assets/assetCatalog.ts";
 import { createDetailsPanel, type DetailsPanel } from "../details/detailsPanel.ts";
 import type { EditCommands } from "../edit/editCommands.ts";
 import type { EditorCatalog } from "../host/editorCatalog.ts";
-import { isEditableTarget, shortcutOf, type ShortcutId } from "../input/shortcuts.ts";
+import { IN_FIELDS, isEditableTarget, shortcutOf, type ShortcutId } from "../input/shortcuts.ts";
 import type { ActorPlacer } from "../place/actorPlacer.ts";
 import { createAddActorMenu } from "../place/addActorMenu.ts";
 import { openContextMenu } from "../ui/contextMenu.ts";
@@ -49,8 +51,6 @@ const TOOLBAR_ICONS = {
 const MENU_CHEVRON =
   '<svg class="menu-chevron" viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5L6 7.5 9 4.5"/></svg>';
 
-/** Forge's camera preset keys (EditorUi): 1 Top, 2 Front, 3 Left, 4 Perspective. */
-const VIEW_KEYS: Readonly<Record<string, string>> = { Digit1: "top", Digit2: "front", Digit3: "left", Digit4: "perspective" };
 
 /** One choice of a view menu: its id and its label. */
 export type MenuChoice = readonly [id: string, label: string];
@@ -163,6 +163,19 @@ export function createShell(options: ShellOptions): EditorShell {
   let tools: TransformTools | null = null;
   /** Details, once a level is attached. */
   let detailsPanel: DetailsPanel | null = null;
+  /** What each shortcut does, filled as the parts are attached. */
+  const actions: Partial<Record<ShortcutId, () => void>> = {};
+  let navigating = (): boolean => false;
+  let focusSelection = (): void => {};
+  doc.defaultView?.addEventListener("keydown", (event) => {
+    const id = shortcutOf(event);
+    if (id === null || navigating()) return;
+    if (isEditableTarget(event.target) && !IN_FIELDS.has(id)) return;
+    const run = actions[id];
+    if (!run) return;
+    event.preventDefault();
+    run();
+  });
   let placerNow: ActorPlacer | null = null;
   workbar.append(viewControls);
   topbar.append(lead, workbar);
@@ -280,32 +293,38 @@ export function createShell(options: ShellOptions): EditorShell {
         "Show",
       );
       show.mark((flag) => menus.flag(flag));
-      doc.defaultView?.addEventListener("keydown", (event) => {
-        if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
-        const target = event.target as HTMLElement | null;
-        if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable)) return;
-        if (event.code === "KeyF") {
-          event.preventDefault();
-          menus.focusSelection();
-          return;
-        }
-        const view = VIEW_KEYS[event.code];
-        if (!view) return;
-        event.preventDefault();
-        menus.setView(view);
-      });
+      focusSelection = () => menus.focusSelection();
+      Object.assign(actions, {
+        focus: focusSelection,
+        viewTop: () => menus.setView("top"),
+        viewFront: () => menus.setView("front"),
+        viewLeft: () => menus.setView("left"),
+        viewPerspective: () => menus.setView("perspective"),
+      } satisfies Partial<Record<ShortcutId, () => void>>);
     },
     attachPlacer(placer) {
       placerNow = placer;
       workbar.prepend(createAddActorMenu({ document: doc, placer, viewport, status }));
     },
-    attachTools(next, navigating) {
+    attachTools(next, flying) {
       tools = next;
-      for (const part of createTransformToolbar({ document: doc, tools: next, navigating })) workbar.insertBefore(part, viewControls);
+      for (const part of createTransformToolbar({ document: doc, tools: next })) workbar.insertBefore(part, viewControls);
+      navigating = flying;
+      Object.assign(actions, {
+        toolSelect: () => next.setTool("select"),
+        toolMove: () => next.setTool("move"),
+        toolRotate: () => next.setTool("rotate"),
+        toolScale: () => next.setTool("scale"),
+        cycleTool: () => next.cycleTool(),
+        toggleSpace: () => next.toggleSpace(),
+        snapToFloor: () => next.snapToFloor(),
+      } satisfies Partial<Record<ShortcutId, () => void>>);
       detailsPanel?.setTools(next);
     },
     attach(editor, context) {
-      outliner.append(createOutlinerPanel({ document: doc, editor, catalog: context.catalog, resolveClass: context.resolveClass, status }).element);
+      outliner.append(
+        createOutlinerPanel({ document: doc, editor, catalog: context.catalog, resolveClass: context.resolveClass, commands: context.commands, focus: () => focusSelection(), status }).element,
+      );
       detailsPanel = createDetailsPanel({
         document: doc,
         editor,
@@ -357,26 +376,19 @@ export function createShell(options: ShellOptions): EditorShell {
       });
       undo.addEventListener("click", runUndo);
       redo.addEventListener("click", runRedo);
-      doc.defaultView?.addEventListener("keydown", (event) => {
-        if (event.code !== "Escape" || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
-        const target = event.target as HTMLElement | null;
-        if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT")) return;
-        editor.selection.set([]);
-      });
-      doc.defaultView?.addEventListener("keydown", (event) => {
-        if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
-        const target = event.target as HTMLElement | null;
-        if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") && event.key.toLowerCase() !== "s") return;
-        const key = event.key.toLowerCase();
-        if (key === "s") void runSave();
-        else if (key === "z" && !event.shiftKey) runUndo();
-        else if (key === "y" || (key === "z" && event.shiftKey)) runRedo();
-        else return;
-        event.preventDefault();
-      });
-
-      // The edit commands' keys (step 5c; shortcuts.ts, Forge's table).
-      const commandKeys: Partial<Record<ShortcutId, () => void>> = {
+      Object.assign(actions, {
+        save: () => void runSave(),
+        undo: runUndo,
+        redo: runRedo,
+        clearSelection: () => editor.selection.set([]),
+        // Forge's Ctrl + A: every actor in view (a hidden one stays out).
+        selectAll: () => editor.selection.set(editor.level.level.actors.filter((actor) => !editor.visibility.hidden(actor.id)).map((actor) => actor.id)),
+        hide: () => {
+          const ids = editor.selection.ids();
+          if (ids.length === 0) status("No selected object to hide.", "warning");
+          else editor.visibility.set(ids, true);
+        },
+        showHidden: () => editor.visibility.showAll(),
         duplicate: () => void context.commands.duplicate(),
         delete: () => context.commands.remove(),
         copy: () => void context.commands.copy(),
@@ -384,15 +396,7 @@ export function createShell(options: ShellOptions): EditorShell {
         paste: () => void context.commands.paste(),
         group: () => context.commands.group(),
         ungroup: () => context.commands.ungroup(),
-      };
-      doc.defaultView?.addEventListener("keydown", (event) => {
-        if (isEditableTarget(event.target)) return;
-        const id = shortcutOf(event);
-        const run = id === null ? undefined : commandKeys[id];
-        if (!run) return;
-        event.preventDefault();
-        run();
-      });
+      } satisfies Partial<Record<ShortcutId, () => void>>);
 
       editor.onChange(renderToolbar);
       renderToolbar();

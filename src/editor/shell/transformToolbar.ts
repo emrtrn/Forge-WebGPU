@@ -4,11 +4,9 @@
 // snap widgets (a grid-icon toggle joined to a step list, Forge's steps), in
 // the work bar before the view menus.
 //
-// Keys (Forge): Q Select, W Move, E Rotate, R Scale, Space cycles Move ->
-// Rotate -> Scale, X toggles World / Local, End snaps the selection to the
-// floor. Not while typing in a field, not with Ctrl / Alt / Meta, not while the
-// camera flies (its W / E / Q). Escape while dragging cancels the drag before
-// it can clear the selection.
+// Its keys (Forge: Q Select, W Move, E Rotate, R Scale, Space, X, End) are in
+// the shell's one table (input/shortcuts.ts, step 5f). Escape while dragging
+// cancels the drag here, before the shell's Escape can clear the selection.
 
 import { EDITOR_TOOLS, type EditorTool } from "../../engine/gizmo/axes.ts";
 import { SNAP_STEPS, type SnapSettings } from "../../engine/gizmo/snap.ts";
@@ -27,7 +25,6 @@ export const TOOL_ICONS = {
 
 const TOOL_LABELS: Readonly<Record<EditorTool, string>> = { select: "Select", move: "Move", rotate: "Rotate", scale: "Scale" };
 const TOOL_KEYS: Readonly<Record<EditorTool, string>> = { select: "Q", move: "W", rotate: "E", scale: "R" };
-const KEY_TOOLS: Readonly<Record<string, EditorTool>> = { KeyQ: "select", KeyW: "move", KeyE: "rotate", KeyR: "scale" };
 const SNAP_HINTS = {
   move: "Taşıma adımı (metre); simge açar / kapatır.",
   rotate: "Döndürme adımı (derece); simge açar / kapatır.",
@@ -37,8 +34,6 @@ const SNAP_HINTS = {
 export interface TransformToolbarOptions {
   readonly document: Document;
   readonly tools: TransformTools;
-  /** True while the camera flies (right drag): its keys are not the tools'. */
-  readonly navigating: () => boolean;
 }
 
 /** The tool group and the snap widgets, to put in the work bar. */
@@ -139,17 +134,5 @@ export function createTransformToolbar(options: TransformToolbarOptions): HTMLEl
     },
     { capture: true },
   );
-  view?.addEventListener("keydown", (event) => {
-    if (event.ctrlKey || event.metaKey || event.altKey || options.navigating()) return;
-    const target = event.target as HTMLElement | null;
-    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable)) return;
-    const tool = KEY_TOOLS[event.code];
-    if (tool && !event.shiftKey) tools.setTool(tool);
-    else if (event.code === "Space" && !event.shiftKey) tools.cycleTool();
-    else if (event.code === "KeyX" && !event.shiftKey) tools.toggleSpace();
-    else if (event.code === "End") tools.snapToFloor();
-    else return;
-    event.preventDefault();
-  });
   return [group, snaps];
 }

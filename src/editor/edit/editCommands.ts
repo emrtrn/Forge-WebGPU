@@ -67,6 +67,8 @@ export interface EditCommands {
   paste(): Promise<void>;
   group(): void;
   ungroup(): void;
+  /** The selection has a group, or a member of one, to dissolve. */
+  canUngroup(): boolean;
   /** The other selected actors under the primary (Forge's Parent to active). */
   parentToActive(): void;
   unparent(): void;
@@ -194,7 +196,7 @@ export function createEditCommands(options: EditCommandsOptions): EditCommands {
     parentToActive() {
       const [primary, ...others] = selected();
       if (primary === undefined || others.length === 0) {
-        status("Select the children, then the parent last (it is the active one).", "warning");
+        status("Select the parent first (the active one), then Ctrl + click the actors to put under it.", "warning");
         return;
       }
       const moved = reparentActors(context.lookup, others, primary);
@@ -205,7 +207,8 @@ export function createEditCommands(options: EditCommandsOptions): EditCommands {
       }));
     },
     unparent() {
-      const moved = reparentActors(context.lookup, selected(), null);
+      // The selected actors that have a parent (with its parent selected too, a child still comes off it).
+      const moved = reparentActors(context.lookup, selected().filter((id) => editor.level.actor(id)?.parent != null), null);
       if (moved.docs.length === 0) {
         status("Selection has no parent.", "warning");
         return;
@@ -214,6 +217,7 @@ export function createEditCommands(options: EditCommandsOptions): EditCommands {
         for (const doc of moved.docs) tx.setActor(doc);
       }));
     },
+    canUngroup: () => ungroupActors(context, selected()) !== null,
     clickTarget: (id) => selectTarget(context, id),
     duplicateForDrag: (coalesce) => duplicate(coalesce).length > 0,
   };

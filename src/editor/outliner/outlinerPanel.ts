@@ -17,13 +17,18 @@
 //   saved); the lock is the actor's Lock Movement (`locked`, one undo step).
 // - New against Forge: a row with children has a collapse chevron (groups are
 //   parent actors now, phase 4 decision 10).
+// - Right click (step 5f): Forge's row menu - Go To, Rename, Duplicate, Group
+//   Selected, Ungroup, Parent to active, Unparent, Delete - on the selection
+//   (the row joins it first when it was not in it).
 // Text is set with textContent; the only markup is the kit's static icons.
 
 import { effectiveComponents, type ActorDoc, type ActorId, type ClassResolver, type ComponentMap } from "../../core/index.ts";
 import { reparentActors } from "../edit/hierarchy.ts";
+import type { EditCommands } from "../edit/editCommands.ts";
 import type { ActorPresentation, EditorCatalog } from "../host/editorCatalog.ts";
 import { OUTLINER_TYPES, type OutlinerType } from "../host/featureEditor.ts";
 import type { EditorSession } from "../session/editorSession.ts";
+import { openContextMenu } from "../ui/contextMenu.ts";
 import { ACTOR_TYPE_ICONS, UI_ICONS } from "../ui/icons.ts";
 import { outlinerRows, rangeIds, revealScrollTop, visibleWindow, type OutlinerRow, type OutlinerSource } from "./outlinerModel.ts";
 
@@ -37,6 +42,10 @@ export interface OutlinerPanelOptions {
   readonly editor: EditorSession;
   readonly catalog: EditorCatalog;
   readonly resolveClass: ClassResolver;
+  /** The row menu's actions (step 5c). */
+  readonly commands: EditCommands;
+  /** Frames the selection in the viewport (Go To). */
+  readonly focus: () => void;
   readonly status: (message: string, tone?: "info" | "warning" | "error") => void;
 }
 
@@ -321,15 +330,57 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
     else editor.selection.set([hit.id]);
   });
 
-  list.addEventListener("dblclick", (event) => {
-    const hit = rowOf(event.target);
-    if (!hit || (event.target as HTMLElement).closest("[data-action]")) return;
-    const actor = editor.level.actor(hit.id);
+  /** Forge's prompt; one undo step. */
+  const rename = (id: ActorId): void => {
+    const actor = editor.level.actor(id);
     if (!actor) return;
     const next = doc.defaultView?.prompt("Rename object", actor.name);
     if (next === null || next === undefined || next === actor.name) return;
     const result = editor.edit(`Rename ${actor.name || actor.id}`, (tx) => tx.setActor({ ...actor, name: next }));
     if (!result.ok) status(result.issues.map((issue) => issue.message).join("; "), "error");
+  };
+  list.addEventListener("dblclick", (event) => {
+    const hit = rowOf(event.target);
+    if (!hit || (event.target as HTMLElement).closest("[data-action]")) return;
+    rename(hit.id);
+  });
+
+  // Forge's row menu (EditorUi `openOutlinerContextMenu`).
+  list.addEventListener("contextmenu", (event) => {
+    const hit = rowOf(event.target);
+    if (!hit) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (!editor.selection.has(hit.id)) {
+      anchor = hit.id;
+      editor.selection.set([hit.id]);
+    }
+    const { commands } = options;
+    const selected = editor.selection.ids();
+    const parented = selected.some((id) => editor.level.actor(id)?.parent != null);
+    openContextMenu(
+      doc,
+      { x: event.clientX, y: event.clientY },
+      [
+        {
+          label: "Go To",
+          testId: "outliner-menu-goto",
+          run: () => {
+            editor.selection.set([hit.id]);
+            options.focus();
+          },
+        },
+        { label: "Rename", testId: "outliner-menu-rename", run: () => rename(hit.id) },
+        { label: "Duplicate", shortcut: "Ctrl+D", testId: "outliner-menu-duplicate", run: () => void commands.duplicate() },
+        { label: "Group Selected", shortcut: "Ctrl+G", testId: "outliner-menu-group", enabled: selected.length >= 2, run: () => commands.group() },
+        { label: "Ungroup", shortcut: "Shift+G", testId: "outliner-menu-ungroup", enabled: commands.canUngroup(), run: () => commands.ungroup() },
+        { label: "Parent to active", testId: "outliner-menu-parent", enabled: selected.length >= 2, run: () => commands.parentToActive() },
+        { label: "Unparent", testId: "outliner-menu-unparent", enabled: parented, run: () => commands.unparent() },
+        { separator: true },
+        { label: "Delete", shortcut: "Delete", danger: true, testId: "outliner-menu-delete", run: () => commands.remove() },
+      ],
+      "outliner-menu",
+    );
   });
 
   // Drag rows onto a row: parent them there (Forge). The whole selection goes when the dragged row is part of it.
