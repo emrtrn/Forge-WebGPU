@@ -22,7 +22,7 @@
 //   technical view (Top / Left / Front) switches to Wireframe and Perspective
 //   back to Lit; the menu still picks either afterwards.
 
-import { Vector2, Vector3, type Box3, type Material, type Mesh } from "three/webgpu";
+import { Group, Vector2, Vector3, type Box3, type Material, type Mesh } from "three/webgpu";
 import type { ActorId, FeatureDef, WorldActor } from "../../core/index.ts";
 import { actorWorldMatrix } from "../sync/transforms.ts";
 import { createRenderHost, type RenderHost, type RenderHostOptions, type RenderQuality } from "../host/renderHost.ts";
@@ -30,6 +30,8 @@ import { CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR, frameBounds, READY_FRAMES, sceneRo
 import { createEditorCameraPoseStore, type PoseStorage } from "./cameraPoseStore.ts";
 import { createEditorCamera, type CameraView, type EditorCamera, type ViewportCamera } from "./editorCamera.ts";
 import { createEditorGrid, type EditorGrid, type GridPlane } from "./grid.ts";
+import { createActorIcons, type ActorIcons } from "./actorIcon.ts";
+import { createEditorHelpersFeature, type EditorRenderBindingDef } from "./editorBinding.ts";
 import { createEditorOverlay, type EditorOverlay } from "./overlay.ts";
 import { createScenePicker, type ScenePicker } from "./picker.ts";
 import { createSelectionOutline, type SelectionOutline } from "./selectionOutline.ts";
@@ -56,6 +58,8 @@ export interface EditorViewport {
   init(): Promise<void>;
   /** The `forge.render` feature for the editor's world. */
   feature(features: readonly FeatureDef[]): FeatureDef;
+  /** The `forge.editorHelpers` feature: runs the features' editor bindings (`editorRender.ts`) in the drawing layer. */
+  helperFeature(features: readonly FeatureDef[], bindings: readonly EditorRenderBindingDef[]): FeatureDef;
   frame(now: number): void;
   readonly host: RenderHost | null;
   readonly camera: EditorCamera;
@@ -94,7 +98,11 @@ function editableTarget(target: EventTarget | null): boolean {
 
 export function createEditorViewport(options: EditorViewportOptions): EditorViewport {
   let host: RenderHost | null = null;
-  const picker: ScenePicker = createScenePicker(() => host?.world?.root ?? null);
+  // The editor helpers' layer group (icons, wires); picked before the scene.
+  const helpers = new Group();
+  helpers.name = "editor helpers";
+  let icons: ActorIcons | null = null;
+  const picker: ScenePicker = createScenePicker(() => host?.world?.root ?? null, () => helpers);
   const selected = options.selected ?? ((): readonly ActorId[] => []);
   const camera = createEditorCamera({
     fov: CAMERA_FOV,
@@ -210,7 +218,8 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       overlay = createEditorOverlay(host.renderer);
       grid = createEditorGrid(overlay.sceneVisibility);
       grid.mesh.visible = gridVisible;
-      overlay.scene.add(grid.mesh);
+      overlay.scene.add(grid.mesh, helpers);
+      icons = createActorIcons(options.document);
       outline = createSelectionOutline(picker, selected);
       overlay.addPass(outline);
       host.setOverlay(overlay);
@@ -221,6 +230,18 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
     feature(features) {
       if (!host) throw new Error("The editor viewport is not initialised.");
       return host.feature(features, "editor");
+    },
+    helperFeature(features, bindings) {
+      if (!overlay || !icons) throw new Error("The editor viewport is not initialised.");
+      return createEditorHelpersFeature({
+        bindings,
+        features,
+        root: helpers,
+        selected: () => new Set(selected()),
+        sceneVisibility: overlay.sceneVisibility,
+        icons,
+        camera: () => camera.active(),
+      });
     },
     frame(now) {
       if (!host || host.world === null) return;
@@ -313,6 +334,8 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       for (const off of unbind.splice(0).reverse()) off();
       host?.setOverlay(null);
       outline?.dispose();
+      icons?.dispose();
+      helpers.clear();
       grid?.dispose();
       overlay?.dispose();
       host?.dispose();

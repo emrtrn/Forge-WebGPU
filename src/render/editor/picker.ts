@@ -7,13 +7,14 @@
 // - a pick surface (a terrain's height field) by its own ray test; its drawn
 //   triangles are not tested.
 //
-// The nearest hit with an actor wins. The same tags give the world bounds of
-// an actor's drawn parts (focus, the orbit target) and the parts themselves
-// (the selection outline draws them).
+// The nearest hit with an actor wins; the editor's helpers (icons, drawn over
+// the scene) are tried first and win when hit. The same tags give the world
+// bounds of an actor's drawn parts and helpers (focus, the orbit target) and
+// the drawn parts themselves (the selection outline draws them).
 
 import { Box3, InstancedMesh, Matrix4, Raycaster, Vector2, Vector3, type BufferGeometry, type Camera, type Intersection, type Mesh, type Object3D } from "three/webgpu";
 import type { ActorId } from "../../core/index.ts";
-import { actorOfHit, actorOfObject, instanceActorsOf, pickSurfaceOf, type PickSurface } from "../sync/pickTags.ts";
+import { actorOfHit, actorOfObject, instanceActorsOf, ownActorOf, pickSurfaceOf, type PickSurface } from "../sync/pickTags.ts";
 
 export interface ViewportPick {
   readonly actor: ActorId;
@@ -38,7 +39,7 @@ export interface ScenePicker {
 
 const isMesh = (object: Object3D): object is Mesh => (object as Mesh).isMesh === true;
 
-export function createScenePicker(root: () => Object3D | null): ScenePicker {
+export function createScenePicker(root: () => Object3D | null, helpers: () => Object3D | null = () => null): ScenePicker {
   const raycaster = new Raycaster();
   const hits: Intersection[] = [];
   const instance = new Matrix4();
@@ -70,12 +71,28 @@ export function createScenePicker(root: () => Object3D | null): ScenePicker {
     });
   };
 
+  const pickHelpers = (): ViewportPick | null => {
+    const top = helpers();
+    if (!top) return null;
+    top.updateMatrixWorld();
+    hits.length = 0;
+    raycaster.intersectObject(top, true, hits);
+    for (const hit of hits) {
+      if (!hit.object.visible) continue;
+      const actor = actorOfHit(hit);
+      if (actor !== null) return { actor, distance: hit.distance, point: hit.point.clone() };
+    }
+    return null;
+  };
+
   return {
     pick(ndc, camera) {
+      raycaster.setFromCamera(ndc, camera);
+      const helper = pickHelpers();
+      if (helper) return helper;
       const top = root();
       if (!top) return null;
       top.updateMatrixWorld();
-      raycaster.setFromCamera(ndc, camera);
       const meshes: Object3D[] = [];
       const surfaces: { object: Object3D; surface: PickSurface }[] = [];
       top.traverseVisible((object) => {
@@ -112,6 +129,14 @@ export function createScenePicker(root: () => Object3D | null): ScenePicker {
         },
         (surface) => void box.union(surface.bounds()),
       );
+      const helperRoot = helpers();
+      if (helperRoot) {
+        helperRoot.updateMatrixWorld();
+        helperRoot.traverseVisible((object) => {
+          const actor = ownActorOf(object);
+          if (actor !== null && actors.has(actor)) box.union(part.setFromObject(object));
+        });
+      }
       return box.isEmpty() ? null : box;
     },
     parts(actors, visit) {

@@ -7,6 +7,10 @@
 //   camera, drawing layer; src/render/editor) -> the editor's world
 //   (`mode: "editor"`: render, environment, fog; never physics or gameplay)
 //   -> shell -> frame loop
+//
+// The features' editor helpers (`features/*/editorRender.ts`) are collected
+// here, never by the game (`editor-render-is-editor-only`), and run in the
+// editor's world through the viewport's `forge.editorHelpers`.
 
 import {
   createSchemaRegistry,
@@ -22,6 +26,7 @@ import {
 } from "../core/index.ts";
 import type { AssetUrls } from "../render/resources/assetUrls.ts";
 import type { RenderBindingDef } from "../render/sync/renderBinding.ts";
+import type { EditorRenderBindingDef } from "../render/editor/editorBinding.ts";
 import { createEditorViewport } from "../render/editor/editorViewport.ts";
 import { assembleLevel } from "../runtime/assembler.ts";
 import { createWorld, type World } from "../runtime/world.ts";
@@ -30,6 +35,10 @@ import { createShell } from "./shell/shell.ts";
 import { installShellStyle } from "./shell/shellStyle.ts";
 import { installKitStyle } from "./ui/kitStyle.ts";
 import { createViewportControls } from "./viewportControls.ts";
+
+const helperModules = import.meta.glob<{ default: EditorRenderBindingDef }>("../features/*/editorRender.ts", { eager: true });
+/** The engine features' editor helper bindings. */
+export const EDITOR_HELPER_BINDINGS: readonly EditorRenderBindingDef[] = Object.values(helperModules).map((module) => module.default);
 
 /** The page's local storage (the viewport's remembered pose); null where the browser refuses it. */
 function pageStorage(doc: Document): Storage | null {
@@ -111,7 +120,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       createViewportControls({ document: doc, viewport, storage: pageStorage(doc), status: (message, tone) => shell.status(message, tone), statsContainer: shell.viewport }),
     );
 
-    world = createWorld({ strict: true, registry, resolveClass, features: [...options.features, viewport.feature(options.features)], mode: "editor" });
+    world = createWorld({ strict: true, registry, resolveClass, features: [...options.features, viewport.feature(options.features), viewport.helperFeature(options.features, EDITOR_HELPER_BINDINGS)], mode: "editor" });
     world.init();
     assembleLevel(world, opened.session.level, { strict: true, resolveClass });
     world.beginPlay();

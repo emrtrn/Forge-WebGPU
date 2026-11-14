@@ -39,6 +39,11 @@ export function tagPickSurface(object: Object3D, surface: PickSurface): void {
   object.userData[SURFACE] = surface;
 }
 
+/** The actor an object itself is tagged with (not an ancestor's); null for none. */
+export function ownActorOf(object: Object3D): ActorId | null {
+  return (object.userData[ACTOR] as ActorId | undefined) ?? null;
+}
+
 /** The actor an object is drawn for (itself or the nearest tagged ancestor); null for none. */
 export function actorOfObject(object: Object3D | null): ActorId | null {
   for (let current = object; current; current = current.parent) {

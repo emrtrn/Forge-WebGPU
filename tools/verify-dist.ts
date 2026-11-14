@@ -33,6 +33,7 @@ export const FAIL_TOKENS: readonly { token: string; reason: string }[] = [
   { token: "Editor UI Kit", reason: "the UI kit's page (?editor-kit)" },
   { token: "editorReady", reason: "the editor's ready flag" },
   { token: "editor overlay", reason: "the editor viewport's drawing layer (src/render/editor)" },
+  { token: "editor helpers", reason: "the features' editor helpers (features/*/editorRender.ts)" },
 ];
 
 /** Dev server authoring endpoints: a game only reads. */
