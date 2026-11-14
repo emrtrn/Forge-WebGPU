@@ -20,6 +20,7 @@
 // Text is set with textContent; the only markup is the kit's static icons.
 
 import { UI_ICONS } from "../ui/icons.ts";
+import { openPicker } from "../details/pickerPopover.ts";
 import { openContextMenu, type ContextMenuItem } from "../ui/contextMenu.ts";
 import { createContentGrid, type ContentViewSize } from "./contentGrid.ts";
 import {
@@ -63,6 +64,8 @@ export interface ContentPanelOptions {
   readonly levelActors?: () => readonly unknown[];
   /** Cards dragged into the viewport (step 6f). */
   readonly drag?: AssetDrop;
+  /** Opens a level in the editor (step 6f: a Level card's double click, Open Level…). */
+  readonly openLevel?: (folder: string, name: string) => void;
   /** Import (step 6e): the extensions it takes, and what follows a reimport. */
   readonly importExtensions?: readonly string[];
   readonly reimported?: (item: ContentAssetItem) => void;
@@ -70,6 +73,10 @@ export interface ContentPanelOptions {
 
 export interface ContentPanel {
   readonly element: HTMLElement;
+  /** Open Level… (step 6f): every level of the project and the packs in a searchable list. */
+  openLevelDialog(): void;
+  /** Shows the first of these GUIDs the browser has (Ctrl + B, Details' Browse To); false when none. */
+  revealAsset(guids: readonly string[]): boolean;
   isOpen(): boolean;
   setOpen(open: boolean): void;
   /** Opens the drawer at the asset's folder, selects its card and flashes it (Forge's revealContentAsset). */
@@ -305,6 +312,7 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
     menuAt(
       event,
       [
+        ...(item.levelFolder !== null ? levelMenu(item) : []),
         ...(options.thumbnails && thumbnailKind(item) !== null
           ? [{ label: "Refresh Thumbnail", run: () => options.thumbnails!.refresh(item), testId: "content-menu-refresh-thumbnail" }, { separator: true as const }]
           : []),
@@ -312,6 +320,27 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
       ],
       "content-asset-menu",
     );
+
+  /** A Level card's own items (Forge: Set Default Level, here Open Level and Set as Start Level). */
+  const levelMenu = (item: ContentAssetItem): ContextMenuItem[] => {
+    const folder = item.levelFolder!;
+    const start = folder === index.startLevel;
+    return [
+      { label: "Open Level", enabled: folder !== options.activeLevel && options.openLevel !== undefined, run: () => options.openLevel?.(folder, item.name), testId: "content-menu-open-level" },
+      start
+        ? { label: "✓ Start Level", enabled: false, run: () => {}, testId: "content-menu-start-level" }
+        : {
+            label: "Set as Start Level",
+            enabled: item.writable && !folder.startsWith("engine:"),
+            run: () =>
+              void options.store.op({ op: "startLevel", level: folder }).then((answer) =>
+                options.status(answer.status === "done" ? `${item.name} is the start level.` : answer.message, answer.status === "done" ? "info" : "error"),
+              ),
+            testId: "content-menu-start-level",
+          },
+      { separator: true },
+    ];
+  };
 
   const describe = (item: ContentAssetItem): void => {
     const prefix = `${item.name} · ${contentTypeLabel(item.type)}`;
@@ -358,6 +387,16 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
       describe(item);
       redrawKeepingFocus();
     });
+    if (item.levelFolder !== null) {
+      card.classList.toggle("is-start-level", item.levelFolder === index.startLevel);
+      if (item.levelFolder === index.startLevel) card.title = `${card.title}\nStart level`;
+      if (item.levelFolder !== options.activeLevel) {
+        card.addEventListener("dblclick", (event) => {
+          event.preventDefault();
+          options.openLevel?.(item.levelFolder!, item.name);
+        });
+      }
+    }
     if (options.drag?.draggable(item)) {
       card.draggable = true;
       card.addEventListener("dragstart", (event) => {
@@ -700,6 +739,30 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
 
   const api: ContentPanel = {
     element: drawer,
+    openLevelDialog() {
+      const levels = index.assets.filter((asset) => asset.levelFolder !== null);
+      void openPicker({
+        document: doc,
+        host: options.shell,
+        title: "Open Level",
+        testId: "open-level",
+        items: levels.map((asset) => ({
+          id: asset.levelFolder!,
+          label: asset.name,
+          note: asset.levelFolder!,
+          ...(asset.levelFolder === options.activeLevel ? { disabled: "Açık level" } : {}),
+        })),
+      }).then((folder) => {
+        if (folder === null) return;
+        options.openLevel?.(folder, levels.find((asset) => asset.levelFolder === folder)?.name ?? folder);
+      });
+    },
+    revealAsset(guids) {
+      const asset = guids.map((guid) => index.byId(guid)).find((found) => found !== undefined);
+      if (!asset) return false;
+      api.reveal(asset.file);
+      return true;
+    },
     isOpen: () => open,
     setOpen,
     reveal(file) {

@@ -160,3 +160,11 @@ describe("new assets", () => {
     expect(plan({ op: "create", folder: "content/none", name: "x", kind: "actorClass" })).toMatchObject({ ok: false, reason: "missing" });
   });
 });
+
+describe("start level", () => {
+  test("a level folder of the project becomes the start level; a pack's or a folder that is no level does not", () => {
+    expect(ok(plan({ op: "startLevel", level: "content/levels/main" })).startLevel).toBe("content/levels/main");
+    expect(plan({ op: "startLevel", level: "content/meshes" })).toMatchObject({ ok: false, reason: "missing" });
+    expect(plan({ op: "startLevel", level: "engine:content/packs/starter/levels/x" })).toMatchObject({ ok: false, status: 400 });
+  });
+});

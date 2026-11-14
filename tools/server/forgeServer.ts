@@ -480,8 +480,8 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
       "GET /__forge/classes": async () => send(res, 200, { classes: classes.all() }),
       "GET /__forge/asset-files": () => current().then(({ index }) => send(res, 200, { assets: rendererAssetFiles(index) })),
       "GET /__forge/content": () =>
-        (url.searchParams.get("refresh") === "1" ? (snapshot = indexRoots()) : current()).then(({ scan, index }) =>
-          send(res, 200, buildContentListing(scan, index, writableLabel)),
+        (url.searchParams.get("refresh") === "1" ? (snapshot = indexRoots()) : current()).then(async ({ scan, index }) =>
+          send(res, 200, buildContentListing(scan, index, writableLabel, (await readManifest())?.startLevel ?? "")),
         ),
       "POST /__forge/content": () => contentOp(req, res),
       "GET /__forge/thumbnail": () => thumbnail(req, url, res),

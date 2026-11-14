@@ -55,6 +55,10 @@ export interface FormViewOptions {
   readonly assetLabel?: (guid: string) => string | null;
   /** Opens a picker; resolves to the chosen GUID or null. No Browse button without it. */
   readonly pickAsset?: (assetType: string | null) => Promise<string | null>;
+  /** The Content Browser's selected asset when it is of this type (Unreal's Use Selected, step 6f); null otherwise. No button without it. */
+  readonly selectedAsset?: (assetType: string | null) => string | null;
+  /** Shows the asset in the Content Browser (Browse To, step 6f). No button without it. */
+  readonly browseToAsset?: (guid: string) => void;
   readonly actorLabel?: (id: string) => string | null;
   readonly pickActor?: () => Promise<string | null>;
   /** Paths (`pathKey`) whose value differs between the actors shown: drawn as "Multiple Values". */
@@ -229,7 +233,15 @@ export function createFormView(options: FormViewOptions): FormView {
     return row;
   }
 
-  function refRow(path: FormPath, value: unknown, label: string, hint: string | null, describe: (id: string) => string | null, pick: (() => Promise<string | null>) | undefined): HTMLElement {
+  function refRow(
+    path: FormPath,
+    value: unknown,
+    label: string,
+    hint: string | null,
+    describe: (id: string) => string | null,
+    pick: (() => Promise<string | null>) | undefined,
+    assetType: string | null = null,
+  ): HTMLElement {
     const row = el("div", "detail-row");
     row.append(labelSpan(label, hint));
     const control = el("span", "ref-control");
@@ -251,6 +263,35 @@ export function createFormView(options: FormViewOptions): FormView {
         });
       });
       control.append(browse);
+    }
+    if (options.selectedAsset) {
+      const use = el("button", "detail-inline-button");
+      use.type = "button";
+      use.innerHTML = UI_ICONS.arrowLeft; // The kit's static SVG.
+      use.title = "Content Browser'da seçili asset'i kullan";
+      use.setAttribute("aria-label", "Use Selected");
+      use.dataset.testid = `${testId(path)}-use`;
+      use.disabled = options.disabled ?? false;
+      use.addEventListener("click", () => {
+        const chosen = options.selectedAsset!(assetType);
+        if (chosen === null) {
+          options.warn?.("Content Browser'da bu türden bir asset seçin.");
+          return;
+        }
+        emit(path, chosen, "commit");
+        render();
+      });
+      control.append(use);
+    }
+    if (options.browseToAsset && id !== null) {
+      const find = el("button", "detail-inline-button");
+      find.type = "button";
+      find.innerHTML = UI_ICONS.search; // The kit's static SVG.
+      find.title = "Content Browser'da göster";
+      find.setAttribute("aria-label", "Browse To");
+      find.dataset.testid = `${testId(path)}-browse-to`;
+      find.addEventListener("click", () => options.browseToAsset!(id));
+      control.append(find);
     }
     const clear = el("button", "detail-inline-button", "Clear");
     clear.type = "button";
@@ -381,7 +422,7 @@ export function createFormView(options: FormViewOptions): FormView {
       case "transform":
         return transformRows(path, (value ?? field.default) as Transform, label, field.hint);
       case "assetRef":
-        return refRow(path, value, label, field.hint, (id) => options.assetLabel?.(id) ?? null, options.pickAsset ? () => options.pickAsset!(field.assetType) : undefined);
+        return refRow(path, value, label, field.hint, (id) => options.assetLabel?.(id) ?? null, options.pickAsset ? () => options.pickAsset!(field.assetType) : undefined, field.assetType);
       case "actorRef":
         return refRow(path, value, label, field.hint, (id) => options.actorLabel?.(id) ?? null, options.pickActor);
       case "object": {

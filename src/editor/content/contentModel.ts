@@ -81,6 +81,8 @@ export interface ContentIndex {
   byFile(file: string): ContentAssetItem | undefined;
   /** The type filter's choices: the types listed, then `file` when a file is no asset. */
   readonly types: readonly string[];
+  /** The project's start level folder; "" without one. */
+  readonly startLevel: string;
 }
 
 /** Forge's names for the engine's asset types; another type reads from its name (`ridgebound.contract` -> Contract). */
@@ -221,6 +223,7 @@ export function buildContentIndex(listing: ContentListingBody): ContentIndex {
     byId: (id) => byId.get(id),
     byFile: (file) => byFile.get(file),
     types: [...[...types].sort((a, b) => contentTypePlural(a).localeCompare(contentTypePlural(b))), ...(loose ? [CONTENT_FILTER_FILE] : [])],
+    startLevel: listing.startLevel ?? "",
   };
 }
 

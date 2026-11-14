@@ -474,3 +474,53 @@ test("drag into the viewport: a model card places a static mesh (one undo step);
   await expect(page.getByTestId("outliner-summary")).toHaveText("0 actors (0 selected)");
   expect(errors).toEqual([]);
 });
+
+test("Ctrl + B and Details' Browse To show the asset; Use Selected takes the browser's selection; Open Level opens another; Set as Start Level writes the manifest", async ({ page }) => {
+  const project = process.env.FORGE_EDITOR_SMOKE_PROJECT!;
+  const manifest = () => JSON.parse(readFileSync(join(project, "forge.project.json"), "utf8")) as { startLevel: string };
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("dialog", (dialog) => void dialog.accept());
+  await page.goto(`/?editor&level=${encodeURIComponent(OPS_LEVEL)}${webgl}`);
+  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
+  await page.locator('[data-testid="outliner-row"]').first().click();
+
+  // Ctrl + B: the Rock actor's model, wherever its file is now.
+  await page.keyboard.press("Control+b");
+  await expect(drawer(page)).toHaveClass(/open/);
+  await expect(page.locator(`.asset-card.is-selected[data-asset-id="${ROCK}"]`)).toBeVisible();
+
+  // Details: Browse To from the mesh field; Use Selected takes the browser's selected model.
+  await folderRow(page, "content/thumbs").click();
+  await page.getByTestId("detail-mesh-mesh-browse-to").click();
+  await expect(page.locator(`.asset-card.is-selected[data-asset-id="${ROCK}"]`)).toBeVisible();
+  await folderRow(page, "content/thumbs").click();
+  await card(page, "content/thumbs/cube.glb").click();
+  await page.getByTestId("detail-mesh-mesh-use").click();
+  await expect(page.getByTestId("detail-mesh-mesh")).toHaveText("cube");
+  await page.getByTestId("editor-undo").click();
+
+  // Set as Start Level on a level card; the manifest follows; the card says so. (The click on Undo closed the drawer.)
+  await page.locator("[data-content-toggle]").click();
+  await folderRow(page, "content/levels").click();
+  await card(page, LEVEL).click({ button: "right" });
+  await page.getByTestId("content-menu-start-level").click();
+  await expect.poll(() => manifest().startLevel).toBe(LEVEL);
+  await expect(card(page, LEVEL)).toHaveClass(/is-start-level/);
+
+  // Open Level… from the main menu: the list, then the level opens.
+  await page.getByTestId("editor-main-menu").click();
+  await page.getByTestId("main-menu-open-level").click();
+  await page.locator(`[data-testid="open-level-item"][data-id="${LEVEL}"]`).click();
+  await expect(page).toHaveURL(new RegExp(`level=${encodeURIComponent(LEVEL)}`));
+  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
+  await expect(page.locator(".editor-brand-text")).toContainText(LEVEL);
+
+  // The start level back where the other checks expect it.
+  await page.locator("[data-content-toggle]").click();
+  await folderRow(page, "content/levels").click();
+  await card(page, "content/levels/main").click({ button: "right" });
+  await page.getByTestId("content-menu-start-level").click();
+  await expect.poll(() => manifest().startLevel).toBe("content/levels/main");
+  expect(errors).toEqual([]);
+});

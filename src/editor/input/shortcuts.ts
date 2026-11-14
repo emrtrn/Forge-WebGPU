@@ -7,8 +7,8 @@
 // Drawer (step 6a; Forge had only its button). Ctrl stands for Cmd too.
 //
 // Not here: the camera's own keys (WASD / QE while flying, editorCamera.ts),
-// P (Play, step 8), Ctrl + B / Ctrl + E (Content Browser, asset editors; steps
-// 6f and 7).
+// P (Play, step 8), Ctrl + E (asset editors, step 7). Ctrl + B shows the
+// selected actor's asset in the Content Browser (Forge's Browse To, step 6f).
 
 export type ShortcutId =
   | "undo"
@@ -37,7 +37,8 @@ export type ShortcutId =
   | "showHidden"
   | "toggleSpace"
   | "snapToFloor"
-  | "contentDrawer";
+  | "contentDrawer"
+  | "browseTo";
 
 export interface KeyPress {
   readonly code: string;
@@ -58,6 +59,7 @@ const CTRL: Readonly<Record<string, ShortcutId>> = {
   KeyX: "cut",
   KeyV: "paste",
   Space: "contentDrawer",
+  KeyB: "browseTo",
 };
 
 const PLAIN: Readonly<Record<string, ShortcutId>> = {

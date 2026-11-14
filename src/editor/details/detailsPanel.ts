@@ -77,6 +77,11 @@ export interface DetailsPanelOptions {
   /** Where pickers open (the Details panel). */
   readonly host: HTMLElement;
   readonly status: (message: string, tone?: "info" | "warning" | "error") => void;
+  /** The Content Browser (step 6f): its selected asset (Use Selected) and showing one (Browse To). */
+  readonly content?: {
+    selected(): { readonly id: string; readonly type: string } | null;
+    reveal(guid: string): void;
+  };
 }
 
 export interface DetailsPanel {
@@ -268,6 +273,15 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
         onReset: (key) => apply(`Reset ${section.def.label} ${key}`, "commit", `${section.id}:${key}:reset`, ({ doc: actor }) => resetOverride(actor, section.id, key)),
         warn: (message) => status(message, "warning"),
         assetLabel: (guid) => assets.label(guid),
+        ...(options.content
+          ? {
+              selectedAsset: (type: string | null) => {
+                const selected = options.content!.selected();
+                return selected && (type === null || selected.type === type) ? selected.id : null;
+              },
+              browseToAsset: (guid: string) => options.content!.reveal(guid),
+            }
+          : {}),
         pickAsset: (type) =>
           openPicker({
             document: doc,

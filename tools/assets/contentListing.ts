@@ -26,7 +26,7 @@ function issueBody(issue: FileIssue): ContentIssueBody {
   return { severity: issue.severity, message: issue.path === "" ? issue.message : `${issue.path}: ${issue.message}` };
 }
 
-export function buildContentListing(scan: ScanResult, index: AssetIndex, writable: (label: string) => boolean): ContentListingBody {
+export function buildContentListing(scan: ScanResult, index: AssetIndex, writable: (label: string) => boolean, startLevel = ""): ContentListingBody {
   const assetOf = new Map<string, { readonly id: string; readonly type: string; readonly meta: string | null }>();
   const revisionOf = new Map(scan.files.filter((file) => file.revision !== undefined).map((file) => [fileLabel(file.root, file.path), file.revision!]));
   /** A meta file -> its binary. */
@@ -89,5 +89,6 @@ export function buildContentListing(scan: ScanResult, index: AssetIndex, writabl
     roots: scan.roots.map((label) => ({ label, writable: writable(label) })),
     folders: scan.folders.filter((folder) => listed.has(folder) || !withParts.has(folder)),
     files,
+    ...(startLevel !== "" ? { startLevel } : {}),
   };
 }

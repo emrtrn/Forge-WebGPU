@@ -39,6 +39,8 @@ export interface ContentListingBody {
   readonly roots: readonly ContentRootBody[];
   readonly folders: readonly string[];
   readonly files: readonly ContentFileBody[];
+  /** The manifest's start level folder (step 6f); absent without one. */
+  readonly startLevel?: string;
 }
 
 /**
@@ -81,6 +83,8 @@ export type ContentOpBody =
       readonly source: { readonly origin: string; readonly author?: string; readonly url?: string };
       readonly settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
     }
+  /** The project's start level (step 6f, Set as Start Level): the manifest's `startLevel`, a level folder of the project. */
+  | { readonly op: "startLevel"; readonly level: string }
   /** New bytes for a binary asset (step 6e): its path, GUID and meta stay; a model is optimised by its meta again. */
   | { readonly op: "reimport"; readonly item: string; readonly staged: string };
 

@@ -313,6 +313,14 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         save: () => shell.save(),
         thumbnails,
         drag: assetDrop,
+        // Forge's openLevel: unsaved edits are lost after a confirm; the page opens the level (`?level=`).
+        openLevel: (folder, name) => {
+          const view = doc.defaultView!;
+          if (session.dirty() > 0 && !view.confirm(`Open "${name}"?\nUnsaved changes to the current level will be lost.`)) return;
+          const url = new URL(view.location.href);
+          url.searchParams.set("level", folder);
+          view.location.assign(url.toString());
+        },
         newItems: newAssetItems(registry, FEATURE_EDITORS),
         importExtensions: registry.assetTypes().flatMap((def) => (def.storage === "binary" ? def.extensions : [])),
         // A reimported model: the cache forgets it and the actors that use it read it again (step 6e). Another binary

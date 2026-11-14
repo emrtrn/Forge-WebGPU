@@ -306,6 +306,13 @@ export function planContentOp(request: ContentOp, ctx: ContentOpContext): Conten
       }
       return { ok: true, plan };
     }
+    case "startLevel": {
+      const root = rootOf(request.level);
+      if (root === undefined || request.level.startsWith("engine:")) return refuse(400, "request", "The start level is a level of the project (not of the engine's content or a pack).");
+      if (!ctx.writable(root)) return refuse(403, "read-only", `${root} is not written by this server.`);
+      if (!fileSet.has(`${request.level}/level.json`)) return refuse(404, "missing", `${request.level} is no level folder.`);
+      return { ok: true, plan: { ...emptyPlan(), startLevel: request.level, result: [request.level] } };
+    }
     case "reimport": {
       const root = rootOf(request.item);
       if (root === undefined || !fileSet.has(request.item)) return refuse(404, "missing", `No such file: ${request.item}`);

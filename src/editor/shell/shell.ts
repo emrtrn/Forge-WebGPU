@@ -184,6 +184,8 @@ export function createShell(options: ShellOptions): EditorShell {
   });
   let placerNow: ActorPlacer | null = null;
   let saveNow = (): void => {};
+  /** The Content Browser, once attached (step 6). */
+  let contentPanel: ContentPanel | null = null;
   workbar.append(viewControls);
   topbar.append(lead, workbar);
 
@@ -315,6 +317,7 @@ export function createShell(options: ShellOptions): EditorShell {
     },
     save: () => saveNow(),
     attachContent(panel) {
+      contentPanel = panel;
       root.append(panel.element);
       actions.contentDrawer = () => panel.setOpen(!panel.isOpen());
     },
@@ -347,6 +350,15 @@ export function createShell(options: ShellOptions): EditorShell {
         onFrame: context.onFrame,
         host: details,
         status,
+        content: {
+          selected: () => {
+            const item = contentPanel?.selected();
+            return item && item.id !== null && item.type !== null ? { id: item.id, type: item.type } : null;
+          },
+          reveal: (guid) => {
+            if (!contentPanel?.revealAsset([guid])) status(`Not in the Content Browser: ${guid}`, "warning");
+          },
+        },
       });
       if (tools) detailsPanel.setTools(tools);
       detailsBody.replaceChildren(detailsPanel.element);
@@ -381,6 +393,7 @@ export function createShell(options: ShellOptions): EditorShell {
           { x: rect.left, y: rect.bottom + 4 },
           [
             { label: "Save Level", shortcut: "Ctrl+S", enabled: !options.readOnly, run: () => void runSave(), testId: "main-menu-save" },
+            { label: "Open Level…", enabled: contentPanel !== null, run: () => contentPanel?.openLevelDialog(), testId: "main-menu-open-level" },
             { separator: true },
             { label: "World Settings…", run: () => worldSettings.open(), testId: "main-menu-world-settings" },
           ],
@@ -408,6 +421,17 @@ export function createShell(options: ShellOptions): EditorShell {
         cut: () => void context.commands.cut(),
         paste: () => void context.commands.paste(),
         group: () => context.commands.group(),
+        // Forge's Browse To (Ctrl + B): the selected actor's class, else the first asset its components use.
+        browseTo: () => {
+          const id = editor.selection.primary();
+          const doc = id === null ? undefined : editor.level.actor(id);
+          if (!doc) {
+            status("Browse To: select an actor that uses an asset.", "warning");
+            return;
+          }
+          const guids = [...(doc.class !== null ? [doc.class] : []), ...(JSON.stringify(doc.class !== null ? doc.overrides : doc.components).match(/ast_[0-9a-f]{32}/g) ?? [])];
+          if (!contentPanel?.revealAsset(guids)) status("Browse To: select a placed asset that maps to a Content Browser file.", "warning");
+        },
         ungroup: () => context.commands.ungroup(),
       } satisfies Partial<Record<ShortcutId, () => void>>);
 
