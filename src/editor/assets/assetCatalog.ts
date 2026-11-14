@@ -1,12 +1,11 @@
-// The project's assets as the editor lists them (plan phase 4 step 5b): GUID,
-// type and display name, from the dev server's `GET /__forge/asset-files`
-// (the list the viewport's asset URLs come from). Details shows an asset
-// reference by name and its Browse lists the assets of the field's type; the
-// Content Browser (step 6) brings folders, thumbnails and search. A name is
-// the file's name up to its first dot (`crate.glb`, `red.material.json`).
-// Three-free and DOM-free.
+// The project's assets as Details lists them (plan phase 4 step 5b): GUID,
+// type and display name. Since step 6a it reads the Content Browser's listing
+// (content/contentStore.ts, `GET /__forge/content`) and follows its refreshes:
+// Details shows an asset reference by name and its Browse lists the assets of
+// the field's type. A name is the file's name up to its first dot (`crate.glb`,
+// `red.material.json`). Three-free and DOM-free.
 
-import { FORGE_REQUEST_HEADER } from "../../core/index.ts";
+import type { ContentIndex } from "../content/contentModel.ts";
 
 export interface AssetListing {
   readonly guid: string;
@@ -22,29 +21,23 @@ export interface AssetCatalog {
   ofType(type: string | null): readonly AssetListing[];
 }
 
-export function assetCatalogFrom(files: Readonly<Record<string, { readonly type: string; readonly file: string }>>): AssetCatalog {
-  const listings = Object.entries(files)
-    .map(([guid, entry]): AssetListing => {
-      const base = entry.file.slice(entry.file.lastIndexOf("/") + 1);
-      const dot = base.indexOf(".");
-      return { guid, type: entry.type, name: dot > 0 ? base.slice(0, dot) : base, file: entry.file };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name) || a.file.localeCompare(b.file));
-  const byGuid = new Map(listings.map((listing) => [listing.guid, listing]));
-  return {
-    label: (guid) => byGuid.get(guid)?.name ?? null,
-    ofType: (type) => (type === null ? listings : listings.filter((listing) => listing.type === type)),
+/** A live view of the Content Browser's index: each call reads the index as it is now. */
+export function assetCatalogOf(index: () => ContentIndex): AssetCatalog {
+  let seen: ContentIndex | null = null;
+  let listings: AssetListing[] = [];
+  const current = (): AssetListing[] => {
+    const now = index();
+    if (now !== seen) {
+      seen = now;
+      listings = now.assets
+        .filter((asset) => asset.id !== null && asset.type !== null && asset.type !== "forge.level")
+        .map((asset) => ({ guid: asset.id!, type: asset.type!, name: asset.name, file: asset.file }))
+        .sort((a, b) => a.name.localeCompare(b.name) || a.file.localeCompare(b.file));
+    }
+    return listings;
   };
-}
-
-/** The dev server's list; an empty catalog when it cannot be read (Details then shows GUIDs). */
-export async function loadAssetCatalog(fetchImpl: typeof fetch): Promise<AssetCatalog> {
-  try {
-    const response = await fetchImpl("/__forge/asset-files", { headers: { [FORGE_REQUEST_HEADER]: "1" } });
-    if (!response.ok) return assetCatalogFrom({});
-    const body = (await response.json()) as { assets?: Record<string, { type: string; file: string }> };
-    return assetCatalogFrom(body.assets ?? {});
-  } catch {
-    return assetCatalogFrom({});
-  }
+  return {
+    label: (guid) => index().byId(guid)?.name ?? null,
+    ofType: (type) => (type === null ? current() : current().filter((listing) => listing.type === type)),
+  };
 }

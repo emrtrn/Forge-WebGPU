@@ -195,6 +195,25 @@ describe("read-only roots outside the project (engine content and packs, A9)", (
       };
       expect(files.assets["ast_22222222222222222222222222222222"]).toEqual({ type: "test.mesh", file: `${label}/meshes/car.glb`, import: { textures: ["ast_11111111111111111111111111111111"] } });
       expect(files.assets["ast_33333333333333333333333333333333"]).toBeUndefined();
+      // The Content Browser's listing: the project's root is writable, the pack is not; a file added
+      // on disk shows after a refresh; a meta file is not listed, its binary is.
+      const listing = async (refresh = false) =>
+        (await (await fetch(`${url}/__forge/content${refresh ? "?refresh=1" : ""}`, { headers: HEADERS })).json()) as {
+          roots: { label: string; writable: boolean }[];
+          folders: string[];
+          files: { file: string; id?: string }[];
+        };
+      const before = await listing();
+      expect(before.roots).toEqual([
+        { label: "content", writable: true },
+        { label, writable: false },
+      ]);
+      expect(before.folders).toContain(`${label}/meshes`);
+      expect(before.files.find((file) => file.file === `${label}/meshes/car.glb`)).toMatchObject({ id: "ast_22222222222222222222222222222222" });
+      expect(before.files.some((file) => file.file.endsWith(".meta.json"))).toBe(false);
+      await mkdir(join(project, "content/new"), { recursive: true });
+      expect((await listing()).folders).not.toContain("content/new");
+      expect((await listing(true)).folders).toContain("content/new");
       expect((await read(files.assets["ast_22222222222222222222222222222222"]!.file)).status).toBe(200);
       const saved = await fetch(`${url}/__forge/save`, {
         method: "POST",

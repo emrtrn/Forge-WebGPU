@@ -3,11 +3,12 @@
 // action a key press means. One table, DOM-free (Node tests read it); the
 // shell runs the actions. Forge's keys as they were, plus Ctrl + C / X / V for
 // copy, cut and paste of actors (INV-A08) and Shift + G for ungroup (Forge had
-// it only in the Outliner's menu). Ctrl stands for Cmd too.
+// it only in the Outliner's menu), and Unreal's Ctrl + Space for the Content
+// Drawer (step 6a; Forge had only its button). Ctrl stands for Cmd too.
 //
 // Not here: the camera's own keys (WASD / QE while flying, editorCamera.ts),
 // P (Play, step 8), Ctrl + B / Ctrl + E (Content Browser, asset editors; steps
-// 6 and 7).
+// 6f and 7).
 
 export type ShortcutId =
   | "undo"
@@ -35,7 +36,8 @@ export type ShortcutId =
   | "hide"
   | "showHidden"
   | "toggleSpace"
-  | "snapToFloor";
+  | "snapToFloor"
+  | "contentDrawer";
 
 export interface KeyPress {
   readonly code: string;
@@ -55,6 +57,7 @@ const CTRL: Readonly<Record<string, ShortcutId>> = {
   KeyC: "copy",
   KeyX: "cut",
   KeyV: "paste",
+  Space: "contentDrawer",
 };
 
 const PLAIN: Readonly<Record<string, ShortcutId>> = {

@@ -17,6 +17,11 @@ feature's helper drawing in `features/*/editorRender.ts` (phase 4 decision 1).
   project's level opened into the editor's world, the shell, the frame loop.
 - `shell/`: Forge's layout (top bar, Outliner, Details, viewport panel,
   status toast) and the view controls' hover menus (Camera; keys 1-4).
+- `content/`: the Content Browser (Forge's Content Drawer): the dev server's
+  listing (`GET /__forge/content`) as a folder tree and folder contents
+  (`contentModel.ts`, DOM-free; a level folder is a Level card), the
+  virtualised card grid, the drawer (`contentPanel.ts`); Details' asset
+  catalog reads the same listing (`assets/assetCatalog.ts`).
 - `session/`: the editor session (level session, the editor's world kept in
   step, selection, save).
 - The viewport (`src/render/editor`, three): the editor camera (Forge's

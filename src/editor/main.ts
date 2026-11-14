@@ -36,7 +36,9 @@ import type { EditorRenderBindingDef } from "../render/editor/editorBinding.ts";
 import { createEditorViewport } from "../render/editor/editorViewport.ts";
 import { assembleLevel } from "../runtime/assembler.ts";
 import { createWorld, type World } from "../runtime/world.ts";
-import { loadAssetCatalog } from "./assets/assetCatalog.ts";
+import { createContentPanel } from "./content/contentPanel.ts";
+import { installContentStyle } from "./content/contentStyle.ts";
+import { createContentStore } from "./content/contentStore.ts";
 import { installDetailsStyle } from "./details/detailsStyle.ts";
 import { createEditCommands, pageClipboard, type EditCommands } from "./edit/editCommands.ts";
 import { createEditorCatalog } from "./host/editorCatalog.ts";
@@ -115,6 +117,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
   installAddActorStyle(doc);
   installContextMenuStyle(doc);
   installWorldSettingsStyle(doc);
+  installContentStyle(doc);
   doc.title = `${options.projectName} · Editor`;
   const shell = createShell({ document: doc, projectName: options.projectName, levelFolder: options.level, readOnly: options.readOnly });
   doc.body.replaceChildren(shell.root);
@@ -194,7 +197,8 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       hiddenKey = key;
       writeHidden(storage, levelKey, ids);
     });
-    const assets = await loadAssetCatalog((input, init) => fetch(input, init));
+    const content = await createContentStore((input, init) => fetch(input, init));
+    const assets = content.catalog;
     commands = createEditCommands({
       editor: session,
       registry,
@@ -237,6 +241,18 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         },
         snap: () => snapOf.snap,
         status: (message, tone) => shell.status(message, tone),
+      }),
+    );
+    shell.attachContent(
+      createContentPanel({
+        document: doc,
+        shell: shell.root,
+        store: content,
+        storage,
+        projectKey: options.projectName,
+        activeLevel: options.level,
+        status: (message, tone) => shell.status(message, tone),
+        save: () => shell.save(),
       }),
     );
     const warnings = opened.issues.filter((issue) => issue.severity === "warning");

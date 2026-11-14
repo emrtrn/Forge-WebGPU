@@ -9,6 +9,8 @@
 //                               engine's content and packs (A9)
 //   GET  /__forge/identity      which engine and which project this server serves (D14)
 //   GET  /__forge/classes       the project's actor classes, normalised
+//   GET  /__forge/content       what the Content Browser lists: roots (writable or not), folders, files with
+//                               their GUID, type and issues (contentListing.ts); `?refresh=1` rescans the disk
 //   GET  /__forge/asset-files   every binary asset (with its import settings), schema-defined JSON asset and data document:
 //                               GUID -> { type, file, import? }, `file` for /__forge/read
 //                               (the renderer resolves model and texture GUIDs with it)
@@ -32,8 +34,9 @@ import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
 import { buildAssetIndex, DATA_DOCUMENT_TYPES, type AssetIndex, type JsonObject, type SchemaRegistry } from "../../src/core/index.ts";
+import { buildContentListing } from "../assets/contentListing.ts";
 import { fileRevision } from "../assets/revision.ts";
-import { projectContentRoots, scanRoots, type ContentRoot } from "../assets/scan.ts";
+import { projectContentRoots, scanRoots, type ContentRoot, type ScanResult } from "../assets/scan.ts";
 import { defaultContentRoots } from "../assets/verify.ts";
 import { createClassStore, createDocumentCheck } from "../save/documentCheck.ts";
 import { createSaveService, type SaveRequest, type SaveResult, type SaveService } from "../save/transaction.ts";
@@ -200,16 +203,22 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
 
   const readOnlyRoots = options.readOnlyRoots ?? [];
   const allRoots = [...projectContentRoots(policy.root, options.contentRoots ?? defaultContentRoots(policy.root)), ...readOnlyRoots];
-  const indexRoots = async () => buildAssetIndex((await scanRoots(allRoots)).files, { strict: false, registry: options.registry });
-  const index = await indexRoots();
-  const classes = createClassStore(policy.root, options.registry, index);
-  // The renderer's GUID -> file table; a save can add or move a binary, so it is rebuilt on the next request.
-  let assetFiles: Promise<Record<string, AssetFileEntry>> | null = Promise.resolve(rendererAssetFiles(index));
+  const indexRoots = async (): Promise<{ scan: ScanResult; index: AssetIndex }> => {
+    const scan = await scanRoots(allRoots);
+    return { scan, index: buildAssetIndex(scan.files, { strict: false, registry: options.registry }) };
+  };
+  const first = await indexRoots();
+  const classes = createClassStore(policy.root, options.registry, first.index);
+  // The content roots as last scanned: the renderer's GUID -> file table and the Content Browser's listing come
+  // from it. A save can add, move or delete files, so it is rescanned on the next request.
+  let snapshot: Promise<{ scan: ScanResult; index: AssetIndex }> | null = Promise.resolve(first);
+  const current = (): Promise<{ scan: ScanResult; index: AssetIndex }> => (snapshot ??= indexRoots());
+  const writableLabel = (label: string): boolean => !options.readOnly && !readOnlyRoots.some((root) => root.label === label);
   const saves = createSaveService({
     policy,
     check: createDocumentCheck(options.registry, classes),
     afterSave: (files) => {
-      assetFiles = null;
+      snapshot = null;
       return classes.refresh(files.map((file) => file.path));
     },
   });
@@ -324,8 +333,12 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
               : route === "GET /__forge/classes"
                 ? Promise.resolve(send(res, 200, { classes: classes.all() }))
                 : route === "GET /__forge/asset-files"
-                  ? (assetFiles ??= indexRoots().then(rendererAssetFiles)).then((assets) => send(res, 200, { assets }))
-                  : null;
+                  ? current().then(({ index }) => send(res, 200, { assets: rendererAssetFiles(index) }))
+                  : route === "GET /__forge/content"
+                    ? (url.searchParams.get("refresh") === "1" ? (snapshot = indexRoots()) : current()).then(({ scan, index }) =>
+                        send(res, 200, buildContentListing(scan, index, writableLabel)),
+                      )
+                    : null;
     if (handle === null) {
       send(res, 404, { status: "rejected", reason: "request", message: `No endpoint ${route}.` });
       return;

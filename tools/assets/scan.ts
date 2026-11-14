@@ -40,6 +40,8 @@ export interface ScanResult {
   readonly missing: readonly string[];
   /** Files in root order, then path order. */
   readonly files: readonly ContentFile[];
+  /** Every folder under a root (`<label>/<path>`, empty ones too), in walk order; the Content Browser's tree. */
+  readonly folders: readonly string[];
 }
 
 function normalizeRoot(root: string): string {
@@ -85,15 +87,16 @@ export async function scanRoots(roots: readonly ContentRoot[]): Promise<ScanResu
   const present: string[] = [];
   const missing: string[] = [];
   const files: ContentFile[] = [];
+  const folders: string[] = [];
   for (const root of roots) {
     if (!(await isDirectory(root.dir))) {
       missing.push(root.label);
       continue;
     }
     present.push(root.label);
-    await walk(root.dir, "", root.label, files);
+    await walk(root.dir, "", root.label, files, folders);
   }
-  return { roots: present, missing, files };
+  return { roots: present, missing, files, folders };
 }
 
 /** `roots` are relative to `projectRoot`, with forward slashes. */
@@ -101,7 +104,7 @@ export async function scanContentRoots(projectRoot: string, roots: readonly stri
   return scanRoots(projectContentRoots(projectRoot, roots));
 }
 
-async function walk(directory: string, relative: string, root: string, out: ContentFile[]): Promise<void> {
+async function walk(directory: string, relative: string, root: string, out: ContentFile[], folders: string[]): Promise<void> {
   const entries = await readdir(directory, { withFileTypes: true });
   entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   for (const entry of entries) {
@@ -110,7 +113,8 @@ async function walk(directory: string, relative: string, root: string, out: Cont
     const path = relative === "" ? entry.name : `${relative}/${entry.name}`;
     const absolute = join(directory, entry.name);
     if (entry.isDirectory()) {
-      await walk(absolute, path, root, out);
+      folders.push(`${root}/${path}`);
+      await walk(absolute, path, root, out, folders);
     } else if (entry.isFile()) {
       out.push(await readContentFile(absolute, root, path));
     }

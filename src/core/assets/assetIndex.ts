@@ -72,6 +72,8 @@ export interface AssetIndex {
   readonly metas: ReadonlyMap<string, AssetMetaDoc>;
   /** Normalised schema-defined JSON assets, by GUID. */
   readonly jsonAssets: ReadonlyMap<string, JsonAssetDoc>;
+  /** Files (`<root>/<path>`) that belong to another asset: level cells and indexes, terrain tiles. */
+  readonly parts: ReadonlySet<string>;
 }
 
 export function buildAssetIndex(files: readonly ContentFile[], options: AssetIndexOptions): AssetIndex {
@@ -156,5 +158,6 @@ export function buildAssetIndex(files: readonly ContentFile[], options: AssetInd
     levels,
     metas: identity.metas,
     jsonAssets,
+    parts: new Set([...identity.levelParts, ...identity.documentParts].map((file) => fileLabel(file.root, file.path))),
   };
 }

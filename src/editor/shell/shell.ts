@@ -20,11 +20,13 @@
 // shell holds no viewport state: it asks the viewport and follows its changes.
 // The transform tools (step 4) put their toolbar in the work bar before the
 // view menus (transformToolbar.ts); Details takes their pivot / placement
-// actions and live drag preview.
+// actions and live drag preview. The Content Browser (step 6a,
+// content/contentPanel.ts) is Forge's drawer under the viewport (Ctrl + Space).
 // Text is set with textContent; the only markup is the kit's static icons.
 
 import type { ClassResolver, SchemaRegistry } from "../../core/index.ts";
 import type { AssetCatalog } from "../assets/assetCatalog.ts";
+import type { ContentPanel } from "../content/contentPanel.ts";
 import { createDetailsPanel, type DetailsPanel } from "../details/detailsPanel.ts";
 import type { EditCommands } from "../edit/editCommands.ts";
 import type { EditorCatalog } from "../host/editorCatalog.ts";
@@ -111,6 +113,10 @@ export interface EditorShell {
   attachPlacer(placer: ActorPlacer): void;
   /** Adds the transform toolbar and Details' pivot and placement actions; `navigating` is true while the camera flies. */
   attachTools(tools: TransformTools, navigating: () => boolean): void;
+  /** Adds the Content Browser's drawer (step 6a). */
+  attachContent(panel: ContentPanel): void;
+  /** Saves the level, as the Save button does (the drawer's Save All). */
+  save(): void;
   /** The status line; errors and warnings also show as a toast. */
   status(message: string, tone?: "info" | "warning" | "error"): void;
 }
@@ -177,6 +183,7 @@ export function createShell(options: ShellOptions): EditorShell {
     run();
   });
   let placerNow: ActorPlacer | null = null;
+  let saveNow = (): void => {};
   workbar.append(viewControls);
   topbar.append(lead, workbar);
 
@@ -306,6 +313,11 @@ export function createShell(options: ShellOptions): EditorShell {
       placerNow = placer;
       workbar.prepend(createAddActorMenu({ document: doc, placer, viewport, status }));
     },
+    save: () => saveNow(),
+    attachContent(panel) {
+      root.append(panel.element);
+      actions.contentDrawer = () => panel.setOpen(!panel.isOpen());
+    },
     attachTools(next, flying) {
       tools = next;
       for (const part of createTransformToolbar({ document: doc, tools: next })) workbar.insertBefore(part, viewControls);
@@ -360,6 +372,7 @@ export function createShell(options: ShellOptions): EditorShell {
         if (editor.redo()) status("Redo");
       };
       save.addEventListener("click", () => void runSave());
+      saveNow = () => void runSave();
       const worldSettings = createWorldSettings({ document: doc, host: root, editor, registry: context.registry, resolveClass: context.resolveClass, placer: () => placerNow });
       mainMenu.addEventListener("click", () => {
         const rect = mainMenu.getBoundingClientRect();
