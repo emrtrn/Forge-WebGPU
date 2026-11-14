@@ -62,7 +62,7 @@ export function createAssetPreviewControls(surface: HTMLElement, camera: Perspec
       camera.position.add(right).add(up); target.add(right).add(up);
     } else {
       const spherical = new Spherical().setFromVector3(camera.position.clone().sub(target));
-      spherical.theta -= dx * 0.006; spherical.phi = Math.min(Math.PI - 0.02, Math.max(0.02, spherical.phi + dy * 0.006));
+      spherical.theta -= dx * 0.006; spherical.phi = Math.min(Math.PI - 0.02, Math.max(0.02, spherical.phi - dy * 0.006));
       camera.position.copy(target).add(new Vector3().setFromSpherical(spherical));
     }
     camera.lookAt(target);
