@@ -9,7 +9,7 @@
 // gameplay actor (Forge's `actor` kind; Player Start until its feature).
 
 import { SchemaDefinitionError, type ComponentMap, type SchemaRegistry } from "../../core/index.ts";
-import type { ActorTypeIcon, ComponentPresentation, FeatureEditorDef, OutlinerType } from "./featureEditor.ts";
+import type { ActorTypeIcon, ComponentPresentation, DetailsExtension, FeatureEditorDef, OutlinerType } from "./featureEditor.ts";
 
 export interface ActorPresentation {
   readonly icon: ActorTypeIcon;
@@ -22,6 +22,8 @@ export interface EditorCatalog {
   readonly editors: readonly FeatureEditorDef[];
   /** How an actor with these (effective) components shows. */
   present(components: ComponentMap, hasChildren: boolean): ActorPresentation;
+  /** A component's Details extension, if a feature gives one. */
+  details(component: string): DetailsExtension | undefined;
 }
 
 const GROUP: ActorPresentation = { icon: "group", type: "gameplay", kind: "Group" };
@@ -30,7 +32,12 @@ const COMPONENT_TYPE = /^(.+)@\d+$/;
 
 export function createEditorCatalog(editors: readonly FeatureEditorDef[], registry: SchemaRegistry): EditorCatalog {
   const byComponent = new Map<string, ComponentPresentation>();
+  const extensions = new Map<string, DetailsExtension>();
   for (const editor of editors) {
+    for (const [name, extension] of Object.entries(editor.details)) {
+      if (extensions.has(name)) throw new SchemaDefinitionError(`Two feature editors extend the Details of ${name}.`);
+      extensions.set(name, extension);
+    }
     for (const [name, presentation] of Object.entries(editor.components)) {
       if (byComponent.has(name)) throw new SchemaDefinitionError(`Two feature editors present component ${name}.`);
       byComponent.set(name, presentation);
@@ -38,6 +45,7 @@ export function createEditorCatalog(editors: readonly FeatureEditorDef[], regist
   }
   return {
     editors,
+    details: (component) => extensions.get(component),
     present(components, hasChildren) {
       for (const component of Object.values(components)) {
         const name = COMPONENT_TYPE.exec(component.type)?.[1];

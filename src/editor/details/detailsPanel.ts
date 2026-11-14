@@ -14,6 +14,9 @@
 //   Reset All; a plain actor adds and removes components.
 // - A locked actor's transform, pivot and placement are read only (Lock
 //   Movement, step 5a); its components stay editable (Forge).
+// - A feature may add to its component's section (step 5e: `details` of
+//   `defineFeatureEditor`, e.g. Ground Mist Setup, the World Environment
+//   preview); what it adds is disposed when the panel draws again.
 // Text is set with textContent; the only markup is the kit's static icons.
 
 import {
@@ -29,6 +32,7 @@ import {
   type Vec3,
 } from "../../core/index.ts";
 import type { AssetCatalog } from "../assets/assetCatalog.ts";
+import type { EditorCatalog } from "../host/editorCatalog.ts";
 import type { EditorSession } from "../session/editorSession.ts";
 import type { PivotPreset, TransformTools } from "../transformTools.ts";
 import { getAtPath, pathKey, type FormPath } from "../ui/formPath.ts";
@@ -66,6 +70,10 @@ export interface DetailsPanelOptions {
   readonly registry: SchemaRegistry;
   readonly resolveClass: ClassResolver;
   readonly assets: AssetCatalog;
+  /** The features' Details extensions. */
+  readonly catalog: EditorCatalog;
+  /** Each editor frame with its seconds; returns the unsubscribe. */
+  readonly onFrame: (listener: (dt: number) => void) => () => void;
   /** Where pickers open (the Details panel). */
   readonly host: HTMLElement;
   readonly status: (message: string, tone?: "info" | "warning" | "error") => void;
@@ -92,6 +100,8 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
   /** True while the panel's own `input` edit runs: it must not redraw the control under the pointer. */
   let editing = false;
   let actorView: ReturnType<typeof createFormView> | null = null;
+  /** What the drawn extensions leave to clean up (their frame listeners, their own dispose). */
+  let disposers: (() => void)[] = [];
 
   const targets = (): DetailsTarget[] =>
     editor.selection
@@ -275,6 +285,34 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
         },
       });
       body.append(view.element);
+      const extension = options.catalog.details(section.def.name);
+      if (extension) {
+        const built = extension({
+          document: doc,
+          value: () => {
+            const component = targets()[0]?.components[section.id];
+            return component ? { ...component } : {};
+          },
+          edit: (label, fields) =>
+            apply(label, "commit", `${section.id}:extension`, (target) => {
+              let next: DetailsTarget = target;
+              for (const [key, value] of Object.entries(fields)) {
+                const doc = editComponent(next, section.id, [key], value);
+                next = { ...next, doc, components: doc.class === null ? doc.components : next.components };
+              }
+              return next.doc;
+            }),
+          service: (key) => editor.world.services.get(key),
+          onFrame: (listener) => {
+            const stop = options.onFrame(listener);
+            disposers.push(stop);
+            return stop;
+          },
+          status,
+        });
+        body.append(built.element);
+        if (built.dispose) disposers.push(() => built.dispose!());
+      }
       blocks.push(box);
     }
     return blocks;
@@ -306,6 +344,7 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
 
   function render(): void {
     if (editing) return;
+    for (const dispose of disposers.splice(0)) dispose();
     const now = targets();
     const focused = doc.activeElement instanceof HTMLElement && element.contains(doc.activeElement) ? doc.activeElement.dataset.testid : undefined;
     if (now.length === 0) {

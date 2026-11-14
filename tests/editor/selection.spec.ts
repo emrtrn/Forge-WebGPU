@@ -57,12 +57,14 @@ test("click selects the actor under the pointer; empty space, Ctrl + click and E
   await page.mouse.click(box.x + 8, box.y + 8);
   await expect(row).not.toHaveClass(/active/);
 
+  // On the cube but off the selected cube's gizmo (its handles sit at the middle and take a press first, as in Forge).
+  const [cubeX, cubeY] = [box.x + box.width / 2 - 150, box.y + box.height / 2 - 110];
   await page.keyboard.down("Control");
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.click(cubeX, cubeY);
   await expect(row).toHaveClass(/active/);
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.click(cubeX, cubeY);
   await expect(row).not.toHaveClass(/active/);
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.click(cubeX, cubeY);
   await page.keyboard.up("Control");
   await expect(row).toHaveClass(/active/);
 

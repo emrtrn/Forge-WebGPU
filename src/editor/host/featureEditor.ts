@@ -16,8 +16,13 @@
 //   fills the defaults), with Forge's placement: a rotation, a lift above the
 //   surface (lights 1,5 m) or the base resting on it (meshes). An entry whose
 //   component is a singleton is clicked, never dragged (Forge).
+// - `details` (step 5e, user decision 2026-11-14): what a component's Details
+//   section shows below its schema form where Forge had more than fields (a
+//   preset button, a preview strip). It builds DOM with the context's
+//   document; its edits go through `edit` (one undo step on every selected
+//   actor), a preview through the editor world's services, never the level.
 
-import { COMPONENT_NAME_PATTERN, SchemaDefinitionError } from "../../core/index.ts";
+import { COMPONENT_NAME_PATTERN, SchemaDefinitionError, type ServiceKey } from "../../core/index.ts";
 import { ACTOR_TYPE_ICONS, type ActorTypeIcon } from "../ui/icons.ts";
 
 export type { ActorTypeIcon } from "../ui/icons.ts";
@@ -75,6 +80,23 @@ export interface AddActorEntry {
   readonly restOnSurface?: boolean;
 }
 
+/** What a component's Details extension works with. */
+export interface DetailsExtensionContext {
+  readonly document: Document;
+  /** The component's fields as the primary selected actor has them (a class actor's effective values). */
+  value(): Readonly<Record<string, unknown>>;
+  /** Writes these top-level fields into the component of every selected actor: one undo step. */
+  edit(label: string, fields: Readonly<Record<string, unknown>>): void;
+  /** A service of the editor's world (what the viewport shows); undefined when absent. */
+  service<T>(key: ServiceKey<T>): T | undefined;
+  /** Every editor frame with its seconds; returns the unsubscribe. Dropped when the section goes. */
+  onFrame(listener: (dt: number) => void): () => void;
+  status(message: string, tone?: "info" | "warning" | "error"): void;
+}
+
+/** Builds what goes below a component's form; `dispose` runs when Details draws again. */
+export type DetailsExtension = (context: DetailsExtensionContext) => { readonly element: HTMLElement; dispose?(): void };
+
 export interface FeatureEditorDef {
   readonly kind: "featureEditor";
   /** The feature this belongs to (its `defineFeature` id). */
@@ -82,12 +104,15 @@ export interface FeatureEditorDef {
   /** Component name (`forge.light`) -> how it shows. */
   readonly components: Readonly<Record<string, ComponentPresentation>>;
   readonly addActor: readonly AddActorEntry[];
+  /** Component name -> its Details extension. */
+  readonly details: Readonly<Record<string, DetailsExtension>>;
 }
 
 export interface FeatureEditorOptions {
   readonly feature: string;
   readonly components?: Readonly<Record<string, ComponentPresentation>>;
   readonly addActor?: readonly AddActorEntry[];
+  readonly details?: Readonly<Record<string, DetailsExtension>>;
 }
 
 const OUTLINER_TYPE_SET: ReadonlySet<string> = new Set(OUTLINER_TYPES.map((entry) => entry.type));
@@ -123,10 +148,17 @@ export function defineFeatureEditor(options: FeatureEditorOptions): FeatureEdito
       if (typeof component?.type !== "string" || !/@\d+$/.test(component.type)) throw new SchemaDefinitionError(`${where}: component ${id} needs its type tag (name@version).`);
     }
   }
+  const details = { ...options.details };
+  for (const [name, extension] of Object.entries(details)) {
+    const where = `defineFeatureEditor ${options.feature}: Details of ${name}`;
+    if (!COMPONENT_NAME_PATTERN.test(name)) throw new SchemaDefinitionError(`${where}: not a namespaced component name.`);
+    if (typeof extension !== "function") throw new SchemaDefinitionError(`${where} is a function of its context.`);
+  }
   return Object.freeze({
     kind: "featureEditor",
     feature: options.feature,
     components: Object.freeze(components),
     addActor: Object.freeze([...(options.addActor ?? [])]),
+    details: Object.freeze(details),
   });
 }

@@ -8,6 +8,19 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.7
+
+API: 9922fe4a6eb5ceea
+
+Details extensions (plan phase 4 step 5e), additive, in `@forge/editor-sdk`:
+`defineFeatureEditor({ details })` maps a component name to a
+`DetailsExtension`, which builds what its Details section shows below the
+schema form (a preset button, a preview strip) from a
+`DetailsExtensionContext`: the component's `value()`, `edit(label, fields)`
+(one undo step on every selected actor), `service(key)` of the editor's
+world, `onFrame(listener)` and `status`. Its `dispose` runs when Details draws
+again.
+
 ## 0.1.6
 
 API: 05d1c06309f53adc

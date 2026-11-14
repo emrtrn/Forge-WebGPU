@@ -29,6 +29,9 @@ import type { EditorCatalog } from "../host/editorCatalog.ts";
 import { isEditableTarget, shortcutOf, type ShortcutId } from "../input/shortcuts.ts";
 import type { ActorPlacer } from "../place/actorPlacer.ts";
 import { createAddActorMenu } from "../place/addActorMenu.ts";
+import { openContextMenu } from "../ui/contextMenu.ts";
+import { UI_ICONS } from "../ui/icons.ts";
+import { createWorldSettings } from "../world/worldSettingsPanel.ts";
 import { createOutlinerPanel } from "../outliner/outlinerPanel.ts";
 import type { EditorSession } from "../session/editorSession.ts";
 import type { TransformTools } from "../transformTools.ts";
@@ -92,6 +95,8 @@ export interface ShellContext {
   readonly assets: AssetCatalog;
   /** Duplicate, delete, copy / paste, group (step 5c). */
   readonly commands: EditCommands;
+  /** Each editor frame with its seconds (a Details preview that plays); returns the unsubscribe. */
+  readonly onFrame: (listener: (dt: number) => void) => () => void;
 }
 
 export interface EditorShell {
@@ -149,12 +154,16 @@ export function createShell(options: ShellOptions): EditorShell {
   const undo = iconButton(TOOLBAR_ICONS.undo, "Undo", "editor-undo", "Geri al (Ctrl+Z)");
   const redo = iconButton(TOOLBAR_ICONS.redo, "Redo", "editor-redo", "Yinele (Ctrl+Y)");
   history.append(save, undo, redo);
-  lead.append(brand, history);
+  // Forge's main menu (hamburger): Save, World Settings (step 5e); Open Level comes with the Content Browser (step 6).
+  const mainMenu = iconButton(UI_ICONS.hamburger, "Menu", "editor-main-menu", "Menü");
+  mainMenu.classList.add("editor-main-menu-button");
+  lead.append(mainMenu, brand, history);
   const workbar = el("div", "editor-workbar");
   const viewControls = el("div", "editor-view-controls");
   let tools: TransformTools | null = null;
   /** Details, once a level is attached. */
   let detailsPanel: DetailsPanel | null = null;
+  let placerNow: ActorPlacer | null = null;
   workbar.append(viewControls);
   topbar.append(lead, workbar);
 
@@ -287,6 +296,7 @@ export function createShell(options: ShellOptions): EditorShell {
       });
     },
     attachPlacer(placer) {
+      placerNow = placer;
       workbar.prepend(createAddActorMenu({ document: doc, placer, viewport, status }));
     },
     attachTools(next, navigating) {
@@ -296,7 +306,17 @@ export function createShell(options: ShellOptions): EditorShell {
     },
     attach(editor, context) {
       outliner.append(createOutlinerPanel({ document: doc, editor, catalog: context.catalog, resolveClass: context.resolveClass, status }).element);
-      detailsPanel = createDetailsPanel({ document: doc, editor, registry: context.registry, resolveClass: context.resolveClass, assets: context.assets, host: details, status });
+      detailsPanel = createDetailsPanel({
+        document: doc,
+        editor,
+        registry: context.registry,
+        resolveClass: context.resolveClass,
+        assets: context.assets,
+        catalog: context.catalog,
+        onFrame: context.onFrame,
+        host: details,
+        status,
+      });
       if (tools) detailsPanel.setTools(tools);
       detailsBody.replaceChildren(detailsPanel.element);
 
@@ -321,6 +341,20 @@ export function createShell(options: ShellOptions): EditorShell {
         if (editor.redo()) status("Redo");
       };
       save.addEventListener("click", () => void runSave());
+      const worldSettings = createWorldSettings({ document: doc, host: root, editor, registry: context.registry, resolveClass: context.resolveClass, placer: () => placerNow });
+      mainMenu.addEventListener("click", () => {
+        const rect = mainMenu.getBoundingClientRect();
+        openContextMenu(
+          doc,
+          { x: rect.left, y: rect.bottom + 4 },
+          [
+            { label: "Save Level", shortcut: "Ctrl+S", enabled: !options.readOnly, run: () => void runSave(), testId: "main-menu-save" },
+            { separator: true },
+            { label: "World Settings…", run: () => worldSettings.open(), testId: "main-menu-world-settings" },
+          ],
+          "main-menu",
+        );
+      });
       undo.addEventListener("click", runUndo);
       redo.addEventListener("click", runRedo);
       doc.defaultView?.addEventListener("keydown", (event) => {

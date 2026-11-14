@@ -68,6 +68,28 @@ export const DETAILS_CSS = `
   margin-top: 4px;
 }
 
+.forge-kit .detail-hint {
+  color: var(--forge-text-dim);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.detail-extension {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.detail-extension > .detail-action-button {
+  justify-self: start;
+}
+
+.wes-preview-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 .details-picker {
   position: absolute;
   z-index: 20;

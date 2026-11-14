@@ -44,6 +44,8 @@ import type { FeatureEditorDef } from "./host/featureEditor.ts";
 import { installOutlinerStyle } from "./outliner/outlinerStyle.ts";
 import { createActorPlacer } from "./place/actorPlacer.ts";
 import { installAddActorStyle } from "./place/addActorStyle.ts";
+import { installContextMenuStyle } from "./ui/contextMenu.ts";
+import { installWorldSettingsStyle } from "./world/worldSettingsPanel.ts";
 import { createEditorSession, type EditorSession } from "./session/editorSession.ts";
 import { createShell } from "./shell/shell.ts";
 import { createTransformTools, type TransformTools } from "./transformTools.ts";
@@ -111,6 +113,8 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
   installOutlinerStyle(doc);
   installDetailsStyle(doc);
   installAddActorStyle(doc);
+  installContextMenuStyle(doc);
+  installWorldSettingsStyle(doc);
   doc.title = `${options.projectName} · Editor`;
   const shell = createShell({ document: doc, projectName: options.projectName, levelFolder: options.level, readOnly: options.readOnly });
   doc.body.replaceChildren(shell.root);
@@ -137,6 +141,8 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     let editor: EditorSession | null = null;
     let tools: TransformTools | null = null;
     let commands: EditCommands | null = null;
+    /** Who hears each frame (a Details preview that plays). */
+    const frameListeners = new Set<(dt: number) => void>();
     const viewport = createEditorViewport({
       document: doc,
       container: shell.viewport,
@@ -197,7 +203,17 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       status: (message, tone) => shell.status(message, tone),
     });
     const catalog = createEditorCatalog(FEATURE_EDITORS, registry);
-    shell.attach(session, { catalog, registry, resolveClass, assets, commands });
+    shell.attach(session, {
+      catalog,
+      registry,
+      resolveClass,
+      assets,
+      commands,
+      onFrame: (listener) => {
+        frameListeners.add(listener);
+        return () => frameListeners.delete(listener);
+      },
+    });
     const editCommands = commands;
     tools = createTransformTools({ editor: session, viewport, storage: pageStorage(doc), status: (message, tone) => shell.status(message, tone), duplicate: (coalesce) => editCommands.duplicateForDrag(coalesce) });
     shell.attachTools(tools, () => viewport.camera.navigating);
@@ -232,6 +248,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       const dt = last === null ? 0 : (now - last) / 1000;
       last = now;
       try {
+        for (const listener of [...frameListeners]) listener(dt);
         world!.tick(dt);
         viewport.frame(now);
       } catch (error) {

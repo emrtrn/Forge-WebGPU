@@ -12,6 +12,8 @@ export {
   type ActorTypeIcon,
   type AddActorEntry,
   type ComponentPresentation,
+  type DetailsExtension,
+  type DetailsExtensionContext,
   type FeatureEditorDef,
   type FeatureEditorOptions,
   type OutlinerType,
