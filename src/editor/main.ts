@@ -125,7 +125,9 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
   installWorldSettingsStyle(doc);
   installContentStyle(doc);
   doc.title = `${options.projectName} · Editor`;
-  const shell = createShell({ document: doc, projectName: options.projectName, levelFolder: options.level, readOnly: options.readOnly });
+  const content = await createContentStore((input, init) => fetch(input, init));
+  const levelFolder = content.index().folder(options.level);
+  const shell = createShell({ document: doc, projectName: options.projectName, levelFolder: options.level, readOnly: levelFolder ? !levelFolder.writable : options.readOnly });
   doc.body.replaceChildren(shell.root);
 
   try {
@@ -204,7 +206,6 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       hiddenKey = key;
       writeHidden(storage, levelKey, ids);
     });
-    const content = await createContentStore((input, init) => fetch(input, init));
     const assets = content.catalog;
     // The renderer's GUID -> file table follows the listing (a file added since the page loaded, step 6).
     const refreshAssetUrls = async (): Promise<void> => {
@@ -220,6 +221,17 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     let assetUrlsReady: Promise<void> = Promise.resolve();
     content.onChange(() => {
       assetUrlsReady = refreshAssetUrls();
+      // Classes created/copied/deleted in engine content mode are usable by
+      // Add Actor without restarting the server or reopening the page.
+      void options.client.classes().then((items) => {
+        const next = new Map<AssetId, ActorClassDoc>();
+        for (const raw of items) {
+          const result = normalizeActorClass(raw, { strict: true, registry });
+          if (result.value) next.set(result.value.id, result.value);
+        }
+        classes.clear();
+        for (const [id, cls] of next) classes.set(id, cls);
+      }).catch(() => shell.status("Actor classes could not be refreshed; refresh the content browser to retry.", "warning"));
     });
     const host = viewport.host;
     const thumbnailRenderer = host ? createThumbnailRenderer({ renderer: host.renderer, resources: host.resources("thumbnails"), document: doc }) : null;

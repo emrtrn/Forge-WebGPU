@@ -25,9 +25,18 @@
 //                               (the renderer resolves model and texture GUIDs with it)
 //
 // A project opened read-only (the engine's samples and fixtures, A9) refuses
-// saves and uploads with 403; it can still be read. The engine's content and
-// packs are never written from a project: an `engine:` path is not a project
-// path, so a save naming one is refused like any path outside the project.
+// saves and uploads with 403; it can still be read.
+//
+// Engine content mode (plan phase 4 step 6g; decision 6: `npm run dev --
+// --engine-content` in the engine repository): the engine's content and the
+// packs are written from the Content Browser, through a second save service
+// rooted at the engine repository. One operation stays in one content root:
+// a move or copy between the engine's content and a pack, or between packs,
+// is refused (it could turn a reference against the dependency direction,
+// which `verify:assets` checks in the gate). The project's own files keep its
+// rules (the engine's samples stay read-only). The engine's content and
+// packs are never written in normal project mode. In engine content mode,
+// `/save` also routes engine-labelled level documents to the engine service.
 //
 // Every /__forge/ request must come from this machine: the socket address is
 // local (Forge's rule; forwarded headers are not trusted), the Host header
@@ -50,6 +59,8 @@ import { fileRevision } from "../assets/revision.ts";
 import { projectContentRoots, scanRoots, type ContentRoot, type ScanResult } from "../assets/scan.ts";
 import { defaultContentRoots } from "../assets/verify.ts";
 import { createClassStore, createDocumentCheck } from "../save/documentCheck.ts";
+import { ENGINE_LABEL_PREFIX } from "../assets/engineContent.ts";
+import { engineContentAccess, engineContentResult } from "./engineContentMode.ts";
 import { createSaveService, MANIFEST_FILE, type SaveRequest, type SaveResult, type SaveService } from "../save/transaction.ts";
 import {
   createWritePolicy,
@@ -161,6 +172,8 @@ export interface ForgeServerOptions {
   readonly readOnly?: boolean;
   /** What `/__forge/identity` answers. */
   readonly identity?: unknown;
+  /** Engine content mode: the engine repository whose `content/engine` and `content/packs` the read-only roots are, written here. */
+  readonly engineContent?: { readonly root: string };
 }
 
 /** A file under a read-only root: inside it, no links, no hidden names. */
@@ -222,18 +235,27 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
   await rm(stagingDir, { recursive: true, force: true });
 
   const readOnlyRoots = options.readOnlyRoots ?? [];
+  const engine = options.engineContent ? engineContentAccess(options.engineContent.root, readOnlyRoots) : null;
+  const rootOfLabel = (path: string): string => readOnlyRoots.find((root) => path === root.label || path.startsWith(`${root.label}/`))?.label ?? "project";
+  /** Where a listed file is on disk: a labelled content root, else the project. */
+  const absoluteOf = (path: string): string => {
+    const outside = readOnlyRoots.find((root) => path.startsWith(`${root.label}/`));
+    return outside ? resolveReadOnlyPath(outside, path.slice(outside.label.length + 1)) : join(policy.root, ...path.split("/"));
+  };
   const allRoots = [...projectContentRoots(policy.root, options.contentRoots ?? defaultContentRoots(policy.root)), ...readOnlyRoots];
   const indexRoots = async (): Promise<{ scan: ScanResult; index: AssetIndex }> => {
     const scan = await scanRoots(allRoots);
     return { scan, index: buildAssetIndex(scan.files, { strict: false, registry: options.registry }) };
   };
   const first = await indexRoots();
-  const classes = createClassStore(policy.root, options.registry, first.index);
+  const classes = createClassStore(policy.root, options.registry, first.index, absoluteOf);
   // The content roots as last scanned: the renderer's GUID -> file table and the Content Browser's listing come
   // from it. A save can add, move or delete files, so it is rescanned on the next request.
   let snapshot: Promise<{ scan: ScanResult; index: AssetIndex }> | null = Promise.resolve(first);
   const current = (): Promise<{ scan: ScanResult; index: AssetIndex }> => (snapshot ??= indexRoots());
-  const writableLabel = (label: string): boolean => !options.readOnly && !readOnlyRoots.some((root) => root.label === label);
+  const engineMode = engine !== null;
+  const writableLabel = (label: string): boolean =>
+    readOnlyRoots.some((root) => root.label === label) ? engine?.rootOf(label) !== undefined : !options.readOnly;
   const saves = createSaveService({
     policy,
     check: createDocumentCheck(options.registry, classes),
@@ -243,12 +265,29 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
     },
   });
   await saves.recover();
+  // The engine repository's own save service (engine content mode).
+  const engineSaves = engine
+    ? createSaveService({
+        policy: engine.policy,
+        check: createDocumentCheck(options.registry, classes),
+        afterSave: async (files) => {
+          snapshot = null;
+          // Recovery can report no paths: include old and new class paths so
+          // a recovered delete is removed as well as a recovered new class added.
+          const paths = files.length > 0 ? files.map((file) => `${ENGINE_LABEL_PREFIX}${file.path}`) : [
+            ...first.index.entries.values(), ...(await current()).index.entries.values(),
+          ].filter((entry) => entry.type === "forge.actorClass").map((entry) => `${entry.root}/${entry.path}`);
+          await classes.refresh(paths);
+        },
+      })
+    : null;
+  await engineSaves?.recover();
 
   const READ_ONLY_MESSAGE =
     "This project is opened read-only (the engine's samples and fixtures are changed by review, not by the editor). Create your own with npm run create-project.";
 
   const save = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
-    if (options.readOnly) {
+    if (options.readOnly && !engineMode) {
       req.resume();
       send(res, 403, { status: "rejected", reason: "read-only", message: READ_ONLY_MESSAGE });
       return;
@@ -270,18 +309,37 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
       send(res, status, { status: "rejected", reason: "request", message: error instanceof Error ? error.message : String(error) });
       return;
     }
+    const paths = [...(request.writes ?? []).map((write) => write.path), ...(request.deletes ?? []).map((entry) => entry.path)];
+    const engineSide = paths.length > 0 && paths.every((path) => path.startsWith(ENGINE_LABEL_PREFIX));
+    if (engineMode && paths.some((path) => path.startsWith(ENGINE_LABEL_PREFIX)) && new Set(paths.map(rootOfLabel)).size > 1) {
+      send(res, 403, { status: "rejected", reason: "path", message: "A save stays in one engine content root; project and engine files cannot be mixed." });
+      return;
+    }
+    if (!engineSide && options.readOnly) {
+      send(res, 403, { status: "rejected", reason: "read-only", message: READ_ONLY_MESSAGE });
+      return;
+    }
     for (const write of request.writes ?? []) {
       if (write.staged !== undefined && !(await stat(write.staged).then(() => true, () => false))) {
         send(res, 400, { status: "rejected", reason: "request", message: "A staged upload is gone; stage it again." });
         return;
       }
     }
-    const result = await saves.commit(request);
+    let result: SaveResult;
+    try {
+      result = engineSide && engine && engineSaves
+        ? engineContentResult(await engineSaves.commit(engine.request(request)))
+        : await saves.commit(request);
+    } catch (error) {
+      if (!(error instanceof ProjectPathError)) throw error;
+      send(res, 403, { status: "rejected", reason: "path", message: error.message });
+      return;
+    }
     send(res, result.status === "rejected" ? STATUS_OF[result.reason] : STATUS_OF[result.status], result);
   };
 
   const stage = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
-    if (options.readOnly) {
+    if (options.readOnly && !engineMode) {
       req.resume();
       send(res, 403, { status: "rejected", reason: "read-only", message: READ_ONLY_MESSAGE });
       return;
@@ -340,7 +398,7 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
     }
   };
   const contentOp = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
-    if (options.readOnly) {
+    if (options.readOnly && !engineMode) {
       req.resume();
       send(res, 403, { status: "refused", reason: "read-only", message: READ_ONLY_MESSAGE });
       return;
@@ -352,6 +410,10 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
       send(res, 400, { status: "refused", reason: "request", message: error instanceof Error ? error.message : String(error) });
       return;
     }
+    if (op.op === "startLevel" && op.level.startsWith(ENGINE_LABEL_PREFIX)) {
+      send(res, 403, { status: "refused", reason: "read-only", message: "A project's start level must be in the project's own content." });
+      return;
+    }
     // Planned against the disk as it is now (a file may have come or gone since the last scan).
     snapshot = indexRoots();
     const { scan, index } = await snapshot;
@@ -361,27 +423,65 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
       send(res, outcome.status, { status: "refused", reason: outcome.reason, message: outcome.message, ...(outcome.referrers ? { referrers: outcome.referrers } : {}) });
       return;
     }
+    const plan = outcome.plan;
+    const touched = [
+      ...plan.moves.flatMap((move) => [move.from, move.to]),
+      ...plan.deletes,
+      ...plan.writes.map((write) => write.path),
+      ...plan.mkdirs,
+      ...plan.removeDirs,
+    ];
+    const engineSide = touched.length > 0 && touched.every((path) => path.startsWith(ENGINE_LABEL_PREFIX));
+    // JSON copies are already materialised in the plan, so copyOf alone is
+    // insufficient: include the original selections even for JSON/empty folders.
+    const sources = engineSide && op.op === "copy" ? op.items : [];
+    const roots = new Set([...touched, ...sources].map(rootOfLabel));
+    if (engineMode && roots.size > 1 && [...roots].some((label) => label.startsWith(ENGINE_LABEL_PREFIX))) {
+      send(res, 409, {
+        status: "refused",
+        reason: "dependency",
+        message: "Engine content mode moves and copies within one root: between the engine's content and a pack, or between packs, a reference could go against the dependency direction.",
+      });
+      return;
+    }
+    if (!engineSide && options.readOnly) {
+      send(res, 403, { status: "refused", reason: "read-only", message: READ_ONLY_MESSAGE });
+      return;
+    }
     let request: SaveRequest;
     try {
-      request = await saveRequestOf(outcome.plan, manifest);
+      request = await saveRequestOf(plan, manifest);
     } catch (error) {
       if (!(error instanceof ContentRequestError)) throw error;
       send(res, 400, { status: "refused", reason: "request", message: error.message });
       return;
     }
-    const result = await saves.commit(request);
+    // The engine's side is saved in the engine repository, its paths relative to it.
+    let result: SaveResult;
+    try {
+      result = engineSide && engine && engineSaves ? engineContentResult(await engineSaves.commit(engine.request(request))) : await saves.commit(request);
+    } catch (error) {
+      if (!(error instanceof ProjectPathError)) throw error;
+      send(res, 403, { status: "refused", reason: "path", message: error.message });
+      return;
+    }
     if (result.status === "saved") send(res, 200, { status: "done", result: outcome.plan.result });
     else if (result.status === "conflict") send(res, 409, { status: "refused", reason: "exists", message: `Changed on disk meanwhile: ${result.conflicts.map((conflict) => conflict.path).join(", ")}` });
     else send(res, STATUS_OF[result.reason], { status: "refused", reason: result.reason, message: result.issues.map((one) => `${one.file}: ${one.message}`).join("; ") });
   };
   const saveRequestOf = async (plan: ContentPlan, manifest: { bytes: Buffer; startLevel: string } | null): Promise<SaveRequest> => {
     const deletes = [];
-    for (const path of plan.deletes) deletes.push({ path, base: fileRevision(await readFile(join(policy.root, ...path.split("/")))) });
+    for (const path of plan.deletes) deletes.push({ path, base: fileRevision(await readFile(absoluteOf(path))) });
     const startLevel = plan.startLevel;
     // A copy from the engine's content or a pack: its bytes go through the staging folder (the save writes project files only).
     const writes = [];
     for (const write of plan.writes) {
-      const outside = write.copyOf === undefined ? undefined : readOnlyRoots.find((root) => write.copyOf!.startsWith(`${root.label}/`));
+      // A copy out of the engine's content or a pack into the project goes through staging; in engine content mode a copy
+      // within the engine's side is the engine save service's own (its source is one of its files).
+      const outside =
+        write.copyOf === undefined || (engineMode && write.path.startsWith(ENGINE_LABEL_PREFIX))
+          ? undefined
+          : readOnlyRoots.find((root) => write.copyOf!.startsWith(`${root.label}/`));
       if (write.staged !== undefined) {
         if (!STAGE_ID.test(write.staged)) throw new ContentRequestError(`Unknown staged upload: ${write.staged}`);
         const staged = join(stagingDir, write.staged);
@@ -391,7 +491,7 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
           const result = await optimizeGlb(new Uint8Array(await readFile(staged)), glbOptimizeSettings(write.optimize));
           await writeFile(staged, result.bytes);
         }
-        const base = write.replace ? fileRevision(await readFile(join(policy.root, ...write.path.split("/")))) : null;
+        const base = write.replace ? fileRevision(await readFile(absoluteOf(write.path))) : null;
         writes.push({ path: write.path, base, staged });
       } else if (write.text !== undefined) writes.push({ path: write.path, base: null, text: write.text });
       else if (outside === undefined) writes.push({ path: write.path, base: null, copyOf: write.copyOf! });

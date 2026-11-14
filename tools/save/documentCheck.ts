@@ -68,6 +68,7 @@ export function createClassStore(
   root: string,
   registry: SchemaRegistry,
   index: Pick<AssetIndex, "entries" | "resolveClass">,
+  resolveFile: (path: string) => string = (path) => join(root, path),
 ): ClassStore {
   const byId = new Map<string, ActorClassDoc>();
   const idOfPath = new Map<string, string>();
@@ -90,7 +91,7 @@ export function createClassStore(
         }
         let text: string;
         try {
-          text = await readFile(join(root, path), "utf8");
+          text = await readFile(resolveFile(path), "utf8");
         } catch {
           continue; // deleted
         }

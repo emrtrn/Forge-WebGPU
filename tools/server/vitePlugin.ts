@@ -8,6 +8,9 @@
 // - In `npm run dev` only (not preview, not Vitest): picks the project
 //   (devProject.ts), lets Vite serve files from it, loads its game module's
 //   schemas into the registry, and registers the authoring endpoints.
+// - Engine content mode (`npm run dev -- --engine-content`, tools/dev.ts sets
+//   FORGE_ENGINE_CONTENT=1; plan phase 4 step 6g, decision 6): every pack is a
+//   root, and the engine's content and the packs are written.
 
 import { resolve } from "node:path";
 import type { Plugin, ViteDevServer } from "vite";
@@ -46,6 +49,8 @@ export interface ForgeServerPluginOptions {
   readonly projectRoot?: string;
   /** Serve even under Vitest (tests that drive a real dev server). */
   readonly enable?: boolean;
+  /** Engine content mode; tests use a temporary content repository. The CLI uses FORGE_ENGINE_CONTENT=1. */
+  readonly engineContent?: { readonly root: string };
 }
 
 export function forgeServerPlugin(options: ForgeServerPluginOptions = {}): Plugin {
@@ -90,9 +95,10 @@ export function forgeServerPlugin(options: ForgeServerPluginOptions = {}): Plugi
       const roots = current.manifest?.contentRoots ?? ["content"];
       // Unknown packs are among the problems already; the known ones are read.
       const packs = await listContentPacks(server.config.root);
+      const engineContent = options.engineContent ?? (process.env.FORGE_ENGINE_CONTENT === "1" ? { root: server.config.root } : undefined);
       const readOnlyRoots = engineContentRoots(
-        server.config.root,
-        (current.manifest?.contentPacks ?? []).filter((pack) => packs.includes(pack)),
+        engineContent?.root ?? server.config.root,
+        engineContent ? await listContentPacks(engineContent.root) : (current.manifest?.contentPacks ?? []).filter((pack) => packs.includes(pack)),
       );
       const forge = await createForgeServer({
         root: current.root,
@@ -102,9 +108,10 @@ export function forgeServerPlugin(options: ForgeServerPluginOptions = {}): Plugi
         readOnlyRoots,
         readOnly: current.readOnly,
         identity: identityOf({ ...current, problems }),
+        ...(engineContent ? { engineContent } : {}),
       });
       server.middlewares.use(forge.middleware);
-      const where = current.readOnly ? " (read-only)" : "";
+      const where = `${current.readOnly ? " (read-only)" : ""}${engineContent ? "; engine content and packs written (--engine-content)" : ""}`;
       server.config.logger.info(`forge: project ${current.manifest?.name ?? "?"} at ${current.root}${where}`);
       for (const problem of problems) server.config.logger.warn(`forge: ${problem}`);
     },

@@ -74,6 +74,9 @@ async function main(): Promise<void> {
   const port = Number(option(args, "port") ?? loaded.manifest.devPort);
   if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error(`Not a port: ${port}`);
   process.env.FORGE_PROJECT_ROOT = root;
+  // Engine authoring is an explicit `npm run dev -- --engine-content` mode,
+  // never an inherited capability of a game's dev server.
+  process.env.FORGE_ENGINE_CONTENT = "0";
   const server = await createServer({
     configFile: join(engineRoot, "vite.config.ts"),
     root: engineRoot,
