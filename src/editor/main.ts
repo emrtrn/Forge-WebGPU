@@ -38,6 +38,7 @@ import { assembleLevel } from "../runtime/assembler.ts";
 import { createWorld, type World } from "../runtime/world.ts";
 import { loadAssetCatalog } from "./assets/assetCatalog.ts";
 import { installDetailsStyle } from "./details/detailsStyle.ts";
+import { createEditCommands, pageClipboard, type EditCommands } from "./edit/editCommands.ts";
 import { createEditorCatalog } from "./host/editorCatalog.ts";
 import type { FeatureEditorDef } from "./host/featureEditor.ts";
 import { installOutlinerStyle } from "./outliner/outlinerStyle.ts";
@@ -132,6 +133,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     let world: World | null = null;
     let editor: EditorSession | null = null;
     let tools: TransformTools | null = null;
+    let commands: EditCommands | null = null;
     const viewport = createEditorViewport({
       document: doc,
       container: shell.viewport,
@@ -148,7 +150,9 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       // Forge: a plain click selects what is under it (nothing: clears); Ctrl / Shift adds or takes out.
       onClick: (clientX, clientY, additive) => {
         if (!editor) return;
-        const actor = viewport.pick(clientX, clientY);
+        const hit = viewport.pick(clientX, clientY);
+        // Inside a group the outermost group is what a click selects (Forge selected a group's members together).
+        const actor = hit && commands ? commands.clickTarget(hit) : hit;
         if (additive) {
           if (actor) editor.selection.toggle(actor);
         } else editor.selection.set(actor ? [actor] : []);
@@ -182,8 +186,16 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       writeHidden(storage, levelKey, ids);
     });
     const assets = await loadAssetCatalog((input, init) => fetch(input, init));
-    shell.attach(session, { catalog: createEditorCatalog(FEATURE_EDITORS, registry), registry, resolveClass, assets });
-    tools = createTransformTools({ editor: session, viewport, storage: pageStorage(doc), status: (message, tone) => shell.status(message, tone) });
+    commands = createEditCommands({
+      editor: session,
+      registry,
+      resolveClass,
+      clipboard: pageClipboard(doc.defaultView?.navigator.clipboard),
+      status: (message, tone) => shell.status(message, tone),
+    });
+    shell.attach(session, { catalog: createEditorCatalog(FEATURE_EDITORS, registry), registry, resolveClass, assets, commands });
+    const editCommands = commands;
+    tools = createTransformTools({ editor: session, viewport, storage: pageStorage(doc), status: (message, tone) => shell.status(message, tone), duplicate: (coalesce) => editCommands.duplicateForDrag(coalesce) });
     shell.attachTools(tools, () => viewport.camera.navigating);
     const warnings = opened.issues.filter((issue) => issue.severity === "warning");
     if (warnings.length > 0) shell.status(`Level read with ${warnings.length} warning(s): ${warnings[0]!.message}`, "warning");

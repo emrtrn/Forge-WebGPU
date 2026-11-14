@@ -14,6 +14,9 @@
 //   writes the actor's `pivot` (one undo step). Presets set it to the model's
 //   origin, centre or base (its local bounds).
 // - Snap settings are the page's (localStorage), not the project's.
+// - Alt + a gizmo handle duplicates the selection and drags the copies
+//   (Forge, step 5c): the duplicate and the move are one undo step (history
+//   coalescing), Escape takes both back.
 // - While dragging, `preview(id)` gives the dragged transform (and pivot) so
 //   Details follows the gizmo live (step 5b); `onPreview` hears each step.
 // - A locked actor (Lock Movement, step 5a) or one hidden in the editor's view
@@ -93,6 +96,8 @@ export interface TransformToolsOptions {
   readonly viewport: TransformToolsViewport;
   readonly storage: Storage | null;
   readonly status: (message: string, tone?: "info" | "warning" | "error") => void;
+  /** Duplicates the selection as an edit with this coalesce key and selects the copies; false when nothing was copied (Alt + drag). */
+  readonly duplicate?: (coalesce: string) => boolean;
 }
 
 export const SNAP_STORAGE_KEY = "forge.editor.snap";
@@ -130,7 +135,10 @@ export function createTransformTools(options: TransformToolsOptions): TransformT
     readonly docs: ReadonlyMap<ActorId, ActorDoc>;
     transforms: ReadonlyMap<ActorId, Transform>;
     pivot: Vec3 | null;
+    /** Alt + drag: the duplicate's coalesce key, shared by the move's edit. */
+    readonly coalesce: string | null;
   }
+  let altDrags = 0;
   let drag: Drag | null = null;
 
   const docOf = (id: ActorId): ActorDoc | undefined => editor.level.actor(id);
@@ -173,14 +181,14 @@ export function createTransformTools(options: TransformToolsOptions): TransformT
   };
 
   /** One transaction of world placements (snap to floor / wall, pivot presets). */
-  const commit = (label: string, next: ReadonlyMap<ActorId, Partial<ActorDoc>>): boolean => {
+  const commit = (label: string, next: ReadonlyMap<ActorId, Partial<ActorDoc>>, coalesce: string | null = null): boolean => {
     if (next.size === 0) return false;
     const result = editor.edit(label, (tx) => {
       for (const [id, patch] of next) {
         const current = docOf(id);
         if (current) tx.setActor({ ...current, ...patch });
       }
-    });
+    }, coalesce === null ? {} : { coalesce });
     if (!result.ok) status(result.issues.map((issue) => issue.message).join("; "), "error");
     return result.ok;
   };
@@ -258,12 +266,21 @@ export function createTransformTools(options: TransformToolsOptions): TransformT
       return { tool, origin: frame.origin, rotation: frame.rotation, active: drag?.gizmo.handle ?? null, hovered: drag ? null : hovered };
     },
     pointerDown(event) {
-      if (tool === "select" || event.button !== 0 || event.altKey || drag) return false;
+      if (tool === "select" || event.button !== 0 || drag) return false;
+      if (event.altKey && (!options.duplicate || pivotEdit)) return false;
       const handle = viewport.pickHandle(event.clientX, event.clientY);
       if (!handle || handle.tool !== tool) return false;
       const ray = viewport.pointerRay(event.clientX, event.clientY);
+      if (!ray || roots().length === 0) return false;
+      // Alt: the copies are what moves (the selection is them now).
+      let coalesce: string | null = null;
+      if (event.altKey) {
+        altDrags += 1;
+        coalesce = `alt-duplicate:${altDrags}`;
+        if (!options.duplicate!(coalesce)) return true;
+      }
       const docs = roots();
-      if (!ray || docs.length === 0) return false;
+      if (docs.length === 0) return true;
       const editingPivot = pivotEdit && handle.tool === "move";
       const targets = (editingPivot ? docs.slice(0, 1) : docs).map(targetOf);
       drag = {
@@ -272,6 +289,7 @@ export function createTransformTools(options: TransformToolsOptions): TransformT
         docs: new Map(targets.map((target) => [target.id, docOf(target.id)!])),
         transforms: new Map(),
         pivot: null,
+        coalesce,
       };
       hovered = null;
       return true;
@@ -310,17 +328,21 @@ export function createTransformTools(options: TransformToolsOptions): TransformT
       }
       if (moved.size === 0) {
         show(done.docs, null);
+        editor.level.history.seal();
         return;
       }
       const verb = TOOL_LABELS[done.gizmo.handle.tool];
       const name = moved.size === 1 ? (done.docs.get([...moved.keys()][0]!)?.name ?? "") : `${moved.size} actors`;
-      if (!commit(`${verb} ${name}`.trim(), moved)) show(done.docs, null);
+      if (!commit(`${verb} ${name}`.trim(), moved, done.coalesce)) show(done.docs, null);
+      if (done.coalesce !== null) editor.level.history.seal();
     },
     cancel() {
       if (!drag) return false;
       const dropped = drag;
       drag = null;
       show(dropped.docs, null);
+      // Alt + drag: the copies go too.
+      if (dropped.coalesce !== null && editor.level.history.undoStack.at(-1)?.coalesce === dropped.coalesce) editor.undo();
       previewed();
       status("Drag cancelled");
       return true;

@@ -24,7 +24,9 @@
 import type { ClassResolver, SchemaRegistry } from "../../core/index.ts";
 import type { AssetCatalog } from "../assets/assetCatalog.ts";
 import { createDetailsPanel, type DetailsPanel } from "../details/detailsPanel.ts";
+import type { EditCommands } from "../edit/editCommands.ts";
 import type { EditorCatalog } from "../host/editorCatalog.ts";
+import { isEditableTarget, shortcutOf, type ShortcutId } from "../input/shortcuts.ts";
 import { createOutlinerPanel } from "../outliner/outlinerPanel.ts";
 import type { EditorSession } from "../session/editorSession.ts";
 import type { TransformTools } from "../transformTools.ts";
@@ -86,6 +88,8 @@ export interface ShellContext {
   readonly registry: SchemaRegistry;
   readonly resolveClass: ClassResolver;
   readonly assets: AssetCatalog;
+  /** Duplicate, delete, copy / paste, group (step 5c). */
+  readonly commands: EditCommands;
 }
 
 export interface EditorShell {
@@ -328,6 +332,25 @@ export function createShell(options: ShellOptions): EditorShell {
         else if (key === "y" || (key === "z" && event.shiftKey)) runRedo();
         else return;
         event.preventDefault();
+      });
+
+      // The edit commands' keys (step 5c; shortcuts.ts, Forge's table).
+      const commandKeys: Partial<Record<ShortcutId, () => void>> = {
+        duplicate: () => void context.commands.duplicate(),
+        delete: () => context.commands.remove(),
+        copy: () => void context.commands.copy(),
+        cut: () => void context.commands.cut(),
+        paste: () => void context.commands.paste(),
+        group: () => context.commands.group(),
+        ungroup: () => context.commands.ungroup(),
+      };
+      doc.defaultView?.addEventListener("keydown", (event) => {
+        if (isEditableTarget(event.target)) return;
+        const id = shortcutOf(event);
+        const run = id === null ? undefined : commandKeys[id];
+        if (!run) return;
+        event.preventDefault();
+        run();
       });
 
       editor.onChange(renderToolbar);

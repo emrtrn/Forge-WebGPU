@@ -226,7 +226,8 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
 
   const wireInput = (canvas: HTMLCanvasElement, window: Window): void => {
     listen<PointerEvent>(canvas, "pointerdown", (event) => {
-      if (event.button === 0 && !event.altKey && options.onPointerDown?.(event)) {
+      // Alt + left is the camera's orbit, unless it grabs a gizmo handle (Forge: Alt + drag duplicates).
+      if (event.button === 0 && options.onPointerDown?.(event)) {
         canvas.setPointerCapture(event.pointerId);
         return;
       }
