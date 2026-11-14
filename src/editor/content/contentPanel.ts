@@ -8,6 +8,10 @@
 // tree (Favorites, then a node per content root) and the open folder's cards.
 // An outside click closes it unless it is locked (Forge).
 //
+// The file operations (Rename, Cut / Copy / Paste, Delete; step 6c) are
+// contentActions.ts: the cards', rows' and empty space's menus and the
+// drawer's keys while it has the focus.
+//
 // Forge's selectors are kept: `data-content-*` attributes, `.folder-row`
 // with the folder's path as its title, cards with `data-asset-path` /
 // `data-asset-id` / `data-folder-path`, `.content-breadcrumb`.
@@ -31,6 +35,7 @@ import {
   type ContentIndex,
   type ContentItem,
 } from "./contentModel.ts";
+import { createContentActions, targetOfAsset, targetOfFolder, type ContentTarget } from "./contentActions.ts";
 import type { ContentStore } from "./contentStore.ts";
 import { thumbnailKind, type ContentThumbnails } from "./contentThumbnails.ts";
 
@@ -49,6 +54,8 @@ export interface ContentPanelOptions {
   readonly save: () => void;
   /** Card images (step 6b); without them cards show their type's text. */
   readonly thumbnails?: ContentThumbnails;
+  /** Names of the open level's actors that use any of these asset GUIDs (a delete is refused then). */
+  readonly inUse?: (ids: readonly string[]) => readonly string[];
 }
 
 export interface ContentPanel {
@@ -202,13 +209,13 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
   filterPopover.append(filterLabel);
   searchWrap.append(searchInput, filterButton, filterPopover);
 
-  const actions = el("div", "content-drawer-actions");
+  const drawerActions = el("div", "content-drawer-actions");
   const viewButton = button("forge-btn-ghost", "Change thumbnail size", UI_ICONS.grid);
   viewButton.dataset.contentView = "";
   const settings = button("forge-btn-ghost", "Content Drawer settings", UI_ICONS.gear);
   settings.dataset.contentSettings = "";
-  actions.append(viewButton, settings);
-  top.append(title, primary, navigation, crumbs, searchWrap, actions);
+  drawerActions.append(viewButton, settings);
+  top.append(title, primary, navigation, crumbs, searchWrap, drawerActions);
 
   const body = el("div", "content-drawer-body");
   const tree = el("nav", "folder-tree");
@@ -226,16 +233,36 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
   drawer.append(top, body);
 
   // ---- cards ----
-  const copyPath = (text: string): void => {
-    const clipboard = doc.defaultView?.navigator.clipboard;
-    if (!clipboard) {
-      options.status(`Path: ${text}`);
+  const actions = createContentActions({
+    document: doc,
+    store: options.store,
+    host: drawer,
+    activeLevel: options.activeLevel,
+    ...(options.inUse ? { inUse: options.inUse } : {}),
+    status: options.status,
+    done: (paths) => {
+      const first = paths[0];
+      if (first === undefined) {
+        redrawKeepingFocus();
+        return;
+      }
+      showPath(first);
+    },
+    reveal: (path) => showPath(path),
+  });
+  /** Navigates to a path's folder and selects its card (a file, a level's folder or a folder). */
+  const showPath = (target: string): void => {
+    const asset = index.byFile(target) ?? index.assets.find((one) => one.levelFolder === target);
+    if (asset) {
+      api.reveal(asset.file);
       return;
     }
-    clipboard.writeText(text).then(
-      () => options.status(`Copied ${text}`),
-      () => options.status(`Path: ${text}`),
-    );
+    const node = index.folder(target);
+    if (!node) return;
+    navigate(node.parent ?? node.path);
+    selectedFolder = node.path;
+    selectedFile = null;
+    grid.draw();
   };
   const menuAt = (event: MouseEvent, entries: readonly ContextMenuItem[], testId: string): void => {
     event.preventDefault();
@@ -258,7 +285,7 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
           testId: "content-menu-favorite",
         },
         { separator: true },
-        { label: "Copy Path", run: () => copyPath(node.path), testId: "content-menu-copy-path" },
+        ...actions.folderMenu(node),
       ],
       "content-folder-menu",
     );
@@ -269,7 +296,7 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
         ...(options.thumbnails && thumbnailKind(item) !== null
           ? [{ label: "Refresh Thumbnail", run: () => options.thumbnails!.refresh(item), testId: "content-menu-refresh-thumbnail" }, { separator: true as const }]
           : []),
-        { label: "Copy Path", run: () => copyPath(item.levelFolder ?? item.file), testId: "content-menu-copy-path" },
+        ...actions.assetMenu(item, folder),
       ],
       "content-asset-menu",
     );
@@ -289,6 +316,7 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
     card.classList.toggle("is-active-level", active);
     card.classList.toggle("is-selected", item.file === selectedFile);
     card.classList.toggle("is-actor-script", item.type === "forge.actorClass");
+    card.classList.toggle("is-cut", actions.isCut(item.levelFolder ?? item.file));
     card.dataset.assetPath = item.levelFolder ?? item.file;
     card.dataset.testid = "content-card";
     if (item.id !== null) card.dataset.assetId = item.id;
@@ -316,7 +344,7 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
       selectedFile = item.file;
       selectedFolder = null;
       describe(item);
-      grid.draw();
+      redrawKeepingFocus();
     });
     card.addEventListener("contextmenu", (event) => {
       selectedFile = item.file;
@@ -331,6 +359,7 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
     const card = el("button", "asset-card is-folder");
     card.type = "button";
     card.classList.toggle("is-selected", node.path === selectedFolder);
+    card.classList.toggle("is-cut", actions.isCut(node.path));
     card.dataset.folderPath = node.path;
     card.dataset.testid = "content-folder-card";
     card.title = `${node.name}\n${node.path}`;
@@ -344,7 +373,7 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
       selectedFolder = node.path;
       selectedFile = null;
       options.status(`${node.name} - Folder`);
-      grid.draw();
+      redrawKeepingFocus();
     });
     card.addEventListener("dblclick", (event) => {
       event.preventDefault();
@@ -359,6 +388,11 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
     return card;
   };
 
+  /** Draws the cards again and gives the focus back to the selected one (the drawer's keys need it). */
+  const redrawKeepingFocus = (): void => {
+    grid.draw();
+    list.querySelector<HTMLElement>(".asset-card.is-selected")?.focus();
+  };
   const grid = createContentGrid<ContentItem>({
     document: doc,
     list,
@@ -569,7 +603,28 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
     selectedFolder = null;
     grid.draw();
   });
-  list.addEventListener("contextmenu", (event) => event.preventDefault());
+  list.addEventListener("contextmenu", (event) => {
+    const node = index.folder(folder);
+    if ((event.target as Element).closest(".asset-card") || !node) {
+      event.preventDefault();
+      return;
+    }
+    menuAt(event, actions.emptyMenu(node), "content-empty-menu");
+  });
+  // The drawer's keys while it has the focus (not while typing a search or a name).
+  drawer.addEventListener("keydown", (event) => {
+    const target = event.target as HTMLElement;
+    if (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA") return;
+    const selected: ContentTarget | null =
+      selectedFile !== null && index.byFile(selectedFile)
+        ? targetOfAsset(index.byFile(selectedFile)!)
+        : selectedFolder !== null && index.folder(selectedFolder)
+          ? targetOfFolder(index.folder(selectedFolder)!)
+          : null;
+    if (!actions.key(event, selected, index.folder(folder) ?? null)) return;
+    event.preventDefault();
+    event.stopPropagation();
+  });
   // An outside click closes the drawer unless it is locked; a menu opened from it is part of it (Forge).
   doc.addEventListener(
     "pointerdown",
@@ -594,7 +649,7 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
   viewButton.title = `Küçük resim boyutu: ${view.slice(0, 1).toUpperCase()}${view.slice(1)}`;
   renderAll();
 
-  return {
+  const api: ContentPanel = {
     element: drawer,
     isOpen: () => open,
     setOpen,
@@ -621,5 +676,6 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
     },
     selected: () => (selectedFile === null ? null : (index.byFile(selectedFile) ?? null)),
   };
+  return api;
 }
 

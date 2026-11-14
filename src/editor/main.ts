@@ -277,6 +277,16 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         status: (message, tone) => shell.status(message, tone),
         save: () => shell.save(),
         thumbnails,
+        // The open level's actors that use an asset, saved or not (a delete is refused then; step 6c).
+        inUse: (ids) => {
+          if (ids.length === 0) return [];
+          const names: string[] = [];
+          for (const actor of session.level.level.actors) {
+            const text = JSON.stringify(actor);
+            if (ids.some((id) => text.includes(id))) names.push(actor.name);
+          }
+          return names;
+        },
       }),
     );
     const warnings = opened.issues.filter((issue) => issue.severity === "warning");

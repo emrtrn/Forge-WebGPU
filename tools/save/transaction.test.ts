@@ -282,3 +282,72 @@ describe("the binary channel", () => {
     await expect(readFile(staged)).rejects.toThrow();
   });
 });
+
+describe("Content Browser operations (moves, copies, emptied folders, the manifest)", () => {
+  test("a level folder moves whole, its index and revisions unchanged; the emptied folders go; the manifest follows", async () => {
+    await createLevel();
+    await writeFile(join(project, "forge.project.json"), '{ "startLevel": "content/levels/main" }\n');
+    const before = await snapshot();
+    const files = ["level.json", "cells.json", "cells/0_0.json", "cells/1_0.json"];
+    const manifestBase = await revisionOf("forge.project.json");
+    const result = saved(
+      await createSaveService({ policy }).commit({
+        moves: files.map((file) => ({ from: `${FOLDER}/${file}`, to: `content/maps/first/${file}` })),
+        removeDirs: [`${FOLDER}/cells`, FOLDER, "content/levels"],
+        manifest: { text: '{ "startLevel": "content/maps/first" }\n', base: manifestBase },
+      }),
+    );
+    const after = await snapshot();
+    for (const file of files) expect(after[`content/maps/first/${file}`]).toBe(before[`${FOLDER}/${file}`]);
+    expect(Object.keys(after).some((path) => path.startsWith(FOLDER))).toBe(false);
+    expect(await readdir(join(project, "content"))).toEqual(["maps"]);
+    expect(after["forge.project.json"]).toContain("content/maps/first");
+    expect(result.files).toContainEqual({ path: `${FOLDER}/level.json`, revision: null });
+    expect(result.files).toContainEqual({ path: "content/maps/first/level.json", revision: fileRevision(before[`${FOLDER}/level.json`]!) });
+  });
+
+  test("a move onto a file that exists, or of a file that is not there, is a conflict; nothing moves", async () => {
+    await createLevel();
+    await writeFile(join(project, "content/taken.json"), "{}");
+    const before = await snapshot();
+    const onto = await createSaveService({ policy }).commit({ moves: [{ from: `${FOLDER}/level.json`, to: "content/taken.json" }] });
+    expect(onto).toMatchObject({ status: "conflict", conflicts: [{ path: "content/taken.json", current: "exists" }] });
+    const gone = await createSaveService({ policy }).commit({ moves: [{ from: "content/none.json", to: "content/x.json" }] });
+    expect(gone).toMatchObject({ status: "conflict", conflicts: [{ path: "content/none.json", current: null }] });
+    expect(await snapshot()).toEqual(before);
+  });
+
+  test("a copy writes a project file's bytes under a new name; a folder that is not empty stays", async () => {
+    await mkdir(join(project, "content/meshes"), { recursive: true });
+    await writeFile(join(project, "content/meshes/rock.glb"), Buffer.from([1, 2, 3]));
+    saved(
+      await createSaveService({ policy }).commit({
+        writes: [{ path: "content/props/rock.glb", base: null, copyOf: "content/meshes/rock.glb" }],
+        removeDirs: ["content/meshes"],
+      }),
+    );
+    expect([...(await readFile(join(project, "content/props/rock.glb")))]).toEqual([1, 2, 3]);
+    expect(await readdir(join(project, "content/meshes"))).toEqual(["rock.glb"]);
+  });
+
+  test("a move interrupted after any step is finished by recovery", async () => {
+    await createLevel();
+    const base = await snapshot();
+    const request: SaveRequest = {
+      moves: ["level.json", "cells.json", "cells/0_0.json", "cells/1_0.json"].map((file) => ({ from: `${FOLDER}/${file}`, to: `content/moved/${file}` })),
+      removeDirs: [`${FOLDER}/cells`, FOLDER],
+    };
+    saved(await createSaveService({ policy }).commit(request));
+    const complete = await snapshot();
+    for (let crashAfter = 1; crashAfter < 6; crashAfter += 1) {
+      await rm(join(project, "content"), { recursive: true, force: true });
+      for (const [path, text] of Object.entries(base)) {
+        await mkdir(join(project, path, ".."), { recursive: true });
+        await writeFile(join(project, path), text);
+      }
+      await expect(createSaveService({ policy, failAfterSteps: crashAfter }).commit(request)).rejects.toBeInstanceOf(SimulatedCrash);
+      await createSaveService({ policy }).recover();
+      expect(await snapshot()).toEqual(complete);
+    }
+  });
+});

@@ -724,6 +724,21 @@ export const CONTENT_CSS = `
   display: none;
 }
 
+/* Rename in place (step 6c): the name's box on the card or the tree row. */
+.editor-shell .content-rename {
+  width: 100%;
+  min-width: 0;
+  height: 18px;
+  box-sizing: border-box;
+  border: 1px solid var(--forge-accent);
+  border-radius: 3px;
+  padding: 0 3px;
+  color: #ffffff;
+  background: #101316;
+  font: inherit;
+  font-size: 12px;
+}
+
 /* A read-only root (engine content, a pack): its lock after the name. */
 .editor-shell .folder-row.is-read-only {
   grid-template-columns: 16px 16px minmax(0, 1fr) 14px;

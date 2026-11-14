@@ -76,6 +76,37 @@ describe("authoring endpoints", () => {
     expect(Buffer.from(await binary.arrayBuffer())).toEqual(png);
   });
 
+  test("content operations: rename, a delete refused while referenced, a new folder, the start level followed by the manifest", async () => {
+    const tex = `ast_${"1".repeat(32)}`;
+    const meta = (id: string, type: string, extra = {}) => JSON.stringify({ schema: "forge.assetMeta/1", id, type, license: "CC0-1.0", source: { origin: "test" }, ...extra });
+    await mkdir(join(project, "content/t"), { recursive: true });
+    await mkdir(join(project, "content/m"), { recursive: true });
+    await mkdir(join(project, "content/levels/a"), { recursive: true });
+    await writeFile(join(project, "content/t/paint.png"), "png");
+    await writeFile(join(project, "content/t/paint.png.meta.json"), meta(tex, "test.texture@1"));
+    await writeFile(join(project, "content/m/car.glb"), "glb");
+    await writeFile(join(project, "content/m/car.glb.meta.json"), meta(`ast_${"2".repeat(32)}`, "test.mesh@1", { import: { textures: [tex] } }));
+    await writeFile(join(project, "content/levels/a/level.json"), JSON.stringify({ schema: "forge.level/1", id: LEVEL, settings: { cellSize: 128 }, actors: [] }));
+    await writeFile(join(project, "forge.project.json"), '{\n  "id": "x",\n  "contentRoots": ["content"],\n  "startLevel": "content/levels/a"\n}\n');
+
+    const renamed = await post("/__forge/content", { op: "rename", item: "content/t/paint.png", name: "wood" });
+    expect(renamed.status).toBe(200);
+    expect(await renamed.json()).toEqual({ status: "done", result: ["content/t/wood.png"] });
+    expect((await readdir(join(project, "content/t"))).sort()).toEqual(["wood.png", "wood.png.meta.json"]);
+
+    const refused = await post("/__forge/content", { op: "delete", items: ["content/t/wood.png"] });
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toMatchObject({ status: "refused", reason: "in-use", referrers: [{ file: "content/m/car.glb.meta.json", target: tex }] });
+
+    expect((await post("/__forge/content", { op: "mkdir", path: "content/new" })).status).toBe(200);
+    expect(await readdir(join(project, "content"))).toContain("new");
+
+    expect((await post("/__forge/content", { op: "move", items: ["content/levels/a"], to: "content/new" })).status).toBe(200);
+    expect(await readFile(join(project, "forge.project.json"), "utf8")).toBe('{\n  "id": "x",\n  "contentRoots": ["content"],\n  "startLevel": "content/new/a"\n}\n');
+    expect(await readdir(join(project, "content/new/a"))).toContain("level.json");
+    expect(await readdir(join(project, "content/levels"))).toEqual([]); // the moved folder went, its parent stays
+  });
+
   test("thumbnails: stored and read back by GUID and revision, an older revision goes, only PNGs, ids and revisions checked", async () => {
     const id = `ast_${"a".repeat(32)}`;
     const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from("rest")]);
@@ -230,6 +261,13 @@ describe("read-only roots outside the project (engine content and packs, A9)", (
       await mkdir(join(project, "content/new"), { recursive: true });
       expect((await listing()).folders).not.toContain("content/new");
       expect((await listing(true)).folders).toContain("content/new");
+      // A pack's asset is copied into the project with a new GUID; it is never moved out of the pack.
+      const op = (body: unknown) => fetch(`${url}/__forge/content`, { method: "POST", headers: HEADERS, body: JSON.stringify(body) });
+      expect((await op({ op: "move", items: [`${label}/meshes/car.glb`], to: "content/new" })).status).toBe(403);
+      expect(await (await op({ op: "copy", items: [`${label}/meshes/car.glb`], to: "content/new" })).json()).toEqual({ status: "done", result: ["content/new/car.glb"] });
+      expect(await readFile(join(project, "content/new/car.glb"))).toEqual(await readFile(join(packDir, "meshes/car.glb")));
+      const copiedMeta = JSON.parse(await readFile(join(project, "content/new/car.glb.meta.json"), "utf8")) as { id: string };
+      expect(copiedMeta.id).not.toBe("ast_22222222222222222222222222222222");
       expect((await read(files.assets["ast_22222222222222222222222222222222"]!.file)).status).toBe(200);
       const saved = await fetch(`${url}/__forge/save`, {
         method: "POST",

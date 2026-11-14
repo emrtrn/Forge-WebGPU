@@ -14,16 +14,22 @@
 //
 // The journal itself changes state by write-and-rename, so it is never half
 // written. Journals live in `<project>/.forge-journal/`.
+//
+// A rename makes its target's folder first, so a step can move a file
+// (Content Browser, plan phase 4 step 6c) as well as put a temporary file in
+// place; `removeDir` takes away a folder a move or delete left empty (a folder
+// that is not empty stays).
 
-import { mkdir, readdir, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readdir, readFile, rename, rm, rmdir, stat, unlink, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
 export const JOURNAL_DIR = ".forge-journal";
 
 export type JournalStep =
   | { readonly op: "rename"; readonly from: string; readonly to: string }
-  | { readonly op: "delete"; readonly path: string };
+  | { readonly op: "delete"; readonly path: string }
+  | { readonly op: "removeDir"; readonly path: string };
 
 export interface Journal {
   readonly schema: "forge.saveJournal/1";
@@ -85,7 +91,14 @@ export async function runSteps(root: string, steps: readonly JournalStep[], hook
     if (step.op === "rename") {
       const from = join(root, step.from);
       // A rename whose temporary file is gone happened before an interruption.
-      if (await exists(from)) await renameWithRetry(from, join(root, step.to));
+      if (await exists(from)) {
+        await mkdir(dirname(join(root, step.to)), { recursive: true });
+        await renameWithRetry(from, join(root, step.to));
+      }
+    } else if (step.op === "removeDir") {
+      await rmdir(join(root, step.path)).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== "ENOENT" && error.code !== "ENOTEMPTY" && error.code !== "EEXIST") throw error;
+      });
     } else {
       await unlink(join(root, step.path)).catch((error: NodeJS.ErrnoException) => {
         if (error.code !== "ENOENT") throw error;

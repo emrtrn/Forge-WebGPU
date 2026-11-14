@@ -11,6 +11,10 @@
 //   GET  /__forge/classes       the project's actor classes, normalised
 //   GET  /__forge/content       what the Content Browser lists: roots (writable or not), folders, files with
 //                               their GUID, type and issues (contentListing.ts); `?refresh=1` rescans the disk
+//   POST /__forge/content       a Content Browser operation (contentOps.ts): { op: move | rename | copy | delete |
+//                               mkdir, ... } -> 200 { status: "done", result }, or 400 / 403 / 404 / 409 with
+//                               { status: "refused", reason, message, referrers? }; one save transaction, the
+//                               start level in forge.project.json following a move
 //   GET  /__forge/thumbnail?id=&rev=   a Content Browser thumbnail from the cache (PNG), 404 when not drawn yet
 //   POST /__forge/thumbnail?id=&rev=   stores one the editor drew (PNG body); older revisions of the asset go
 //                               (`.forge-cache/thumbnails/<guid>-<revision>.png`, decision 9; a cache, so a
@@ -39,11 +43,12 @@ import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
 import { buildAssetIndex, DATA_DOCUMENT_TYPES, type AssetIndex, type JsonObject, type SchemaRegistry } from "../../src/core/index.ts";
 import { buildContentListing } from "../assets/contentListing.ts";
+import { planContentOp, type ContentOp, type ContentPlan } from "../assets/contentOps.ts";
 import { fileRevision } from "../assets/revision.ts";
 import { projectContentRoots, scanRoots, type ContentRoot, type ScanResult } from "../assets/scan.ts";
 import { defaultContentRoots } from "../assets/verify.ts";
 import { createClassStore, createDocumentCheck } from "../save/documentCheck.ts";
-import { createSaveService, type SaveRequest, type SaveResult, type SaveService } from "../save/transaction.ts";
+import { createSaveService, MANIFEST_FILE, type SaveRequest, type SaveResult, type SaveService } from "../save/transaction.ts";
 import {
   createWritePolicy,
   normalizeProjectPath,
@@ -319,6 +324,77 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
     res.end(bytes);
   };
 
+  /** The manifest's start level, and the manifest text with another one (only that value changes: the file keeps its form). */
+  const readManifest = async (): Promise<{ bytes: Buffer; startLevel: string } | null> => {
+    try {
+      const bytes = await readFile(join(policy.root, MANIFEST_FILE));
+      const json = JSON.parse(bytes.toString("utf8")) as { startLevel?: unknown };
+      return { bytes, startLevel: typeof json.startLevel === "string" ? json.startLevel : "" };
+    } catch {
+      return null;
+    }
+  };
+  const contentOp = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    if (options.readOnly) {
+      req.resume();
+      send(res, 403, { status: "refused", reason: "read-only", message: READ_ONLY_MESSAGE });
+      return;
+    }
+    let op: ContentOp;
+    try {
+      op = JSON.parse((await readBody(req, maxBody)).toString("utf8")) as ContentOp;
+    } catch (error) {
+      send(res, 400, { status: "refused", reason: "request", message: error instanceof Error ? error.message : String(error) });
+      return;
+    }
+    // Planned against the disk as it is now (a file may have come or gone since the last scan).
+    snapshot = indexRoots();
+    const { scan, index } = await snapshot;
+    const manifest = await readManifest();
+    const outcome = planContentOp(op, { scan, index, registry: options.registry, writable: writableLabel, startLevel: manifest?.startLevel ?? "" });
+    if (!outcome.ok) {
+      send(res, outcome.status, { status: "refused", reason: outcome.reason, message: outcome.message, ...(outcome.referrers ? { referrers: outcome.referrers } : {}) });
+      return;
+    }
+    const result = await saves.commit(await saveRequestOf(outcome.plan, manifest));
+    if (result.status === "saved") send(res, 200, { status: "done", result: outcome.plan.result });
+    else if (result.status === "conflict") send(res, 409, { status: "refused", reason: "exists", message: `Changed on disk meanwhile: ${result.conflicts.map((conflict) => conflict.path).join(", ")}` });
+    else send(res, STATUS_OF[result.reason], { status: "refused", reason: result.reason, message: result.issues.map((one) => `${one.file}: ${one.message}`).join("; ") });
+  };
+  const saveRequestOf = async (plan: ContentPlan, manifest: { bytes: Buffer; startLevel: string } | null): Promise<SaveRequest> => {
+    const deletes = [];
+    for (const path of plan.deletes) deletes.push({ path, base: fileRevision(await readFile(join(policy.root, ...path.split("/")))) });
+    const startLevel = plan.startLevel;
+    // A copy from the engine's content or a pack: its bytes go through the staging folder (the save writes project files only).
+    const writes = [];
+    for (const write of plan.writes) {
+      const outside = write.copyOf === undefined ? undefined : readOnlyRoots.find((root) => write.copyOf!.startsWith(`${root.label}/`));
+      if (write.text !== undefined) writes.push({ path: write.path, base: null, text: write.text });
+      else if (outside === undefined) writes.push({ path: write.path, base: null, copyOf: write.copyOf! });
+      else {
+        await mkdir(stagingDir, { recursive: true });
+        const staged = join(stagingDir, randomBytes(16).toString("hex"));
+        await writeFile(staged, await readFile(resolveReadOnlyPath(outside, write.copyOf!.slice(outside.label.length + 1))));
+        writes.push({ path: write.path, base: null, staged });
+      }
+    }
+    return {
+      writes,
+      deletes,
+      moves: plan.moves,
+      removeDirs: plan.removeDirs,
+      mkdirs: plan.mkdirs,
+      ...(startLevel !== undefined && manifest
+        ? {
+            manifest: {
+              base: fileRevision(manifest.bytes),
+              text: manifest.bytes.toString("utf8").replace(/("startLevel"\s*:\s*)"[^"]*"/, (_, key: string) => `${key}${JSON.stringify(startLevel)}`),
+            },
+          }
+        : {}),
+    };
+  };
+
   const thumbnailDir = join(policy.root, ...THUMBNAIL_DIR.split("/"));
   const thumbnail = async (req: IncomingMessage, url: URL, res: ServerResponse): Promise<void> => {
     const id = url.searchParams.get("id") ?? "";
@@ -383,6 +459,7 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
         (url.searchParams.get("refresh") === "1" ? (snapshot = indexRoots()) : current()).then(({ scan, index }) =>
           send(res, 200, buildContentListing(scan, index, writableLabel)),
         ),
+      "POST /__forge/content": () => contentOp(req, res),
       "GET /__forge/thumbnail": () => thumbnail(req, url, res),
       "POST /__forge/thumbnail": () => thumbnail(req, url, res),
     };

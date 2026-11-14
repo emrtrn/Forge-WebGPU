@@ -15,9 +15,15 @@
 //    and deletes, the indexes last -> journal removed (see journal.ts).
 //
 // Saves of one service run one after another.
+//
+// The Content Browser's operations (plan phase 4 step 6c) go through the same
+// transaction: a move renames a file (its bytes and revision stay; a level's
+// `cells.json` moves with its folder), a write can copy a project file's bytes
+// (`copyOf`), emptied folders are removed last, and the project manifest can
+// change with them (`manifest`: the start level followed a move).
 
 import { randomBytes } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
   CELL_INDEX_FILE,
@@ -44,6 +50,20 @@ export interface SaveWrite {
   readonly text?: string;
   /** Absolute path of a staged binary upload (the binary channel). */
   readonly staged?: string;
+  /** A project file whose bytes are written (a Content Browser copy). */
+  readonly copyOf?: string;
+}
+
+export interface SaveMove {
+  readonly from: string;
+  /** Must not exist. */
+  readonly to: string;
+}
+
+/** The project manifest's new text (`forge.project.json`), with the revision read. */
+export interface SaveManifest {
+  readonly text: string;
+  readonly base: string;
 }
 
 export interface SaveDelete {
@@ -54,7 +74,15 @@ export interface SaveDelete {
 export interface SaveRequest {
   readonly writes?: readonly SaveWrite[];
   readonly deletes?: readonly SaveDelete[];
+  readonly moves?: readonly SaveMove[];
+  /** Folders removed after the moves and deletes, when they are empty then. */
+  readonly removeDirs?: readonly string[];
+  /** Empty folders made (a new folder, an empty one moved or copied); after everything else. */
+  readonly mkdirs?: readonly string[];
+  readonly manifest?: SaveManifest;
 }
+
+export const MANIFEST_FILE = "forge.project.json";
 
 export interface SaveIssue {
   readonly file: string;
@@ -158,7 +186,7 @@ async function commit(request: SaveRequest, options: SaveServiceOptions): Promis
   const pathIssues: SaveIssue[] = [];
   const seen = new Set<string>();
 
-  const resolve = (path: string): { relative: string; absolute: string } | null => {
+  const resolve = (path: string, moving = false): { relative: string; absolute: string } | null => {
     try {
       const resolved = resolveWritablePath(policy, path);
       if (seen.has(resolved.relative)) {
@@ -166,7 +194,8 @@ async function commit(request: SaveRequest, options: SaveServiceOptions): Promis
         return null;
       }
       seen.add(resolved.relative);
-      if (resolved.relative.endsWith(`/${CELL_INDEX_FILE}`) && partFolderOf(resolved.relative) !== null) {
+      // A level's index moves with its folder; it is never written or deleted by a client.
+      if (!moving && resolved.relative.endsWith(`/${CELL_INDEX_FILE}`) && partFolderOf(resolved.relative) !== null) {
         pathIssues.push(issue(resolved.relative, "server-owned", "A level's cells.json is written by the server only."));
         return null;
       }
@@ -177,37 +206,80 @@ async function commit(request: SaveRequest, options: SaveServiceOptions): Promis
       return null;
     }
   };
+  const copies: { write: PlannedWrite; source: string }[] = [];
   for (const write of request.writes ?? []) {
     const resolved = resolve(write.path);
     if (!resolved) continue;
-    if ((write.text === undefined) === (write.staged === undefined)) {
-      pathIssues.push(issue(resolved.relative, "bad-write", "A write has either text or a staged upload."));
+    if ([write.text, write.staged, write.copyOf].filter((one) => one !== undefined).length !== 1) {
+      pathIssues.push(issue(resolved.relative, "bad-write", "A write has text, a staged upload or a file to copy."));
       continue;
     }
-    writes.push({
+    const planned: PlannedWrite = {
       ...resolved,
       base: write.base,
       bytes: write.text === undefined ? null : Buffer.from(write.text, "utf8"),
       staged: write.staged ?? null,
-    });
+    };
+    writes.push(planned);
+    if (write.copyOf !== undefined) {
+      try {
+        copies.push({ write: planned, source: resolveWritablePath(policy, write.copyOf).absolute });
+      } catch (error) {
+        if (!(error instanceof ProjectPathError)) throw error;
+        pathIssues.push(issue(write.copyOf, error.code, error.message));
+      }
+    }
   }
   for (const entry of request.deletes ?? []) {
     const resolved = resolve(entry.path);
     if (resolved) deletes.push({ ...resolved, base: entry.base });
   }
+  const moves: { from: { relative: string; absolute: string }; to: { relative: string; absolute: string } }[] = [];
+  for (const move of request.moves ?? []) {
+    const from = resolve(move.from, true);
+    const to = resolve(move.to, true);
+    if (from && to) moves.push({ from, to });
+  }
+  const folderPaths = (list: readonly string[] | undefined): { relative: string; absolute: string }[] =>
+    (list ?? []).flatMap((folder) => {
+      try {
+        return [resolveWritablePath(policy, folder)];
+      } catch (error) {
+        if (!(error instanceof ProjectPathError)) throw error;
+        pathIssues.push(issue(folder, error.code, error.message));
+        return [];
+      }
+    });
+  const removeDirs = folderPaths(request.removeDirs).map((folder) => folder.relative);
+  const mkdirs = folderPaths(request.mkdirs);
+  const manifest: PlannedWrite | null = request.manifest
+    ? { relative: MANIFEST_FILE, absolute: join(policy.root, MANIFEST_FILE), base: request.manifest.base, bytes: Buffer.from(request.manifest.text, "utf8"), staged: null }
+    : null;
   if (pathIssues.length > 0) return { status: "rejected", reason: "path", issues: pathIssues };
-  if (writes.length === 0 && deletes.length === 0) {
+  if (writes.length === 0 && deletes.length === 0 && moves.length === 0 && removeDirs.length === 0 && mkdirs.length === 0 && manifest === null) {
     return { status: "rejected", reason: "request", issues: [issue("", "empty", "Nothing to save.")] };
   }
 
   // Base revisions.
   const current = new Map<string, Buffer | null>();
   const conflicts: { path: string; base: string | null; current: string | null }[] = [];
-  for (const entry of [...writes, ...deletes]) {
+  for (const entry of [...writes, ...deletes, ...(manifest ? [manifest] : [])]) {
     const bytes = await readBytes(entry.absolute);
     current.set(entry.relative, bytes);
     const revision = bytes === null ? null : fileRevision(bytes);
     if (revision !== entry.base) conflicts.push({ path: entry.relative, base: entry.base, current: revision });
+  }
+  // A move needs its file there and its target free (its bytes do not change: no revision to compare).
+  const isFile = (absolute: string): Promise<boolean> => stat(absolute).then((info) => info.isFile(), () => false);
+  const taken = (absolute: string): Promise<boolean> => stat(absolute).then(() => true, () => false);
+  for (const move of moves) {
+    if (!(await isFile(move.from.absolute))) conflicts.push({ path: move.from.relative, base: null, current: null });
+    if (await taken(move.to.absolute)) conflicts.push({ path: move.to.relative, base: null, current: "exists" });
+  }
+  for (const copy of copies) {
+    const bytes = await readBytes(copy.source);
+    if (bytes === null) conflicts.push({ path: copy.write.relative, base: null, current: null });
+    else copy.write.bytes = bytes;
   }
   if (conflicts.length > 0) return { status: "conflict", conflicts };
 
@@ -249,12 +321,16 @@ async function commit(request: SaveRequest, options: SaveServiceOptions): Promis
     const slash = relative.lastIndexOf("/");
     return `${relative.slice(0, slash + 1)}.${relative.slice(slash + 1)}.${txid}.tmp`;
   };
-  const allWrites = [...writes, ...indexes.writes];
+  const allWrites = [...writes, ...indexes.writes, ...(manifest ? [manifest] : [])];
   const steps: JournalStep[] = [
     ...writes.map((write): JournalStep => ({ op: "rename", from: tempOf(write.relative), to: write.relative })),
+    ...moves.map((move): JournalStep => ({ op: "rename", from: move.from.relative, to: move.to.relative })),
     ...deletes.map((entry): JournalStep => ({ op: "delete", path: entry.relative })),
     ...indexes.deletes.map((path): JournalStep => ({ op: "delete", path })),
     ...indexes.writes.map((write): JournalStep => ({ op: "rename", from: tempOf(write.relative), to: write.relative })),
+    ...(manifest ? [{ op: "rename", from: tempOf(manifest.relative), to: manifest.relative } satisfies JournalStep] : []),
+    // Deepest first, so a folder emptied by removing its sub-folders goes too.
+    ...[...removeDirs].sort((a, b) => b.split("/").length - a.split("/").length).map((path): JournalStep => ({ op: "removeDir", path })),
   ];
   const temps = allWrites.map((write) => tempOf(write.relative));
   const journal = { schema: "forge.saveJournal/1" as const, txid, temps, steps };
@@ -282,11 +358,17 @@ async function commit(request: SaveRequest, options: SaveServiceOptions): Promis
   });
   await removeJournal(policy.root, txid);
   for (const write of writes) if (write.staged !== null) await rm(write.staged, { force: true });
+  // An empty folder is no file: made after the journal, idempotent.
+  for (const folder of mkdirs) await mkdir(folder.absolute, { recursive: true });
 
   const files: { path: string; revision: string | null }[] = [];
   for (const write of allWrites) {
     const bytes = write.bytes ?? (await readFile(join(policy.root, write.relative)));
     files.push({ path: write.relative, revision: fileRevision(bytes) });
+  }
+  for (const move of moves) {
+    files.push({ path: move.from.relative, revision: null });
+    files.push({ path: move.to.relative, revision: fileRevision(await readFile(move.to.absolute)) });
   }
   for (const entry of deletes) files.push({ path: entry.relative, revision: null });
   for (const path of indexes.deletes) files.push({ path, revision: null });

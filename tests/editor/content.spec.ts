@@ -11,7 +11,7 @@
 // (step 6b). The level
 // and the files are written into this run's temporary project copy (D14).
 
-import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { cubeGlb } from "./glb.ts";
@@ -21,6 +21,9 @@ const MODEL = "ast_000000000000000000000000000c0001";
 const TEXTURE = "ast_000000000000000000000000000c0002";
 const CUBE = "ast_000000000000000000000000000c0003";
 const MATERIALS = "engine:content/packs/starter/starter-content/Materials";
+const OPS_LEVEL = "content/levels/ops-smoke";
+const ROCK = "ast_000000000000000000000000000c0004";
+const PAINT = "ast_000000000000000000000000000c0005";
 const MANY = 1500;
 const webgl = process.env.FORGE_EDITOR_WEBGPU === "1" ? "" : "&forceWebGL";
 
@@ -45,6 +48,32 @@ test.beforeAll(() => {
   mkdirSync(at("content/thumbs"), { recursive: true });
   writeFileSync(at("content/thumbs/cube.glb"), cubeGlb());
   writeFileSync(at("content/thumbs/cube.glb.meta.json"), meta(CUBE, "forge.model@2"));
+  // Step 6c: a model the ops level places, a texture nothing uses, a folder to paste into.
+  mkdirSync(at("content/ops/sub"), { recursive: true });
+  writeFileSync(at("content/ops/rock.glb"), cubeGlb());
+  writeFileSync(at("content/ops/rock.glb.meta.json"), meta(ROCK, "forge.model@2"));
+  writeFileSync(at("content/ops/paint.png"), "png");
+  writeFileSync(at("content/ops/paint.png.meta.json"), meta(PAINT, "forge.texture@2"));
+  // A material in another folder uses the texture (the server lists it when the texture is deleted).
+  mkdirSync(at("content/ops-materials"), { recursive: true });
+  writeFileSync(
+    at("content/ops-materials/painted.material.json"),
+    `${JSON.stringify({ schema: "forge.material/1", id: "ast_000000000000000000000000000c0006", baseColorTexture: PAINT }, null, 2)}\n`,
+  );
+  mkdirSync(at(OPS_LEVEL), { recursive: true });
+  const rockActor = {
+    id: "act_000000000000000000000000000c0001",
+    name: "Rock",
+    class: null,
+    parent: null,
+    spatiallyLoaded: false,
+    transform: { p: [0, 0.5, 0], r: [0, 0, 0, 1], s: [1, 1, 1] },
+    components: { mesh: { type: "forge.staticMesh@2", parent: null, local: { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] }, mesh: ROCK, materials: [], color: null, castShadow: true } },
+  };
+  writeFileSync(
+    at(`${OPS_LEVEL}/level.json`),
+    `${JSON.stringify({ schema: "forge.level/1", id: "lvl_0000000000000000000000000000c002", settings: { cellSize: 128 }, actors: [rockActor] }, null, 2)}\n`,
+  );
   mkdirSync(at("content/many"), { recursive: true });
   for (let i = 0; i < MANY; i += 1) writeFileSync(at(`content/many/item${String(i).padStart(4, "0")}.bin`), "x");
 });
@@ -213,4 +242,72 @@ test("thumbnails: a model and a material are drawn once, stored in the server's 
   await folderRow(page, "content/thumbs").click();
   await expect(cubeThumb).toHaveAttribute("data-thumbnail", "ready", { timeout: 30_000 });
   expect(stored).toEqual([]);
+});
+
+test("operations: rename in place, a delete refused while the level uses it (who uses it is listed), cut / copy / paste, Delete, the open level locked", async ({ page }) => {
+  const project = process.env.FORGE_EDITOR_SMOKE_PROJECT!;
+  const onDisk = (path: string): boolean => existsSync(join(project, ...path.split("/")));
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("dialog", (dialog) => void dialog.accept());
+  await page.goto(`/?editor&level=${encodeURIComponent(OPS_LEVEL)}${webgl}`);
+  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
+  await page.locator("[data-content-toggle]").click();
+  await folderRow(page, "content/ops").click();
+
+  // Rename in place: the meta file follows; the level still finds the model by its GUID.
+  await card(page, "content/ops/rock.glb").click({ button: "right" });
+  await page.getByTestId("content-menu-rename").click();
+  await page.getByTestId("content-rename").fill("boulder");
+  await page.getByTestId("content-rename").press("Enter");
+  await expect(card(page, "content/ops/boulder.glb")).toBeVisible();
+  expect([onDisk("content/ops/boulder.glb"), onDisk("content/ops/boulder.glb.meta.json"), onDisk("content/ops/rock.glb")]).toEqual([true, true, false]);
+
+  // The open level places it: the delete is refused, naming the actor.
+  await card(page, "content/ops/boulder.glb").click();
+  await page.keyboard.press("Delete");
+  await expect(page.getByTestId("editor-toast")).toContainText("Rock");
+  expect(onDisk("content/ops/boulder.glb")).toBe(true);
+
+  // A material uses the texture: the server refuses and lists it; picking it shows the material's card.
+  await card(page, "content/ops/paint.png").click();
+  await page.keyboard.press("Delete");
+  const referrers = page.getByTestId("content-referrers");
+  await expect(referrers).toBeVisible();
+  await referrers.locator('[data-testid="content-referrers-item"]').first().click();
+  await expect(card(page, "content/ops-materials/painted.material.json")).toHaveClass(/is-selected/);
+  expect(onDisk("content/ops/paint.png")).toBe(true);
+
+  // The open level's card: Rename, Cut and Delete are off.
+  await folderRow(page, "content/levels").click();
+  await card(page, OPS_LEVEL).click({ button: "right" });
+  await expect(page.getByTestId("content-menu-rename")).toBeDisabled();
+  await expect(page.getByTestId("content-menu-delete")).toBeDisabled();
+  await page.keyboard.press("Escape");
+
+  // Cut, then Paste into a folder's empty space: the cut card is dimmed until then.
+  await folderRow(page, "content/ops").click();
+  await card(page, "content/ops/paint.png").click();
+  await page.keyboard.press("Control+x");
+  await expect(card(page, "content/ops/paint.png")).toHaveClass(/is-cut/);
+  await page.locator("[data-folder-path='content/ops/sub']").dblclick();
+  await page.locator(".content-list").click({ button: "right", position: { x: 300, y: 60 } });
+  await page.getByTestId("content-menu-paste").click();
+  await expect(card(page, "content/ops/sub/paint.png")).toBeVisible();
+  expect([onDisk("content/ops/sub/paint.png.meta.json"), onDisk("content/ops/paint.png")]).toEqual([true, false]);
+
+  // Copy and Paste in the same folder: a free name and a new GUID; Delete takes the copy away.
+  await card(page, "content/ops/sub/paint.png").click();
+  await page.keyboard.press("Control+c");
+  await page.keyboard.press("Control+v");
+  const copy = card(page, "content/ops/sub/paint_2.png");
+  await expect(copy).toBeVisible();
+  await expect(copy).not.toHaveAttribute("data-asset-id", PAINT);
+  await copy.click();
+  await page.keyboard.press("Delete");
+  await expect(copy).toHaveCount(0);
+  expect([onDisk("content/ops/sub/paint_2.png"), onDisk("content/ops/sub/paint_2.png.meta.json")]).toEqual([false, false]);
+  // The actor shortcuts did not run meanwhile: the level still has its one actor.
+  await expect(page.locator('[data-testid="outliner-row"]')).toHaveCount(1);
+  expect(errors).toEqual([]);
 });

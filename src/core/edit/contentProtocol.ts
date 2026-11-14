@@ -40,3 +40,29 @@ export interface ContentListingBody {
   readonly folders: readonly string[];
   readonly files: readonly ContentFileBody[];
 }
+
+/**
+ * The body of `POST /__forge/content` (step 6c): one Content Browser
+ * operation on `<root label>/<path>` items. `protect` names what must not
+ * move or go (the level the editor has open).
+ */
+export type ContentOpBody =
+  | { readonly op: "move"; readonly items: readonly string[]; readonly to: string; readonly protect?: readonly string[] }
+  | { readonly op: "rename"; readonly item: string; readonly name: string; readonly protect?: readonly string[] }
+  | { readonly op: "copy"; readonly items: readonly string[]; readonly to: string }
+  | { readonly op: "delete"; readonly items: readonly string[]; readonly protect?: readonly string[] }
+  | { readonly op: "mkdir"; readonly path: string };
+
+/** A file that still refers to what an operation would move away or delete. */
+export interface ContentReferrerBody {
+  /** `<root label>/<path>` of the file that refers. */
+  readonly file: string;
+  /** The referring asset's GUID, when it is one. */
+  readonly id?: string;
+  /** What it refers to (a GUID, or a file it names by path). */
+  readonly target: string;
+}
+
+export type ContentOpResponseBody =
+  | { readonly status: "done"; readonly result: readonly string[] }
+  | { readonly status: "refused"; readonly reason: string; readonly message: string; readonly referrers?: readonly ContentReferrerBody[] };
