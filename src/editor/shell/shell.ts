@@ -15,10 +15,16 @@
 // (toggles: Grid, Stats) and Camera (Perspective / Top / Left / Front; keys 1 Top, 2 Front,
 // 3 Left, 4 Perspective), F focuses the selection, Escape clears it. The
 // shell holds no viewport state: it asks the viewport and follows its changes.
+// The transform tools (step 4) put their toolbar in the work bar before the
+// view menus (transformToolbar.ts) and add to Details what Forge had there:
+// the Pivot row with its viewport drag toggle and presets, and Placement's
+// Snap to Floor / Snap to Wall.
 // Text is set with textContent; the only markup is the kit's static icons.
 
-import { formFields, transform, type ActorDoc, type ActorId } from "../../core/index.ts";
+import { ActorPivotField, formFields, transform, type ActorDoc, type ActorId, type Vec3 } from "../../core/index.ts";
 import type { EditorSession } from "../session/editorSession.ts";
+import type { PivotPreset, TransformTools } from "../transformTools.ts";
+import { createTransformToolbar } from "./transformToolbar.ts";
 import { createFormView, type FormView } from "../ui/formView.ts";
 import { ACTOR_TYPE_ICONS } from "../ui/icons.ts";
 
@@ -63,7 +69,16 @@ export interface ViewportMenus {
   setFlag(id: string, on: boolean): void;
 }
 
-const TRANSFORM_FIELDS = formFields({ transform: transform({ label: "Transform", hint: "Aktörün konumu, dönüşü ve ölçeği (ebeveynine göre)." }) });
+const TRANSFORM_FIELDS = formFields({
+  transform: transform({ label: "Transform", hint: "Aktörün konumu, dönüşü ve ölçeği (ebeveynine göre)." }),
+  pivot: ActorPivotField,
+});
+/** Forge's pivot presets (Details' Pivot row). */
+const PIVOT_PRESETS: readonly (readonly [PivotPreset, string, string])[] = [
+  ["reset", "Reset Pivot", "Pivot model orijininde"],
+  ["center", "Center Pivot", "Pivot sınır kutusunun merkezinde"],
+  ["base", "Use Base", "Pivot alt merkezde (ör. zemine oturan bir menteşe)"],
+];
 
 export interface ShellOptions {
   readonly document: Document;
@@ -82,6 +97,8 @@ export interface EditorShell {
   attach(editor: EditorSession): void;
   /** Binds the view controls to the viewport. */
   attachViewport(menus: ViewportMenus): void;
+  /** Adds the transform toolbar and Details' pivot and placement actions; `navigating` is true while the camera flies. */
+  attachTools(tools: TransformTools, navigating: () => boolean): void;
   /** The status line; errors and warnings also show as a toast. */
   status(message: string, tone?: "info" | "warning" | "error"): void;
 }
@@ -128,6 +145,9 @@ export function createShell(options: ShellOptions): EditorShell {
   lead.append(brand, history);
   const workbar = el("div", "editor-workbar");
   const viewControls = el("div", "editor-view-controls");
+  let tools: TransformTools | null = null;
+  /** Redraws Details (set when a level is attached). */
+  let redrawDetails: (() => void) | null = null;
   workbar.append(viewControls);
   topbar.append(lead, workbar);
 
@@ -262,6 +282,12 @@ export function createShell(options: ShellOptions): EditorShell {
         menus.setView(view);
       });
     },
+    attachTools(next, navigating) {
+      tools = next;
+      for (const part of createTransformToolbar({ document: doc, tools: next, navigating })) workbar.insertBefore(part, viewControls);
+      next.onChange(() => redrawDetails?.());
+      redrawDetails?.();
+    },
     attach(editor) {
       let detailsFor: ActorId | null = null;
       let detailsView: FormView | null = null;
@@ -290,6 +316,35 @@ export function createShell(options: ShellOptions): EditorShell {
         );
       };
 
+      // Forge's Pivot and Placement actions (instanceDetails.ts), under the form.
+      const actions = el("div", "detail-actions");
+      const actionButton = (text: string, hint: string, testId: string, run: () => void): HTMLButtonElement => {
+        const button = el("button", "detail-action-button", text);
+        button.type = "button";
+        button.title = hint;
+        button.dataset.testid = testId;
+        button.addEventListener("click", run);
+        return button;
+      };
+      const pivotDrag = actionButton("Drag in viewport", "Pivotu ayarlamak için viewport'taki gizmoyu sürükleyin", "pivot-drag", () => tools?.setPivotEdit(!tools.pivotEdit));
+      const pivotRow = el("div", "detail-actions-row");
+      pivotRow.append(pivotDrag);
+      const presetRow = el("div", "detail-actions-row");
+      for (const [preset, text, hint] of PIVOT_PRESETS) presetRow.append(actionButton(text, hint, `pivot-${preset}`, () => tools?.setPivotPreset(preset)));
+      const placementRow = el("div", "detail-actions-row");
+      placementRow.append(
+        actionButton("Snap to Floor", "Alttaki yüzeye bırak (End)", "snap-floor", () => tools?.snapToFloor()),
+        actionButton("Snap to Wall", "En yakın duvara yasla", "snap-wall", () => tools?.snapToWall()),
+      );
+      actions.append(el("div", "detail-actions-title", "Pivot"), pivotRow, presetRow, el("div", "detail-actions-title", "Placement"), placementRow);
+      const renderActions = (): void => {
+        actions.hidden = tools === null;
+        const on = tools?.pivotEdit === true;
+        pivotDrag.classList.toggle("on", on);
+        pivotDrag.setAttribute("aria-pressed", String(on));
+        pivotDrag.textContent = on ? "● Dragging pivot" : "Drag in viewport";
+      };
+
       const renderDetails = (): void => {
         const id = editor.selection.primary();
         const actor: ActorDoc | undefined = id === null ? undefined : editor.level.actor(id);
@@ -301,8 +356,10 @@ export function createShell(options: ShellOptions): EditorShell {
           detailsBody.replaceChildren(empty);
           return;
         }
+        const pivot: Vec3 = actor.pivot ?? [0, 0, 0];
         if (detailsFor === actor.id && detailsView) {
-          detailsView.update({ transform: actor.transform });
+          detailsView.update({ transform: actor.transform, pivot });
+          renderActions();
           return;
         }
         detailsFor = actor.id;
@@ -311,7 +368,7 @@ export function createShell(options: ShellOptions): EditorShell {
         detailsView = createFormView({
           document: doc,
           fields: TRANSFORM_FIELDS,
-          value: { transform: actor.transform },
+          value: { transform: actor.transform, pivot },
           testIdPrefix: "detail",
           warn: (message) => status(message, "warning"),
           onChange: (change) => {
@@ -319,12 +376,17 @@ export function createShell(options: ShellOptions): EditorShell {
             const current = editor.level.actor(actor.id);
             if (!current) return;
             // One committed field, one undo step (a slider drag's `input` phase merges in step 5).
-            const result = editor.edit(`Transform ${current.name || current.id}`, (tx) => tx.setActor({ ...current, transform: change.next.transform }));
+            const isPivot = change.path[0] === "pivot";
+            const result = isPivot
+              ? editor.edit("Edit pivot", (tx) => tx.setActor({ ...current, pivot: change.next.pivot }))
+              : editor.edit(`Transform ${current.name || current.id}`, (tx) => tx.setActor({ ...current, transform: change.next.transform }));
             if (!result.ok) status(result.issues.map((issue) => issue.message).join("; "), "error");
           },
         });
-        detailsBody.replaceChildren(heading, detailsView.element);
+        detailsBody.replaceChildren(heading, detailsView.element, actions);
+        renderActions();
       };
+      redrawDetails = renderDetails;
 
       const renderToolbar = (): void => {
         undo.disabled = !editor.canUndo();

@@ -8,7 +8,9 @@
 //   triangles are not tested.
 //
 // The nearest hit with an actor wins; the editor's helpers (icons, drawn over
-// the scene) are tried first and win when hit. The same tags give the world
+// the scene) are tried first and win when hit. `raycast` casts any world ray
+// at what the actors draw, some actors left out (the gizmo's snap to floor /
+// wall, step 4). The same tags give the world
 // bounds of an actor's drawn parts and helpers (focus, the orbit target) and
 // the drawn parts themselves (the selection outline draws them).
 
@@ -31,6 +33,8 @@ export interface DrawnPart {
 export interface ScenePicker {
   /** The nearest actor under a point in normalised device coordinates (-1..1, y up). */
   pick(ndc: Vector2, camera: Camera): ViewportPick | null;
+  /** The first hit of a world ray (unit direction) on what the actors draw within `far`; `exclude`'s actors and the helpers left out. */
+  raycast(origin: Vector3, direction: Vector3, far: number, exclude: ReadonlySet<ActorId>): ViewportPick | null;
   /** World bounds of everything drawn for these actors; null when none of them draws anything. */
   bounds(actors: ReadonlySet<ActorId>): Box3 | null;
   /** The triangle parts drawn for these actors (a pick surface has none). */
@@ -38,6 +42,7 @@ export interface ScenePicker {
 }
 
 const isMesh = (object: Object3D): object is Mesh => (object as Mesh).isMesh === true;
+const NONE: ReadonlySet<ActorId> = new Set();
 
 export function createScenePicker(root: () => Object3D | null, helpers: () => Object3D | null = () => null): ScenePicker {
   const raycaster = new Raycaster();
@@ -85,38 +90,49 @@ export function createScenePicker(root: () => Object3D | null, helpers: () => Ob
     return null;
   };
 
+  /** The nearest actor the raycaster's ray hits in the scene (meshes, instances, pick surfaces), `exclude` left out. */
+  const castScene = (exclude: ReadonlySet<ActorId>): ViewportPick | null => {
+    const top = root();
+    if (!top) return null;
+    top.updateMatrixWorld();
+    const meshes: Object3D[] = [];
+    const surfaces: { object: Object3D; surface: PickSurface }[] = [];
+    top.traverseVisible((object) => {
+      const surface = pickSurfaceOf(object);
+      if (surface) surfaces.push({ object, surface });
+      else if (isMesh(object)) meshes.push(object);
+    });
+    hits.length = 0;
+    raycaster.intersectObjects(meshes, false, hits);
+    let best: ViewportPick | null = null;
+    for (const hit of hits) {
+      const actor = actorOfHit(hit);
+      if (actor === null || exclude.has(actor)) continue;
+      best = { actor, distance: hit.distance, point: hit.point.clone() };
+      break;
+    }
+    for (const { object, surface } of surfaces) {
+      const actor = actorOfObject(object);
+      if (actor === null || exclude.has(actor)) continue;
+      const distance = surface.raycast(raycaster.ray.origin, raycaster.ray.direction, best?.distance ?? raycaster.far);
+      if (distance === null || (best && distance >= best.distance)) continue;
+      best = { actor, distance, point: raycaster.ray.at(distance, new Vector3()) };
+    }
+    return best;
+  };
+
   return {
     pick(ndc, camera) {
       raycaster.setFromCamera(ndc, camera);
-      const helper = pickHelpers();
-      if (helper) return helper;
-      const top = root();
-      if (!top) return null;
-      top.updateMatrixWorld();
-      const meshes: Object3D[] = [];
-      const surfaces: { object: Object3D; surface: PickSurface }[] = [];
-      top.traverseVisible((object) => {
-        const surface = pickSurfaceOf(object);
-        if (surface) surfaces.push({ object, surface });
-        else if (isMesh(object)) meshes.push(object);
-      });
-      hits.length = 0;
-      raycaster.intersectObjects(meshes, false, hits);
-      let best: ViewportPick | null = null;
-      for (const hit of hits) {
-        const actor = actorOfHit(hit);
-        if (actor === null) continue;
-        best = { actor, distance: hit.distance, point: hit.point.clone() };
-        break;
-      }
-      for (const { object, surface } of surfaces) {
-        const actor = actorOfObject(object);
-        if (actor === null) continue;
-        const distance = surface.raycast(raycaster.ray.origin, raycaster.ray.direction, best?.distance ?? raycaster.far);
-        if (distance === null || (best && distance >= best.distance)) continue;
-        best = { actor, distance, point: raycaster.ray.at(distance, new Vector3()) };
-      }
-      return best;
+      raycaster.near = 0;
+      raycaster.far = Infinity;
+      return pickHelpers() ?? castScene(NONE);
+    },
+    raycast(origin, direction, far, exclude) {
+      raycaster.set(origin, direction);
+      raycaster.near = 0;
+      raycaster.far = far;
+      return castScene(exclude);
     },
     bounds(actors) {
       const box = new Box3();

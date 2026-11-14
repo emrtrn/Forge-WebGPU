@@ -6,7 +6,7 @@
 //   session (every cell, decision 11) -> viewport (render host, editor
 //   camera, drawing layer; src/render/editor) -> the editor's world
 //   (`mode: "editor"`: render, environment, fog; never physics or gameplay)
-//   -> shell -> frame loop
+//   -> shell -> transform tools (gizmo, snap, pivot; step 4) -> frame loop
 //
 // The features' editor helpers (`features/*/editorRender.ts`) are collected
 // here, never by the game (`editor-render-is-editor-only`), and run in the
@@ -32,6 +32,7 @@ import { assembleLevel } from "../runtime/assembler.ts";
 import { createWorld, type World } from "../runtime/world.ts";
 import { createEditorSession, type EditorSession } from "./session/editorSession.ts";
 import { createShell } from "./shell/shell.ts";
+import { createTransformTools, type TransformTools } from "./transformTools.ts";
 import { installShellStyle } from "./shell/shellStyle.ts";
 import { installKitStyle } from "./ui/kitStyle.ts";
 import { createViewportControls } from "./viewportControls.ts";
@@ -92,6 +93,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     // Set once the world and the session exist; the viewport reads them through these.
     let world: World | null = null;
     let editor: EditorSession | null = null;
+    let tools: TransformTools | null = null;
     const viewport = createEditorViewport({
       document: doc,
       container: shell.viewport,
@@ -113,6 +115,11 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
           if (actor) editor.selection.toggle(actor);
         } else editor.selection.set(actor ? [actor] : []);
       },
+      gizmo: () => tools?.gizmo() ?? null,
+      onPointerDown: (event) => tools?.pointerDown(event) ?? false,
+      onPointerMove: (event) => tools?.pointerMove(event) ?? null,
+      onPointerUp: (event) => tools?.pointerUp(event),
+      onPointerCancel: () => void tools?.cancel(),
     });
     await viewport.init();
     viewport.onLost((message) => shell.status(`The GPU device was lost: ${message}. Reload the page.`, "error"));
@@ -127,6 +134,8 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     const session = createEditorSession({ level: opened.session, world, client: options.client });
     editor = session;
     shell.attach(session);
+    tools = createTransformTools({ editor: session, viewport, storage: pageStorage(doc), status: (message, tone) => shell.status(message, tone) });
+    shell.attachTools(tools, () => viewport.camera.navigating);
     const warnings = opened.issues.filter((issue) => issue.severity === "warning");
     if (warnings.length > 0) shell.status(`Level read with ${warnings.length} warning(s): ${warnings[0]!.message}`, "warning");
 

@@ -8,9 +8,15 @@
 // - The last perspective pose is restored per level (cameraPoseStore.ts);
 //   without one the level is framed once its resources are in (the viewer's
 //   framing), unless the user moved first.
-// - Input on the canvas: the camera takes what is its (editorCamera.ts); a
-//   plain left press goes to `onClick`, which picks (picker.ts) for the
-//   editor's selection.
+// - Input on the canvas: a plain left press on a gizmo handle is the editor's
+//   (`onPointerDown`, the transform tools: the pointer is captured and its
+//   moves and release go there too); otherwise the camera takes what is its
+//   (editorCamera.ts) and a plain left press goes to `onClick`, which picks
+//   (picker.ts) for the editor's selection.
+// - The gizmo (step 4, gizmo.ts) is the drawing layer's last pass, drawn as
+//   the editor's `gizmo()` says each frame. Its handles' screen points are on
+//   the canvas as `data-forge-gizmo` (client pixels, `tool:axis` and
+//   `origin`) for the browser checks.
 // - The selection (the editor's, read each frame) is outlined in the drawing
 //   layer (selectionOutline.ts); its bounds are the orbit target and what
 //   focus frames.
@@ -22,8 +28,11 @@
 //   technical view (Top / Left / Front) switches to Wireframe and Perspective
 //   back to Lit; the menu still picks either afterwards.
 
-import { Group, Vector2, Vector3, type Box3, type Material, type Mesh } from "three/webgpu";
-import type { ActorId, FeatureDef, WorldActor } from "../../core/index.ts";
+import { Box3, Group, Matrix4, Raycaster, Vector2, Vector3, type Material, type Mesh } from "three/webgpu";
+import type { ActorId, FeatureDef, Vec3, WorldActor } from "../../core/index.ts";
+import type { GizmoHandle } from "../../engine/gizmo/axes.ts";
+import type { Box } from "../../engine/gizmo/surfaceSnap.ts";
+import type { Ray } from "../../engine/gizmo/transformDrag.ts";
 import { actorWorldMatrix } from "../sync/transforms.ts";
 import { createRenderHost, type RenderHost, type RenderHostOptions, type RenderQuality } from "../host/renderHost.ts";
 import { CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR, frameBounds, READY_FRAMES, sceneRoomBounds } from "../viewer/levelViewer.ts";
@@ -32,6 +41,7 @@ import { createEditorCamera, type CameraView, type EditorCamera, type ViewportCa
 import { createEditorGrid, type EditorGrid, type GridPlane } from "./grid.ts";
 import { createActorIcons, type ActorIcons } from "./actorIcon.ts";
 import { createEditorHelpersFeature, type EditorRenderBindingDef } from "./editorBinding.ts";
+import { createViewportGizmo, type GizmoView, type ViewportGizmo } from "./gizmo.ts";
 import { createEditorOverlay, type EditorOverlay } from "./overlay.ts";
 import { createScenePicker, type ScenePicker } from "./picker.ts";
 import { createSelectionOutline, type SelectionOutline } from "./selectionOutline.ts";
@@ -48,6 +58,14 @@ export interface EditorViewportOptions extends RenderHostOptions {
   readonly actor?: (id: ActorId) => WorldActor | undefined;
   /** A plain left press in the viewport, in client pixels; `additive` with Ctrl or Shift. */
   readonly onClick?: (clientX: number, clientY: number, additive: boolean) => void;
+  /** The gizmo to draw this frame (read every frame); null for none. */
+  readonly gizmo?: () => GizmoView | null;
+  /** A plain left press, before the camera and `onClick`: true takes it (a gizmo drag; the pointer is captured). */
+  readonly onPointerDown?: (event: PointerEvent) => boolean;
+  /** Every move over the canvas the camera does not take; a "grab" answer shows the grab cursor. */
+  readonly onPointerMove?: (event: PointerEvent) => "grab" | null;
+  readonly onPointerUp?: (event: PointerEvent) => void;
+  readonly onPointerCancel?: (event: PointerEvent) => void;
 }
 
 /** Forge's viewport shading modes. */
@@ -72,6 +90,18 @@ export interface EditorViewport {
   onViewModeChange(listener: (mode: ViewMode) => void): void;
   /** The actor drawn under a point of the page (client pixels); null for none. */
   pick(clientX: number, clientY: number): ActorId | null;
+  /** The gizmo handle under a point of the page; null for none (or no gizmo). */
+  pickHandle(clientX: number, clientY: number): GizmoHandle | null;
+  /** The camera's ray through a point of the page. */
+  pointerRay(clientX: number, clientY: number): Ray | null;
+  /** The camera's forward direction. */
+  viewDirection(): Vec3;
+  /** The first thing a world ray hits among what the level draws, `exclude`'s actors left out. */
+  raycast(origin: Vec3, direction: Vec3, far: number, exclude: ReadonlySet<ActorId>): { readonly distance: number; readonly point: Vec3 } | null;
+  /** World box of what these actors draw (three-free). */
+  worldBox(actors: readonly ActorId[]): Box | null;
+  /** The box of what an actor draws, in its own space (before its scale). */
+  localBox(actor: ActorId): Box | null;
   /** World bounds of what these actors draw; null when they draw nothing. */
   bounds(actors: readonly ActorId[]): Box3 | null;
   /** Frames a box; a null or empty box looks at `fallback`. */
@@ -151,7 +181,35 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
   const unbind: (() => void)[] = [];
   let overlay: EditorOverlay | null = null;
   let outline: SelectionOutline | null = null;
+  let gizmo: ViewportGizmo | null = null;
+  /** The last `data-forge-gizmo` written. */
+  let gizmoPoints = "";
   const ndc = new Vector2();
+  const handleRay = new Raycaster();
+  /** Device coordinates of a point of the page into `ndc`; false when the canvas has no size. */
+  const toNdc = (clientX: number, clientY: number): boolean => {
+    if (!host) return false;
+    const rect = host.canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return false;
+    ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+    return true;
+  };
+  const plainBox = (box: Box3 | null): Box | null => (box === null || box.isEmpty() ? null : { min: box.min.toArray(), max: box.max.toArray() });
+  const publishGizmo = (canvas: HTMLCanvasElement, active: ViewportCamera): void => {
+    let text = "";
+    if (gizmo?.visible) {
+      const rect = canvas.getBoundingClientRect();
+      const points: Record<string, [number, number]> = {};
+      for (const [key, [x, y]] of Object.entries(gizmo.handlePoints(active))) {
+        points[key] = [Math.round(rect.left + ((x + 1) / 2) * rect.width), Math.round(rect.top + ((1 - y) / 2) * rect.height)];
+      }
+      text = JSON.stringify(points);
+    }
+    if (text === gizmoPoints) return;
+    gizmoPoints = text;
+    if (text) canvas.dataset.forgeGizmo = text;
+    else delete canvas.dataset.forgeGizmo;
+  };
   let grid: EditorGrid | null = null;
   let gridVisible = true;
   let quality: RenderQuality | null = null;
@@ -168,12 +226,26 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
 
   const wireInput = (canvas: HTMLCanvasElement, window: Window): void => {
     listen<PointerEvent>(canvas, "pointerdown", (event) => {
+      if (event.button === 0 && !event.altKey && options.onPointerDown?.(event)) {
+        canvas.setPointerCapture(event.pointerId);
+        return;
+      }
       if (camera.pointerDown(event, canvas)) return;
       if (event.button === 0) options.onClick?.(event.clientX, event.clientY, event.ctrlKey || event.shiftKey);
     });
-    listen<PointerEvent>(canvas, "pointermove", (event) => void camera.pointerMove(event));
-    listen<PointerEvent>(canvas, "pointerup", (event) => camera.pointerUp(event, canvas));
-    listen<PointerEvent>(canvas, "pointercancel", (event) => camera.pointerUp(event, canvas));
+    listen<PointerEvent>(canvas, "pointermove", (event) => {
+      if (camera.pointerMove(event) || camera.dragging || camera.navigating) return;
+      const cursor = options.onPointerMove?.(event) ?? null;
+      canvas.style.cursor = cursor === "grab" ? "pointer" : "";
+    });
+    const release = (event: PointerEvent, cancelled: boolean): void => {
+      if (cancelled) options.onPointerCancel?.(event);
+      else options.onPointerUp?.(event);
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+      camera.pointerUp(event, canvas);
+    };
+    listen<PointerEvent>(canvas, "pointerup", (event) => release(event, false));
+    listen<PointerEvent>(canvas, "pointercancel", (event) => release(event, true));
     listen<MouseEvent>(canvas, "contextmenu", (event) => event.preventDefault());
     listen<WheelEvent>(
       canvas,
@@ -222,6 +294,8 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       icons = createActorIcons(options.document);
       outline = createSelectionOutline(picker, selected);
       overlay.addPass(outline);
+      gizmo = createViewportGizmo();
+      overlay.addPass(gizmo);
       host.setOverlay(overlay);
       const window = options.document.defaultView;
       if (window) wireInput(host.canvas, window);
@@ -263,6 +337,9 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       }
       if (viewMode === "wireframe") applyWireframe();
       grid?.update(active, gridPlaneOf(camera.view));
+      active.updateMatrixWorld();
+      gizmo?.update(options.gizmo?.() ?? null, active, rect.height);
+      publishGizmo(host.canvas, active);
       host.frame(now);
       if (camera.view === "perspective" && camera.touched) poses.maybeSave(camera.perspective, now);
       if (ready) return;
@@ -292,11 +369,41 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       modeListeners.push(listener);
     },
     pick(clientX, clientY) {
-      if (!host) return null;
-      const rect = host.canvas.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return null;
-      ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+      if (!toNdc(clientX, clientY)) return null;
       return picker.pick(ndc, camera.active())?.actor ?? null;
+    },
+    pickHandle(clientX, clientY) {
+      if (!gizmo?.visible || !toNdc(clientX, clientY)) return null;
+      handleRay.setFromCamera(ndc, camera.active());
+      return gizmo.pick(handleRay);
+    },
+    pointerRay(clientX, clientY) {
+      if (!toNdc(clientX, clientY)) return null;
+      handleRay.setFromCamera(ndc, camera.active());
+      return { origin: handleRay.ray.origin.toArray(), direction: handleRay.ray.direction.toArray() };
+    },
+    viewDirection() {
+      return camera.active().getWorldDirection(new Vector3()).toArray();
+    },
+    raycast(origin, direction, far, exclude) {
+      const hit = picker.raycast(new Vector3().fromArray(origin), new Vector3().fromArray(direction).normalize(), far, exclude);
+      return hit ? { distance: hit.distance, point: hit.point.toArray() } : null;
+    },
+    worldBox(actors) {
+      return plainBox(picker.bounds(new Set(actors)));
+    },
+    localBox(id) {
+      const actor = options.actor?.(id);
+      if (!actor) return null;
+      const inverse = actorWorldMatrix({ actor: (one: ActorId) => options.actor?.(one) }, actor).invert();
+      const box = new Box3();
+      const part = new Box3();
+      const matrix = new Matrix4();
+      picker.parts(new Set([id]), ({ geometry, matrix: world }) => {
+        if (!geometry.boundingBox) geometry.computeBoundingBox();
+        box.union(part.copy(geometry.boundingBox!).applyMatrix4(matrix.multiplyMatrices(inverse, world)));
+      });
+      return plainBox(box);
     },
     bounds(actors) {
       return picker.bounds(new Set(actors));
@@ -334,6 +441,7 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       for (const off of unbind.splice(0).reverse()) off();
       host?.setOverlay(null);
       outline?.dispose();
+      gizmo?.dispose();
       icons?.dispose();
       helpers.clear();
       grid?.dispose();

@@ -166,6 +166,123 @@ html, body {
   pointer-events: none;
 }
 
+/* The transform tools and snap widgets (Forge's editor-tools / editor-snaps). */
+.editor-tools,
+.editor-snaps {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.editor-shell .editor-tools .tool-button.active,
+.editor-shell .editor-tools .tool-button.active:hover {
+  border-color: var(--forge-accent);
+  background: var(--forge-accent);
+  color: var(--forge-accent-text);
+}
+
+.editor-shell .tool-button.space-toggle {
+  margin-left: 2px;
+}
+
+.editor-snaps {
+  gap: 8px;
+}
+
+/* A grid-icon toggle joined to a value list (UE5's snap control). */
+.editor-snaps .snap-widget {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+/* The checkbox keeps the state; the icon (inside the label) toggles it. */
+.editor-snaps .snap-widget input[type="checkbox"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.editor-snaps .snap-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--forge-border-strong);
+  border-right: none;
+  border-radius: 5px 0 0 5px;
+  background: var(--forge-bg-3);
+  color: var(--forge-text-dim);
+}
+
+.editor-snaps .snap-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  pointer-events: none;
+}
+
+.editor-snaps .snap-widget:hover .snap-icon {
+  background: var(--forge-surface-raise);
+  color: var(--forge-text-secondary);
+}
+
+.editor-snaps .snap-widget input:checked + .snap-icon {
+  border-color: var(--forge-accent);
+  background: var(--forge-accent-soft);
+  color: var(--forge-accent-hover);
+}
+
+.editor-snaps select {
+  height: 26px;
+  min-height: 26px;
+  min-width: 52px;
+  border: 1px solid var(--forge-border-strong);
+  border-radius: 0 5px 5px 0;
+  padding: 0 5px;
+  color: var(--forge-text);
+  font-size: 12px;
+  background: var(--forge-bg-3);
+}
+
+/* Details' Pivot and Placement actions (Forge's detail-actions-row). */
+.detail-actions {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.detail-actions-title {
+  margin-top: 4px;
+  color: var(--forge-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.detail-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.editor-shell .detail-action-button {
+  min-height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.editor-shell .detail-action-button.on {
+  border-color: var(--forge-accent);
+  background: var(--forge-accent-soft);
+  color: var(--forge-accent-hover);
+}
+
 .editor-view-controls {
   display: flex;
   align-items: center;

@@ -85,4 +85,25 @@ describe("the editor's picking (plan phase 4 step 3)", () => {
     picker.parts(new Set(["act_a", "act_b", "act_light"]), ({ matrix }) => parts.push(new Vector3().setFromMatrixPosition(matrix).x));
     expect(parts).toEqual([0, 4]);
   });
+
+  test("a world ray hits what the actors draw, leaving out the excluded actors and the helpers (snap to floor / wall)", () => {
+    const { picker, helpers } = scene();
+    const icon = new Sprite(new SpriteNodeMaterial());
+    icon.position.set(4, 3, 0);
+    tagActorObject(icon, "act_light");
+    helpers.add(icon);
+    const down = new Vector3(0, -1, 0);
+    // From above act_b: its top (y = 1), then with it left out, the height field (y = 0).
+    const top = picker.raycast(new Vector3(4, 5, 0), down, 100, new Set());
+    expect(top?.actor).toBe("act_b");
+    expect(top!.distance).toBeCloseTo(4);
+    const floor = picker.raycast(new Vector3(4, 5, 0), down, 100, new Set(["act_b"]));
+    expect(floor?.actor).toBe("act_t");
+    expect(floor!.point.y).toBeCloseTo(0);
+    // Sideways from act_a towards act_b: its face at x = 3.5; out of reach, nothing.
+    const side = picker.raycast(new Vector3(0, 0.5, 0), new Vector3(1, 0, 0), 100, new Set(["act_a"]));
+    expect(side?.actor).toBe("act_b");
+    expect(side!.distance).toBeCloseTo(3.5);
+    expect(picker.raycast(new Vector3(0, 0.5, 0), new Vector3(1, 0, 0), 2, new Set(["act_a"]))).toBeNull();
+  });
 });
