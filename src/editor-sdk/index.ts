@@ -6,9 +6,11 @@
 
 export { SDK_VERSION } from "../sdk/version.ts";
 export {
+  ADD_ACTOR_CATEGORIES,
   defineFeatureEditor,
   OUTLINER_TYPES,
   type ActorTypeIcon,
+  type AddActorEntry,
   type ComponentPresentation,
   type FeatureEditorDef,
   type FeatureEditorOptions,

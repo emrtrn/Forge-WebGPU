@@ -78,7 +78,7 @@ interface JsonAssetTypeDef<M>
 
 type LevelId = `lvl_${string}`
 
-const SDK_VERSION: "0.1.5"
+const SDK_VERSION: "0.1.6"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -200,18 +200,32 @@ function vec4(options: VectorOptions<4>): VectorField<4>
 
 # src/editor-sdk/index.ts
 
+const ADD_ACTOR_CATEGORIES: readonly [{ readonly label: "Lights"; readonly icon: "light"; }, { readonly label: "Shapes"; readonly icon: "shape"; }, { readonly label: "Volumes"; readonly icon: "volume"; }, { readonly label: "Visual Effects"; readonly icon: "reflection"; }, { readonly label: "Terrain"; readonly icon: "terrain"; }, { readonly label: "Sounds"; readonly icon: "sound"; }, { readonly label: "UI"; readonly icon: "widget"; }, { readonly label: "Gameplay"; readonly icon: "gameplay"; }, { readonly label: "Vehicles"; readonly icon: "vehicle"; }]
+
 type ActorTypeIcon = "mesh" | "character" | "light" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic"
+
+interface AddActorEntry
+  readonly category: string
+  readonly components: Readonly<Record<string, Readonly<{ type: string; } & Record<string, unknown>>>>
+  readonly icon: "mesh" | "character" | "light" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic"
+  readonly key: string
+  readonly label: string
+  readonly lift?: number | undefined
+  readonly restOnSurface?: boolean | undefined
+  readonly rotation?: readonly [number, number, number] | undefined
 
 interface ComponentPresentation
   readonly icon: "mesh" | "character" | "light" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic" | ((data: Readonly<Record<string, unknown>>) => ActorTypeIcon)
   readonly outliner: "mesh" | "character" | "light" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
 
 interface FeatureEditorDef
+  readonly addActor: ReadonlyArray<AddActorEntry>
   readonly components: Readonly<Record<string, ComponentPresentation>>
   readonly feature: string
   readonly kind: "featureEditor"
 
 interface FeatureEditorOptions
+  readonly addActor?: ReadonlyArray<AddActorEntry> | undefined
   readonly components?: Readonly<Record<string, ComponentPresentation>> | undefined
   readonly feature: string
 
@@ -219,7 +233,7 @@ const OUTLINER_TYPES: readonly [{ readonly type: "mesh"; readonly label: "Meshes
 
 type OutlinerType = "mesh" | "character" | "light" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
 
-const SDK_VERSION: "0.1.5"
+const SDK_VERSION: "0.1.6"
 
 function defineFeatureEditor(options: FeatureEditorOptions): FeatureEditorDef
 

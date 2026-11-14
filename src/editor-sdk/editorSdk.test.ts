@@ -4,5 +4,5 @@ import * as editorSdk from "./index.ts";
 
 test("the editor SDK follows the SDK version and offers a feature's editor side", () => {
   expect(editorSdk.SDK_VERSION).toBe(sdk.SDK_VERSION);
-  expect(Object.keys(editorSdk).sort()).toEqual(["OUTLINER_TYPES", "SDK_VERSION", "defineFeatureEditor"]);
+  expect(Object.keys(editorSdk).sort()).toEqual(["ADD_ACTOR_CATEGORIES", "OUTLINER_TYPES", "SDK_VERSION", "defineFeatureEditor"]);
 });

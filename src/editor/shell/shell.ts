@@ -27,6 +27,8 @@ import { createDetailsPanel, type DetailsPanel } from "../details/detailsPanel.t
 import type { EditCommands } from "../edit/editCommands.ts";
 import type { EditorCatalog } from "../host/editorCatalog.ts";
 import { isEditableTarget, shortcutOf, type ShortcutId } from "../input/shortcuts.ts";
+import type { ActorPlacer } from "../place/actorPlacer.ts";
+import { createAddActorMenu } from "../place/addActorMenu.ts";
 import { createOutlinerPanel } from "../outliner/outlinerPanel.ts";
 import type { EditorSession } from "../session/editorSession.ts";
 import type { TransformTools } from "../transformTools.ts";
@@ -100,6 +102,8 @@ export interface EditorShell {
   attach(editor: EditorSession, context: ShellContext): void;
   /** Binds the view controls to the viewport. */
   attachViewport(menus: ViewportMenus): void;
+  /** Adds Forge's "+ Add Actor" menu at the start of the work bar; its drags end in the viewport (step 5d). */
+  attachPlacer(placer: ActorPlacer): void;
   /** Adds the transform toolbar and Details' pivot and placement actions; `navigating` is true while the camera flies. */
   attachTools(tools: TransformTools, navigating: () => boolean): void;
   /** The status line; errors and warnings also show as a toast. */
@@ -281,6 +285,9 @@ export function createShell(options: ShellOptions): EditorShell {
         event.preventDefault();
         menus.setView(view);
       });
+    },
+    attachPlacer(placer) {
+      workbar.prepend(createAddActorMenu({ document: doc, placer, viewport, status }));
     },
     attachTools(next, navigating) {
       tools = next;

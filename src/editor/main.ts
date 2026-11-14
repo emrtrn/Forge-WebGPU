@@ -42,6 +42,8 @@ import { createEditCommands, pageClipboard, type EditCommands } from "./edit/edi
 import { createEditorCatalog } from "./host/editorCatalog.ts";
 import type { FeatureEditorDef } from "./host/featureEditor.ts";
 import { installOutlinerStyle } from "./outliner/outlinerStyle.ts";
+import { createActorPlacer } from "./place/actorPlacer.ts";
+import { installAddActorStyle } from "./place/addActorStyle.ts";
 import { createEditorSession, type EditorSession } from "./session/editorSession.ts";
 import { createShell } from "./shell/shell.ts";
 import { createTransformTools, type TransformTools } from "./transformTools.ts";
@@ -108,6 +110,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
   installShellStyle(doc);
   installOutlinerStyle(doc);
   installDetailsStyle(doc);
+  installAddActorStyle(doc);
   doc.title = `${options.projectName} · Editor`;
   const shell = createShell({ document: doc, projectName: options.projectName, levelFolder: options.level, readOnly: options.readOnly });
   doc.body.replaceChildren(shell.root);
@@ -193,10 +196,33 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       clipboard: pageClipboard(doc.defaultView?.navigator.clipboard),
       status: (message, tone) => shell.status(message, tone),
     });
-    shell.attach(session, { catalog: createEditorCatalog(FEATURE_EDITORS, registry), registry, resolveClass, assets, commands });
+    const catalog = createEditorCatalog(FEATURE_EDITORS, registry);
+    shell.attach(session, { catalog, registry, resolveClass, assets, commands });
     const editCommands = commands;
     tools = createTransformTools({ editor: session, viewport, storage: pageStorage(doc), status: (message, tone) => shell.status(message, tone), duplicate: (coalesce) => editCommands.duplicateForDrag(coalesce) });
     shell.attachTools(tools, () => viewport.camera.navigating);
+    const snapOf = tools;
+    shell.attachPlacer(
+      createActorPlacer({
+        editor: session,
+        registry,
+        resolveClass,
+        classes: () => [...classes.values()],
+        catalog,
+        viewport: {
+          pointerRay: (x, y) => viewport.pointerRay(x, y),
+          raycast: (origin, direction, far, exclude) => viewport.raycast(origin, direction, far, exclude),
+          localBox: (actor) => viewport.localBox(actor),
+          centre: () => {
+            const rect = shell.viewport.getBoundingClientRect();
+            return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+          },
+          nextFrame: () => new Promise<void>((done) => doc.defaultView!.requestAnimationFrame(() => doc.defaultView!.requestAnimationFrame(() => done()))),
+        },
+        snap: () => snapOf.snap,
+        status: (message, tone) => shell.status(message, tone),
+      }),
+    );
     const warnings = opened.issues.filter((issue) => issue.severity === "warning");
     if (warnings.length > 0) shell.status(`Level read with ${warnings.length} warning(s): ${warnings[0]!.message}`, "warning");
 

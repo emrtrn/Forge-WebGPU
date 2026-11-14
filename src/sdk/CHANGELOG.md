@@ -8,6 +8,19 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.6
+
+API: 05d1c06309f53adc
+
+Add Actor entries (plan phase 4 step 5d), additive, in `@forge/editor-sdk`:
+`defineFeatureEditor({ addActor })` lists a feature's entries for the
+editor's "+ Add Actor" menu (`AddActorEntry`: key, label, category, icon, the
+components the new actor carries in stored form, and Forge's placement:
+`rotation` in degrees, `lift` above the surface, `restOnSurface` for a
+mesh's base). `ADD_ACTOR_CATEGORIES` is Forge's category order; a game's own
+categories follow it. An entry whose component is a singleton is clicked,
+never dragged.
+
 ## 0.1.5
 
 API: 11a5c4d25d1025eb
