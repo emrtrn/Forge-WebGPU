@@ -165,3 +165,16 @@ describe("hiding is a view of the editor (user decision 2026-11-14)", () => {
     expect(editor.visibility.ids()).toEqual([actorId("c")]);
   });
 });
+
+describe("reload (a reimported model, step 6e)", () => {
+  test("the actors and their children leave the world and come back as new world actors; the selection, history and level stay", () => {
+    const editor = open();
+    editor.selection.set([actorId("c")]);
+    const before = editor.world.context.actor(actorId("c"));
+    editor.reload([actorId("b"), actorId("c")]);
+    expect(worldNames(editor).sort()).toEqual(["a", "b", "c<b"]);
+    expect(editor.world.context.actor(actorId("c"))).not.toBe(before);
+    expect(editor.selection.ids()).toEqual([actorId("c")]);
+    expect([editor.canUndo(), editor.dirty()]).toEqual([false, 0]);
+  });
+});

@@ -4,7 +4,10 @@
 // block's drawer geometry, which moves the Outliner's and the viewport's
 // bottom edge as the drawer opens). Only change: the card grid is laid out by
 // contentGrid.ts (virtualised), so `.content-list` scrolls and
-// `.content-list-grid` is the grid. No redesign.
+// `.content-list-grid` is the grid. No redesign. What Forge had as prompts
+// (rename in place, the import dialog) is contentFormStyle.ts.
+
+import { CONTENT_FORM_CSS } from "./contentFormStyle.ts";
 
 export const CONTENT_CSS = `
 .editor-shell {
@@ -724,21 +727,6 @@ export const CONTENT_CSS = `
   display: none;
 }
 
-/* Rename in place (step 6c): the name's box on the card or the tree row. */
-.editor-shell .content-rename {
-  width: 100%;
-  min-width: 0;
-  height: 18px;
-  box-sizing: border-box;
-  border: 1px solid var(--forge-accent);
-  border-radius: 3px;
-  padding: 0 3px;
-  color: #ffffff;
-  background: #101316;
-  font: inherit;
-  font-size: 12px;
-}
-
 /* A read-only root (engine content, a pack): its lock after the name. */
 .editor-shell .folder-row.is-read-only {
   grid-template-columns: 16px 16px minmax(0, 1fr) 14px;
@@ -786,6 +774,6 @@ export function installContentStyle(document: Document): void {
   if (document.getElementById("forge-content-style")) return;
   const style = document.createElement("style");
   style.id = "forge-content-style";
-  style.textContent = CONTENT_CSS;
+  style.textContent = CONTENT_CSS + CONTENT_FORM_CSS;
   document.head.append(style);
 }

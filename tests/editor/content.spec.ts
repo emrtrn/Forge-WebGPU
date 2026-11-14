@@ -45,6 +45,7 @@ test.beforeAll(() => {
   writeFileSync(at("content/props/wood.png"), "png");
   writeFileSync(at("content/props/wood.png.meta.json"), meta(TEXTURE, "forge.texture@2"));
   writeFileSync(at("content/props/loose.png"), "png");
+  mkdirSync(at("content/imp"), { recursive: true });
   mkdirSync(at("content/thumbs"), { recursive: true });
   writeFileSync(at("content/thumbs/cube.glb"), cubeGlb());
   writeFileSync(at("content/thumbs/cube.glb.meta.json"), meta(CUBE, "forge.model@2"));
@@ -357,4 +358,66 @@ test("new: a folder, a material from its Metal preset, an actor class, a level w
     "Cube",
   ]);
   expect(existsSync(join(project, "content", "made", "Fresh", "cells.json"))).toBe(true);
+});
+
+/** A 1 x 1 PNG. */
+const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+
+test("import: the dialog asks the license (Unknown refused) and source, the meta files say them, a GLB is optimised; files dropped from the system import too; reimport keeps the GUID", async ({ page }) => {
+  const project = process.env.FORGE_EDITOR_SMOKE_PROJECT!;
+  const disk = (path: string) => join(project, ...path.split("/"));
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await open(page);
+  await page.locator("[data-content-toggle]").click();
+  await folderRow(page, "content/imp").click();
+
+  const chooser = page.waitForEvent("filechooser");
+  await drawer(page).locator("[data-content-import]").click();
+  await (await chooser).setFiles([
+    { name: "pixel.png", mimeType: "image/png", buffer: PIXEL },
+    { name: "crate.glb", mimeType: "model/gltf-binary", buffer: cubeGlb() },
+  ]);
+  const dialog = page.getByTestId("content-import-dialog");
+  await expect(dialog).toBeVisible();
+  const confirm = page.getByTestId("content-import-confirm");
+  await expect(confirm).toBeDisabled(); // no origin yet
+  await page.getByTestId("content-import-license").selectOption("__other__");
+  await page.getByTestId("content-import-license-other").fill("Unknown");
+  await page.getByTestId("content-import-origin").fill("editor smoke");
+  await expect(confirm).toBeDisabled(); // D16
+  await page.getByTestId("content-import-license").selectOption("CC0-1.0");
+  await expect(page.getByTestId("content-import-optimize")).toBeChecked();
+  await confirm.click();
+  await expect(card(page, "content/imp/crate.glb")).toBeVisible();
+  await expect(card(page, "content/imp/pixel.png")).toBeVisible();
+  const meta = JSON.parse(readFileSync(disk("content/imp/pixel.png.meta.json"), "utf8")) as { license: string; source: { origin: string }; type: string };
+  expect(meta).toMatchObject({ license: "CC0-1.0", source: { origin: "editor smoke" }, type: "forge.texture@2" });
+  expect(readFileSync(disk("content/imp/crate.glb")).includes(Buffer.from("EXT_meshopt_compression"))).toBe(true);
+  // The thumbnail of the imported model is drawn.
+  await expect(card(page, "content/imp/crate.glb").locator("[data-asset-thumb]")).toHaveAttribute("data-thumbnail", "ready", { timeout: 30_000 });
+
+  // Dropped from the system: the dialog starts from the last answers.
+  await page.locator(".content-list").evaluate((list, bytes) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([new Uint8Array(bytes)], "pixel.png", { type: "image/png" }));
+    for (const type of ["dragover", "drop"]) list.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: transfer }));
+  }, [...PIXEL]);
+  await expect(page.getByTestId("content-import-origin")).toHaveValue("editor smoke");
+  await page.getByTestId("content-import-confirm").click();
+  await expect(card(page, "content/imp/pixel_2.png")).toBeVisible();
+
+  // Reimport: new bytes, the same path, GUID and meta.
+  const id = await card(page, "content/imp/crate.glb").getAttribute("data-asset-id");
+  const metaBefore = readFileSync(disk("content/imp/crate.glb.meta.json"), "utf8");
+  const bytesBefore = readFileSync(disk("content/imp/crate.glb"));
+  await card(page, "content/imp/crate.glb").click({ button: "right" });
+  const again = page.waitForEvent("filechooser");
+  await page.getByTestId("content-menu-reimport").click();
+  await (await again).setFiles([{ name: "crate.glb", mimeType: "model/gltf-binary", buffer: cubeGlb(2, [0.2, 0.4, 0.9, 1]) }]);
+  await expect(page.getByTestId("editor-status")).toHaveText("Reimported crate");
+  await expect(card(page, "content/imp/crate.glb")).toHaveAttribute("data-asset-id", id!);
+  expect(readFileSync(disk("content/imp/crate.glb.meta.json"), "utf8")).toBe(metaBefore);
+  expect(readFileSync(disk("content/imp/crate.glb")).equals(bytesBefore)).toBe(false);
+  expect(errors).toEqual([]);
 });

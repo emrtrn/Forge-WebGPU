@@ -10,10 +10,14 @@
 //   them.
 // - `vertexColors` (`*.vertexcolors.json`): default RGBA vertex colours per
 //   mesh primitive (Mesh Paint's "To Mesh"); a layer blend can read them.
+// - `optimize` (phase 4 step 6e): how the editor's import shrinks the GLB
+//   (textures to WebP under a size limit, meshopt geometry, normal maps kept
+//   or dropped, embedded textures stripped); a Reimport applies it again.
+//   Added with defaults, so version 2 files read as they are.
 // A placement can override the materials (`forge.staticMesh.materials`).
 // Version 1 had no settings; its files migrate to the defaults.
 
-import { array, assetRef, defineAssetType, enumOf, num, object, text, vec3 } from "../../core/index.ts";
+import { array, assetRef, bool, defineAssetType, enumOf, num, object, text, vec3 } from "../../core/index.ts";
 
 export const UVW_MAP_TYPES = ["none", "planar", "box", "sphere", "cylinder"] as const;
 export type UvwMapType = (typeof UVW_MAP_TYPES)[number];
@@ -52,6 +56,20 @@ export const ModelAssetType = defineAssetType(
           positions: array(num({ default: 0 }), { hint: "Köşelerin yerel konumları; yeniden içe aktarmada eşleştirme için." }),
         }),
         { hint: "Mesh primitive'i başına varsayılan köşe renkleri (Mesh Paint)." },
+      ),
+      optimize: object(
+        {
+          enabled: bool({ default: true, label: "Optimize", hint: "İçe aktarırken GLB'yi küçültür (dokular WebP, geometri meshopt)." }),
+          maxTextureSize: num({ min: 64, max: 8192, step: 1, default: 1024, label: "Max Texture Size", hint: "Dokunun uzun kenarı en çok bu kadar piksel." }),
+          keepNormals: bool({ default: true, label: "Keep Normal Maps", hint: "Normal haritalarını korur; kapalıyken atılır (üretilmiş modellerde çoğu gürültüdür)." }),
+          meshopt: bool({ default: true, label: "Compress Geometry", hint: "Geometriyi meshopt ile sıkıştırır." }),
+          stripTextures: bool({
+            default: false,
+            label: "Strip Embedded Textures",
+            hint: "Slotlar projenin materyallerini kullanıyorsa GLB'nin gömülü dokularını atar; materyaller sayısı ve sırasıyla kalır.",
+          }),
+        },
+        { label: "Optimize", hint: "İçe aktarmada GLB optimizasyonu; Reimport aynı ayarla uygular." },
       ),
     },
   },

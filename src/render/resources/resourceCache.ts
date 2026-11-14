@@ -54,6 +54,12 @@ export interface ResourceCache {
   stats(): ResourceCacheStats;
   /** Resolves once no load is in flight. */
   settled(): Promise<void>;
+  /**
+   * Forgets a resource whatever its uses (the editor reimported the asset,
+   * plan phase 4 step 6e): the next acquire loads it again; a release of the
+   * old one does nothing. Its users must acquire it again to see the new one.
+   */
+  evict(key: string): void;
 }
 
 interface Entry {
@@ -137,5 +143,8 @@ export function createResourceCache(): ResourceCache {
     has: (key) => entries.has(key),
     stats: () => ({ entries: entries.size, pending, failed }),
     settled: () => (pending === 0 ? Promise.resolve() : new Promise<void>((resolve) => waiters.push(resolve))),
+    evict(key) {
+      entries.delete(key);
+    },
   };
 }

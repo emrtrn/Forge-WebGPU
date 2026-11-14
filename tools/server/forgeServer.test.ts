@@ -5,7 +5,9 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { buildAssetIndex } from "../../src/core/index.ts";
+import { buildAssetIndex, createSchemaRegistry } from "../../src/core/index.ts";
+import { ModelAssetType } from "../../src/features/model/schema.ts";
+import { texturedGlb } from "../assets/testGlb.ts";
 import { binary, createAssetTestRegistry } from "../../src/core/assets/testKit.ts";
 import { fileRevision } from "../assets/revision.ts";
 import { createForgeServer, isLocalRequest, refuseReason, rendererAssetFiles, STAGING_DIR } from "./forgeServer.ts";
@@ -105,6 +107,72 @@ describe("authoring endpoints", () => {
     expect(await readFile(join(project, "forge.project.json"), "utf8")).toBe('{\n  "id": "x",\n  "contentRoots": ["content"],\n  "startLevel": "content/new/a"\n}\n');
     expect(await readdir(join(project, "content/new/a"))).toContain("level.json");
     expect(await readdir(join(project, "content/levels"))).toEqual([]); // the moved folder went, its parent stays
+  });
+
+  test("import: staged files become assets with a meta file (license, source, type); a taken name gets _2; reimport keeps the GUID", async () => {
+    await mkdir(join(project, "content/in"), { recursive: true });
+    const stage = async (body: Uint8Array | string) => ((await (await fetch(`${base}/__forge/stage-binary`, { method: "POST", headers: HEADERS, body })).json()) as { id: string }).id;
+    const importOf = async (names: string[]) =>
+      post("/__forge/content", {
+        op: "import",
+        folder: "content/in",
+        files: await Promise.all(names.map(async (name) => ({ name, staged: await stage(`bytes of ${name}`) }))),
+        license: "CC-BY-4.0",
+        source: { origin: "test kit", author: "A. Author" },
+      });
+    const first = await importOf(["Wood.png", "car.glb"]);
+    expect(await first.json()).toEqual({ status: "done", result: ["content/in/Wood.png", "content/in/car.glb"] });
+    const meta = JSON.parse(await readFile(join(project, "content/in/Wood.png.meta.json"), "utf8")) as Record<string, unknown>;
+    expect(meta).toMatchObject({ schema: "forge.assetMeta/1", type: "test.texture@1", license: "CC-BY-4.0", source: { origin: "test kit", author: "A. Author" } });
+    expect(await (await importOf(["Wood.png"])).json()).toEqual({ status: "done", result: ["content/in/Wood_2.png"] });
+    expect((await importOf(["notes.txt"])).status).toBe(400);
+    // D16: the meta's license is checked by the save (Unknown is refused).
+    const unknown = await post("/__forge/content", { op: "import", folder: "content/in", files: [{ name: "x.png", staged: await stage("x") }], license: "Unknown", source: { origin: "x" } });
+    expect(unknown.status).toBe(422);
+
+    const reimport = await post("/__forge/content", { op: "reimport", item: "content/in/Wood.png", staged: await stage("new bytes") });
+    expect(reimport.status).toBe(200);
+    expect(await readFile(join(project, "content/in/Wood.png"), "utf8")).toBe("new bytes");
+    expect(JSON.parse(await readFile(join(project, "content/in/Wood.png.meta.json"), "utf8"))).toEqual(meta);
+  });
+
+  test("import: a GLB is optimised by its model import settings (WebP under the size limit), and again on reimport", async () => {
+    // The engine's own model type alone (the test registry's test.mesh claims .glb too).
+    const registry = createSchemaRegistry();
+    registry.registerAssetType(ModelAssetType);
+    const withModel = await createForgeServer({ root: project, registry });
+    const server2 = createServer((req, res) => withModel.middleware(req, res, () => res.end()));
+    await new Promise<void>((resolve) => server2.listen(0, "127.0.0.1", resolve));
+    const url = `http://127.0.0.1:${(server2.address() as AddressInfo).port}`;
+    try {
+      await mkdir(join(project, "content/models"), { recursive: true });
+      const glb = await texturedGlb();
+      const stage = async () => ((await (await fetch(`${url}/__forge/stage-binary`, { method: "POST", headers: HEADERS, body: glb })).json()) as { id: string }).id;
+      const imported = await fetch(`${url}/__forge/content`, {
+        method: "POST",
+        headers: HEADERS,
+        body: JSON.stringify({
+          op: "import",
+          folder: "content/models",
+          files: [{ name: "tri.glb", staged: await stage() }],
+          license: "CC0-1.0",
+          source: { origin: "test" },
+          settings: { "forge.model": { optimize: { enabled: true, maxTextureSize: 256 } } },
+        }),
+      });
+      expect(imported.status).toBe(200);
+      const written = await readFile(join(project, "content/models/tri.glb"));
+      expect(written.includes(Buffer.from("EXT_texture_webp"))).toBe(true);
+      expect(written.length).toBeLessThan(glb.byteLength);
+      const meta = JSON.parse(await readFile(join(project, "content/models/tri.glb.meta.json"), "utf8")) as { type: string; import: { optimize: { maxTextureSize: number } } };
+      expect(meta.type).toBe("forge.model@2");
+      expect(meta.import.optimize.maxTextureSize).toBe(256);
+      const again = await fetch(`${url}/__forge/content`, { method: "POST", headers: HEADERS, body: JSON.stringify({ op: "reimport", item: "content/models/tri.glb", staged: await stage() }) });
+      expect(again.status).toBe(200);
+      expect((await readFile(join(project, "content/models/tri.glb"))).includes(Buffer.from("EXT_texture_webp"))).toBe(true);
+    } finally {
+      await new Promise<void>((resolve) => server2.close(() => resolve()));
+    }
   });
 
   test("thumbnails: stored and read back by GUID and revision, an older revision goes, only PNGs, ids and revisions checked", async () => {

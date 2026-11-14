@@ -55,6 +55,12 @@ export interface EditorSession {
   readonly visibility: Visibility;
   /** Any edit, undo, redo, save, selection or visibility change; returns the unsubscribe. */
   onChange(listener: () => void): () => void;
+  /**
+   * Takes these actors (with what is under them) out of the world and puts
+   * them back, so their bindings read their resources again (a reimported
+   * model, step 6e). The level and the undo history do not change.
+   */
+  reload(ids: readonly ActorId[]): void;
   dispose(): void;
 }
 
@@ -225,6 +231,17 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
     world,
     selection,
     visibility,
+    reload(ids) {
+      const there = ids.filter((id) => world.context.actor(id) !== undefined);
+      const set = new Set(there);
+      // A child of another one here goes out with it.
+      const roots = there.filter((id) => {
+        for (let at = level.actor(id)?.parent ?? null; at !== null; at = level.actor(at)?.parent ?? null) if (set.has(at)) return false;
+        return true;
+      });
+      if (roots.length > 0) world.removeActors(roots);
+      syncWorld(there, new Set());
+    },
     edit: (label, build, editOptions) => level.edit(label, build, editOptions),
     undo: () => level.undo(),
     redo: () => level.redo(),

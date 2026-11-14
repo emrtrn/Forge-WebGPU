@@ -38,12 +38,14 @@ import {
   DATA_DOCUMENT_TYPES,
   fileLabel,
   ACTOR_CLASS_SCHEMA,
+  ASSET_META_SCHEMA,
   DEFAULT_CELL_SIZE,
   isJsonAssetType,
   isJsonObject,
   LEVEL_SCHEMA,
   stringifyDocument,
   type AssetIndex,
+  type BinaryAssetTypeDef,
   type ContentOpBody,
   type ContentReferrerBody,
   type DocumentAssetTypeDef,
@@ -59,7 +61,17 @@ export type ContentReferrer = ContentReferrerBody;
 export interface ContentPlan {
   readonly moves: { readonly from: string; readonly to: string }[];
   readonly deletes: string[];
-  readonly writes: { readonly path: string; readonly text?: string; readonly copyOf?: string }[];
+  readonly writes: {
+    readonly path: string;
+    readonly text?: string;
+    readonly copyOf?: string;
+    /** A staged upload's id (step 6e). */
+    readonly staged?: string;
+    /** The file is there: the write replaces it (a reimport); the server reads its revision. */
+    readonly replace?: boolean;
+    /** A model's `import.optimize` to run on the staged bytes before they are written. */
+    readonly optimize?: Readonly<Record<string, unknown>>;
+  }[];
   readonly mkdirs: string[];
   readonly removeDirs: string[];
   /** The start level's new folder, when it moved. */
@@ -252,6 +264,57 @@ export function planContentOp(request: ContentOp, ctx: ContentOpContext): Conten
       if (!freeTarget(path, new Set())) return refuse(409, "exists", `${path} already exists.`);
       const result = request.kind === "level" ? parentOf(path) : path;
       return { ok: true, plan: { ...emptyPlan(), writes: [{ path, text: stringifyDocument(document) }], result: [result] } };
+    }
+    case "import": {
+      const root = rootOf(request.folder);
+      if (root === undefined || !folderSet.has(request.folder)) return refuse(404, "missing", `No such folder: ${request.folder}`);
+      if (!ctx.writable(root)) return refuse(403, "read-only", `${root} is not written by this server.`);
+      if (request.files.length === 0) return refuse(400, "request", "Nothing to import.");
+      const binaries = ctx.registry.assetTypes().filter((def): def is BinaryAssetTypeDef => def.storage === "binary");
+      const plan = emptyPlan();
+      const taken = new Set<string>();
+      for (const file of request.files) {
+        const base = baseOf(file.name.replaceAll("\\", "/"));
+        const dot = base.lastIndexOf(".");
+        const extension = dot > 0 ? base.slice(dot + 1).toLowerCase() : "";
+        const def = binaries.find((one) => one.extensions.includes(extension));
+        if (!def) return refuse(400, "request", `${base}: no asset type takes .${extension} files (${binaries.flatMap((one) => one.extensions).join(", ")}).`);
+        const stem = base.slice(0, base.indexOf(".")).trim() || "Imported";
+        const problem = checkContentName(stem);
+        if (problem) return refuse(400, "request", `${base}: ${problem}`);
+        let name = stem;
+        for (let n = 2; !freeTarget(`${request.folder}/${name}.${extension}`, taken) || !freeTarget(`${request.folder}/${name}.${extension}.meta.json`, taken); n += 1) {
+          name = `${stem}_${n}`;
+        }
+        const path = `${request.folder}/${name}.${extension}`;
+        taken.add(path);
+        const settings = request.settings?.[def.name] ?? {};
+        const optimize = def.name === "forge.model" && extension === "glb" && isJsonObject(settings.optimize) ? settings.optimize : undefined;
+        plan.writes.push({ path, staged: file.staged, ...(optimize ? { optimize } : {}) });
+        plan.writes.push({
+          path: `${path}.meta.json`,
+          text: stringifyDocument({
+            schema: ASSET_META_SCHEMA,
+            id: newId("asset"),
+            type: `${def.name}@${def.version}`,
+            license: request.license,
+            source: request.source,
+            import: settings,
+          }),
+        });
+        plan.result.push(path);
+      }
+      return { ok: true, plan };
+    }
+    case "reimport": {
+      const root = rootOf(request.item);
+      if (root === undefined || !fileSet.has(request.item)) return refuse(404, "missing", `No such file: ${request.item}`);
+      if (!ctx.writable(root)) return refuse(403, "read-only", `${root} is not written by this server.`);
+      const entry = entryOf.get(request.item);
+      if (!entry || entry.storage !== "binary") return refuse(400, "request", `${request.item} is no binary asset.`);
+      const meta = ctx.index.metas.get(entry.id);
+      const optimize = entry.type === "forge.model" && request.item.toLowerCase().endsWith(".glb") && isJsonObject(meta?.import.optimize) ? meta.import.optimize : undefined;
+      return { ok: true, plan: { ...emptyPlan(), writes: [{ path: request.item, staged: request.staged, replace: true, ...(optimize ? { optimize } : {}) }], result: [request.item] } };
     }
     case "move":
     case "rename": {

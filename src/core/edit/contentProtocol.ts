@@ -66,7 +66,23 @@ export type ContentOpBody =
       readonly type?: string;
       readonly values?: Readonly<Record<string, unknown>>;
       readonly actors?: readonly unknown[];
-    };
+    }
+  /**
+   * Binary files into `folder` (step 6e): each one staged first
+   * (`/__forge/stage-binary`), its type from its extension, a meta file with
+   * the license and source asked once for the batch (D16) and the import
+   * settings of its type (`settings`, by type name: a model's optimisation).
+   */
+  | {
+      readonly op: "import";
+      readonly folder: string;
+      readonly files: readonly { readonly name: string; readonly staged: string }[];
+      readonly license: string;
+      readonly source: { readonly origin: string; readonly author?: string; readonly url?: string };
+      readonly settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+    }
+  /** New bytes for a binary asset (step 6e): its path, GUID and meta stay; a model is optimised by its meta again. */
+  | { readonly op: "reimport"; readonly item: string; readonly staged: string };
 
 /** A file that still refers to what an operation would move away or delete. */
 export interface ContentReferrerBody {

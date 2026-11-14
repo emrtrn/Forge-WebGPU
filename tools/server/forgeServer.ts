@@ -14,7 +14,8 @@
 //   POST /__forge/content       a Content Browser operation (contentOps.ts): { op: move | rename | copy | delete |
 //                               mkdir, ... } -> 200 { status: "done", result }, or 400 / 403 / 404 / 409 with
 //                               { status: "refused", reason, message, referrers? }; one save transaction, the
-//                               start level in forge.project.json following a move
+//                               start level in forge.project.json following a move; `import` / `reimport`
+//                               take staged uploads and optimise a GLB by its import settings first
 //   GET  /__forge/thumbnail?id=&rev=   a Content Browser thumbnail from the cache (PNG), 404 when not drawn yet
 //   POST /__forge/thumbnail?id=&rev=   stores one the editor drew (PNG body); older revisions of the asset go
 //                               (`.forge-cache/thumbnails/<guid>-<revision>.png`, decision 9; a cache, so a
@@ -44,6 +45,7 @@ import { Transform } from "node:stream";
 import { buildAssetIndex, DATA_DOCUMENT_TYPES, type AssetIndex, type JsonObject, type SchemaRegistry } from "../../src/core/index.ts";
 import { buildContentListing } from "../assets/contentListing.ts";
 import { planContentOp, type ContentOp, type ContentPlan } from "../assets/contentOps.ts";
+import { glbOptimizeSettings } from "../assets/glbOptimizeSettings.ts";
 import { fileRevision } from "../assets/revision.ts";
 import { projectContentRoots, scanRoots, type ContentRoot, type ScanResult } from "../assets/scan.ts";
 import { defaultContentRoots } from "../assets/verify.ts";
@@ -209,6 +211,9 @@ export interface ForgeServer {
 
 const STAGE_ID = /^[0-9a-f]{32}$/;
 
+class ContentRequestError extends Error {}
+
+
 export async function createForgeServer(options: ForgeServerOptions): Promise<ForgeServer> {
   const policy = createWritePolicy(options.root, options.writableRoots);
   const maxBody = options.maxBodyBytes ?? MAX_BODY_BYTES;
@@ -356,7 +361,15 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
       send(res, outcome.status, { status: "refused", reason: outcome.reason, message: outcome.message, ...(outcome.referrers ? { referrers: outcome.referrers } : {}) });
       return;
     }
-    const result = await saves.commit(await saveRequestOf(outcome.plan, manifest));
+    let request: SaveRequest;
+    try {
+      request = await saveRequestOf(outcome.plan, manifest);
+    } catch (error) {
+      if (!(error instanceof ContentRequestError)) throw error;
+      send(res, 400, { status: "refused", reason: "request", message: error.message });
+      return;
+    }
+    const result = await saves.commit(request);
     if (result.status === "saved") send(res, 200, { status: "done", result: outcome.plan.result });
     else if (result.status === "conflict") send(res, 409, { status: "refused", reason: "exists", message: `Changed on disk meanwhile: ${result.conflicts.map((conflict) => conflict.path).join(", ")}` });
     else send(res, STATUS_OF[result.reason], { status: "refused", reason: result.reason, message: result.issues.map((one) => `${one.file}: ${one.message}`).join("; ") });
@@ -369,7 +382,18 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
     const writes = [];
     for (const write of plan.writes) {
       const outside = write.copyOf === undefined ? undefined : readOnlyRoots.find((root) => write.copyOf!.startsWith(`${root.label}/`));
-      if (write.text !== undefined) writes.push({ path: write.path, base: null, text: write.text });
+      if (write.staged !== undefined) {
+        if (!STAGE_ID.test(write.staged)) throw new ContentRequestError(`Unknown staged upload: ${write.staged}`);
+        const staged = join(stagingDir, write.staged);
+        if (write.optimize !== undefined) {
+          // The optimiser (sharp, gltf-transform) loads on the first import that needs it.
+          const { optimizeGlb } = await import("../assets/optimizeGlb.ts");
+          const result = await optimizeGlb(new Uint8Array(await readFile(staged)), glbOptimizeSettings(write.optimize));
+          await writeFile(staged, result.bytes);
+        }
+        const base = write.replace ? fileRevision(await readFile(join(policy.root, ...write.path.split("/")))) : null;
+        writes.push({ path: write.path, base, staged });
+      } else if (write.text !== undefined) writes.push({ path: write.path, base: null, text: write.text });
       else if (outside === undefined) writes.push({ path: write.path, base: null, copyOf: write.copyOf! });
       else {
         await mkdir(stagingDir, { recursive: true });

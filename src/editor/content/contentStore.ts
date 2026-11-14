@@ -16,6 +16,8 @@ export interface ContentStore {
   refresh(force?: boolean): Promise<boolean>;
   /** A file operation (step 6c): the server plans and saves it; the listing is read again after it. */
   op(body: ContentOpBody): Promise<ContentOpResponseBody>;
+  /** Uploads a file's bytes to the server's staging folder (`/__forge/stage-binary`); its id, or an error message. */
+  stage(file: Blob): Promise<{ readonly id: string } | { readonly error: string }>;
   /** Called with each new index; returns the unsubscribe. */
   onChange(listener: (index: ContentIndex) => void): () => void;
 }
@@ -56,6 +58,15 @@ export async function createContentStore(fetchImpl: typeof fetch): Promise<Conte
       }
       if (answer.status === "done") await store.refresh();
       return answer;
+    },
+    async stage(file) {
+      try {
+        const response = await fetchImpl("/__forge/stage-binary", { method: "POST", headers: { [FORGE_REQUEST_HEADER]: "1" }, body: file });
+        const body = (await response.json()) as { id?: string; message?: string };
+        return response.ok && typeof body.id === "string" ? { id: body.id } : { error: body.message ?? `The upload was refused (${response.status}).` };
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : String(error) };
+      }
     },
     index: () => index,
     catalog: assetCatalogOf(() => index),

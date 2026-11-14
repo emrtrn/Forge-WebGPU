@@ -215,13 +215,17 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       }
     };
     await refreshAssetUrls();
-    content.onChange(() => void refreshAssetUrls());
+    // A thumbnail of a file the listing just brought waits for the renderer's table to have it.
+    let assetUrlsReady: Promise<void> = Promise.resolve();
+    content.onChange(() => {
+      assetUrlsReady = refreshAssetUrls();
+    });
     const host = viewport.host;
     const thumbnailRenderer = host ? createThumbnailRenderer({ renderer: host.renderer, resources: host.resources("thumbnails"), document: doc }) : null;
     thumbnails = createContentThumbnails({
       document: doc,
       fetch: (input, init) => fetch(input, init),
-      draw: thumbnailRenderer ? (kind, guid) => thumbnailRenderer.render(kind, guid) : null,
+      draw: thumbnailRenderer ? (kind, guid) => assetUrlsReady.then(() => thumbnailRenderer.render(kind, guid)) : null,
     });
     commands = createEditCommands({
       editor: session,
@@ -279,6 +283,19 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         save: () => shell.save(),
         thumbnails,
         newItems: newAssetItems(registry, FEATURE_EDITORS),
+        importExtensions: registry.assetTypes().flatMap((def) => (def.storage === "binary" ? def.extensions : [])),
+        // A reimported model: the cache forgets it and the actors that use it read it again (step 6e). Another binary
+        // (a texture inside materials, a sound) shows after a reload, as in Forge.
+        reimported: (item) => {
+          if (item.id === null) return;
+          if (item.type === "forge.model") {
+            viewport.host?.cache.evict(`model:${item.id}`);
+            const users = session.level.level.actors.filter((actor) => JSON.stringify(actor).includes(item.id!)).map((actor) => actor.id);
+            void assetUrlsReady.then(() => session.reload(users));
+          } else {
+            shell.status(`${item.name} reimported; reload the page to see it everywhere.`, "warning");
+          }
+        },
         levelActors: () => newLevelActors([EMPTY_ACTOR, ...FEATURE_EDITORS.flatMap((editor) => editor.addActor)]),
         // The open level's actors that use an asset, saved or not (a delete is refused then; step 6c).
         inUse: (ids) => {

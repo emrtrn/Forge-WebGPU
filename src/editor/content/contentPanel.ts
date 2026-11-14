@@ -60,6 +60,9 @@ export interface ContentPanelOptions {
   /** The New menu (step 6d) and a new level's actors. */
   readonly newItems?: readonly NewAssetItem[];
   readonly levelActors?: () => readonly unknown[];
+  /** Import (step 6e): the extensions it takes, and what follows a reimport. */
+  readonly importExtensions?: readonly string[];
+  readonly reimported?: (item: ContentAssetItem) => void;
 }
 
 export interface ContentPanel {
@@ -168,8 +171,6 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
   add.dataset.contentAdd = "";
   const importButton = button("forge-btn-ghost", "Import", UI_ICONS.import, "Import");
   importButton.dataset.contentImport = "";
-  // Import arrives with its part (step 6e).
-  importButton.disabled = true;
   const saveAll = el("button", "forge-btn-ghost", "Save All");
   saveAll.type = "button";
   saveAll.dataset.contentSaveAll = "";
@@ -244,6 +245,9 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
     ...(options.inUse ? { inUse: options.inUse } : {}),
     ...(options.newItems ? { newItems: options.newItems } : {}),
     ...(options.levelActors ? { levelActors: options.levelActors } : {}),
+    ...(options.importExtensions ? { importExtensions: options.importExtensions } : {}),
+    ...(options.reimported ? { reimported: options.reimported } : {}),
+    storage: options.storage,
     status: options.status,
     done: (paths) => {
       const first = paths[0];
@@ -551,6 +555,23 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
   };
 
   toggle.addEventListener("click", () => setOpen(!open));
+  importButton.addEventListener("click", () => {
+    const node = index.folder(folder);
+    if (node) actions.pickImport(node);
+  });
+  // Files dropped from the system on the open folder are imported into it (Forge took them through Import… only).
+  list.addEventListener("dragover", (event) => {
+    if (!event.dataTransfer?.types.includes("Files")) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  });
+  list.addEventListener("drop", (event) => {
+    const files = [...(event.dataTransfer?.files ?? [])];
+    if (files.length === 0) return;
+    event.preventDefault();
+    const node = index.folder(folder);
+    if (node) void actions.importFiles(node, files);
+  });
   add.addEventListener("click", () => {
     const node = index.folder(folder);
     if (!node) return;

@@ -84,3 +84,16 @@ describe("resource cache", () => {
     expect(resourceKey.shape("cube")).toBe("shape:cube");
   });
 });
+
+test("evict forgets a resource whatever its uses: the next acquire loads again; releasing the old use is harmless", async () => {
+  const cache = createResourceCache();
+  const owner = cache.owner("world");
+  let loads = 0;
+  const load = () => ++loads;
+  expect(await owner.acquire("model:a", load)).toBe(1);
+  cache.evict("model:a");
+  expect(cache.has("model:a")).toBe(false);
+  owner.release("model:a");
+  expect(await owner.acquire("model:a", load)).toBe(2);
+  expect(cache.uses("model:a")).toBe(1);
+});

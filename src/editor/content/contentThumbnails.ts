@@ -89,8 +89,12 @@ export function createContentThumbnails(options: {
     queue.request({
       key,
       run: async () => {
-        const blob = await draw(kind, id);
-        if (blob === null) return;
+        const blob = await draw(kind, id).catch(() => null);
+        if (blob === null) {
+          // The card keeps its type's text (a model that cannot be read); Refresh Thumbnail tries again.
+          for (const thumb of doc.querySelectorAll<HTMLElement>(`[data-thumbnail-key="${key}"]`)) thumb.dataset.thumbnail = "failed";
+          return;
+        }
         ready(key, blob);
         // The cache is the server's; a failed store only costs a drawing next time.
         await options.fetch(endpoint(id, revision), { method: "POST", headers: { ...headers, "Content-Type": "image/png" }, body: blob }).catch(() => undefined);

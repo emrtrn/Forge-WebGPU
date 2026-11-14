@@ -12,6 +12,12 @@
 // a preset picker first when the type has templates) are on the Add button,
 // the empty space's and the folders' menus.
 //
+// Import (step 6e; Forge's Import… / Reimport…): the import dialog asks the
+// meta's license and source once per batch and a GLB's optimisation; each file
+// is staged, then one operation writes them all. Reimport takes one file of
+// the same kind; the asset keeps its path, GUID and meta, and the editor shows
+// the new bytes (`reimported`).
+//
 // The level the editor has open is locked against rename, cut and delete
 // (Forge's active level); so is anything under a read-only root, which can
 // still be copied (into the project). An asset the open level uses in edits
@@ -22,6 +28,7 @@ import type { ContentOpBody, ContentOpResponseBody } from "../../core/index.ts";
 import { openPicker } from "../details/pickerPopover.ts";
 import type { ContextMenuItem } from "../ui/contextMenu.ts";
 import { isWithin, type ContentAssetItem, type ContentFolderNode, type ContentIndex } from "./contentModel.ts";
+import { openImportDialog } from "./importDialog.ts";
 import type { NewAssetItem } from "./newAssets.ts";
 import type { ContentStore } from "./contentStore.ts";
 
@@ -43,6 +50,12 @@ export interface ContentActionsOptions {
   readonly newItems?: readonly NewAssetItem[];
   /** A new level's actors (Forge's default level). */
   readonly levelActors?: () => readonly unknown[];
+  /** Extensions Import takes (`glb`, `png`, …): the registered binary asset types'. */
+  readonly importExtensions?: readonly string[];
+  /** The page's storage (the import dialog's last answers). */
+  readonly storage?: Storage | null;
+  /** After a reimport: the editor shows the asset's new bytes. */
+  readonly reimported?: (item: ContentAssetItem) => void;
 }
 
 /** What a card or row stands for: its path (a level's is its folder), name and whether it is written here. */
@@ -63,6 +76,10 @@ export interface ContentActions {
   emptyMenu(folder: ContentFolderNode): ContextMenuItem[];
   /** The Add button's menu: New Folder and the New items. */
   addMenu(folder: ContentFolderNode): ContextMenuItem[];
+  /** Imports files into a folder (the Import button, files dropped on the drawer). */
+  importFiles(folder: ContentFolderNode, files: readonly File[]): Promise<void>;
+  /** Opens the system's file picker for Import. */
+  pickImport(folder: ContentFolderNode): void;
   /** The drawer's keys; true when the key was taken. */
   key(event: KeyboardEvent, selected: ContentTarget | null, folder: ContentFolderNode | null): boolean;
   isCut(path: string): boolean;
@@ -84,8 +101,9 @@ export function createContentActions(options: ContentActionsOptions): ContentAct
       refused(answer);
       return false;
     }
-    options.status(success);
+    // Shown first, so the line says what was done (revealing writes its own).
     options.done(answer.result);
+    options.status(success);
     return true;
   };
 
@@ -242,11 +260,73 @@ export function createContentActions(options: ContentActionsOptions): ContentAct
       `Created ${name.trim()}`,
     );
   };
+  /** The system's file picker; resolves to what was picked (nothing when cancelled). */
+  const pickFiles = (accept: string, multiple: boolean): Promise<File[]> =>
+    new Promise((resolve) => {
+      const picker = doc.createElement("input");
+      picker.type = "file";
+      picker.accept = accept;
+      picker.multiple = multiple;
+      picker.hidden = true;
+      picker.dataset.testid = "content-import-input";
+      picker.addEventListener("change", () => {
+        resolve([...(picker.files ?? [])]);
+        picker.remove();
+      });
+      picker.addEventListener("cancel", () => {
+        resolve([]);
+        picker.remove();
+      });
+      options.host.append(picker);
+      picker.click();
+    });
+  const accept = (): string => (options.importExtensions ?? []).map((extension) => `.${extension}`).join(",");
+  const importFiles = async (folder: ContentFolderNode, files: readonly File[]): Promise<void> => {
+    if (files.length === 0) return;
+    if (!folder.writable) {
+      options.status(`${folder.name} is read-only: import into the project's content.`, "warning");
+      return;
+    }
+    const choice = await openImportDialog({ document: doc, host: options.host, files: files.map((file) => file.name), storage: options.storage ?? null });
+    if (choice === null) return;
+    options.status(`Importing ${files.length} file(s)…`);
+    const staged: { name: string; staged: string }[] = [];
+    for (const file of files) {
+      const answer = await options.store.stage(file);
+      if ("error" in answer) {
+        options.status(`${file.name}: ${answer.error}`, "error");
+        return;
+      }
+      staged.push({ name: file.name, staged: answer.id });
+    }
+    await run(
+      {
+        op: "import",
+        folder: folder.path,
+        files: staged,
+        license: choice.license,
+        source: choice.source,
+        ...(choice.optimize ? { settings: { "forge.model": { optimize: choice.optimize } } } : {}),
+      },
+      `Imported ${files.length} file(s) into ${folder.path}`,
+    );
+  };
+  const reimport = async (item: ContentAssetItem): Promise<void> => {
+    const extension = item.file.slice(item.file.lastIndexOf(".") + 1);
+    const [file] = await pickFiles(`.${extension}`, false);
+    if (!file) return;
+    const answer = await options.store.stage(file);
+    if ("error" in answer) {
+      options.status(`${file.name}: ${answer.error}`, "error");
+      return;
+    }
+    if (await run({ op: "reimport", item: item.file, staged: answer.id }, `Reimported ${item.name}`)) options.reimported?.(item);
+  };
+
   const newMenu = (folder: ContentFolderNode): ContextMenuItem[] => [
     { label: "New Folder", enabled: folder.writable, run: () => void newFolder(folder), testId: "content-menu-new-folder" },
     { separator: true },
-    // Import comes with its part (step 6e).
-    { label: "Import...", enabled: false, run: () => {}, testId: "content-menu-import" },
+    { label: "Import...", enabled: folder.writable, run: () => void pickFiles(accept(), true).then((files) => importFiles(folder, files)), testId: "content-menu-import" },
     { separator: true },
     ...(options.newItems ?? []).map((item) => ({
       label: item.label,
@@ -276,7 +356,15 @@ export function createContentActions(options: ContentActionsOptions): ContentAct
   });
 
   return {
-    assetMenu: (item) => targetMenu(targetOfAsset(item)),
+    assetMenu: (item) => [
+      // A binary asset (its file is no JSON) can take new bytes.
+      ...(item.id !== null && item.writable && !item.file.endsWith(".json")
+        ? [{ label: "Reimport...", run: () => void reimport(item), testId: "content-menu-reimport" }, { separator: true as const }]
+        : []),
+      ...targetMenu(targetOfAsset(item)),
+    ],
+    importFiles,
+    pickImport: (folder) => void pickFiles(accept(), true).then((files) => importFiles(folder, files)),
     folderMenu: (node) => [
       pasteItem(node),
       { label: "New Folder", enabled: node.writable, run: () => void newFolder(node), testId: "content-menu-new-folder" },
