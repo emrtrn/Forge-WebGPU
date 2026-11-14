@@ -43,12 +43,13 @@ import { createContentPanel } from "./content/contentPanel.ts";
 import { installContentStyle } from "./content/contentStyle.ts";
 import { createContentStore } from "./content/contentStore.ts";
 import { createContentThumbnails, type ContentThumbnails } from "./content/contentThumbnails.ts";
+import { newAssetItems, newLevelActors } from "./content/newAssets.ts";
 import { installDetailsStyle } from "./details/detailsStyle.ts";
 import { createEditCommands, pageClipboard, type EditCommands } from "./edit/editCommands.ts";
 import { createEditorCatalog } from "./host/editorCatalog.ts";
 import type { FeatureEditorDef } from "./host/featureEditor.ts";
 import { installOutlinerStyle } from "./outliner/outlinerStyle.ts";
-import { createActorPlacer } from "./place/actorPlacer.ts";
+import { createActorPlacer, EMPTY_ACTOR } from "./place/actorPlacer.ts";
 import { installAddActorStyle } from "./place/addActorStyle.ts";
 import { installContextMenuStyle } from "./ui/contextMenu.ts";
 import { installWorldSettingsStyle } from "./world/worldSettingsPanel.ts";
@@ -277,6 +278,8 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         status: (message, tone) => shell.status(message, tone),
         save: () => shell.save(),
         thumbnails,
+        newItems: newAssetItems(registry, FEATURE_EDITORS),
+        levelActors: () => newLevelActors([EMPTY_ACTOR, ...FEATURE_EDITORS.flatMap((editor) => editor.addActor)]),
         // The open level's actors that use an asset, saved or not (a delete is refused then; step 6c).
         inUse: (ids) => {
           if (ids.length === 0) return [];

@@ -78,7 +78,7 @@ interface JsonAssetTypeDef<M>
 
 type LevelId = `lvl_${string}`
 
-const SDK_VERSION: "0.1.7"
+const SDK_VERSION: "0.1.8"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -234,18 +234,26 @@ interface FeatureEditorDef
   readonly details: Readonly<Record<string, DetailsExtension>>
   readonly feature: string
   readonly kind: "featureEditor"
+  readonly newAssets: ReadonlyArray<NewAssetTemplate>
 
 interface FeatureEditorOptions
   readonly addActor?: ReadonlyArray<AddActorEntry> | undefined
   readonly components?: Readonly<Record<string, ComponentPresentation>> | undefined
   readonly details?: Readonly<Record<string, DetailsExtension>> | undefined
   readonly feature: string
+  readonly newAssets?: ReadonlyArray<NewAssetTemplate> | undefined
+
+interface NewAssetTemplate
+  readonly description?: string | undefined
+  readonly label: string
+  readonly type: string
+  readonly values: Readonly<Record<string, unknown>>
 
 const OUTLINER_TYPES: readonly [{ readonly type: "mesh"; readonly label: "Meshes"; }, { readonly type: "character"; readonly label: "Characters"; }, { readonly type: "light"; readonly label: "Lights"; }, { readonly type: "environment"; readonly label: "Environment"; }, { readonly type: "volume"; readonly label: "Volumes"; }, { readonly type: "terrain"; readonly label: "Terrain"; }, { readonly type: "gameplay"; readonly label: "Gameplay"; }, { readonly type: "widget"; readonly label: "Widgets"; }]
 
 type OutlinerType = "mesh" | "character" | "light" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
 
-const SDK_VERSION: "0.1.7"
+const SDK_VERSION: "0.1.8"
 
 function defineFeatureEditor(options: FeatureEditorOptions): FeatureEditorDef
 

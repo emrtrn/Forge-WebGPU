@@ -1,10 +1,17 @@
 import { describe, expect, test } from "vitest";
-import type { ContentFile } from "../../src/core/index.ts";
+import { defineJsonAssetType, num, type ContentFile, type SchemaRegistry } from "../../src/core/index.ts";
 import { assetId, build, CAR, createAssetTestRegistry, doc, MESH, projectFiles, TEX } from "../../src/core/assets/testKit.ts";
 import { checkContentName, planContentOp, type ContentOp, type ContentOpOutcome } from "./contentOps.ts";
 import type { ScanResult } from "./scan.ts";
 
 const FOLDERS = ["content/textures", "content/meshes", "content/classes", "content/levels", "content/levels/main", "content/levels/main/cells", "content/empty"];
+
+const Recipe = defineJsonAssetType("test.recipe", 2, { suffix: ".recipe.json", fields: { servings: num({ default: 1 }) } }, { migrations: { 1: (old) => old } });
+const registryWithRecipe = (): SchemaRegistry => {
+  const registry = createAssetTestRegistry();
+  registry.registerAssetType(Recipe);
+  return registry;
+};
 
 function plan(op: ContentOp, files: ContentFile[] = projectFiles(), extra: { startLevel?: string; readOnly?: string; folders?: string[] } = {}): ContentOpOutcome {
   const roots = ["content", ...(extra.readOnly ? [extra.readOnly] : [])];
@@ -13,7 +20,7 @@ function plan(op: ContentOp, files: ContentFile[] = projectFiles(), extra: { sta
   return planContentOp(op, {
     scan,
     index: build(files, false),
-    registry: createAssetTestRegistry(),
+    registry: registryWithRecipe(),
     writable: (root) => root === "content",
     startLevel: extra.startLevel ?? "",
     newId: (kind) => `${kind === "asset" ? "ast" : kind === "level" ? "lvl" : "act"}_${(++n).toString(16).padStart(32, "0")}`,
@@ -127,5 +134,29 @@ describe("copy and new folder", () => {
     expect(checkContentName("a:b")).not.toBeNull();
     expect(checkContentName(".hidden")).not.toBeNull();
     expect(checkContentName("Props")).toBeNull();
+  });
+});
+
+describe("new assets", () => {
+  test("a level folder with its actors, an actor class, a JSON asset of a registered type with values over its defaults", () => {
+    const level = ok(plan({ op: "create", folder: "content/levels", name: "second", kind: "level", actors: [{ id: "act_x" }] }));
+    expect(level.result).toEqual(["content/levels/second"]);
+    expect(level.writes[0]!.path).toBe("content/levels/second/level.json");
+    expect(JSON.parse(level.writes[0]!.text!)).toMatchObject({ schema: "forge.level/1", id: expect.stringMatching(/^lvl_/), settings: { cellSize: 128 }, actors: [{ id: "act_x" }] });
+
+    const cls = ok(plan({ op: "create", folder: "content/classes", name: "Door", kind: "actorClass" }));
+    expect(JSON.parse(cls.writes[0]!.text!)).toMatchObject({ schema: "forge.actorClass/1", name: "Door", components: {} });
+    expect(cls.writes[0]!.path).toBe("content/classes/Door.actor.json");
+
+    const recipe = ok(plan({ op: "create", folder: "content/empty", name: "Soup", kind: "asset", type: "test.recipe", values: { servings: 4 } }));
+    expect(recipe.writes[0]!.path).toBe("content/empty/Soup.recipe.json");
+    expect(JSON.parse(recipe.writes[0]!.text!)).toMatchObject({ schema: "test.recipe/2", servings: 4, id: expect.stringMatching(/^ast_/) });
+  });
+
+  test("refused: a taken name, a name with a dot, an unknown type, a folder that is not there", () => {
+    expect(plan({ op: "create", folder: "content/levels", name: "main", kind: "level" })).toMatchObject({ ok: false, reason: "exists" });
+    expect(plan({ op: "create", folder: "content/empty", name: "a.b", kind: "actorClass" })).toMatchObject({ ok: false, status: 400 });
+    expect(plan({ op: "create", folder: "content/empty", name: "x", kind: "asset", type: "test.none" })).toMatchObject({ ok: false, status: 400 });
+    expect(plan({ op: "create", folder: "content/none", name: "x", kind: "actorClass" })).toMatchObject({ ok: false, reason: "missing" });
   });
 });

@@ -21,6 +21,11 @@
 //   preset button, a preview strip). It builds DOM with the context's
 //   document; its edits go through `edit` (one undo step on every selected
 //   actor), a preview through the editor world's services, never the level.
+// - `newAssets` (step 6d, user decision 2026-11-14): starting points the
+//   Content Browser's New menu offers for a JSON asset type the feature
+//   defines (Forge's material presets): a label and the fields that differ
+//   from the type's defaults. A JSON asset type without one is created from
+//   its defaults; the template is not stored in the asset.
 
 import { COMPONENT_NAME_PATTERN, SchemaDefinitionError, type ServiceKey } from "../../core/index.ts";
 import { ACTOR_TYPE_ICONS, type ActorTypeIcon } from "../ui/icons.ts";
@@ -94,6 +99,18 @@ export interface DetailsExtensionContext {
   status(message: string, tone?: "info" | "warning" | "error"): void;
 }
 
+/** A starting point for a new asset of a JSON asset type (the Content Browser's New menu). */
+export interface NewAssetTemplate {
+  /** The JSON asset type, e.g. `forge.material`. */
+  readonly type: string;
+  /** English, shown in the picker (`Metal`). */
+  readonly label: string;
+  /** A line under the label. */
+  readonly description?: string;
+  /** Fields that differ from the type's defaults. */
+  readonly values: Readonly<Record<string, unknown>>;
+}
+
 /** Builds what goes below a component's form; `dispose` runs when Details draws again. */
 export type DetailsExtension = (context: DetailsExtensionContext) => { readonly element: HTMLElement; dispose?(): void };
 
@@ -106,6 +123,8 @@ export interface FeatureEditorDef {
   readonly addActor: readonly AddActorEntry[];
   /** Component name -> its Details extension. */
   readonly details: Readonly<Record<string, DetailsExtension>>;
+  /** New asset templates of its JSON asset types, in menu order. */
+  readonly newAssets: readonly NewAssetTemplate[];
 }
 
 export interface FeatureEditorOptions {
@@ -113,6 +132,7 @@ export interface FeatureEditorOptions {
   readonly components?: Readonly<Record<string, ComponentPresentation>>;
   readonly addActor?: readonly AddActorEntry[];
   readonly details?: Readonly<Record<string, DetailsExtension>>;
+  readonly newAssets?: readonly NewAssetTemplate[];
 }
 
 const OUTLINER_TYPE_SET: ReadonlySet<string> = new Set(OUTLINER_TYPES.map((entry) => entry.type));
@@ -154,11 +174,18 @@ export function defineFeatureEditor(options: FeatureEditorOptions): FeatureEdito
     if (!COMPONENT_NAME_PATTERN.test(name)) throw new SchemaDefinitionError(`${where}: not a namespaced component name.`);
     if (typeof extension !== "function") throw new SchemaDefinitionError(`${where} is a function of its context.`);
   }
+  for (const template of options.newAssets ?? []) {
+    const where = `defineFeatureEditor ${options.feature}: new asset template ${String(template.label)}`;
+    if (typeof template.type !== "string" || !COMPONENT_NAME_PATTERN.test(template.type)) throw new SchemaDefinitionError(`${where} names a namespaced asset type.`);
+    if (typeof template.label !== "string" || template.label === "") throw new SchemaDefinitionError(`${where} needs a label.`);
+    if (template.values === null || typeof template.values !== "object" || Array.isArray(template.values)) throw new SchemaDefinitionError(`${where}: values is an object of fields.`);
+  }
   return Object.freeze({
     kind: "featureEditor",
     feature: options.feature,
     components: Object.freeze(components),
     addActor: Object.freeze([...(options.addActor ?? [])]),
     details: Object.freeze(details),
+    newAssets: Object.freeze([...(options.newAssets ?? [])]),
   });
 }

@@ -16,5 +16,6 @@ export {
   type DetailsExtensionContext,
   type FeatureEditorDef,
   type FeatureEditorOptions,
+  type NewAssetTemplate,
   type OutlinerType,
 } from "../editor/host/featureEditor.ts";

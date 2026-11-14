@@ -36,6 +36,7 @@ import {
   type ContentItem,
 } from "./contentModel.ts";
 import { createContentActions, targetOfAsset, targetOfFolder, type ContentTarget } from "./contentActions.ts";
+import type { NewAssetItem } from "./newAssets.ts";
 import type { ContentStore } from "./contentStore.ts";
 import { thumbnailKind, type ContentThumbnails } from "./contentThumbnails.ts";
 
@@ -56,6 +57,9 @@ export interface ContentPanelOptions {
   readonly thumbnails?: ContentThumbnails;
   /** Names of the open level's actors that use any of these asset GUIDs (a delete is refused then). */
   readonly inUse?: (ids: readonly string[]) => readonly string[];
+  /** The New menu (step 6d) and a new level's actors. */
+  readonly newItems?: readonly NewAssetItem[];
+  readonly levelActors?: () => readonly unknown[];
 }
 
 export interface ContentPanel {
@@ -164,8 +168,7 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
   add.dataset.contentAdd = "";
   const importButton = button("forge-btn-ghost", "Import", UI_ICONS.import, "Import");
   importButton.dataset.contentImport = "";
-  // New assets and import arrive with their parts (steps 6d, 6e).
-  add.disabled = true;
+  // Import arrives with its part (step 6e).
   importButton.disabled = true;
   const saveAll = el("button", "forge-btn-ghost", "Save All");
   saveAll.type = "button";
@@ -239,6 +242,8 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
     host: drawer,
     activeLevel: options.activeLevel,
     ...(options.inUse ? { inUse: options.inUse } : {}),
+    ...(options.newItems ? { newItems: options.newItems } : {}),
+    ...(options.levelActors ? { levelActors: options.levelActors } : {}),
     status: options.status,
     done: (paths) => {
       const first = paths[0];
@@ -546,6 +551,12 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
   };
 
   toggle.addEventListener("click", () => setOpen(!open));
+  add.addEventListener("click", () => {
+    const node = index.folder(folder);
+    if (!node) return;
+    const rect = add.getBoundingClientRect();
+    openContextMenu(doc, { x: rect.left, y: rect.bottom + 4 }, actions.addMenu(node), "content-add-menu");
+  });
   back.addEventListener("click", () => {
     const to = history.go(-1, (candidate) => index.folder(candidate) !== undefined);
     if (to !== null) navigate(to, false);

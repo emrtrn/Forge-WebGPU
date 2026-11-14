@@ -51,7 +51,22 @@ export type ContentOpBody =
   | { readonly op: "rename"; readonly item: string; readonly name: string; readonly protect?: readonly string[] }
   | { readonly op: "copy"; readonly items: readonly string[]; readonly to: string }
   | { readonly op: "delete"; readonly items: readonly string[]; readonly protect?: readonly string[] }
-  | { readonly op: "mkdir"; readonly path: string };
+  | { readonly op: "mkdir"; readonly path: string }
+  /**
+   * A new asset in `folder` (step 6d): a level (`<name>/level.json`, with
+   * `actors` as stored actors), an actor class (`<name>.actor.json`, no
+   * components) or a JSON asset of `type` (`<name><suffix>`, the type's
+   * defaults with `values` over them). The server gives it its GUID.
+   */
+  | {
+      readonly op: "create";
+      readonly folder: string;
+      readonly name: string;
+      readonly kind: "level" | "actorClass" | "asset";
+      readonly type?: string;
+      readonly values?: Readonly<Record<string, unknown>>;
+      readonly actors?: readonly unknown[];
+    };
 
 /** A file that still refers to what an operation would move away or delete. */
 export interface ContentReferrerBody {

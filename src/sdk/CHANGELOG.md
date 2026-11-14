@@ -8,6 +8,17 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.8
+
+API: 6b506d5a781c666c
+
+New asset templates (plan phase 4 step 6d), additive, in `@forge/editor-sdk`:
+`defineFeatureEditor({ newAssets })` lists starting points the Content
+Browser's New menu offers for a JSON asset type the feature defines
+(`NewAssetTemplate`: type, label, an optional description, and the fields
+that differ from the type's defaults; the engine's material presets use it).
+A JSON asset type without templates is created from its defaults.
+
 ## 0.1.7
 
 API: 9922fe4a6eb5ceea

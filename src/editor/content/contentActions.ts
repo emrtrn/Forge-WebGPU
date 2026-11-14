@@ -8,6 +8,10 @@
 // a delete refused because the asset is in use lists who uses it (decision 1
 // of step 6): picking one shows it in the browser.
 //
+// New Folder and New <asset> (step 6d; Forge's createContent: a name prompt,
+// a preset picker first when the type has templates) are on the Add button,
+// the empty space's and the folders' menus.
+//
 // The level the editor has open is locked against rename, cut and delete
 // (Forge's active level); so is anything under a read-only root, which can
 // still be copied (into the project). An asset the open level uses in edits
@@ -18,6 +22,7 @@ import type { ContentOpBody, ContentOpResponseBody } from "../../core/index.ts";
 import { openPicker } from "../details/pickerPopover.ts";
 import type { ContextMenuItem } from "../ui/contextMenu.ts";
 import { isWithin, type ContentAssetItem, type ContentFolderNode, type ContentIndex } from "./contentModel.ts";
+import type { NewAssetItem } from "./newAssets.ts";
 import type { ContentStore } from "./contentStore.ts";
 
 export interface ContentActionsOptions {
@@ -34,6 +39,10 @@ export interface ContentActionsOptions {
   readonly done: (paths: readonly string[]) => void;
   /** Shows a file or folder in the browser. */
   readonly reveal: (path: string) => void;
+  /** The New menu's items (step 6d). */
+  readonly newItems?: readonly NewAssetItem[];
+  /** A new level's actors (Forge's default level). */
+  readonly levelActors?: () => readonly unknown[];
 }
 
 /** What a card or row stands for: its path (a level's is its folder), name and whether it is written here. */
@@ -52,6 +61,8 @@ export interface ContentActions {
   folderMenu(node: ContentFolderNode): ContextMenuItem[];
   /** Right click on the open folder's empty space. */
   emptyMenu(folder: ContentFolderNode): ContextMenuItem[];
+  /** The Add button's menu: New Folder and the New items. */
+  addMenu(folder: ContentFolderNode): ContextMenuItem[];
   /** The drawer's keys; true when the key was taken. */
   key(event: KeyboardEvent, selected: ContentTarget | null, folder: ContentFolderNode | null): boolean;
   isCut(path: string): boolean;
@@ -198,6 +209,53 @@ export function createContentActions(options: ContentActionsOptions): ContentAct
     }
   };
 
+  const newFolder = async (folder: ContentFolderNode): Promise<void> => {
+    const name = doc.defaultView!.prompt("New folder name", "");
+    if (name === null || name.trim() === "") return;
+    await run({ op: "mkdir", path: `${folder.path}/${name.trim()}` }, `Created ${folder.path}/${name.trim()}`);
+  };
+  const create = async (folder: ContentFolderNode, item: NewAssetItem): Promise<void> => {
+    let values: Readonly<Record<string, unknown>> | undefined;
+    if (item.templates.length > 0) {
+      const picked = await openPicker({
+        document: doc,
+        host: options.host,
+        title: `Pick ${item.label} Preset`,
+        testId: "content-new-template",
+        items: item.templates.map((template, at) => ({ id: String(at), label: template.label, ...(template.description ? { note: template.description } : {}) })),
+      });
+      if (picked === null) return;
+      values = item.templates[Number(picked)]!.values;
+    }
+    const name = doc.defaultView!.prompt(`New ${item.label} name`, "");
+    if (name === null || name.trim() === "") return;
+    await run(
+      {
+        op: "create",
+        folder: folder.path,
+        name: name.trim(),
+        kind: item.kind,
+        ...(item.type !== undefined ? { type: item.type } : {}),
+        ...(values !== undefined ? { values } : {}),
+        ...(item.kind === "level" ? { actors: options.levelActors?.() ?? [] } : {}),
+      },
+      `Created ${name.trim()}`,
+    );
+  };
+  const newMenu = (folder: ContentFolderNode): ContextMenuItem[] => [
+    { label: "New Folder", enabled: folder.writable, run: () => void newFolder(folder), testId: "content-menu-new-folder" },
+    { separator: true },
+    // Import comes with its part (step 6e).
+    { label: "Import...", enabled: false, run: () => {}, testId: "content-menu-import" },
+    { separator: true },
+    ...(options.newItems ?? []).map((item) => ({
+      label: item.label,
+      enabled: folder.writable,
+      run: () => void create(folder, item),
+      testId: `content-menu-new-${item.type ?? item.kind}`,
+    })),
+  ];
+
   const targetMenu = (target: ContentTarget): ContextMenuItem[] => {
     const why = locked(target);
     return [
@@ -219,8 +277,14 @@ export function createContentActions(options: ContentActionsOptions): ContentAct
 
   return {
     assetMenu: (item) => targetMenu(targetOfAsset(item)),
-    folderMenu: (node) => [pasteItem(node), { separator: true }, ...targetMenu(targetOfFolder(node))],
-    emptyMenu: (folder) => [pasteItem(folder)],
+    folderMenu: (node) => [
+      pasteItem(node),
+      { label: "New Folder", enabled: node.writable, run: () => void newFolder(node), testId: "content-menu-new-folder" },
+      { separator: true },
+      ...targetMenu(targetOfFolder(node)),
+    ],
+    emptyMenu: (folder) => [pasteItem(folder), { separator: true }, ...newMenu(folder)],
+    addMenu: (folder) => newMenu(folder),
     key(event, selected, folder) {
       const ctrl = event.ctrlKey || event.metaKey;
       if (event.altKey) return false;

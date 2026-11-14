@@ -11,7 +11,7 @@
 // (step 6b). The level
 // and the files are written into this run's temporary project copy (D14).
 
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { cubeGlb } from "./glb.ts";
@@ -310,4 +310,51 @@ test("operations: rename in place, a delete refused while the level uses it (who
   // The actor shortcuts did not run meanwhile: the level still has its one actor.
   await expect(page.locator('[data-testid="outliner-row"]')).toHaveCount(1);
   expect(errors).toEqual([]);
+});
+
+test("new: a folder, a material from its Metal preset, an actor class, a level with Forge's default actors", async ({ page }) => {
+  const project = process.env.FORGE_EDITOR_SMOKE_PROJECT!;
+  const json = (path: string) => JSON.parse(readFileSync(join(project, ...path.split("/")), "utf8")) as Record<string, unknown>;
+  const names = ["made", "Steel", "Door", "Fresh"];
+  page.on("dialog", (dialog) => void dialog.accept(names.shift()));
+  await open(page);
+  await page.locator("[data-content-toggle]").click();
+  await folderRow(page, "content").click();
+
+  await drawer(page).locator("[data-content-add]").click();
+  await page.getByTestId("content-menu-new-folder").click();
+  await expect(page.locator("[data-folder-path='content/made']")).toBeVisible();
+  await page.locator("[data-folder-path='content/made']").dblclick();
+  await expect(lastCrumb(page)).toHaveAttribute("title", "content/made");
+
+  // A material from a preset: the picker first, then the name.
+  await drawer(page).locator("[data-content-add]").click();
+  await page.getByTestId("content-menu-new-forge.material").click();
+  await page.locator('[data-testid="content-new-template-item"][data-id="2"]').click();
+  await expect(card(page, "content/made/Steel.material.json")).toBeVisible();
+  expect(json("content/made/Steel.material.json")).toMatchObject({ schema: "forge.material/1", metalness: 1, roughness: 0.3 });
+
+  // An actor class from the empty space's menu.
+  await page.locator(".content-list").click({ button: "right", position: { x: 400, y: 60 } });
+  await page.getByTestId("content-menu-new-actorClass").click();
+  await expect(card(page, "content/made/Door.actor.json").locator(".asset-type-line")).toHaveText("Actor Class");
+  expect(json("content/made/Door.actor.json")).toMatchObject({ schema: "forge.actorClass/1", name: "Door" });
+
+  // A level: Forge's default (environment, sun, floor, cube), its index written by the server.
+  await drawer(page).locator("[data-content-add]").click();
+  await page.getByTestId("content-menu-new-level").click();
+  await expect(card(page, "content/made/Fresh")).toBeVisible();
+  const level = json("content/made/Fresh/level.json") as { actors: { name: string }[] };
+  expect(level.actors.map((actor) => actor.name)).toEqual([
+    "Sky Atmosphere",
+    "Sky Light",
+    "Exponential Height Fog",
+    "Cloud Layer",
+    "World Environment",
+    "Post Process",
+    "Sun",
+    "Floor",
+    "Cube",
+  ]);
+  expect(existsSync(join(project, "content", "made", "Fresh", "cells.json"))).toBe(true);
 });

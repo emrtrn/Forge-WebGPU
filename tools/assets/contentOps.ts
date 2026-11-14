@@ -1,6 +1,8 @@
 // The Content Browser's file operations as a save plan (plan phase 4 step 6c;
 // INV-A24; architecture §4.6, A10): move (Cut / Paste), rename, copy (Copy /
-// Paste), delete and new folder. Pure: the server passes the content roots as
+// Paste), delete, new folder, and a new asset (step 6d: a level, an actor
+// class, a JSON asset of a registered type; the save's document check writes
+// its canonical form). Pure: the server passes the content roots as
 // last scanned, the asset index over them and the project's start level; the
 // plan goes through the save transaction (tools/save/transaction.ts), all or
 // nothing.
@@ -35,7 +37,11 @@ import {
   dataDocumentPartMatchers,
   DATA_DOCUMENT_TYPES,
   fileLabel,
+  ACTOR_CLASS_SCHEMA,
+  DEFAULT_CELL_SIZE,
+  isJsonAssetType,
   isJsonObject,
+  LEVEL_SCHEMA,
   stringifyDocument,
   type AssetIndex,
   type ContentOpBody,
@@ -220,6 +226,32 @@ export function planContentOp(request: ContentOp, ctx: ContentOpContext): Conten
       if (problem) return refuse(400, "request", problem);
       if (!freeTarget(request.path, new Set())) return refuse(409, "exists", `${request.path} already exists.`);
       return { ok: true, plan: { ...emptyPlan(), mkdirs: [request.path], result: [request.path] } };
+    }
+    case "create": {
+      const root = rootOf(request.folder);
+      if (root === undefined || !folderSet.has(request.folder)) return refuse(404, "missing", `No such folder: ${request.folder}`);
+      if (!ctx.writable(root)) return refuse(403, "read-only", `${root} is not written by this server.`);
+      const problem = checkContentName(request.name) ?? (request.name.includes(".") ? 'A new asset\'s name has no ".".' : null);
+      if (problem) return refuse(400, "request", problem);
+      let path: string;
+      let document: Record<string, unknown>;
+      if (request.kind === "level") {
+        const folder = `${request.folder}/${request.name}`;
+        if (!freeTarget(folder, new Set())) return refuse(409, "exists", `${folder} already exists.`);
+        path = `${folder}/level.json`;
+        document = { schema: LEVEL_SCHEMA, id: newId("level"), settings: { cellSize: DEFAULT_CELL_SIZE }, actors: [...(request.actors ?? [])] };
+      } else if (request.kind === "actorClass") {
+        path = `${request.folder}/${request.name}.actor.json`;
+        document = { schema: ACTOR_CLASS_SCHEMA, id: newId("asset"), name: request.name, components: {} };
+      } else {
+        const def = ctx.registry.getAssetType(request.type ?? "");
+        if (!def || !isJsonAssetType(def)) return refuse(400, "request", `No JSON asset type ${request.type ?? "(none)"}.`);
+        path = `${request.folder}/${request.name}${def.json.suffix}`;
+        document = { ...(request.values ?? {}), schema: `${def.name}/${def.json.version}`, id: newId("asset") };
+      }
+      if (!freeTarget(path, new Set())) return refuse(409, "exists", `${path} already exists.`);
+      const result = request.kind === "level" ? parentOf(path) : path;
+      return { ok: true, plan: { ...emptyPlan(), writes: [{ path, text: stringifyDocument(document) }], result: [result] } };
     }
     case "move":
     case "rename": {
