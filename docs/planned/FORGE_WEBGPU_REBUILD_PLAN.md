@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v1.19 · 2026-11-14 (v1.18’den fark: Faz 4 adım 6 tamam — Content Browser 6a–g, motor içeriği kipi, motor level kayıt / 409, sınıf listesinin tazelenmesi; DOM panelleri kutusu kapandı; kapı yeşil: 1.946 test, 39 editör ve 1 dist smoke; mimari v1.22). v1.18 · 2026-11-14 (v1.17'den fark: Faz 4 adım 5 tamam — paneller: sanallaştırılmış Outliner (50.000 ölçümü), şemadan Details ve çoklu seçim, düzenleme işlemleri ve gruplama, Add Actor + sürükle-bırak, World Settings ve ortam ayrıntıları, kısayollar ve sağ tık menüsü; kullanıcı kararları 2026-11-14; SDK 0.1.7; mimari v1.21. v1.17 · 2026-11-14 (v1.16'dan fark: Faz 4 adım 4 tamam — gizmo (Forge'unki, sürükleme matematiği three'siz), araçlar ve snap widget'ları, zemin / duvar snap'i picker ışınlarıyla, pivot (kullanıcı kararı: aktör belgesinde `pivot`), instancing transform hızlı yolu; 11 R yeniden yazıldı; mimari v1.20. v1.16 · 2026-11-14 (v1.15'ten fark: Faz 4 adım 3 tamam — editör viewport'u: editör kamerası ve kipleri, çizim katmanı (sahne derinliğine karşı; pipeline'sız karede derinlik ön geçişi), ızgara, CPU picking ve seçim çerçevesi, View Mode / Show / Quality menüleri, `editorRender` bağlamaları ve ışığın yardımcıları; mimari v1.19. v1.15 · 2026-11-13 (v1.14'ten fark: Faz 4 adım 2 tamam — 2b üretim build'i (kullanıcı kararı: Faz 4), statik içerik, `verify:dist --strict`, alt dizin smoke'u; dist kutusu işaretli. v1.14 · 2026-11-13 (v1.13'ten fark: Faz 4 adım 2'nin dilimi — editörün World'ü (`inEditor`, kullanıcı kararı), `actorsChanged`, `editorRender` kuralı, editör oturumu, `?editor` kabuğu, editör smoke'u, `verify:dist`; kalan 2b üretim build'i. v1.13 · 2026-11-13 (v1.12'den fark: Faz 4 adım 1 tamam — UI kiti (`src/editor/ui`), `?editor-kit`, editörün tarayıcı denetimleri gate ve CI'da. v1.12 · 2026-11-13 (v1.11'den fark: Faz 4 başladı — döküm (36 INV satırı, ertelenmiş A yok, 11 R), kararlar 1–12 (kullanıcı onayı), adım sırası 1–10; mimari v1.16. v1.11 · 2026-11-13 (v1.10'dan fark: Faz 3 kapandı — adım 9: smoke tam seti Faz 0 pozu ve boyutuyla, Faz 0 ile yan yana ızgara (`npm run smoke:grid`), yönlü ışıkların dünya çerçevesi düzeltmesi; kullanıcının görsel kabulü ve referanslar; view distance 5b'ye (kullanıcı kararı); bölüm `docs/archive/PHASE_3.md`'ye taşındı; mimari v1.15. v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 8 tamam — otomatik instancing, terrain salt çizimi, görüntüleyicinin varsayılan kamerası, `?debug` paneli, bütün çizen referans level'lar smoke'ta; kullanıcı kararları: terrain / örtü katman materyali GUID, paket manifesti `requires`, `?debug` kapsamı; referans projesi yeniden alındı; mimari v1.14. v1.9 · 2026-11-13 (v1.8'den fark: Faz 3 adım 7 tamam — olay bazlı gün saati: `timeTransition`, `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri), Sky Light yakalaması aynı PMREM'e, ölçülerek seçilen yakalama hızı (açı + 0,1 sn + durunca son yakalama), `npm run measure:sky-capture`; kullanıcı kararları; mimari v1.13. v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
+**Sürüm:** v1.20 · 2026-11-14 (v1.19’dan fark: Faz 4 adım 7 tamam — ortak asset oturumu / pencere, şemadan form + sanal tablo, materyal / model / aktör sınıfı araçları, tek GPU önizlemesi, sınıf override koruması; SDK 0.1.10; kapı 1.957 test, 47 editör + 1 dist smoke; gerçek WebGPU asset 8/8, render 17/17; mimari v1.23). v1.19 · 2026-11-14 (v1.18’den fark: Faz 4 adım 6 tamam — Content Browser 6a–g, motor içeriği kipi, motor level kayıt / 409, sınıf listesinin tazelenmesi; DOM panelleri kutusu kapandı; kapı yeşil: 1.946 test, 39 editör ve 1 dist smoke; mimari v1.22). v1.18 · 2026-11-14 (v1.17'den fark: Faz 4 adım 5 tamam — paneller: sanallaştırılmış Outliner (50.000 ölçümü), şemadan Details ve çoklu seçim, düzenleme işlemleri ve gruplama, Add Actor + sürükle-bırak, World Settings ve ortam ayrıntıları, kısayollar ve sağ tık menüsü; kullanıcı kararları 2026-11-14; SDK 0.1.7; mimari v1.21. v1.17 · 2026-11-14 (v1.16'dan fark: Faz 4 adım 4 tamam — gizmo (Forge'unki, sürükleme matematiği three'siz), araçlar ve snap widget'ları, zemin / duvar snap'i picker ışınlarıyla, pivot (kullanıcı kararı: aktör belgesinde `pivot`), instancing transform hızlı yolu; 11 R yeniden yazıldı; mimari v1.20. v1.16 · 2026-11-14 (v1.15'ten fark: Faz 4 adım 3 tamam — editör viewport'u: editör kamerası ve kipleri, çizim katmanı (sahne derinliğine karşı; pipeline'sız karede derinlik ön geçişi), ızgara, CPU picking ve seçim çerçevesi, View Mode / Show / Quality menüleri, `editorRender` bağlamaları ve ışığın yardımcıları; mimari v1.19. v1.15 · 2026-11-13 (v1.14'ten fark: Faz 4 adım 2 tamam — 2b üretim build'i (kullanıcı kararı: Faz 4), statik içerik, `verify:dist --strict`, alt dizin smoke'u; dist kutusu işaretli. v1.14 · 2026-11-13 (v1.13'ten fark: Faz 4 adım 2'nin dilimi — editörün World'ü (`inEditor`, kullanıcı kararı), `actorsChanged`, `editorRender` kuralı, editör oturumu, `?editor` kabuğu, editör smoke'u, `verify:dist`; kalan 2b üretim build'i. v1.13 · 2026-11-13 (v1.12'den fark: Faz 4 adım 1 tamam — UI kiti (`src/editor/ui`), `?editor-kit`, editörün tarayıcı denetimleri gate ve CI'da. v1.12 · 2026-11-13 (v1.11'den fark: Faz 4 başladı — döküm (36 INV satırı, ertelenmiş A yok, 11 R), kararlar 1–12 (kullanıcı onayı), adım sırası 1–10; mimari v1.16. v1.11 · 2026-11-13 (v1.10'dan fark: Faz 3 kapandı — adım 9: smoke tam seti Faz 0 pozu ve boyutuyla, Faz 0 ile yan yana ızgara (`npm run smoke:grid`), yönlü ışıkların dünya çerçevesi düzeltmesi; kullanıcının görsel kabulü ve referanslar; view distance 5b'ye (kullanıcı kararı); bölüm `docs/archive/PHASE_3.md`'ye taşındı; mimari v1.15. v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 8 tamam — otomatik instancing, terrain salt çizimi, görüntüleyicinin varsayılan kamerası, `?debug` paneli, bütün çizen referans level'lar smoke'ta; kullanıcı kararları: terrain / örtü katman materyali GUID, paket manifesti `requires`, `?debug` kapsamı; referans projesi yeniden alındı; mimari v1.14. v1.9 · 2026-11-13 (v1.8'den fark: Faz 3 adım 7 tamam — olay bazlı gün saati: `timeTransition`, `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri), Sky Light yakalaması aynı PMREM'e, ölçülerek seçilen yakalama hızı (açı + 0,1 sn + durunca son yakalama), `npm run measure:sky-capture`; kullanıcı kararları; mimari v1.13. v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
 `forge.skyAtmosphere` / `forge.skyLight` (arka plan ve ortam ışığı dahil,
 kullanıcı kararı) / `forge.cloudLayer` / `forge.worldEnvironment` (sabit
 saat), TSL gökyüzü + ay + yıldız, PMREM Sky Light, bulut, WES yorumu,
@@ -524,7 +524,59 @@ bölüm + §11, gerekirse mimari rapor ve harita, hafıza):
    Tam `npm run gate` yeşil: 1.946 test, 39 editör smoke'u, 1 dist smoke'u;
    SDK yüzeyi değişmedi. Tarayıcı koşusu `forceWebGL`; yeni WebGPU render kabulü değil.
    Asset editörleri adım 7'de; gerçek motor içeriği testte değiştirilmez.
-7. Asset editörleri (genel veri editörü + önizlemeler).
+7. ~~Asset editörleri (genel veri editörü + önizlemeler).~~ **Tamam** (`3545277`, 2026-11-14).
+   **Uygulama planı (kullanıcı onayı 2026-11-14):** tek ortak pencere;
+   başka asset'e geçiş / kapanışta Save / Discard / Cancel. Taslak yalnız
+   önizlemeyi etkiler; başarılı kayıtta açık level güncellenir, kirli level
+   verisi ve override'lar korunur. İzin içerik kökünden; salt okunur asset
+   incelenir, değiştirilemez. Yeni bağımlılık, alias veya katman kuralı yok.
+   - [x] **7a Oturum + pencere:** JSON asset / model meta / aktör sınıfı
+     adaptörleri; revizyon, dirty, bağımsız undo / redo (sürükleme tek adım,
+     büyük diziler ilgisiz değişiklikte kopyalanmaz), mevcut `/save`;
+     başarıda kanonik belgeyi tekrar oku; hata / 409 taslağı korur, Reload
+     onay ister. Browser çift tık / Open; Ctrl+E aktörün kaynak sınıfı veya
+     modelini açar. Kısayollar pencere dışındaki level'a sızmaz.
+   - [x] **7b Genel veri + tablo:** kayıtlı bütün JSON asset türleri
+     şemadan form; dizilerde tablo (basit değer tek sütun, nesnede basit
+     alanlar şema sırasıyla sütun; bileşik alan seçili satır ayrıntısında).
+     Satır ekle / sil / sırala; iki görünüm aynı taslak; 1.000 satırda
+     en fazla 200 DOM satırı.
+   - [x] **7c Önizleme:** `render/editor` içinde, aynı tek renderer / GPU;
+     canvas geçici yüzeye, level sunumu ve thumbnail işi duraklar; kapanışta
+     geri döner. Taslağa özel geometri / materyal; orbit / pan / zoom /
+     Focus; geç kalan yükleme iptali ve kaynak temizliği. Özellik
+     `editorRender.ts` modülünde isteğe bağlı `assetPreviews`; mevcut helper
+     kayıtları korunur. `FeatureEditorDef.assetEditors` tür / önizleme /
+     araç eklentisi kaydı; üç boyutlu tip içermeyen eklenti bağlamı.
+   - [x] **7d Materyal:** şemadan alanlar, mevcut preset'ler, vertex renk
+     gradyanlı küre; kayıtta kullanımlar ve thumbnail tazelenir.
+   - [x] **7e Static Mesh:** model / slot / geometri bilgisi; meta'ya import
+     ayarları (GLB değişmez); slot seçiciler, UVW form + gizmo, vertex
+     doldur / sil. Ham renk dizileri formda açılmaz; yükleyici renk
+     varsayılanlarını uygular. Geometri uyuşmazsa veri korunup uyarılır.
+     Optimize ayarı GLB'yi kayıtta dönüştürmez, mevcut Reimport uygular.
+   - [x] **7f Aktör sınıfı:** ad, bileşen ağacı, Add / Remove, uzamsal
+     ebeveynlik ve varsayılanlar; kararlı bileşen kimlikleri; silmede çocuk
+     üst ebeveyne (Details gibi), döngü reddi. İzole editör World'ü,
+     fizik / gameplay yok. Sunucunun gördüğü kayıtlı örneklerin override'ını
+     geçersiz kılan sınıf kaydı dosya / aktör raporuyla reddedilir; level
+     dosyası otomatik dönüştürülmez. Açık kirli örnekler de korunur.
+   - [x] **7g Kabul + kapanış:** oturum / tablo / kayıt / sınıf uyumluluk
+     testleri ve geçici içerikte tarayıcı kabulü; motor / paket izinleri,
+     pencere geçişleri, kısayollar, 409, kayıtta sahne tazeleme, kaynak
+     bırakma. Tam gate + render smoke + başlıklı Chrome gerçek WebGPU;
+     referanslar kullanıcı kabulü olmadan güncellenmez. SDK 0.1.10,
+     snapshot / changelog; HTTP ve asset şemaları değişmez. Plan,
+     mimari / harita ve PORT_LOG kapanışta ayrı docs commit'inde.
+   **Kabul:** tam gate yeşil (1.957 birim / sunucu testi, 47 editör ve
+   1 dist smoke); asset editörlerinin 8 tarayıcı testi başlıklı Chrome'da
+   gerçek WebGPU ile geçti. Render smoke 17/17; referanslar değiştirilmedi.
+   1.000 satırlı tablo, bağımsız undo, kirli level'ın korunması, salt okunur
+   paket, 409 / Reload, geç yükleme ve tekrar aç-kapat GPU kaynakları denetlendi.
+   **Kapsam dışı:** Actor Script betikleri, çarpışma (Faz 6), sahnede Mesh
+   Paint, otomatik topoloji onarımı, gelişmiş 409 karşılaştırması (adım 8).
+   Sınıf uyumluluğu yalnız sunucuya görünür köklerde; depo dışı oyunlar
+   kendiliğinden taranmaz.
 8. Play (oturum katmanı) + 409 akışı (yeniden yükle / karşılaştır).
 9. Ajan komutları (A12) + editörün canlı tazelenmesi.
 10. Editör smoke tam seti → kapı → kapanış.
@@ -558,12 +610,13 @@ bölüm + §11, gerekirse mimari rapor ve harita, hafıza):
       kapıya ve CI'a girer (mimari §4.8 build, §4.10, F06). 2a'dan taşındı
       (2026-11-11). *Adım 2 (2026-11-13):* `verify:dist --strict`, üretim build'i
       statik içerikle (`tools/build-content.ts`), `npm run smoke:dist`.
-- [ ] **Genel veri editörü (mimari A13):** oyunun şemalı veri asset'leri
+- [x] **Genel veri editörü (mimari A13):** oyunun şemalı veri asset'leri
       (ekonomi, denge, tablolar) Content Browser'dan açılır, Details ile aynı
       kitle şemadan üretilen formda ve tablo görünümünde düzenlenir. Forge'daki
       Data Table editörünün yerini alır; oyuna özel düzenleme arayüzü yazılmaz.
       Materyal, static mesh ve aktör sınıfı editörleri bunun üstüne önizlemeyle
-      (karar 7).
+      (karar 7). *Adım 7 (2026-11-14):* ortak oturum / pencere, sanal tablo,
+      materyal / model / aktör sınıfı araçları ve tek GPU'da taslak önizlemeleri.
 - [ ] **Ajan düzenleme komutları (mimari A12):** editörün düzenleme modeli
       üzerinden CLI: aktör ekle / taşı / sil, bileşen alanı yaz, sınıf
       override'ı; okuyan `find` / `show` (karar 5). Kayıt servisinden geçer
@@ -869,3 +922,4 @@ silinebilir.
 | 2026-11-14 | v1.16 | Faz 4 adım 3 tamam, editör viewport'u (`af6b334`, `1bfeffe`, `2cbed7f`, `1cf02e4`): editör kamerası (Forge'un denetleyicisi ve kipleri, ortografik kamera 1.000 m geride), çizim katmanı (sahne derinliğine karşı; pipeline'sız karede derinlik ön geçişi), ızgara, picking etiketleri ve CPU picker (instance → aktör, terrain yükseklik alanı), seçim çerçevesi, F / Esc / Ctrl+tıkla, View Mode / Quality / Show menüleri, `editorRender` bağlamaları + ışığın yardımcıları. Çizim katmanı kutusu işaretli. A 934 / 1.021 |
 | 2026-11-14 | v1.18 | Faz 4 adım 5 tamam, paneller (`aa3726d`, `1a36338`, `e3f44f6`, `c887976`, `15a704b`, `1963a77`, `cd55e12`): **kullanıcı kararları** (hepsi öneri) Outliner ölçümü ayrı bench, override satırda, Add Actor girişleri + sınıflar, World Settings = level ayarı + tekil ortam aktörleri, `locked` belgede / gizleme görünüm, Add / Remove Component, Ground Mist + World Environment önizlemesi, pano JSON; sanallaştırılmış Outliner (50.000: ilk kurma 47,8 ms, seçim p95 3,5 ms, kaydırma 0,9 ms, arama 23,1 ms), şemadan Details ve çoklu seçim, düzenleme işlemleri ve gruplama, Add Actor + sürükle-bırak, World Settings, kısayol tablosu, Outliner sağ tık menüsü; `defineFeatureEditor` (SDK 0.1.5–0.1.7); editör smoke'u 28 test. A 934 / 1.021 |
 | 2026-11-14 | v1.19 | Faz 4 adım 6 tamam (6a–g): Content Browser, küçük resim, referans güvenli dosya işlemleri, yeni asset / klasör, import / reimport, viewport’a sürükle-bırak, Open Level ve Browse To; `397e8d2` motor içeriği kipi, kökler arası kopyalama reddi, sınıf tazeleme, motor level kayıt / 409. DOM panelleri kutusu kapandı; SDK 0.1.9 değişmedi. Kapı yeşil: 1.946 test, 39 editör ve 1 dist smoke. Mimari v1.22; asset editörleri adım 7’de |
+| 2026-11-14 | v1.20 | Faz 4 adım 7 tamam (`3545277`): ortak asset oturumu / pencere; şemadan form ve sanal tablo (A13); materyal küresi, static mesh slot / UVW gizmosu / vertex doldur-sil, aktör sınıfı bileşen ağacı ve varsayılanları; tek canvas / GPU üzerinde taslak önizlemesi; sınıf kaydında görünür level / hücre override koruması, kirli level verisi korunarak sahne tazeleme. SDK 0.1.10 (API `bb3bd9b259905ae0`), HTTP / asset şemaları aynı. Tam gate: 1.957 test, 47 editör + 1 dist smoke; başlıklı gerçek WebGPU asset 8/8 ve son sınıf döngü kontrolü, render smoke 17/17; referanslar değişmedi. Mimari v1.23. Sıradaki adım 8: Play + gelişmiş 409 akışı |

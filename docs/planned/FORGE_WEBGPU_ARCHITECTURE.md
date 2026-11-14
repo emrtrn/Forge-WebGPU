@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.22 · 2026-11-14 (v1.21’den fark: §4.8 motor içeriği kipinin uygulaması — kayıtlı kökler için ayrı kayıt politikası, Content Browser ve level kayıt yönlendirmesi, etiketli 409 / hücre dizini yolları, sınıf tazeleme ve geçici içerikle kabul). v1.21 · 2026-11-14 (v1.20'den fark: §4.3 bir özelliğin editör tarafı `defineFeatureEditor` (Outliner görünüşü, Add Actor girişleri, Details eklentileri; SDK 0.1.5–0.1.7); §4.4 aktörün editöre özgü `locked`'u (kullanıcı kararı); §4.7 paneller: gizleme yalnız görünüm, Details'in şemadan formu ve override'ları, düzenleme işlemleri, gruplama ve pano (kullanıcı kararları 2026-11-14).
+**Sürüm:** v1.23 · 2026-11-14 (v1.22’den fark: §4.3 assetEditors / assetPreviews sözleşmeleri (SDK 0.1.10); §4.11 A13 uygulaması — ortak asset oturumu ve sanal tablo, tek canvas / GPU önizlemesi, sınıf uyumluluk koruması ve kaynak nesli yönetimi). v1.22 · 2026-11-14 (v1.21’den fark: §4.8 motor içeriği kipinin uygulaması — kayıtlı kökler için ayrı kayıt politikası, Content Browser ve level kayıt yönlendirmesi, etiketli 409 / hücre dizini yolları, sınıf tazeleme ve geçici içerikle kabul). v1.21 · 2026-11-14 (v1.20'den fark: §4.3 bir özelliğin editör tarafı `defineFeatureEditor` (Outliner görünüşü, Add Actor girişleri, Details eklentileri; SDK 0.1.5–0.1.7); §4.4 aktörün editöre özgü `locked`'u (kullanıcı kararı); §4.7 paneller: gizleme yalnız görünüm, Details'in şemadan formu ve override'ları, düzenleme işlemleri, gruplama ve pano (kullanıcı kararları 2026-11-14).
 v1.20 · 2026-11-14 (v1.19'dan fark: §4.4 aktörün editöre özgü `pivot`'u (kullanıcı kararı); §4.7 gizmo'nun uygulaması (three'siz sürükleme, tek transaction, instancing hızlı yolu); §4.9 gizmo katmanın son pass'i.
 v1.19 · 2026-11-14 (v1.18'den fark: §4.2 editör yardımcı bağlamaları (`defineEditorRenderBinding`, `forge.editorHelpers`); §4.9 çizim katmanının uygulaması (sahne derinliği, derinlik ön geçişi, ton eşlemesiz bileşim) ve picking etiketleri.
 v1.18 · 2026-11-13 (v1.17'den fark: §4.8 build'in uygulaması (kullanıcı kararı: Faz 4): statik içerik, `ContentClient`, alt dizin.
@@ -351,6 +351,13 @@ features/height-fog/
   Ground Mist Setup, World Environment önizlemesi); düzenlemesi `edit` ile (seçili her
   aktöre tek undo adımı), önizlemesi editör World'ünün servisleriyle, level'a hiç
   yazmadan. Editör host'u `features/*/editor.ts`'leri Vite glob'uyla toplar.
+  *Adım 7 (SDK 0.1.10):* `assetEditors` asset türüne göre ortak pencere
+  sunumu, önizleme anahtarı, form yerine araçların ele aldığı alan yolları
+  (`handledFields`) ve DOM araç eklentisi kaydeder. Eklenti bağlamı taslak,
+  şema / katalog, yazma izni, `edit` ve three'siz `AssetPreviewController`
+  verir. `editorRender.ts` isteğe bağlı `assetPreviews` fabrikaları yayımlar;
+  mevcut varsayılan helper kaydı korunur. Materyal / model önizlemesini kendi
+  özelliği, çekirdek aktör sınıfını yerleşik adaptör kaydeder.
 
 - **`feature.ts` editörü anmaz (2a kararı, 2026-11-10):** `editor.ts` kendi
   kayıt birimidir; editör katmanındaki `defineFeatureEditor(...)` ile kendini
@@ -1552,6 +1559,31 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   önizlemeyle: materyal (küre), static mesh (`forge.model` içe aktarma ayarları +
   model; çarpışma Faz 6), aktör sınıfı (bileşen ağacı, Add Component, sınıf
   varsayılanları). Elle yazılmış ayrı asset editörü yok.
+  *Uygulama (Faz 4 adım 7, 2026-11-14):* `editor/assets` ortak belge
+  adaptörleri (JSON asset / model meta / aktör sınıfı), revizyonlu oturum,
+  bağımsız undo / redo ve tek pencere. Content Browser çift tık / Open,
+  yerleştirilmiş kaynağa Ctrl+E; Save / Discard / Cancel geçişi korur.
+  Formlar mevcut UI kitinden, dizilerin sanallaştırılmış tablosu aynı taslağı
+  düzenler (bileşik değer seçili satır ayrıntısında). Kayıt mevcut `/save`:
+  kanonik belge tekrar okunur, 409 taslağı korur; Reload onaylıdır.
+  `render/editor/assetPreview` host'un tek canvas / GPU'sunu geçici sunum
+  yüzeyine alır; level / thumbnail döngüsü durur, kapanınca geri döner.
+  Taslak geometri ve materyaller özeldir; orbit / pan / zoom / Focus ortak.
+  Materyal küresi, model slot / UVW gizmosu / vertex doldur-sil, izole editör
+  World'ünde sınıf bileşen ağacı / varsayılanları bu oturumun üstündedir.
+  Sınıf önizlemesi kadrajı renderSync sonrası gerçek geometriyle hesaplanır.
+  Başarılı kayıt asset kaynaklarını, sınıfları, sahne kullanıcılarını ve küçük
+  resmi tazeler; kirli level ve override'lar yazılmaz / değiştirilmez.
+  Sunucu görünür level / hücrelerin override'ını geçersiz kılan sınıf
+  değişikliğini reddeder (dosya ve aktör mesajda); otomatik level göçü yoktur.
+  Cache sahibi yüklediği kaynak neslini bırakır: eski kullanımın bırakılması
+  kayıttan sonra edinilen yeni kaynağın sayacını azaltmaz. Model yükleyici
+  vertex varsayılanlarını primitive kimliği / topolojiyle uygular; uyuşmazlık
+  kayıtlı renk verisini değiştirmez. HTTP / asset şemaları aynı kalır.
+  *Kabul:* gate 1.957 test, 47 editör ve 1 dist smoke; asset akışları
+  başlıklı gerçek WebGPU'da 8/8, render smoke 17/17. Referanslar değişmedi.
+  Çarpışma Faz 6'da; Mesh Paint, otomatik topoloji onarımı ve gelişmiş 409
+  karşılaştırması bu adımın dışında kalır.
 - **Özellik "bitti" tanımı:** şema + runtime + render bağlaması + editör yüzeyi
   (otomatik ya da özel) + kayıt turu testi + özellik README'si.
 - Özellik README'leri, Ridgebound'daki `FORGE_INTEGRATION.md` gibi elle tutulan

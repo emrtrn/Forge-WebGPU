@@ -47,6 +47,14 @@ toplar. Örnek ve iskeletin kabul testi: `src/features/height-fog` (rapor §4.3)
 `defineEditorRenderBinding`, editör toplar ve editör World'ünde `forge.editorHelpers`
 ile çalıştırır; rapor §4.2). Render bağlamaları çizdiklerine aktörünü etiketler
 (`render/sync/pickTags.ts`); editörün picking'i ve seçim çerçevesi bunu okur.
+Asset sunumu / araçları `defineFeatureEditor({ assetEditors })`, 3B
+önizlemeler `editorRender.ts`'nin `assetPreviews` kaydıyla gelir (SDK 0.1.10,
+Faz 4 adım 7). `editor/assets` tek pencere, revizyonlu belge oturumu ve
+şemadan form / sanallaştırılmış tabloyu sağlar; materyal, model ve sınıf
+araçları bunu kullanır. `render/editor/assetPreview` aynı renderer / canvas'ı
+geçici alır, özel taslak kaynakları kapanışta bırakır. Başarılı kayıt sahne
+kullanıcılarını tazeler; kirli level yazılmaz. Sunucu sınıf / instance
+override uyumsuzluğunu kayıtta reddeder (rapor §4.11).
 
 ## Veri modeli
 

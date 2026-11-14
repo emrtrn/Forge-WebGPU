@@ -105,18 +105,18 @@ fazına göre verildi (onaylandı 2026-11-11).
 
 | ID | Özellik | Forge yeri | Faz | İşlem | Forge testleri | Not | WebGPU |
 |---|---|---|---|---|---|---|---|
-| INV-C01 | Static Mesh editörü: önizleme, çarpışma şekilleri, materyal slotları, UVW, vertex color | `src/editor/StaticMeshEditor.ts`, `asset{Collision,MaterialSlots,Uvw,VertexColors}Store.ts` | 4 | uyarla | — | Çarpışma çalışması Faz 6; sidecar'lar 2b içe aktarıcısında | |
+| INV-C01 | Static Mesh editörü: önizleme, çarpışma şekilleri, materyal slotları, UVW, vertex color | `src/editor/StaticMeshEditor.ts`, `asset{Collision,MaterialSlots,Uvw,VertexColors}Store.ts` | 4 | uyarla | — | Çarpışma çalışması Faz 6; sidecar'lar 2b içe aktarıcısında | Faz 4 / 7: ortak asset editörü, slot seçiciler, UVW form / gizmo, vertex doldur / sil; meta kaydı GLB'yi değiştirmez; yükleyici vertex varsayılanlarını uygular |
 | INV-C02 | Static Mesh editörü: Deformable parçaları | `src/editor/staticMeshDeformable*.ts` | 8 | uyarla | deformable-editor, deformable-parts | | |
 | INV-C03 | Static Mesh editörü: Fracture (Voronoi bake, destek grafiği) | `src/editor/staticMeshFracture.ts` | 8 | uyarla | fracture-editor | | |
 | INV-C04 | Skeletal Mesh editörü (Persona): iskelet, soketler | `src/editor/SkeletalMeshEditor.ts`, `assetSkeletonStore.ts` | 6 | uyarla | — | Tek kabuk + mod değiştirici | |
 | INV-C05 | Skeletal Mesh editörü: animasyon modu | `SkeletalMeshEditor.ts` | 6 | uyarla | — | | |
 | INV-C06 | Skeletal Mesh editörü: fizik modu (ragdoll gövdeleri) | `SkeletalMeshEditor.ts` | 6 | uyarla | — | | |
-| INV-C07 | Actor Script editörü: bileşen ağacı, Add Component, değişkenler, olay bağlamaları, sınıf varsayılanları, viewport | `src/editor/ActorScript{Editor,Viewport}.ts` | 4 | yeniden tasarla | — | Yalnız prefab: bileşen ağacı, Add Component, sınıf varsayılanları, viewport (`forge.actorClass/1` 2a'da). Değişkenler ve olay bağlamaları taşınmaz (K12) | |
-| INV-C08 | Material editörü: önayarlar, katman karışımı, anizotropi, UV tiling, ORM, maske, önizleme | `src/editor/MaterialEditor.ts`, `materialStore.ts` | 3 / 4 | yeniden yaz | — | `ForgeMaterialDef` → node material Faz 3, editör Faz 4 | |
+| INV-C07 | Actor Script editörü: bileşen ağacı, Add Component, değişkenler, olay bağlamaları, sınıf varsayılanları, viewport | `src/editor/ActorScript{Editor,Viewport}.ts` | 4 | yeniden tasarla | — | Yalnız prefab: bileşen ağacı, Add Component, sınıf varsayılanları, viewport (`forge.actorClass/1` 2a'da). Değişkenler ve olay bağlamaları taşınmaz (K12) | Faz 4 / 7: ortak oturum, bileşen ağacı / ebeveynlik / varsayılanlar, izole editör World'ü, kayıtta override uyumluluk denetimi |
+| INV-C08 | Material editörü: önayarlar, katman karışımı, anizotropi, UV tiling, ORM, maske, önizleme | `src/editor/MaterialEditor.ts`, `materialStore.ts` | 3 / 4 | yeniden yaz | — | `ForgeMaterialDef` → node material Faz 3, editör Faz 4 | Faz 4 / 7: şemadan form, mevcut preset'ler, özel taslak materyalli küre; kayıt sonrası sahne / thumbnail tazeleme |
 | INV-C09 | Particle Effect editörü: önayarlar, doku, SubUV flipbook, önizleme viewport'u | `src/editor/ParticleEffect{Editor,PreviewViewport}.ts` | 6 | yeniden yaz | — | VFX TSL'de (plan Faz 6) | |
 | INV-C10 | Sound Cue editörü | `src/editor/SoundCueEditor.ts` | — | taşınmaz | — | K12: ses ayarları oyunun şemalı verisi, genel veri editöründe (A13) | |
 | INV-C11 | Dialogue editörü: voice / line, altyazı | `src/editor/DialogueEditor.ts` | — | taşınmaz | — | K12: diyalog taşınmaz | |
-| INV-C12 | Data Table editörü | `src/editor/DataTable{Editor,Layout}.ts` | 4 | yeniden tasarla | — | Genel şema güdümlü veri editörü (mimari A13); oyuna özel düzenleme arayüzü yok | |
+| INV-C12 | Data Table editörü | `src/editor/DataTable{Editor,Layout}.ts` | 4 | yeniden tasarla | — | Genel şema güdümlü veri editörü (mimari A13); oyuna özel düzenleme arayüzü yok | Faz 4 / 7: bütün şemalı JSON asset'lere otomatik form / sanallaştırılmış dizi tablosu; seçili satır ayrıntısı, ekle / sil / sırala, ortak undo / kayıt |
 | INV-C13 | UI Widget editörü | `src/editor/UiWidgetEditor.ts` | 6 (açık) | uyarla | — | K12: Faz 6 başında kullanıcı kararı; o güne kadar widget'lar şemalı JSON | |
 | INV-C14 | Behavior Tree editörü (+ Blackboard) | `src/editor/BehaviorTreeEditor.ts` | — | taşınmaz | behavior-tree-editor | K12: AI mantığı oyun kodunda | |
 | INV-C15 | State Tree editörü | `src/editor/StateTreeEditor.ts` | — | taşınmaz | state-tree-editor | K12: AI mantığı oyun kodunda | |
