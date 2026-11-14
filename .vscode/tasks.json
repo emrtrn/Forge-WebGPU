@@ -24,6 +24,31 @@
       }
     },
     {
+      "label": "Open Editor (Reference)",
+      "detail": "A scratch copy of Games/ForgeReference/webgpu-scenes (refreshed when the server starts), L03 in the editor on 5183",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/tools/open-dev-server.ps1",
+        "-Path",
+        "/?editor&level=content/levels/L03",
+        "-Project",
+        "${env:TEMP}/forge-webgpu-reference-editor/webgpu-scenes",
+        "-MirrorFrom",
+        "${workspaceFolder}/../Games/ForgeReference/webgpu-scenes"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "Stop Dev Server",
       "type": "shell",
       "command": "powershell",
