@@ -78,7 +78,7 @@ interface JsonAssetTypeDef<M>
 
 type LevelId = `lvl_${string}`
 
-const SDK_VERSION: "0.1.9"
+const SDK_VERSION: "0.1.10"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -219,12 +219,46 @@ interface AssetDropRule
   readonly assign?: { readonly component: string; readonly fields: (data: Readonly<Record<string, unknown>>, asset: DroppedAsset, hit: { readonly slot: number | null; }) => Readonly<Record<string, unknown>> | null; } | undefined
   readonly place?: ((asset: DroppedAsset) => AssetPlacement) | undefined
 
+interface AssetEditorExtension
+  dispose?: (() => void) | undefined
+  readonly element: HTMLElement
+  update?: (() => void) | undefined
+
+interface AssetEditorExtensionContext
+  edit: (label: string, path: readonly (string | number)[], value: unknown, phase?: "input" | "commit") => void
+  pickAsset: (type: string | null) => Promise<string | null>
+  preview: () => AssetPreviewController | null
+  readonly catalog: AssetCatalog
+  readonly document: Document
+  readonly fields: ReadonlyArray<FormField>
+  readonly readOnly: boolean
+  readonly registry: SchemaRegistry
+  status: (message: string) => void
+  value: () => Readonly<Record<string, unknown>>
+
+interface AssetEditorPresentation
+  readonly assetType: string
+  readonly handledFields?: ReadonlyArray<string> | undefined
+  readonly preview?: string | undefined
+  readonly tools?: ((context: AssetEditorExtensionContext) => AssetEditorExtension) | undefined
+
 interface AssetPlacement
   readonly components: Readonly<Record<string, Readonly<{ type: string; } & Record<string, unknown>>>>
   readonly icon?: "mesh" | "character" | "light" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic" | undefined
   readonly lift?: number | undefined
   readonly restOnSurface?: boolean | undefined
   readonly rotation?: readonly [number, number, number] | undefined
+
+interface AssetPreviewController
+  dispose: () => void
+  focus: () => void
+  info: () => AssetPreviewInfo
+  setTool: (tool: "select" | "move" | "rotate" | "scale") => void
+  update: (document: Readonly<Record<string, unknown>>) => Promise<void>
+
+interface AssetPreviewInfo
+  readonly meshes: ReadonlyArray<{ readonly meshName: string; readonly primitiveIndex: number; readonly vertexCount: number; }>
+  readonly slots: ReadonlyArray<string>
 
 interface ComponentPresentation
   readonly icon: "mesh" | "character" | "light" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic" | ((data: Readonly<Record<string, unknown>>) => ActorTypeIcon)
@@ -246,6 +280,7 @@ interface DroppedAsset
 
 interface FeatureEditorDef
   readonly addActor: ReadonlyArray<AddActorEntry>
+  readonly assetEditors: ReadonlyArray<AssetEditorPresentation>
   readonly assets: ReadonlyArray<AssetDropRule>
   readonly components: Readonly<Record<string, ComponentPresentation>>
   readonly details: Readonly<Record<string, DetailsExtension>>
@@ -255,6 +290,7 @@ interface FeatureEditorDef
 
 interface FeatureEditorOptions
   readonly addActor?: ReadonlyArray<AddActorEntry> | undefined
+  readonly assetEditors?: ReadonlyArray<AssetEditorPresentation> | undefined
   readonly assets?: ReadonlyArray<AssetDropRule> | undefined
   readonly components?: Readonly<Record<string, ComponentPresentation>> | undefined
   readonly details?: Readonly<Record<string, DetailsExtension>> | undefined
@@ -271,7 +307,7 @@ const OUTLINER_TYPES: readonly [{ readonly type: "mesh"; readonly label: "Meshes
 
 type OutlinerType = "mesh" | "character" | "light" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
 
-const SDK_VERSION: "0.1.9"
+const SDK_VERSION: "0.1.10"
 
 function defineFeatureEditor(options: FeatureEditorOptions): FeatureEditorDef
 
@@ -284,6 +320,14 @@ interface ActorRefField  // src/core/schema/fields.ts
   readonly label?: string | undefined
   readonly persist?: boolean | undefined
 
+interface ActorRefFormField  // src/core/schema/form.ts
+  readonly default: null
+  readonly hint: string | null
+  readonly key: string
+  readonly kind: "actorRef"
+  readonly label: string
+  readonly path: string
+
 interface ArrayField<I>  // src/core/schema/fields.ts
   readonly default: ReadonlyArray<unknown>
   readonly hint?: string | undefined
@@ -292,6 +336,25 @@ interface ArrayField<I>  // src/core/schema/fields.ts
   readonly label?: string | undefined
   readonly persist?: boolean | undefined
 
+interface ArrayFormField  // src/core/schema/form.ts
+  readonly default: ReadonlyArray<unknown>
+  readonly hint: string | null
+  readonly item: FormField
+  readonly key: string
+  readonly kind: "array"
+  readonly label: string
+  readonly path: string
+
+interface AssetCatalog  // src/editor/assets/assetCatalog.ts
+  label: (guid: string) => string | null
+  ofType: (type: string | null) => readonly AssetListing[]
+
+interface AssetListing  // src/editor/assets/assetCatalog.ts
+  readonly file: string
+  readonly guid: string
+  readonly name: string
+  readonly type: string
+
 interface AssetRefField  // src/core/schema/fields.ts
   readonly assetType?: string | undefined
   readonly default: null
@@ -299,6 +362,17 @@ interface AssetRefField  // src/core/schema/fields.ts
   readonly kind: "assetRef"
   readonly label?: string | undefined
   readonly persist?: boolean | undefined
+
+interface AssetRefFormField  // src/core/schema/form.ts
+  readonly assetType: string | null
+  readonly default: null
+  readonly hint: string | null
+  readonly key: string
+  readonly kind: "assetRef"
+  readonly label: string
+  readonly path: string
+
+type AssetTypeDef = BinaryAssetTypeDef<FieldMap> | DocumentAssetTypeDef  // src/core/assets/assetType.ts
 
 interface AssetTypeOptions  // src/core/assets/assetType.ts
   readonly hint?: string | undefined
@@ -312,12 +386,29 @@ interface BoolField  // src/core/schema/fields.ts
   readonly label?: string | undefined
   readonly persist?: boolean | undefined
 
+interface BoolFormField  // src/core/schema/form.ts
+  readonly default: boolean
+  readonly hint: string | null
+  readonly key: string
+  readonly kind: "bool"
+  readonly label: string
+  readonly path: string
+
 interface ColorField<D>  // src/core/schema/fields.ts
   readonly default: D
   readonly hint?: string | undefined
   readonly kind: "color"
   readonly label?: string | undefined
   readonly persist?: boolean | undefined
+
+interface ColorFormField  // src/core/schema/form.ts
+  readonly default: string | null
+  readonly hint: string | null
+  readonly key: string
+  readonly kind: "color"
+  readonly label: string
+  readonly optional: boolean
+  readonly path: string
 
 type ComponentMap = { [x: string]: ComponentRecord; }  // src/core/level/model.ts
 
@@ -367,12 +458,33 @@ interface EnumField<V>  // src/core/schema/fields.ts
   readonly persist?: boolean | undefined
   readonly values: ReadonlyArray<V>
 
+interface EnumFormField  // src/core/schema/form.ts
+  readonly default: string
+  readonly hint: string | null
+  readonly key: string
+  readonly kind: "enum"
+  readonly label: string
+  readonly options: ReadonlyArray<{ readonly value: string; readonly label: string; }>
+  readonly path: string
+
 interface FieldUi  // src/core/schema/fields.ts
   readonly hint?: string | undefined
   readonly label?: string | undefined
   readonly persist?: boolean | undefined
 
 type FieldValue<F> = F extends NumberField ? number : F extends BoolField ? boolean : F extends EnumField<infer V extends string> ? V : F extends ColorField<infer D extends string | null> ? D extends null ? string | null : string : F extends TextField ? string : F extends VectorField<infer N extends VectorSize> ? VectorOf<N> : F extends TransformField ? Transform : F extends AssetRefField ? `ast_${string}` | null : F extends ActorRefField ? `act_${string}` | null : F extends ArrayField<infer I extends FieldDef> ? Array<FieldValue<I>> : F extends ObjectField<infer M extends FieldMap> ? FieldValues<M> : never  // src/core/schema/fields.ts
+
+type FormField = NumberFormField | BoolFormField | EnumFormField | ColorFormField | TextFormField | VectorFormField | TransformFormField | AssetRefFormField | ActorRefFormField | ArrayFormField | ObjectFormField  // src/core/schema/form.ts
+
+interface FormFieldBase  // src/core/schema/form.ts
+  readonly hint: string | null
+  readonly key: string
+  readonly label: string
+  readonly path: string
+
+interface FormRange  // src/core/schema/form.ts
+  readonly max: number | null
+  readonly min: number | null
 
 type IdOf<K extends IdKind> = `${{ readonly actor: "act"; readonly asset: "ast"; readonly level: "lvl"; }[K]}_${string}`  // src/core/id.ts
 
@@ -405,6 +517,18 @@ interface NumberField  // src/core/schema/fields.ts
   readonly slider?: readonly [number, number] | undefined
   readonly step?: number | undefined
 
+interface NumberFormField  // src/core/schema/form.ts
+  readonly control: "number" | "slider"
+  readonly default: number
+  readonly hint: string | null
+  readonly key: string
+  readonly kind: "number"
+  readonly label: string
+  readonly path: string
+  readonly range: FormRange
+  readonly slider: { readonly min: number; readonly max: number; } | null
+  readonly step: number | null
+
 interface ObjectField<M>  // src/core/schema/fields.ts
   readonly fields: M
   readonly hint?: string | undefined
@@ -412,10 +536,32 @@ interface ObjectField<M>  // src/core/schema/fields.ts
   readonly label?: string | undefined
   readonly persist?: boolean | undefined
 
+interface ObjectFormField  // src/core/schema/form.ts
+  readonly default: Record<string, unknown>
+  readonly fields: ReadonlyArray<FormField>
+  readonly hint: string | null
+  readonly key: string
+  readonly kind: "object"
+  readonly label: string
+  readonly path: string
+
 interface SaveStateOptions  // src/core/save/saveState.ts
   readonly hint?: string | undefined
   readonly label?: string | undefined
   readonly migrations?: MigrationMap | undefined
+
+interface SchemaRegistry  // src/core/schema/registry.ts
+  assetTypes: () => readonly AssetTypeDef[]
+  binaryTypesForFile: (fileName: string) => readonly BinaryAssetTypeDef[]
+  components: () => readonly ComponentDef[]
+  documentTypeForSchema: (schema: unknown) => DocumentAssetTypeDef | undefined
+  getAssetType: (name: string) => AssetTypeDef | undefined
+  getComponent: (name: string) => ComponentDef | undefined
+  getSaveState: (name: string) => SaveStateDef | undefined
+  registerAssetType: (def: AssetTypeDef) => void
+  registerComponent: (def: ComponentDef) => void
+  registerSaveState: (def: SaveStateDef) => void
+  saveStates: () => readonly SaveStateDef[]
 
 interface TextField  // src/core/schema/fields.ts
   readonly default: string
@@ -427,12 +573,31 @@ interface TextField  // src/core/schema/fields.ts
   readonly persist?: boolean | undefined
   readonly required?: boolean | undefined
 
+interface TextFormField  // src/core/schema/form.ts
+  readonly default: string
+  readonly hint: string | null
+  readonly key: string
+  readonly kind: "text"
+  readonly label: string
+  readonly multiline: boolean
+  readonly path: string
+  readonly pattern: string | null
+  readonly required: boolean
+
 interface TransformField  // src/core/schema/fields.ts
   readonly default: Readonly<Transform>
   readonly hint?: string | undefined
   readonly kind: "transform"
   readonly label?: string | undefined
   readonly persist?: boolean | undefined
+
+interface TransformFormField  // src/core/schema/form.ts
+  readonly default: Transform
+  readonly hint: string | null
+  readonly key: string
+  readonly kind: "transform"
+  readonly label: string
+  readonly path: string
 
 interface VectorField<N>  // src/core/schema/fields.ts
   readonly default: Readonly<VectorOf<N>>
@@ -444,6 +609,17 @@ interface VectorField<N>  // src/core/schema/fields.ts
   readonly persist?: boolean | undefined
   readonly size: N
   readonly step?: number | undefined
+
+interface VectorFormField  // src/core/schema/form.ts
+  readonly default: ReadonlyArray<number>
+  readonly hint: string | null
+  readonly key: string
+  readonly kind: "vector"
+  readonly label: string
+  readonly path: string
+  readonly range: FormRange
+  readonly size: VectorSize
+  readonly step: number | null
 
 type VectorOf<N extends VectorSize> = N extends 2 ? Vec2 : N extends 3 ? Vec3 : Vec4  // src/core/schema/fields.ts
 

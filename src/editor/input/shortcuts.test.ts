@@ -14,6 +14,7 @@ test("Forge's keys: Ctrl (or Cmd) actions, plain keys, Shift + H / G; Alt is nev
   expect(shortcutOf(key("Space", { ctrlKey: true }))).toBe("contentDrawer");
   expect(shortcutOf(key("Space"))).toBe("cycleTool");
   expect(shortcutOf(key("KeyB", { ctrlKey: true }))).toBe("browseTo");
+  expect(shortcutOf(key("KeyE", { ctrlKey: true }))).toBe("editAsset");
   expect(shortcutOf(key("KeyH", { shiftKey: true }))).toBe("showHidden");
   expect(shortcutOf(key("KeyG", { shiftKey: true }))).toBe("ungroup");
   expect(shortcutOf(key("KeyW", { altKey: true }))).toBeNull();

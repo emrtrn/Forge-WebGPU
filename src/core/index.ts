@@ -13,6 +13,7 @@ export * from "./assets/jsonSchema.ts";
 export * from "./assets/meta.ts";
 export * from "./assets/references.ts";
 export * from "./edit/contentProtocol.ts";
+export * from "./edit/assetPreviewProtocol.ts";
 export * from "./edit/history.ts";
 export * from "./edit/levelSession.ts";
 export * from "./edit/saveClient.ts";

@@ -22,6 +22,8 @@ import {
   FORGE_REQUEST_HEADER,
   installFeatures,
   normalizeActorClass,
+  normalizeActorDoc,
+  effectiveComponents,
   openLevelFromServer,
   type ActorClassDoc,
   type ActorId,
@@ -36,6 +38,9 @@ import type { RenderBindingDef } from "../render/sync/renderBinding.ts";
 import type { EditorRenderBindingDef } from "../render/editor/editorBinding.ts";
 import { createEditorViewport } from "../render/editor/editorViewport.ts";
 import { createThumbnailRenderer } from "../render/editor/thumbnails.ts";
+import { createAssetPreview, type AssetPreviewRegistration } from "../render/editor/assetPreview.ts";
+import { createAssetEditor } from "./assets/assetEditor.ts";
+import { assetDocumentAdapter, type EditableAsset } from "./assets/assetDocument.ts";
 import type { AssetFile } from "../render/resources/assetUrls.ts";
 import { assembleLevel } from "../runtime/assembler.ts";
 import { createWorld, type World } from "../runtime/world.ts";
@@ -61,9 +66,10 @@ import { installShellStyle } from "./shell/shellStyle.ts";
 import { installKitStyle } from "./ui/kitStyle.ts";
 import { createViewportControls } from "./viewportControls.ts";
 
-const helperModules = import.meta.glob<{ default: EditorRenderBindingDef }>("../features/*/editorRender.ts", { eager: true });
+const helperModules = import.meta.glob<{ default?: EditorRenderBindingDef; assetPreviews?: readonly AssetPreviewRegistration[] }>("../features/*/editorRender.ts", { eager: true });
 /** The engine features' editor helper bindings. */
-export const EDITOR_HELPER_BINDINGS: readonly EditorRenderBindingDef[] = Object.values(helperModules).map((module) => module.default);
+export const EDITOR_HELPER_BINDINGS: readonly EditorRenderBindingDef[] = Object.values(helperModules).flatMap((module) => module.default ? [module.default] : []);
+const ASSET_PREVIEWS = Object.values(helperModules).flatMap((module) => module.assetPreviews ?? []);
 
 const editorModules = import.meta.glob<{ default: FeatureEditorDef }>("../features/*/editor.ts", { eager: true });
 /** The engine features' editor sides. */
@@ -134,11 +140,19 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     const registry = createSchemaRegistry();
     installFeatures(options.features, registry);
     const classes = new Map<AssetId, ActorClassDoc>();
-    for (const raw of await options.client.classes()) {
+    let classGeneration = 0;
+    const refreshClasses = async () => {
+      const ticket = ++classGeneration;
+      const next = new Map<AssetId, ActorClassDoc>();
+      for (const raw of await options.client.classes()) {
       const result = normalizeActorClass(raw, { strict: true, registry });
-      if (result.value) classes.set(result.value.id, result.value);
+      if (result.value) next.set(result.value.id, result.value);
       else shell.status(`An actor class cannot be read: ${result.issues.map((issue) => issue.message).join("; ")}`, "warning");
-    }
+      }
+      if (ticket !== classGeneration) return;
+      classes.clear(); for (const [id, cls] of next) classes.set(id, cls);
+    };
+    await refreshClasses();
     const resolveClass: ClassResolver = (id) => classes.get(id);
     const opened = await openLevelFromServer(options.client, options.level, { strict: true, registry, resolveClass });
     const errors = opened.issues.filter((issue) => issue.severity === "error");
@@ -223,15 +237,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       assetUrlsReady = refreshAssetUrls();
       // Classes created/copied/deleted in engine content mode are usable by
       // Add Actor without restarting the server or reopening the page.
-      void options.client.classes().then((items) => {
-        const next = new Map<AssetId, ActorClassDoc>();
-        for (const raw of items) {
-          const result = normalizeActorClass(raw, { strict: true, registry });
-          if (result.value) next.set(result.value.id, result.value);
-        }
-        classes.clear();
-        for (const [id, cls] of next) classes.set(id, cls);
-      }).catch(() => shell.status("Actor classes could not be refreshed; refresh the content browser to retry.", "warning"));
+      void refreshClasses().catch(() => shell.status("Actor classes could not be refreshed; refresh the content browser to retry.", "warning"));
     });
     const host = viewport.host;
     const thumbnailRenderer = host ? createThumbnailRenderer({ renderer: host.renderer, resources: host.resources("thumbnails"), document: doc }) : null;
@@ -313,6 +319,67 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       pickSlot: (x, y) => viewport.pickSlot(x, y),
       status: (message, tone) => shell.status(message, tone),
     });
+    const editableAsset = (item: { file: string; id: string | null; type: string | null; name: string; writable: boolean } | undefined): EditableAsset | null =>
+      item?.id && item.type ? { ...item, id: item.id, type: item.type } : null;
+    const assetEditor = createAssetEditor({
+      document: doc, registry, client: options.client, catalog: assets, editors: FEATURE_EDITORS,
+      status: (message) => shell.status(message),
+      lookup: (id) => editableAsset(content.index().byId(id)),
+      source: () => {
+        const actor = session.selection.primary();
+        const current = actor ? session.level.actor(actor) : null;
+        const guid = current?.class ?? Object.values(current?.components ?? {}).find((component) => component.type.startsWith("forge.staticMesh@"))?.mesh;
+        return typeof guid === "string" ? editableAsset(content.index().byId(guid)) : null;
+      },
+      preview: (key, asset, container, edit, status) => {
+        const host = viewport.host;
+        if (!host) return null;
+        const context = { host, container, guid: asset.id, urls: options.assetUrls, materialType: options.materialType, readOnly: !asset.writable,
+          edit: (path: readonly (string | number)[], value: unknown, phase: "input" | "commit") => edit("UVW drag", path, value, phase), status,
+          classWorld: (document: Readonly<Record<string, unknown>>) => {
+            const result = normalizeActorClass(document, { strict: true, registry });
+            if (!result.ok || !result.value) throw new Error("Invalid actor class draft.");
+            const cls = result.value;
+            const resolver: ClassResolver = (id) => id === cls.id ? cls : resolveClass(id);
+            const previewWorld = createWorld({ strict: true, registry, resolveClass: resolver, features: [...options.features, host.feature(options.features, "asset-class-preview")], mode: "editor" });
+            try {
+              previewWorld.init();
+              const actor = normalizeActorDoc({ id: `act_${"f".repeat(32)}`, class: cls.id, name: cls.name, spatiallyLoaded: false }, { strict: true, registry, resolveClass: resolver });
+              if (!actor.ok || !actor.value) throw new Error("Cannot preview this class.");
+              previewWorld.addActors([actor.value], "level"); previewWorld.beginPlay();
+              return { scene: host.world!.scene, frame: (dt: number) => previewWorld.tick(dt), dispose: () => previewWorld.dispose() };
+            } catch (error) { previewWorld.dispose(); throw error; }
+          },
+        };
+        if (key === "forge.actorClass") return createAssetPreview(context, "class");
+        return ASSET_PREVIEWS.find((entry) => entry.key === key)?.create(context) ?? null;
+      },
+      beforeSave: (opened) => {
+        if (opened.adapter.kind !== "class") return null;
+        const result = normalizeActorClass(opened.value(), { strict: true, registry });
+        if (!result.ok || !result.value) return "The actor class is invalid.";
+        const candidate = result.value;
+        for (const actor of session.level.level.actors.filter((actor) => actor.class === candidate.id)) {
+          const checked = normalizeActorDoc(actor, { strict: true, registry, resolveClass: (id) => id === candidate.id ? candidate : resolveClass(id) });
+          if (!checked.ok) return `${actor.name}: ${checked.issues.map((issue) => issue.message).join("; ")} Your level edits are kept.`;
+        }
+        return null;
+      },
+      saved: async (opened) => {
+        await content.refresh(true); await refreshAssetUrls(); await refreshClasses();
+        const guid = opened.asset.id;
+        if (opened.adapter.kind === "model") viewport.host?.cache.evict(`model:${guid}`);
+        else if (opened.asset.type === "forge.material") viewport.host?.cache.evictPrefix(`material:${guid}:`);
+        const references = new Set([guid]);
+        for (const item of content.index().assets) if (item.id && item.type === "forge.model" && JSON.stringify(options.assetUrls.importSettings(item.id)).includes(guid)) references.add(item.id);
+        const users = session.level.level.actors.filter((actor) => {
+          const value = JSON.stringify({ class: actor.class, components: effectiveComponents(actor, actor.class ? classes.get(actor.class) : undefined) });
+          return [...references].some((id) => value.includes(id));
+        });
+        session.reload(users.map((actor) => actor.id));
+        const item = content.index().byId(guid); if (item) thumbnails?.refresh(item);
+      },
+    });
     shell.attachContent(
       createContentPanel({
         document: doc,
@@ -325,6 +392,8 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         save: () => shell.save(),
         thumbnails,
         drag: assetDrop,
+        canOpenAsset: (item) => { const asset = editableAsset(item); return !!asset && assetDocumentAdapter(asset, registry) !== null; },
+        openAsset: (item) => { const asset = editableAsset(item); if (asset) void assetEditor.open(asset); },
         // Forge's openLevel: unsaved edits are lost after a confirm; the page opens the level (`?level=`).
         openLevel: (folder, name) => {
           const view = doc.defaultView!;
@@ -369,6 +438,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       const dt = last === null ? 0 : (now - last) / 1000;
       last = now;
       try {
+        if (assetEditor.isOpen()) { viewport.host?.frame(now); view.requestAnimationFrame(frame); return; }
         for (const listener of [...frameListeners]) listener(dt);
         world!.tick(dt);
         viewport.frame(now);

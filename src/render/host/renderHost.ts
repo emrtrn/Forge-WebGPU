@@ -95,6 +95,8 @@ export interface RenderHostOptions {
 }
 
 export interface RenderHost {
+  /** Temporarily presents an editor preview on the same canvas/device. Release restores the level. */
+  preview(container: HTMLElement, draw: (renderer: WebGPURenderer, width: number, height: number) => void): () => void;
   readonly canvas: HTMLCanvasElement;
   readonly renderer: WebGPURenderer;
   readonly proof: BackendProof;
@@ -205,6 +207,8 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   let camera: Camera = new PerspectiveCamera();
   let world: RenderWorld | null = null;
   let overlay: RenderOverlay | null = null;
+  let previewSurface: HTMLElement | null = null;
+  let previewDraw: ((renderer: WebGPURenderer, width: number, height: number) => void) | null = null;
   applyShadowSwitch();
   let width = 0;
   let height = 0;
@@ -214,7 +218,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   const applySize = (): void => {
     const ratio = pixelRatio();
     if (ratio !== renderer.getPixelRatio()) renderer.setPixelRatio(ratio);
-    const rect = container.getBoundingClientRect();
+    const rect = (previewSurface ?? container).getBoundingClientRect();
     const w = Math.max(1, Math.round(rect.width));
     const h = Math.max(1, Math.round(rect.height));
     if (w === width && h === height) return;
@@ -277,6 +281,28 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   }));
 
   return {
+    preview(surface, draw) {
+      if (previewSurface) throw new Error("Only one asset preview can own the renderer.");
+      const previousWorld = world;
+      const previousCamera = camera;
+      const parent = canvas.parentNode!, next = canvas.nextSibling;
+      previewSurface = surface; previewDraw = draw;
+      surface.append(canvas);
+      observer.observe(surface);
+      width = height = 0;
+      applySize();
+      let released = false;
+      return () => {
+        if (released) return;
+        released = true;
+        observer.unobserve(surface);
+        previewSurface = null; previewDraw = null; world = previousWorld; camera = previousCamera;
+        parent.insertBefore(canvas, next?.parentNode === parent ? next : null);
+        width = height = 0;
+        applySize();
+        canvas.dataset.assetPreviewMemory = JSON.stringify(renderer.info.memory);
+      };
+    },
     canvas,
     renderer,
     proof,
@@ -325,7 +351,9 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       return quality;
     },
     frame(now) {
-      if (lost || world === null) return;
+      if (lost) return;
+      if (previewDraw) { applySize(); previewDraw(renderer, width, height); return; }
+      if (world === null) return;
       applySize();
       pipeline.render(world.scene, camera, world.output, quality.settings);
       overlay?.render({ renderer, scene: world.scene, camera, sceneDepth: pipeline.sceneDepth });

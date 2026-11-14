@@ -8,6 +8,20 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.10
+
+API: bb3bd9b259905ae0
+
+Asset editors (phase 4 step 7), additive in `@forge/editor-sdk`:
+`defineFeatureEditor({ assetEditors })` registers an `AssetEditorPresentation`
+by asset type, an optional renderer-free preview key, handled field paths and
+tools. `AssetEditorExtensionContext` exposes the draft, schema fields, asset
+catalog, read-only state, edit transactions and the `AssetPreviewController`;
+extensions return an element with optional update/dispose hooks. Preview
+information lists material slots and mesh primitive identities. Existing
+feature editor registrations default to an empty list. HTTP and asset data
+schemas are unchanged; game schemas automatically get the generic form/table.
+
 ## 0.1.9
 
 API: 0ef8cb3a58b5d2b9

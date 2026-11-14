@@ -97,3 +97,11 @@ test("evict forgets a resource whatever its uses: the next acquire loads again; 
   expect(await owner.acquire("model:a", load)).toBe(2);
   expect(cache.uses("model:a")).toBe(1);
 });
+
+test("releasing an old generation after a save does not release the new material", async () => {
+  const cache = createResourceCache(), owner = cache.owner("preview");
+  await owner.acquire("material:a:lit", () => 1); cache.evictPrefix("material:a:");
+  await owner.acquire("material:a:lit", () => 2);
+  owner.release("material:a:lit"); expect(cache.uses("material:a:lit")).toBe(1);
+  owner.releaseAll(); expect(cache.uses("material:a:lit")).toBe(0);
+});

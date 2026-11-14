@@ -34,6 +34,7 @@
 
 import { COMPONENT_NAME_PATTERN, SchemaDefinitionError, type ServiceKey } from "../../core/index.ts";
 import { ACTOR_TYPE_ICONS, type ActorTypeIcon } from "../ui/icons.ts";
+import type { AssetEditorPresentation } from "./assetEditorTypes.ts";
 
 export type { ActorTypeIcon } from "../ui/icons.ts";
 
@@ -164,6 +165,7 @@ export interface FeatureEditorDef {
   readonly newAssets: readonly NewAssetTemplate[];
   /** What its asset types do when dragged into the viewport. */
   readonly assets: readonly AssetDropRule[];
+  readonly assetEditors: readonly AssetEditorPresentation[];
 }
 
 export interface FeatureEditorOptions {
@@ -173,6 +175,7 @@ export interface FeatureEditorOptions {
   readonly details?: Readonly<Record<string, DetailsExtension>>;
   readonly newAssets?: readonly NewAssetTemplate[];
   readonly assets?: readonly AssetDropRule[];
+  readonly assetEditors?: readonly AssetEditorPresentation[];
 }
 
 const OUTLINER_TYPE_SET: ReadonlySet<string> = new Set(OUTLINER_TYPES.map((entry) => entry.type));
@@ -229,6 +232,11 @@ export function defineFeatureEditor(options: FeatureEditorOptions): FeatureEdito
       throw new SchemaDefinitionError(`${where}: assign names a component and gives a function of its fields.`);
     }
   }
+  for (const editor of options.assetEditors ?? []) {
+    if (!COMPONENT_NAME_PATTERN.test(editor.assetType)) throw new SchemaDefinitionError("Asset editor needs a namespaced asset type.");
+    if (editor.preview !== undefined && !COMPONENT_NAME_PATTERN.test(editor.preview)) throw new SchemaDefinitionError("Asset preview needs a namespaced key.");
+    if (editor.tools !== undefined && typeof editor.tools !== "function") throw new SchemaDefinitionError("Asset tools must be a function.");
+  }
   return Object.freeze({
     kind: "featureEditor",
     feature: options.feature,
@@ -237,5 +245,6 @@ export function defineFeatureEditor(options: FeatureEditorOptions): FeatureEdito
     details: Object.freeze(details),
     newAssets: Object.freeze([...(options.newAssets ?? [])]),
     assets: Object.freeze([...(options.assets ?? [])]),
+    assetEditors: Object.freeze([...(options.assetEditors ?? [])]),
   });
 }

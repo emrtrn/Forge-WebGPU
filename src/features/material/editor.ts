@@ -16,5 +16,6 @@ const PRESETS = [
 
 export default defineFeatureEditor({
   feature: "forge.material",
+  assetEditors: [{ assetType: "forge.material", preview: "forge.material" }],
   newAssets: PRESETS.map(([preset, label, description]) => ({ type: MaterialAssetType.name, label, description, values: MATERIAL_PRESET_VALUES[preset] })),
 });

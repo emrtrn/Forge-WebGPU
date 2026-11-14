@@ -24,6 +24,17 @@ feature's helper drawing in `features/*/editorRender.ts` (phase 4 decision 1).
   catalog reads the same listing (`assets/assetCatalog.ts`).
 - `session/`: the editor session (level session, the editor's world kept in
   step, selection, save).
+- `assets/`: the shared asset editor (phase 4 / 7): document adapters and
+  revisioned sessions with independent undo/redo, a virtual schema table,
+  model tools and the actor-class tree. Content Browser double click/Open
+  or Ctrl+E on a placed source opens one window. Save/Discard/Cancel guards
+  switching; a 409 keeps the draft, Reload reads disk after confirmation.
+  Features register asset presentation/tools through `assetEditors` and
+  renderer factories through `editorRender.ts`'s `assetPreviews`. Rendering
+  remains in `render/editor`: the level's canvas/device is leased to the
+  preview and restored on close. Drafts have private geometry/materials;
+  successful saves refresh users without saving or dirtying the level.
+  The generic form/table is automatic for game-defined JSON asset schemas.
 - The viewport (`src/render/editor`, three): the editor camera (Forge's
   controls and presets, the pose remembered per level), the drawing layer
   after the frame (scene-depth tested, no tone mapping) and its grid.

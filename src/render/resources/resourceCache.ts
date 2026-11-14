@@ -60,6 +60,8 @@ export interface ResourceCache {
    * old one does nothing. Its users must acquire it again to see the new one.
    */
   evict(key: string): void;
+  /** Editor save: all contribution variants of one material are rebuilt together. */
+  evictPrefix(prefix: string): void;
 }
 
 interface Entry {
@@ -113,28 +115,25 @@ export function createResourceCache(): ResourceCache {
 
   return {
     owner(name) {
-      const held = new Map<string, number>();
-      const giveBack = (key: string, count: number): void => {
-        const entry = entries.get(key);
-        if (entry) entry.uses = Math.max(0, entry.uses - count);
-      };
+      // Retain the acquired generation. An asset save may evict/reacquire a
+      // key before its old users release it; they must not release the new one.
+      const held = new Map<string, Entry[]>();
       return {
         name,
         acquire<T>(key: string, load: () => T | Promise<T>): Promise<T> {
           const entry = entryFor(key, load);
           entry.uses += 1;
-          held.set(key, (held.get(key) ?? 0) + 1);
+          const list = held.get(key) ?? []; list.push(entry); held.set(key, list);
           return entry.promise as Promise<T>;
         },
         release(key) {
-          const count = held.get(key) ?? 0;
-          if (count === 0) return;
-          if (count === 1) held.delete(key);
-          else held.set(key, count - 1);
-          giveBack(key, 1);
+          const list = held.get(key), entry = list?.shift();
+          if (!entry) return;
+          if (!list!.length) held.delete(key);
+          entry.uses = Math.max(0, entry.uses - 1);
         },
         releaseAll() {
-          for (const [key, count] of held) giveBack(key, count);
+          for (const list of held.values()) for (const entry of list) entry.uses = Math.max(0, entry.uses - 1);
           held.clear();
         },
       };
@@ -145,6 +144,9 @@ export function createResourceCache(): ResourceCache {
     settled: () => (pending === 0 ? Promise.resolve() : new Promise<void>((resolve) => waiters.push(resolve))),
     evict(key) {
       entries.delete(key);
+    },
+    evictPrefix(prefix) {
+      for (const key of entries.keys()) if (key.startsWith(prefix)) entries.delete(key);
     },
   };
 }

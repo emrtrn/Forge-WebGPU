@@ -66,6 +66,9 @@ export interface ContentPanelOptions {
   readonly drag?: AssetDrop;
   /** Opens a level in the editor (step 6f: a Level card's double click, Open Level…). */
   readonly openLevel?: (folder: string, name: string) => void;
+  /** Schema-driven asset editor (phase 4 step 7). False leaves a non-editable file alone. */
+  readonly canOpenAsset?: (item: ContentAssetItem) => boolean;
+  readonly openAsset?: (item: ContentAssetItem) => void;
   /** Import (step 6e): the extensions it takes, and what follows a reimport. */
   readonly importExtensions?: readonly string[];
   readonly reimported?: (item: ContentAssetItem) => void;
@@ -313,6 +316,7 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
       event,
       [
         ...(item.levelFolder !== null ? levelMenu(item) : []),
+        ...(options.canOpenAsset?.(item) ? [{ label: "Open", run: () => options.openAsset?.(item), testId: "content-menu-open-asset" }, { separator: true as const }] : []),
         ...(options.thumbnails && thumbnailKind(item) !== null
           ? [{ label: "Refresh Thumbnail", run: () => options.thumbnails!.refresh(item), testId: "content-menu-refresh-thumbnail" }, { separator: true as const }]
           : []),
@@ -397,6 +401,7 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
         });
       }
     }
+    else if (options.canOpenAsset?.(item)) card.addEventListener("dblclick", (event) => { event.preventDefault(); options.openAsset?.(item); });
     if (options.drag?.draggable(item)) {
       card.draggable = true;
       card.addEventListener("dragstart", (event) => {

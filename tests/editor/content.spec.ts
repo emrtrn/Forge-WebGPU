@@ -104,6 +104,9 @@ test("the drawer: tree, folders and cards, search, filter, size, Back / Forward,
   await expect(folderRow(page, "engine:content/engine")).toHaveClass(/is-read-only/);
   await expect(folderRow(page, "engine:content/packs/starter")).toHaveClass(/is-read-only/);
 
+  // Wait for the actual drawer height transition: otherwise a press during
+  // opening can land on the shell and close the drawer before the click.
+  await drawer(page).evaluate(async (element) => { await Promise.all(element.getAnimations().map((animation) => animation.finished.catch(() => {}))); });
   await folderRow(page, "content/props").click();
   await expect(lastCrumb(page)).toHaveAttribute("title", "content/props");
   await expect(page.locator("[data-folder-path='content/props/sub']")).toBeVisible();

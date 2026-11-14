@@ -9,6 +9,14 @@
   cylinder, gizmo konum / dönüş / ölçek), `vertexColors` (primitive başına
   RGBA köşe renkleri). Sürüm 1 (ayarsız) dosyaları varsayılanlara geçer.
 - `feature.ts`: yalnız asset türünü kurar.
+- `editor.ts`: ortak asset editörüne model önizlemesini ve slot / UVW /
+  vertex renk araçlarını kaydeder (Faz 4 / 7). `editorRender.ts` yalnız
+  editörün topladığı önizleme fabrikasıdır; ikinci renderer açmaz.
+- Content Browser çift tık / Open veya yerleştirilmiş modelde Ctrl+E ile
+  açılır. Slotlar, UVW formu / gizmosu ve vertex doldur / sil aynı meta
+  taslağını ve undo geçmişini kullanır. Save GLB'yi değiştirmez; Optimize
+  ayarları sonraki Reimport'ta uygulanır. Topoloji uyuşmazsa kayıtlı vertex
+  verisi korunur; otomatik onarım ve çarpışma bu adımda yoktur.
 - Yükleme render katmanında (`model:<guid>`): slot materyalleri, UVW ve köşe
   renkleri yüklenen sahneye uygulanır; yerleşim `forge.staticMesh.materials`
   ile slotları değiştirebilir.

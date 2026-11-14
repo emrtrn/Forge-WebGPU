@@ -5,6 +5,7 @@
 // follows the SDK's version.
 
 export { SDK_VERSION } from "../sdk/version.ts";
+export type { AssetEditorPresentation, AssetEditorExtension, AssetEditorExtensionContext, AssetPreviewController, AssetPreviewInfo } from "../editor/host/assetEditorTypes.ts";
 export {
   ADD_ACTOR_CATEGORIES,
   defineFeatureEditor,

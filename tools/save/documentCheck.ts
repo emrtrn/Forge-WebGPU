@@ -54,6 +54,7 @@ import {
   type SchemaRegistry,
 } from "../../src/core/index.ts";
 import type { DocumentCheck, SaveContext, SaveIssue } from "./transaction.ts";
+import { checkClassConsumers, type ClassConsumerOptions } from "./classCompatibility.ts";
 
 /** Actor classes by id, kept in step with the files on disk. */
 export interface ClassStore {
@@ -140,7 +141,7 @@ function pendingClasses(context: SaveContext, registry: SchemaRegistry): Map<str
   return classes;
 }
 
-export function createDocumentCheck(registry: SchemaRegistry, classes: ClassStore): DocumentCheck {
+export function createDocumentCheck(registry: SchemaRegistry, classes: ClassStore, consumers?: ClassConsumerOptions): DocumentCheck {
   const overlays = new WeakMap<SaveContext, Map<string, ActorClassDoc>>();
   const resolverFor = (context: SaveContext): ClassResolver => {
     let overlay = overlays.get(context);
@@ -198,7 +199,9 @@ export function createDocumentCheck(registry: SchemaRegistry, classes: ClassStor
 
     if (schema === ACTOR_CLASS_SCHEMA) {
       const result = normalizeActorClass(json, options);
-      return { text: result.value ? stringifyDocument(result.value) : "", issues: toSaveIssues(path, result.issues) };
+      const issues = toSaveIssues(path, result.issues);
+      if (consumers && result.ok && result.value && classes.get(result.value.id)) issues.push(...await checkClassConsumers(result.value, path, context, registry, resolverFor(context), consumers));
+      return { text: result.value ? stringifyDocument(result.value) : "", issues };
     }
 
     if (schema === LEVEL_CELL_INDEX_SCHEMA) return refuse(path, "server-owned", "A level's cell index is written by the server only.");

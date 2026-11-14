@@ -232,7 +232,9 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
     selection,
     visibility,
     reload(ids) {
-      const there = ids.filter((id) => world.context.actor(id) !== undefined);
+      const wanted = new Set(ids), children = childrenIndex();
+      for (const id of wanted) for (const child of children.get(id) ?? []) wanted.add(child);
+      const there = [...wanted].filter((id) => world.context.actor(id) !== undefined);
       const set = new Set(there);
       // A child of another one here goes out with it.
       const roots = there.filter((id) => {
@@ -241,6 +243,7 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
       });
       if (roots.length > 0) world.removeActors(roots);
       syncWorld(there, new Set());
+      notify();
     },
     edit: (label, build, editOptions) => level.edit(label, build, editOptions),
     undo: () => level.undo(),

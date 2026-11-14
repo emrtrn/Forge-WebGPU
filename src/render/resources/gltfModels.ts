@@ -22,7 +22,7 @@ import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { LoadingManager, type WebGPURenderer } from "three/webgpu";
 import { isJsonObject } from "../../core/index.ts";
 import type { AssetUrls } from "./assetUrls.ts";
-import { applyDefaultModelTextureAnisotropy, applyUvwMapping, ensureVertexNormals, modelMaterialSlots, type UvwSettings } from "./modelSetup.ts";
+import { applyDefaultModelTextureAnisotropy, applyModelVertexColors, applyUvwMapping, ensureVertexNormals, modelMaterialSlots, type ModelVertexColors, type UvwSettings } from "./modelSetup.ts";
 import type { ModelSource, ModelTemplate } from "./worldResources.ts";
 
 export class ModelNotFoundError extends Error {
@@ -85,6 +85,7 @@ export function createGltfModelSource(renderer: WebGPURenderer, urls: AssetUrls)
       ensureVertexNormals(gltf.scene);
       applyDefaultModelTextureAnisotropy(gltf.scene, renderer.getMaxAnisotropy());
       applyUvwMapping(gltf.scene, uvwOf(settings));
+      if (isJsonObject(settings) && Array.isArray(settings.vertexColors)) applyModelVertexColors(gltf.scene, settings.vertexColors as unknown as ModelVertexColors[]);
       return { scene: gltf.scene, slots: modelMaterialSlots(gltf.scene), slotMaterials: slotMaterialsOf(settings) };
     },
     ktx2,

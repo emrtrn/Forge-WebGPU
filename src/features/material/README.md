@@ -10,6 +10,12 @@ Yüzey materyali: şemalı JSON asset türü (mimari §4.6, §4.9; Faz 3 karar 5
   editörün yeni materyal şablonu. Doku slotları `forge.texture`; renk uzayını
   slot belirler (`SRGB_TEXTURE_SLOTS`).
 - `feature.ts`: yalnız asset türünü kurar.
+- `editor.ts`: yeni materyal şablonları ve ortak asset editörü kaydı;
+  `editorRender.ts`: tek renderer'da taslağa özel küre önizlemesi (Faz 4 / 7).
+  Alanlar Details ile aynı şema kitinden üretilir. Preset, undo / redo ve
+  Save ortak belge oturumundadır. Taslak sahneyi değiştirmez; başarılı
+  kayıt materyal kullanımlarını ve küçük resmi tazeler. Normal proje
+  kipinde motor / paket materyalleri yalnız incelenir.
 - Çizim render katmanında (`src/render/materials/`): bir materyal GUID'i ve
   katkı imzasıyla bir node material olur (`material:<guid>:<imza>`).
   `sway` 5c'de, `terrainDetail` 5a'da çizilir.

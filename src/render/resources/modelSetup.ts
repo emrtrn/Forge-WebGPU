@@ -12,8 +12,8 @@
 // - The material slots: the unique materials in traversal order (Forge's
 //   collectAssetMaterialElements), the order `forge.model.materials` and
 //   `forge.staticMesh.materials` index.
-// The model's vertex colours (`vertexColors`) are Mesh Paint's defaults; Forge's
-// runtime did not apply them either (the editor's "To Mesh" does, phase 4).
+// Vertex colours are model defaults (phase 4 step 7), matched by primitive
+// identity/topology. A mismatch never rewrites the stored data.
 
 import {
   BufferAttribute,
@@ -29,6 +29,35 @@ import {
   type Material,
   type Object3D,
 } from "three/webgpu";
+
+export interface ModelVertexColors { readonly meshName: string; readonly primitiveIndex: number; readonly vertexCount: number; readonly colors: readonly number[] }
+export function modelPrimitives(root: Object3D): { mesh: Mesh; meshName: string; primitiveIndex: number; vertexCount: number }[] {
+  const result: { mesh: Mesh; meshName: string; primitiveIndex: number; vertexCount: number }[] = [];
+  const counts = new Map<string, number>();
+  root.traverse((object) => {
+    if (!(object instanceof Mesh)) return;
+    const name = object.name;
+    const primitiveIndex = counts.get(name) ?? 0;
+    counts.set(name, primitiveIndex + 1);
+    result.push({ mesh: object, meshName: name, primitiveIndex, vertexCount: object.geometry.getAttribute("position")?.count ?? 0 });
+  });
+  return result;
+}
+export function applyModelVertexColors(root: Object3D, entries: readonly ModelVertexColors[], warn: (message: string) => void = console.warn): void {
+  const targets = modelPrimitives(root);
+  for (const entry of entries) {
+    const target = targets.find((one) => one.meshName === entry.meshName && one.primitiveIndex === entry.primitiveIndex);
+    if (!target || target.vertexCount !== entry.vertexCount || entry.colors.length !== entry.vertexCount * 4) {
+      warn(`Vertex colors do not match ${entry.meshName} primitive ${entry.primitiveIndex}; stored colors kept.`);
+      continue;
+    }
+    target.mesh.geometry.setAttribute("color", new BufferAttribute(new Float32Array(entry.colors), 4));
+    for (const material of meshMaterials(target.mesh)) {
+      (material as Material & { vertexColors: boolean }).vertexColors = true;
+      material.needsUpdate = true;
+    }
+  }
+}
 import { DEFAULT_ANISOTROPY } from "./textures.ts";
 
 export type UvwMapType = "none" | "planar" | "box" | "sphere" | "cylinder";
@@ -105,7 +134,7 @@ export function projectUv(type: Exclude<UvwMapType, "none">, point: Vector3, nor
 }
 
 /** Rewrites the UVs of every mesh under `root` (model space) through the gizmo; `none` leaves them. */
-export function applyUvwMapping(root: Object3D, uvw: UvwSettings): void {
+export function applyUvwMapping(root: Object3D, uvw: UvwSettings, repeatTextures = true): void {
   if (uvw.mapType === "none") return;
   const mapType = uvw.mapType;
   root.updateMatrixWorld(true);
@@ -142,7 +171,7 @@ export function applyUvwMapping(root: Object3D, uvw: UvwSettings): void {
     if (uv !== existing) geometry.setAttribute("uv", uv);
     uv.needsUpdate = true;
     // Projected UVs run past 0..1: the model's own textures repeat (Forge's setMaterialTexturesToRepeat).
-    for (const material of meshMaterials(object)) {
+    for (const material of repeatTextures ? meshMaterials(object) : []) {
       for (const value of Object.values(material)) {
         if (value instanceof Texture) {
           value.wrapS = RepeatWrapping;

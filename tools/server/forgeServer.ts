@@ -254,11 +254,12 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
   let snapshot: Promise<{ scan: ScanResult; index: AssetIndex }> | null = Promise.resolve(first);
   const current = (): Promise<{ scan: ScanResult; index: AssetIndex }> => (snapshot ??= indexRoots());
   const engineMode = engine !== null;
+  const classFiles = async () => (await indexRoots()).scan.files.filter((file) => file.json !== undefined).map((file) => ({ file: `${file.root}/${file.path}`, json: file.json }));
   const writableLabel = (label: string): boolean =>
     readOnlyRoots.some((root) => root.label === label) ? engine?.rootOf(label) !== undefined : !options.readOnly;
   const saves = createSaveService({
     policy,
-    check: createDocumentCheck(options.registry, classes),
+    check: createDocumentCheck(options.registry, classes, { files: classFiles, label: (path) => path }),
     afterSave: (files) => {
       snapshot = null;
       return classes.refresh(files.map((file) => file.path));
@@ -269,7 +270,7 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
   const engineSaves = engine
     ? createSaveService({
         policy: engine.policy,
-        check: createDocumentCheck(options.registry, classes),
+        check: createDocumentCheck(options.registry, classes, { files: classFiles, label: (path) => `${ENGINE_LABEL_PREFIX}${path}` }),
         afterSave: async (files) => {
           snapshot = null;
           // Recovery can report no paths: include old and new class paths so
