@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v1.17 · 2026-11-14 (v1.16'dan fark: Faz 4 adım 4 tamam — gizmo (Forge'unki, sürükleme matematiği three'siz), araçlar ve snap widget'ları, zemin / duvar snap'i picker ışınlarıyla, pivot (kullanıcı kararı: aktör belgesinde `pivot`), instancing transform hızlı yolu; 11 R yeniden yazıldı; mimari v1.20. v1.16 · 2026-11-14 (v1.15'ten fark: Faz 4 adım 3 tamam — editör viewport'u: editör kamerası ve kipleri, çizim katmanı (sahne derinliğine karşı; pipeline'sız karede derinlik ön geçişi), ızgara, CPU picking ve seçim çerçevesi, View Mode / Show / Quality menüleri, `editorRender` bağlamaları ve ışığın yardımcıları; mimari v1.19. v1.15 · 2026-11-13 (v1.14'ten fark: Faz 4 adım 2 tamam — 2b üretim build'i (kullanıcı kararı: Faz 4), statik içerik, `verify:dist --strict`, alt dizin smoke'u; dist kutusu işaretli. v1.14 · 2026-11-13 (v1.13'ten fark: Faz 4 adım 2'nin dilimi — editörün World'ü (`inEditor`, kullanıcı kararı), `actorsChanged`, `editorRender` kuralı, editör oturumu, `?editor` kabuğu, editör smoke'u, `verify:dist`; kalan 2b üretim build'i. v1.13 · 2026-11-13 (v1.12'den fark: Faz 4 adım 1 tamam — UI kiti (`src/editor/ui`), `?editor-kit`, editörün tarayıcı denetimleri gate ve CI'da. v1.12 · 2026-11-13 (v1.11'den fark: Faz 4 başladı — döküm (36 INV satırı, ertelenmiş A yok, 11 R), kararlar 1–12 (kullanıcı onayı), adım sırası 1–10; mimari v1.16. v1.11 · 2026-11-13 (v1.10'dan fark: Faz 3 kapandı — adım 9: smoke tam seti Faz 0 pozu ve boyutuyla, Faz 0 ile yan yana ızgara (`npm run smoke:grid`), yönlü ışıkların dünya çerçevesi düzeltmesi; kullanıcının görsel kabulü ve referanslar; view distance 5b'ye (kullanıcı kararı); bölüm `docs/archive/PHASE_3.md`'ye taşındı; mimari v1.15. v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 8 tamam — otomatik instancing, terrain salt çizimi, görüntüleyicinin varsayılan kamerası, `?debug` paneli, bütün çizen referans level'lar smoke'ta; kullanıcı kararları: terrain / örtü katman materyali GUID, paket manifesti `requires`, `?debug` kapsamı; referans projesi yeniden alındı; mimari v1.14. v1.9 · 2026-11-13 (v1.8'den fark: Faz 3 adım 7 tamam — olay bazlı gün saati: `timeTransition`, `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri), Sky Light yakalaması aynı PMREM'e, ölçülerek seçilen yakalama hızı (açı + 0,1 sn + durunca son yakalama), `npm run measure:sky-capture`; kullanıcı kararları; mimari v1.13. v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
+**Sürüm:** v1.18 · 2026-11-14 (v1.17'den fark: Faz 4 adım 5 tamam — paneller: sanallaştırılmış Outliner (50.000 ölçümü), şemadan Details ve çoklu seçim, düzenleme işlemleri ve gruplama, Add Actor + sürükle-bırak, World Settings ve ortam ayrıntıları, kısayollar ve sağ tık menüsü; kullanıcı kararları 2026-11-14; SDK 0.1.7; mimari v1.21. v1.17 · 2026-11-14 (v1.16'dan fark: Faz 4 adım 4 tamam — gizmo (Forge'unki, sürükleme matematiği three'siz), araçlar ve snap widget'ları, zemin / duvar snap'i picker ışınlarıyla, pivot (kullanıcı kararı: aktör belgesinde `pivot`), instancing transform hızlı yolu; 11 R yeniden yazıldı; mimari v1.20. v1.16 · 2026-11-14 (v1.15'ten fark: Faz 4 adım 3 tamam — editör viewport'u: editör kamerası ve kipleri, çizim katmanı (sahne derinliğine karşı; pipeline'sız karede derinlik ön geçişi), ızgara, CPU picking ve seçim çerçevesi, View Mode / Show / Quality menüleri, `editorRender` bağlamaları ve ışığın yardımcıları; mimari v1.19. v1.15 · 2026-11-13 (v1.14'ten fark: Faz 4 adım 2 tamam — 2b üretim build'i (kullanıcı kararı: Faz 4), statik içerik, `verify:dist --strict`, alt dizin smoke'u; dist kutusu işaretli. v1.14 · 2026-11-13 (v1.13'ten fark: Faz 4 adım 2'nin dilimi — editörün World'ü (`inEditor`, kullanıcı kararı), `actorsChanged`, `editorRender` kuralı, editör oturumu, `?editor` kabuğu, editör smoke'u, `verify:dist`; kalan 2b üretim build'i. v1.13 · 2026-11-13 (v1.12'den fark: Faz 4 adım 1 tamam — UI kiti (`src/editor/ui`), `?editor-kit`, editörün tarayıcı denetimleri gate ve CI'da. v1.12 · 2026-11-13 (v1.11'den fark: Faz 4 başladı — döküm (36 INV satırı, ertelenmiş A yok, 11 R), kararlar 1–12 (kullanıcı onayı), adım sırası 1–10; mimari v1.16. v1.11 · 2026-11-13 (v1.10'dan fark: Faz 3 kapandı — adım 9: smoke tam seti Faz 0 pozu ve boyutuyla, Faz 0 ile yan yana ızgara (`npm run smoke:grid`), yönlü ışıkların dünya çerçevesi düzeltmesi; kullanıcının görsel kabulü ve referanslar; view distance 5b'ye (kullanıcı kararı); bölüm `docs/archive/PHASE_3.md`'ye taşındı; mimari v1.15. v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 8 tamam — otomatik instancing, terrain salt çizimi, görüntüleyicinin varsayılan kamerası, `?debug` paneli, bütün çizen referans level'lar smoke'ta; kullanıcı kararları: terrain / örtü katman materyali GUID, paket manifesti `requires`, `?debug` kapsamı; referans projesi yeniden alındı; mimari v1.14. v1.9 · 2026-11-13 (v1.8'den fark: Faz 3 adım 7 tamam — olay bazlı gün saati: `timeTransition`, `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri), Sky Light yakalaması aynı PMREM'e, ölçülerek seçilen yakalama hızı (açı + 0,1 sn + durunca son yakalama), `npm run measure:sky-capture`; kullanıcı kararları; mimari v1.13. v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
 `forge.skyAtmosphere` / `forge.skyLight` (arka plan ve ortam ışığı dahil,
 kullanıcı kararı) / `forge.cloudLayer` / `forge.worldEnvironment` (sabit
 saat), TSL gökyüzü + ay + yıldız, PMREM Sky Light, bulut, WES yorumu,
@@ -479,9 +479,30 @@ bölüm + §11, gerekirse mimari rapor ve harita, hafıza):
    adımları, ayar sayfanın), Details'te Pivot (viewport'ta sürükle, Reset / Center / Base) ve Placement (Snap to
    Floor / Wall). Editör smoke'u: tek küplü level'da gizmo'yla taşıma, snap, undo / redo, araç tuşları, End.
    A 934 / 1.021.
-5. Paneller: Outliner (50.000 aktör ölçümü), şemadan Details (çoklu seçim),
+5. ~~Paneller: Outliner (50.000 aktör ölçümü), şemadan Details (çoklu seçim),
    düzenleme işlemleri ve gruplama, Add Actor + sürükle-bırak, World Settings + ortam /
-   post-process ayrıntıları, kısayollar.
+   post-process ayrıntıları, kısayollar.~~ — **tamam** (2026-11-14). **Kullanıcı kararları
+   (hepsi öneri):** 50.000 ölçümü ayrı `npm run bench:outliner` (kapıda değil); override'lar
+   Unreal gibi satırda; Add Actor = özelliklerin girişleri + Empty Actor + projenin aktör
+   sınıfları; World Settings = level ayarı + tekil ortam aktörleri; kilit belgede
+   (`locked`), gizleme yalnız görünüm; sınıfsız aktöre Add / Remove Component; ortam
+   ekstralarından Ground Mist Setup ve World Environment önizlemesi; pano sistem panosu JSON.
+   `aa3726d` çekirdek: `locked`, oturumda kimlik dizini ve döngü reddi. `1a36338` 5a:
+   sanallaştırılmış Outliner (Forge'un arama / tür filtresi / göz / kilit; hiyerarşi ve
+   katlama; aralık seçimi; çift tıkla ad; sürükle-bırakla ebeveyn, dünya yeri korunur),
+   `defineFeatureEditor` (SDK 0.1.5), gizleme oturumda, bench: ilk kurma 47,8 ms, seçim p95
+   3,5 ms, kaydırma p95 0,9 ms, arama 23,1 ms, 23 DOM satırı (ilk denemede her yeniden
+   kurmada bileşen kopyası 191 / 203 ms'ye çıkarıyordu). `e3f44f6` 5b: Details panele
+   (şemadan form, çoklu seçim "Multiple Values", sınıf override'ı + sıfırlama, Add / Remove
+   Component, kaydırıcı tek adım, gizmo sürüklemesinde canlı alanlar, asset adı ve seçici).
+   `c887976` 5c: çoğalt / sil / kopyala / yapıştır, grupla / çöz, Parent to active / Unparent,
+   gruba tıklamak grubu seçer, Alt + sürükle çoğaltma, kısayol tablosu. `15a704b` 5d: Add
+   Actor menüsü ve sürükle-bırak (Forge'un yerleştirme kuralı; SDK 0.1.6). `1963a77` 5e: ana
+   menü, World Settings, Details eklentileri (Ground Mist, World Environment önizlemesi; SDK
+   0.1.7); `selection.spec`'in zamanlamaya bağlı kırılması (Ctrl+tık gizmo tutamağına
+   denk geliyordu) giderildi. `cd55e12` 5f: bütün kısayollar tek tabloda, Outliner sağ tık
+   menüsü. Forge'da viewport sağ tık menüsü yoktu (sağ tuş kamera); burada da yok. Editör
+   smoke'u 28 test. A 934 / 1.021.
 6. Content Browser: ağaç / filtre / arama / küçük resim, referans güvenli taşıma ve
    silme, içe aktarma (GLB / doku / ses + meta, GLB optimizasyonu), Open Level, motor
    içeriği kipi.
@@ -490,10 +511,10 @@ bölüm + §11, gerekirse mimari rapor ve harita, hafıza):
 9. Ajan komutları (A12) + editörün canlı tazelenmesi.
 10. Editör smoke tam seti → kapı → kapanış.
 
-- [ ] Editör kabuğu ve servisleri (§2.2): viewport host, kamera, seçim (CPU
+- [x] Editör kabuğu ve servisleri (§2.2): viewport host, kamera, seçim (CPU
       raycast picking), gizmo (Forge'unki, karar 2), pivot, grup / hiyerarşi,
       undo / redo. *Adım 3–4 (2026-11-14):* viewport, kamera, picking, gizmo, snap,
-      pivot; grup / hiyerarşi adım 5'te.
+      pivot; *adım 5:* grup / hiyerarşi, düzenleme işlemleri, kısayollar.
 - [x] Editör çizim katmanı: gizmo, seçim çerçevesi, ızgara ve yardımcı
       çizimler TRAA'dan sonra, jitter'sız ayrı bir pass'te çizilir (TRAA
       geçmişine girerlerse titrer ve iz bırakır); derinlik testi sahne
@@ -508,7 +529,9 @@ bölüm + §11, gerekirse mimari rapor ve harita, hafıza):
       Details (şema tabanlı), Content Browser, World Settings, ortam ve
       post-process ayrıntıları (görünüm ayarı burada yapılır), Add Actor menüsü.
       Outliner sanallaştırılmış liste; 50.000 aktörde akıcı (mimari A1 ölçüm
-      sahnesi). `data-testid` sözleşmesi korunur.
+      sahnesi). `data-testid` sözleşmesi korunur. *Adım 5 (2026-11-14):* Outliner
+      (`npm run bench:outliner` eşik içinde), Details, World Settings, ortam ayrıntıları,
+      Add Actor; Content Browser adım 6'da.
 - [ ] Kaydet / aç, Open Level, Play (runtime'ı yeni sekmede açar; kaydedilmemiş
       anlık görüntüyle, diske yazmadan — mimari A6; oturum katmanı, karar 8).
 - [x] Dist doğrulaması (`verify:dist --strict`: editör sızıntısı yok; motor
@@ -825,3 +848,4 @@ silinebilir.
 | 2026-11-13 | v1.15 | Faz 4 adım 2 tamam, 2b (`eea148b`; **kullanıcı kararı:** üretim build'i Faz 4'te): `npm run build` projeyi derler, `tools/build-content.ts` içeriği ve dizinleri `dist/forge/`'a yazar, oyun salt okunur statik istemciyle `BASE_URL` altından okur; kapıda `verify:dist --strict` ve `npm run smoke:dist` (alt dizinde açılış, bütün istekler alt dizinde). Dist kutusu işaretli. A 934 / 1.021 |
 | 2026-11-14 | v1.17 | Faz 4 adım 4 tamam, gizmo / snap / pivot (`d26ab2f`, `3721d11`, `1d79c16`, `63cc3b6`): **kullanıcı kararı** pivot aktör belgesinde (`pivot`, yalnız editör); sürükleme matematiği three'siz `engine/gizmo` (ışın-eksen en yakın noktası, kuaterniyon dönüş, çoklu seçim, ebeveyn uzayı), 11 R yeniden yazıldı; zemin / duvar snap'i picker ışınlarıyla; instancing transform hızlı yolu; gizmo çizim katmanında, araçlar ve snap widget'ları, Details'te pivot ve yerleştirme; editör smoke'u gizmo'yla. A 934 / 1.021 |
 | 2026-11-14 | v1.16 | Faz 4 adım 3 tamam, editör viewport'u (`af6b334`, `1bfeffe`, `2cbed7f`, `1cf02e4`): editör kamerası (Forge'un denetleyicisi ve kipleri, ortografik kamera 1.000 m geride), çizim katmanı (sahne derinliğine karşı; pipeline'sız karede derinlik ön geçişi), ızgara, picking etiketleri ve CPU picker (instance → aktör, terrain yükseklik alanı), seçim çerçevesi, F / Esc / Ctrl+tıkla, View Mode / Quality / Show menüleri, `editorRender` bağlamaları + ışığın yardımcıları. Çizim katmanı kutusu işaretli. A 934 / 1.021 |
+| 2026-11-14 | v1.18 | Faz 4 adım 5 tamam, paneller (`aa3726d`, `1a36338`, `e3f44f6`, `c887976`, `15a704b`, `1963a77`, `cd55e12`): **kullanıcı kararları** (hepsi öneri) Outliner ölçümü ayrı bench, override satırda, Add Actor girişleri + sınıflar, World Settings = level ayarı + tekil ortam aktörleri, `locked` belgede / gizleme görünüm, Add / Remove Component, Ground Mist + World Environment önizlemesi, pano JSON; sanallaştırılmış Outliner (50.000: ilk kurma 47,8 ms, seçim p95 3,5 ms, kaydırma 0,9 ms, arama 23,1 ms), şemadan Details ve çoklu seçim, düzenleme işlemleri ve gruplama, Add Actor + sürükle-bırak, World Settings, kısayol tablosu, Outliner sağ tık menüsü; `defineFeatureEditor` (SDK 0.1.5–0.1.7); editör smoke'u 28 test. A 934 / 1.021 |

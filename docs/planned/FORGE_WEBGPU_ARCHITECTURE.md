@@ -1,6 +1,7 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.20 · 2026-11-14 (v1.19'dan fark: §4.4 aktörün editöre özgü `pivot`'u (kullanıcı kararı); §4.7 gizmo'nun uygulaması (three'siz sürükleme, tek transaction, instancing hızlı yolu); §4.9 gizmo katmanın son pass'i.
+**Sürüm:** v1.21 · 2026-11-14 (v1.20'den fark: §4.3 bir özelliğin editör tarafı `defineFeatureEditor` (Outliner görünüşü, Add Actor girişleri, Details eklentileri; SDK 0.1.5–0.1.7); §4.4 aktörün editöre özgü `locked`'u (kullanıcı kararı); §4.7 paneller: gizleme yalnız görünüm, Details'in şemadan formu ve override'ları, düzenleme işlemleri, gruplama ve pano (kullanıcı kararları 2026-11-14).
+v1.20 · 2026-11-14 (v1.19'dan fark: §4.4 aktörün editöre özgü `pivot`'u (kullanıcı kararı); §4.7 gizmo'nun uygulaması (three'siz sürükleme, tek transaction, instancing hızlı yolu); §4.9 gizmo katmanın son pass'i.
 v1.19 · 2026-11-14 (v1.18'den fark: §4.2 editör yardımcı bağlamaları (`defineEditorRenderBinding`, `forge.editorHelpers`); §4.9 çizim katmanının uygulaması (sahne derinliği, derinlik ön geçişi, ton eşlemesiz bileşim) ve picking etiketleri.
 v1.18 · 2026-11-13 (v1.17'den fark: §4.8 build'in uygulaması (kullanıcı kararı: Faz 4): statik içerik, `ContentClient`, alt dizin.
 v1.17 · 2026-11-13 (v1.16'dan fark: §4.7 editör World'ü (`inEditor`, kullanıcı kararı) ve `actorsChanged`'ın kesin biçimi, çocuk silme kuralı.
@@ -338,6 +339,19 @@ features/height-fog/
 `registerSubsystem`, `registerRenderBinding`, `registerAssetType`,
 `registerEditorMode`, `registerDetails`, `registerAddActorEntry`.
 
+- **Bir özelliğin editör tarafı (Faz 4 adım 5, kullanıcı kararları 2026-11-14):**
+  `features/<ad>/editor.ts` `defineFeatureEditor({ feature, components, addActor,
+  details })` döner (`@forge/editor-sdk`; oyunlar da aynısını kullanır). `components`:
+  bileşenin Outliner'daki Forge ikonu ve tür grubu (aktör, editörün tanıdığı ilk
+  bileşeniyle görünür). `addActor` (`registerAddActorEntry`'nin karşılığı): Add Actor
+  girişleri — kategori, ikon, yeni aktörün bileşenleri (saklanan biçim, varsayılanları
+  normalize doldurur) ve Forge'un yerleştirme kuralı (dönüş, yüzeyden yükseklik, taban
+  yüzeye oturur); tekil bileşenli giriş yalnız tıklanır. `details`
+  (`registerDetails`'in karşılığı): bileşenin şemadan formunun altına gelen DOM (ör.
+  Ground Mist Setup, World Environment önizlemesi); düzenlemesi `edit` ile (seçili her
+  aktöre tek undo adımı), önizlemesi editör World'ünün servisleriyle, level'a hiç
+  yazmadan. Editör host'u `features/*/editor.ts`'leri Vite glob'uyla toplar.
+
 - **`feature.ts` editörü anmaz (2a kararı, 2026-11-10):** `editor.ts` kendi
   kayıt birimidir; editör katmanındaki `defineFeatureEditor(...)` ile kendini
   tanımlar ve editör host'u `features/*/editor.ts` dosyalarını kendisi toplar.
@@ -527,6 +541,10 @@ features/height-fog/
     dizin asset değildir, level'ın parçasıdır.
   - *Akış bayrağı:* `spatiallyLoaded` (varsayılan `true`, her zaman yazılır)
     temel aktör şemasında bir kez tanımlıdır (`ActorStreamingFields`).
+  - *Kilit (kullanıcı kararı 2026-11-14):* aktörün isteğe bağlı `locked`'u (Forge'un
+    Lock Movement'ı, `ActorLockField`): editör kilitli aktörü taşımaz, döndürmez,
+    ölçeklemez, yapıştırmaz; World ve oyun okumaz; yalnız `true` yazılır. Gizleme ise
+    belgeye girmez (§4.7).
   - *Pivot (kullanıcı kararı 2026-11-14):* aktörün isteğe bağlı `pivot`'u (vec3,
     aktörün yerel uzayı; `ActorPivotField`) editörün döndürme ve ölçeğinin etrafında
     yapıldığı noktadır (Forge'un yerleşim pivot'u). Editör verisidir: World ve oyun
@@ -922,6 +940,24 @@ düşen alan uyarı değil, **hatadır**.
     hâline döndürür. Snap ayarı sayfanındır (localStorage), projenin değil.
   - *Gruplama:* grup bileşensiz boş aktördür, çocuklar `parent` ile bağlanır; çözme
     çocukları grubun ebeveynine bağlar ve grubu siler. Çoğaltma yeni GUID verir (A1).
+    *Uygulama (adım 5, 2026-11-14):* grup köklerin ortasında, ortak ebeveynlerinin
+    altında; ebeveyn değiştiren her işlem (grupla, çöz, Outliner'da sürükle-bırak, Parent
+    to active, Unparent) dünya yerini korur (`editor/edit/hierarchy.ts`); oturum ebeveyn
+    döngüsünü reddeder. Viewport'ta grubun içine tıklamak en dıştaki grubu seçer.
+    Çoğaltma köklerin alt ağacını yerinde kopyalar, tekil bileşenli aktörü kopyalamaz;
+    Alt + gizmo sürüklemesi çoğaltma ile taşımayı tek undo adımında birleştirir.
+  - *Panellerin kuralları (kullanıcı kararları 2026-11-14):* gizleme (göz, H) yalnız
+    editör görünümüdür: level'a yazılmaz, undo'ya girmez, sayfa level başına hatırlar;
+    gizli aktör ve altı World'den çıkar. Details bileşenin şemadan formunu çizer; çoklu
+    seçimde ortak bileşenler, farklı değer "Multiple Values", düzenleme yalnız o yaprağı
+    her aktöre yazar (tek adım); kaydırıcı / renk sürüklemesi tek adım (birleşme +
+    mühür). Sınıflı aktör etkin değeri gösterir, düzenleme alanın tam değerini override
+    yazar (sınıfa eşitse düşer), override'lı alanda sıfırlama oku, bileşende Reset All;
+    sınıfsız aktöre bileşen eklenir / çıkarılır. Pano sistem panosudur (`forge.actors/1`
+    JSON, kökler dünya uzayında; izin yoksa sayfanın belleği); yapıştırma yeni GUID verir.
+    World Settings level ayarlarını (Cell Size salt okunur) ve tekil ortam aktörlerini
+    listeler (seç / ekle); ortamın değerleri bileşenlerdedir. Outliner sanallaştırılmıştır
+    (`npm run bench:outliner`, 50.000 aktör).
   - *Hücreler:* 5b'deki editör akışına kadar editör bütün hücreleri yükler.
   - *Play (A6'nın yolu):* dev server'da geçici oturum katmanı `.forge-session/<id>/`;
     editör yalnız kirli dosyaları oraya yazar, oyun sekmesi `?play=<id>` ile level'ı
