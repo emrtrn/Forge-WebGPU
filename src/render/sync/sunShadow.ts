@@ -18,13 +18,22 @@
 //   range); on WebGPU that showed acne across a lit floor on the real GPU
 //   (phase 3 step 3 smoke), so it keeps the shared -0.0005 (about 15 cm over
 //   300 m, the phase 1 spike's value).
+// - The cascades take Forge's per-cascade values instead (its
+//   engine/render-three/sunCascadeShadow.ts): a depth range fitted to the
+//   cascade (the light margin plus the cascade's width, not three's default
+//   0.5..500 m), a 2 cm world depth bias over that range and a normal bias of
+//   0.75 of the cascade's texel. CSMShadowNode clones the sun's shadow and
+//   multiplies its bias by (cascade + 1): over 500 m that was 25 / 50 / 75 cm,
+//   which lifted the shadow off its caster's foot (L03's cube). The fit runs
+//   whenever the node refits its frustums, which it now also does when the
+//   camera's projection changes (a resized viewport).
 //
 // Not carried over: Forge's staggered cascade refresh (`shadowCascadeStagger`;
 // CSMShadowNode draws every cascade each frame) and its texture unit budget
 // check (a WebGL sampler limit).
 
 import { CSMShadowNode } from "three/examples/jsm/csm/CSMShadowNode.js";
-import { Vector3, type DirectionalLight, type Light, type Object3D, type PointLight, type SpotLight } from "three/webgpu";
+import { Matrix4, Vector3, type DirectionalLight, type DirectionalLightShadow, type Light, type NodeFrame, type Object3D, type PointLight, type SpotLight } from "three/webgpu";
 import { computeFollowShadowFrame } from "../../engine/world/followShadow.ts";
 import { computeCascadeSplits, SUN_CASCADE_DEPTH_MARGIN, SUN_CASCADE_NEAR, SUN_CASCADE_SPLIT_LAMBDA } from "../../engine/world/sunCascades.ts";
 
@@ -36,6 +45,10 @@ export const FOLLOW_SHADOW_HALF_EXTENT = 60;
 export const FOLLOW_SHADOW_DEPTH = 150;
 /** How far ahead of the camera (x half extent) the follow map is centred (Forge). */
 const FOLLOW_SHADOW_LEAD = 0.5;
+/** World depth bias of every cascade, metres (Forge's CASCADE_BIAS_METERS). */
+export const CASCADE_BIAS_METERS = 0.02;
+/** Normal bias of a cascade, in that cascade's texels (Forge). */
+export const CASCADE_NORMAL_BIAS_TEXELS = 0.75;
 
 type ShadowLight = DirectionalLight | PointLight | SpotLight;
 
@@ -110,8 +123,48 @@ export interface SunCascades {
   deactivate(): void;
 }
 
+/**
+ * Fits each cascade's shadow camera depth to its cascade and sets Forge's
+ * biases: near 0, far = light margin + the cascade's width (the node puts the
+ * light `lightMargin` past the nearest point of a slice no deeper than its
+ * width), depth bias {@link CASCADE_BIAS_METERS} over that range, normal bias
+ * {@link CASCADE_NORMAL_BIAS_TEXELS} texels. Run after the node sized the
+ * cascades (left / right).
+ */
+export function fitCascadeShadows(lights: readonly { shadow?: DirectionalLightShadow }[], lightMargin: number): void {
+  for (const { shadow } of lights) {
+    if (!shadow) continue;
+    const camera = shadow.camera;
+    const width = camera.right - camera.left;
+    camera.near = 0;
+    camera.far = lightMargin + width;
+    camera.updateProjectionMatrix();
+    shadow.bias = -CASCADE_BIAS_METERS / (camera.far - camera.near);
+    shadow.normalBias = (width / shadow.mapSize.width) * CASCADE_NORMAL_BIAS_TEXELS;
+  }
+}
+
+/**
+ * CSMShadowNode with Forge's per-cascade depth fit and biases, refitted when
+ * the camera's projection changes (the node itself fits once, at setup).
+ */
+export class SunCascadeShadowNode extends CSMShadowNode {
+  private readonly fittedProjection = new Matrix4();
+
+  override updateFrustums(): void {
+    super.updateFrustums();
+    fitCascadeShadows(this.lights, this.lightMargin);
+    if (this.camera) this.fittedProjection.copy(this.camera.projectionMatrix);
+  }
+
+  override updateBefore(frame: NodeFrame): boolean | undefined {
+    if (this.camera && !this.camera.projectionMatrix.equals(this.fittedProjection)) this.updateFrustums();
+    return super.updateBefore(frame);
+  }
+}
+
 export function createSunCascades(light: DirectionalLight): SunCascades {
-  let node: CSMShadowNode | null = null;
+  let node: SunCascadeShadowNode | null = null;
   let key = "";
   const deactivate = (): void => {
     if (!node) return;
@@ -130,7 +183,7 @@ export function createSunCascades(light: DirectionalLight): SunCascades {
       if (node && next === key) return true;
       deactivate();
       configureShadow(light, mapSize);
-      node = new CSMShadowNode(light as unknown as ConstructorParameters<typeof CSMShadowNode>[0], {
+      node = new SunCascadeShadowNode(light as unknown as ConstructorParameters<typeof CSMShadowNode>[0], {
         cascades: count,
         maxFar: distance,
         mode: "custom",

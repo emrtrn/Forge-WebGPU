@@ -6,9 +6,9 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "vitest";
-import { DirectionalLight, Group, Matrix4, Scene, Vector3 } from "three/webgpu";
+import { DirectionalLight, Group, Matrix4, PerspectiveCamera, Scene, Vector3, WebGPUCoordinateSystem, type NodeFrame } from "three/webgpu";
 import { computeFollowShadowFrame, type FollowShadowVec3 } from "../../engine/world/followShadow.ts";
-import { FOLLOW_SHADOW_DEPTH, SHADOW_DEPTH_BIAS, configureShadow, updateFollowShadow } from "./sunShadow.ts";
+import { CASCADE_BIAS_METERS, CASCADE_NORMAL_BIAS_TEXELS, FOLLOW_SHADOW_DEPTH, SHADOW_DEPTH_BIAS, SunCascadeShadowNode, configureShadow, updateFollowShadow } from "./sunShadow.ts";
 
 function sunUnderRotatedRoot(): { scene: Scene; sun: DirectionalLight } {
   const scene = new Scene();
@@ -77,5 +77,48 @@ describe("sun follow shadow (Forge checks, rewritten)", () => {
       const matrix = new Matrix4().lookAt(new Vector3(...result.position), new Vector3(...result.target), new Vector3(0, 1, 0));
       [result.axisX, result.axisY, result.axisZ].forEach((axis, column) => close(axis, new Vector3().setFromMatrixColumn(matrix, column)));
     }
+  });
+});
+
+describe("sun cascades: Forge's per-cascade depth fit and biases", () => {
+  function initCascades(camera: PerspectiveCamera): { node: SunCascadeShadowNode; scene: Scene } {
+    const scene = new Scene();
+    const sun = new DirectionalLight("#ffffff", 3);
+    sun.castShadow = true;
+    configureShadow(sun, 2048);
+    sun.position.set(3, 9, 4);
+    scene.add(sun, sun.target);
+    const node = new SunCascadeShadowNode(sun, { cascades: 3, maxFar: 200, lightMargin: 100 });
+    node.fade = true;
+    // What setup() does on the first build: the rendering camera and the renderer's depth conventions.
+    (node as unknown as { _init(builder: unknown): void })._init({ camera, renderer: { coordinateSystem: WebGPUCoordinateSystem, reversedDepthBuffer: false } });
+    return { node, scene };
+  }
+
+  test("each cascade spans the light margin plus its width, with a 2 cm world bias and 0.75 texel normal bias", () => {
+    const camera = new PerspectiveCamera(60, 16 / 9, 0.1, 1000);
+    const { node } = initCascades(camera);
+    assert.equal(node.lights.length, 3);
+    for (const light of node.lights) {
+      const shadow = light.shadow!;
+      const width = shadow.camera.right - shadow.camera.left;
+      assert.equal(shadow.camera.near, 0);
+      assert.equal(shadow.camera.far, 100 + width);
+      // No (cascade + 1) growth from CSMShadowNode's clone: the same 2 cm on every cascade.
+      assert.ok(Math.abs(-shadow.bias * (shadow.camera.far - shadow.camera.near) - CASCADE_BIAS_METERS) < 1e-12);
+      assert.ok(Math.abs(shadow.normalBias - (width / 2048) * CASCADE_NORMAL_BIAS_TEXELS) < 1e-12);
+    }
+  });
+
+  test("a new camera projection refits the cascades before they are placed", () => {
+    const camera = new PerspectiveCamera(60, 16 / 9, 0.1, 1000);
+    const { node } = initCascades(camera);
+    const before = node.lights.map((light) => light.shadow!.camera.right);
+    camera.aspect = 1 / 2;
+    camera.updateProjectionMatrix();
+    node.updateBefore({} as NodeFrame);
+    const after = node.lights.map((light) => light.shadow!.camera.right);
+    assert.notDeepEqual(after, before);
+    for (const light of node.lights) assert.equal(light.shadow!.camera.far, 100 + light.shadow!.camera.right * 2);
   });
 });
