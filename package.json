@@ -15,6 +15,7 @@
     "verify:assets": "node tools/verify-assets.ts",
     "assets:index": "node tools/asset-index.ts",
     "bench:level": "node --expose-gc tools/bench-level.ts",
+    "bench:outliner": "playwright test -c tests/editor/bench.config.ts",
     "forge": "node tools/forge.ts",
     "create-project": "node tools/create-project.ts",
     "world:random": "node tools/world-random.ts",

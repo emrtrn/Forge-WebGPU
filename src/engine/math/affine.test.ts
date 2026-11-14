@@ -2,7 +2,7 @@
 // identities (three.js's formulas; plan phase 4 step 4).
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { composeMat4, IDENTITY_MAT4, invertMat4, multiplyMat4, multiplyQuat, quatFromAxisAngle, rotate, rotationOf, transformPoint } from "./affine.ts";
+import { composeMat4, decomposeMat4, IDENTITY_MAT4, invertMat4, multiplyMat4, multiplyQuat, quatFromAxisAngle, rotate, rotationOf, transformPoint } from "./affine.ts";
 import { eulerDegreesToQuaternion } from "./euler.ts";
 
 const near = (actual: readonly number[], expected: readonly number[], what: string): void =>
@@ -28,4 +28,14 @@ test("quaternions compose right to left and turn about their axis", () => {
   const quarter = quatFromAxisAngle([0, 1, 0], Math.PI / 2);
   near(rotate(quarter, [1, 0, 0]), [0, 0, -1], "+x about Y");
   near(rotate(multiplyQuat(quarter, quarter), [1, 0, 0]), [-1, 0, 0], "half turn");
+});
+
+test("decomposing a composed matrix gives back its position, rotation and scale", () => {
+  const q = eulerDegreesToQuaternion([15, -70, 40]);
+  for (const s of [[2, 0.5, 3], [-1.5, 2, 1]] as const) {
+    const parts = decomposeMat4(composeMat4([7, -2, 0.25], q, s));
+    near(parts.p, [7, -2, 0.25], "position");
+    near(parts.s, s, "scale");
+    near(composeMat4(parts.p, parts.r, parts.s), composeMat4([7, -2, 0.25], q, s), "recomposed");
+  }
 });

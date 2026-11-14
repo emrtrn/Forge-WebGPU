@@ -10,6 +10,7 @@ türü değil, render katmanının toplu çizimidir.
   rengi değiştirir, dokular kalır), `castShadow` (varsayılan açık; gölge almak
   hep açık), `collision`. Sürüm 1'den geçiş zinciriyle.
 - `feature.ts`: yalnız bileşeni kurar.
+- `editor.ts`: editördeki görünüşü (`defineFeatureEditor`): Forge'un Outliner ikonu ve tür grubu.
 - `render.ts`: model kaynak önbelleğinden (`model:<guid>`); yerleşimler
   yüklenen sahnenin klonudur (geometri ortak). Slot materyali önceliği:
   yerleşimin `materials`'ı, modelin `materials`'ı, GLB'nin kendisi; materyaller

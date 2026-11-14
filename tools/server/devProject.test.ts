@@ -100,7 +100,7 @@ describe("a real dev server on a project", () => {
     const project = await copyFixture("good");
     const { vite, base } = await serve(project);
     const identity: unknown = await (await fetch(`${base}/__forge/identity`, { headers })).json();
-    expect(identity).toMatchObject({ engine: { sdkVersion: "0.1.4" }, project: { id: "good", root: project, problems: [] } });
+    expect(identity).toMatchObject({ engine: { sdkVersion: "0.1.5" }, project: { id: "good", root: project, problems: [] } });
 
     const loaded = (await vite.ssrLoadModule("virtual:forge/game-module")) as { default: { kind: string; id: string } };
     expect(loaded.default).toMatchObject({ kind: "gameModule", id: "good.main" });

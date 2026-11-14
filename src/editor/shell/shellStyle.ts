@@ -4,7 +4,7 @@
 // Details widths), the top bar with its brand and history buttons, the tool
 // buttons, the side panels, the viewport host panel, Outliner rows and the
 // status toast; the view controls' hover menus (Camera, step 3). Only the
-// rules the shell uses so far (and the Stats panel's place in the viewport); the panels' own rules come with them (step 5).
+// rules the shell uses so far (and the Stats panel's place in the viewport); the panels' own rules come with them (step 5: outliner/outlinerStyle.ts).
 // No redesign.
 
 export const SHELL_CSS = `
@@ -277,6 +277,22 @@ html, body {
   font-size: 12px;
 }
 
+.detail-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #c8d0d4;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.detail-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: #3f7fd0;
+  cursor: pointer;
+}
+
 .editor-shell .detail-action-button.on {
   border-color: var(--forge-accent);
   background: var(--forge-accent-soft);
@@ -415,58 +431,11 @@ html, body {
   font-weight: 400;
 }
 
-.outliner-list,
 .details-scroll {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-}
-
-.details-scroll {
   padding: 10px 9px;
-}
-
-.editor-shell .outliner-row {
-  width: 100%;
-  min-height: 40px;
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 6px;
-  border: none;
-  border-bottom: 1px solid var(--forge-border-soft);
-  border-radius: 0;
-  padding: 0 6px 0 8px;
-  color: var(--forge-text);
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-
-.editor-shell .outliner-row:hover {
-  background: var(--forge-bg-3);
-}
-
-.editor-shell .outliner-row.active {
-  background: var(--forge-accent-soft);
-  box-shadow: inset 2px 0 0 var(--forge-accent);
-}
-
-.outliner-row .outliner-icon {
-  display: grid;
-  place-items: center;
-  color: var(--forge-text-secondary);
-}
-
-.outliner-row .outliner-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.outliner-row .outliner-meta {
-  color: var(--forge-text-dim);
-  font-size: 11px;
 }
 
 .empty-details {

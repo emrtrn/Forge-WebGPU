@@ -14,3 +14,4 @@ gökyüzünü, sisi ve bulutları kendi değerlerini değiştirmeden yeniden yor
   render katmanında her karede bir kez hesaplanır (`src/render/sync/
   environment.ts`), bağlamalar `ctx.environment.override`'ı okur.
 - `feature.ts`: bileşeni ve alt sistemi kurar; `render.ts`'i anmaz.
+- `editor.ts`: editördeki görünüşü (`defineFeatureEditor`): Forge'un Outliner ikonu ve tür grubu.

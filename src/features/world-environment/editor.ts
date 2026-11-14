@@ -1,0 +1,7 @@
+// The World Environment feature in the editor: Forge's Outliner icon and type group.
+import { defineFeatureEditor } from "../../editor-sdk/index.ts";
+
+export default defineFeatureEditor({
+  feature: "forge.worldEnvironment",
+  components: { "forge.worldEnvironment": { icon: "worldEnvironment", outliner: "environment" } },
+});

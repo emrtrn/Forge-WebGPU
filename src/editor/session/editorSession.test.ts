@@ -12,7 +12,7 @@ function actor(seed: string, x: number, extra: Record<string, unknown> = {}): un
   return { id: actorId(seed), name: seed, transform: { p: [x, 0, 0] }, ...extra };
 }
 
-function open(saves: SaveRequestBody[] = []) {
+function open(saves: SaveRequestBody[] = [], hidden: readonly string[] = []) {
   const level = normalizeLevel(
     { schema: "forge.level/1", id: levelId("1"), actors: [actor("a", 1), actor("b", 2), actor("c", 3, { parent: actorId("b") })] },
     OPTIONS,
@@ -38,7 +38,7 @@ function open(saves: SaveRequestBody[] = []) {
       return { status: "saved" as const, files: request.writes.map((write) => ({ path: write.path, revision: "0000000000000009" })), warnings: [] };
     },
   } as unknown as SaveClient;
-  return createEditorSession({ level: session, world, client });
+  return createEditorSession({ level: session, world, client, hidden: hidden.map((seed) => actorId(seed)) });
 }
 
 const doc = (editor: ReturnType<typeof open>, seed: string): ActorDoc => structuredClone(editor.level.actor(actorId(seed))!);
@@ -122,5 +122,46 @@ describe("the editor session mirrors edits into its world", () => {
     expect(report.message).toMatch(/^Saved \d+ files?$/);
     expect(saves).toHaveLength(1);
     expect(editor.dirty()).toBe(0);
+  });
+});
+
+describe("hiding is a view of the editor (user decision 2026-11-14)", () => {
+  test("a hidden actor and its children leave the world and the selection; showing brings them back; no undo step, nothing dirty", () => {
+    const editor = open();
+    editor.selection.set([actorId("c"), actorId("a")]);
+    editor.visibility.set([actorId("b")], true);
+    expect(worldNames(editor)).toEqual(["a"]);
+    expect(editor.visibility.hidden(actorId("c"))).toBe(true);
+    expect(editor.visibility.has(actorId("c"))).toBe(false);
+    expect(editor.selection.ids()).toEqual([actorId("a")]);
+    expect(editor.canUndo()).toBe(false);
+    expect(editor.dirty()).toBe(0);
+    editor.visibility.showAll();
+    expect(worldNames(editor)).toEqual(["a", "b", "c<b"]);
+    expect(editor.visibility.ids()).toEqual([]);
+  });
+
+  test("edits to hidden actors reach the level, and the world once shown; parenting under a hidden actor hides", () => {
+    const editor = open([], ["b"]);
+    expect(worldNames(editor)).toEqual(["a"]);
+    const moved = doc(editor, "c");
+    moved.transform.p = [7, 0, 0];
+    editor.edit("Move c", (tx) => tx.setActor(moved));
+    expect(editor.world.context.actor(actorId("c"))).toBeUndefined();
+    editor.edit("Parent a to b", (tx) => tx.setActor({ ...doc(editor, "a"), parent: actorId("b") }));
+    expect(worldNames(editor)).toEqual([]);
+    editor.undo();
+    expect(worldNames(editor)).toEqual(["a"]);
+    editor.visibility.set([actorId("b")], false);
+    expect(editor.world.context.actor(actorId("c"))!.transform.p).toEqual([7, 0, 0]);
+    editor.edit("Add d", (tx) => tx.setActor(actor("d", 4, { parent: actorId("c") })));
+    editor.visibility.set([actorId("c")], true);
+    editor.edit("Remove c and d", (tx) => {
+      tx.removeActor(actorId("c"));
+      tx.removeActor(actorId("d"));
+    });
+    editor.undo();
+    expect(worldNames(editor)).toEqual(["a", "b"]);
+    expect(editor.visibility.ids()).toEqual([actorId("c")]);
   });
 });

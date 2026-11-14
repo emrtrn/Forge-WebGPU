@@ -8,6 +8,7 @@ renkli placeholder'ları ve Add Actor primitifleri bununla durur.
   `collision`. Ölçek 1'de kenar 0,5 m (`SHAPE_BASE_SIZE`, Forge'un
   `SHAPE_PRIMITIVE_SIZE`'ı); boyutu aktörün ölçeği verir.
 - `feature.ts`: yalnız bileşeni kurar.
+- `editor.ts`: editördeki görünüşü (`defineFeatureEditor`): Forge'un Outliner ikonu ve tür grubu.
 - Forge WebGL'de bunlar `shape:<tür>` sahte asset'inin yerleşimleriydi.
 - `render.ts`: bileşen başına bir mesh; geometri prosedürel
   (`shape:<tür>`, Forge'un ölçüleri), renge göre lit materyal; ikisi de render

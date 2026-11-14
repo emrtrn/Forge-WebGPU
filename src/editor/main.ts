@@ -10,7 +10,12 @@
 //
 // The features' editor helpers (`features/*/editorRender.ts`) are collected
 // here, never by the game (`editor-render-is-editor-only`), and run in the
-// editor's world through the viewport's `forge.editorHelpers`.
+// editor's world through the viewport's `forge.editorHelpers`. So are their
+// editor sides (`features/*/editor.ts`, `defineFeatureEditor`; step 5): the
+// editor catalog (Outliner icons and type groups).
+//
+// The actors hidden in the editor's view (session visibility, step 5a) are
+// the page's, per level (localStorage), never the level's.
 
 import {
   createSchemaRegistry,
@@ -18,6 +23,7 @@ import {
   normalizeActorClass,
   openLevelFromServer,
   type ActorClassDoc,
+  type ActorId,
   type AssetId,
   type ClassResolver,
   type FeatureDef,
@@ -30,6 +36,9 @@ import type { EditorRenderBindingDef } from "../render/editor/editorBinding.ts";
 import { createEditorViewport } from "../render/editor/editorViewport.ts";
 import { assembleLevel } from "../runtime/assembler.ts";
 import { createWorld, type World } from "../runtime/world.ts";
+import { createEditorCatalog } from "./host/editorCatalog.ts";
+import type { FeatureEditorDef } from "./host/featureEditor.ts";
+import { installOutlinerStyle } from "./outliner/outlinerStyle.ts";
 import { createEditorSession, type EditorSession } from "./session/editorSession.ts";
 import { createShell } from "./shell/shell.ts";
 import { createTransformTools, type TransformTools } from "./transformTools.ts";
@@ -40,6 +49,31 @@ import { createViewportControls } from "./viewportControls.ts";
 const helperModules = import.meta.glob<{ default: EditorRenderBindingDef }>("../features/*/editorRender.ts", { eager: true });
 /** The engine features' editor helper bindings. */
 export const EDITOR_HELPER_BINDINGS: readonly EditorRenderBindingDef[] = Object.values(helperModules).map((module) => module.default);
+
+const editorModules = import.meta.glob<{ default: FeatureEditorDef }>("../features/*/editor.ts", { eager: true });
+/** The engine features' editor sides. */
+export const FEATURE_EDITORS: readonly FeatureEditorDef[] = Object.values(editorModules).map((module) => module.default);
+
+const HIDDEN_STORAGE_PREFIX = "forge.editor.hidden:";
+
+/** The actors this page hid in a level; empty when nothing is stored or the storage refuses. */
+function readHidden(storage: Storage | null, levelKey: string): ActorId[] {
+  try {
+    const parsed: unknown = JSON.parse(storage?.getItem(HIDDEN_STORAGE_PREFIX + levelKey) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((id): id is ActorId => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeHidden(storage: Storage | null, levelKey: string, ids: readonly ActorId[]): void {
+  try {
+    if (ids.length === 0) storage?.removeItem(HIDDEN_STORAGE_PREFIX + levelKey);
+    else storage?.setItem(HIDDEN_STORAGE_PREFIX + levelKey, JSON.stringify(ids));
+  } catch {
+    // The page keeps them until it is closed.
+  }
+}
 
 /** The page's local storage (the viewport's remembered pose); null where the browser refuses it. */
 function pageStorage(doc: Document): Storage | null {
@@ -69,6 +103,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
   const doc = options.document;
   installKitStyle(doc);
   installShellStyle(doc);
+  installOutlinerStyle(doc);
   doc.title = `${options.projectName} · Editor`;
   const shell = createShell({ document: doc, projectName: options.projectName, levelFolder: options.level, readOnly: options.readOnly });
   doc.body.replaceChildren(shell.root);
@@ -131,9 +166,19 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     world.init();
     assembleLevel(world, opened.session.level, { strict: true, resolveClass });
     world.beginPlay();
-    const session = createEditorSession({ level: opened.session, world, client: options.client });
+    const levelKey = `${options.projectName}/${options.level}`;
+    const storage = pageStorage(doc);
+    const session = createEditorSession({ level: opened.session, world, client: options.client, hidden: readHidden(storage, levelKey) });
     editor = session;
-    shell.attach(session);
+    let hiddenKey = JSON.stringify(session.visibility.ids());
+    session.onChange(() => {
+      const ids = session.visibility.ids();
+      const key = JSON.stringify(ids);
+      if (key === hiddenKey) return;
+      hiddenKey = key;
+      writeHidden(storage, levelKey, ids);
+    });
+    shell.attach(session, { catalog: createEditorCatalog(FEATURE_EDITORS, registry), resolveClass });
     tools = createTransformTools({ editor: session, viewport, storage: pageStorage(doc), status: (message, tone) => shell.status(message, tone) });
     shell.attachTools(tools, () => viewport.camera.navigating);
     const warnings = opened.issues.filter((issue) => issue.severity === "warning");

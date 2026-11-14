@@ -149,3 +149,14 @@ export function rotationOf(m: Mat4): Quat {
   }
   return normalizeQuat(q);
 }
+
+/** Position, rotation and scale of an affine matrix (Matrix4.decompose): a mirrored matrix flips the x scale. */
+export function decomposeMat4(m: Mat4): { p: Vec3; r: Quat; s: Vec3 } {
+  const sx = length([m[0]!, m[1]!, m[2]!]);
+  const sy = length([m[4]!, m[5]!, m[6]!]);
+  const sz = length([m[8]!, m[9]!, m[10]!]);
+  const mirrored = dot(cross([m[0]!, m[1]!, m[2]!], [m[4]!, m[5]!, m[6]!]), [m[8]!, m[9]!, m[10]!]) < 0;
+  // The rotation of the matrix with the x scale's sign taken out (a proper rotation).
+  const unmirrored = mirrored ? [-m[0]!, -m[1]!, -m[2]!, ...m.slice(3)] : m;
+  return { p: [m[12]!, m[13]!, m[14]!], r: rotationOf(unmirrored), s: [mirrored ? -sx : sx, sy, sz] };
+}

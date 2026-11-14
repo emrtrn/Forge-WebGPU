@@ -5,10 +5,10 @@
 // the `data-testid`s Forge's smokes use (`forge-editor`, `editor-save`,
 // `editor-undo`, `editor-redo`, `editor-status`, `outliner-row`).
 //
-// What it draws comes from the editor session: the Outliner lists the level's
-// actors (a plain list until the virtualised Outliner, step 5), a click
-// selects; Details shows the primary selection's transform through the UI
-// kit, and each committed field is one transaction (one undo step).
+// What it draws comes from the editor session: the Outliner
+// (outliner/outlinerPanel.ts, step 5a: virtualised, hierarchy, search, eye
+// and lock) selects; Details shows the primary selection's transform through
+// the UI kit, and each committed field is one transaction (one undo step).
 // Ctrl+S / Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) save, undo, redo.
 // The viewport's view controls (step 3) sit in the work bar as Forge's hover
 // menus: View Mode (Lit / Wireframe), Quality (Auto and the profiles), Show
@@ -18,15 +18,17 @@
 // The transform tools (step 4) put their toolbar in the work bar before the
 // view menus (transformToolbar.ts) and add to Details what Forge had there:
 // the Pivot row with its viewport drag toggle and presets, and Placement's
-// Snap to Floor / Snap to Wall.
+// Snap to Floor / Snap to Wall and Lock Movement (step 5a: a locked actor's
+// transform and placement are read only).
 // Text is set with textContent; the only markup is the kit's static icons.
 
-import { ActorPivotField, formFields, transform, type ActorDoc, type ActorId, type Vec3 } from "../../core/index.ts";
+import { ActorPivotField, formFields, transform, type ActorDoc, type ClassResolver, type Vec3 } from "../../core/index.ts";
+import type { EditorCatalog } from "../host/editorCatalog.ts";
+import { createOutlinerPanel } from "../outliner/outlinerPanel.ts";
 import type { EditorSession } from "../session/editorSession.ts";
 import type { PivotPreset, TransformTools } from "../transformTools.ts";
 import { createTransformToolbar } from "./transformToolbar.ts";
 import { createFormView, type FormView } from "../ui/formView.ts";
-import { ACTOR_TYPE_ICONS } from "../ui/icons.ts";
 
 /** Forge's toolbar glyphs (EditorUi TOOLBAR_ICONS). */
 const TOOLBAR_ICONS = {
@@ -89,12 +91,18 @@ export interface ShellOptions {
   readonly readOnly: boolean;
 }
 
+/** What the panels need besides the session. */
+export interface ShellContext {
+  readonly catalog: EditorCatalog;
+  readonly resolveClass: ClassResolver;
+}
+
 export interface EditorShell {
   readonly root: HTMLElement;
   /** Where the renderer's canvas goes. */
   readonly viewport: HTMLElement;
   /** Binds the shell to an opened level. */
-  attach(editor: EditorSession): void;
+  attach(editor: EditorSession, context: ShellContext): void;
   /** Binds the view controls to the viewport. */
   attachViewport(menus: ViewportMenus): void;
   /** Adds the transform toolbar and Details' pivot and placement actions; `navigating` is true while the camera flies. */
@@ -198,11 +206,8 @@ export function createShell(options: ShellOptions): EditorShell {
 
   const outliner = el("aside", "editor-panel editor-outliner");
   const outlinerHeading = el("div", "editor-panel-heading");
-  const outlinerCount = el("small");
-  outlinerHeading.append(el("span", "", "Outliner"), outlinerCount);
-  const outlinerList = el("div", "outliner-list");
-  outlinerList.setAttribute("role", "listbox");
-  outliner.append(outlinerHeading, outlinerList);
+  outlinerHeading.append(el("span", "", "Outliner"));
+  outliner.append(outlinerHeading);
 
   const details = el("aside", "editor-panel editor-details");
   const detailsHeading = el("div", "editor-panel-heading");
@@ -288,33 +293,11 @@ export function createShell(options: ShellOptions): EditorShell {
       next.onChange(() => redrawDetails?.());
       redrawDetails?.();
     },
-    attach(editor) {
-      let detailsFor: ActorId | null = null;
+    attach(editor, context) {
+      /** Details shows this actor, drawn in this lock state. */
+      let detailsFor: string | null = null;
       let detailsView: FormView | null = null;
-
-      const renderOutliner = (): void => {
-        const actors = editor.level.level.actors;
-        outlinerCount.textContent = `${actors.length} actor${actors.length === 1 ? "" : "s"}`;
-        outlinerList.replaceChildren(
-          ...actors.map((actor) => {
-            const row = el("button", "outliner-row");
-            row.type = "button";
-            row.dataset.testid = "outliner-row";
-            row.dataset.actorId = actor.id;
-            row.setAttribute("role", "option");
-            const selected = editor.selection.has(actor.id);
-            row.classList.toggle("active", selected);
-            row.setAttribute("aria-selected", String(selected));
-            const icon = el("span", "outliner-icon");
-            icon.innerHTML = ACTOR_TYPE_ICONS.generic; // Static SVG; type icons come with the Outliner (step 5).
-            const name = el("span", "outliner-name", actor.name || actor.id);
-            name.title = actor.id;
-            row.append(icon, name, el("span", "outliner-meta", actor.parent === null ? "" : "child"));
-            row.addEventListener("click", () => editor.selection.set([actor.id]));
-            return row;
-          }),
-        );
-      };
+      outliner.append(createOutlinerPanel({ document: doc, editor, catalog: context.catalog, resolveClass: context.resolveClass, status }).element);
 
       // Forge's Pivot and Placement actions (instanceDetails.ts), under the form.
       const actions = el("div", "detail-actions");
@@ -332,17 +315,36 @@ export function createShell(options: ShellOptions): EditorShell {
       const presetRow = el("div", "detail-actions-row");
       for (const [preset, text, hint] of PIVOT_PRESETS) presetRow.append(actionButton(text, hint, `pivot-${preset}`, () => tools?.setPivotPreset(preset)));
       const placementRow = el("div", "detail-actions-row");
-      placementRow.append(
-        actionButton("Snap to Floor", "Alttaki yüzeye bırak (End)", "snap-floor", () => tools?.snapToFloor()),
-        actionButton("Snap to Wall", "En yakın duvara yasla", "snap-wall", () => tools?.snapToWall()),
-      );
-      actions.append(el("div", "detail-actions-title", "Pivot"), pivotRow, presetRow, el("div", "detail-actions-title", "Placement"), placementRow);
-      const renderActions = (): void => {
+      const snapFloor = actionButton("Snap to Floor", "Alttaki yüzeye bırak (End)", "snap-floor", () => tools?.snapToFloor());
+      const snapWall = actionButton("Snap to Wall", "En yakın duvara yasla", "snap-wall", () => tools?.snapToWall());
+      placementRow.append(snapFloor, snapWall);
+      // Forge's Lock Movement toggle (Placement): the actor's `locked`, one undo step.
+      const lockToggle = el("label", "detail-toggle");
+      const lockBox = el("input");
+      lockBox.type = "checkbox";
+      lockBox.dataset.testid = "detail-locked";
+      lockBox.title = "Açıkken aktör editörde taşınmaz, döndürülmez, ölçeklenmez.";
+      lockToggle.append(lockBox, el("span", "", "Lock Movement"));
+      lockBox.addEventListener("change", () => {
+        const id = editor.selection.primary();
+        const current = id === null ? undefined : editor.level.actor(id);
+        if (!current) return;
+        const next: ActorDoc = { ...current };
+        if (lockBox.checked) next.locked = true;
+        else delete next.locked;
+        const result = editor.edit(`${lockBox.checked ? "Lock" : "Unlock"} ${current.name || current.id}`, (tx) => tx.setActor(next));
+        if (!result.ok) status(result.issues.map((issue) => issue.message).join("; "), "error");
+      });
+      actions.append(el("div", "detail-actions-title", "Pivot"), pivotRow, presetRow, el("div", "detail-actions-title", "Placement"), placementRow, lockToggle);
+      const pivotButtons = [pivotDrag, ...presetRow.querySelectorAll("button")];
+      const renderActions = (locked: boolean): void => {
         actions.hidden = tools === null;
         const on = tools?.pivotEdit === true;
         pivotDrag.classList.toggle("on", on);
         pivotDrag.setAttribute("aria-pressed", String(on));
         pivotDrag.textContent = on ? "● Dragging pivot" : "Drag in viewport";
+        lockBox.checked = locked;
+        for (const button of [...pivotButtons, snapFloor, snapWall]) button.disabled = locked;
       };
 
       const renderDetails = (): void => {
@@ -357,12 +359,14 @@ export function createShell(options: ShellOptions): EditorShell {
           return;
         }
         const pivot: Vec3 = actor.pivot ?? [0, 0, 0];
-        if (detailsFor === actor.id && detailsView) {
+        const locked = actor.locked === true;
+        const key = `${actor.id}|${locked}`;
+        if (detailsFor === key && detailsView) {
           detailsView.update({ transform: actor.transform, pivot });
-          renderActions();
+          renderActions(locked);
           return;
         }
-        detailsFor = actor.id;
+        detailsFor = key;
         const heading = el("div", "empty-details");
         heading.append(el("strong", "", actor.name || actor.id), el("span", "", actor.id));
         detailsView = createFormView({
@@ -370,6 +374,7 @@ export function createShell(options: ShellOptions): EditorShell {
           fields: TRANSFORM_FIELDS,
           value: { transform: actor.transform, pivot },
           testIdPrefix: "detail",
+          disabled: locked,
           warn: (message) => status(message, "warning"),
           onChange: (change) => {
             if (change.phase !== "commit") return;
@@ -384,7 +389,7 @@ export function createShell(options: ShellOptions): EditorShell {
           },
         });
         detailsBody.replaceChildren(heading, detailsView.element, actions);
-        renderActions();
+        renderActions(locked);
       };
       redrawDetails = renderDetails;
 
@@ -430,7 +435,6 @@ export function createShell(options: ShellOptions): EditorShell {
       });
 
       const refresh = (): void => {
-        renderOutliner();
         renderDetails();
         renderToolbar();
       };

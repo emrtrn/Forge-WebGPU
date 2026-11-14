@@ -8,6 +8,19 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.5
+
+API: 11a5c4d25d1025eb
+
+A feature's editor side (plan phase 4 step 5a), additive, in
+`@forge/editor-sdk`: `features/<name>/editor.ts` default-exports
+`defineFeatureEditor({ feature, components })`; the editor collects those files
+itself (the game never names them). `components` maps a component name to how
+actors carrying it show in the Outliner (`ComponentPresentation`: Forge's
+actor-type icon, `ActorTypeIcon`, or a function of the component's fields, and
+the type filter group, `OutlinerType` / `OUTLINER_TYPES`). Later steps add Add
+Actor entries and Details actions to the same definition.
+
 ## 0.1.4
 
 API: ee63abe72d9159bd

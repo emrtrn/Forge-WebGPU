@@ -11,6 +11,7 @@ Level'ın görüntü işleme ayarları. Tek tekil.
   okur (`src/render/pipeline`), kalite profiliyle kapatır
   (`applyQualityToPostProcess`, `engine/perf/qualityProfiles.ts`; profil izin
   verir, açmaz) ve profil ya da Post Process değişince pipeline'ı yeniden kurar.
+- `editor.ts`: editördeki görünüşü (`defineFeatureEditor`): Forge'un Outliner ikonu ve tür grubu.
 - Ortam kapatması GTAO'dur; profil SSGI'ye izin veriyorsa (Cinematic) yerine
   SSGI çalışır (kullanıcı kararı 2026-11-13).
 - Pozlama: Post Process varken çıktı onun ton eşleyicisi ve pozlamasıyla

@@ -8,3 +8,4 @@ Statik, prosedürel bulut kubbesi (Forge WebGL'in Cloud Layer'ı; hacimsel deği
   hemen içinde, opak geometri onu örter. World Environment etkinse onun
   bulut yorumunu (hava kaplaması, gece / alacakaranlık rengi) çizer.
 - `feature.ts`: bileşeni kurar; `render.ts`'i anmaz.
+- `editor.ts`: editördeki görünüşü (`defineFeatureEditor`): Forge'un Outliner ikonu ve tür grubu.

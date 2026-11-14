@@ -16,6 +16,7 @@ ekseni boyunca parlar.
   etkinken güneşin rengi, şiddeti, ay gölgesi ve yönü onun saatinden
   (`src/render/sync/sunOverride.ts`); bileşen değişmez.
 - `feature.ts`: üç bileşeni kurar; `render.ts`'i anmaz.
+- `editor.ts`: editördeki görünüşü (`defineFeatureEditor`): Forge'un Outliner ikonu ve tür grubu.
 - Işık bileşeni olmayan level'a render katmanı Forge'un varsayılan güneşini
   koyar. İçe aktarıcı Forge'un güneşini (`sun` kimliği, yoksa ilk yönlü ışık)
   `atmosphereSun` ile işaretler (`src/engine/forgeImport/lights.ts`).

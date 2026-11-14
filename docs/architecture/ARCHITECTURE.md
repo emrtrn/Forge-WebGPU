@@ -37,7 +37,8 @@ Bir özellik tek klasördür: `src/features/<ad>/{schema,runtime,render,editor,f
 + test + README. `feature.ts` `defineFeature({ id, components, assetTypes,
 saveStates, subsystems })` döner ve ne `editor.ts`'i ne `render.ts`'i anar
 (`feature-does-not-name-editor`, `feature-does-not-name-render`); editör host'u
-`editor.ts`'leri toplar, `render.ts`'leri (`defineRenderBinding`) uygulama
+`editor.ts`'leri (`defineFeatureEditor`, `@forge/editor-sdk`: Outliner ikonu ve
+tür grubu; Faz 4 adım 5) toplar, `render.ts`'leri (`defineRenderBinding`) uygulama
 girişi `main.ts` Vite glob'uyla toplayıp render host'a verir, çünkü `render`
 katmanı `features/`'ı import edemez (rapor §4.3, §4.9). Başsız açılışta render
 yok. Yeni özellik kabuk dosyasına dokunmaz: `main.ts` özellikleri klasörden

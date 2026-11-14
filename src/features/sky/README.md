@@ -13,4 +13,5 @@ gökyüzünü yakalar.
   ışığı ve arka plan; gökyüzü varken çıktı ACES + pozlama × 0,2. World
   Environment etkinse onun güneşini, pusunu, ayını ve yıldızlarını çizer.
 - `feature.ts`: iki bileşeni kurar; `render.ts`'i anmaz.
+- `editor.ts`: editördeki görünüşü (`defineFeatureEditor`): Forge'un Outliner ikonu ve tür grubu.
 - Sky Light'sız level Forge varsayılanlarıyla çizilir (`#d7d7c7`, ortam yok).

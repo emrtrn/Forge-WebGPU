@@ -78,7 +78,7 @@ interface JsonAssetTypeDef<M>
 
 type LevelId = `lvl_${string}`
 
-const SDK_VERSION: "0.1.4"
+const SDK_VERSION: "0.1.5"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -200,7 +200,28 @@ function vec4(options: VectorOptions<4>): VectorField<4>
 
 # src/editor-sdk/index.ts
 
-const SDK_VERSION: "0.1.4"
+type ActorTypeIcon = "mesh" | "character" | "light" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic"
+
+interface ComponentPresentation
+  readonly icon: "mesh" | "character" | "light" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic" | ((data: Readonly<Record<string, unknown>>) => ActorTypeIcon)
+  readonly outliner: "mesh" | "character" | "light" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
+
+interface FeatureEditorDef
+  readonly components: Readonly<Record<string, ComponentPresentation>>
+  readonly feature: string
+  readonly kind: "featureEditor"
+
+interface FeatureEditorOptions
+  readonly components?: Readonly<Record<string, ComponentPresentation>> | undefined
+  readonly feature: string
+
+const OUTLINER_TYPES: readonly [{ readonly type: "mesh"; readonly label: "Meshes"; }, { readonly type: "character"; readonly label: "Characters"; }, { readonly type: "light"; readonly label: "Lights"; }, { readonly type: "environment"; readonly label: "Environment"; }, { readonly type: "volume"; readonly label: "Volumes"; }, { readonly type: "terrain"; readonly label: "Terrain"; }, { readonly type: "gameplay"; readonly label: "Gameplay"; }, { readonly type: "widget"; readonly label: "Widgets"; }]
+
+type OutlinerType = "mesh" | "character" | "light" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
+
+const SDK_VERSION: "0.1.5"
+
+function defineFeatureEditor(options: FeatureEditorOptions): FeatureEditorDef
 
 # referenced (not exported, part of the surface)
 

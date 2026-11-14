@@ -14,6 +14,8 @@
 //   writes the actor's `pivot` (one undo step). Presets set it to the model's
 //   origin, centre or base (its local bounds).
 // - Snap settings are the page's (localStorage), not the project's.
+// - A locked actor (Lock Movement, step 5a) or one hidden in the editor's view
+//   is never dragged, snapped or given a pivot: the gizmo leaves it out.
 
 import type { ActorDoc, ActorId, Transform, Vec3 } from "../core/index.ts";
 import { EDITOR_TOOLS, nextTransformTool, type EditorTool, type GizmoHandle, type TransformSpace } from "../engine/gizmo/axes.ts";
@@ -128,11 +130,16 @@ export function createTransformTools(options: TransformToolsOptions): TransformT
     parentWorld: parentWorldMatrix(docOf, doc.parent),
     pivot: doc.pivot ?? [0, 0, 0],
   });
-  /** The selection's roots (primary first) that are in the level. */
+  /** The selection's roots (primary first) that are in the level and may move (not locked, not hidden). */
   const roots = (): ActorDoc[] =>
     dragRoots(editor.selection.ids(), (id) => docOf(id)?.parent)
       .map(docOf)
-      .filter((doc): doc is ActorDoc => doc !== undefined);
+      .filter((doc): doc is ActorDoc => doc !== undefined && doc.locked !== true && !editor.visibility.hidden(doc.id));
+  /** Why nothing moves: a locked selection, or none. */
+  const nothingToMove = (none: string): void => {
+    const locked = editor.selection.ids().some((id) => docOf(id)?.locked === true);
+    status(locked ? "The selection is locked (Lock Movement)." : none, "warning");
+  };
   const withDescendants = (ids: readonly ActorId[]): Set<ActorId> => {
     const out = new Set(ids);
     let grew = true;
@@ -308,7 +315,7 @@ export function createTransformTools(options: TransformToolsOptions): TransformT
     snapToFloor() {
       const docs = roots();
       if (docs.length === 0) {
-        status("No selected object to snap.", "warning");
+        nothingToMove("No selected object to snap.");
         return;
       }
       const exclude = withDescendants(docs.map((doc) => doc.id));
@@ -337,7 +344,7 @@ export function createTransformTools(options: TransformToolsOptions): TransformT
     snapToWall() {
       const docs = roots();
       if (docs.length === 0) {
-        status("Select a model to snap to a wall.", "warning");
+        nothingToMove("Select a model to snap to a wall.");
         return;
       }
       const exclude = withDescendants(docs.map((doc) => doc.id));
@@ -369,7 +376,7 @@ export function createTransformTools(options: TransformToolsOptions): TransformT
     setPivotPreset(preset) {
       const primary = roots()[0];
       if (!primary) {
-        status("This selection has no pivot.", "warning");
+        nothingToMove("This selection has no pivot.");
         return;
       }
       let pivot: Vec3 = [0, 0, 0];

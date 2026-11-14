@@ -8,6 +8,7 @@ Yükseklik haritalı arazi (Forge WebGL'deki Landscape aktörü).
   (`<ad>.tiles/<x>_<z>.tile.bin`) ve global harita (`<ad>.global.bin`) belgenin
   metasız parçalarıdır (`src/core/assets/dataDocument.ts`).
 - `feature.ts`: yalnız bileşeni kurar.
+- `editor.ts`: editördeki görünüşü (`defineFeatureEditor`): Forge'un Outliner ikonu ve tür grubu.
 - Arazi hücreden büyük olduğu için aktörü kalıcı katmandadır
   (`spatiallyLoaded: false`).
 - `render.ts`: salt çizim (Faz 3 adım 8, spike S2'nin TSL CDLOD'u,
