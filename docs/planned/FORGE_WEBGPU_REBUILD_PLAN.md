@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Sürüm:** v1.20 · 2026-11-14 (v1.19’dan fark: Faz 4 adım 7 tamam — ortak asset oturumu / pencere, şemadan form + sanal tablo, materyal / model / aktör sınıfı araçları, tek GPU önizlemesi, sınıf override koruması; SDK 0.1.10; kapı 1.957 test, 47 editör + 1 dist smoke; gerçek WebGPU asset 8/8, render 17/17; mimari v1.23). v1.19 · 2026-11-14 (v1.18’den fark: Faz 4 adım 6 tamam — Content Browser 6a–g, motor içeriği kipi, motor level kayıt / 409, sınıf listesinin tazelenmesi; DOM panelleri kutusu kapandı; kapı yeşil: 1.946 test, 39 editör ve 1 dist smoke; mimari v1.22). v1.18 · 2026-11-14 (v1.17'den fark: Faz 4 adım 5 tamam — paneller: sanallaştırılmış Outliner (50.000 ölçümü), şemadan Details ve çoklu seçim, düzenleme işlemleri ve gruplama, Add Actor + sürükle-bırak, World Settings ve ortam ayrıntıları, kısayollar ve sağ tık menüsü; kullanıcı kararları 2026-11-14; SDK 0.1.7; mimari v1.21. v1.17 · 2026-11-14 (v1.16'dan fark: Faz 4 adım 4 tamam — gizmo (Forge'unki, sürükleme matematiği three'siz), araçlar ve snap widget'ları, zemin / duvar snap'i picker ışınlarıyla, pivot (kullanıcı kararı: aktör belgesinde `pivot`), instancing transform hızlı yolu; 11 R yeniden yazıldı; mimari v1.20. v1.16 · 2026-11-14 (v1.15'ten fark: Faz 4 adım 3 tamam — editör viewport'u: editör kamerası ve kipleri, çizim katmanı (sahne derinliğine karşı; pipeline'sız karede derinlik ön geçişi), ızgara, CPU picking ve seçim çerçevesi, View Mode / Show / Quality menüleri, `editorRender` bağlamaları ve ışığın yardımcıları; mimari v1.19. v1.15 · 2026-11-13 (v1.14'ten fark: Faz 4 adım 2 tamam — 2b üretim build'i (kullanıcı kararı: Faz 4), statik içerik, `verify:dist --strict`, alt dizin smoke'u; dist kutusu işaretli. v1.14 · 2026-11-13 (v1.13'ten fark: Faz 4 adım 2'nin dilimi — editörün World'ü (`inEditor`, kullanıcı kararı), `actorsChanged`, `editorRender` kuralı, editör oturumu, `?editor` kabuğu, editör smoke'u, `verify:dist`; kalan 2b üretim build'i. v1.13 · 2026-11-13 (v1.12'den fark: Faz 4 adım 1 tamam — UI kiti (`src/editor/ui`), `?editor-kit`, editörün tarayıcı denetimleri gate ve CI'da. v1.12 · 2026-11-13 (v1.11'den fark: Faz 4 başladı — döküm (36 INV satırı, ertelenmiş A yok, 11 R), kararlar 1–12 (kullanıcı onayı), adım sırası 1–10; mimari v1.16. v1.11 · 2026-11-13 (v1.10'dan fark: Faz 3 kapandı — adım 9: smoke tam seti Faz 0 pozu ve boyutuyla, Faz 0 ile yan yana ızgara (`npm run smoke:grid`), yönlü ışıkların dünya çerçevesi düzeltmesi; kullanıcının görsel kabulü ve referanslar; view distance 5b'ye (kullanıcı kararı); bölüm `docs/archive/PHASE_3.md`'ye taşındı; mimari v1.15. v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 8 tamam — otomatik instancing, terrain salt çizimi, görüntüleyicinin varsayılan kamerası, `?debug` paneli, bütün çizen referans level'lar smoke'ta; kullanıcı kararları: terrain / örtü katman materyali GUID, paket manifesti `requires`, `?debug` kapsamı; referans projesi yeniden alındı; mimari v1.14. v1.9 · 2026-11-13 (v1.8'den fark: Faz 3 adım 7 tamam — olay bazlı gün saati: `timeTransition`, `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri), Sky Light yakalaması aynı PMREM'e, ölçülerek seçilen yakalama hızı (açı + 0,1 sn + durunca son yakalama), `npm run measure:sky-capture`; kullanıcı kararları; mimari v1.13. v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
+**Sürüm:** v1.21 · 2026-11-14 (kullanıcı kararı: WES + prosedürel bitki planı v0.6; 5a örtü, 5c ortak tepki ve küçük üretim, 5d tam araçlar; PV-WES kabul koşulları; yalnız plan, kutu kapanmadı; mimari v1.24). v1.20 · 2026-11-14 (v1.19’dan fark: Faz 4 adım 7 tamam — ortak asset oturumu / pencere, şemadan form + sanal tablo, materyal / model / aktör sınıfı araçları, tek GPU önizlemesi, sınıf override koruması; SDK 0.1.10; kapı 1.957 test, 47 editör + 1 dist smoke; gerçek WebGPU asset 8/8, render 17/17; mimari v1.23). v1.19 · 2026-11-14 (v1.18’den fark: Faz 4 adım 6 tamam — Content Browser 6a–g, motor içeriği kipi, motor level kayıt / 409, sınıf listesinin tazelenmesi; DOM panelleri kutusu kapandı; kapı yeşil: 1.946 test, 39 editör ve 1 dist smoke; mimari v1.22). v1.18 · 2026-11-14 (v1.17'den fark: Faz 4 adım 5 tamam — paneller: sanallaştırılmış Outliner (50.000 ölçümü), şemadan Details ve çoklu seçim, düzenleme işlemleri ve gruplama, Add Actor + sürükle-bırak, World Settings ve ortam ayrıntıları, kısayollar ve sağ tık menüsü; kullanıcı kararları 2026-11-14; SDK 0.1.7; mimari v1.21. v1.17 · 2026-11-14 (v1.16'dan fark: Faz 4 adım 4 tamam — gizmo (Forge'unki, sürükleme matematiği three'siz), araçlar ve snap widget'ları, zemin / duvar snap'i picker ışınlarıyla, pivot (kullanıcı kararı: aktör belgesinde `pivot`), instancing transform hızlı yolu; 11 R yeniden yazıldı; mimari v1.20. v1.16 · 2026-11-14 (v1.15'ten fark: Faz 4 adım 3 tamam — editör viewport'u: editör kamerası ve kipleri, çizim katmanı (sahne derinliğine karşı; pipeline'sız karede derinlik ön geçişi), ızgara, CPU picking ve seçim çerçevesi, View Mode / Show / Quality menüleri, `editorRender` bağlamaları ve ışığın yardımcıları; mimari v1.19. v1.15 · 2026-11-13 (v1.14'ten fark: Faz 4 adım 2 tamam — 2b üretim build'i (kullanıcı kararı: Faz 4), statik içerik, `verify:dist --strict`, alt dizin smoke'u; dist kutusu işaretli. v1.14 · 2026-11-13 (v1.13'ten fark: Faz 4 adım 2'nin dilimi — editörün World'ü (`inEditor`, kullanıcı kararı), `actorsChanged`, `editorRender` kuralı, editör oturumu, `?editor` kabuğu, editör smoke'u, `verify:dist`; kalan 2b üretim build'i. v1.13 · 2026-11-13 (v1.12'den fark: Faz 4 adım 1 tamam — UI kiti (`src/editor/ui`), `?editor-kit`, editörün tarayıcı denetimleri gate ve CI'da. v1.12 · 2026-11-13 (v1.11'den fark: Faz 4 başladı — döküm (36 INV satırı, ertelenmiş A yok, 11 R), kararlar 1–12 (kullanıcı onayı), adım sırası 1–10; mimari v1.16. v1.11 · 2026-11-13 (v1.10'dan fark: Faz 3 kapandı — adım 9: smoke tam seti Faz 0 pozu ve boyutuyla, Faz 0 ile yan yana ızgara (`npm run smoke:grid`), yönlü ışıkların dünya çerçevesi düzeltmesi; kullanıcının görsel kabulü ve referanslar; view distance 5b'ye (kullanıcı kararı); bölüm `docs/archive/PHASE_3.md`'ye taşındı; mimari v1.15. v1.10 · 2026-11-13 (v1.9'dan fark: Faz 3 adım 8 tamam — otomatik instancing, terrain salt çizimi, görüntüleyicinin varsayılan kamerası, `?debug` paneli, bütün çizen referans level'lar smoke'ta; kullanıcı kararları: terrain / örtü katman materyali GUID, paket manifesti `requires`, `?debug` kapsamı; referans projesi yeniden alındı; mimari v1.14. v1.9 · 2026-11-13 (v1.8'den fark: Faz 3 adım 7 tamam — olay bazlı gün saati: `timeTransition`, `WorldEnvironmentService.transitionTo` (`Promise<boolean>`, hep ileri), Sky Light yakalaması aynı PMREM'e, ölçülerek seçilen yakalama hızı (açı + 0,1 sn + durunca son yakalama), `npm run measure:sky-capture`; kullanıcı kararları; mimari v1.13. v1.8 · 2026-11-13 (v1.7'den fark: Faz 3 adım 6 tamam — `forge.postProcess`, `applyQualityToPostProcess`, TSL `RenderPipeline` (MRT 30 bayt, cihaz sondası), çıktı dönüşümü; kullanıcı kararları: gökyüzü kubbesi Post Process altında kendi pozlamasıyla, SSGI AO'nun yerine, pipeline'sız çizimde MSAA; referans projesi yeniden alındı; mimari v1.12. v1.7 · 2026-11-13 (v1.6'dan fark: Faz 3 adım 5 tamam — çevre:
 `forge.skyAtmosphere` / `forge.skyLight` (arka plan ve ortam ışığı dahil,
 kullanıcı kararı) / `forge.cloudLayer` / `forge.worldEnvironment` (sabit
 saat), TSL gökyüzü + ay + yıldız, PMREM Sky Light, bulut, WES yorumu,
@@ -633,12 +633,27 @@ Dört alt faz; her birinin kendi kapısı var, görsel kabul sonda toplu istenir
 5a önce gelir; 5b ve 5c onun üstünde paralel yürüyebilir; 5d, 5a–5c'nin
 çıktısını kullanır.
 
+**WES + prosedürel bitki bağı (kullanıcı kararı, 2026-11-14; yalnız plan):**
+[prosedürel bitki planı](PROCEDURAL_VEGETATION_AND_PROPS_PLAN.md) v0.6 ile
+mevsime tepki veren bitkiler bu faza bağlandı. PG0 ortak sözleşmeleri ve
+PG1–PG3 küçük üretim / CLI dilimi 5c ile birlikte ilerler; 5c'nin kapanışında
+prosedürel üretilmiş bir yaprak döken ve bir iğne yapraklı ağaç kullanılır.
+Tam tarif paneli / World Builder bağlantısı PG5 / 5d'de gelir. Böylece üretici
+bütün Faz 5'i, 5c de tam üretici araçlarını beklemez. Mimari §4.9 ortak
+sözleşmenin otoritesidir; ayrıntılar ve PV-WES kabul matrisi bitki planındadır.
+Geometri önceden üretilir; tekil bitki bileşenli aktör ve kompakt foliage aynı
+aile / WES tepki sistemini kullanır. Olay bazlı saat korunur, birikim geçen
+simülasyon süresinden ilerler. Kod / şema uygulaması başlamadı, kutu kapanmadı.
+
 - [ ] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
       Faz 3 karar 1) üretim kalitesine çıkar: morph,
       tile seam, 8 boya katmanı, su birikintisi, kıyı ıslaklığı, kostik; tile
-      akışı (editör ve runtime), global harita. *Kapı:* referans terrain
-      level'ı §2.10 ölçümüyle sınırın içinde; görsel yükseklik collider ile
-      eşleşiyor; ertelenen 4 A yeşil (su birikintisi 3, öksüz tile 1).
+      akışı (editör ve runtime), global harita; authored paint / yükseklik /
+      fizik materyaline yazmayan WES kar / ıslaklık örtüsü. *Kapı:* referans
+      terrain level'ı §2.10 ölçümüyle sınırın içinde; görsel yükseklik collider ile
+      eşleşiyor; WES örtüsü bağımsız önizleniyor ve kayda sızmıyor, saat
+      atlaması birikim süresi sayılmıyor; ertelenen 4 A yeşil (su birikintisi 3,
+      öksüz tile 1). Bitki kataloğu bu terrain diliminin önkoşulu değildir.
 - [ ] **5b Akış + HLOD:** World Partition hücre akışı (A11 modeli; editör de
       akışla çalışır), HLOD, view distance (Faz 3'ün "Işık ve gölge" kutusundan
       taşındı, kullanıcı kararı 2026-11-13), küçük nesne culling. *Kapı:* hücre
@@ -647,17 +662,26 @@ Dört alt faz; her birinin kendi kapısı var, görsel kabul sonda toplu istenir
       (`terrainRuntimeStreaming` 2, eşzamansız hücre yükleyici 17, asset residency
       18, görüş mesafesi 9 + sis 1, dünya haritası 5, ayrıntı culling 2).
 - [ ] **5c Foliage:** instancing + compute culling + indirect draw; impostor /
-      billboard, rüzgâr, fade; foliage hücreleri. GPU güdümlü yol bütün foliage
-      türlerinde ve gölge kaskatlarında zorunlu (Faz 1 GO koşulu; S4: kip (b)'de
+      billboard, rüzgâr, fade; foliage hücreleri; PG0–PG3 ile ortak bitki
+      ailesi ve WES tepkisi: tekil aktör / foliage eşitliği, kademeli renk /
+      yapraklılık, kar / ıslaklık ve güncel mevsimle hücre yükleme. GPU güdümlü
+      yol bütün foliage türlerinde ve gölge kaskatlarında zorunlu
+      (Faz 1 GO koşulu; S4: kip (b)'de
       Derekavak P2'nin 327 draw call'unun 260'ı foliage). *Kapı:* referans
       level'ın gerçek foliage sayılarıyla S4 ölçümünün üretim karşılığı; G6
       Derekavak P2'de 60 Hz'de render gönderimi ≤ 3 ms, ana iş parçacığı ≤ 6 ms;
-      ertelenen 8 A yeşil (foliage halkası).
+      ertelenen 8 A yeşil (foliage halkası). Ek kabul: prosedürel üretilmiş
+      iki ağaç türüyle PV-WES-01–08; LOD / impostor, kullanılan HLOD ve gölgede
+      kış / ara mevsim tutarlılığı; üretilmiş ormanda da G6; çevre geçişinde
+      yeniden derleme / kaynak sızıntısı yok, en uzun kare, GPU süresi ve
+      toplam / tepe bellek raporlanmış. Tam üretici paneli beklenmez.
 - [ ] **5d Editör araçları + World Builder:** sculpt, paint, foliage paint,
       landscape spline; World Builder penceresi + `/__world-random` endpoint'i
-      + önizleme worker'ı. *Kapı:* araç başına editör smoke'u (düzenle → kaydet
+      + önizleme worker'ı; PG5 tam tarif paneli, `generated` model kaynağı ve
+      bitki ailesi yerleşimi. *Kapı:* araç başına editör smoke'u (düzenle → kaydet
       → yeniden aç); üretilen dünya Content Browser'da görünüyor; ertelenen
-      4 A yeşil (`worldTerrainMove`, su tipleri Faz 7'yle).
+      4 A yeşil (`worldTerrainMove`, su tipleri Faz 7'yle); üretilen bitki
+      yerleşimleri aileyi kullanıyor, aile / mevsim önizlemesi çalışıyor.
 - [ ] Faz kapısı: referans açık dünya sahnelerinde görsel + performans kabulü;
       terrain collider ile eşleşiyor.
 
@@ -923,3 +947,4 @@ silinebilir.
 | 2026-11-14 | v1.18 | Faz 4 adım 5 tamam, paneller (`aa3726d`, `1a36338`, `e3f44f6`, `c887976`, `15a704b`, `1963a77`, `cd55e12`): **kullanıcı kararları** (hepsi öneri) Outliner ölçümü ayrı bench, override satırda, Add Actor girişleri + sınıflar, World Settings = level ayarı + tekil ortam aktörleri, `locked` belgede / gizleme görünüm, Add / Remove Component, Ground Mist + World Environment önizlemesi, pano JSON; sanallaştırılmış Outliner (50.000: ilk kurma 47,8 ms, seçim p95 3,5 ms, kaydırma 0,9 ms, arama 23,1 ms), şemadan Details ve çoklu seçim, düzenleme işlemleri ve gruplama, Add Actor + sürükle-bırak, World Settings, kısayol tablosu, Outliner sağ tık menüsü; `defineFeatureEditor` (SDK 0.1.5–0.1.7); editör smoke'u 28 test. A 934 / 1.021 |
 | 2026-11-14 | v1.19 | Faz 4 adım 6 tamam (6a–g): Content Browser, küçük resim, referans güvenli dosya işlemleri, yeni asset / klasör, import / reimport, viewport’a sürükle-bırak, Open Level ve Browse To; `397e8d2` motor içeriği kipi, kökler arası kopyalama reddi, sınıf tazeleme, motor level kayıt / 409. DOM panelleri kutusu kapandı; SDK 0.1.9 değişmedi. Kapı yeşil: 1.946 test, 39 editör ve 1 dist smoke. Mimari v1.22; asset editörleri adım 7’de |
 | 2026-11-14 | v1.20 | Faz 4 adım 7 tamam (`3545277`): ortak asset oturumu / pencere; şemadan form ve sanal tablo (A13); materyal küresi, static mesh slot / UVW gizmosu / vertex doldur-sil, aktör sınıfı bileşen ağacı ve varsayılanları; tek canvas / GPU üzerinde taslak önizlemesi; sınıf kaydında görünür level / hücre override koruması, kirli level verisi korunarak sahne tazeleme. SDK 0.1.10 (API `bb3bd9b259905ae0`), HTTP / asset şemaları aynı. Tam gate: 1.957 test, 47 editör + 1 dist smoke; başlıklı gerçek WebGPU asset 8/8 ve son sınıf döngü kontrolü, render smoke 17/17; referanslar değişmedi. Mimari v1.23. Sıradaki adım 8: Play + gelişmiş 409 akışı |
+| 2026-11-14 | v1.21 | Kullanıcı kararı: WES ile prosedürel bitki tasarımı birleştirildi (bitki planı v0.6, mimari v1.24). Kalıcı bitki ailesi, tekil aktör / foliage ortak tepki sistemi, mevsimsel yapraklılık / renk, rüzgâr ve görsel kar / ıslaklık; olay bazlı saatten ayrı birikim süresi; PG0–PG3 küçük üretim 5c ile, tam araçlar PG5 / 5d ile. 5a / 5c / 5d kapsamı ve PV-WES kabul koşulları güncellendi. Yalnız belge değişikliği; kod / bağımlılık değişmedi, uygulama başlamadı ve kutu kapanmadı. Forge WES belgesi salt okunur tarihsel referans |

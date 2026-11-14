@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.23 · 2026-11-14 (v1.22’den fark: §4.3 assetEditors / assetPreviews sözleşmeleri (SDK 0.1.10); §4.11 A13 uygulaması — ortak asset oturumu ve sanal tablo, tek canvas / GPU önizlemesi, sınıf uyumluluk koruması ve kaynak nesli yönetimi). v1.22 · 2026-11-14 (v1.21’den fark: §4.8 motor içeriği kipinin uygulaması — kayıtlı kökler için ayrı kayıt politikası, Content Browser ve level kayıt yönlendirmesi, etiketli 409 / hücre dizini yolları, sınıf tazeleme ve geçici içerikle kabul). v1.21 · 2026-11-14 (v1.20'den fark: §4.3 bir özelliğin editör tarafı `defineFeatureEditor` (Outliner görünüşü, Add Actor girişleri, Details eklentileri; SDK 0.1.5–0.1.7); §4.4 aktörün editöre özgü `locked`'u (kullanıcı kararı); §4.7 paneller: gizleme yalnız görünüm, Details'in şemadan formu ve override'ları, düzenleme işlemleri, gruplama ve pano (kullanıcı kararları 2026-11-14).
+**Sürüm:** v1.24 · 2026-11-14 (kullanıcı kararı: WES + prosedürel bitki ortak sözleşmesi; bitki ailesi, tekil aktör / foliage eşitliği, zaman / mevsim / örtü sahipliği ve 5c bağı; yalnız plan, uygulama yok). v1.23 · 2026-11-14 (v1.22’den fark: §4.3 assetEditors / assetPreviews sözleşmeleri (SDK 0.1.10); §4.11 A13 uygulaması — ortak asset oturumu ve sanal tablo, tek canvas / GPU önizlemesi, sınıf uyumluluk koruması ve kaynak nesli yönetimi). v1.22 · 2026-11-14 (v1.21’den fark: §4.8 motor içeriği kipinin uygulaması — kayıtlı kökler için ayrı kayıt politikası, Content Browser ve level kayıt yönlendirmesi, etiketli 409 / hücre dizini yolları, sınıf tazeleme ve geçici içerikle kabul). v1.21 · 2026-11-14 (v1.20'den fark: §4.3 bir özelliğin editör tarafı `defineFeatureEditor` (Outliner görünüşü, Add Actor girişleri, Details eklentileri; SDK 0.1.5–0.1.7); §4.4 aktörün editöre özgü `locked`'u (kullanıcı kararı); §4.7 paneller: gizleme yalnız görünüm, Details'in şemadan formu ve override'ları, düzenleme işlemleri, gruplama ve pano (kullanıcı kararları 2026-11-14).
 v1.20 · 2026-11-14 (v1.19'dan fark: §4.4 aktörün editöre özgü `pivot`'u (kullanıcı kararı); §4.7 gizmo'nun uygulaması (three'siz sürükleme, tek transaction, instancing hızlı yolu); §4.9 gizmo katmanın son pass'i.
 v1.19 · 2026-11-14 (v1.18'den fark: §4.2 editör yardımcı bağlamaları (`defineEditorRenderBinding`, `forge.editorHelpers`); §4.9 çizim katmanının uygulaması (sahne derinliği, derinlik ön geçişi, ton eşlemesiz bileşim) ve picking etiketleri.
 v1.18 · 2026-11-13 (v1.17'den fark: §4.8 build'in uygulaması (kullanıcı kararı: Faz 4): statik içerik, `ContentClient`, alt dizin.
@@ -482,6 +482,14 @@ features/height-fog/
   katmanının otomatik toplu çizimidir. Toplu yerleşim için instanced static mesh
   bileşeni vardır; foliage kompakt örnek dizileri olarak hücre dosyalarında
   kalır.
+- **Bitki temsili (plan, kullanıcı kararı 2026-11-14):** tekil ağaç şemalı
+  bitki bileşeni taşıyan aktördür; orman kompakt foliage örnekleridir. İkisi
+  aynı üretilmiş bitki ailesine referans verir ve aynı WES tepki çözümünü
+  kullanır (§4.9). Bitki ailesi geometri, LOD / atlas, materyal, collider ve
+  çevre tepki profilini birleştirir; GLB geometrinin taşıyıcısı olabilir.
+  Sırf çevre tepkisi için her foliage örneği aktör / script yapılmaz. Bu
+  sözleşme henüz uygulanmadı; asset / bileşen şemaları kendi uygulama adımında
+  kaydedilecek. Ayrıntı [prosedürel bitki planı](PROCEDURAL_VEGETATION_AND_PROPS_PLAN.md) §5.4.
 - **World Builder çıktısının bileşenleri (plan 2b `tools/world`, kullanıcı
   kararı 2026-11-12):** dört bileşen 2b'de yalnız şema olarak tanımlıdır
   (World Builder ve içe aktarıcı yazar; çizim Faz 3 / 5a, collider Faz 6):
@@ -1452,6 +1460,71 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   hava / mevsim anında, kaydırılan saat hiç). Ölçüm: yakalama ~3,3–3,5 ms GPU
   (256, NVIDIA Ampere); düzenek `npm run measure:sky-capture`, dev'e özel
   `window.__forgeDev` (kare döngüsünü duraklatıp adımlar, `runtime/steppableScheduler`).
+- **WES ve prosedürel bitkiler — ortak sözleşme (plan, kullanıcı kararı
+  2026-11-14; henüz uygulanmadı):**
+  - **Sorumluluk:** WES mevsim, hava, rüzgâr, kar / ıslaklık ve çevre
+    geçişlerinin tek otoritesidir. Bitki ailesi yaprak döken / herdem yeşil
+    ayrımı, mevsimsel yapraklılık / renk hedefleri, rüzgâr esnekliği, odun /
+    yaprak kar kabulü ve ıslanma tepkisini tanımlar. Ortak bitki sistemi
+    aile + WES durumunu tekil aktör ve foliage için aynı kuralla çözer.
+  - **Üretim / çalışma zamanı ayrımı:** geometri ve dokular Node / editör
+    araçlarında önceden üretilir, kalıcı dosyadır. Oyun bitki ailesini ve
+    ortak tepki sistemini yükler; mevsim değişirken geometri üreticisi
+    çalışmaz. Odun ve yapraklar ayrı çizilebilir, aynı dal iskeleti korunur.
+    Üretim seed'i sınırlı prototip geometrisini, örnek seed'i renk / rüzgâr
+    fazı / dökülme çeşitliliğini belirler; her örnek yeni mesh oluşturmaz.
+  - **Veri / katman:** aile asset'i ve tekil bitki bileşeni şemalıdır;
+    referanslar GUID, foliage örnekleri mevcut kompakt hücre verisidir.
+    Saf tepki çözümü `engine`, WES servis tüketimi özellik alt sistemi,
+    TSL / GPU çizimi render bağlaması ve 5c yolundadır. Ortak three kodu
+    `src/render/…` içinde kalır; yeni katman kuralı gerekmez. Ağaç başına
+    script, CPU tick veya özel materyal üretilmez. Tür hesapları ve GPU
+    kaynakları paylaşılır; örnek farklılıkları kompakt veridir. Editör
+    aynı davranışı `inEditor` yaşam döngüsünde gösterir.
+  - **Mevsim:** ilkbaharda yaprak görünmesi, yazın tam yapraklılık,
+    sonbaharda renk / yaprak kaybı, kışın çıplak odun veya herdem yeşil
+    profil uygulanır. WES hedef ve geçiş ilerlemesini yönetir; otomatik
+    takvim önkoşul değildir. Yaprak / küme kararlı kimliğinden dökülme
+    eşiği çıkar; aynı seed / ilerleme aynı görünürlüğü verir. Bu geçiş
+    alanları mevcut şemada var sayılmaz, uygulamada eklenir.
+  - **Örtü ve ışık:** kış mevsimi ile `snowCoverage` bağımsızdır; kar kabul
+    maskeleri odun / yaprak ve yukarı bakan yüzeyle birleşir, `wetness`
+    renk / pürüzlülüğü etkiler. İlk kapsam görseldir; collider odunsu
+    taban temsiline bağlıdır. Kar yükü fiziği, biyolojik büyüme ve yaprak
+    başına fizik yoktur. Gündüz–gece mevcut güneş / ay / ortam ışığından
+    gelir; bitkinin ikinci bir aydınlatma saati olmaz.
+  - **Zaman politikası:** sabit `hour` ve olay bazlı `transitionTo` kararı
+    korunur. Günün saati, geçen simülasyon süresi ve mevsim ilerlemesi
+    ayrıdır. WES birikim / erime / kurumayı ölçekli simülasyon süresi ve
+    şemada birimleri tanımlı oranlarla yürütür; saat farkını geçen süre
+    saymaz. Saat sabitken simülasyonla örtü / rüzgâr ilerleyebilir, pause'da
+    durur. Önizleme hedefi doğrudan gösterebilir; tarihsel yaprak efektleri
+    mevsim atlamasında veya hücre yüklemesinde yeniden oynatılmaz.
+  - **Temsil tutarlılığı:** aynı yapraklılık, kar ve rüzgâr LOD / kart /
+    impostor, kullanılan HLOD proxy'si ve gölge geçitlerinde karşılanır.
+    Rüzgârın sınır genişlemesi culling'de dikkate alınır. Yaz atlasını
+    beyazlatmak kışın çıplak siluetini karşılamaz. Odun / yaprak ayrımı
+    veya sınırlı mevsim atlası seçimi PG3 ölçümünde kapanır; dört tam atlas
+    zorunlu değildir. Çevre geçişi shader yeniden derlemesi gerektirmez.
+  - **Sahiplik / akış:** mevsim aktör GUID'ini, foliage örnek sayısı ve
+    transform / seed dizilerini değiştirmez; bitki asset'leri, terrain
+    paint / yükseklikleri ve fizik materyalleri yazılmaz. Yeni hücre güncel
+    WES'ten kurulur. Save-game WES durumunu ortak otoritede tutar; bitki
+    görünümünün türetilebilir değerleri ağaç başına kaydedilmez. Editör
+    önizlemesi geçicidir. WES yoksa taban görünüm ve mevcut level /
+    varsayılan rüzgâr politikası kullanılır. Oyun etkileşim script'leri
+    tekil aktöre ayrıca eklenebilir; foliage ↔ aktör dönüşümü ilk kapsamda yoktur.
+  - **Faz bağı:** 5a WES terrain örtüsünü, 5c ortak rüzgârı ve bitki
+    tüketicilerini bağlar. PG0–PG3 küçük üretici / CLI dilimi 5c ile birlikte
+    bir yaprak döken ve bir iğne yapraklı kabul ağacı sağlar; tam araçlar
+    PG5 / 5d'dedir. Eski Forge WES K2/K3 maddeleri WebGL'e yama olarak
+    taşınmaz; TSL, şema ve servis modeliyle gerçekleştirilir. Eski WES
+    belgesi salt okunur tarihsel referanstır; üretilen bitkide tekil ağaç /
+    foliage mevsim eşitsizliği ve hazır kış modeli gereksinimi kalkar.
+  - **Kabul:** üretici ayrıntıları, açık temsil ölçümü PK7 ve PV-WES-01–08
+    matrisi [prosedürel bitki planında](PROCEDURAL_VEGETATION_AND_PROPS_PLAN.md)
+    §6.9 / §10 / §11'dedir. Gerçek WebGPU'da üretilmiş ormanla G6, geçişin
+    en uzun karesi, GPU süresi, toplam / tepe bellek ve hücre döngüsü ölçülür.
 - *Terrain:* Faz 3'te salt çizim (spike S2'nin TSL CDLOD'u: yükseklik, 8
   katman, normal, gölge); su birikintisi, kıyı, kostik, tile akışı ve üretim
   kalitesi 5a'da. HLOD 5b'de.

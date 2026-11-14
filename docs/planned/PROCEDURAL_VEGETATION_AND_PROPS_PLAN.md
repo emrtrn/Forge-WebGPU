@@ -1,14 +1,19 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.5 · 2026-11-11 (v0.4'ten fark: insan yapımı prop'lar kapsam
-dışı)
-kaynaklar Codex ve Poly Haven)
-**Durum:** Plan. Uygulama başlamadı; kod, bağımlılık ya da ana plan kutusu
-değişmedi. Başlama koşulu §2'de.
+**Sürüm:** v0.6 · 2026-11-14 (WES ile birleşik bitki ailesi, ortak çalışma
+zamanı davranışı ve 5c ile birlikte ilerleyen üretim dilimi; kullanıcı kararı).
+**Durum:** Plan. Uygulama başlamadı; kod ve bağımlılık değişmedi, ana plan
+kutusu kapanmadı. Başlama koşulu §2'de.
 **İlgili belgeler:** [yeniden inşa planı](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
-sırası; bu iş onun Faz 5'inden sonra başlar),
+sırası; küçük üretim dilimi 5c ile birlikte, tam araçlar 5d ile ilerler),
 [mimari rapor](FORGE_WEBGPU_ARCHITECTURE.md) (ürün tezi §0.0, katmanlar §4.2,
 özellik modülü §4.3, asset modeli A10). Çelişkide o iki belge geçerlidir.
+**WES kaynağı:** Forge WebGL'deki
+`docs/planned/WES/FORGE_WORLD_ENVIRONMENT_MEVSIM_HAVA_ZAMAN_TEKNIK_TASARIM_VE_UYGULAMA_PLANI_v0.3.md`
+tarihsel referanstır ve değiştirilmez. WebGPU'da güncel ortak sözleşme mimari
+§4.9'dadır; üretici ve bitki çıktısının ayrıntısı bu belgede yaşar. Eski WES'in
+hazır kış modeli gereksinimi ve tekil ağaçta yalnız materyal desteği sınırı,
+üretilen bitkiler için bu birleşik tasarımla yer değiştirir.
 **Yerini aldığı belgeler:** `docs/procedural/` altındaki araştırma raporu ve
 kapsam envanteri (2026-11-11, commit'lenmemişti; kaldırıldı). Doğrulanmış
 bulguları Ek A'ya ve §4–§8'e taşındı.
@@ -17,8 +22,9 @@ video, 812 kare, görüntüleyici). Yalnız bu makinede durur, depoya girmez.
 
 > **Hedef:** World Builder'ın ürettiği dünyalarda ağaç, çalı, ot, kaya, kütük
 > ve zemin döküntüsü için hazır model aranmasın. Motor bu varlıkları küçük bir
-> tariften kendisi üretir; çıktı sıradan bir asset'tir ve lisansı projeye
-> aittir.
+> tariften kendisi üretir; bitki çıktısı WES'e tepki veren bir bitki ailesidir
+> ve lisansı projeye aittir. Tekil ağaç aktörü ve orman örnekleri aynı aileyi
+> kullanır; rüzgâr, mevsim, kar ve ıslaklık sahnede görünümü değiştirir.
 
 ---
 
@@ -33,6 +39,12 @@ bu projede yok (plan 2b, kullanıcı kararı 2026-11-11).
 getirir" kuralının yerini prosedürel üretim alır. Bina, köprü, araç, karakter
 ve tekil kahraman objeler bu planın dışındadır; onlar için bugünkü kaynaklar
 (Blender, Tripo, hazır model) geçerli kalır.
+
+**Birleşik tasarım kararı (kullanıcı, 2026-11-14).** WES kabul ağaçları hazır
+modellerden değil bu üreticiden gelir. Önceden geometri üretimi korunur;
+çalışma zamanında ortak bitki sistemi WES'i okur. GLB geometri taşıyabilir,
+ancak sahnedeki bitki bitki ailesine referans verir (§5.4, §6.9). Her ağaca
+ayrı güncellenen script gerekmez.
 
 **Ürün tezine uygunluk (mimari §0.0).**
 
@@ -49,7 +61,8 @@ ve tekil kahraman objeler bu planın dışındadır; onlar için bugünkü kayna
 | Görsel node / graf editörü | §0.0: grafik üstünde yazılan araçlar motora girmez |
 | Oyun sırasında üretim | Çıktı önceden üretilir; oyun build'ine üretici kodu girmez |
 | Yerleşimin yeniden üretimi, sahiplik, "yalnız değişeni güncelle" | Kullanıcı kararı 2026-11-07 (plan 2b); sahne onaydan sonra kullanıcınındır |
-| Biyolojik büyüme / çevre simülasyonu | Gereken şey kontrol edilebilir biçim; simülasyon kapsamı büyütür |
+| Biyolojik büyüme / ekosistem simülasyonu | Yaş üretim parametresidir; WES'e görsel tepki (§6.9) kapsam içindedir, biyolojik büyüme hesaplanmaz |
+| Fiziksel kar yükü, dal eğilmesi / kırılması ve yaprak başına fizik | İlk kapsam görsel örtü ve yapraklılıktır; fiziksel genişleme ayrı iş |
 | Binalar, yol ağı, yerleşim planı | World Builder'ın mevcut algoritmaları ve ayrı iş |
 | İnsan yapımı prop'lar (çit, sandık, varil, donatı) | Kullanıcı kararı 2026-11-11; binalar ve kentsel çevreyle birlikte ayrı işte ele alınır |
 | Tür kataloğu | Türler oyun verisidir (§5.3); motor yalnız üretici taşır |
@@ -58,9 +71,11 @@ ve tekil kahraman objeler bu planın dışındadır; onlar için bugünkü kayna
 
 ## 2. Başlama koşulu ve ana plandaki yeri
 
-Kullanıcı kararı (2026-11-11): bu iş şimdi yalnız planlanır; motor ve World
-Builder hazır olunca başlar. Ana plana yeni faz eklenmedi; başlarken tek satırla
-bağlanır.
+Kullanıcı kararı (2026-11-14): bu güncelleme yalnız plandır. Önceki "Faz 5'in
+tamamını bekle" sırası yerini iki dilime bırakır: ortak sözleşmeler ve küçük
+üretici 5c'nin girdisi olacak şekilde 5c ile birlikte; tam tarif paneli ve
+World Builder araçları 5d ile ilerler. Ana plan Faz 5'e bağlanır, yeni ana faz
+açılmaz. Uygulamaya başlama yetkisi bu belge güncellemesinden çıkmaz.
 
 **En az gereken ana plan çıktıları:**
 
@@ -70,19 +85,21 @@ bağlanır.
 | Faz 3 | Materyal sistemi (TSL), GLB + KTX2 yükleme, render kaynak önbelleği |
 | Faz 4 | Editör kabuğu, Content Browser, şemadan form, genel veri editörü (A13), ajan komutları (A12) |
 | 5a | Terrain (yerleşimin zemini) |
-| 5c | GPU güdümlü foliage: instancing, culling, impostor, rüzgâr, fade |
-| 5d | World Builder penceresi ve önizleme worker'ı |
+| 5c ile birlikte | GPU güdümlü foliage: instancing, culling, impostor, rüzgâr, fade; küçük üretim dilimi bununla birlikte doğrulanır |
+| 5d, tam araçlar için | World Builder penceresi, tam tarif paneli ve önizleme worker'ı; küçük CLI üreticisinin önkoşulu değildir |
 
 Faz 6–10 (oyun runtime'ı, su, deformasyon, ileri aydınlatma, Ridgebound göçü)
-bu işi beklemez, bu iş de onları beklemez. Hangi noktada başlanacağı kullanıcı
-kararıdır.
+tam üretici kataloğunu beklemez. Terrain örtüsü 5a'da bitki kataloğundan
+bağımsız ilerler; bitkiler aynı WES örtüsünü 5c'de tüketir.
 
-**Başlarken ana planda doğrulanacak üç nokta** (bugünden değişiklik istemez):
+**PG0'da birlikte doğrulanacak sözleşmeler:**
 
 1. 5c'nin foliage türü mesh'i GUID ile, LOD zinciri ve impostor atlasıyla
    birlikte kabul ediyor mu?
 2. 5c'nin rüzgârı köşe niteliklerinden mi besleniyor (§6.5)?
 3. World Builder'ın model kaynağı listesi yeni bir kaynağa açık mı (§7.2)?
+4. Bitki ailesini tekil aktör ve foliage aynı çevre tepkisiyle tüketiyor mu;
+   WES durumu, zaman politikası ve kış LOD / impostor girdileri uyumlu mu?
 
 ---
 
@@ -95,26 +112,31 @@ Tarif (küçük JSON: üretici + parametreler + seed listesi)
 İskelet / biçim  ──►  Mesh (köşe, normal, UV, rüzgâr ağırlığı)
         │
         ├──►  LOD'ler (aynı iskeletten daha kaba örnekleme)
-        ├──►  Kart atlası + impostor atlası (bake)
+        ├──►  Mevsim uyumlu kart ve impostor temsilleri (bake)
         └──►  Basit collider + istatistik
         ▼
-Sıradan asset'ler: mesh dosyaları + dokular + foliage türü
+Bitki ailesi: kalıcı mesh / dokular + çevre tepki profili + collider
         ▼
-World Builder: rol → asset; yer tutucu yerine gerçek model
+Tekil bitki aktörü / World Builder / foliage: aile → prototip örnekleri
+        │
+WES: mevsim, hava, rüzgâr, örtü → ortak bitki sistemi
         ▼
 5c foliage yolu / instanced static mesh: binlerce örneğin çizimi
 ```
 
-Üç ayrı iş var ve bu plan yalnız ilkini kurar:
+Sorumluluklar:
 
 | İş | Sahibi |
 |---|---|
 | **Biçim üretimi:** bir ağacın dalları, bir kayanın yüzeyi | Bu plan |
 | **Yerleşim:** hangi tür nerede, hangi yoğunlukta | World Builder (zemin örtüsü kuralları, rol yerleşimi); bu plan dokunmaz |
 | **Sunum:** instancing, culling, LOD seçimi, rüzgâr, impostor çizimi | Ana plan 5c |
+| **Çevre durumu:** mevsim, hava, rüzgâr, kar / ıslaklık ve geçişlerin otoritesi | WES; mimari §4.9 |
+| **Bitkinin tepkisi:** yapraklılık, renk, esneklik ve örtü kabulü | Bu planın aile profili + ortak bitki sistemi; çizim 5c |
 
-Çıktı sıradan asset olduğu için oyunun kendisi üreticiyi tanımaz. Üretici
-yalnız editörde ve Node araçlarında yaşar.
+Oyun üreticiyi çalıştırmaz; kalıcı bitki ailesini ve ortak davranışını tanır.
+Geometri üreticisi yalnız editörde ve Node araçlarında yaşar. Mevsim değişimi
+mesh üretmez, asset dosyalarına veya yerleşimlere geri yazmaz.
 
 ---
 
@@ -130,7 +152,7 @@ varlıkları kapsar; "meşe" ya da "granit" o üreticinin bir ön ayarıdır (§
 | **Şerit / demet** | Çim, uzun ot, saz, basit çiçek sapı | Kökten çıkan eğri şeritler; boy, kıvrım, genişlik eğrisi, demet dağılımı | PG4 |
 | **Ölü odun** | Kütük, devrilmiş gövde, kırık dal | Dallanan iskeletten kesit: uç kapakları, kırık yüzeyi, yatırma | PG6 |
 | **Döküntü** | Düşmüş yaprak, kozalak, dal parçası, çakıl kümesi | Dallanan ve Kaya üreticilerinin parçalarından küçük mesh'ler | PG6 |
-| **İğne yapraklı** | Çam, ladin, servi | Dallanan üretici + iğneli dal ucu kartları (iğne tek tek mesh olmaz) | PG6 |
+| **İğne yapraklı** | Çam, ladin, servi | Dallanan üretici + iğneli dal ucu kartları (iğne tek tek mesh olmaz) | PG2 küçük örnek; PG6 genişleme |
 | **Frond / rozet** | Eğrelti, palmiye tacı, rozet bitki | Orta damar + iki yanda yaprakçık; merkezden yayılan dizilim | PG7 |
 | **Mantar** | Tekil ve kümeli mantar, ağaç mantarı | Profil döndürme (sap + şapka) | PG7 |
 
@@ -176,6 +198,7 @@ tanımladığı türlere açık kurulduysa, motor özelliklerine de açılır.
   variants             seed listesi; her seed bir prototip üretir
   lod                  LOD başına hedefler (§8)
   materials            kabuk / yaprak / yüzey materyal ve doku referansları
+  response             mevsim, rüzgâr ve örtü tepki profili (§5.4)
   collision            yok | gövde kapsülü | dışbükey kabuk
   linked               isteğe bağlı: başka tarif (ör. kütüğün ait olduğu ağaç)
 ```
@@ -186,11 +209,13 @@ tanımladığı türlere açık kurulduysa, motor özelliklerine de açılır.
 commit'lenir, önbellek gibi her makinede yeniden üretilmez. Her prototip için
 sıradan asset'ler yazılır ve tarifin yanındaki klasörde durur:
 
-- mesh dosyası (LOD'leriyle), 5c'nin beklediği LOD sözleşmesinde;
+- mesh dosyaları (LOD'leriyle), 5c'nin beklediği LOD sözleşmesinde; bitkide
+  odun ve yapraklar ayrı çizilebilir, yaprak / küme kimlikleri kararlıdır;
 - dokular: yaprak / kart atlası, impostor atlası, gerekirse kabuk ya da yüzey
   karosu;
-- bitkilerde foliage türü; kaya ve kütükte statik mesh olarak kullanılacak
-  kayıt;
+- bitkilerde aile tanımı: prototipler, temsiller, tepki profili ve collider
+  referansları; foliage türü ve tekil bitki bileşeni aynı aileye referans verir;
+  kaya ve kütükte statik mesh olarak kullanılacak kayıt;
 - meta: kaynak "üretildi", tarifin GUID'i, üretici sürümü, içerik özeti,
   proje lisansı. Böylece `verify:assets` üçüncü taraf kaydı aramaz.
 
@@ -209,6 +234,30 @@ Tür ön ayarları (meşe, huş, granit…) içeriktir. İki yerde durabilir:
 
 Bölgeye ya da kültüre bağlı seçim (hangi dünyada hangi türler) bölge
 profilinde, yani oyun verisinde kalır.
+
+### 5.4 Bitki ailesi, örnek ve canlı durum
+
+Alan adları şema uygulamasında kesinleşir; davranış sözleşmesi bağlayıcıdır.
+
+| Sahip | Veri |
+|---|---|
+| **Aile asset'i** | Tarif kökeni ve sürümü; sınırlı prototip listesi; odun / yaprak LOD'leri, kart / impostor referansları; materyaller, collider ve çevre tepki profili |
+| **Tepki profili** | Yaprak döken / herdem yeşil; mevsim başına yapraklılık ve renk hedefleri; rüzgâr esnekliği; odun / yaprak kar kabul maskeleri ve ıslanma tepkisi |
+| **Tekil bitki bileşeni** | Aile GUID'i, prototip seçimi ve örnek seed'i; transform aktörün / uzamsal bileşenin mevcut modelinde; desteklenen override'lar şemalı |
+| **Foliage örneği** | Aynı aile / prototip, kompakt transform ve seed; sırf çevre tepkisi için ayrı aktör veya script kurulmaz |
+| **WES canlı durumu** | Geçerli mevsim ve geçiş ilerlemesi, hava, rüzgâr, kar / ıslaklık; aileye ve level asset'lerine geri yazılmaz |
+
+Üretim seed'i prototip geometrisini belirler. Örnek seed'i renk, rüzgâr fazı
+ve dökülme eşiklerinde çeşitlilik verir; her örnek için yeni mesh ürettirmez.
+Mevsim değişimi aktör GUID'ini, foliage örnek dizisini, konum / dönüş / ölçek
+ve seed'i değiştirmez. Tekil aktör ile foliage aynı tepki çözümleyicisini
+kullanır; oyun etkileşim script'i gerekirse tekil aktöre ayrıca eklenir.
+
+WES yokluğunda taban görünüm kullanılır; rüzgâr mevcut level / varsayılan
+rüzgâr politikasıyla çözülür. Editör önizlemesi geçicidir. Save-game'e giren
+WES durumu ortak otoritede saklanır; görünürlük ve renk gibi türetilebilir
+değerler ağaç başına kopyalanmaz. Kalıcı oyun etkileşimleri ayrı aktör
+durumudur; foliage ↔ etkileşimli aktör dönüşümü bu ilk kapsamın parçası değildir.
 
 ---
 
@@ -273,6 +322,12 @@ profilinde, yani oyun verisinde kalır.
   Bunlar 5c'nin işidir; üretici yalnız her LOD'un sınırını ve önerilen ekran
   boyutu eşiğini verir.
 - Ot ve küçük taşta impostor yoktur; uzaklıkla seyrelme ve fade yeter.
+- **Mevsim tutarlılığı:** odun ve yaprak görünürlüğü, renk ve kar tüm LOD'lerde,
+  impostor'da, HLOD varsa onun proxy'sinde ve gölgede aynı durumu temsil eder.
+  Yaz atlasını beyaza boyamak çıplak kış siluetini karşılamaz. Odun / yaprak
+  ayrımlı temsiller ile sınırlı mevsim atlasları PG3'te karşılaştırılır; seçim
+  görsel sonuç ve bellek / GPU ölçümüyle kapanır. Her prototipe dört tam atlas
+  zorunlu değildir; bu temsil seçimi açık bir uygulama ölçümüdür.
 
 ### 6.5 Rüzgâr ve collider
 
@@ -382,15 +437,64 @@ geçilir.
 
 | Yer | İçerik |
 |---|---|
-| `src/engine/…` | Saf üretim: rastgele akışlar, iskelet, mesh, LOD, kart kümeleme, kaya, rasterleyici, collider, istatistik. three yok, DOM yok; çıktı typed array |
+| `src/engine/…` | Saf üretim ve ortak tepki çözümleme: rastgele akışlar, iskelet, mesh, LOD, kart kümeleme, kaya, rasterleyici, collider, istatistik; aile + WES → bitki görünüm hedefleri. three yok, DOM yok |
 | `src/features/<ad>/schema.ts` | Tarif şeması ve üretici parametreleri; Node'da yüklenir |
-| `src/features/<ad>/render.ts` | Typed array → geometri; kabuk, yaprak, kaya TSL materyalleri |
+| `src/features/<ad>/render.ts` | Üretilmiş kaynaklar → 5c toplu çizimi; odun / yaprak TSL materyalleri, rüzgâr, mevsim ve örtü katkıları; three kullanan ortak çizim yardımcıları `src/render/…` içinde |
+| `src/features/<ad>/runtime.ts` | Ortak bitki alt sistemi; WES servisini okur, aktör ve foliage için aynı tepki hedeflerini sağlar; ağaç başına script / tick kurmaz |
 | `src/features/<ad>/editor.ts` | Tarif paneli: form + önizleme + üret düğmesi |
 | `tools/` | CLI: tarif doğrulama, üretim, asset yazımı |
 | İçerik paketi / oyun projesi | Ön ayarlar, üretilmiş çıktılar |
 
-Özelliğin `runtime.ts` dosyası boş kalabilir: oyun yalnız üretilmiş asset'i
-yükler.
+Geometri üreticisi oyun build'ine girmez; ortak bitki çalışma zamanı sistemi
+girer. Kayıt mevcut feature / servis mekanizmasıyla yapılır; yeni katman veya
+bağımlılık kuralı gerektirmez. Editör görünümü aynı tepkiyi `inEditor` yaşam
+döngüsüyle sunar; önizleme asset veya level kaydı üretmez.
+
+### 6.9 WES tepkisi ve zaman politikası
+
+**Akış:** WES durumu + aile profili → ortak görünüm hedefleri → tekil aktör /
+foliage çizimi. WES koşulları ve geçişi belirler; bitki türünün nasıl tepki
+vereceği ailede yaşar. Tür düzeyindeki hesaplar paylaşılır; örnek farklılıkları
+kompakt veriden çözülür. Çevre değişimi toplu çizimi örnek başına materyallere
+bölmez, her kare mesh / atlas üretmez ve shader yeniden derlemesi gerektirmez.
+
+| Etki | İlk kapsam |
+|---|---|
+| İlkbahar / yaz | Tür profiline göre kademeli yaprak görünmesi ve genç → normal renk |
+| Sonbahar / kış | Sonbahar rengi ve kademeli yaprak kaybı; yaprak dökende çıplak odun, herdem yeşilde profilin yapraklılığı |
+| Rüzgâr | Ortak yön / güç / hamle; iskeletten ağırlıklar ve örnek fazıyla gövde, dal ve yaprak hareketi |
+| Kar | WES `snowCoverage` × odun / yaprak kabul maskesi × yukarı bakan yüzey maskesi; dal altı / gövdeye uygunsuz beyazlama önlenir |
+| Yağmur | WES `wetness` ile kabuk / yaprak renk ve pürüzlülük tepkisi |
+| Gündüz–gece | Mevcut güneş, ay, gölge ve ortam ışığına doğal tepki; bitki başına ikinci aydınlatma saati yok |
+
+**Yapraklılık.** Yaprak veya yaprak kümelerinin kararlı kimliklerinden
+dökülme eşikleri türetilir. Aynı seed ve mevsim ilerlemesi aynı görünürlüğü
+verir; her kare yeni rastgele seçim yapılmaz. WES mevsim hedefini ve geçiş
+ilerlemesini yönetir; takvim ilk kapsamın önkoşulu değildir. Bu geçiş alanları
+mevcut kodda var sayılmaz, uygulamada şemalı olarak eklenir.
+
+**Zaman.** WebGPU'nun sabit `hour` + olay bazlı `transitionTo` kararı korunur.
+Günün saati, geçen simülasyon süresi ve mevsim geçiş ilerlemesi ayrı girdilerdir.
+Kar birikimi / erime / kuruma, WES'te ölçekli simülasyon süresi ve açık oranlarla
+adımlanır; hız / birimler şemada belirtilir. Saat farkından geçen süre çıkarılmaz:
+sabah → akşam atlamak kendiliğinden saatlerce kar biriktirmez. Saat sabitken
+simülasyon çalışıyorsa birikim ve rüzgâr sürebilir; pause'da ilerlemez. Kış
+yaprak hedefidir, kar örtüsü ayrı durumdur; karsız kış ve ilkbaharda kalan kar
+mümkündür. Mevsim önizlemesinde hedef doğrudan gösterilebilir; normal geçiş
+ortak ilerlemeyi tüketir. Otomatik takvim ve biyolojik büyüme sonraki işlerdir.
+
+**Döküntü ve efekt.** Taçtaki yaprak kaybı ilk kapsamdadır. Havada düşen yaprak
+efekti kamera çevresinde sınırlı bütçeyle sonradan eklenir; her yaprak fizik
+nesnesi olmaz. Yerdeki döküntü aileye bağlı üretimden gelir (PG6). Doğrudan
+mevsim atlaması / önizleme geçmiş dökülmelerin efektini topluca oynatmaz.
+
+**Akış ve korumalar.** Hücre yüklenince mevcut WES durumundan kurulur;
+geçmiş mevsim adımları yeniden oynatılmaz. Rüzgârla genişleyen sınırlar culling
+ve gölgede hesaba katılır. Yaprak görünürlüğü ve deformasyon gölge geçitlerine
+de uygulanır; collider ilk kapsamda odunsu taban temsiline bağlı kalır. WES
+terrain paint / yüksekliklerini veya bitki yerleşimlerini değiştirmez. Yerel
+kar hafızası / fiziksel kalınlık, kar yüküyle eğilme ve türe özgü gece açılma /
+kapanma davranışları ayrı genişlemelerdir.
 
 ---
 
@@ -412,7 +516,9 @@ Taşınmış hâli başlarken yeniden doğrulanır; adlar değişmiş olabilir.
 ### 7.2 Önerilen bağlantı
 
 1. **Yeni model kaynağı:** `generated`. Satır dosya yolu yerine tarifi
-   gösterir.
+   gösterir; çözümleme bitkilerde aile referansı üretir. Tekil yerleşim bitki
+   bileşenli aktör, toplu örtü aynı aileyi kullanan foliage olur; yalnız
+   `staticMesh` bağlamak bitkinin tamamlanmış çıktısı sayılmaz.
 2. **Çözümleme adımı:** World Builder bir dünyayı yazarken `generated` kaynaklı
    her rol için tarifin çıktısı var mı bakar; yoksa üretir, asset'leri yazar,
    rolü bağlar. Var olan çıktıya dokunmaz.
@@ -475,6 +581,12 @@ Ağaç türü başına hedef ≈ 16 MiB: bir kart atlası + iki impostor prototi
 Sıkıştırılmamış RGBA8'de aynı içerik dört katıdır; KTX2 bu yüzden zorunludur.
 İndirme boyutu hedefi PG3'te ilk ölçümden sonra konur.
 
+Bu ilk tablo tek görünüm hesabıdır; v0.6'daki mevsim temsillerinin ek belleği
+ölçülmüş değildir. PG3 odun / yaprak ayrımı ve atlas seçeneklerini toplam
+aile belleği, indirme, geçişte tepe bellek ve GPU süresiyle raporlar; bütçeler
+bu ölçümle güncellenir. Dört mevsim diye belleği sessizce dört katına çıkarma
+yoktur. G6 hedefleri korunur; geçişte en uzun kare ve hücre yüklemesi de ölçülür.
+
 **Rapor:** her üretim köşe, üçgen, doku baytı, bake süresi ve collider
 sayısını yazar; bütçeyi aşan tarif uyarı verir.
 
@@ -488,6 +600,9 @@ sayısını yazar; bütçeyi aşan tarif uyarı verir.
   sınıra çekme, TR ipucu / EN ad).
 - Önizleme: kaynak, LOD0–2 ve impostor yan yana; kamera çevrede döner.
   Videodaki en yararlı fikir budur.
+- Aynı önizleme yaz / sonbahar / kış / ilkbahar, yapraklılık geçişi, rüzgâr,
+  kar ve ıslaklığı gösterir; aile profili düzenlemesi ile geçici WES önizlemesi
+  ayrıdır. Tekil aktör ve foliage karşılaştırması yapılabilir.
 - Sayaçlar: boy, yaprak, üçgen, doku belleği, üretim süresi.
 - Varyant şeridi: seed başına küçük görüntü.
 - Önizleme worker'da üretilir; kaydırıcı sürüklenirken kaba, bırakınca tam
@@ -508,36 +623,65 @@ sayısını yazar; bütçeyi aşan tarif uyarı verir.
 Her adım dikey bir dilimdir ve kendi kapısıyla biter. Görsel beğeni kullanıcı
 kabulüdür; kapılar işlevsel ve ölçülebilirdir.
 
-- [ ] **PG0 Hazırlık.** §2'deki ana plan çıktıları ve üç nokta kodla
-      doğrulanır; PK6 kapanır; ana plana bağlantı satırı eklenir.
+**Sıra (2026-11-14):** PG0–PG3'ün küçük üretim / CLI ve ortak tepki dilimi
+5c ile birlikte ilerler; 5c kapanışı bunların bitki kabulünü içerir. Tam
+panel ve World Builder bağlantısı PG5'te 5d ile gelir. PG4–PG7 genişlemeleri
+5c'nin iki ağaçlık kabulünü bekletmez. Bütün kutular hâlâ açıktır.
+
+- [ ] **PG0 Hazırlık.** §2'deki ana plan çıktıları ve dört sözleşme kodla
+      doğrulanır; aile, tekil bileşen / foliage, WES zaman ve geçiş
+      sözleşmeleri şemalanır; PK6
+      kapanır. Ana plan bağlantısı bu sürümde vardır; uygulama durumu doğrulanır.
 - [ ] **PG1 Kaya, uçtan uca ince dilim.** Saf çekirdek (rastgele akışlar,
       mesh yazımı, LOD örneklemesi, collider, istatistik) + kaya üreticisi +
       tarif şeması + taş yüzeyi materyal tarifi (§6.6) + triplanar materyal +
-      tarif paneli + CLI + World Builder'da
-      `generated` kaynağı. *Kapı:* `world:random` dünyasında `prop.rock`
-      rolleri hazır model olmadan doluyor; `verify:assets` yeşil; aynı tarif
+      küçük CLI üretimi. Tam panel ve `generated` World Builder bağlantısı
+      PG5'tedir. *Kapı:* hazır model olmadan üretilen kaya asset'i açılıyor;
+      `verify:assets` yeşil; aynı tarif
       iki koşuda aynı sayıları veriyor; gerçek WebGPU'da tek kontrol çekimi;
       aynı kaya materyali gölgelendiricide (A) ve karma (C) yolla R1'de
       ölçüldü, karma yolun gölgelendirici payı sayıyla ayarlandı.
-- [ ] **PG2 Dallanan üretici: geniş yapraklı ağaç.** İskelet, tüp mesh,
-      prosedürel yaprak, kabuk materyali, rüzgâr ağırlıkları, LOD0. *Kapı:*
-      bütçe içinde sonlanma; düzenle → kaydet → yeniden aç aynı çıktı; rüzgâr
-      5c yolunda çalışıyor.
+- [ ] **PG2 WES'e tepki veren iki ağaçlık dilim.** Bir yaprak döken ve bir
+      iğne yapraklı küçük örnek; ortak iskelet, ayrılabilir odun / yaprak,
+      kararlı dökülme eşikleri, kabuk / yaprak materyali, rüzgâr ağırlıkları
+      ve kar maskeleri; aile asset'i, bitki bileşeni ve ortak tepki sistemi.
+      *Kapı:* CLI üretimi bütçe içinde sonlanıyor; kaydet → yeniden aç aynı
+      çıktı; tekil aktör ve foliage aynı WES durumunda aynı tepkiyi veriyor;
+      rüzgâr, renk / yapraklılık geçişi ve kar / ıslaklık 5c yolunda çalışıyor.
 - [ ] **PG3 LOD, kart ve impostor.** Dal ucu kartı kitaplığı, CPU bake, KTX2,
       impostor, foliage türü çıktısı. *Kapı:* 360° ve yukarıdan bakışta siluet
       tutarlı; gölge ve alfa LOD'ler arasında uyumlu; §8 bütçeleri ölçüldü ve
-      güncellendi; G6 üretilmiş ağaçlı sahnede sınırın içinde.
+      güncellendi; PK7 ölçümle kapandı; çıplak kış ve ara mevsim silueti uzak
+      temsilde / gölgede tutarlı; G6 üretilmiş ağaçlı sahnede sınırın içinde;
+      aşağıdaki PV-WES kabul matrisi sağlandı.
 - [ ] **PG4 Çalı ve ot.** Çok saplı çalı ön ayarı; şerit / demet üreticisi.
       *Kapı:* çalı ağaçtan ayrı topolojiyle üretiliyor; ot yakın–uzak geçişi
       seyrelme ve fade ile çalışıyor.
 - [ ] **PG5 World Builder'ın tam bağlantısı.** Zemin örtüsünün bitkileri
       tariflere bağlanır; bağlı tarifler; aile onay sayfası; başlangıç ön ayar
-      paketi. *Kapı:* üretilen bir dünyada doğa varlıkları için hazır model
-      yok; onay sayfası Content Browser'da görünüyor.
+      paketi; tam tarif paneli ve `generated` kaynağı (5d). *Kapı:* üretilen
+      dünyada doğa varlıkları için hazır model yok; kaya rolleri doluyor,
+      tekil bitki / foliage aileyi kullanıyor; panel düzenle → üret → kaydet →
+      yeniden aç çalışıyor; onay sayfası Content Browser'da görünüyor.
 - [ ] **PG6 Ölü odun, döküntü, iğne yapraklı.** *Kapı:* kütük ve döküntü
-      bağlı ağaç tarifinden türüyor; iğne yapraklı ağaç kart bütçesinde.
+      bağlı ağaç tarifinden türüyor; PG2'nin iğne yapraklı örneği daha geniş
+      ön ayarlarla kart bütçesinde. İsteğe bağlı yakın çevre yaprak efekti
+      eklenirse parçacık bütçesi ölçülür ve mevsim atlaması geçmiş efekti üretmez.
 - [ ] **PG7 Genişleme.** Frond / rozet, mantar ve sonrası. Her biri bir
       oyun isteyince ayrı adım olarak açılır.
+
+**PV-WES kabul matrisi (uygulama kapıları; bugün test sonucu değildir):**
+
+| ID | Koşul | Kanıt |
+|---|---|---|
+| PV-WES-01 | Yaz → sonbahar → kış → ilkbahar: yapraklılık / renk değişir; aktör GUID'i, foliage konum / dönüş / ölçek / seed ve örnek sayısı korunur | Saf tepki ve yerleşim karşılaştırması + gerçek WebGPU görsel kabul |
+| PV-WES-02 | Aynı aile / seed / WES durumu tekil aktör ve foliage'da eşdeğer görünür | Yan yana sahne ve ortak çözümleyici kontrolü |
+| PV-WES-03 | Yaprak kaybı, kar ve rüzgâr LOD / kart / impostor, HLOD kullanılıyorsa proxy ve gölgede tutarlıdır | Sabit kamera pozları, yakın–uzak ve çıplak kış çekimleri |
+| PV-WES-04 | Karsız kış ve ilkbaharda kalan kar mümkün; kar maskesi dal altını uygunsuz beyazlatmaz | Bağımsız mevsim / örtü senaryoları |
+| PV-WES-05 | Hücre yükle / boşalt sonrası güncel mevsim görünür; geçmiş geçiş / efekt oynatılmaz, kaynaklar sızmaz | Hücre döngüsü ve bellek / GPU kaynak sayımı |
+| PV-WES-06 | Saat atlaması birikim süresi değildir; sabit saatte simülasyon ilerler, pause durdurur; aynı toplam sürede farklı kare adımları eşdeğer örtü verir | WES zaman / örtü deterministik kontrolleri |
+| PV-WES-07 | Önizleme kayda sızmaz; WES terrain paint / yükseklik / fizik materyalini değiştirmez; WES yokluğu taban görünümü korur | Round-trip / byte karşılaştırması ve editör / Play / üretim kontrolü |
+| PV-WES-08 | Üretilmiş orman G6'yı sağlar; shader program sayısı çevre geçişiyle büyümez, ağaç başına script / materyal oluşmaz | R1 gerçek WebGPU: gönderim ≤ 3 ms, ana iş parçacığı ≤ 6 ms; GPU süresi, geçişin en uzun karesi ve tepe bellek raporu |
 
 **İş bölümü.** Saf ve iyi tanımlı parçalar (rastgele akış, tüp mesh, kaya
 biçimi, rasterleyici, kart kümeleme) imza + kabul ölçütüyle Codex'e
@@ -552,7 +696,12 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 | Konu | Karar |
 |---|---|
 | Doğa varlıklarının kaynağı | Prosedürel üretim, "modeli kullanıcı getirir" kuralının yerini alır (kullanıcı, 2026-11-11) |
-| Zamanlama | Şimdi yalnız plan; motor ve World Builder hazır olunca başlanır (kullanıcı, 2026-11-11) |
+| İlk zamanlama | Yalnız plan; motor ve World Builder sonrası (kullanıcı, 2026-11-11); güncel sıra aşağıdaki 2026-11-14 kararıdır |
+| WES ile birleşme | Bitki ailesi + ortak çevre tepkisi; WES kabul ağaçları prosedürel üretilir, GLB geometri taşıyabilir (kullanıcı, 2026-11-14) |
+| Güncel sıra | PG0–PG3 küçük dilimi 5c ile, tam araçlar PG5 / 5d ile; önceki bütün Faz 5'i bekleme sırasının yerini alır; uygulama başlamadı (kullanıcı, 2026-11-14) |
+| Yerleştirme ve davranış | Tekil bitki bileşenli aktör ile kompakt foliage aynı aile / tepki sistemini kullanır; ağaç başına script yok (kullanıcı, 2026-11-14) |
+| Canlı geometri ve fizik | Geometri önceden üretilir; mevsimde yeniden üretim yok; ilk kapsam görsel yapraklılık / kar / ıslaklık / rüzgâr, biyolojik büyüme ve kar yükü fiziği ayrı (kullanıcı, 2026-11-14) |
+| Zaman ve gün ışığı | Olay bazlı saat korunur; birikim süresi ve mevsim geçişi ayrı; gün–gece mevcut aydınlatmadan gelir (kullanıcı, 2026-11-14) |
 | Yerleşimin yeniden üretimi | Yok (kullanıcı, 2026-11-07; plan 2b) |
 | Üçüncü taraf hazır kitaplık | Kenney / Quaternius yok (kullanıcı, 2026-11-11) |
 | Tarifin türü (eski PK1) | Genel veri editörünün (A13) şemalı veri asset'i; onun formuyla düzenlenir (kullanıcı, 2026-11-11) |
@@ -563,11 +712,12 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 | Prosedürel doku yetmezse | Codex'e ürettirilen doku ve Poly Haven (CC0) dokuları (kullanıcı, 2026-11-11; §6.6) |
 | İnsan yapımı prop'lar (eski PK5) | Bu işe dahil değil (kullanıcı, 2026-11-11) |
 
-**Açık (PG0'da kapanır):**
+**Açık (belirtilen adımda kapanır):**
 
 | ID | Soru | Öneri |
 |---|---|---|
 | PK6 | Başlangıç ön ayarları nerede durur? | `content/packs/starter/`: birkaç nötr ön ayar (geniş yapraklı, iğne yapraklı, çalı, ot, köşeli ve yuvarlak kaya); bölgeye özgü türler oyun projesinde |
+| PK7 | Mevsimsel kart / impostor temsili nasıl saklanır? | PG3'te odun / yaprak ayrımı ile sınırlı mevsim atlaslarını görsel kalite, toplam / tepe bellek ve GPU süresiyle karşılaştır; her prototipe dört atlas zorunlu değil |
 
 ---
 
@@ -583,6 +733,9 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 | 5c sözleşmesi üreticinin çıktısıyla uyuşmaz | PG0'da kodla doğrulama; üretici 5c'ye uyar, tersi değil |
 | Kapsam türden türe büyür | Üretici ailesi başına ayrı adım; PG7 yalnız oyun isteyince |
 | Üretici değişince eski tarifler başka görünür | `generatorVersion` + çıktının kalıcı dosya olması |
+| Kışın uzak orman yaz siluetinde kalır | PV-WES-03, PK7; mevsimsel alfa / odun ayrımı, HLOD varsa aynı kabul |
+| Mevsim atlasları belleği veya geçişler kare süresini büyütür | PG3 toplam / tepe bellek ve en uzun kare ölçümü; prototip başına dört atlas varsayılmaz |
+| Sabit saatle birikim karışır veya hücre yüklemesinde mevsim sıfırlanır | Tek WES otoritesi, açık simülasyon süresi ve PV-WES-05/06 |
 
 ---
 
@@ -642,3 +795,4 @@ kurallarına göre yeniden yazılır.
 | 2026-11-11 | v0.3 | Bake CPU'da (PK3 kapandı). Dokular da prosedürel (kullanıcı kararı): §6.6 materyal tarifi, dört yol, öneri karma; PK4 yeniden yazıldı, açık |
 | 2026-11-11 | v0.4 | Doku yolu karma (C), yedek kaynaklar Codex ve Poly Haven (kullanıcı kararı; PK4 kapandı). Poly Haven lisansı ve API koşulları aynı gün sitesinden doğrulandı |
 | 2026-11-11 | v0.5 | İnsan yapımı prop'lar kapsam dışı (kullanıcı kararı; PK5 kapandı); "Basit biçim" üreticisi yalnız mantara indi |
+| 2026-11-14 | v0.6 | Kullanıcının WES ile birleşik tasarım kararı kaydedildi: bitki ailesi, odun / yaprak ayrımı, tekil aktör / foliage eşitliği ve ortak tepki sistemi; rüzgâr, mevsim geçişi, görsel kar / ıslaklık, olay bazlı saatten ayrı birikim süresi; küçük üretim 5c ile, tam araçlar 5d ile; PK7 ve PV-WES kabul matrisi. Forge WES belgesi tarihsel referans; kod / bağımlılık değişikliği ve kapanan uygulama kutusu yok |
