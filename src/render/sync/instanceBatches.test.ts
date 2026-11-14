@@ -91,4 +91,31 @@ describe("instance batches", () => {
     expect(shown.toArray()).toEqual([1, 0.5, 0.8]);
     expect(instanceColorOver(new Color(0.2, 0.3, 0.4), null).toArray()).toEqual([0.2, 0.3, 0.4]);
   });
+
+  test("a moved placement rewrites only its matrix: same meshes, colours and actor table; bounds follow", () => {
+    const { instances } = batch();
+    instances.set("a", at(0), "#336699", "act_a");
+    instances.set("b", at(1), null, "act_b");
+    instances.flush();
+    const mesh = instances.meshes[0]!;
+    const colors = mesh.instanceColor;
+    const table = instanceActorsOf(mesh);
+    expect(instances.move("b", at(40))).toBe(true);
+    expect(instances.move("missing", at(1))).toBe(false);
+    instances.flush();
+    expect(instances.meshes[0]).toBe(mesh);
+    expect(mesh.instanceColor).toBe(colors);
+    expect(instanceActorsOf(mesh)).toBe(table);
+    const out = new Matrix4();
+    mesh.getMatrixAt(1, out);
+    expect(out.equals(at(40).multiply(new Matrix4().makeScale(2, 2, 2)))).toBe(true);
+    mesh.getMatrixAt(0, out);
+    expect(out.equals(at(0).multiply(new Matrix4().makeScale(2, 2, 2)))).toBe(true);
+    expect(mesh.boundingBox!.max.x).toBe(41);
+    // A later full flush keeps the moved matrix.
+    instances.set("c", at(2), null, "act_c");
+    instances.flush();
+    instances.meshes[0]!.getMatrixAt(1, out);
+    expect(out.elements[12]).toBe(40);
+  });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { BoxGeometry, Color, Group, InstancedMesh, MeshStandardNodeMaterial, Scene } from "three/webgpu";
+import { BoxGeometry, Color, Group, InstancedMesh, Matrix4, MeshStandardNodeMaterial, Scene } from "three/webgpu";
 import type { ComponentEntry, WorldActor } from "../../core/index.ts";
 import type { WorldResources } from "../../render/resources/worldResources.ts";
 import type { RenderBindingContext } from "../../render/sync/renderBinding.ts";
@@ -63,6 +63,30 @@ describe("shape binding (instanced)", () => {
     frame();
     instance.actorsRemoved?.(actors);
     expect(root.children).toEqual([]);
+    expect(released.sort()).toEqual(["shape:cube", `shapeMaterial:${SHAPE_BASE_COLOR}:single`]);
+  });
+
+  test("a transform-only change moves the instance in place; any other change rebuilds", async () => {
+    const { instance, actors, root, released, frame } = harness([{}]);
+    await settle();
+    frame();
+    const mesh = root.children[0] as InstancedMesh;
+    const actor = actors[0]!;
+    actor.transform = { p: [7, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] };
+    instance.actorsChanged?.([{ actor, previous: actor, transformOnly: true }]);
+    frame();
+    // The only shape of its batch: no remove + add, so the batch, its mesh and its uses stay.
+    expect(root.children).toEqual([mesh]);
+    expect(released).toEqual([]);
+    const out = new Matrix4();
+    mesh.getMatrixAt(0, out);
+    expect(out.elements[12]).toBe(7);
+    // A field change (another primitive) is removed and added again.
+    const next = { ...actor, components: { shape: { ...actor.components.shape!, primitive: "sphere" } } } as WorldActor;
+    instance.actorsChanged?.([{ actor: next, previous: actor, transformOnly: false }]);
+    await settle();
+    frame();
+    expect((root.children as InstancedMesh[]).map((child) => child.name)).toEqual(["shape/sphere/sphere"]);
     expect(released.sort()).toEqual(["shape:cube", `shapeMaterial:${SHAPE_BASE_COLOR}:single`]);
   });
 });

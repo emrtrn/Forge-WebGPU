@@ -16,6 +16,12 @@
 //   the binding's sync) rebuilds what changed. Meshes are rebuilt only when
 //   the capacity grows or the colour buffer appears / goes; otherwise the
 //   instance buffers are rewritten in place.
+// - An edit that only moves an actor (`actorsChanged` with `transformOnly`,
+//   plan phase 4 decision 3) moves its placements with `move`: the next flush
+//   rewrites only their matrices, in place (no colours, no instance table, no
+//   new meshes), and the batch never empties on the way, so it keeps its
+//   meshes and its model's cache use. `changeInstances` is that rule for a
+//   binding: transform-only changes move, any other is removed then added.
 // - Each mesh is frustum culled by the bounds of all its instances.
 // - Each mesh carries its instance -> actor table (pickTags.ts) for picking.
 //
@@ -23,7 +29,7 @@
 // only its instanced meshes and their buffers.
 
 import { Color, InstancedMesh, Matrix4, type BufferGeometry, type Material, type Object3D } from "three/webgpu";
-import type { ActorId } from "../../core/index.ts";
+import type { ActorId, WorldActor, WorldActorChange } from "../../core/index.ts";
 import { SCENE_SOURCE_KEY } from "../../engine/perf/sceneCost.ts";
 import { tagInstanceActors } from "./pickTags.ts";
 
@@ -39,6 +45,8 @@ export interface InstanceBatch {
   /** Adds or moves a placement of `actor`; `color` is `#rrggbb` or null. */
   set(id: string, matrix: Matrix4, color: string | null, actor: ActorId): void;
   delete(id: string): void;
+  /** Moves a placement: only its matrix changes. False when there is no such placement. */
+  move(id: string, matrix: Matrix4): boolean;
   readonly size: number;
   /** The parts to draw; until set, placements wait and nothing is drawn. */
   setParts(parts: readonly InstancePart[]): void;
@@ -87,6 +95,10 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
   let capacity = 0;
   let colored = false;
   let dirty = false;
+  /** Placements moved since the last flush (their matrices only). */
+  const moved = new Set<string>();
+  /** Placement -> its instance index, as the last full flush wrote it. */
+  const indexOf = new Map<string, number>();
   const matrix = new Matrix4();
   const color = new Color();
   const shown = new Color();
@@ -108,6 +120,13 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
     delete(id) {
       if (placements.delete(id)) dirty = true;
     },
+    move(id, placement) {
+      const entry = placements.get(id);
+      if (!entry) return false;
+      entry.matrix.copy(placement);
+      moved.add(id);
+      return true;
+    },
     get size() {
       return placements.size;
     },
@@ -117,8 +136,27 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
       dirty = true;
     },
     flush() {
-      if (!dirty || parts === null) return;
+      if (parts === null) return;
+      if (!dirty) {
+        if (moved.size === 0 || meshes.length === 0) return;
+        meshes.forEach((mesh, partIndex) => {
+          const local = parts![partIndex]!.local;
+          for (const id of moved) {
+            const index = indexOf.get(id);
+            if (index !== undefined) mesh.setMatrixAt(index, matrix.multiplyMatrices(placements.get(id)!.matrix, local));
+          }
+          mesh.instanceMatrix.needsUpdate = true;
+          mesh.computeBoundingSphere();
+          mesh.computeBoundingBox();
+        });
+        moved.clear();
+        return;
+      }
       dirty = false;
+      moved.clear();
+      indexOf.clear();
+      let at = 0;
+      for (const id of placements.keys()) indexOf.set(id, at++);
       const count = placements.size;
       const needsColor = [...placements.values()].some((entry) => entry.color !== null);
       if (count === 0) {
@@ -164,7 +202,26 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
     dispose() {
       removeMeshes();
       placements.clear();
+      moved.clear();
+      indexOf.clear();
       parts = null;
     },
   };
+}
+
+/** How a binding that draws through instance batches applies an edit. */
+export interface InstanceChangeTarget {
+  /** Moves the actor's placements to its current world matrices. */
+  move(actor: WorldActor): void;
+  removed(actors: readonly WorldActor[]): void;
+  added(actors: readonly WorldActor[]): void;
+}
+
+/** Transform-only changes move the actor's placements in place; any other change is removed, then added. */
+export function changeInstances(changes: readonly WorldActorChange[], target: InstanceChangeTarget): void {
+  const rebuilt = changes.filter((change) => !change.transformOnly);
+  for (const change of changes) if (change.transformOnly) target.move(change.actor);
+  if (rebuilt.length === 0) return;
+  target.removed(rebuilt.map((change) => change.previous));
+  target.added(rebuilt.map((change) => change.actor));
 }

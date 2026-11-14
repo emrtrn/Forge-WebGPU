@@ -20,12 +20,16 @@
 // A component without a model, or whose model fails to load, draws nothing; a
 // material that fails leaves its slot on the GLB's own material. Failures are
 // counted by the cache and reported by the host.
+//
+// Edits (plan phase 4 decision 3): a transform-only change moves the actor's
+// placements in their batches (`changeInstances`); any other is removed and
+// added again.
 
 import { Matrix4, Mesh, type Material, type Object3D } from "three/webgpu";
 import { parseComponentTypeTag, type WorldActor } from "../../core/index.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
 import type { ModelTemplate } from "../../render/resources/worldResources.ts";
-import { createInstanceBatch, type InstanceBatch, type InstancePart } from "../../render/sync/instanceBatches.ts";
+import { changeInstances, createInstanceBatch, type InstanceBatch, type InstancePart } from "../../render/sync/instanceBatches.ts";
 import { defineRenderBinding, type RenderBindingContext } from "../../render/sync/renderBinding.ts";
 import { componentWorldMatrix } from "../../render/sync/transforms.ts";
 import { StaticMesh, type StaticMeshData } from "./schema.ts";
@@ -157,14 +161,28 @@ export default defineRenderBinding({
       if (batch.instances.size === 0) disposeBatch(batchKey, batch);
     };
 
+    const added = (actors: readonly WorldActor[]): void => {
+      for (const actor of actors) {
+        for (const [key, component] of meshesOf(actor)) add(actor, key, component as unknown as StaticMeshData);
+      }
+    };
+    const removed = (actors: readonly WorldActor[]): void => {
+      for (const actor of actors) for (const [key] of meshesOf(actor)) remove(`${actor.id}/${key}`);
+    };
+    const move = (actor: WorldActor): void => {
+      for (const [key] of meshesOf(actor)) {
+        const id = `${actor.id}/${key}`;
+        const batchKey = placed.get(id);
+        if (batchKey === undefined) continue;
+        batches.get(batchKey)?.instances.move(id, componentWorldMatrix(ctx.world, actor, key, matrix));
+      }
+    };
+
     return {
-      actorsAdded(actors) {
-        for (const actor of actors) {
-          for (const [key, component] of meshesOf(actor)) add(actor, key, component as unknown as StaticMeshData);
-        }
-      },
-      actorsRemoved(actors) {
-        for (const actor of actors) for (const [key] of meshesOf(actor)) remove(`${actor.id}/${key}`);
+      actorsAdded: added,
+      actorsRemoved: removed,
+      actorsChanged(changes) {
+        changeInstances(changes, { move, removed, added });
       },
       sync() {
         for (const batch of batches.values()) batch.instances.flush();

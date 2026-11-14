@@ -153,4 +153,18 @@ describe("static mesh binding (instanced)", () => {
     expect(box.max.toArray()).toEqual([10.5, 0.5, 0.5]);
     expect(instanced(root)[0]!.frustumCulled).toBe(true);
   });
+
+  test("a transform-only change moves the placement in place: the model is not released and asked again", async () => {
+    const { instance, actors, root, released, frame } = harness([{}]);
+    await settle();
+    frame();
+    const meshes = instanced(root);
+    const actor = actors[0]!;
+    actor.transform = { p: [3, 2, 1], r: [0, 0, 0, 1], s: [1, 1, 1] };
+    instance.actorsChanged?.([{ actor, previous: actor, transformOnly: true }]);
+    frame();
+    expect(instanced(root)).toEqual(meshes);
+    expect(released).toEqual([]);
+    expect(meshes[0]!.boundingBox!.min.toArray()).toEqual([2.5, 1.5, 0.5]);
+  });
 });
