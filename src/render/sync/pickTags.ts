@@ -10,6 +10,9 @@
 // - `tagPickSurface`: an object whose triangles are not its surface (the
 //   terrain's shared CDLOD patch, displaced on the GPU) answers a ray itself,
 //   in world space, and gives its bounds; its triangles are not picked.
+// - `tagPartSlots`: the model material slot each of an object's materials
+//   draws (plan phase 4 step 6f: a material dropped on a mesh goes to the
+//   slot under the pointer, user decision 2026-11-14).
 
 import type { Box3, InstancedMesh, Object3D, Vector3 } from "three/webgpu";
 import type { ActorId } from "../../core/index.ts";
@@ -17,6 +20,7 @@ import type { ActorId } from "../../core/index.ts";
 const ACTOR = "forgePickActor";
 const INSTANCES = "forgePickInstances";
 const SURFACE = "forgePickSurface";
+const SLOTS = "forgePickSlots";
 
 /** A surface that answers a world-space ray itself. */
 export interface PickSurface {
@@ -33,6 +37,18 @@ export function tagActorObject(object: Object3D, actor: ActorId): void {
 /** `actors[i]` is the actor instance i draws; the array is replaced, not changed in place, when the batch is rebuilt. */
 export function tagInstanceActors(mesh: InstancedMesh, actors: readonly ActorId[]): void {
   mesh.userData[INSTANCES] = actors;
+}
+
+/** `slots[i]` is the model slot material i of the object draws (one entry for a single material). */
+export function tagPartSlots(object: Object3D, slots: readonly number[]): void {
+  object.userData[SLOTS] = slots;
+}
+
+/** The model slot under a hit (its face's material); null when the object is not tagged. */
+export function slotOfHit(hit: { readonly object: Object3D; readonly face?: { readonly materialIndex: number } | null | undefined }): number | null {
+  const slots = hit.object.userData[SLOTS] as readonly number[] | undefined;
+  if (!slots) return null;
+  return slots[hit.face?.materialIndex ?? 0] ?? null;
 }
 
 export function tagPickSurface(object: Object3D, surface: PickSurface): void {

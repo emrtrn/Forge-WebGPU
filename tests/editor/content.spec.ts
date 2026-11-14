@@ -421,3 +421,56 @@ test("import: the dialog asks the license (Unknown refused) and source, the meta
   expect(readFileSync(disk("content/imp/crate.glb")).equals(bytesBefore)).toBe(false);
   expect(errors).toEqual([]);
 });
+
+test("drag into the viewport: a model card places a static mesh (one undo step); a material card dropped on it fills the slot under the pointer", async ({ page }) => {
+  const project = process.env.FORGE_EDITOR_SMOKE_PROJECT!;
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await open(page);
+  const canvas = page.locator(".editor-viewport-host canvas");
+  const drag = async (source: Locator) => {
+    const box = (await canvas.boundingBox())!;
+    const at = { clientX: box.x + box.width / 2 + 60, clientY: box.y + box.height / 2 + 40 };
+    const data = await page.evaluateHandle(() => new DataTransfer());
+    await source.dispatchEvent("dragstart", { dataTransfer: data });
+    await canvas.dispatchEvent("dragover", { dataTransfer: data, ...at });
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+    await canvas.dispatchEvent("dragover", { dataTransfer: data, ...at });
+    await canvas.dispatchEvent("drop", { dataTransfer: data, ...at });
+    await source.dispatchEvent("dragend", { dataTransfer: data }).catch(() => undefined);
+  };
+
+  await page.locator("[data-content-toggle]").click();
+  await folderRow(page, "content/thumbs").click();
+  await drag(card(page, "content/thumbs/cube.glb"));
+  await expect(page.getByTestId("outliner-summary")).toHaveText("1 actors (1 selected)");
+  await expect(page.locator('[data-testid="outliner-row"]').first()).toContainText("cube");
+  // The drawer closed when the drag ended (it is not locked).
+  await expect(drawer(page)).not.toHaveClass(/open/);
+
+  await page.locator("[data-content-toggle]").click();
+  await folderRow(page, "engine:content/packs/starter").click();
+  await folderRow(page, "engine:content/packs/starter/starter-content").click();
+  await folderRow(page, MATERIALS).click();
+  const ground = card(page, `${MATERIALS}/Ground.material.json`);
+  const groundId = (await ground.getAttribute("data-asset-id"))!;
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+  await drag(ground);
+  await expect(page.getByTestId("editor-status")).toHaveText("Ground on cube (slot 0)");
+  await expect(page.getByTestId("outliner-summary")).toHaveText("1 actors (1 selected)");
+
+  // Saved: the actor's static mesh carries the model and the material in slot 0.
+  await page.keyboard.press("Control+s");
+  const folder = join(project, ...LEVEL.split("/"));
+  const saved = (): string => {
+    const cells = join(folder, "cells");
+    const files = existsSync(cells) ? readdirSync(cells).map((cell) => join(cells, cell)) : [];
+    return [join(folder, "level.json"), ...files].map((file) => readFileSync(file, "utf8")).join(" ");
+  };
+  await expect.poll(() => saved().includes(CUBE) && saved().includes(groundId)).toBe(true);
+  // One undo takes the material back, another the actor.
+  await page.getByTestId("editor-undo").click();
+  await page.getByTestId("editor-undo").click();
+  await expect(page.getByTestId("outliner-summary")).toHaveText("0 actors (0 selected)");
+  expect(errors).toEqual([]);
+});

@@ -48,6 +48,8 @@ export { assignSlotMaterials, slotMaterialIds };
 /** The template's renderable parts with their slot materials and their matrices under the template root. */
 export function modelParts(model: ModelTemplate, chosen: readonly Material[]): InstancePart[] {
   const resolve = slotResolver(model.slots, chosen);
+  const slotOf = new Map<Material, number>();
+  model.slots.forEach((material, index) => slotOf.set(material, index));
   model.scene.updateMatrixWorld(true);
   const parts: InstancePart[] = [];
   model.scene.traverse((child) => {
@@ -56,7 +58,9 @@ export function modelParts(model: ModelTemplate, chosen: readonly Material[]): I
     const material = Array.isArray(mesh.material)
       ? (mesh.material as Material[]).map((own, local) => resolve(own, local))
       : resolve(mesh.material as Material, 0);
-    parts.push({ geometry: mesh.geometry, material, local: mesh.matrixWorld.clone(), name: mesh.name || "mesh" });
+    const own = Array.isArray(mesh.material) ? (mesh.material as Material[]) : [mesh.material as Material];
+    const slots = own.map((one, local) => slotOf.get(one) ?? local);
+    parts.push({ geometry: mesh.geometry, material, local: mesh.matrixWorld.clone(), name: mesh.name || "mesh", slots });
   });
   return parts;
 }

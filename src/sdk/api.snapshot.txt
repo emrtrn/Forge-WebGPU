@@ -78,7 +78,7 @@ interface JsonAssetTypeDef<M>
 
 type LevelId = `lvl_${string}`
 
-const SDK_VERSION: "0.1.8"
+const SDK_VERSION: "0.1.9"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -214,6 +214,18 @@ interface AddActorEntry
   readonly restOnSurface?: boolean | undefined
   readonly rotation?: readonly [number, number, number] | undefined
 
+interface AssetDropRule
+  readonly assetType: string
+  readonly assign?: { readonly component: string; readonly fields: (data: Readonly<Record<string, unknown>>, asset: DroppedAsset, hit: { readonly slot: number | null; }) => Readonly<Record<string, unknown>> | null; } | undefined
+  readonly place?: ((asset: DroppedAsset) => AssetPlacement) | undefined
+
+interface AssetPlacement
+  readonly components: Readonly<Record<string, Readonly<{ type: string; } & Record<string, unknown>>>>
+  readonly icon?: "mesh" | "character" | "light" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic" | undefined
+  readonly lift?: number | undefined
+  readonly restOnSurface?: boolean | undefined
+  readonly rotation?: readonly [number, number, number] | undefined
+
 interface ComponentPresentation
   readonly icon: "mesh" | "character" | "light" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic" | ((data: Readonly<Record<string, unknown>>) => ActorTypeIcon)
   readonly outliner: "mesh" | "character" | "light" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
@@ -228,8 +240,13 @@ interface DetailsExtensionContext
   status: (message: string, tone?: "info" | "warning" | "error") => void
   value: () => Readonly<Record<string, unknown>>
 
+interface DroppedAsset
+  readonly guid: string
+  readonly name: string
+
 interface FeatureEditorDef
   readonly addActor: ReadonlyArray<AddActorEntry>
+  readonly assets: ReadonlyArray<AssetDropRule>
   readonly components: Readonly<Record<string, ComponentPresentation>>
   readonly details: Readonly<Record<string, DetailsExtension>>
   readonly feature: string
@@ -238,6 +255,7 @@ interface FeatureEditorDef
 
 interface FeatureEditorOptions
   readonly addActor?: ReadonlyArray<AddActorEntry> | undefined
+  readonly assets?: ReadonlyArray<AssetDropRule> | undefined
   readonly components?: Readonly<Record<string, ComponentPresentation>> | undefined
   readonly details?: Readonly<Record<string, DetailsExtension>> | undefined
   readonly feature: string
@@ -253,7 +271,7 @@ const OUTLINER_TYPES: readonly [{ readonly type: "mesh"; readonly label: "Meshes
 
 type OutlinerType = "mesh" | "character" | "light" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
 
-const SDK_VERSION: "0.1.8"
+const SDK_VERSION: "0.1.9"
 
 function defineFeatureEditor(options: FeatureEditorOptions): FeatureEditorDef
 

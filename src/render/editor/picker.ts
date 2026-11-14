@@ -16,12 +16,14 @@
 
 import { Box3, InstancedMesh, Matrix4, Raycaster, Vector2, Vector3, type BufferGeometry, type Camera, type Intersection, type Mesh, type Object3D } from "three/webgpu";
 import type { ActorId } from "../../core/index.ts";
-import { actorOfHit, actorOfObject, instanceActorsOf, ownActorOf, pickSurfaceOf, type PickSurface } from "../sync/pickTags.ts";
+import { actorOfHit, actorOfObject, instanceActorsOf, ownActorOf, pickSurfaceOf, slotOfHit, type PickSurface } from "../sync/pickTags.ts";
 
 export interface ViewportPick {
   readonly actor: ActorId;
   readonly distance: number;
   readonly point: Vector3;
+  /** The model material slot under the pointer, when what was hit is tagged with one (pickTags.ts). */
+  readonly slot?: number | null;
 }
 
 /** One drawn part of an actor: its geometry at a world matrix. */
@@ -108,7 +110,7 @@ export function createScenePicker(root: () => Object3D | null, helpers: () => Ob
     for (const hit of hits) {
       const actor = actorOfHit(hit);
       if (actor === null || exclude.has(actor)) continue;
-      best = { actor, distance: hit.distance, point: hit.point.clone() };
+      best = { actor, distance: hit.distance, point: hit.point.clone(), slot: slotOfHit(hit) };
       break;
     }
     for (const { object, surface } of surfaces) {

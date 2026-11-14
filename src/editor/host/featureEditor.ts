@@ -26,6 +26,11 @@
 //   defines (Forge's material presets): a label and the fields that differ
 //   from the type's defaults. A JSON asset type without one is created from
 //   its defaults; the template is not stored in the asset.
+// - `assets` (step 6f, user decision 2026-11-14): what an asset of a type
+//   dragged from the Content Browser into the viewport does: `place` makes
+//   a new actor where it is dropped (a model -> a static mesh), `assign`
+//   writes it into a component of the actor it is dropped on (a material ->
+//   the static mesh slot under the pointer). Forge did both in its shell.
 
 import { COMPONENT_NAME_PATTERN, SchemaDefinitionError, type ServiceKey } from "../../core/index.ts";
 import { ACTOR_TYPE_ICONS, type ActorTypeIcon } from "../ui/icons.ts";
@@ -111,6 +116,38 @@ export interface NewAssetTemplate {
   readonly values: Readonly<Record<string, unknown>>;
 }
 
+/** An asset dragged from the Content Browser. */
+export interface DroppedAsset {
+  readonly guid: string;
+  /** Its name (the file's up to the first dot): a new actor's name. */
+  readonly name: string;
+}
+
+/** The actor an asset makes where it is dropped, placed like an Add Actor entry. */
+export interface AssetPlacement {
+  readonly components: AddActorEntry["components"];
+  readonly icon?: ActorTypeIcon;
+  readonly rotation?: readonly [number, number, number];
+  readonly lift?: number;
+  readonly restOnSurface?: boolean;
+}
+
+/** What an asset type does when dragged into the viewport. */
+export interface AssetDropRule {
+  readonly assetType: string;
+  /** Dropped where no actor takes it: a new actor. */
+  readonly place?: (asset: DroppedAsset) => AssetPlacement;
+  /**
+   * Dropped on an actor carrying `component`: the fields to write in it (one
+   * undo step), null when it does not take this one. `slot` is the model
+   * material slot under the pointer, when the renderer knows one.
+   */
+  readonly assign?: {
+    readonly component: string;
+    readonly fields: (data: Readonly<Record<string, unknown>>, asset: DroppedAsset, hit: { readonly slot: number | null }) => Readonly<Record<string, unknown>> | null;
+  };
+}
+
 /** Builds what goes below a component's form; `dispose` runs when Details draws again. */
 export type DetailsExtension = (context: DetailsExtensionContext) => { readonly element: HTMLElement; dispose?(): void };
 
@@ -125,6 +162,8 @@ export interface FeatureEditorDef {
   readonly details: Readonly<Record<string, DetailsExtension>>;
   /** New asset templates of its JSON asset types, in menu order. */
   readonly newAssets: readonly NewAssetTemplate[];
+  /** What its asset types do when dragged into the viewport. */
+  readonly assets: readonly AssetDropRule[];
 }
 
 export interface FeatureEditorOptions {
@@ -133,6 +172,7 @@ export interface FeatureEditorOptions {
   readonly addActor?: readonly AddActorEntry[];
   readonly details?: Readonly<Record<string, DetailsExtension>>;
   readonly newAssets?: readonly NewAssetTemplate[];
+  readonly assets?: readonly AssetDropRule[];
 }
 
 const OUTLINER_TYPE_SET: ReadonlySet<string> = new Set(OUTLINER_TYPES.map((entry) => entry.type));
@@ -180,6 +220,15 @@ export function defineFeatureEditor(options: FeatureEditorOptions): FeatureEdito
     if (typeof template.label !== "string" || template.label === "") throw new SchemaDefinitionError(`${where} needs a label.`);
     if (template.values === null || typeof template.values !== "object" || Array.isArray(template.values)) throw new SchemaDefinitionError(`${where}: values is an object of fields.`);
   }
+  for (const rule of options.assets ?? []) {
+    const where = `defineFeatureEditor ${options.feature}: asset rule ${String(rule.assetType)}`;
+    if (typeof rule.assetType !== "string" || !COMPONENT_NAME_PATTERN.test(rule.assetType)) throw new SchemaDefinitionError(`${where} names a namespaced asset type.`);
+    if (rule.place === undefined && rule.assign === undefined) throw new SchemaDefinitionError(`${where} needs place or assign.`);
+    if (rule.place !== undefined && typeof rule.place !== "function") throw new SchemaDefinitionError(`${where}: place is a function of the asset.`);
+    if (rule.assign !== undefined && (!COMPONENT_NAME_PATTERN.test(rule.assign.component) || typeof rule.assign.fields !== "function")) {
+      throw new SchemaDefinitionError(`${where}: assign names a component and gives a function of its fields.`);
+    }
+  }
   return Object.freeze({
     kind: "featureEditor",
     feature: options.feature,
@@ -187,5 +236,6 @@ export function defineFeatureEditor(options: FeatureEditorOptions): FeatureEdito
     addActor: Object.freeze([...(options.addActor ?? [])]),
     details: Object.freeze(details),
     newAssets: Object.freeze([...(options.newAssets ?? [])]),
+    assets: Object.freeze([...(options.assets ?? [])]),
   });
 }

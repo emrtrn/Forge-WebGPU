@@ -15,6 +15,9 @@
 //   when the level has one already, that actor is selected instead.
 // - Dragging over the viewport shows the actor in the world (not in the
 //   level) under the pointer; the drop is one transaction and selects it.
+// - A Content Browser asset with a feature's `place` rule (step 6f) is placed
+//   the same way, under the key the browser gives it (`assetEntry`); it is in
+//   no menu.
 
 import {
   createId,
@@ -105,6 +108,8 @@ export interface ActorPlacerOptions {
   readonly snap: () => SnapSettings;
   readonly status: (message: string, tone?: "info" | "warning" | "error") => void;
   readonly newId?: () => ActorId;
+  /** An entry no menu lists (a dragged Content Browser asset, step 6f); undefined when the key is not one. */
+  readonly assetEntry?: (key: string) => PlacerEntry | undefined;
 }
 
 export function createActorPlacer(options: ActorPlacerOptions): ActorPlacer {
@@ -131,7 +136,7 @@ export function createActorPlacer(options: ActorPlacerOptions): ActorPlacer {
     }
     return list;
   };
-  const entryOf = (key: string): PlacerEntry | undefined => entries().find((entry) => entry.key === key);
+  const entryOf = (key: string): PlacerEntry | undefined => entries().find((entry) => entry.key === key) ?? options.assetEntry?.(key);
 
   /** The level's actor carrying the singleton component `name`, if any. */
   const holderOf = (name: string): ActorDoc | undefined =>

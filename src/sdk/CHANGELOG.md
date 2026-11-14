@@ -8,6 +8,19 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.9
+
+API: 0ef8cb3a58b5d2b9
+
+Asset drop rules (plan phase 4 step 6f), additive, in `@forge/editor-sdk`:
+`defineFeatureEditor({ assets })` says what an asset type dragged from the
+Content Browser into the viewport does (`AssetDropRule`): `place` makes a new
+actor where it is dropped (`AssetPlacement`: components, icon, rotation, lift,
+resting on the surface; the engine's model -> static mesh), `assign` writes
+fields into a component of the actor it is dropped on, given the model
+material slot under the pointer (the engine's material -> static mesh slot).
+`DroppedAsset` is the asset's GUID and name.
+
 ## 0.1.8
 
 API: 6b506d5a781c666c

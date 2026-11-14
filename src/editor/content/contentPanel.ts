@@ -36,6 +36,7 @@ import {
   type ContentItem,
 } from "./contentModel.ts";
 import { createContentActions, targetOfAsset, targetOfFolder, type ContentTarget } from "./contentActions.ts";
+import { CONTENT_ASSET_MIME, type AssetDrop } from "./assetDrop.ts";
 import type { NewAssetItem } from "./newAssets.ts";
 import type { ContentStore } from "./contentStore.ts";
 import { thumbnailKind, type ContentThumbnails } from "./contentThumbnails.ts";
@@ -60,6 +61,8 @@ export interface ContentPanelOptions {
   /** The New menu (step 6d) and a new level's actors. */
   readonly newItems?: readonly NewAssetItem[];
   readonly levelActors?: () => readonly unknown[];
+  /** Cards dragged into the viewport (step 6f). */
+  readonly drag?: AssetDrop;
   /** Import (step 6e): the extensions it takes, and what follows a reimport. */
   readonly importExtensions?: readonly string[];
   readonly reimported?: (item: ContentAssetItem) => void;
@@ -355,6 +358,20 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
       describe(item);
       redrawKeepingFocus();
     });
+    if (options.drag?.draggable(item)) {
+      card.draggable = true;
+      card.addEventListener("dragstart", (event) => {
+        event.dataTransfer?.setData(CONTENT_ASSET_MIME, item.id ?? "");
+        if (event.dataTransfer) event.dataTransfer.effectAllowed = "copy";
+        selectedFile = item.file;
+        options.drag!.begin(item);
+      });
+      // Forge's handleAssetDragEnd: the drag ends the preview and closes the drawer unless it is locked.
+      card.addEventListener("dragend", () => {
+        options.drag!.end();
+        if (!locked) setOpen(false);
+      });
+    }
     card.addEventListener("contextmenu", (event) => {
       selectedFile = item.file;
       selectedFolder = null;

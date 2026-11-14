@@ -90,6 +90,8 @@ export interface EditorViewport {
   onViewModeChange(listener: (mode: ViewMode) => void): void;
   /** The actor drawn under a point of the page (client pixels); null for none. */
   pick(clientX: number, clientY: number): ActorId | null;
+  /** The actor under a point and its model material slot there (a dropped material, step 6f). */
+  pickSlot(clientX: number, clientY: number): { readonly actor: ActorId; readonly slot: number | null } | null;
   /** The gizmo handle under a point of the page; null for none (or no gizmo). */
   pickHandle(clientX: number, clientY: number): GizmoHandle | null;
   /** The camera's ray through a point of the page. */
@@ -372,6 +374,11 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
     pick(clientX, clientY) {
       if (!toNdc(clientX, clientY)) return null;
       return picker.pick(ndc, camera.active())?.actor ?? null;
+    },
+    pickSlot(clientX, clientY) {
+      if (!toNdc(clientX, clientY)) return null;
+      const hit = picker.pick(ndc, camera.active());
+      return hit ? { actor: hit.actor, slot: hit.slot ?? null } : null;
     },
     pickHandle(clientX, clientY) {
       if (!gizmo?.visible || !toNdc(clientX, clientY)) return null;

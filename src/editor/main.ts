@@ -39,6 +39,7 @@ import { createThumbnailRenderer } from "../render/editor/thumbnails.ts";
 import type { AssetFile } from "../render/resources/assetUrls.ts";
 import { assembleLevel } from "../runtime/assembler.ts";
 import { createWorld, type World } from "../runtime/world.ts";
+import { createAssetDrop, type AssetDrop } from "./content/assetDrop.ts";
 import { createContentPanel } from "./content/contentPanel.ts";
 import { installContentStyle } from "./content/contentStyle.ts";
 import { createContentStore } from "./content/contentStore.ts";
@@ -250,8 +251,9 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     tools = createTransformTools({ editor: session, viewport, storage: pageStorage(doc), status: (message, tone) => shell.status(message, tone), duplicate: (coalesce) => editCommands.duplicateForDrag(coalesce) });
     shell.attachTools(tools, () => viewport.camera.navigating);
     const snapOf = tools;
-    shell.attachPlacer(
-      createActorPlacer({
+    // A Content Browser asset dragged into the viewport (step 6f) is placed under its own key.
+    let assetDrop: AssetDrop | null = null;
+    const placer = createActorPlacer({
         editor: session,
         registry,
         resolveClass,
@@ -269,8 +271,36 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         },
         snap: () => snapOf.snap,
         status: (message, tone) => shell.status(message, tone),
-      }),
-    );
+        assetEntry: (key) => {
+          if (!key.startsWith("asset:")) return undefined;
+          const asset = content.index().byId(key.slice("asset:".length));
+          const rule = asset?.type ? assetDrop?.placeRule(asset.type) : undefined;
+          if (!asset || !rule?.place || asset.id === null) return undefined;
+          const placement = rule.place({ guid: asset.id, name: asset.name });
+          return {
+            key,
+            label: asset.name,
+            category: "Content",
+            icon: placement.icon ?? "generic",
+            components: placement.components,
+            singleton: false,
+            ...(placement.rotation ? { rotation: placement.rotation } : {}),
+            ...(placement.lift !== undefined ? { lift: placement.lift } : {}),
+            ...(placement.restOnSurface !== undefined ? { restOnSurface: placement.restOnSurface } : {}),
+          };
+        },
+      });
+    shell.attachPlacer(placer);
+    assetDrop = createAssetDrop({
+      host: shell.viewport,
+      editors: FEATURE_EDITORS,
+      placer,
+      editor: session,
+      registry,
+      resolveClass,
+      pickSlot: (x, y) => viewport.pickSlot(x, y),
+      status: (message, tone) => shell.status(message, tone),
+    });
     shell.attachContent(
       createContentPanel({
         document: doc,
@@ -282,6 +312,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         status: (message, tone) => shell.status(message, tone),
         save: () => shell.save(),
         thumbnails,
+        drag: assetDrop,
         newItems: newAssetItems(registry, FEATURE_EDITORS),
         importExtensions: registry.assetTypes().flatMap((def) => (def.storage === "binary" ? def.extensions : [])),
         // A reimported model: the cache forgets it and the actors that use it read it again (step 6e). Another binary

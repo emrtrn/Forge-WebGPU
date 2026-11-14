@@ -4,7 +4,8 @@ import type { ComponentEntry, WorldActor } from "../../core/index.ts";
 import { modelMaterialSlots } from "../../render/resources/modelSetup.ts";
 import type { ModelTemplate, WorldResources } from "../../render/resources/worldResources.ts";
 import type { RenderBindingContext } from "../../render/sync/renderBinding.ts";
-import binding, { assignSlotMaterials, slotMaterialIds, staticMeshBatchKey } from "./render.ts";
+import { slotOfHit } from "../../render/sync/pickTags.ts";
+import binding, { assignSlotMaterials, modelParts, slotMaterialIds, staticMeshBatchKey } from "./render.ts";
 
 const MODEL = "ast_00000000000000000000000000000001";
 const MOSS = "ast_00000000000000000000000000000002";
@@ -29,6 +30,16 @@ const meshMaterials = (object: Object3D): Material[] => {
 // Forge WebGL's "static mesh material slots follow unique GLB material order across primitive meshes"
 // (tools/engine-tests.ts 19411), rewritten for the model's slot list and the placement's overrides.
 describe("static mesh material slots", () => {
+  test("each part knows the model slot it draws, for picking (a dropped material goes to the slot under the pointer)", () => {
+    const { template, body, trim } = twoSlotModel();
+    const parts = modelParts(template, [body, trim]);
+    expect(parts.map((part) => part.slots)).toEqual([[0], [1], [0]]);
+    const mesh = new InstancedMesh(parts[1]!.geometry, parts[1]!.material, 1);
+    expect(slotOfHit({ object: mesh, face: { materialIndex: 0 } })).toBeNull();
+    mesh.userData.forgePickSlots = parts[1]!.slots;
+    expect(slotOfHit({ object: mesh, face: { materialIndex: 0 } })).toBe(1);
+  });
+
   test("slots follow the unique material order; an override replaces only its slot", () => {
     const { template, body, trim } = twoSlotModel();
     expect(template.slots).toEqual([body, trim]);

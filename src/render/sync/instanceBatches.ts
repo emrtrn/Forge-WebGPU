@@ -31,7 +31,7 @@
 import { Color, InstancedMesh, Matrix4, type BufferGeometry, type Material, type Object3D } from "three/webgpu";
 import type { ActorId, WorldActor, WorldActorChange } from "../../core/index.ts";
 import { SCENE_SOURCE_KEY } from "../../engine/perf/sceneCost.ts";
-import { tagInstanceActors } from "./pickTags.ts";
+import { tagInstanceActors, tagPartSlots } from "./pickTags.ts";
 
 export interface InstancePart {
   readonly geometry: BufferGeometry;
@@ -39,6 +39,8 @@ export interface InstancePart {
   /** The part's matrix inside the template (its world matrix under the template root). */
   readonly local: Matrix4;
   readonly name: string;
+  /** The model slot each of its materials draws (picking: a dropped material's slot). */
+  readonly slots?: readonly number[];
 }
 
 export interface InstanceBatch {
@@ -174,6 +176,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
           mesh.receiveShadow = true;
           mesh.matrixAutoUpdate = false;
           if (options.source !== undefined) mesh.userData[SCENE_SOURCE_KEY] = options.source;
+          if (part.slots) tagPartSlots(mesh, part.slots);
           options.parent.add(mesh);
           return mesh;
         });
