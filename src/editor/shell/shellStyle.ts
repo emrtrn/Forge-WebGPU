@@ -4,7 +4,7 @@
 // Details widths), the top bar with its brand and history buttons, the tool
 // buttons, the side panels, the viewport host panel, Outliner rows and the
 // status toast; the view controls' hover menus (Camera, step 3). Only the
-// rules the shell uses so far; the panels' own rules come with them (step 5).
+// rules the shell uses so far (and the Stats panel's place in the viewport); the panels' own rules come with them (step 5).
 // No redesign.
 
 export const SHELL_CSS = `
@@ -370,6 +370,12 @@ html, body {
   border: 1px solid #303a43;
   border-radius: 4px;
   background: #111820;
+}
+
+.editor-viewport-host #debug-stats {
+  /* Show > Stats: the ?debug panel inside the viewport panel. */
+  max-height: calc(100% - 16px);
+  max-width: calc(100% - 8px);
 }
 
 .editor-viewport-host canvas {

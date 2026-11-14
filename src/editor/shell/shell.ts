@@ -11,7 +11,8 @@
 // kit, and each committed field is one transaction (one undo step).
 // Ctrl+S / Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) save, undo, redo.
 // The viewport's view controls (step 3) sit in the work bar as Forge's hover
-// menus: Camera (Perspective / Top / Left / Front; keys 1 Top, 2 Front,
+// menus: View Mode (Lit / Wireframe), Quality (Auto and the profiles), Show
+// (toggles: Grid, Stats) and Camera (Perspective / Top / Left / Front; keys 1 Top, 2 Front,
 // 3 Left, 4 Perspective), F focuses the selection, Escape clears it. The
 // shell holds no viewport state: it asks the viewport and follows its changes.
 // Text is set with textContent; the only markup is the kit's static icons.
@@ -26,6 +27,7 @@ const TOOLBAR_ICONS = {
   save: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 3.5h7.4l1.6 1.6v6.9a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-8a.5.5 0 0 1 .5-.5z"/><path d="M5.5 3.5v3h4v-3"/><rect x="5.5" y="9" width="5" height="3.5"/></svg>',
   undo: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4L3 7l3 3"/><path d="M3 7h5.5a3.5 3.5 0 0 1 0 7H7"/></svg>',
   redo: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4l3 3-3 3"/><path d="M13 7H7.5a3.5 3.5 0 0 0 0 7H9"/></svg>',
+  viewmode: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 0 0 12z" fill="currentColor" stroke="none"/></svg>',
   camera: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.5h6.5L10 3.5h3.5v9H2z"/><circle cx="6.5" cy="9" r="2.4"/></svg>',
 } as const;
 
@@ -47,6 +49,18 @@ export interface ViewportMenus {
   onViewChange(listener: (view: string) => void): void;
   /** Frames the selection (key F). */
   focusSelection(): void;
+  readonly viewModes: readonly MenuChoice[];
+  viewMode(): string;
+  setViewMode(mode: string): void;
+  onViewModeChange(listener: (mode: string) => void): void;
+  /** Quality choices ("auto" and the profiles). */
+  readonly qualities: readonly MenuChoice[];
+  quality(): string;
+  setQuality(choice: string): void;
+  /** Show flags: each a toggle. */
+  readonly flags: readonly MenuChoice[];
+  flag(id: string): boolean;
+  setFlag(id: string, on: boolean): void;
 }
 
 const TRANSFORM_FIELDS = formFields({ transform: transform({ label: "Transform", hint: "Aktörün konumu, dönüşü ve ölçeği (ebeveynine göre)." }) });
@@ -118,13 +132,13 @@ export function createShell(options: ShellOptions): EditorShell {
   topbar.append(lead, workbar);
 
   /** A Forge hover menu: icon + current label + chevron, a popover of choices. */
-  const topbarMenu = (kind: string, icon: string, ariaLabel: string, choices: readonly MenuChoice[], pick: (id: string) => void) => {
+  const topbarMenu = (kind: string, icon: string, ariaLabel: string, choices: readonly MenuChoice[], pick: (id: string) => void, fixedLabel?: string) => {
     const menu = el("div", `${kind}-menu topbar-menu`);
     const button = el("button", "topbar-menu-button");
     button.type = "button";
     button.setAttribute("aria-label", ariaLabel);
     button.dataset.testid = `${kind}-button`;
-    const label = el("span");
+    const label = el("span", "", fixedLabel ?? "");
     button.innerHTML = icon; // The shell's own static SVG.
     button.append(label);
     button.insertAdjacentHTML("beforeend", MENU_CHEVRON);
@@ -146,9 +160,18 @@ export function createShell(options: ShellOptions): EditorShell {
     });
     viewControls.append(menu);
     return {
+      /** One choice is current: the label names it. */
       show(id: string) {
         label.textContent = choices.find(([choice]) => choice === id)?.[1] ?? id;
         for (const option of options) option.classList.toggle("active", option.dataset[`${kind}Choice`] === id);
+      },
+      /** Toggles: each choice on or off, the label stays. */
+      mark(isOn: (id: string) => boolean) {
+        for (const option of options) {
+          const on = isOn(option.dataset[`${kind}Choice`]!);
+          option.classList.toggle("active", on);
+          option.setAttribute("aria-pressed", String(on));
+        }
       },
     };
   };
@@ -204,6 +227,26 @@ export function createShell(options: ShellOptions): EditorShell {
       const camera = topbarMenu("camera", TOOLBAR_ICONS.camera, "Camera view", menus.views, (id) => menus.setView(id));
       camera.show(menus.view());
       menus.onViewChange((view) => camera.show(view));
+      const viewMode = topbarMenu("viewmode", TOOLBAR_ICONS.viewmode, "View mode", menus.viewModes, (id) => menus.setViewMode(id));
+      viewMode.show(menus.viewMode());
+      menus.onViewModeChange((mode) => viewMode.show(mode));
+      const quality = topbarMenu("quality", "Quality: ", "Graphics quality", menus.qualities, (id) => {
+        menus.setQuality(id);
+        quality.show(menus.quality());
+      });
+      quality.show(menus.quality());
+      const show = topbarMenu(
+        "show",
+        "",
+        "Show flags",
+        menus.flags,
+        (id) => {
+          menus.setFlag(id, !menus.flag(id));
+          show.mark((flag) => menus.flag(flag));
+        },
+        "Show",
+      );
+      show.mark((flag) => menus.flag(flag));
       doc.defaultView?.addEventListener("keydown", (event) => {
         if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
         const target = event.target as HTMLElement | null;

@@ -16,8 +16,13 @@
 //   focus frames.
 // - The view (Perspective / Top / Left / Front) is the camera's; listeners
 //   hear every change, so the editor's menu label follows the shortcuts.
+// - View mode (INV-A09, Forge's Lit / Wireframe): wireframe sets
+//   `material.wireframe` on what the world's root draws (new objects as they
+//   come) and gives every material its own value back on Lit. As in Forge, a
+//   technical view (Top / Left / Front) switches to Wireframe and Perspective
+//   back to Lit; the menu still picks either afterwards.
 
-import { Vector2, Vector3, type Box3 } from "three/webgpu";
+import { Vector2, Vector3, type Box3, type Material, type Mesh } from "three/webgpu";
 import type { ActorId, FeatureDef, WorldActor } from "../../core/index.ts";
 import { actorWorldMatrix } from "../sync/transforms.ts";
 import { createRenderHost, type RenderHost, type RenderHostOptions, type RenderQuality } from "../host/renderHost.ts";
@@ -43,6 +48,10 @@ export interface EditorViewportOptions extends RenderHostOptions {
   readonly onClick?: (clientX: number, clientY: number, additive: boolean) => void;
 }
 
+/** Forge's viewport shading modes. */
+export type ViewMode = "lit" | "wireframe";
+export const VIEW_MODES: readonly ViewMode[] = ["lit", "wireframe"];
+
 export interface EditorViewport {
   init(): Promise<void>;
   /** The `forge.render` feature for the editor's world. */
@@ -54,6 +63,9 @@ export interface EditorViewport {
   readonly view: CameraView;
   setView(view: CameraView): void;
   onViewChange(listener: (view: CameraView) => void): void;
+  readonly viewMode: ViewMode;
+  setViewMode(mode: ViewMode): void;
+  onViewModeChange(listener: (mode: ViewMode) => void): void;
   /** The actor drawn under a point of the page (client pixels); null for none. */
   pick(clientX: number, clientY: number): ActorId | null;
   /** World bounds of what these actors draw; null when they draw nothing. */
@@ -96,6 +108,37 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
   });
   const poses = createEditorCameraPoseStore(options.storage, options.levelKey);
   const viewListeners: ((view: CameraView) => void)[] = [];
+  const modeListeners: ((mode: ViewMode) => void)[] = [];
+  let viewMode: ViewMode = "lit";
+  /** Materials made wireframe, with their own value. */
+  const wireframed = new Map<Material & { wireframe?: boolean }, boolean>();
+  const applyWireframe = (): void => {
+    const root = host?.world?.root;
+    if (!root) return;
+    root.traverse((object) => {
+      const material = (object as Mesh).material as (Material & { wireframe?: boolean }) | (Material & { wireframe?: boolean })[] | undefined;
+      if (!material) return;
+      for (const one of Array.isArray(material) ? material : [material]) {
+        if (wireframed.has(one) || typeof one.wireframe !== "boolean") continue;
+        wireframed.set(one, one.wireframe);
+        one.wireframe = true;
+        one.needsUpdate = true;
+      }
+    });
+  };
+  const restoreLit = (): void => {
+    for (const [material, own] of wireframed) {
+      material.wireframe = own;
+      material.needsUpdate = true;
+    }
+    wireframed.clear();
+  };
+  const changeViewMode = (mode: ViewMode): void => {
+    if (mode === viewMode) return;
+    viewMode = mode;
+    if (mode === "lit") restoreLit();
+    for (const listener of modeListeners) listener(mode);
+  };
   const pendingLost: ((message: string) => void)[] = [];
   const unbind: (() => void)[] = [];
   let overlay: EditorOverlay | null = null;
@@ -197,6 +240,7 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
         host.setCamera(active);
         drawn = active;
       }
+      if (viewMode === "wireframe") applyWireframe();
       grid?.update(active, gridPlaneOf(camera.view));
       host.frame(now);
       if (camera.view === "perspective" && camera.touched) poses.maybeSave(camera.perspective, now);
@@ -211,9 +255,20 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
     setView(view) {
       camera.setView(view);
       for (const listener of viewListeners) listener(view);
+      changeViewMode(view === "perspective" ? "lit" : "wireframe");
     },
     onViewChange(listener) {
       viewListeners.push(listener);
+    },
+    get viewMode() {
+      return viewMode;
+    },
+    setViewMode(mode) {
+      changeViewMode(mode);
+      options.onStatus?.(`${mode === "lit" ? "Lit" : "Wireframe"} view mode`);
+    },
+    onViewModeChange(listener) {
+      modeListeners.push(listener);
     },
     pick(clientX, clientY) {
       if (!host) return null;

@@ -22,7 +22,6 @@ import {
 } from "../core/index.ts";
 import type { AssetUrls } from "../render/resources/assetUrls.ts";
 import type { RenderBindingDef } from "../render/sync/renderBinding.ts";
-import { CAMERA_VIEWS, type CameraView } from "../render/editor/editorCamera.ts";
 import { createEditorViewport } from "../render/editor/editorViewport.ts";
 import { assembleLevel } from "../runtime/assembler.ts";
 import { createWorld, type World } from "../runtime/world.ts";
@@ -30,9 +29,7 @@ import { createEditorSession, type EditorSession } from "./session/editorSession
 import { createShell } from "./shell/shell.ts";
 import { installShellStyle } from "./shell/shellStyle.ts";
 import { installKitStyle } from "./ui/kitStyle.ts";
-
-/** Forge's Camera menu labels. */
-const VIEW_LABELS: Readonly<Record<CameraView, string>> = { perspective: "Perspective", top: "Top", left: "Left", front: "Front" };
+import { createViewportControls } from "./viewportControls.ts";
 
 /** The page's local storage (the viewport's remembered pose); null where the browser refuses it. */
 function pageStorage(doc: Document): Storage | null {
@@ -110,15 +107,9 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     });
     await viewport.init();
     viewport.onLost((message) => shell.status(`The GPU device was lost: ${message}. Reload the page.`, "error"));
-    shell.attachViewport({
-      views: CAMERA_VIEWS.map((view) => [view, VIEW_LABELS[view]] as const),
-      view: () => viewport.view,
-      setView: (view) => viewport.setView(view as CameraView),
-      onViewChange: (listener) => viewport.onViewChange(listener),
-      focusSelection: () => {
-        if (!viewport.focusSelection()) shell.status("No selected object to focus.", "warning");
-      },
-    });
+    shell.attachViewport(
+      createViewportControls({ document: doc, viewport, storage: pageStorage(doc), status: (message, tone) => shell.status(message, tone), statsContainer: shell.viewport }),
+    );
 
     world = createWorld({ strict: true, registry, resolveClass, features: [...options.features, viewport.feature(options.features)], mode: "editor" });
     world.init();
