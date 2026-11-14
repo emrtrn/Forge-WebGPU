@@ -20,8 +20,8 @@ kendini de sınar (rapor §4.2, A3).
 | Katman | İçerik | three |
 |---|---|---|
 | `core` | aktör / bileşen modeli, şema DSL'i ve kaydı, kimlik, level ve hücre modeli, asset modeli, düzenleme modeli, alt sistem sözleşmesi, proje manifesti | yok; DOM ve `import.meta.env` de yok |
-| `engine` | three'siz alt sistemler (fizik, terrain verisi, nav, hareket, ses…; 2b'de taşınır, kapsam K12); DOM ve Web Audio yok, düz Node'da yüklenir | yok |
-| `render` | renderer host, GUID anahtarlı kaynak önbelleği, render bağlamaları, materyaller, pipeline, görüntüleyici (Faz 3; rapor §4.9); editörün 3B kodu `render/editor/` (viewport, editör kamerası, çizim katmanı, ızgara, picking, seçim çerçevesi, yardımcı bağlamalar; gizmo adım 4; yalnız editör yükler, Faz 4) | tek sahip (`three/webgpu`, `three/tsl`) |
+| `engine` | three'siz alt sistemler (fizik, terrain verisi, nav, hareket, ses…; 2b'de taşınır, kapsam K12) ve editörün gizmo matematiği (`engine/gizmo`: sürükleme, snap, pivot); DOM ve Web Audio yok, düz Node'da yüklenir | yok |
+| `render` | renderer host, GUID anahtarlı kaynak önbelleği, render bağlamaları, materyaller, pipeline, görüntüleyici (Faz 3; rapor §4.9); editörün 3B kodu `render/editor/` (viewport, editör kamerası, çizim katmanı, ızgara, picking, seçim çerçevesi, yardımcı bağlamalar, gizmo çizimi; yalnız editör yükler, Faz 4) | tek sahip (`three/webgpu`, `three/tsl`) |
 | `runtime` | World, sahne kurucu, oyun modülü host'u, boot; tarayıcı API'si gereken alt sistem kodu (`runtime/audio`) | dolaylı |
 | `gameplay` | yeniden kullanılabilir oyun çatısı (Faz 6) | yok |
 | `editor` | editör: DOM ve servisler; yalnız dinamik import, oyun bundle'ına girmez (Faz 4) | yok; 3B kodu `render/editor/`'da |
@@ -56,6 +56,7 @@ ile çalıştırır; rapor §4.2). Render bağlamaları çizdiklerine aktörün�
 - Level bir klasördür: `level.json` (kalıcı katman + `settings.cellSize`),
   `cells.json` (dizin + revizyonlar), `cells/<x>_<z>.json`. Atama kök aktörün
   konumundan; `spatiallyLoaded: false` ve singleton ağaçları kalıcı katmanda.
+  Aktörün isteğe bağlı `pivot`'u yalnız editörün (döndürme / ölçek noktası).
   Dosyalar kanonik metinle yazılır (`stringifyDocument`); revizyon bayt
   hash'idir (rapor §4.4, A11).
 - Asset kimliği asset'in yanında: JSON asset'ler `id` taşır, ikili asset'ler

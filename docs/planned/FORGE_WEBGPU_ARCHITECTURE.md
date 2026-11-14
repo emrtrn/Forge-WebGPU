@@ -1,6 +1,7 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.19 · 2026-11-14 (v1.18'den fark: §4.2 editör yardımcı bağlamaları (`defineEditorRenderBinding`, `forge.editorHelpers`); §4.9 çizim katmanının uygulaması (sahne derinliği, derinlik ön geçişi, ton eşlemesiz bileşim) ve picking etiketleri.
+**Sürüm:** v1.20 · 2026-11-14 (v1.19'dan fark: §4.4 aktörün editöre özgü `pivot`'u (kullanıcı kararı); §4.7 gizmo'nun uygulaması (three'siz sürükleme, tek transaction, instancing hızlı yolu); §4.9 gizmo katmanın son pass'i.
+v1.19 · 2026-11-14 (v1.18'den fark: §4.2 editör yardımcı bağlamaları (`defineEditorRenderBinding`, `forge.editorHelpers`); §4.9 çizim katmanının uygulaması (sahne derinliği, derinlik ön geçişi, ton eşlemesiz bileşim) ve picking etiketleri.
 v1.18 · 2026-11-13 (v1.17'den fark: §4.8 build'in uygulaması (kullanıcı kararı: Faz 4): statik içerik, `ContentClient`, alt dizin.
 v1.17 · 2026-11-13 (v1.16'dan fark: §4.7 editör World'ü (`inEditor`, kullanıcı kararı) ve `actorsChanged`'ın kesin biçimi, çocuk silme kuralı.
 v1.16 · 2026-11-13 (v1.15'ten fark: Faz 4 tasarımı (kullanıcı kararları) — §4.2 editörün 3B kodu `src/render/editor/` ve rol `features/*/editorRender.ts`; §4.7 editör oturumu: `actorsChanged`, Forge'un gizmo'su, Play oturum katmanı, grup, hücreler; §4.8 motor içeriği kipi; §4.9 çizim katmanı ve küçük resimler; §4.10 editör smoke'ları; §4.11 ajan komutlarının yolu, okuyan komutlar, canlı tazeleme, asset editörleri.
@@ -526,6 +527,10 @@ features/height-fog/
     dizin asset değildir, level'ın parçasıdır.
   - *Akış bayrağı:* `spatiallyLoaded` (varsayılan `true`, her zaman yazılır)
     temel aktör şemasında bir kez tanımlıdır (`ActorStreamingFields`).
+  - *Pivot (kullanıcı kararı 2026-11-14):* aktörün isteğe bağlı `pivot`'u (vec3,
+    aktörün yerel uzayı; `ActorPivotField`) editörün döndürme ve ölçeğinin etrafında
+    yapıldığı noktadır (Forge'un yerleşim pivot'u). Editör verisidir: World ve oyun
+    okumaz; orijindeki pivot kanonik belgeye yazılmaz.
   - *Atama:* kök aktörün `transform.p` X/Z'si hücresini belirler. Alt aktör
     kökünü izler, kendi bayrağına bakılmaz; bu yüzden `parent` her zaman
     aynı dosyadadır ve dosya başına normalize'da denetlenir (dosyada olmayan
@@ -907,7 +912,14 @@ düşen alan uyarı değil, **hatadır**.
     hareket ve oyun modülü editörde hiç kurulmaz (SDK 0.1.4).
   - *Gizmo:* Forge'un kendi gizmo'su (move / rotate / scale, world / local, snap,
     pivot, zemin / duvar yapıştırma); sürükleme matematiği three'siz saf modül, çizimi
-    çizim katmanında (§4.9). Three `TransformControls` kullanılmaz.
+    çizim katmanında (§4.9). Three `TransformControls` kullanılmaz. *Uygulama (adım 4,
+    2026-11-14):* `src/engine/gizmo` (eksen tutamağı işaretçi ışınının eksen doğrusuna en
+    yakın noktası, serbest tutamak kameraya bakan düzlemde, dönüş kuaterniyon; çoklu seçimin
+    kökleri birlikte, sonuç her aktörün ebeveyn uzayında; zemin / duvar snap'i viewport
+    picker'ının ışınlarıyla). `src/editor/transformTools.ts` sürüklemeyi World'e
+    `updateActors` ile canlı gösterir (oturuma girmez; instancing batch'i yalnız matrisi
+    yazar), bırakınca tek transaction, Esc ya da araya giren bir düzenleme World'ü oturumdaki
+    hâline döndürür. Snap ayarı sayfanındır (localStorage), projenin değil.
   - *Gruplama:* grup bileşensiz boş aktördür, çocuklar `parent` ile bağlanır; çözme
     çocukları grubun ebeveynine bağlar ve grubu siler. Çoğaltma yeni GUID verir (A1).
   - *Hücreler:* 5b'deki editör akışına kadar editör bütün hücreleri yükler.
@@ -1288,7 +1300,9 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   aktörü, instance batch'inin instance → aktör tablosu, kendi ışınını yanıtlayan yüzey
   (terrain: `raycastTerrain`; çizilen yama GPU'da yer değiştirdiği için üçgenleri
   denenmez). Seçim çerçevesi katmanın pass'i: seçili parçalar maskeye, maskenin dış
-  kenarı katmana (Forge'un rengi; örtülen kenar da görünür).
+  kenarı katmana (Forge'un rengi; örtülen kenar da görünür). Gizmo katmanın son
+  pass'idir (adım 4): derinlik testi kapalı, sahnenin ve öteki yardımcıların üstünde
+  (Forge); tutamak seçimi yardımcılardan ve sahneden önce gelir.
 - *Çevre, uygulama (adım 5, 2026-11-13):* tekiller `forge.skyAtmosphere` +
   `forge.skyLight` (tek özellik `forge.sky`: Sky Light gökyüzünü yakalar),
   `forge.cloudLayer`, `forge.worldEnvironment`. **Kullanıcı kararları
