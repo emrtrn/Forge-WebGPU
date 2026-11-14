@@ -62,6 +62,8 @@ interface ActorBase {
   transform: Transform;
   /** Editor-only authoring pivot in the actor's local space (`ActorPivotField`); absent is the origin. */
   pivot?: Vec3;
+  /** Editor-only Lock Movement (`ActorLockField`); absent is unlocked. */
+  locked?: true;
 }
 
 export interface PlainActor extends ActorBase {

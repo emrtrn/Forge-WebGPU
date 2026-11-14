@@ -106,6 +106,8 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
   const pathOf = (key: PartKey): string => `${folder}/${key === null ? LEVEL_FILE : cellFileOf(key)}`;
   const merged = mergeLevelParts(open.persistent, (open.cells ?? []).map((cell) => cell.doc), options);
   const level = merged.value.level;
+  /** Id -> actor: lookups stay constant-time at 50.000 actors (the Outliner, Details and the selection ask often). */
+  const byId = new Map<ActorId, ActorDoc>(level.actors.map((actor) => [actor.id, actor]));
   const fileOf = new Map(merged.value.fileOf);
   const loaded = new Set(merged.value.cells);
   const onDisk = new Set(Object.keys(open.index?.cells ?? {}));
@@ -118,17 +120,22 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
   const saved = new Map<ActorId, number>();
   let clock = 0;
 
-  const indexOf = (id: ActorId): number => level.actors.findIndex((actor) => actor.id === id);
+  /** The actor's place in the level's list; -1 when it is not there. */
+  const indexOf = (id: ActorId): number => {
+    const actor = byId.get(id);
+    return actor === undefined ? -1 : level.actors.indexOf(actor);
+  };
 
   /** Applies one side of a change and bumps the actor's version. */
   const put = (id: ActorId, actor: ActorDoc | null, at: number): void => {
     const index = indexOf(id);
     if (actor === null) {
       if (index >= 0) level.actors.splice(index, 1);
-    } else if (index >= 0) {
-      level.actors[index] = actor;
+      byId.delete(id);
     } else {
-      level.actors.splice(Math.min(Math.max(at, 0), level.actors.length), 0, actor);
+      if (index >= 0) level.actors[index] = actor;
+      else level.actors.splice(Math.min(Math.max(at, 0), level.actors.length), 0, actor);
+      byId.set(id, actor);
     }
     clock += 1;
     versions.set(id, clock);
@@ -157,14 +164,14 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
     folder,
     level,
     history,
-    actor: (id) => level.actors.find((actor) => actor.id === id),
+    actor: (id) => byId.get(id),
     isLoaded,
 
     edit(label, build, editOptions = {}) {
       const issues: Issue[] = [];
       const staged = new Map<ActorId, ActorDoc | null>();
       const current = (id: ActorId): ActorDoc | null =>
-        staged.has(id) ? staged.get(id)! : (level.actors.find((actor) => actor.id === id) ?? null);
+        staged.has(id) ? staged.get(id)! : (byId.get(id) ?? null);
       build({
         setActor(raw) {
           const result = normalizeActorDoc(raw, options);
@@ -186,14 +193,31 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
             path: `${id}.parent`,
             message: `Actor ${actor.parent} is not in the loaded level.`,
           });
+          continue;
+        }
+        // No cycle: walking up from the new parent never comes back to the actor.
+        const seen = new Set<ActorId>([id]);
+        for (let at: ActorId | null = actor.parent; at !== null; at = current(at)?.parent ?? null) {
+          if (!seen.has(at)) {
+            seen.add(at);
+            continue;
+          }
+          issues.push({
+            code: "invalid-parent",
+            severity: "error",
+            path: `${id}.parent`,
+            message: `Parenting ${id} to ${actor.parent} makes a cycle.`,
+          });
+          break;
         }
       }
       // A removed actor takes no child with it silently: its children go in the same edit or get another parent.
-      for (const [id, actor] of staged) {
-        if (actor !== null) continue;
-        // (A staged child pointing at it is caught above: its parent is gone.)
+      const removed = new Set([...staged].filter(([, actor]) => actor === null).map(([id]) => id));
+      // (A staged child pointing at a removed actor is caught above: its parent is gone.)
+      if (removed.size > 0) {
         for (const other of level.actors) {
-          if (staged.has(other.id) || other.parent !== id) continue;
+          if (other.parent === null || !removed.has(other.parent) || staged.has(other.id)) continue;
+          const id = other.parent;
           issues.push({
             code: "invalid-parent",
             severity: "error",
@@ -208,7 +232,7 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
       const changes: ActorChange[] = [];
       for (const [id, after] of staged) {
         const beforeIndex = indexOf(id);
-        const before = beforeIndex >= 0 ? level.actors[beforeIndex]! : null;
+        const before = byId.get(id) ?? null;
         if (before === null && after === null) continue;
         changes.push({ id, before, beforeIndex: beforeIndex >= 0 ? beforeIndex : level.actors.length, after });
       }
@@ -254,6 +278,7 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
           continue;
         }
         level.actors.push(actor);
+        byId.set(actor.id, actor);
         fileOf.set(actor.id, result.value.fileOf.get(actor.id) ?? null);
       }
       for (const cell of fresh) {
@@ -277,6 +302,7 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
         const id = level.actors[index]!.id;
         if (fileOf.get(id) === cell) {
           level.actors.splice(index, 1);
+          byId.delete(id);
           fileOf.delete(id);
           versions.delete(id);
           saved.delete(id);

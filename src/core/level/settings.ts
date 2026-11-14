@@ -12,6 +12,8 @@
 //   actor's local space the editor's rotate and scale act around. Editor data:
 //   the world and the game never read it. Absent means the origin; the
 //   canonical document leaves an origin pivot out.
+// - `locked` (Forge's Lock Movement, same kind of editor data): written only
+//   when true.
 
 import { bool, num, vec3, type FieldValues } from "../schema/fields.ts";
 
@@ -37,6 +39,17 @@ export const ActorStreamingFields = {
     hint: "Açıkken aktör konumunun düştüğü hücreyle birlikte yüklenir. Kapalıyken kalıcı katmanda durur ve hep yüklüdür. Alt aktör kökünü izler.",
   }),
 };
+
+/**
+ * Forge's Lock Movement (user decision 2026-11-14, phase 4 step 5): the editor
+ * neither drags nor snaps a locked actor. Editor data like `pivot`: the world
+ * and the game never read it; the canonical document writes it only when on.
+ */
+export const ActorLockField = bool({
+  default: false,
+  label: "Lock Movement",
+  hint: "Açıkken aktör editörde taşınmaz, döndürülmez, ölçeklenmez (gizmo ve yapıştırma onu atlar). Yalnız editör kullanır; oyun okumaz.",
+});
 
 export const ActorPivotField = vec3({
   default: [0, 0, 0],

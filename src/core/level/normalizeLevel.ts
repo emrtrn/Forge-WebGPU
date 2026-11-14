@@ -30,7 +30,7 @@ import type { SchemaRegistry } from "../schema/registry.ts";
 import { normalizeOverrides, type ClassResolver } from "./actorClass.ts";
 import { normalizeComponentMap } from "./components.ts";
 import { LEVEL_SCHEMA, type ActorDoc, type ComponentMap, type LevelDoc } from "./model.ts";
-import { ActorPivotField, ActorStreamingFields, LevelSettingsFields, type LevelSettings } from "./settings.ts";
+import { ActorLockField, ActorPivotField, ActorStreamingFields, LevelSettingsFields, type LevelSettings } from "./settings.ts";
 
 export const DEFAULT_ACTOR_NAME = "Actor";
 
@@ -44,7 +44,7 @@ export interface LevelNormalizeOptions extends NormalizeOptions {
 }
 
 const LEVEL_KEYS = ["schema", "id", "settings", "actors"];
-const ACTOR_KEYS = ["id", "name", "class", "parent", "spatiallyLoaded", "transform", "pivot", "components", "overrides"];
+const ACTOR_KEYS = ["id", "name", "class", "parent", "spatiallyLoaded", "transform", "pivot", "locked", "components", "overrides"];
 
 /** Null when the document cannot be read as a level at all. */
 export function normalizeLevel(
@@ -217,6 +217,7 @@ function normalizeActor(
     ) as boolean,
     transform: normalizeTransform(raw.transform, IDENTITY_TRANSFORM, childPath(path, "transform"), ctx),
     ...pivotOf(raw.pivot, childPath(path, "pivot"), ctx),
+    ...lockedOf(raw.locked, childPath(path, "locked"), ctx),
   };
   reportUnknownKeys(raw, ACTOR_KEYS, path, ctx, "An actor has no such field; dropped.");
 
@@ -328,4 +329,10 @@ function pivotOf(raw: unknown, path: string, ctx: NormalizeContext): { pivot?: V
   if (raw === undefined) return {};
   const pivot = normalizeValue(ActorPivotField, raw, path, ctx) as Vec3;
   return pivot.every((value) => value === 0) ? {} : { pivot };
+}
+
+/** `locked: true` when the actor is locked; the canonical document leaves an unlocked actor's flag out. */
+function lockedOf(raw: unknown, path: string, ctx: NormalizeContext): { locked?: true } {
+  if (raw === undefined) return {};
+  return normalizeValue(ActorLockField, raw, path, ctx) === true ? { locked: true } : {};
 }

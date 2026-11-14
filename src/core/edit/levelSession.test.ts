@@ -147,6 +147,36 @@ describe("opening and editing", () => {
     const orphan = session.edit("Orphan", (tx) => tx.setActor(actor("f", 1, 1, { parent: actorId("9") })));
     expect(summary(orphan.issues)).toEqual([`error invalid-parent ${actorId("f")}.parent`]);
   });
+
+  test("a parent that would make a cycle is refused, also when both links change in one edit", () => {
+    const session = open();
+    expect(session.edit("Parent b to a", (tx) => tx.setActor({ ...structuredClone(session.actor(actorId("b"))!), parent: actorId("a") })).ok).toBe(true);
+    const loop = session.edit("Parent a to b", (tx) => tx.setActor({ ...structuredClone(session.actor(actorId("a"))!), parent: actorId("b") }));
+    expect(summary(loop.issues)).toEqual([`error invalid-parent ${actorId("a")}.parent`]);
+    const swap = session.edit("Swap", (tx) => {
+      tx.setActor({ ...structuredClone(session.actor(actorId("a"))!), parent: actorId("c") });
+      tx.setActor({ ...structuredClone(session.actor(actorId("c"))!), parent: actorId("b") });
+    });
+    expect(swap.ok).toBe(false);
+    expect(session.actor(actorId("a"))?.parent).toBeNull();
+  });
+
+  test("lookups follow every change: edit, undo, redo, cell load and unload", () => {
+    const session = open();
+    const at = session.level.actors.indexOf(session.actor(actorId("a"))!);
+    session.edit("Add f", (tx) => tx.setActor(actor("f", 1, 1)));
+    session.edit("Remove a", (tx) => tx.removeActor(actorId("a")));
+    expect(session.actor(actorId("f"))?.name).toBe("f");
+    expect(session.actor(actorId("a"))).toBeUndefined();
+    session.undo();
+    expect(session.actor(actorId("a"))?.name).toBe("a");
+    expect(session.level.actors.indexOf(session.actor(actorId("a"))!)).toBe(at);
+    session.undo();
+    expect(session.actor(actorId("f"))).toBeUndefined();
+    session.redo();
+    expect(session.actor(actorId("f"))).toBe(session.level.actors.at(-1));
+    expect(session.actor(actorId("d"))).toBeUndefined();
+  });
 });
 
 describe("saving", () => {

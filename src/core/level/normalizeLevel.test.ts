@@ -367,3 +367,20 @@ describe("the authoring pivot (editor data)", () => {
     expect(result.value?.actors[0]).not.toHaveProperty("pivot");
   });
 });
+
+describe("Lock Movement (editor data)", () => {
+  test("a locked actor keeps `locked: true` after its pivot; an unlocked one writes nothing", () => {
+    const result = normalizeLevel(level([plain("a", {}, { locked: true, pivot: [0, 1, 0] }), plain("b", {}, { locked: false })]), STRICT);
+    expect(result.issues).toEqual([]);
+    const [locked, free] = result.value!.actors;
+    expect(Object.keys(locked!).slice(6, 8)).toEqual(["pivot", "locked"]);
+    expect(locked).toHaveProperty("locked", true);
+    expect(free).not.toHaveProperty("locked");
+  });
+
+  test("a flag that is not a boolean is a loss and reads as unlocked", () => {
+    const result = normalizeLevel(level([plain("a", {}, { locked: "yes" })]), LENIENT);
+    expect(summary(result.issues)).toEqual(["warning invalid-value actors[0].locked"]);
+    expect(result.value?.actors[0]).not.toHaveProperty("locked");
+  });
+});

@@ -26,7 +26,7 @@ import {
   LOCAL_ID_PATTERN,
   REVISION_PATTERN,
 } from "./model.ts";
-import { ActorPivotField, ActorStreamingFields, LevelSettingsFields } from "./settings.ts";
+import { ActorLockField, ActorPivotField, ActorStreamingFields, LevelSettingsFields } from "./settings.ts";
 
 const COMPONENT_REF = { $ref: "#/definitions/component" };
 const OVERRIDE_TAG_PATTERN = `${COMPONENT_NAME_PATTERN.source.slice(0, -1)}@[1-9][0-9]*$`;
@@ -77,6 +77,7 @@ function actorSchema(): JsonSchema {
       spatiallyLoaded: fieldJsonSchema(ActorStreamingFields.spatiallyLoaded, "spatiallyLoaded"),
       transform: transformJsonSchema(),
       pivot: fieldJsonSchema(ActorPivotField, "pivot"),
+      locked: fieldJsonSchema(ActorLockField, "locked"),
       components: componentMapSchema(),
       overrides: {
         type: "object",
