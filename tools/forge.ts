@@ -2,12 +2,15 @@
 //
 //   npm run forge -- check --project <path>
 //   npm run forge -- dev --project <path> [--port <port>]
+//   npm run forge -- edit --project <path> --level <folder> [--json] <command …> | -
 //
 // `check`: manifest, SDK version, generated .forge/tsconfig.json, compile,
 // import boundary (tools/project/check.ts).
 // `dev`: the engine's dev server on the project, on the project's own port
 // (`devPort`, D14). A project for another SDK version is not opened; the
 // changelog entries in between are shown.
+// `edit`: the agent's edit commands on a level (A12, tools/edit/): no dev
+// server needed; an editor that has the level open refreshes by itself.
 
 import { readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -15,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 import { parseSdkVersion, SDK_VERSION } from "../src/core/index.ts";
 import { checkProject, formatProblem, loadProject, writeProjectTsconfig } from "./project/check.ts";
+import { editMain } from "./edit/cli.ts";
 
 const engineRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -39,9 +43,13 @@ async function changelogSince(projectSdk: string): Promise<string> {
 
 async function main(): Promise<void> {
   const [command, ...args] = process.argv.slice(2);
+  if (command === "edit") {
+    process.exitCode = await editMain(args, engineRoot);
+    return;
+  }
   const project = option(args, "project");
   if ((command !== "check" && command !== "dev") || project === undefined) {
-    console.error("Usage: npm run forge -- <check|dev> --project <path> [--port <port>]");
+    console.error("Usage: npm run forge -- <check|dev|edit> --project <path> [--port <port>]");
     process.exitCode = 1;
     return;
   }
