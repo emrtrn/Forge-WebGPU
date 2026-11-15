@@ -18,6 +18,12 @@ export default defineConfig({
       "@forge/editor-sdk": fileURLToPath(new URL("./src/editor-sdk/index.ts", import.meta.url)),
     },
   },
+  // Rapier is only ever imported dynamically (physics, the G8 measurement): left
+  // to discovery, its first import makes the dev server re-optimise and reload
+  // the page mid-run.
+  optimizeDeps: {
+    include: ["@dimforge/rapier3d-compat"],
+  },
   server: {
     port: DEV_PORT,
     strictPort: true,

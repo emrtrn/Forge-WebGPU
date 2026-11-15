@@ -27,7 +27,8 @@
 //   the far map where a tile is not loaded), not from the drawn patch
 //   (render/sync/pickTags.ts; plan phase 4 step 3).
 // - A streamed terrain's mesh carries its stream for the `?debug` terrain map
-//   (render/sync/debugTags.ts; phase 5a step 4).
+//   (render/sync/debugTags.ts; phase 5a step 4), every terrain's its view for
+//   the G8 collider match (step 5).
 //
 // A terrain whose data fails to load draws nothing; the cache counts it and
 // the host reports it.
@@ -43,7 +44,7 @@ import { worldTerrainExtent } from "../../engine/terrain/worldTerrainActor.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
 import type { TerrainData as LoadedTerrain, TerrainTileReader } from "../../render/resources/terrains.ts";
 import { defineRenderBinding } from "../../render/sync/renderBinding.ts";
-import { tagTerrainStreaming } from "../../render/sync/debugTags.ts";
+import { tagTerrainStreaming, tagTerrainView } from "../../render/sync/debugTags.ts";
 import { tagActorObject, tagPickSurface, type PickSurface } from "../../render/sync/pickTags.ts";
 import { TerrainView, terrainShadowCasters } from "../../render/sync/terrainView.ts";
 import { Terrain, type TerrainData } from "./schema.ts";
@@ -123,6 +124,7 @@ export default defineRenderBinding({
       tagSceneSource(view.mesh, "terrain");
       tagActorObject(view.mesh, actor.id);
       tagPickSurface(view.mesh, terrainPickSurface(terrain, view));
+      tagTerrainView(view.mesh, { view, def: terrain.def });
       if (entry.stream) tagTerrainStreaming(view.mesh, { stream: entry.stream, sources: () => entry.sources });
       entry.view = view;
       ctx.root.add(view.mesh);

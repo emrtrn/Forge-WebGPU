@@ -15,6 +15,10 @@
 // are phase 5a step 6; shore and caustics phase 7; tracks phase 8; the debug
 // views and the far foliage tint come with their tools (5d, 5c).
 //
+// The height probe (phase 5a step 5, G8): the same vertex stage and hole cut,
+// each pixel carrying its world position for a float readback
+// (sync/terrainHeightProbe.ts); built only when a measurement asks for it.
+//
 // TSL's typings reject several valid uses here (integer texel coordinates,
 // vector element access); the terrain modules take the functions untyped, as
 // the spike did. Nothing else in the renderer does.
@@ -33,8 +37,14 @@ const TSL = TSLTyped as unknown as Record<string, any>;
 const {
   Fn, attribute, clamp, cross, dFdx, dFdy, distance, dot, float, floor, fract, int, ivec2, length, max, mix, normalize,
   positionLocal, positionView, select, smoothstep, sqrt, texture, textureLoad, transformNormalToView, uniform, vec2, vec3,
-  vec4, varyingProperty, mat2,
+  vec4, varyingProperty, mat2, modelWorldMatrix,
 } = TSL;
+
+/**
+ * The height probe writes world Y, X, Z plus this: a colour output clamps
+ * negatives to 0 (spike S2). In float32 it leaves about 1 mm of precision.
+ */
+export const TERRAIN_HEIGHT_PROBE_OFFSET = 8192;
 
 const SKIRT_RATIO = 0.05;
 const FAR_TILING_START = 25;
@@ -190,6 +200,8 @@ export interface TerrainMaterial {
   readonly material: THREE.MeshStandardNodeMaterial;
   /** Sets the terrain-local camera position the morph reads (the view, on each selection). */
   setLodCamera(x: number, y: number, z: number): void;
+  /** The height probe: this material's vertex stage and hole cut, world Y / X / Z (+ the offset) per pixel; built on first use. */
+  heightProbe(): THREE.MeshBasicNodeMaterial;
 }
 
 export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMaterial {
@@ -363,10 +375,27 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
   material.normalNode = transformNormalToView(worldNormal);
   // A hole in the far map (no tile covers the sample) is cut, in every pass.
   material.maskNode = useTile.or(globalNormal.b.lessThan(0.5));
+  let probe: THREE.MeshBasicNodeMaterial | null = null;
   return {
     material,
     setLodCamera(x, y, z) {
       (uLodCamera.value as THREE.Vector3).set(x, y, z);
+    },
+    heightProbe() {
+      if (probe) return probe;
+      const vObject = varyingProperty("vec3", "vTerrainProbe");
+      probe = new THREE.MeshBasicNodeMaterial();
+      probe.name = "terrain-height-probe";
+      probe.positionNode = Fn(() => {
+        vObject.assign(position);
+        return vObject;
+      })();
+      const world = modelWorldMatrix.mul(vec4(vObject, 1)).xyz.add(TERRAIN_HEIGHT_PROBE_OFFSET);
+      probe.colorNode = vec4(world.y, world.x, world.z, 1);
+      probe.maskNode = material.maskNode;
+      probe.toneMapped = false;
+      material.addEventListener("dispose", () => probe?.dispose());
+      return probe;
     },
   };
 }

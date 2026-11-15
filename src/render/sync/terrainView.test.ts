@@ -10,6 +10,8 @@ import {
 } from "../../engine/terrain/terrainRenderSource.ts";
 import { createFlatTerrainTile, tileKey, type TerrainTileData, type WorldTerrainDef } from "../../engine/terrain/terrainTypes.ts";
 import { createFlatWorldTerrain } from "../../engine/terrain/worldTerrainCreate.ts";
+import { terrainVisualSample } from "../../engine/terrain/terrainVisualHeight.ts";
+import { terrainHeightAt } from "../../engine/terrain/terrainHeightQuery.ts";
 import { fillTerrainHoles, TerrainView, terrainShadowCasters } from "./terrainView.ts";
 
 function terrain(tilesX: number, tilesZ: number) {
@@ -292,5 +294,38 @@ describe("terrain view: global map and coverage", () => {
     const visible = (box: { minX: number; minY: number; minZ: number; maxX: number; maxY: number; maxZ: number }) =>
       frustum.intersectsBox(new Box3(new Vector3(box.minX, box.minY, box.minZ), new Vector3(box.maxX, box.maxY, box.maxZ)));
     expect(selector.select([32, 1, 300], visible)).toHaveLength(0);
+  });
+});
+
+// G8 (plan phase 5a step 5): what the view hands to the CPU twin and the GPU readback.
+describe("terrain view: G8 hooks", () => {
+  test("visualSurface is the drawn selection; near the camera the twin reads the tile's own surface", () => {
+    const { def, tiles } = hillyWorld(3, 2, 64, 1.5, null);
+    const view = new TerrainView({ def, global: buildTerrainGlobalAttributes(worldTerrainRenderSource(def, tiles)), tiles, layers });
+    view.update(cameraAt(def.origin[0] + 100, def.origin[1] + 8, def.origin[2] + 60, [def.origin[0] + 200, 0, def.origin[2] + 60]), [], false);
+    const { surface, nodes } = view.visualSurface();
+    expect(nodes.map(({ x0, z0, size }) => [x0, z0, size])).toEqual(drawnNodes(view).map(({ x0, z0, size }) => [x0, z0, size]));
+    expect(surface.camera).toEqual([100, 8, 60]);
+    const query = { tileQuads: def.tileQuads, spacing: def.spacing, tilesX: def.tilesX, tilesZ: def.tilesZ, origin: [0, 0, 0] as [number, number, number] };
+    for (const [x, z] of [[100.3, 60.2], [97.9, 55.1], [110.6, 63.7]] as const) {
+      const sample = terrainVisualSample(surface, nodes, x, z)!;
+      expect(sample.morph).toBe(0);
+      expect(sample.node.tile).not.toBeNull();
+      expect(sample.height).toBeCloseTo(terrainHeightAt(query, surface.tiles, x, z)!, 4);
+    }
+    view.dispose();
+  });
+
+  test("the height probe is built once per material and goes with it", () => {
+    const { def, tiles } = hillyWorld(1, 1, 64, 1.5, null);
+    const view = new TerrainView({ def, global: buildTerrainGlobalAttributes(worldTerrainRenderSource(def, tiles)), tiles, layers });
+    const probe = view.heightProbe();
+    expect(view.heightProbe()).toBe(probe);
+    let disposed = 0;
+    probe.addEventListener("dispose", () => (disposed += 1));
+    view.setFarTiling(false);
+    expect(disposed).toBe(1);
+    expect(view.heightProbe()).not.toBe(probe);
+    view.dispose();
   });
 });

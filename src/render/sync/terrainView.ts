@@ -25,6 +25,10 @@
 //   Forge (filterable without a float32 feature).
 // - The paint layers' textures are two arrays built once (materials/terrain.ts).
 //
+// - G8 (step 5): `visualSurface` hands the drawn selection to the CPU twin
+//   (engine/terrain/terrainVisualHeight.ts); `heightProbe` is the material's
+//   height probe for a GPU readback (sync/terrainHeightProbe.ts).
+//
 // Left for later steps: edits (5d), track detail (8).
 
 import * as THREE from "three/webgpu";
@@ -39,12 +43,14 @@ import { TerrainLodSelector, terrainResidentTileKeys, type TerrainLodBox, type T
 import { TERRAIN_PATCH_QUADS, TERRAIN_WEIGHT_BLOCKS } from "../../engine/terrain/terrainRenderData.ts";
 import { TerrainSlotPool } from "../../engine/terrain/terrainSlotPool.ts";
 import { parseTileKey, tileKey, type TerrainTileData, type WorldTerrainDef } from "../../engine/terrain/terrainTypes.ts";
+import type { TerrainDrawnNode, TerrainVisualSurface } from "../../engine/terrain/terrainVisualHeight.ts";
 import {
   createTerrainLayerTextures,
   createTerrainMaterial,
   createTerrainPatchGeometry,
   setTerrainInstanceCapacity,
   type TerrainLayerTextures,
+  type TerrainMaterial,
   type TerrainMaterialInput,
 } from "../materials/terrain.ts";
 import type { TerrainLayerInput } from "../resources/terrains.ts";
@@ -178,7 +184,9 @@ export class TerrainView {
   private readonly bounds: TerrainWorldHeightBounds;
   private readonly selector: TerrainLodSelector;
   private readonly pool: TerrainSlotPool;
-  private setLodCamera: (x: number, y: number, z: number) => void;
+  private terrainMaterial: TerrainMaterial;
+  /** The far map heights the GPU reads (holes filled). */
+  private readonly globalHeights: Float32Array;
   private readonly layerTextures: TerrainLayerTextures;
   private readonly materialInput: Omit<TerrainMaterialInput, "farTiling">;
   private farTiling: boolean;
@@ -221,6 +229,7 @@ export class TerrainView {
     this.bounds = new TerrainWorldHeightBounds(this.source, TERRAIN_PATCH_QUADS);
     const { map } = global;
     const globalHeights = fillTerrainHoles(map.heights, map.width, map.height, this.bounds.range().min);
+    this.globalHeights = globalHeights;
     const globalHeightTex = new THREE.DataTexture(globalHeights, map.width, map.height, THREE.RedFormat, THREE.FloatType);
     globalHeightTex.magFilter = globalHeightTex.minFilter = THREE.NearestFilter;
     globalHeightTex.needsUpdate = true;
@@ -265,7 +274,7 @@ export class TerrainView {
       layerTextures: this.layerTextures,
     };
     const material = createTerrainMaterial({ ...this.materialInput, farTiling: this.farTiling });
-    this.setLodCamera = material.setLodCamera;
+    this.terrainMaterial = material;
     const leaves = (def.tilesX * def.tilesZ * def.tileQuads * def.tileQuads) / (TERRAIN_PATCH_QUADS * TERRAIN_PATCH_QUADS);
     this.mesh = new THREE.Mesh(createTerrainPatchGeometry(TERRAIN_PATCH_QUADS, Math.min(leaves, 1024)), material.material);
     this.mesh.name = `terrain/${def.name}`;
@@ -299,6 +308,38 @@ export class TerrainView {
     return this.bounds.range();
   }
 
+  /** The material's height probe (G8): same vertex stage and hole cut, world position per pixel. */
+  heightProbe(): THREE.MeshBasicNodeMaterial {
+    return this.terrainMaterial.heightProbe();
+  }
+
+  /** The drawn surface as the CPU twin reads it: the last selection, its LOD camera, the tiles and the filled far map. */
+  visualSurface(): { surface: TerrainVisualSurface; nodes: TerrainDrawnNode[] } {
+    const geometry = this.mesh.geometry;
+    const a = geometry.getAttribute("terrainNodeA");
+    const b = geometry.getAttribute("terrainNodeB");
+    const tileSize = this.def.tileQuads * this.def.spacing;
+    const nodes: TerrainDrawnNode[] = [];
+    for (let i = 0; i < geometry.instanceCount; i += 1) {
+      const slot = Math.floor(a.getW(i) + 0.5);
+      nodes.push({
+        x0: a.getX(i), z0: a.getY(i), size: a.getZ(i),
+        tile: slot >= 0 ? { x: Math.round(b.getX(i) / tileSize), z: Math.round(b.getY(i) / tileSize) } : null,
+        morph: [b.getZ(i), b.getW(i)],
+      });
+    }
+    const { map } = this.global;
+    return {
+      nodes,
+      surface: {
+        tileQuads: this.def.tileQuads, spacing: this.def.spacing, extent: this.source.extent, patchQuads: TERRAIN_PATCH_QUADS,
+        tiles: this.source,
+        global: { width: map.width, height: map.height, spacing: map.stride * this.def.spacing, heights: this.globalHeights },
+        camera: [this.lastCamera.x, this.lastCamera.y, this.lastCamera.z],
+      },
+    };
+  }
+
   /** Quality hook: cast shadows onto itself; re-selects on the next update (shadow frusta join the cull). */
   setSelfShadow(enabled: boolean): void {
     if (this.mesh.castShadow === enabled) return;
@@ -312,7 +353,7 @@ export class TerrainView {
     this.farTiling = enabled;
     const previous = this.mesh.material;
     const material = createTerrainMaterial({ ...this.materialInput, farTiling: enabled });
-    this.setLodCamera = material.setLodCamera;
+    this.terrainMaterial = material;
     this.mesh.material = material.material;
     previous.dispose();
     this.selectionDirty = true;
@@ -506,7 +547,7 @@ export class TerrainView {
   private select(cameraLocal: THREE.Vector3, cull: boolean): void {
     this.lastCamera.copy(cameraLocal);
     this.selectionDirty = false;
-    this.setLodCamera(cameraLocal.x, cameraLocal.y, cameraLocal.z);
+    this.terrainMaterial.setLodCamera(cameraLocal.x, cameraLocal.y, cameraLocal.z);
     const geometry = this.mesh.geometry;
     const tileSize = this.def.tileQuads * this.def.spacing;
     const [width, depth] = this.source.extent;

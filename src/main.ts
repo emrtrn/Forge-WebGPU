@@ -246,6 +246,13 @@ async function start(): Promise<void> {
       setHour: (hour: number) => environment()?.setHour(hour),
       /** The Sky Light capture alone, `count` times back to back (pause first). */
       captureBench: (count: number) => (viewer.host ? benchmarkSkyCapture(viewer.host, count) : Promise.resolve(null)),
+      /** G8 (plan phase 5a step 5): the drawn terrain read back from the GPU against its collider and its CPU twin; null without a terrain. */
+      async terrainColliderMatch(options?: { size?: number }) {
+        const host = viewer.host;
+        if (!host) return null;
+        const { measureTerrainColliderMatch } = await import("./render/viewer/debug/terrainColliderMatch.ts");
+        return measureTerrainColliderMatch(host, options);
+      },
     };
   }
 }
