@@ -1,25 +1,33 @@
-// Terrain data for the renderer (plan phase 3 step 8, decision 1: the
-// read-only drawing of spike S2). A `forge.terrain` data document by GUID:
-// its definition (the engine's normaliser, unchanged), every tile part
-// (`{stem}.tiles/<key>.tile.bin`, the engine's codec) and its paint layers'
+// Terrain data for the renderer (plan phase 3 step 8, decision 1; streaming
+// phase 5a step 2). A `forge.terrain` data document by GUID: its definition
+// (the engine's normaliser, unchanged), its far map and its paint layers'
 // materials (GUIDs, user decision 2026-11-13) as the layer inputs Forge's
 // runtime resolved (RuntimeSceneApp.resolveRuntimeLandscapeLayerTextures):
 // colour, base colour texture, tiling, roughness. Kept in the host's cache
-// (`terrain:<guid>`); the GPU side is the binding's (materials/terrain.ts).
+// (`terrain:<guid>`); the GPU side is the binding's (sync/terrainView.ts).
 //
-// All tiles load at once: tile streaming is phase 5a. The global map part is
-// not read: the render source builds it from the tiles, as the spike did. A
-// layer whose material fails paints with its colour, as Forge drew one.
+// Tiles (phase 5a decision 3, Forge's loadWorldTerrain): a multi-tile terrain
+// with a valid global map part (`{stem}.global.bin`) streams. Only the
+// definition and the map are read here; the binding reads tiles around its
+// camera through `openTiles` (fetch, then decode in a worker,
+// resources/terrainWorkerPool.ts). A single tile, or a terrain whose map is
+// missing or does not match, loads every tile at once and builds its map from
+// them, as before. Tiles are checked against the definition either way
+// (header, bounds, summary). A layer whose material fails paints with its
+// colour, as Forge drew one.
 
 import { normalizeWorldTerrain } from "../../engine/terrain/terrainDefinition.ts";
-import { worldTerrainRenderSource, type TerrainRenderSource } from "../../engine/terrain/terrainRenderSource.ts";
+import { validateTerrainGlobalMap } from "../../engine/terrain/terrainGlobalMapFile.ts";
+import { validateTerrainTile } from "../../engine/terrain/terrainLoader.ts";
+import { buildTerrainGlobalAttributes, worldTerrainRenderSource, type TerrainGlobalAttributes } from "../../engine/terrain/terrainRenderSource.ts";
 import { TERRAIN_RENDER_LAYERS } from "../../engine/terrain/terrainRenderData.ts";
-import { decodeTerrainTile } from "../../engine/terrain/terrainTileCodec.ts";
-import type { TerrainTileData, WorldTerrainDef } from "../../engine/terrain/terrainTypes.ts";
-import { worldTerrainExtent } from "../../engine/terrain/worldTerrainActor.ts";
+import { decodeTerrainTileForStreaming, type StreamingTerrainTile } from "../../engine/terrain/terrainTileStreaming.ts";
+import { parseTileKey, type TerrainTileData, type WorldTerrainDef } from "../../engine/terrain/terrainTypes.ts";
+import { isMultiTileTerrain, worldTerrainExtent } from "../../engine/terrain/worldTerrainActor.ts";
 import type { Texture } from "three/webgpu";
 import type { AssetUrls } from "./assetUrls.ts";
 import type { SurfaceMaterials } from "./surfaceMaterials.ts";
+import { TerrainWorkerPool } from "./terrainWorkerPool.ts";
 
 export const TERRAIN_DOCUMENT_SUFFIX = ".terrain.json";
 const TERRAIN_SCHEMA = "forge.terrain/1";
@@ -45,11 +53,21 @@ export interface TerrainLayerInput {
   readonly flipY: boolean;
 }
 
+/** Reads streamed tiles of one terrain; dispose ends its workers and fails what is in flight. */
+export interface TerrainTileReader {
+  read(key: string, signal: AbortSignal): Promise<TerrainTileData>;
+  dispose(): void;
+}
+
 export interface TerrainData {
   readonly def: WorldTerrainDef;
-  readonly tiles: ReadonlyMap<string, TerrainTileData>;
-  readonly source: TerrainRenderSource;
+  /** The far map: the global map part when the terrain streams, else built from every tile. */
+  readonly global: TerrainGlobalAttributes;
+  /** Every tile when the terrain loads at once; null when it streams. */
+  readonly tiles: ReadonlyMap<string, TerrainTileData> | null;
   readonly layers: readonly TerrainLayerInput[];
+  /** A reader for streamed tiles (a terrain loaded at once reads from `tiles`). */
+  openTiles(): TerrainTileReader;
 }
 
 export interface TerrainSource {
@@ -72,8 +90,10 @@ export interface TerrainSourceOptions {
   /** Null: every layer paints with its colour. */
   readonly materials: SurfaceMaterials | null;
   readonly fetchJson?: (url: string, headers: Readonly<Record<string, string>>) => Promise<unknown>;
-  readonly fetchBytes?: (url: string, headers: Readonly<Record<string, string>>) => Promise<Uint8Array>;
+  readonly fetchBytes?: (url: string, headers: Readonly<Record<string, string>>, signal?: AbortSignal) => Promise<Uint8Array>;
   readonly warn?: (message: string, error: unknown) => void;
+  /** Decode streamed tiles in workers (default: when `Worker` exists). */
+  readonly workers?: boolean;
 }
 
 const defaultFetchJson = async (url: string, headers: Readonly<Record<string, string>>): Promise<unknown> => {
@@ -82,8 +102,8 @@ const defaultFetchJson = async (url: string, headers: Readonly<Record<string, st
   return response.json();
 };
 
-const defaultFetchBytes = async (url: string, headers: Readonly<Record<string, string>>): Promise<Uint8Array> => {
-  const response = await fetch(url, { headers: { ...headers } });
+const defaultFetchBytes = async (url: string, headers: Readonly<Record<string, string>>, signal?: AbortSignal): Promise<Uint8Array> => {
+  const response = await fetch(url, { headers: { ...headers }, ...(signal ? { signal } : {}) });
   if (!response.ok) throw new Error(`${url}: ${response.status}`);
   return new Uint8Array(await response.arrayBuffer());
 };
@@ -100,18 +120,59 @@ export function createTerrainSource(options: TerrainSourceOptions): TerrainSourc
       const document = (await fetchJson(url, urls.headers)) as { schema?: unknown; data?: unknown };
       if (document.schema !== TERRAIN_SCHEMA) throw new TerrainNotFoundError(guid, `expected "${TERRAIN_SCHEMA}"`);
       const def = normalizeWorldTerrain(document.data);
-      const tiles = new Map<string, TerrainTileData>();
-      const keys = def.tiles.map((tile) => tile.key);
-      for (let start = 0; start < keys.length; start += TILE_BATCH) {
-        await Promise.all(
-          keys.slice(start, start + TILE_BATCH).map(async (key) => {
-            const tileUrl = urls.part(guid, TERRAIN_DOCUMENT_SUFFIX, `{stem}.tiles/${key}.tile.bin`);
-            if (tileUrl === null) throw new TerrainNotFoundError(guid, "its tiles have no address");
-            tiles.set(key, decodeTerrainTile(await fetchBytes(tileUrl, urls.headers)));
-          }),
-        );
+      const tileUrl = (key: string): string => {
+        const found = urls.part(guid, TERRAIN_DOCUMENT_SUFFIX, `{stem}.tiles/${key}.tile.bin`);
+        if (found === null) throw new TerrainNotFoundError(guid, "its tiles have no address");
+        return found;
+      };
+      let global: TerrainGlobalAttributes | null = null;
+      if (isMultiTileTerrain(def)) {
+        const mapUrl = urls.part(guid, TERRAIN_DOCUMENT_SUFFIX, "{stem}.global.bin");
+        try {
+          if (mapUrl === null) throw new Error("the global map has no address");
+          global = validateTerrainGlobalMap(def, await fetchBytes(mapUrl, urls.headers));
+        } catch (error) {
+          warn(`forge render: terrain ${guid} loads every tile: its global map is missing or does not match`, error);
+        }
       }
-      const source = worldTerrainRenderSource(def, tiles);
+      let tiles: Map<string, TerrainTileData> | null = null;
+      if (global === null) {
+        const all = new Map<string, TerrainTileData>();
+        const keys = def.tiles.map((tile) => tile.key);
+        for (let start = 0; start < keys.length; start += TILE_BATCH) {
+          await Promise.all(
+            keys.slice(start, start + TILE_BATCH).map(async (key) => {
+              all.set(key, validateTerrainTile(def, key, await fetchBytes(tileUrl(key), urls.headers)));
+            }),
+          );
+        }
+        tiles = all;
+        global = buildTerrainGlobalAttributes(worldTerrainRenderSource(def, all));
+      }
+      const asTile = (key: string, payload: StreamingTerrainTile): TerrainTileData => {
+        const { x, z } = parseTileKey(key)!;
+        // The weight blocks share one buffer (the codec's; transferred whole from a worker).
+        const weights = payload.weights.length ? new Uint8Array(payload.weights[0]!.buffer) : new Uint8Array();
+        return { x, z, size: def.tileQuads + 1, heights: payload.heights, layerCount: def.layers.length, weights };
+      };
+      const useWorkers = options.workers ?? typeof Worker !== "undefined";
+      const openTiles = (): TerrainTileReader => {
+        const pool = useWorkers ? new TerrainWorkerPool(def) : null;
+        return {
+          async read(key, signal) {
+            const bytes = await fetchBytes(tileUrl(key), urls.headers, signal);
+            if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+            if (!pool) return asTile(key, decodeTerrainTileForStreaming(bytes, def));
+            // The pool transfers its buffer: give it one of its own.
+            const whole = bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength;
+            const owned = whole ? (bytes.buffer as ArrayBuffer) : (bytes.slice().buffer as ArrayBuffer);
+            return asTile(key, await pool.decode(key, owned, signal));
+          },
+          dispose() {
+            pool?.dispose();
+          },
+        };
+      };
       const width = worldTerrainExtent(def)[0];
       const layers = await Promise.all(
         def.layers.slice(0, TERRAIN_RENDER_LAYERS).map(async (layer): Promise<TerrainLayerInput> => {
@@ -134,7 +195,7 @@ export function createTerrainSource(options: TerrainSourceOptions): TerrainSourc
           }
         }),
       );
-      return { def, tiles, source, layers };
+      return { def, global, tiles, layers, openTiles };
     },
   };
 }

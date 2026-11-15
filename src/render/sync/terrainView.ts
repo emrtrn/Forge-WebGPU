@@ -1,0 +1,500 @@
+// One drawn World Terrain (plan phase 5a step 2): the residency, culling and
+// selection half of Forge WebGL's TerrainRenderer
+// (engine/render-three/terrain/terrainRenderer.ts @ forge-webgl-final), its
+// rules unchanged. The material is materials/terrain.ts (spike S2's TSL port).
+//
+// - Tiles: `tiles` is the live map a stream writes (or every tile of a terrain
+//   loaded at once). The nearest loaded tiles hold a slot of the slot pool
+//   (64), at most 4 new uploads per update; a tile that leaves the wanted set
+//   keeps its data cached in its slot until another needs it. An upload sends
+//   one texture layer (`addLayerUpdate`), not the array; a neighbour's arrival
+//   re-uploads the tiles beside it (normals across the seam). Every other node
+//   reads the global map, holes filled from their neighbours.
+// - Culling: the four side planes of the view camera and, while the terrain
+//   casts shadows, of each shadow-casting directional light (a cascade too), so
+//   a ridge off screen still shades the valley in view; padded by 1 % of a leaf
+//   plus 0.005 rad of distance, re-selected when a plane turns 0.1 degrees or
+//   moves 1 % of a leaf. The view test widens a box to the mirror of the
+//   terrain's height range (planar reflections, phase 5a step 6).
+// - Selection: Forge's skirt rule (a node standing in from the global map and
+//   the slot nodes it touches hang one); the patch grows to the next power of
+//   two when a selection needs more nodes.
+//
+// Left for later steps: half-float normals, edits (5d), track detail (8).
+
+import * as THREE from "three/webgpu";
+import {
+  TerrainWorldHeightBounds,
+  computeTileNormals,
+  worldTerrainRenderSource,
+  type TerrainGlobalAttributes,
+  type TerrainRenderSource,
+} from "../../engine/terrain/terrainRenderSource.ts";
+import { TerrainLodSelector, terrainResidentTileKeys, type TerrainLodBox, type TerrainLodNode } from "../../engine/terrain/terrainLod.ts";
+import { TERRAIN_PATCH_QUADS, TERRAIN_WEIGHT_BLOCKS } from "../../engine/terrain/terrainRenderData.ts";
+import { TerrainSlotPool } from "../../engine/terrain/terrainSlotPool.ts";
+import { parseTileKey, tileKey, type TerrainTileData, type WorldTerrainDef } from "../../engine/terrain/terrainTypes.ts";
+import { createTerrainMaterial, createTerrainPatchGeometry, setTerrainInstanceCapacity } from "../materials/terrain.ts";
+import type { TerrainLayerInput } from "../resources/terrains.ts";
+
+/** Forge's defaults (terrainRenderer.ts). */
+export const TERRAIN_SLOT_CAPACITY = 64;
+export const TERRAIN_UPLOADS_PER_FRAME = 4;
+/**
+ * Angular slack of the frustum cull, in radians of view distance: a node is
+ * dropped only when it lies this far past a side plane (plus 1% of a leaf), so
+ * a re-select every 0.1° of turn never shows a gap at the screen edge.
+ */
+const CULL_ANGULAR_PAD = 0.005;
+/** cos(0.1°): a side plane turning further than this re-selects. */
+const CULL_RESELECT_COS = Math.cos((0.1 * Math.PI) / 180);
+
+/** A light that renders a shadow map through an orthographic camera aimed at its target. */
+export interface TerrainShadowCaster {
+  readonly castShadow: boolean;
+  readonly shadow: { readonly camera: THREE.Camera; updateMatrices(light: THREE.Object3D): void };
+  readonly target: THREE.Object3D;
+  updateWorldMatrix(updateParents: boolean, updateChildren: boolean): void;
+}
+
+/**
+ * The shadow-casting directional lights under `root`. A sun with cascades
+ * (three's CSMShadowNode) casts through its cascade lights, which sit beside it
+ * in the graph; the sun's own shadow camera is left out.
+ */
+export function terrainShadowCasters(root: THREE.Object3D): TerrainShadowCaster[] {
+  const casters: TerrainShadowCaster[] = [];
+  root.traverseVisible((object) => {
+    const light = object as unknown as Partial<TerrainShadowCaster> & { shadow?: { camera?: THREE.Camera; shadowNode?: { lights?: unknown } } };
+    if (!light.castShadow || !light.target || !light.shadow?.camera) return;
+    if (!(light.shadow.camera as THREE.OrthographicCamera).isOrthographicCamera) return;
+    if (Array.isArray(light.shadow.shadowNode?.lights)) return;
+    casters.push(light as TerrainShadowCaster);
+  });
+  return casters;
+}
+
+/**
+ * Global map heights for the GPU: a hole (NaN) takes its nearest valid
+ * neighbour's height, so triangles reaching into a discarded hole stay level
+ * instead of dropping to the datum where the cut is visible (Forge's fillHoles).
+ */
+export function fillTerrainHoles(heights: Float32Array, width: number, height: number, fallback: number): Float32Array {
+  const out = Float32Array.from(heights);
+  for (let pass = 0; pass < width + height; pass += 1) {
+    let missing = 0;
+    const previous = Float32Array.from(out);
+    for (let z = 0; z < height; z += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const index = z * width + x;
+        if (!Number.isNaN(previous[index]!)) continue;
+        let sum = 0;
+        let count = 0;
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+          const nx = x + dx;
+          const nz = z + dz;
+          if (nx < 0 || nz < 0 || nx >= width || nz >= height) continue;
+          const value = previous[nz * width + nx]!;
+          if (Number.isNaN(value)) continue;
+          sum += value;
+          count += 1;
+        }
+        if (count > 0) out[index] = sum / count;
+        else missing += 1;
+      }
+    }
+    if (missing === 0) return out;
+  }
+  for (let index = 0; index < out.length; index += 1) if (Number.isNaN(out[index]!)) out[index] = fallback;
+  return out;
+}
+
+function arrayTexture(data: Float32Array | Uint8Array, size: number, layers: number, format: THREE.PixelFormat, type: THREE.TextureDataType, filter: THREE.MagnificationTextureFilter): THREE.DataArrayTexture {
+  const tex = new THREE.DataArrayTexture(data, size, size, layers);
+  tex.format = format;
+  tex.type = type;
+  tex.magFilter = filter;
+  tex.minFilter = filter;
+  tex.generateMipmaps = false;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+export interface TerrainViewOptions {
+  readonly def: WorldTerrainDef;
+  readonly global: TerrainGlobalAttributes;
+  /** The live tile map: every tile, or the ones a stream holds (it writes this map). */
+  readonly tiles: ReadonlyMap<string, TerrainTileData>;
+  readonly layers: readonly TerrainLayerInput[];
+  /** Tile slots on the GPU (default: every tile, at most 64). */
+  readonly slotCapacity?: number;
+  /** New tile uploads per update (default 4). */
+  readonly uploadsPerFrame?: number;
+}
+
+export interface TerrainSelection {
+  readonly nodes: number;
+  readonly slotNodes: number;
+  readonly standIns: number;
+}
+
+export class TerrainView {
+  readonly mesh: THREE.Mesh<THREE.InstancedBufferGeometry, THREE.MeshStandardNodeMaterial>;
+  /** World position of terrain-local 0. */
+  readonly origin: THREE.Vector3;
+  /** The live tiles as a render source (heights relative to the datum, terrain-local frame). */
+  readonly source: TerrainRenderSource;
+  readonly global: TerrainGlobalAttributes;
+  private readonly def: WorldTerrainDef;
+  private readonly tileTexels: number;
+  private readonly declared: ReadonlySet<string>;
+  /** Every declared tile fits in a slot and is loaded at once: residency never changes. */
+  private readonly allResident: boolean;
+  private readonly uploadsPerFrame: number;
+  private readonly heights: Float32Array;
+  private readonly normals: Float32Array;
+  private readonly weights: Uint8Array;
+  private readonly normalScratch: Float32Array;
+  private readonly heightTex: THREE.DataArrayTexture;
+  private readonly normalTex: THREE.DataArrayTexture;
+  private readonly weightTex: THREE.DataArrayTexture;
+  private readonly globalTextures: readonly THREE.Texture[];
+  private readonly bounds: TerrainWorldHeightBounds;
+  private readonly selector: TerrainLodSelector;
+  private readonly pool: TerrainSlotPool;
+  private readonly setLodCamera: (x: number, y: number, z: number) => void;
+  /** Tiles that hold a slot and want it; the pool may still cache released ones. */
+  private readonly active = new Set<string>();
+  /** Tiles whose slot holds their current data. */
+  private readonly uploaded = new Set<string>();
+  private waiting = 0;
+  private readonly lastCamera = new THREE.Vector3(Number.NaN, Number.NaN, Number.NaN);
+  /** Side planes in selector space: the view camera's, then each shadow caster's; null until the first update. */
+  private cullPlanes: THREE.Plane[][] | null = null;
+  private readonly cullFrustum = new THREE.Frustum();
+  private readonly cullMatrix = new THREE.Matrix4();
+  private readonly cameraScratch = new THREE.Vector3();
+  private selectionDirty = true;
+  private last: TerrainSelection = { nodes: 0, slotNodes: 0, standIns: 0 };
+
+  constructor(options: TerrainViewOptions) {
+    const { def, global, tiles } = options;
+    this.def = def;
+    this.global = global;
+    this.origin = new THREE.Vector3(def.origin[0], def.origin[1], def.origin[2]);
+    this.source = worldTerrainRenderSource(def, tiles, global);
+    const size = def.tileQuads + 1;
+    this.tileTexels = size * size;
+    this.declared = new Set(def.tiles.map(({ key }) => key));
+    const capacity = Math.max(1, Math.min(this.declared.size, options.slotCapacity ?? TERRAIN_SLOT_CAPACITY));
+    this.allResident = this.declared.size <= capacity && [...this.declared].every((key) => tiles.has(key));
+    this.uploadsPerFrame = options.uploadsPerFrame ?? TERRAIN_UPLOADS_PER_FRAME;
+    this.pool = new TerrainSlotPool(capacity);
+
+    this.heights = new Float32Array(this.tileTexels * capacity);
+    this.normals = new Float32Array(this.tileTexels * 2 * capacity);
+    this.weights = new Uint8Array(this.tileTexels * 4 * TERRAIN_WEIGHT_BLOCKS * capacity);
+    this.normalScratch = new Float32Array(this.tileTexels * 2);
+    this.heightTex = arrayTexture(this.heights, size, capacity, THREE.RedFormat, THREE.FloatType, THREE.NearestFilter);
+    this.normalTex = arrayTexture(this.normals, size, capacity, THREE.RGFormat, THREE.FloatType, THREE.LinearFilter);
+    this.weightTex = arrayTexture(this.weights, size, capacity * TERRAIN_WEIGHT_BLOCKS, THREE.RGBAFormat, THREE.UnsignedByteType, THREE.LinearFilter);
+
+    this.bounds = new TerrainWorldHeightBounds(this.source, TERRAIN_PATCH_QUADS);
+    const { map } = global;
+    const globalHeights = fillTerrainHoles(map.heights, map.width, map.height, this.bounds.range().min);
+    const globalHeightTex = new THREE.DataTexture(globalHeights, map.width, map.height, THREE.RedFormat, THREE.FloatType);
+    globalHeightTex.magFilter = globalHeightTex.minFilter = THREE.NearestFilter;
+    globalHeightTex.needsUpdate = true;
+    const gn = new Float32Array(map.width * map.height * 4);
+    for (let i = 0; i < map.width * map.height; i += 1) {
+      gn[i * 4] = global.normals[i * 3]!;
+      gn[i * 4 + 1] = global.normals[i * 3 + 1]!;
+      gn[i * 4 + 2] = global.normals[i * 3 + 2]!;
+      gn[i * 4 + 3] = 1;
+    }
+    const globalNormalTex = new THREE.DataTexture(gn, map.width, map.height, THREE.RGBAFormat, THREE.FloatType);
+    globalNormalTex.magFilter = globalNormalTex.minFilter = THREE.LinearFilter;
+    globalNormalTex.needsUpdate = true;
+    const globalWeightTex = new THREE.DataArrayTexture(global.weights, map.width, map.height, TERRAIN_WEIGHT_BLOCKS);
+    globalWeightTex.format = THREE.RGBAFormat;
+    globalWeightTex.type = THREE.UnsignedByteType;
+    globalWeightTex.magFilter = globalWeightTex.minFilter = THREE.LinearFilter;
+    globalWeightTex.generateMipmaps = false;
+    globalWeightTex.needsUpdate = true;
+    this.globalTextures = [globalHeightTex, globalNormalTex, globalWeightTex];
+
+    const world = { tileQuads: def.tileQuads, spacing: def.spacing, tilesX: def.tilesX, tilesZ: def.tilesZ, origin: [0, 0, 0] as [number, number, number] };
+    this.selector = new TerrainLodSelector(world, (level, ix, iz) => this.bounds.node(level, ix, iz), { patchQuads: TERRAIN_PATCH_QUADS, extent: this.source.extent });
+    const material = createTerrainMaterial({
+      heights: this.heightTex,
+      normals: this.normalTex,
+      weights: this.weightTex,
+      globalHeights: globalHeightTex,
+      globalNormals: globalNormalTex,
+      globalWeights: globalWeightTex,
+      globalSize: [map.width, map.height],
+      globalSpacing: map.stride * def.spacing,
+      origin: this.origin,
+      spacing: def.spacing,
+      tileVertices: size,
+      extent: this.source.extent,
+      patchQuads: TERRAIN_PATCH_QUADS,
+      layers: options.layers,
+    });
+    this.setLodCamera = material.setLodCamera;
+    const leaves = (def.tilesX * def.tilesZ * def.tileQuads * def.tileQuads) / (TERRAIN_PATCH_QUADS * TERRAIN_PATCH_QUADS);
+    this.mesh = new THREE.Mesh(createTerrainPatchGeometry(TERRAIN_PATCH_QUADS, Math.min(leaves, 1024)), material.material);
+    this.mesh.name = `terrain/${def.name}`;
+    this.mesh.frustumCulled = false;
+    this.mesh.castShadow = true;
+    this.mesh.receiveShadow = true;
+
+    if (this.allResident) for (const key of this.declared) this.makeResident(key);
+    // Until the first camera update, draw the whole grid from a far viewpoint.
+    const [width, depth] = this.source.extent;
+    this.select(new THREE.Vector3(width / 2, Number.MAX_SAFE_INTEGER / 4, depth / 2), false);
+  }
+
+  /** Tiles drawn from a slot at full resolution. */
+  get residentTileCount(): number {
+    return this.uploaded.size;
+  }
+
+  /** Loaded tiles that want a slot and have no current upload yet (the last update's count). */
+  get pendingUploads(): number {
+    return this.waiting;
+  }
+
+  /** The last selection's counts. */
+  get selection(): TerrainSelection {
+    return this.last;
+  }
+
+  /** Terrain-local height range (relative to the datum), resident tiles and declared summaries. */
+  heightRange(): { min: number; max: number } {
+    return this.bounds.range();
+  }
+
+  /** Streaming changed tile `key`'s residency; the global map never changes (Forge's refreshTile). */
+  refreshTile(key: string): void {
+    this.bounds.refreshTile(key);
+    this.active.delete(key);
+    this.uploaded.delete(key);
+    this.pool.release(key);
+    const { x, z } = parseTileKey(key)!;
+    if (this.allResident && this.source.tile(x, z)) this.makeResident(key);
+    // A neighbour arriving / leaving changes central differences along the seam.
+    for (let dz = -1; dz <= 1; dz += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        const neighbour = tileKey(x + dx, z + dz);
+        if (neighbour !== key && this.uploaded.has(neighbour)) this.uploadTile(neighbour, this.pool.slotOf(neighbour)!);
+      }
+    }
+    this.selectionDirty = true;
+  }
+
+  /**
+   * Streams tile slots and re-selects for `camera` (Forge's updateLod): call
+   * once a frame before rendering. While the terrain casts shadows, nodes
+   * inside the casters' shadow frusta stay selected too. `cull: false` keeps
+   * every node in range.
+   */
+  update(camera: THREE.Camera, casters: readonly TerrainShadowCaster[], cull = true): void {
+    this.mesh.updateWorldMatrix(true, false);
+    const local = this.mesh.worldToLocal(camera.getWorldPosition(this.cameraScratch)).sub(this.origin);
+    const residencyChanged = this.allResident ? false : this.updateResidency(local);
+    const threshold = this.selector.settings.leafSize * 0.01;
+    let viewChanged: boolean;
+    if (cull) {
+      viewChanged = this.updateCullPlanes(camera, this.mesh.castShadow ? casters : [], threshold);
+    } else {
+      viewChanged = this.cullPlanes !== null;
+      this.cullPlanes = null;
+    }
+    if (!residencyChanged && !viewChanged && !this.selectionDirty && local.distanceToSquared(this.lastCamera) < threshold * threshold) return;
+    this.select(local, cull);
+  }
+
+  dispose(): void {
+    this.mesh.removeFromParent();
+    this.mesh.geometry.dispose();
+    this.mesh.material.dispose();
+    for (const tex of [this.heightTex, this.normalTex, this.weightTex, ...this.globalTextures]) tex.dispose();
+  }
+
+  private updateCullPlanes(camera: THREE.Camera, casters: readonly TerrainShadowCaster[], threshold: number): boolean {
+    const sets: THREE.Plane[][] = [this.sidePlanes(camera)];
+    for (const light of casters) {
+      if (!light.castShadow) continue;
+      light.updateWorldMatrix(true, false);
+      light.target.updateWorldMatrix(true, false);
+      light.shadow.updateMatrices(light as unknown as THREE.Object3D);
+      sets.push(this.sidePlanes(light.shadow.camera));
+    }
+    const last = this.cullPlanes;
+    let changed = !last || last.length !== sets.length;
+    for (let set = 0; set < sets.length && !changed; set += 1) {
+      for (let i = 0; i < 4 && !changed; i += 1) {
+        const plane = sets[set]![i]!;
+        const previous = last![set]![i]!;
+        changed = plane.normal.dot(previous.normal) < CULL_RESELECT_COS || Math.abs(plane.constant - previous.constant) > threshold;
+      }
+    }
+    if (changed) this.cullPlanes = sets;
+    return changed;
+  }
+
+  /** `camera`'s four side planes in selector space. */
+  private sidePlanes(camera: THREE.Camera): THREE.Plane[] {
+    // Selector space -> clip: projection · view · terrain world · origin offset.
+    this.cullMatrix
+      .makeTranslation(this.origin.x, this.origin.y, this.origin.z)
+      .premultiply(this.mesh.matrixWorld)
+      .premultiply(camera.matrixWorldInverse)
+      .premultiply(camera.projectionMatrix);
+    const planes = this.cullFrustum.setFromProjectionMatrix(this.cullMatrix, camera.coordinateSystem, camera.reversedDepth).planes;
+    return planes.slice(0, 4).map((plane) => plane.clone());
+  }
+
+  /**
+   * Frustum test for one quadtree box, or undefined to keep every node. A box
+   * stays when it is inside the view set or any shadow set, dropping only past
+   * a padded side plane; in the view test its height span is widened to the
+   * mirror of the terrain's whole height range.
+   */
+  private cullVisibility(cameraLocal: THREE.Vector3, cull: boolean): ((box: TerrainLodBox) => boolean) | undefined {
+    const sets = cull ? this.cullPlanes : null;
+    if (!sets) return undefined;
+    const range = this.bounds.range();
+    const mirrorMin = 2 * range.min - range.max;
+    const mirrorMax = 2 * range.max - range.min;
+    const pad = this.selector.settings.leafSize * 0.01;
+    const inside = (planes: readonly THREE.Plane[], box: TerrainLodBox, minY: number, maxY: number, slack: number): boolean => {
+      for (const plane of planes) {
+        const { x, y, z } = plane.normal;
+        // The box corner furthest along the plane normal.
+        const distance = x * (x > 0 ? box.maxX : box.minX) + y * (y > 0 ? maxY : minY) + z * (z > 0 ? box.maxZ : box.minZ) + plane.constant;
+        if (distance < -slack) return false;
+      }
+      return true;
+    };
+    return (box) => {
+      const dx = Math.max(box.minX - cameraLocal.x, 0, cameraLocal.x - box.maxX);
+      const dz = Math.max(box.minZ - cameraLocal.z, 0, cameraLocal.z - box.maxZ);
+      const slack = pad + CULL_ANGULAR_PAD * Math.hypot(dx, dz);
+      if (inside(sets[0]!, box, Math.min(box.minY, mirrorMin), Math.max(box.maxY, mirrorMax), slack)) return true;
+      for (let set = 1; set < sets.length; set += 1) {
+        if (inside(sets[set]!, box, box.minY, box.maxY, slack)) return true;
+      }
+      return false;
+    };
+  }
+
+  /**
+   * Gives the nearest loaded tiles a slot, at most `uploadsPerFrame` new
+   * uploads per call; tiles that left the wanted set release theirs. True if a
+   * slot changed.
+   */
+  private updateResidency(cameraLocal: THREE.Vector3): boolean {
+    const world = { tileQuads: this.def.tileQuads, spacing: this.def.spacing, tilesX: this.def.tilesX, tilesZ: this.def.tilesZ, origin: [0, 0, 0] as [number, number, number] };
+    const wanted = terrainResidentTileKeys(world, this.selector.settings, [cameraLocal.x, cameraLocal.y, cameraLocal.z])
+      .filter((key) => {
+        const coord = parseTileKey(key)!;
+        return this.declared.has(key) && this.source.tile(coord.x, coord.z) !== undefined;
+      })
+      .slice(0, this.pool.capacity);
+    const wantedSet = new Set(wanted);
+    let changed = false;
+    for (const key of [...this.active]) {
+      if (wantedSet.has(key)) continue;
+      this.active.delete(key);
+      this.pool.release(key);
+    }
+    let uploads = 0;
+    for (const key of wanted) {
+      if (this.active.has(key)) continue;
+      if (uploads >= this.uploadsPerFrame) break;
+      const before = this.uploaded.has(key);
+      if (!this.makeResident(key)) break;
+      if (!before) uploads += 1;
+      changed = true;
+    }
+    this.waiting = wanted.filter((key) => !this.active.has(key) || !this.uploaded.has(key)).length;
+    return changed;
+  }
+
+  /** Acquires a slot for `key` and uploads it unless the slot still holds it. */
+  private makeResident(key: string): boolean {
+    const coord = parseTileKey(key)!;
+    if (!this.source.tile(coord.x, coord.z)) return false;
+    const acquired = this.pool.acquire(key);
+    if (!acquired) return false;
+    if (acquired.evictedKey) this.uploaded.delete(acquired.evictedKey);
+    this.active.add(key);
+    if (!acquired.cached || !this.uploaded.has(key)) this.uploadTile(key, acquired.slot);
+    return true;
+  }
+
+  /** Writes a whole tile into its slot: heights, normals (across seams), weights; one layer each. */
+  private uploadTile(key: string, slot: number): void {
+    const { x, z } = parseTileKey(key)!;
+    const tile = this.source.tile(x, z)!;
+    const texels = this.tileTexels;
+    this.heights.set(tile.heights, slot * texels);
+    computeTileNormals(this.source, key, this.normalScratch);
+    this.normals.set(this.normalScratch, slot * texels * 2);
+    const blockBytes = texels * 4;
+    const blocks = Math.ceil(tile.layerCount / 4);
+    for (let block = 0; block < TERRAIN_WEIGHT_BLOCKS; block += 1) {
+      const target = (slot * TERRAIN_WEIGHT_BLOCKS + block) * blockBytes;
+      if (block < blocks) this.weights.set(tile.weights.subarray(block * blockBytes, (block + 1) * blockBytes), target);
+      else this.weights.fill(0, target, target + blockBytes);
+      this.weightTex.addLayerUpdate(slot * TERRAIN_WEIGHT_BLOCKS + block);
+    }
+    this.heightTex.addLayerUpdate(slot);
+    this.normalTex.addLayerUpdate(slot);
+    for (const tex of [this.heightTex, this.normalTex, this.weightTex]) tex.needsUpdate = true;
+    this.uploaded.add(key);
+    this.selectionDirty = true;
+  }
+
+  private select(cameraLocal: THREE.Vector3, cull: boolean): void {
+    this.lastCamera.copy(cameraLocal);
+    this.selectionDirty = false;
+    this.setLodCamera(cameraLocal.x, cameraLocal.y, cameraLocal.z);
+    const geometry = this.mesh.geometry;
+    const tileSize = this.def.tileQuads * this.def.spacing;
+    const [width, depth] = this.source.extent;
+    const nodes: TerrainLodNode[] = this.selector
+      .select([cameraLocal.x, cameraLocal.y, cameraLocal.z], this.cullVisibility(cameraLocal, cull))
+      // Nodes wholly past the drawn extent or on a missing tile draw nothing.
+      .filter((node) => node.offsetX < width && node.offsetZ < depth && (!node.tileKey || this.declared.has(node.tileKey)));
+    if (nodes.length > (geometry.getAttribute("terrainNodeA") as THREE.InstancedBufferAttribute).count) {
+      setTerrainInstanceCapacity(geometry, 2 ** Math.ceil(Math.log2(nodes.length)));
+    }
+    const a = geometry.getAttribute("terrainNodeA") as THREE.InstancedBufferAttribute;
+    const b = geometry.getAttribute("terrainNodeB") as THREE.InstancedBufferAttribute;
+    const c = geometry.getAttribute("terrainNodeC") as THREE.InstancedBufferAttribute;
+    const slots = nodes.map((node) => (node.tileKey && this.uploaded.has(node.tileKey) ? this.pool.slotOf(node.tileKey)! : -1));
+    // A node that wants its tile's slot but has none yet stands in from the
+    // coarser global map; on an edge it shares with a slot node the two
+    // surfaces can part, so both sides hang a skirt.
+    const standIns = nodes.filter((node, i) => node.tileKey !== null && slots[i]! < 0);
+    const touches = (p: TerrainLodNode, q: TerrainLodNode): boolean =>
+      ((p.box.maxX === q.box.minX || q.box.maxX === p.box.minX) && p.box.minZ < q.box.maxZ && q.box.minZ < p.box.maxZ)
+      || ((p.box.maxZ === q.box.minZ || q.box.maxZ === p.box.minZ) && p.box.minX < q.box.maxX && q.box.minX < p.box.maxX);
+    nodes.forEach((node, i) => {
+      const slot = slots[i]!;
+      const tile = slot >= 0 ? parseTileKey(node.tileKey!)! : { x: 0, z: 0 };
+      const skirt = node.level < 0 || standIns.includes(node) || (slot >= 0 && standIns.some((s) => touches(node, s)));
+      a.setXYZW(i, node.offsetX, node.offsetZ, node.size, slot);
+      b.setXYZW(i, tile.x * tileSize, tile.z * tileSize, node.morphRange[0], node.morphRange[1]);
+      c.setX(i, skirt ? 1 : 0);
+    });
+    a.needsUpdate = true;
+    b.needsUpdate = true;
+    c.needsUpdate = true;
+    geometry.instanceCount = nodes.length;
+    this.last = { nodes: nodes.length, slotNodes: slots.filter((slot) => slot >= 0).length, standIns: standIns.length };
+  }
+}

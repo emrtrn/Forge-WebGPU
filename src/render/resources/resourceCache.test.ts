@@ -105,3 +105,24 @@ test("releasing an old generation after a save does not release the new material
   owner.release("material:a:lit"); expect(cache.uses("material:a:lit")).toBe(1);
   owner.releaseAll(); expect(cache.uses("material:a:lit")).toBe(0);
 });
+
+test("tracked work and busy holds count as pending until they end; a tracked failure counts, an abort does not", async () => {
+  const cache = createResourceCache();
+  let finish!: (value: number) => void;
+  const tracked = cache.track(new Promise<number>((resolve) => (finish = resolve)));
+  const end = cache.busy();
+  expect(cache.stats().pending).toBe(2);
+  let settled = false;
+  void cache.settled().then(() => (settled = true));
+  finish(3);
+  expect(await tracked).toBe(3);
+  expect(cache.stats().pending).toBe(1);
+  end();
+  end();
+  expect(cache.stats().pending).toBe(0);
+  await Promise.resolve();
+  expect(settled).toBe(true);
+  await expect(cache.track(Promise.reject(new Error("404")))).rejects.toThrow("404");
+  await expect(cache.track(Promise.reject(new DOMException("Aborted", "AbortError")))).rejects.toThrow("Aborted");
+  expect(cache.stats()).toMatchObject({ pending: 0, failed: 1 });
+});

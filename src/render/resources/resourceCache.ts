@@ -55,6 +55,16 @@ export interface ResourceCache {
   /** Resolves once no load is in flight. */
   settled(): Promise<void>;
   /**
+   * Counts `work` (a load outside the cache, e.g. a streamed terrain tile) as
+   * pending until it ends and as failed if it rejects, unless it was aborted.
+   */
+  track<T>(work: Promise<T>): Promise<T>;
+  /**
+   * Work readiness waits for that is not a load (a streamed tile's upload):
+   * pending until the returned call, which ends it once.
+   */
+  busy(): () => void;
+  /**
    * Forgets a resource whatever its uses (the editor reimported the asset,
    * plan phase 4 step 6e): the next acquire loads it again; a release of the
    * old one does nothing. Its users must acquire it again to see the new one.
@@ -142,6 +152,29 @@ export function createResourceCache(): ResourceCache {
     has: (key) => entries.has(key),
     stats: () => ({ entries: entries.size, pending, failed }),
     settled: () => (pending === 0 ? Promise.resolve() : new Promise<void>((resolve) => waiters.push(resolve))),
+    track(work) {
+      pending += 1;
+      return work.then(
+        (value) => {
+          finishLoad();
+          return value;
+        },
+        (error: unknown) => {
+          if (!(error instanceof Error && error.name === "AbortError")) failed += 1;
+          finishLoad();
+          throw error;
+        },
+      );
+    },
+    busy() {
+      pending += 1;
+      let open = true;
+      return () => {
+        if (!open) return;
+        open = false;
+        finishLoad();
+      };
+    },
     evict(key) {
       entries.delete(key);
     },

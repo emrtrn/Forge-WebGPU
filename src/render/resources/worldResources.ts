@@ -40,8 +40,15 @@ export interface WorldResources {
   material(guid: string, contributions?: MaterialContributions): Promise<Material>;
   /** The key `material(guid, contributions)` counts under, for `release`. */
   materialKey(guid: string, contributions?: MaterialContributions): string;
-  /** A `forge.terrain` data document with its tiles and layer inputs; key `terrain:<guid>`. */
+  /**
+   * A `forge.terrain` data document: its definition, far map and layer inputs,
+   * every tile or a tile reader when it streams; key `terrain:<guid>`.
+   */
   terrain(guid: string): Promise<TerrainData>;
+  /** Counts a load outside the cache (a streamed tile) toward readiness (`ResourceCache.track`). */
+  track<T>(work: Promise<T>): Promise<T>;
+  /** Holds readiness until the returned call (`ResourceCache.busy`). */
+  busy(): () => void;
   /** A `forge.texture` asset; key `texture:<guid>:<colour space>` (the editor's thumbnails). */
   texture(guid: string, colorSpace: "srgb" | "linear"): Promise<Texture>;
   /** Gives back one use of a key. */
@@ -79,6 +86,8 @@ export function createWorldResources(
     shapeGeometry: (primitive) => owner.acquire(resourceKey.shape(primitive), () => createShapeGeometry(primitive)),
     shapeMaterial: (color, doubleSided) =>
       owner.acquire(shapeMaterialKey(color, doubleSided), () => createShapeMaterial(color, doubleSided)),
+    track: (work) => cache.track(work),
+    busy: () => cache.busy(),
     release: (key) => owner.release(key),
     releaseAll: () => owner.releaseAll(),
   };

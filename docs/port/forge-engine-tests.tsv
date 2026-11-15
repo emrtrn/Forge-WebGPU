@@ -1101,8 +1101,8 @@ tests/engine/terrainRiverWater.test.ts	373	checkAsync	M			engine/scene,engine/te
 tests/engine/terrainRuntimeStreaming.test.ts	40	check	R			engine/render-three,engine/terrain	three-via:engine/render-three,three:three		terrain streaming declared unloaded tiles draw the immutable global map; holes stay holes and stationary cameras refresh	
 tests/engine/terrainRuntimeStreaming.test.ts	77	checkAsync	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/terrainRuntimeStreaming.test.ts	terrain streaming loads only definition/global at boot and preserves the 1x1 eager path	
 tests/engine/terrainRuntimeStreaming.test.ts	94	checkAsync	R			src	three-via:src		terrain streaming boot heightfields reach physics before engine init without pinning arrays in persistent scene/module/behavior documents	
-tests/engine/terrainRuntimeStreaming.test.ts	110	checkAsync	A	yes		engine/terrain	boundary-model:engine/terrain		terrain streaming activation owns render data and heightfields, physics ring is smaller, release evicts data and holes never block	5b
-tests/engine/terrainRuntimeStreaming.test.ts	151	checkAsync	A	yes		engine/terrain	boundary-model:engine/terrain		terrain streaming debug grid reports every tile's state row-major for the ?debug map	5b
+tests/engine/terrainRuntimeStreaming.test.ts	110	checkAsync	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/terrainRuntimeStreaming.test.ts	terrain streaming activation owns render data and heightfields, physics ring is smaller, release evicts data and holes never block	
+tests/engine/terrainRuntimeStreaming.test.ts	151	checkAsync	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/terrainRuntimeStreaming.test.ts	terrain streaming debug grid reports every tile's state row-major for the ?debug map	
 tests/engine/terrainRuntimeStreaming.test.ts	181	check	M			engine/input,engine/movement,engine/scene	model:engine/scene		terrain streaming pawn hold prevents gravity on missing terrain and rejects a high speed step before publishing it	
 tests/engine/terrainRuntimeStreaming.test.ts	207	checkAsync	M			engine/terrain,src	model:src		terrain streaming worker lanes cancel queued and in-flight decodes without publishing stale same-key results; dispose rejects all jobs	
 tests/engine/terrainSplineData.test.ts	50	check	M			engine/terrain,tools/droppedFields,tools/terrainSaveValidator	model:tools/droppedFields,model:tools/terrainSaveValidator		terrain spline data: world marker survives the runtime/save allowlist and unknown frames are rejected	
@@ -1628,25 +1628,25 @@ tests/engine/worldStage.test.ts	145	check	D	yes		engine/worldbuilder	dropped:Wor
 tests/engine/worldStage.test.ts	169	check	D	yes		engine/worldbuilder	dropped:World Builder option B: the Stage Runner / ownership surface (dry run, output hashes, hand-edit keeping, generat		world stage: applying before after after restores the level exactly, group order included	
 tests/engine/worldStage.test.ts	195	check	D	yes		engine/worldbuilder	dropped:World Builder option B: the Stage Runner / ownership surface (dry run, output hashes, hand-edit keeping, generat		world stage: malformed stage output is an error, not a partial apply	
 tests/engine/worldStage.test.ts	218	check	D	yes		engine/worldbuilder	dropped:World Builder option B: the Stage Runner / ownership surface (dry run, output hashes, hand-edit keeping, generat		world stage: default stages are unique tokens with positive versions	
-tests/engine/worldStreaming.test.ts	62	checkAsync	A			engine/world			world streaming: lifecycle, stats and deactivate before unload	5b
-tests/engine/worldStreaming.test.ts	84	checkAsync	A			engine/world			world streaming: priority and default six concurrent fetches	5b
-tests/engine/worldStreaming.test.ts	104	checkAsync	A			engine/world			world streaming: configurable fetch cap and union of sources	5b
-tests/engine/worldStreaming.test.ts	115	checkAsync	A			engine/world			world streaming: pending fetch uses hysteresis before aborting	5b
-tests/engine/worldStreaming.test.ts	128	checkAsync	A			engine/world			world streaming: aborted late result cannot replace a new request for the same key	5b
-tests/engine/worldStreaming.test.ts	143	checkAsync	A			engine/world			world streaming: activation budget defers work and supports zero and override	5b
-tests/engine/worldStreaming.test.ts	163	checkAsync	A			engine/world			world streaming: atomic activation overrun starts no further work	5b
-tests/engine/worldStreaming.test.ts	177	checkAsync	A			engine/world			world streaming: prefetch stays inactive and cached reentry avoids fetch	5b
-tests/engine/worldStreaming.test.ts	193	checkAsync	A			engine/world			world streaming: LRU byte eviction refreshes needed cells and pins active data	5b
-tests/engine/worldStreaming.test.ts	218	checkAsync	A			engine/assets,engine/world			world streaming: missing and corrupt fallback emits one classified warning per key	5b
-tests/engine/worldStreaming.test.ts	237	checkAsync	A			engine/world			world streaming: failed cells retry only after leaving retention and warning stays deduplicated	5b
-tests/engine/worldStreaming.test.ts	258	checkAsync	A			engine/world			world streaming: evicted fallback and throwing fallback cannot cause retry storms	5b
-tests/engine/worldStreaming.test.ts	276	checkAsync	A			engine/world			world streaming: area readiness clips to world and wait resolves only on update	5b
-tests/engine/worldStreaming.test.ts	302	checkAsync	A			engine/world			world streaming: dispose aborts, deactivates, releases data and rejects waiters once	5b
-tests/engine/worldStreaming.test.ts	325	checkAsync	A			engine/world			world streaming: aborted rejection is not a content failure	5b
-tests/engine/worldStreaming.test.ts	336	check	A			engine/world			world streaming: invalid configuration and area inputs reject	5b
-tests/engine/worldStreaming.test.ts	349	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/worldStreaming.test.ts	terrain streaming: codec round-trip in metres, min/max, weight blocks and transferable ownership	
-tests/engine/worldStreaming.test.ts	381	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/worldStreaming.test.ts	terrain streaming: rejects mismatched headers, summaries and corrupt samples	
-tests/engine/worldStreaming.test.ts	401	checkAsync	A	yes		engine/terrain,engine/world	boundary-model:engine/world		terrain streaming: worker init, decode transfer and structured request errors	5b
+tests/engine/worldStreaming.test.ts	62	checkAsync	A			engine/world		src/engine/world/worldStreaming.test.ts	world streaming: lifecycle, stats and deactivate before unload	
+tests/engine/worldStreaming.test.ts	84	checkAsync	A			engine/world		src/engine/world/worldStreaming.test.ts	world streaming: priority and default six concurrent fetches	
+tests/engine/worldStreaming.test.ts	104	checkAsync	A			engine/world		src/engine/world/worldStreaming.test.ts	world streaming: configurable fetch cap and union of sources	
+tests/engine/worldStreaming.test.ts	115	checkAsync	A			engine/world		src/engine/world/worldStreaming.test.ts	world streaming: pending fetch uses hysteresis before aborting	
+tests/engine/worldStreaming.test.ts	128	checkAsync	A			engine/world		src/engine/world/worldStreaming.test.ts	world streaming: aborted late result cannot replace a new request for the same key	
+tests/engine/worldStreaming.test.ts	143	checkAsync	A			engine/world		src/engine/world/worldStreaming.test.ts	world streaming: activation budget defers work and supports zero and override	
+tests/engine/worldStreaming.test.ts	163	checkAsync	A			engine/world		src/engine/world/worldStreaming.test.ts	world streaming: atomic activation overrun starts no further work	
+tests/engine/worldStreaming.test.ts	177	checkAsync	A			engine/world		src/engine/world/worldStreaming.test.ts	world streaming: prefetch stays inactive and cached reentry avoids fetch	
+tests/engine/worldStreaming.test.ts	193	checkAsync	A			engine/world		src/engine/world/worldStreaming.test.ts	world streaming: LRU byte eviction refreshes needed cells and pins active data	
+tests/engine/worldStreaming.test.ts	218	checkAsync	A			engine/assets,engine/world		src/engine/world/worldStreaming.test.ts	world streaming: missing and corrupt fallback emits one classified warning per key	
+tests/engine/worldStreaming.test.ts	237	checkAsync	A			engine/world		src/engine/world/worldStreaming.test.ts	world streaming: failed cells retry only after leaving retention and warning stays deduplicated	
+tests/engine/worldStreaming.test.ts	258	checkAsync	A			engine/world		src/engine/world/worldStreaming.test.ts	world streaming: evicted fallback and throwing fallback cannot cause retry storms	
+tests/engine/worldStreaming.test.ts	276	checkAsync	A			engine/world		src/engine/world/worldStreaming.test.ts	world streaming: area readiness clips to world and wait resolves only on update	
+tests/engine/worldStreaming.test.ts	302	checkAsync	A			engine/world		src/engine/world/worldStreaming.test.ts	world streaming: dispose aborts, deactivates, releases data and rejects waiters once	
+tests/engine/worldStreaming.test.ts	325	checkAsync	A			engine/world		src/engine/world/worldStreaming.test.ts	world streaming: aborted rejection is not a content failure	
+tests/engine/worldStreaming.test.ts	336	check	A			engine/world		src/engine/world/worldStreaming.test.ts	world streaming: invalid configuration and area inputs reject	
+tests/engine/worldStreaming.test.ts	349	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/world/worldStreaming.test.ts	terrain streaming: codec round-trip in metres, min/max, weight blocks and transferable ownership	
+tests/engine/worldStreaming.test.ts	381	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/world/worldStreaming.test.ts	terrain streaming: rejects mismatched headers, summaries and corrupt samples	
+tests/engine/worldStreaming.test.ts	401	checkAsync	A	yes		engine/terrain,engine/world	boundary-model:engine/world	src/engine/world/worldStreaming.test.ts	terrain streaming: worker init, decode transfer and structured request errors	
 tests/engine/worldStreets.test.ts	108	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldStreets.test.ts	world streets: organic streets start on a street's edge, stay in the core and keep the slope limit	
 tests/engine/worldStreets.test.ts	126	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldStreets.test.ts	world streets: on a slope contour streets stay level; a flat core grows them as organic	
 tests/engine/worldStreets.test.ts	140	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldStreets.test.ts	world streets: streets keep off blocked ground, keep their distance and are deterministic	
