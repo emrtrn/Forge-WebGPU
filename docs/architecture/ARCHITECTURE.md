@@ -166,7 +166,11 @@ ve `?debug` paneli (dinamik import) var (rapor §4.9).
 Oyun ayrı bir depodur: `forge.project.json` (`forge.project/1`: kimlik,
 `sdkVersion`, `contentRoots`, `contentPacks`, `startLevel`, oyun modülü,
 `devPort`). Oyun yalnız `@forge/sdk` ve `@forge/editor-sdk` import eder;
-`npm run forge -- check` sürümü, derlemeyi ve import sınırını denetler. SDK
+`npm run forge -- check` sürümü, derlemeyi ve import sınırını denetler. Oyunun
+editör tarafı da motorunki gibi `defineFeatureEditor`'dür: projenin `editor.ts`'i
+ve `src/**/editor.ts`'leri dev server bulur, editöre `virtual:forge/game-editors`
+ile verir (yalnız `npm run dev`; build'de boş liste); oyun onları anmaz, hatalı
+olan editörü dosya adıyla durdurur (INV-A32, Faz 4 adım 10). SDK
 yüzeyi `src/sdk/api.snapshot.txt`'e bağlıdır, değişiklik changelog girdisi
 ister. `check:projects` örnekleri ve yerel kayıtlı projeleri motora karşı
 derleyip başsız açar (rapor §4.8, A7, A8).

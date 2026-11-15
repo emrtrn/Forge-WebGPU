@@ -12,7 +12,9 @@
 // here, never by the game (`editor-render-is-editor-only`), and run in the
 // editor's world through the viewport's `forge.editorHelpers`. So are their
 // editor sides (`features/*/editor.ts`, `defineFeatureEditor`; step 5): the
-// editor catalog (Outliner icons and type groups).
+// editor catalog (Outliner icons and type groups). A game project's editor
+// sides (its `editor.ts` files, step 10, INV-A32) come from the dev server
+// (`virtual:forge/game-editors`) and join them.
 //
 // The actors hidden in the editor's view (session visibility, step 5a) are
 // the page's, per level (localStorage), never the level's.
@@ -58,6 +60,8 @@ import { newAssetItems, newLevelActors } from "./content/newAssets.ts";
 import { installDetailsStyle } from "./details/detailsStyle.ts";
 import { createEditCommands, pageClipboard, type EditCommands } from "./edit/editCommands.ts";
 import { createEditorCatalog } from "./host/editorCatalog.ts";
+import { collectGameEditors } from "./host/gameEditors.ts";
+import gameEditors from "virtual:forge/game-editors";
 import type { FeatureEditorDef } from "./host/featureEditor.ts";
 import { installOutlinerStyle } from "./outliner/outlinerStyle.ts";
 import { createActorPlacer, EMPTY_ACTOR } from "./place/actorPlacer.ts";
@@ -155,6 +159,8 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
   try {
     const registry = createSchemaRegistry();
     installFeatures(options.features, registry);
+    // The engine's feature editors, then the game's (INV-A32): a wrong one stops here, named.
+    const editors: readonly FeatureEditorDef[] = [...FEATURE_EDITORS, ...collectGameEditors(gameEditors, options.features)];
     const classes = new Map<AssetId, ActorClassDoc>();
     let classGeneration = 0;
     const refreshClasses = async () => {
@@ -269,7 +275,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       clipboard: pageClipboard(doc.defaultView?.navigator.clipboard),
       status: (message, tone) => shell.status(message, tone),
     });
-    const catalog = createEditorCatalog(FEATURE_EDITORS, registry);
+    const catalog = createEditorCatalog(editors, registry);
     // Files changed on disk by anything but this editor (step 9f): bound once the panels exist.
     let followDisk: (files: readonly ChangedFile[]) => Promise<void> = async () => undefined;
     shell.attach(session, {
@@ -348,7 +354,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     shell.attachPlacer(placer);
     assetDrop = createAssetDrop({
       host: shell.viewport,
-      editors: FEATURE_EDITORS,
+      editors,
       placer,
       editor: session,
       registry,
@@ -359,7 +365,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     const editableAsset = (item: { file: string; id: string | null; type: string | null; name: string; writable: boolean } | undefined): EditableAsset | null =>
       item?.id && item.type ? { ...item, id: item.id, type: item.type } : null;
     const assetEditor = createAssetEditor({
-      document: doc, registry, client: options.client, catalog: assets, editors: FEATURE_EDITORS,
+      document: doc, registry, client: options.client, catalog: assets, editors,
       status: (message) => shell.status(message),
       lookup: (id) => editableAsset(content.index().byId(id)),
       source: () => {
@@ -459,7 +465,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
           url.searchParams.set("level", folder);
           view.location.assign(url.toString());
         },
-        newItems: newAssetItems(registry, FEATURE_EDITORS),
+        newItems: newAssetItems(registry, editors),
         importExtensions: registry.assetTypes().flatMap((def) => (def.storage === "binary" ? def.extensions : [])),
         // A reimported model: the cache forgets it and the actors that use it read it again (step 6e). Another binary
         // (a texture inside materials, a sound) shows after a reload, as in Forge.
@@ -473,7 +479,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
             shell.status(`${item.name} reimported; reload the page to see it everywhere.`, "warning");
           }
         },
-        levelActors: () => newLevelActors([EMPTY_ACTOR, ...FEATURE_EDITORS.flatMap((editor) => editor.addActor)]),
+        levelActors: () => newLevelActors([EMPTY_ACTOR, ...editors.flatMap((editor) => editor.addActor)]),
         // The open level's actors that use an asset, saved or not (a delete is refused then; step 6c).
         inUse: (ids) => {
           if (ids.length === 0) return [];

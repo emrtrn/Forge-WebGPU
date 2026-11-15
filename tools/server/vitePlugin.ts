@@ -8,6 +8,9 @@
 // - In `npm run dev` only (not preview, not Vitest): picks the project
 //   (devProject.ts), lets Vite serve files from it, loads its game module's
 //   schemas into the registry, and registers the authoring endpoints.
+// - `virtual:forge/game-editors` (plan phase 4 step 10, INV-A32): the
+//   project's editor sides (`editor.ts`, `src/**/editor.ts`,
+//   gameEditors.ts) for the editor; empty outside `npm run dev`.
 // - Files changed on disk by anything but this server (an agent's `forge
 //   edit`, another tool, a hand edit; plan phase 4 step 9e): the content
 //   roots are watched; the server refreshes its caches and sends the editor
@@ -16,7 +19,7 @@
 //   FORGE_ENGINE_CONTENT=1; plan phase 4 step 6g, decision 6): every pack is a
 //   root, and the engine's content and the packs are written.
 
-import { resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import type { Plugin } from "vite";
 import { loadEngineRegistry } from "../assets/engineRegistry.ts";
 import { writeProjectTsconfig } from "../project/check.ts";
@@ -24,10 +27,12 @@ import { gameFeatures, installGameSchemas } from "../project/gameSchemas.ts";
 import { resolveDevProject, identityOf, type DevProject } from "./devProject.ts";
 import { createFileEvents, FILE_EVENT, watchContentRoots, type FileEventsBody } from "./fileEvents.ts";
 import { createForgeServer } from "./forgeServer.ts";
+import { findGameEditors, GAME_EDITORS_ID, gameEditorsSource, isGameEditorPath } from "./gameEditors.ts";
 import { projectAuthoringOptions } from "./projectAuthoring.ts";
 
 export const GAME_MODULE_ID = "virtual:forge/game-module";
 const RESOLVED_GAME_MODULE = `\0${GAME_MODULE_ID}`;
+const RESOLVED_GAME_EDITORS = `\0${GAME_EDITORS_ID}`;
 
 /** Source of the virtual game module. */
 export function gameModuleSource(project: DevProject | null): string {
@@ -63,14 +68,29 @@ export function forgeServerPlugin(options: ForgeServerPluginOptions = {}): Plugi
       return { server: { fs: { allow: [engineRoot, project.root] } } };
     },
     resolveId(id) {
-      return id === GAME_MODULE_ID ? RESOLVED_GAME_MODULE : null;
+      if (id === GAME_MODULE_ID) return RESOLVED_GAME_MODULE;
+      return id === GAME_EDITORS_ID ? RESOLVED_GAME_EDITORS : null;
     },
-    load(id) {
-      return id === RESOLVED_GAME_MODULE ? gameModuleSource(project) : null;
+    async load(id) {
+      if (id === RESOLVED_GAME_MODULE) return gameModuleSource(project);
+      if (id !== RESOLVED_GAME_EDITORS) return null;
+      // Only the dev server's editor reads it; a build never carries the game's editor sides.
+      const usable = serving && project !== null && project.problems.length === 0;
+      return gameEditorsSource(usable ? project!.root : null, usable ? await findGameEditors(project!.root) : []);
     },
     async configureServer(server) {
       if (!serving || project === null) return;
       const current = project;
+      // A game editor side added or removed while the server runs: the next
+      // editor load lists it (no reload is forced: the open level may be dirty).
+      server.watcher.add([join(current.root, "editor.ts"), join(current.root, "src")]);
+      const editorsChanged = (file: string): void => {
+        if (!isGameEditorPath(relative(current.root, file).split("\\").join("/"))) return;
+        const module = server.moduleGraph.getModuleById(RESOLVED_GAME_EDITORS);
+        if (module) server.moduleGraph.invalidateModule(module);
+      };
+      server.watcher.on("add", editorsChanged);
+      server.watcher.on("unlink", editorsChanged);
       const registry = await loadEngineRegistry(server.config.root);
       const problems = [...current.problems];
       if (problems.length === 0) {
