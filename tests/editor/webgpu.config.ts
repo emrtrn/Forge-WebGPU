@@ -15,6 +15,8 @@ export default defineConfig({
   use: {
     ...smoke.use,
     headless: false,
+    // Copy / paste go through the system clipboard (user decision 2026-11-14); a headed page asks for it.
+    permissions: ["clipboard-read", "clipboard-write"],
     // Headed windows behind others must keep drawing (the render smoke's flags).
     launchOptions: { args: ["--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding", "--disable-background-timer-throttling"] },
   },
