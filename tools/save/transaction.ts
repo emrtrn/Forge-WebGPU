@@ -14,7 +14,9 @@
 // 5. Journal `prepared` -> temporary files -> journal `committed` -> renames
 //    and deletes, the indexes last -> journal removed (see journal.ts).
 //
-// Saves of one service run one after another.
+// Saves of one service run one after another; recovery and the save run
+// under the project's save lock (projectLock.ts), so saves of other processes
+// (the dev server, `forge edit`, `world:random`) wait for each other.
 //
 // The Content Browser's operations (plan phase 4 step 6c) go through the same
 // transaction: a move renames a file (its bytes and revision stay; a level's
@@ -41,6 +43,7 @@ import {
 import { fileRevision } from "../assets/revision.ts";
 import { ProjectPathError, resolveWritablePath, type WritePolicy } from "../server/projectPaths.ts";
 import { recoverJournals, removeJournal, runSteps, writeJournal, type JournalStep, type RecoveryReport } from "./journal.ts";
+import { withProjectLock, type ProjectLockOptions } from "./projectLock.ts";
 
 export interface SaveWrite {
   readonly path: string;
@@ -129,6 +132,8 @@ export interface SaveServiceOptions {
   readonly afterSave?: (files: readonly { readonly path: string; readonly revision: string | null }[]) => Promise<void>;
   /** Tests: throw after this many journal steps, as if the process died. */
   readonly failAfterSteps?: number;
+  /** The project's save lock (waiting time; tests). */
+  readonly lock?: ProjectLockOptions;
 }
 
 export interface SaveService {
@@ -167,12 +172,19 @@ export function createSaveService(options: SaveServiceOptions): SaveService {
     return next;
   };
   return {
-    recover: () => serial(() => recoverJournals(policy.root)),
+    recover: () => serial(() => withProjectLock(policy.root, () => recoverJournals(policy.root), options.lock)),
     commit: (request) =>
       serial(async () => {
-        const recovered = await recoverJournals(policy.root);
-        if (recovered.rolledForward.length > 0) await options.afterSave?.([]);
-        const result = await commit(request, options);
+        const result = await withProjectLock(
+          policy.root,
+          async () => {
+            const recovered = await recoverJournals(policy.root);
+            // The caches see a recovered save before this one is checked.
+            if (recovered.rolledForward.length > 0) await options.afterSave?.([]);
+            return commit(request, options);
+          },
+          options.lock,
+        );
         if (result.status === "saved") await options.afterSave?.(result.files);
         return result;
       }),
