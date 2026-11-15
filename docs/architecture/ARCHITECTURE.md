@@ -66,7 +66,7 @@ override uyumsuzluğunu kayıtta reddeder (rapor §4.11).
   bileşenler (aktör içinde yerel kimlikli, uzamsal olanlar hiyerarşili). Aktör
   sınıfı (`forge.actorClass/1`) prefab'dır; level'daki örnek yalnız sürüm
   etiketli override taşır (rapor §4.4, A1).
-- Level bir klasördür: `level.json` (kalıcı katman + `settings.cellSize`),
+- Level bir klasördür: `level.json` (kalıcı katman + `settings.cellSize / wind`),
   `cells.json` (dizin + revizyonlar), `cells/<x>_<z>.json`. Atama kök aktörün
   konumundan; `spatiallyLoaded: false` ve singleton ağaçları kalıcı katmanda.
   Aktörün isteğe bağlı `pivot`'u yalnız editörün (döndürme / ölçek noktası).
@@ -157,7 +157,11 @@ IBL + ortam ışığı + arka plan, `forge.cloudLayer`, `forge.worldEnvironment`
 sabit saat, oyun `transitionTo` ile zamanlı geçirir); World Environment'ın
 yorumu kare başına bir kez `ctx.environment.override`'a, bağlamalar kendi
 parçasını çizer; Sky Light aynı PMREM'e, ölçülmüş hızla yeniden yakalanır
-(rapor §4.9). Static mesh ve şekiller otomatik instanced batch'lerle, terrain
+(rapor §4.9). WES v2 görsel örtüyü simülasyon saniyesiyle yürütür ve A7
+state'inde saklar; terrain yalnız uniform katkısını okur. Ortak rüzgâr level
+ayarlarından ya da WES override'ından (`resolveWorldWind`); birikintinin dokulu
+rüzgârı ve yansıma bükülmesi aynı simülasyon zamanıyla (5a adım 7; bitki tüketimi
+5c). Static mesh ve şekiller otomatik instanced batch'lerle, terrain
 spike S2'nin TSL CDLOD'uyla salt çizilir; çok tile'lı terrain kamera çevresinde
 akar (Forge'un akış çekirdeği, worker'da çözme, global haritadan uzak alan, görüş
 ve gölge frustum'u kesimi; görsel yükseklik collider'la G8 testleriyle eşleşir; su birikintisi `forge.puddle`, `reflector()` yansımasıyla; rapor §4.9 Faz 5a); görüntüleyicinin varsayılan kamerası
