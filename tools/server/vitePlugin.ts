@@ -8,6 +8,10 @@
 // - In `npm run dev` only (not preview, not Vitest): picks the project
 //   (devProject.ts), lets Vite serve files from it, loads its game module's
 //   schemas into the registry, and registers the authoring endpoints.
+// - Files changed on disk by anything but this server (an agent's `forge
+//   edit`, another tool, a hand edit; plan phase 4 step 9e): the content
+//   roots are watched; the server refreshes its caches and sends the editor
+//   `forge:files` on the HMR channel (fileEvents.ts).
 // - Engine content mode (`npm run dev -- --engine-content`, tools/dev.ts sets
 //   FORGE_ENGINE_CONTENT=1; plan phase 4 step 6g, decision 6): every pack is a
 //   root, and the engine's content and the packs are written.
@@ -18,6 +22,7 @@ import { loadEngineRegistry } from "../assets/engineRegistry.ts";
 import { writeProjectTsconfig } from "../project/check.ts";
 import { gameFeatures, installGameSchemas } from "../project/gameSchemas.ts";
 import { resolveDevProject, identityOf, type DevProject } from "./devProject.ts";
+import { createFileEvents, FILE_EVENT, watchContentRoots, type FileEventsBody } from "./fileEvents.ts";
 import { createForgeServer } from "./forgeServer.ts";
 import { projectAuthoringOptions } from "./projectAuthoring.ts";
 
@@ -87,6 +92,19 @@ export function forgeServerPlugin(options: ForgeServerPluginOptions = {}): Plugi
         identity: identityOf({ ...current, problems }),
       });
       server.middlewares.use(forge.middleware);
+      const events = createFileEvents({
+        roots: forge.authoring.contentRoots,
+        emit: async (files) => {
+          await forge.authoring.changed(files.map((file) => file.path));
+          const body: FileEventsBody = { files };
+          server.ws.send({ type: "custom", event: FILE_EVENT, data: body });
+        },
+      });
+      const unwatch = watchContentRoots(forge.authoring.contentRoots, events, (message) => server.config.logger.warn(`forge: ${message}`));
+      server.httpServer?.once("close", () => {
+        unwatch();
+        events.dispose();
+      });
       const where = `${current.readOnly ? " (read-only)" : ""}${engineContent ? "; engine content and packs written (--engine-content)" : ""}`;
       server.config.logger.info(`forge: project ${current.manifest?.name ?? "?"} at ${current.root}${where}`);
       for (const problem of problems) server.config.logger.warn(`forge: ${problem}`);

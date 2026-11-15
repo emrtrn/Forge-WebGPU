@@ -97,3 +97,16 @@ export interface ForgeIdentity {
     readonly problems: readonly string[];
   };
 }
+
+/** Files changed on disk, as the dev server tells the editor (plan phase 4 step 9e): a custom event on Vite's HMR channel. */
+export const FILE_EVENT = "forge:files";
+
+/** A file under a content root, as `/__forge/read` takes its path; revision null when it is gone. */
+export interface ChangedFileBody {
+  readonly path: string;
+  readonly revision: string | null;
+}
+
+export interface FileEventsBody {
+  readonly files: readonly ChangedFileBody[];
+}
