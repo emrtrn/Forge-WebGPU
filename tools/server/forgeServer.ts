@@ -50,31 +50,22 @@
 
 import { randomBytes } from "node:crypto";
 import { createWriteStream } from "node:fs";
-import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
-import { buildAssetIndex, DATA_DOCUMENT_TYPES, type AssetIndex, type JsonObject, type SchemaRegistry } from "../../src/core/index.ts";
+import { DATA_DOCUMENT_TYPES, type AssetIndex, type JsonObject } from "../../src/core/index.ts";
 import { buildContentListing } from "../assets/contentListing.ts";
 import { planContentOp, type ContentOp, type ContentPlan } from "../assets/contentOps.ts";
 import { glbOptimizeSettings } from "../assets/glbOptimizeSettings.ts";
 import { fileRevision } from "../assets/revision.ts";
-import { projectContentRoots, scanRoots, type ContentRoot, type ScanResult } from "../assets/scan.ts";
-import { defaultContentRoots } from "../assets/verify.ts";
-import { createClassStore, createDocumentCheck } from "../save/documentCheck.ts";
 import { ENGINE_LABEL_PREFIX } from "../assets/engineContent.ts";
-import { engineContentAccess, engineContentResult } from "./engineContentMode.ts";
+import { engineContentResult } from "./engineContentMode.ts";
+import { openAuthoring, READ_ONLY_MESSAGE, resolveReadOnlyPath, STATUS_OF, type Authoring, type AuthoringOptions } from "./authoring.ts";
 import { createPlaySessions, PLAY_ID, PlaySessionMissing } from "./playSessions.ts";
-import { createSaveService, MANIFEST_FILE, type SaveRequest, type SaveResult, type SaveService } from "../save/transaction.ts";
-import {
-  createWritePolicy,
-  normalizeProjectPath,
-  ProjectPathError,
-  resolveProjectPath,
-  resolveWritablePath,
-  type WritePolicy,
-} from "./projectPaths.ts";
+import { MANIFEST_FILE, type SaveRequest, type SaveResult } from "../save/transaction.ts";
+import { ProjectPathError, type WritePolicy } from "./projectPaths.ts";
 
 export const STAGING_DIR = ".forge-staging";
 export const THUMBNAIL_DIR = ".forge-cache/thumbnails";
@@ -153,41 +144,13 @@ async function readBody(req: IncomingMessage, max: number): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-export const STATUS_OF: Record<SaveResult["status"] | "path" | "request" | "document", number> = {
-  saved: 200,
-  conflict: 409,
-  rejected: 400,
-  path: 403,
-  request: 400,
-  document: 422,
-};
+export { STATUS_OF };
 
-export interface ForgeServerOptions {
-  /** Project root. */
-  readonly root: string;
-  readonly registry: SchemaRegistry;
-  readonly writableRoots?: readonly string[];
-  /** Content roots scanned for the class store; default `content/` and `samples/*\/content/`. */
-  readonly contentRoots?: readonly string[];
-  /** Roots outside the project, indexed and readable, never written: the engine's content and packs. */
-  readonly readOnlyRoots?: readonly ContentRoot[];
+export interface ForgeServerOptions extends AuthoringOptions {
   /** Body size limit; default MAX_BODY_BYTES. */
   readonly maxBodyBytes?: number;
-  /** Refuse every save and upload (samples and fixtures, A9). */
-  readonly readOnly?: boolean;
   /** What `/__forge/identity` answers. */
   readonly identity?: unknown;
-  /** Engine content mode: the engine repository whose `content/engine` and `content/packs` the read-only roots are, written here. */
-  readonly engineContent?: { readonly root: string };
-}
-
-/** A file under a read-only root: inside it, no links, no hidden names. */
-function resolveReadOnlyPath(root: ContentRoot, path: string): string {
-  const normalized = normalizeProjectPath(path);
-  if (normalized.split("/").some((part) => part.startsWith("."))) {
-    throw new ProjectPathError("hidden", `Names starting with "." are not read: ${root.label}/${path}`);
-  }
-  return resolveProjectPath(root.dir, normalized);
 }
 
 /** An asset's file as `GET /__forge/asset-files` lists it; `file` is what `/__forge/read?path=` takes. */
@@ -224,7 +187,8 @@ export function rendererAssetFiles(index: AssetIndex): Record<string, AssetFileE
 export interface ForgeServer {
   readonly middleware: Middleware;
   readonly policy: WritePolicy;
-  readonly saves: SaveService;
+  /** What the endpoints read and write through (authoring.ts): the save services, the index, the class store. */
+  readonly authoring: Authoring;
 }
 
 const STAGE_ID = /^[0-9a-f]{32}$/;
@@ -233,65 +197,12 @@ class ContentRequestError extends Error {}
 
 
 export async function createForgeServer(options: ForgeServerOptions): Promise<ForgeServer> {
-  const policy = createWritePolicy(options.root, options.writableRoots);
+  const authoring = await openAuthoring(options);
+  const { policy, readOnlyRoots, engine, engineMode, classes, check, saves, engineSaves, rootOfLabel, absoluteOf, writableLabel, current } = authoring;
   const maxBody = options.maxBodyBytes ?? MAX_BODY_BYTES;
   const stagingDir = join(policy.root, STAGING_DIR);
   // Uploads do not outlive the server: a save names them within one session.
   await rm(stagingDir, { recursive: true, force: true });
-
-  const readOnlyRoots = options.readOnlyRoots ?? [];
-  const engine = options.engineContent ? engineContentAccess(options.engineContent.root, readOnlyRoots) : null;
-  const rootOfLabel = (path: string): string => readOnlyRoots.find((root) => path === root.label || path.startsWith(`${root.label}/`))?.label ?? "project";
-  /** Where a listed file is on disk: a labelled content root, else the project. */
-  const absoluteOf = (path: string): string => {
-    const outside = readOnlyRoots.find((root) => path.startsWith(`${root.label}/`));
-    return outside ? resolveReadOnlyPath(outside, path.slice(outside.label.length + 1)) : join(policy.root, ...path.split("/"));
-  };
-  const allRoots = [...projectContentRoots(policy.root, options.contentRoots ?? defaultContentRoots(policy.root)), ...readOnlyRoots];
-  const indexRoots = async (): Promise<{ scan: ScanResult; index: AssetIndex }> => {
-    const scan = await scanRoots(allRoots);
-    return { scan, index: buildAssetIndex(scan.files, { strict: false, registry: options.registry }) };
-  };
-  const first = await indexRoots();
-  const classes = createClassStore(policy.root, options.registry, first.index, absoluteOf);
-  // The content roots as last scanned: the renderer's GUID -> file table and the Content Browser's listing come
-  // from it. A save can add, move or delete files, so it is rescanned on the next request.
-  let snapshot: Promise<{ scan: ScanResult; index: AssetIndex }> | null = Promise.resolve(first);
-  const current = (): Promise<{ scan: ScanResult; index: AssetIndex }> => (snapshot ??= indexRoots());
-  const engineMode = engine !== null;
-  const classFiles = async () => (await indexRoots()).scan.files.filter((file) => file.json !== undefined).map((file) => ({ file: `${file.root}/${file.path}`, json: file.json }));
-  const writableLabel = (label: string): boolean =>
-    readOnlyRoots.some((root) => root.label === label) ? engine?.rootOf(label) !== undefined : !options.readOnly;
-  const check = createDocumentCheck(options.registry, classes, { files: classFiles, label: (path) => path });
-  const saves = createSaveService({
-    policy,
-    check,
-    afterSave: (files) => {
-      snapshot = null;
-      return classes.refresh(files.map((file) => file.path));
-    },
-  });
-  await saves.recover();
-  // The engine repository's own save service (engine content mode).
-  const engineSaves = engine
-    ? createSaveService({
-        policy: engine.policy,
-        check: createDocumentCheck(options.registry, classes, { files: classFiles, label: (path) => `${ENGINE_LABEL_PREFIX}${path}` }),
-        afterSave: async (files) => {
-          snapshot = null;
-          // Recovery can report no paths: include old and new class paths so
-          // a recovered delete is removed as well as a recovered new class added.
-          const paths = files.length > 0 ? files.map((file) => `${ENGINE_LABEL_PREFIX}${file.path}`) : [
-            ...first.index.entries.values(), ...(await current()).index.entries.values(),
-          ].filter((entry) => entry.type === "forge.actorClass").map((entry) => `${entry.root}/${entry.path}`);
-          await classes.refresh(paths);
-        },
-      })
-    : null;
-  await engineSaves?.recover();
-
-  const READ_ONLY_MESSAGE =
-    "This project is opened read-only (the engine's samples and fixtures are changed by review, not by the editor). Create your own with npm run create-project.";
 
   const save = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     if (options.readOnly && !engineMode) {
@@ -316,33 +227,8 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
       send(res, status, { status: "rejected", reason: "request", message: error instanceof Error ? error.message : String(error) });
       return;
     }
-    const paths = [...(request.writes ?? []).map((write) => write.path), ...(request.deletes ?? []).map((entry) => entry.path)];
-    const engineSide = paths.length > 0 && paths.every((path) => path.startsWith(ENGINE_LABEL_PREFIX));
-    if (engineMode && paths.some((path) => path.startsWith(ENGINE_LABEL_PREFIX)) && new Set(paths.map(rootOfLabel)).size > 1) {
-      send(res, 403, { status: "rejected", reason: "path", message: "A save stays in one engine content root; project and engine files cannot be mixed." });
-      return;
-    }
-    if (!engineSide && options.readOnly) {
-      send(res, 403, { status: "rejected", reason: "read-only", message: READ_ONLY_MESSAGE });
-      return;
-    }
-    for (const write of request.writes ?? []) {
-      if (write.staged !== undefined && !(await stat(write.staged).then(() => true, () => false))) {
-        send(res, 400, { status: "rejected", reason: "request", message: "A staged upload is gone; stage it again." });
-        return;
-      }
-    }
-    let result: SaveResult;
-    try {
-      result = engineSide && engine && engineSaves
-        ? engineContentResult(await engineSaves.commit(engine.request(request)))
-        : await saves.commit(request);
-    } catch (error) {
-      if (!(error instanceof ProjectPathError)) throw error;
-      send(res, 403, { status: "rejected", reason: "path", message: error.message });
-      return;
-    }
-    send(res, result.status === "rejected" ? STATUS_OF[result.reason] : STATUS_OF[result.status], result);
+    const answer = await authoring.save(request);
+    send(res, answer.status, answer.body);
   };
 
   const stage = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
@@ -368,11 +254,7 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
     send(res, 200, { id, size: bytes.length, revision: fileRevision(bytes) });
   };
 
-  /** Where a readable path is on disk: a labelled read-only root, else the project; throws `ProjectPathError`. */
-  const resolveReadable = (path: string): string => {
-    const outside = readOnlyRoots.find((root) => path.startsWith(`${root.label}/`));
-    return outside ? resolveReadOnlyPath(outside, path.slice(outside.label.length + 1)) : resolveWritablePath(policy, path).absolute;
-  };
+  const resolveReadable = authoring.resolveReadable;
   const plays = await createPlaySessions({ root: policy.root, resolve: resolveReadable, check });
 
   const read = async (url: URL, res: ServerResponse): Promise<void> => {
@@ -442,8 +324,7 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
       return;
     }
     // Planned against the disk as it is now (a file may have come or gone since the last scan).
-    snapshot = indexRoots();
-    const { scan, index } = await snapshot;
+    const { scan, index } = await authoring.rescan();
     const manifest = await readManifest();
     const outcome = planContentOp(op, { scan, index, registry: options.registry, writable: writableLabel, startLevel: manifest?.startLevel ?? "" });
     if (!outcome.ok) {
@@ -625,7 +506,7 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
       "GET /__forge/classes": async () => send(res, 200, { classes: classes.all() }),
       "GET /__forge/asset-files": () => current().then(({ index }) => send(res, 200, { assets: rendererAssetFiles(index) })),
       "GET /__forge/content": () =>
-        (url.searchParams.get("refresh") === "1" ? (snapshot = indexRoots()) : current()).then(async ({ scan, index }) =>
+        (url.searchParams.get("refresh") === "1" ? authoring.rescan() : current()).then(async ({ scan, index }) =>
           send(res, 200, buildContentListing(scan, index, writableLabel, (await readManifest())?.startLevel ?? "")),
         ),
       "POST /__forge/content": () => contentOp(req, res),
@@ -645,5 +526,5 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
     });
   };
 
-  return { middleware, policy, saves };
+  return { middleware, policy, authoring };
 }

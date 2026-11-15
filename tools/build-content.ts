@@ -21,19 +21,10 @@
 import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
-import {
-  buildAssetIndex,
-  defineFeature,
-  installFeatures,
-  isJsonObject,
-  STATIC_CONTENT_DIR,
-  staticContentFile,
-  type FeatureDef,
-  type SchemaRegistry,
-} from "../src/core/index.ts";
+import { buildAssetIndex, STATIC_CONTENT_DIR, staticContentFile } from "../src/core/index.ts";
 import { listContentPacks, projectIndexRoots } from "./assets/engineContent.ts";
 import { loadEngineRegistry } from "./assets/engineRegistry.ts";
+import { loadGameSchemas } from "./project/gameSchemas.ts";
 import { scanRoots } from "./assets/scan.ts";
 import { createClassStore } from "./save/documentCheck.ts";
 import { identityOf, resolveDevProject } from "./server/devProject.ts";
@@ -48,34 +39,6 @@ export interface BuildContentResult {
   readonly classes: number;
 }
 
-/** The game module's components and asset types, loaded through Vite so `@forge/sdk` resolves. */
-async function installGameSchemas(engineRoot: string, projectRoot: string, module: string, registry: SchemaRegistry): Promise<void> {
-  if (module === "") return;
-  const vite = await createServer({
-    root: engineRoot,
-    configFile: false,
-    logLevel: "silent",
-    appType: "custom",
-    resolve: {
-      alias: {
-        "@forge/sdk": join(engineRoot, "src/sdk/index.ts"),
-        "@forge/editor-sdk": join(engineRoot, "src/editor-sdk/index.ts"),
-      },
-    },
-    server: { middlewareMode: true, hmr: false, watch: null },
-  });
-  try {
-    const loaded = (await vite.ssrLoadModule(join(projectRoot, module))) as { default?: unknown };
-    const game = loaded.default;
-    if (!isJsonObject(game) || game.kind !== "gameModule") throw new Error(`${module} must export default defineGameModule(...).`);
-    const features = (game.features as readonly FeatureDef[] | undefined) ?? [];
-    // Components and asset types only: subsystems run in the browser.
-    installFeatures(features.map((feature) => defineFeature({ id: feature.id, components: feature.components, assetTypes: feature.assetTypes })), registry);
-  } finally {
-    await vite.close();
-  }
-}
-
 export async function buildContent(options: { readonly outDir: string; readonly projectRoot?: string; readonly engineRoot?: string }): Promise<BuildContentResult> {
   const engineRoot = options.engineRoot ?? ENGINE_ROOT;
   const project = await resolveDevProject(engineRoot, options.projectRoot === undefined ? process.env : { FORGE_PROJECT_ROOT: options.projectRoot });
@@ -84,7 +47,7 @@ export async function buildContent(options: { readonly outDir: string; readonly 
   }
   const manifest = project.manifest;
   const registry = await loadEngineRegistry(engineRoot);
-  await installGameSchemas(engineRoot, project.root, manifest.game.module, registry);
+  await loadGameSchemas(engineRoot, project.root, manifest.game.module, registry);
 
   const packs = await listContentPacks(engineRoot);
   const roots = projectIndexRoots(engineRoot, project.root, {

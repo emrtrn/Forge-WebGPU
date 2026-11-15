@@ -13,13 +13,13 @@
 //   root, and the engine's content and the packs are written.
 
 import { resolve } from "node:path";
-import type { Plugin, ViteDevServer } from "vite";
-import { defineFeature, installFeatures, isJsonObject, type FeatureDef } from "../../src/core/index.ts";
-import { engineContentRoots, listContentPacks } from "../assets/engineContent.ts";
+import type { Plugin } from "vite";
 import { loadEngineRegistry } from "../assets/engineRegistry.ts";
 import { writeProjectTsconfig } from "../project/check.ts";
+import { gameFeatures, installGameSchemas } from "../project/gameSchemas.ts";
 import { resolveDevProject, identityOf, type DevProject } from "./devProject.ts";
 import { createForgeServer } from "./forgeServer.ts";
+import { projectAuthoringOptions } from "./projectAuthoring.ts";
 
 export const GAME_MODULE_ID = "virtual:forge/game-module";
 const RESOLVED_GAME_MODULE = `\0${GAME_MODULE_ID}`;
@@ -30,18 +30,6 @@ export function gameModuleSource(project: DevProject | null): string {
   if (project === null || module === "" || project.problems.length > 0) return "export default null;\n";
   const path = resolve(project.root, module).split("\\").join("/");
   return `export { default } from ${JSON.stringify(path)};\n`;
-}
-
-/** The game module's features, loaded through Vite so `@forge/sdk` resolves. */
-async function gameFeatures(server: ViteDevServer, project: DevProject): Promise<FeatureDef[]> {
-  const module = project.manifest?.game.module ?? "";
-  if (module === "") return [];
-  const loaded = (await server.ssrLoadModule(resolve(project.root, module))) as { default?: unknown };
-  const game = loaded.default;
-  if (!isJsonObject(game) || game.kind !== "gameModule") {
-    throw new Error(`${module} must export default defineGameModule(...).`);
-  }
-  return [...((game.features as readonly FeatureDef[] | undefined) ?? [])];
 }
 
 export interface ForgeServerPluginOptions {
@@ -85,30 +73,18 @@ export function forgeServerPlugin(options: ForgeServerPluginOptions = {}): Plugi
           // The project's tsconfig extends the generated one; Vite reads it to
           // transform the game's files. Generated, git-ignored, not content.
           await writeProjectTsconfig(current.root, server.config.root);
-          const features = await gameFeatures(server, current);
-          // Components and asset types only: the subsystems run in the browser.
-          installFeatures(features.map((feature) => defineFeature({ id: feature.id, components: feature.components, assetTypes: feature.assetTypes })), registry);
+          // The game module through this server, so `@forge/sdk` resolves (gameSchemas.ts).
+          const load = (path: string) => server.ssrLoadModule(path) as Promise<Record<string, unknown>>;
+          installGameSchemas(registry, await gameFeatures(load, current.root, current.manifest?.game.module ?? ""));
         } catch (error) {
           problems.push(`game module: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
-      const roots = current.manifest?.contentRoots ?? ["content"];
-      // Unknown packs are among the problems already; the known ones are read.
-      const packs = await listContentPacks(server.config.root);
       const engineContent = options.engineContent ?? (process.env.FORGE_ENGINE_CONTENT === "1" ? { root: server.config.root } : undefined);
-      const readOnlyRoots = engineContentRoots(
-        engineContent?.root ?? server.config.root,
-        engineContent ? await listContentPacks(engineContent.root) : (current.manifest?.contentPacks ?? []).filter((pack) => packs.includes(pack)),
-      );
+      // The same options `npm run forge -- edit` opens the project with (projectAuthoring.ts).
       const forge = await createForgeServer({
-        root: current.root,
-        registry,
-        writableRoots: roots,
-        contentRoots: roots,
-        readOnlyRoots,
-        readOnly: current.readOnly,
+        ...(await projectAuthoringOptions(server.config.root, current, registry, engineContent)),
         identity: identityOf({ ...current, problems }),
-        ...(engineContent ? { engineContent } : {}),
       });
       server.middlewares.use(forge.middleware);
       const where = `${current.readOnly ? " (read-only)" : ""}${engineContent ? "; engine content and packs written (--engine-content)" : ""}`;
