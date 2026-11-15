@@ -26,6 +26,8 @@
 // - Picked from its height field (engine raycastTerrain over the live tiles,
 //   the far map where a tile is not loaded), not from the drawn patch
 //   (render/sync/pickTags.ts; plan phase 4 step 3).
+// - A streamed terrain's mesh carries its stream for the `?debug` terrain map
+//   (render/sync/debugTags.ts; phase 5a step 4).
 //
 // A terrain whose data fails to load draws nothing; the cache counts it and
 // the host reports it.
@@ -36,10 +38,12 @@ import { tagSceneSource } from "../../engine/perf/sceneCost.ts";
 import { raycastTerrain } from "../../engine/terrain/terrainHeightQuery.ts";
 import { TerrainRuntimeStreaming } from "../../engine/terrain/terrainRuntimeStreaming.ts";
 import { parseTileKey, type TerrainTileData } from "../../engine/terrain/terrainTypes.ts";
+import type { StreamingSource } from "../../engine/world/streamingPolicy.ts";
 import { worldTerrainExtent } from "../../engine/terrain/worldTerrainActor.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
 import type { TerrainData as LoadedTerrain, TerrainTileReader } from "../../render/resources/terrains.ts";
 import { defineRenderBinding } from "../../render/sync/renderBinding.ts";
+import { tagTerrainStreaming } from "../../render/sync/debugTags.ts";
 import { tagActorObject, tagPickSurface, type PickSurface } from "../../render/sync/pickTags.ts";
 import { TerrainView, terrainShadowCasters } from "../../render/sync/terrainView.ts";
 import { Terrain, type TerrainData } from "./schema.ts";
@@ -47,7 +51,9 @@ import { Terrain, type TerrainData } from "./schema.ts";
 /** A drawn terrain as a pick surface: its live height field, in world space (placed by its definition's origin). */
 export function terrainPickSurface(terrain: LoadedTerrain, view: TerrainView): PickSurface {
   const { def } = terrain;
-  const query = { tileQuads: def.tileQuads, spacing: def.spacing, tilesX: def.tilesX, tilesZ: def.tilesZ, origin: def.origin };
+  // Forge's renderer cast in the terrain-local frame (origin 0): the far map's
+  // heights are relative to the datum, as the tiles' are.
+  const query = { tileQuads: def.tileQuads, spacing: def.spacing, tilesX: def.tilesX, tilesZ: def.tilesZ, origin: [0, 0, 0] as [number, number, number] };
   return {
     raycast(origin, direction, far) {
       // Where a declared tile is not loaded, the ray reads the far map.
@@ -55,7 +61,8 @@ export function terrainPickSurface(terrain: LoadedTerrain, view: TerrainView): P
         const { x, z } = parseTileKey(key)!;
         return view.source.tile(x, z) === undefined;
       });
-      const hit = raycastTerrain(query, view.source, [origin.x, origin.y, origin.z], [direction.x, direction.y, direction.z], far, partial ? view.global.map : undefined);
+      const local: [number, number, number] = [origin.x - def.origin[0], origin.y - def.origin[1], origin.z - def.origin[2]];
+      const hit = raycastTerrain(query, view.source, local, [direction.x, direction.y, direction.z], far, partial ? view.global.map : undefined);
       return hit ? hit.distance : null;
     },
     bounds() {
@@ -71,6 +78,8 @@ interface Placed {
   view: TerrainView | null;
   stream: TerrainRuntimeStreaming | null;
   reader: TerrainTileReader | null;
+  /** The sources of the stream's last update. */
+  sources: readonly StreamingSource[];
   /** Ends the readiness hold; null while not held. */
   busy: (() => void) | null;
   removed: boolean;
@@ -114,13 +123,14 @@ export default defineRenderBinding({
       tagSceneSource(view.mesh, "terrain");
       tagActorObject(view.mesh, actor.id);
       tagPickSurface(view.mesh, terrainPickSurface(terrain, view));
+      if (entry.stream) tagTerrainStreaming(view.mesh, { stream: entry.stream, sources: () => entry.sources });
       entry.view = view;
       ctx.root.add(view.mesh);
     };
 
     const add = (actor: WorldActor, key: string, data: TerrainData): void => {
       const id = `${actor.id}/${key}`;
-      const entry: Placed = { view: null, stream: null, reader: null, busy: null, removed: false, key: data.data === null ? null : resourceKey.terrain(data.data) };
+      const entry: Placed = { view: null, stream: null, reader: null, sources: [], busy: null, removed: false, key: data.data === null ? null : resourceKey.terrain(data.data) };
       placed.set(id, entry);
       if (data.data === null) return;
       entry.busy = ctx.resources.busy();
@@ -169,7 +179,10 @@ export default defineRenderBinding({
           if (!view) continue;
           view.setSelfShadow(quality.terrainSelfShadow);
           view.setFarTiling(quality.terrainFarTiling);
-          stream?.update([{ position: [camera.x, camera.z] }]);
+          if (stream) {
+            entry.sources = [{ position: [camera.x, camera.z] }];
+            stream.update(entry.sources);
+          }
           casters ??= terrainShadowCasters(ctx.scene);
           view.update(frame.camera, casters);
           const stats = stream?.world.stats();

@@ -11,6 +11,9 @@
 //   buffer, the scene cost walk, quality, the pipeline's passes and MRT, the
 //   Sky Light captures, memory, the budget and the World Environment. The
 //   lines are Forge's pure formatters (engine/perf/perfReadout.ts).
+// - A streamed terrain adds Forge's streaming lines and its tile map (phase
+//   5a step 4): the streams are read from the scene's debug tags
+//   (render/sync/debugTags.ts); without one the map stays hidden.
 // - "Scene cost" opens the shadow-caster inventory by scene source as a
 //   frozen table (copyable); "Inspect text" lets the readout be scrolled and
 //   selected, otherwise it never takes a click from the game.
@@ -31,10 +34,13 @@ import {
   formatWorldEnvironment,
   groupThousands,
 } from "../../../engine/perf/perfReadout.ts";
+import { formatTerrainStreaming, terrainStreamingSnapshot, type TerrainStreamingSnapshot } from "../../../engine/terrain/terrainStreamingDebug.ts";
 import { buildSceneCostSnapshot, type SceneCostObject, type SceneCostSnapshot } from "../../../engine/perf/sceneCost.ts";
 import type { RenderHost } from "../../host/renderHost.ts";
+import { terrainStreamingProbes } from "../../sync/debugTags.ts";
 import { DebugTableModal } from "./debugTableModal.ts";
 import { DEBUG_PANEL_CSS } from "./debugStyle.ts";
+import { DebugTerrainMap } from "./debugTerrainMap.ts";
 
 const UPDATE_INTERVAL_MS = 500;
 
@@ -100,8 +106,16 @@ function heap(): { used: number | null; limit: number | null } {
   return { used: memory?.usedJSHeapSize ?? null, limit: memory?.jsHeapSizeLimit ?? null };
 }
 
+/** The streamed terrains of the host's world, summed; null when none streams. */
+export function hostTerrainStreaming(host: RenderHost): TerrainStreamingSnapshot | null {
+  const scene = host.world?.scene;
+  if (!scene) return null;
+  const probes = terrainStreamingProbes(scene);
+  return terrainStreamingSnapshot(probes.map((probe) => probe.stream), probes.flatMap((probe) => probe.sources()));
+}
+
 /** The readout text for the host as it is now. */
-export function debugReadout(host: RenderHost, environment: Readonly<WorldEnvironmentState> | null): string {
+export function debugReadout(host: RenderHost, environment: Readonly<WorldEnvironmentState> | null, terrain: TerrainStreamingSnapshot | null = null): string {
   const metrics = host.perf.metrics();
   const fps = metrics.averageFrameTimeMs > 0 ? 1000 / metrics.averageFrameTimeMs : 0;
   const { drawCalls, triangles } = host.renderer.info.render;
@@ -122,6 +136,7 @@ export function debugReadout(host: RenderHost, environment: Readonly<WorldEnviro
   lines.push(...formatMemory({ render: { geometries: memory.geometries, textures: memory.textures, programs: memory.programs ?? 0 }, jsHeapBytes: used, jsHeapLimitBytes: limit }));
   lines.push(...formatPerfBudget(evaluatePerfBudget({ drawCalls, triangles, textures: memory.textures }, DEFAULT_PERF_BUDGET)));
   if (environment) lines.push(formatWorldEnvironment(environment));
+  if (terrain) lines.push(...formatTerrainStreaming(terrain));
   return lines.join("\n");
 }
 
@@ -141,7 +156,9 @@ export function attachDebugPanel(document: Document, sources: DebugPanelSources)
   readout.id = "debug-stats-readout";
   readout.tabIndex = -1;
   readout.setAttribute("aria-label", "Performance diagnostics");
-  root.replaceChildren(controls, readout);
+  // Forge's view slot: between the controls and the readout.
+  const terrainMap = new DebugTerrainMap(document);
+  root.replaceChildren(controls, terrainMap.element, readout);
   document.body.appendChild(root);
 
   // Forge: passive diagnostics never take a click; reading the text is an explicit mode.
@@ -172,7 +189,9 @@ export function attachDebugPanel(document: Document, sources: DebugPanelSources)
   const refresh = (): void => {
     const host = sources.host();
     if (!host) return;
-    readout.textContent = debugReadout(host, sources.environment?.() ?? null);
+    const terrain = hostTerrainStreaming(host);
+    readout.textContent = debugReadout(host, sources.environment?.() ?? null, terrain);
+    terrainMap.update(terrain);
   };
   const timer = (document.defaultView ?? window).setInterval(refresh, UPDATE_INTERVAL_MS);
 

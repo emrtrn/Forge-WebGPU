@@ -65,6 +65,19 @@ export const DEBUG_PANEL_CSS = `
   background: rgba(127, 255, 127, 0.15);
 }
 
+/* The terrain streaming map (Forge's view slot). */
+.forge-debug-panel-map {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin: 4px 0;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+.forge-debug-panel-map[hidden] {
+  display: none;
+}
+
 .forge-debug-panel-readout {
   flex: 1 1 auto;
   min-height: 0;
