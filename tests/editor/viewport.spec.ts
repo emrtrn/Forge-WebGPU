@@ -7,19 +7,11 @@
 // with WebGL forced (CI has no GPU).
 
 import { expect, test } from "@playwright/test";
-
-const QUERY = process.env.FORGE_EDITOR_WEBGPU === "1" ? "/?editor" : "/?editor&forceWebGL";
+import { openEditor } from "./support.ts";
 
 test("the viewport draws the level; Camera (and keys 1-4), View Mode, Show and Quality menus", async ({ page }) => {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
-  });
-  await page.goto(QUERY);
-  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
+  const errors = await openEditor(page, { drawn: true });
   const canvas = page.getByTestId("forge-canvas");
-  await expect(canvas).toHaveAttribute("data-forge-ready", "1", { timeout: 60_000 });
   await expect(canvas).toHaveAttribute("data-forge-resource-errors", "0");
 
   const camera = page.getByTestId("camera-button");
@@ -78,5 +70,47 @@ test("the viewport draws the level; Camera (and keys 1-4), View Mode, Show and Q
 
   // A few frames in every view, then no error.
   await page.waitForTimeout(500);
+  expect(errors).toEqual([]);
+});
+
+// Forge's toolbar-layout and editor-viewport-panel smokes: Stats starts closed; a narrower window
+// keeps every toolbar control inside the top bar and the window, and the canvas follows the
+// viewport panel (its drawing buffer too) there and back.
+test("Stats starts closed; after resizing, the toolbar stays inside and the canvas follows the panel", async ({ page }) => {
+  const errors = await openEditor(page, { drawn: true });
+  await expect(page.locator("#debug-stats")).toHaveCount(0);
+  const layout = () =>
+    page.evaluate(() => {
+      const box = (element: Element) => element.getBoundingClientRect().toJSON() as { left: number; right: number; top: number; bottom: number; width: number; height: number };
+      const bar = box(document.querySelector(".editor-topbar")!);
+      const controls = [...document.querySelectorAll(".editor-topbar button")]
+        .filter((button) => (button as HTMLElement).offsetParent !== null)
+        .map((button) => ({ id: (button as HTMLElement).dataset.testid ?? button.textContent ?? "", ...box(button) }));
+      // The canvas fills the panel inside its border: its client box.
+      const panel = document.querySelector<HTMLElement>(".editor-viewport-host")!;
+      const host = { width: panel.clientWidth, height: panel.clientHeight };
+      const view = document.querySelector<HTMLCanvasElement>('[data-testid="forge-canvas"]')!;
+      return { width: window.innerWidth, bar, controls, host, canvas: box(view), buffer: view.width / Math.max(1, view.clientWidth) };
+    });
+  const check = async (): Promise<void> => {
+    await expect
+      .poll(async () => {
+        const now = await layout();
+        const outside = now.controls.filter((control) => control.left < now.bar.left - 0.5 || control.right > Math.min(now.bar.right, now.width) + 0.5).map((control) => control.id);
+        const fits = Math.abs(now.canvas.width - now.host.width) < 1 && Math.abs(now.canvas.height - now.host.height) < 1;
+        return { outside, fits };
+      })
+      .toEqual({ outside: [], fits: true });
+  };
+  await check();
+  const before = await layout();
+  await page.setViewportSize({ width: 1100, height: 700 });
+  await check();
+  const narrow = await layout();
+  expect(narrow.canvas.width).toBeLessThan(before.canvas.width);
+  await expect.poll(async () => Math.abs((await layout()).buffer - before.buffer)).toBeLessThan(0.02);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await check();
+  await expect.poll(async () => Math.abs((await layout()).canvas.width - before.canvas.width)).toBeLessThan(1);
   expect(errors).toEqual([]);
 });

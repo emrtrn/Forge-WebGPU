@@ -197,7 +197,9 @@ okunurluğu korunur (rapor §4.8).
 render smoke'u) tip kontrolü, katman denetimi + öz-testi, dosya
 boyutu bütçesi, Node yükleme, asset kapısı, SDK API kapısı, `check:projects`,
 Vitest, build, editörün tarayıcı denetimleri (`npm run smoke:editor`, başsız
-Chrome; çizen sayfalar `forceWebGL`). Aynı kapı CI'da. Render kabulü yerelde, gerçek WebGPU
+Chrome; çizen sayfalar `forceWebGL`). Aynı kapı CI'da. Aynı editör seti yerelde
+gerçek GPU'da `npm run smoke:editor:webgpu` (başlıklı Chrome, `forceWebGL`'siz,
+her açılan editör ve Play sekmesi WebGPU backend'ini kanıtlar). Render kabulü yerelde, gerçek WebGPU
 backend'inde: `npm run smoke:render` (Playwright, başlıklı Chrome, port 5283;
 gate'te ve CI'da değil, `render/**` ya da `features/*/render.ts` dokunan
 push'tan önce; `tests/smoke/`, referans görüntüler ve koşu kayıtları depo

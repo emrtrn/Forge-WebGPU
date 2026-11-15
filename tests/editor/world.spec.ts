@@ -3,43 +3,30 @@
 // still apply): the main menu opens World Settings with the level's Cell Size
 // and its one-per-level actors (select one, add a missing one); Ground Mist
 // Setup as one undo step; the World Environment preview (season, hour, play)
-// never dirtying the level until Make Default, and Reset. The level is
+// never dirtying the level until Make Default, and Reset; Play starts from
+// Make Default (step 10). The level is
 // written into this run's temporary project copy (D14).
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { row, openEditor, writeLevel, IDENTITY } from "./support.ts";
 
 const LEVEL = "content/levels/world-smoke";
 const id = (n: number): string => `act_${n.toString(16).padStart(32, "0")}`;
 const WES = id(0xa1);
 const FOG = id(0xa2);
-const IDENTITY = { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] };
-const webgl = process.env.FORGE_EDITOR_WEBGPU === "1" ? "" : "&forceWebGL";
 
 test.beforeAll(() => {
-  const project = process.env.FORGE_EDITOR_SMOKE_PROJECT;
-  if (!project) throw new Error("FORGE_EDITOR_SMOKE_PROJECT is not set (the editor smoke config sets it).");
-  const folder = join(project, ...LEVEL.split("/"));
-  mkdirSync(folder, { recursive: true });
   const actor = (actorId: string, name: string, components: Record<string, unknown>) => ({ id: actorId, name, class: null, parent: null, spatiallyLoaded: false, transform: IDENTITY, components });
   const actors = [
     actor(WES, "World Environment", { environment: { type: "forge.worldEnvironment@1", hour: 12 } }),
     actor(FOG, "Fog", { fog: { type: "forge.heightFog@1" } }),
   ];
-  writeFileSync(join(folder, "level.json"), `${JSON.stringify({ schema: "forge.level/1", id: "lvl_0000000000000000000000000000a5a1", settings: { cellSize: 128 }, actors }, null, 2)}\n`);
+  writeLevel(LEVEL, "lvl_0000000000000000000000000000a5a1", actors);
 });
 
 async function open(page: Page): Promise<string[]> {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto(`/?editor&level=${encodeURIComponent(LEVEL)}${webgl}`);
-  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
-  await expect(page.getByTestId("forge-canvas")).toHaveAttribute("data-forge-ready", "1", { timeout: 60_000 });
-  return errors;
+  return openEditor(page, { level: LEVEL, drawn: true });
 }
-
-const row = (page: Page, actorId: string): Locator => page.locator(`[data-testid="outliner-row"][data-actor-id="${actorId}"]`);
 
 test("World Settings: the level's Cell Size, its one-per-level actors, select one, add a missing one", async ({ page }) => {
   const errors = await open(page);
@@ -114,5 +101,37 @@ test("the World Environment preview never dirties the level; Make Default writes
   await expect(label).not.toHaveText("12:00");
   await page.getByTestId("wes-preview-play").click();
   await expect(page.getByTestId("editor-undo")).toBeDisabled();
+  expect(errors).toEqual([]);
+});
+
+// Forge's world-environment smoke ended with Play starting from Make Default: the unsaved hour
+// and season reach the Play tab's World Environment (read through the dev hook, one stepped frame).
+test("Play starts from the World Environment's Make Default, unsaved", async ({ page, context }) => {
+  const errors = await open(page);
+  await row(page, WES).click();
+  await page.getByTestId("wes-preview-season-winter").click();
+  await page.getByTestId("wes-preview-hour").evaluate((slider) => {
+    (slider as HTMLInputElement).value = "18.5";
+    slider.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await page.getByTestId("wes-preview-default").click();
+  await expect(page.getByTestId("detail-environment-hour")).toHaveValue("18.5");
+  await expect(page.getByTestId("editor-save")).toBeEnabled();
+
+  const opened = context.waitForEvent("page");
+  await page.getByTestId("editor-play").click();
+  const game = await opened;
+  game.on("pageerror", (error) => errors.push(`game: ${error.message}`));
+  await game.waitForURL(/[?&]play=/);
+  await expect(game.getByTestId("forge-canvas")).toHaveAttribute("data-forge-ready", "1", { timeout: 60_000 });
+  const hour = await game.evaluate(async () => {
+    const dev = (window as unknown as { __forgeDev: { pause(): void; resume(): void; step(ms: number): Promise<{ hour: number | null }> } }).__forgeDev;
+    dev.pause();
+    const frame = await dev.step(16);
+    dev.resume();
+    return frame.hour;
+  });
+  expect(hour).toBe(18.5);
+  await game.close();
   expect(errors).toEqual([]);
 });

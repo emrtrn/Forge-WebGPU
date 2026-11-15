@@ -6,41 +6,30 @@
 // shows the information screen. The game tab's world is read through the
 // dev-only `window.__forgeDev.actor`.
 
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
+import { shape, openEditor, WEBGPU, WEBGL_QUERY, writeLevel } from "./support.ts";
 
 const LEVEL = "content/levels/play-smoke";
 const CUBE = "act_11112222333344445555666677778888";
-const WEBGPU = process.env.FORGE_EDITOR_WEBGPU === "1";
-const query = (): string => `/?editor&level=${encodeURIComponent(LEVEL)}${WEBGPU ? "" : "&forceWebGL"}`;
 let folder = "";
 
 test.beforeAll(() => {
-  const project = process.env.FORGE_EDITOR_SMOKE_PROJECT;
-  if (!project) throw new Error("FORGE_EDITOR_SMOKE_PROJECT is not set (the editor smoke config sets it).");
-  folder = join(project, ...LEVEL.split("/"));
-  mkdirSync(folder, { recursive: true });
-  const identity = { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] };
-  const level = {
-    schema: "forge.level/1",
-    id: "lvl_11112222333344445555666677778888",
-    settings: { cellSize: 128 },
-    actors: [
-      {
-        id: CUBE,
-        name: "Play Cube",
-        class: null,
-        parent: null,
-        spatiallyLoaded: false,
-        transform: { p: [0, 1, 0], r: [0, 0, 0, 1], s: [2, 2, 2] },
-        components: {
-          shape: { type: "forge.shape@2", parent: null, local: identity, primitive: "cube", color: "#c8c8c8", castShadow: true, collision: true },
-        },
+  const actors = [
+    {
+      id: CUBE,
+      name: "Play Cube",
+      class: null,
+      parent: null,
+      spatiallyLoaded: false,
+      transform: { p: [0, 1, 0], r: [0, 0, 0, 1], s: [2, 2, 2] },
+      components: {
+        shape: shape("cube", "#c8c8c8"),
       },
-    ],
-  };
-  writeFileSync(join(folder, "level.json"), `${JSON.stringify(level, null, 2)}\n`);
+    },
+  ];
+  folder = writeLevel(LEVEL, "lvl_11112222333344445555666677778888", actors);
 });
 
 /** The level folder's files and their text. */
@@ -76,10 +65,7 @@ async function cubeAt(game: Page, x: number): Promise<void> {
 }
 
 test("Play opens the unsaved level in a new tab; nothing is saved; a reload and P play the latest", async ({ page, context }) => {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto(query());
-  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
+  const errors = await openEditor(page, { level: LEVEL });
   const before = disk();
 
   await page.locator(`[data-testid="outliner-row"][data-actor-id="${CUBE}"]`).click();
@@ -119,6 +105,30 @@ test("Play opens the unsaved level in a new tab; nothing is saved; a reload and 
 });
 
 test("a play session the server does not hold shows the information screen", async ({ page }) => {
-  await page.goto(`/?play=${"0".repeat(32)}${WEBGPU ? "" : "&forceWebGL"}`);
+  await page.goto(`/?play=${"0".repeat(32)}${WEBGL_QUERY}`);
   await expect(page.getByText("Play session ended")).toBeVisible();
+});
+
+// Forge's editor-quality smoke: the Quality menu is the player's setting, so an open Play tab
+// follows it live (the storage event; src/main.ts), as the canvas's perf witness reports.
+test("the editor's Quality reaches an open Play tab live", async ({ page, context }) => {
+  const errors = await openEditor(page, { level: LEVEL });
+  const opened = context.waitForEvent("page");
+  await page.getByTestId("editor-play").click();
+  const game = await opened;
+  game.on("pageerror", (error) => errors.push(`game: ${error.message}`));
+  await game.waitForURL(/[?&]play=/);
+  const canvas = game.getByTestId("forge-canvas");
+  await expect(canvas).toHaveAttribute("data-forge-ready", "1", { timeout: 60_000 });
+  const played = async (): Promise<unknown> => (JSON.parse((await canvas.getAttribute("data-forge-perf")) ?? "{}") as { quality?: unknown }).quality;
+
+  const quality = page.getByTestId("quality-button");
+  for (const [choice, label] of [["low", "Low"], ["high", "High"]] as const) {
+    await quality.hover();
+    await page.locator(`[data-quality-choice="${choice}"]`).click();
+    await expect(quality).toHaveText(`Quality: ${label}`);
+    await expect.poll(played, { timeout: 15_000 }).toBe(choice);
+  }
+  await game.close();
+  expect(errors).toEqual([]);
 });

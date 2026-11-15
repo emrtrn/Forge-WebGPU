@@ -399,10 +399,14 @@ export function createShell(options: ShellOptions): EditorShell {
       if (tools) detailsPanel.setTools(tools);
       detailsBody.replaceChildren(detailsPanel.element);
 
+      // Save stays busy until its response comes back (Forge's toolbar-layout smoke): an edit
+      // or another Ctrl+S meanwhile neither enables it nor starts a second save.
+      let saving = false;
       const renderToolbar = (): void => {
         undo.disabled = !editor.canUndo();
         redo.disabled = !editor.canRedo();
-        save.disabled = options.readOnly || editor.dirty() === 0;
+        save.disabled = options.readOnly || saving || editor.dirty() === 0;
+        save.setAttribute("aria-busy", String(saving));
       };
 
       // A save the disk refused (409, step 8): the strip offers Compare / Reload and carries the warning.
@@ -410,10 +414,16 @@ export function createShell(options: ShellOptions): EditorShell {
       // A file changed on disk (an agent's command, another tool; step 9f): the same strip when the level is dirty.
       live = createLiveRefresh({ editor, strip: conflict, status, ...(context.followDisk ? { others: context.followDisk } : {}) });
       const runSave = async (): Promise<void> => {
-        if (options.readOnly) return;
-        save.disabled = true;
+        if (options.readOnly || saving) return;
+        saving = true;
+        renderToolbar();
         status("Saving");
-        const report = await editor.save();
+        let report: Awaited<ReturnType<typeof editor.save>>;
+        try {
+          report = await editor.save();
+        } finally {
+          saving = false;
+        }
         if (report.conflict) {
           conflict.show(report.message);
           status(report.message);

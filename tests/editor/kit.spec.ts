@@ -3,6 +3,7 @@
 // kind of a schema form, plus one generated form per engine component.
 
 import { expect, test, type Page } from "@playwright/test";
+import { watchErrors } from "./support.ts";
 
 const SAMPLE = "editorkit.sample";
 const field = (page: Page, path: string) => page.getByTestId(`${SAMPLE}-${path}`);
@@ -10,8 +11,7 @@ const value = async (page: Page): Promise<Record<string, unknown>> =>
   JSON.parse((await page.getByTestId(`kit-value-${SAMPLE}`).textContent()) ?? "null") as Record<string, unknown>;
 
 test.beforeEach(async ({ page }) => {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
+  const errors = watchErrors(page);
   await page.goto("/?editor-kit");
   await expect(page.getByTestId(`kit-form-${SAMPLE}`)).toBeVisible();
   // Every engine component gets a generated form.

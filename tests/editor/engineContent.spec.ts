@@ -7,12 +7,12 @@ import { fileURLToPath } from "node:url";
 import { createServer, type ViteDevServer } from "vite";
 import { expect, test } from "@playwright/test";
 import { forgeServerPlugin } from "../../tools/server/vitePlugin.ts";
+import { openEditor } from "./support.ts";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const ENGINE = "engine:content/engine";
 const LEVEL = `${ENGINE}/levels/workbench`;
 const ACTOR = `act_${"4".repeat(32)}`;
-const webgl = process.env.FORGE_EDITOR_WEBGPU === "1" ? "" : "&forceWebGL";
 let engineRoot: string;
 let server: ViteDevServer | undefined;
 let base: string;
@@ -42,10 +42,7 @@ test.afterAll(async () => {
 });
 
 test("engine level: edit, save, reopen; Content Browser writes and refreshes classes", async ({ page }) => {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto(`${base}?editor&level=${encodeURIComponent(LEVEL)}${webgl}`);
-  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
+  const errors = await openEditor(page, { level: LEVEL, base });
   await page.locator(`[data-testid="outliner-row"][data-actor-id="${ACTOR}"]`).click();
   const x = page.getByTestId("detail-transform.p[0]");
   await x.fill("12");
@@ -86,8 +83,7 @@ test("engine level: edit, save, reopen; Content Browser writes and refreshes cla
 
 test("opening the sample itself still leaves Save disabled after an edit", async ({ page }) => {
   // A minimal sample level is already committed; no test writes its bytes.
-  await page.goto(`${base}?editor${webgl}`);
-  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
+  await openEditor(page, { base });
   await page.getByTestId("outliner-row").first().click();
   const x = page.getByTestId("detail-transform.p[0]");
   await x.fill("13");

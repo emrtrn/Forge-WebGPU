@@ -1,57 +1,158 @@
-// The editor's first authoring path (plan phase 4 step 2): open the project's
-// start level, select an actor, change its transform in Details, undo / redo,
-// save, reopen and find the change on disk. The full Forge `editor-authoring`
-// counterpart (place, gizmo tools, Play) grows with the later steps.
+// Forge's `editor-authoring` smoke, in full (plan phase 4 step 10, the
+// phase's gate): on an empty level, the four tool buttons, an Add Actor cube
+// dragged into the viewport, a Move gizmo drag, Location X typed in Details,
+// undo back past the placement and redo, Save (busy until its response: a
+// Ctrl+S meanwhile starts no second save), the file on disk, a reload that
+// finds the actor with its id and X, and Play in a new tab running it. Both
+// tabs end without an error. CI runs it with WebGL forced; `npm run
+// smoke:editor:webgpu` on the real GPU.
 
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
+import { BACKEND, dragHandle, named, openEditor, row, watchErrors, writeLevel } from "./support.ts";
 
-const QUERY = process.env.FORGE_EDITOR_WEBGPU === "1" ? "/?editor" : "/?editor&forceWebGL";
+const LEVEL = "content/levels/authoring-smoke";
+const TOOLS = ["select", "move", "rotate", "scale"] as const;
+let folder = "";
 
-async function openEditor(page: Page): Promise<string[]> {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto(QUERY);
-  const shell = page.getByTestId("forge-editor");
-  await expect(shell).toBeVisible();
-  await expect(shell).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
-  return errors;
+test.beforeAll(() => {
+  folder = writeLevel(LEVEL, "lvl_a07401a07401a07401a07401a07401a0", []);
+});
+
+interface ActorJson {
+  readonly id: string;
+  readonly transform?: { readonly p?: readonly number[] };
 }
 
-test("open, edit a transform, undo / redo, save, reopen", async ({ page }) => {
-  const errors = await openEditor(page);
-  const rows = page.getByTestId("outliner-row");
-  await expect(rows.first()).toBeVisible();
-  const count = await rows.count();
-  expect(count).toBeGreaterThan(0);
-  await expect(page.getByTestId("editor-undo")).toBeDisabled();
-  await expect(page.getByTestId("editor-save")).toBeDisabled();
+/** Every actor the level's files hold on disk: `level.json` and its cells (a placed cube is spatially loaded). */
+const disk = (): ActorJson[] => {
+  const read = (path: string): ActorJson[] => (JSON.parse(readFileSync(path, "utf8")) as { actors?: ActorJson[] }).actors ?? [];
+  const cells = join(folder, "cells");
+  return [read(join(folder, "level.json")), ...(existsSync(cells) ? readdirSync(cells).map((file) => read(join(cells, file))) : [])].flat();
+};
 
-  const first = rows.first();
-  const actor = await first.getAttribute("data-actor-id");
-  await first.click();
-  await expect(first).toHaveClass(/active/);
+/** Drags the Add Actor menu's cube into the viewport (the browser's drag as events, as Forge's smoke). */
+async function placeCube(page: Page): Promise<void> {
+  const canvas = page.getByTestId("forge-canvas");
+  const box = (await canvas.boundingBox())!;
+  await page.getByTestId("add-actor-button").hover();
+  await page.locator(".add-actor-category-label", { hasText: "Shapes" }).hover();
+  const cube = page.getByTestId("add-shape-cube");
+  await expect(cube).toBeVisible();
+  const data = await page.evaluateHandle(() => new DataTransfer());
+  const at = { clientX: box.x + box.width / 2 - 80, clientY: box.y + box.height / 2 + 40 };
+  await cube.dispatchEvent("dragstart", { dataTransfer: data });
+  await canvas.dispatchEvent("dragover", { dataTransfer: data, ...at });
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+  await canvas.dispatchEvent("dragover", { dataTransfer: data, ...at });
+  await canvas.dispatchEvent("drop", { dataTransfer: data, ...at });
+  await cube.dispatchEvent("dragend", { dataTransfer: data });
+}
+
+test("Forge's editor-authoring: place, gizmo tools, Details X, undo / redo, save, reopen, Play", async ({ page, context }) => {
+  const errors = await openEditor(page, { level: LEVEL, drawn: true });
+  const summary = page.getByTestId("outliner-summary");
+  const undo = page.getByTestId("editor-undo");
+  const redo = page.getByTestId("editor-redo");
+  const save = page.getByTestId("editor-save");
+  const status = page.getByTestId("editor-status");
+  await expect(summary).toHaveText("0 actors (0 selected)");
+  await expect(undo).toBeDisabled();
+  await expect(save).toBeDisabled();
+
+  // The tool buttons: one pressed at a time.
+  for (const tool of TOOLS) {
+    await page.getByTestId(`tool-${tool}`).click();
+    for (const other of TOOLS) await expect(page.getByTestId(`tool-${other}`)).toHaveAttribute("aria-pressed", String(other === tool));
+  }
+  await page.getByTestId("tool-move").click();
+
+  // Place: one actor, selected, its transform in Details.
+  await placeCube(page);
+  const cube = named(page, "Cube");
+  await expect(cube).toHaveClass(/active/);
+  await expect(summary).toHaveText("1 actors (1 selected)");
+  const id = (await cube.getAttribute("data-actor-id"))!;
+  expect(id).toMatch(/^act_[0-9a-f]{32}$/);
   const x = page.getByTestId("detail-transform.p[0]");
-  await expect(x).toBeVisible();
-  const original = await x.inputValue();
-  const next = String(Number(original) + 2);
+  const placed = await x.inputValue();
 
-  await x.fill(next);
+  // The Move gizmo drags it along X (one undo step).
+  const canvas = page.getByTestId("forge-canvas");
+  await dragHandle(page, canvas, "move:x", 240);
+  await expect(x).not.toHaveValue(placed);
+  const dragged = await x.inputValue();
+
+  // Location X typed in Details.
+  await x.fill("2");
   await x.press("Tab");
-  await expect(page.getByTestId("editor-undo")).toBeEnabled();
-  await expect(page.getByTestId("editor-save")).toBeEnabled();
+  await expect(x).toHaveValue("2");
 
-  await page.getByTestId("editor-undo").click();
-  await expect(x).toHaveValue(original);
-  await page.getByTestId("editor-redo").click();
-  await expect(x).toHaveValue(next);
+  // Undo back past the placement, then redo all of it.
+  await undo.click();
+  await expect(x).toHaveValue(dragged);
+  await undo.click();
+  await expect(x).toHaveValue(placed);
+  await undo.click();
+  await expect(summary).toHaveText("0 actors (0 selected)");
+  await expect(undo).toBeDisabled();
+  await redo.click();
+  await expect(summary).toHaveText(/^1 actors/);
+  await row(page, id).click();
+  await redo.click();
+  await redo.click();
+  await expect(x).toHaveValue("2");
+  await expect(redo).toBeDisabled();
 
-  await page.getByTestId("editor-save").click();
-  await expect(page.getByTestId("editor-status")).toHaveText(/^Saved \d+ files?$/);
-  await expect(page.getByTestId("editor-save")).toBeDisabled();
+  // Save stays busy until its response: a Ctrl+S meanwhile starts no second save.
+  let saves = 0;
+  let release = (): void => {};
+  const held = new Promise<void>((done) => (release = done));
+  await page.route("**/__forge/save", async (route) => {
+    saves += 1;
+    await held;
+    await route.continue();
+  });
+  await save.click();
+  await expect(status).toHaveText("Saving");
+  await expect(save).toBeDisabled();
+  await expect(save).toHaveAttribute("aria-busy", "true");
+  await page.locator("body").press("Control+s");
+  await expect(save).toBeDisabled();
+  await expect(status).toHaveText("Saving");
+  expect(saves).toBe(1);
+  release();
+  await expect(status).toHaveText(/^Saved \d+ files?$/);
+  await expect(save).toBeDisabled();
+  await expect(save).toHaveAttribute("aria-busy", "false");
+  expect(saves).toBe(1);
+  await page.unrouteAll();
+  expect(disk().find((actor) => actor.id === id)?.transform?.p?.[0]).toBe(2);
 
-  await openEditor(page);
-  await expect(page.getByTestId("outliner-row")).toHaveCount(count);
-  await page.locator(`[data-testid="outliner-row"][data-actor-id="${actor}"]`).click();
-  await expect(page.getByTestId("detail-transform.p[0]")).toHaveValue(next);
+  // Reopen: the same actor, same id, same X.
+  const reopened = await openEditor(page, { level: LEVEL, drawn: true });
+  await expect(summary).toHaveText("1 actors (0 selected)");
+  await row(page, id).click();
+  await expect(page.getByTestId("detail-transform.p[0]")).toHaveValue("2");
+
+  // Play: a new tab runs the level with the actor where the editor left it.
+  const opened = context.waitForEvent("page");
+  await page.getByTestId("editor-play").click();
+  const game = await opened;
+  const gameErrors = watchErrors(game);
+  await game.waitForURL(/[?&]play=/);
+  const gameCanvas = game.getByTestId("forge-canvas");
+  await expect(gameCanvas).toHaveAttribute("data-forge-ready", "1", { timeout: 60_000 });
+  await expect(gameCanvas).toHaveAttribute("data-forge-backend", BACKEND);
+  await game.waitForFunction(
+    (actor) => (window as unknown as { __forgeDev?: { actor(id: string): { transform: { p: number[] } } | null } }).__forgeDev?.actor(actor)?.transform.p[0] === 2,
+    id,
+    { timeout: 60_000 },
+  );
+  await game.close();
+
   expect(errors).toEqual([]);
+  expect(reopened).toEqual([]);
+  expect(gameErrors).toEqual([]);
 });

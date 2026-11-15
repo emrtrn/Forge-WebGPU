@@ -13,18 +13,18 @@
 // On a three-cube level of this run's temporary project copy (never samples/, D14).
 
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
+import { shape, smokeProject, row, openEditor, writeLevel, projectPath } from "./support.ts";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const LEVEL = "content/levels/agent-smoke";
 const A = "act_aaaa9999333344445555666677778888";
 const B = "act_bbbb9999333344445555666677778888";
 const C = "act_cccc9999333344445555666677778888";
-const query = (): string => `/?editor&level=${encodeURIComponent(LEVEL)}${process.env.FORGE_EDITOR_WEBGPU === "1" ? "" : "&forceWebGL"}`;
 
 const cube = (id: string, name: string, x: number) => ({
   id,
@@ -34,20 +34,18 @@ const cube = (id: string, name: string, x: number) => ({
   spatiallyLoaded: true,
   transform: { p: [x, 1, 0], r: [0, 0, 0, 1], s: [1, 1, 1] },
   components: {
-    shape: { type: "forge.shape@2", parent: null, local: { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] }, primitive: "cube", color: "#c8c8c8", castShadow: true, collision: true },
+    shape: shape("cube", "#c8c8c8"),
   },
 });
 
 let project = "";
 
 test.beforeEach(() => {
-  project = process.env.FORGE_EDITOR_SMOKE_PROJECT ?? "";
-  if (!project) throw new Error("FORGE_EDITOR_SMOKE_PROJECT is not set (the editor smoke config sets it).");
-  const folder = join(project, ...LEVEL.split("/"));
+  project = smokeProject();
+  const folder = projectPath(LEVEL);
   rmSync(folder, { recursive: true, force: true });
-  mkdirSync(folder, { recursive: true });
-  const level = { schema: "forge.level/1", id: "lvl_aaaa9999333344445555666677770000", settings: { cellSize: 128 }, actors: [cube(A, "Cube A", 0), cube(B, "Cube B", 4), cube(C, "Cube C", 8)] };
-  writeFileSync(join(folder, "level.json"), `${JSON.stringify(level, null, 2)}\n`);
+  const actors = [cube(A, "Cube A", 0), cube(B, "Cube B", 4), cube(C, "Cube C", 8)];
+  writeLevel(LEVEL, "lvl_aaaa9999333344445555666677770000", actors);
 });
 
 /** `npm run forge -- edit` on a project, as an agent runs it. */
@@ -73,14 +71,8 @@ function levelFiles(root: string): Record<string, string> {
 }
 
 async function open(page: Page): Promise<string[]> {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto(query());
-  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
-  return errors;
+  return openEditor(page, { level: LEVEL });
 }
-
-const row = (page: Page, id: string) => page.locator(`[data-testid="outliner-row"][data-actor-id="${id}"]`);
 
 async function setField(page: Page, testId: string, value: string): Promise<void> {
   const field = page.getByTestId(testId);

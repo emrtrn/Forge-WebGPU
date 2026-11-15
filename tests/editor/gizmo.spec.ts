@@ -3,73 +3,38 @@
 // smoke, the Move gizmo drags the cube along X with the move snap (one undo
 // step, undo / redo), a 0.5 m snap step lands on halves, Q / W / E / R and
 // Space pick the tool, X toggles World / Local, and End drops a raised cube
-// onto the floor. The level is written into this run's temporary project
+// onto the floor; the Rotate ring and Scale axis drag with their snaps
+// (step 10). The level is written into this run's temporary project
 // copy (never into samples/, D14). The gizmo's handle points come from the
 // canvas's `data-forge-gizmo` (client pixels), so the drag aims at the handle
 // the gizmo draws.
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { drag, dragHandle, gizmoHandles, openEditor, row, shape, writeLevel } from "./support.ts";
 
 const LEVEL = "content/levels/gizmo-smoke";
 const CUBE = "act_00112233445566778899aabbccddeeff";
-const query = (): string => `/?editor&level=${encodeURIComponent(LEVEL)}${process.env.FORGE_EDITOR_WEBGPU === "1" ? "" : "&forceWebGL"}`;
 
 test.beforeAll(() => {
-  const project = process.env.FORGE_EDITOR_SMOKE_PROJECT;
-  if (!project) throw new Error("FORGE_EDITOR_SMOKE_PROJECT is not set (the editor smoke config sets it).");
-  const folder = join(project, ...LEVEL.split("/"));
-  mkdirSync(folder, { recursive: true });
-  const identity = { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] };
-  const level = {
-    schema: "forge.level/1",
-    id: "lvl_00112233445566778899aabbccddeeff",
-    settings: { cellSize: 128 },
-    actors: [
-      {
-        id: CUBE,
-        name: "Gizmo Cube",
-        class: null,
-        parent: null,
-        spatiallyLoaded: false,
-        transform: { p: [0, 1, 0], r: [0, 0, 0, 1], s: [2, 2, 2] },
-        components: {
-          shape: { type: "forge.shape@2", parent: null, local: identity, primitive: "cube", color: "#c8c8c8", castShadow: true, collision: true },
-        },
+  const actors = [
+    {
+      id: CUBE,
+      name: "Gizmo Cube",
+      class: null,
+      parent: null,
+      spatiallyLoaded: false,
+      transform: { p: [0, 1, 0], r: [0, 0, 0, 1], s: [2, 2, 2] },
+      components: {
+        shape: shape("cube", "#c8c8c8"),
       },
-    ],
-  };
-  writeFileSync(join(folder, "level.json"), `${JSON.stringify(level, null, 2)}\n`);
+    },
+  ];
+  writeLevel(LEVEL, "lvl_00112233445566778899aabbccddeeff", actors);
 });
 
-type Points = Record<string, [number, number]>;
-
-async function handles(canvas: Locator): Promise<Points> {
-  await expect(canvas).toHaveAttribute("data-forge-gizmo", /origin/);
-  return JSON.parse((await canvas.getAttribute("data-forge-gizmo"))!) as Points;
-}
-
-/** Drags a handle `pixels` further along the line from the gizmo's origin through it. */
-async function dragHandle(page: Page, canvas: Locator, handle: string, pixels: number): Promise<void> {
-  const points = await handles(canvas);
-  const [ox, oy] = points.origin!;
-  const [hx, hy] = points[handle]!;
-  const length = Math.hypot(hx - ox, hy - oy);
-  const [dx, dy] = [((hx - ox) / length) * pixels, ((hy - oy) / length) * pixels];
-  await page.mouse.move(hx, hy);
-  await page.mouse.down();
-  for (let step = 1; step <= 10; step += 1) await page.mouse.move(hx + (dx * step) / 10, hy + (dy * step) / 10);
-  await page.mouse.up();
-}
-
 test("the move gizmo drags with snap and one undo step; tool keys, World / Local and snap to floor", async ({ page }) => {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto(query());
-  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
+  const errors = await openEditor(page, { level: LEVEL, drawn: true });
   const canvas = page.getByTestId("forge-canvas");
-  await expect(canvas).toHaveAttribute("data-forge-ready", "1", { timeout: 60_000 });
   const box = (await canvas.boundingBox())!;
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await expect(page.locator(`[data-testid="outliner-row"][data-actor-id="${CUBE}"]`)).toHaveClass(/active/);
@@ -129,5 +94,61 @@ test("the move gizmo drags with snap and one undo step; tool keys, World / Local
   await expect(page.getByTestId("editor-status")).toHaveText("Snapped to floor");
   await page.getByTestId("editor-undo").click();
   await expect(y).toHaveValue(String(raised));
+  expect(errors).toEqual([]);
+});
+
+/**
+ * Drags the Y (yaw) ring along itself. Each ring's grab point is where it crosses another ring
+ * (rotate:y at local +Z, on the X ring too; rotate:z at local +X, on the Y ring too), so the drag
+ * starts halfway between them on the Y ring alone and moves along its tangent there.
+ */
+async function dragYawRing(page: Page, canvas: Locator, pixels: number): Promise<void> {
+  const points = await gizmoHandles(canvas);
+  const [ox, oy] = points.origin!;
+  const [ax, ay] = [points["rotate:z"]![0] - ox, points["rotate:z"]![1] - oy];
+  const [bx, by] = [points["rotate:y"]![0] - ox, points["rotate:y"]![1] - oy];
+  const start: [number, number] = [ox + (ax + bx) / Math.SQRT2, oy + (ay + by) / Math.SQRT2];
+  const [tx, ty] = [bx - ax, by - ay];
+  const length = Math.hypot(tx, ty);
+  await drag(page, start, [(tx / length) * pixels, (ty / length) * pixels]);
+}
+
+// Forge's editor-viewport-panel smoke dragged the move and scale gizmos; here the Rotate ring and
+// the Scale axis too, each with its snap (15°, 0.1) and one undo step.
+test("the Rotate and Scale gizmos drag with their snaps, one undo step each", async ({ page }) => {
+  const errors = await openEditor(page, { level: LEVEL, drawn: true });
+  const canvas = page.getByTestId("forge-canvas");
+  await row(page, CUBE).click();
+  for (let notch = 0; notch < 4; notch += 1) await page.mouse.wheel(0, 300);
+  const yaw = page.getByTestId("detail-transform.r[1]");
+  const sx = page.getByTestId("detail-transform.s[0]");
+  const sy = page.getByTestId("detail-transform.s[1]");
+  await expect(yaw).toHaveValue("0");
+  await expect(sx).toHaveValue("2");
+
+  await page.locator("body").press("KeyE");
+  await expect(page.getByTestId("tool-rotate")).toHaveAttribute("aria-pressed", "true");
+  // The handle points follow the tool on the next frame.
+  await expect(canvas).toHaveAttribute("data-forge-gizmo", /rotate:y/);
+  await dragYawRing(page, canvas, 160);
+  await expect(yaw).not.toHaveValue("0");
+  const turned = Number(await yaw.inputValue());
+  expect(Math.abs(Math.round(turned / 15) * 15 - turned)).toBeLessThan(0.01);
+  await page.getByTestId("editor-undo").click();
+  await expect(yaw).toHaveValue("0");
+  await page.getByTestId("editor-redo").click();
+  await expect(yaw).toHaveValue(String(turned));
+
+  await page.locator("body").press("KeyR");
+  await expect(page.getByTestId("tool-scale")).toHaveAttribute("aria-pressed", "true");
+  await expect(canvas).toHaveAttribute("data-forge-gizmo", /scale:x/);
+  await dragHandle(page, canvas, "scale:x", 120);
+  await expect(sx).not.toHaveValue("2");
+  const scaled = Number(await sx.inputValue());
+  expect(Math.abs(Math.round(scaled * 10) - scaled * 10)).toBeLessThan(0.001);
+  await expect(sy).toHaveValue("2");
+  await page.getByTestId("editor-undo").click();
+  await expect(sx).toHaveValue("2");
+  await expect(yaw).toHaveValue(String(turned));
   expect(errors).toEqual([]);
 });

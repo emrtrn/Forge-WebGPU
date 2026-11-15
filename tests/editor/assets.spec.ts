@@ -1,6 +1,6 @@
 // Phase 4 / 7: a complete temporary game (including its own JSON asset
 // schema), no writes to real engine/sample content. Real GPU mode uses the
-// same scenarios with FORGE_EDITOR_WEBGPU=1 and --headed.
+// same scenarios with the WebGPU smoke command and --headed.
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -9,12 +9,12 @@ import { createServer, type ViteDevServer } from "vite";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { forgeServerPlugin } from "../../tools/server/vitePlugin.ts";
 import { cubeGlb } from "./glb.ts";
+import { openEditor, WEBGL_QUERY, SAVE_CONFLICT } from "./support.ts";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const LEVEL = "content/levels/assets", FOLDER = "content/asset-editors";
 const MODEL = `ast_${"a".repeat(31)}1`, MATERIAL = `ast_${"a".repeat(31)}2`, CLASS = `ast_${"a".repeat(31)}3`, DATA = `ast_${"a".repeat(31)}4`;
 const MESH = `act_${"b".repeat(31)}1`, INSTANCE = `act_${"b".repeat(31)}2`, CHILD = `act_${"b".repeat(31)}3`;
-const webgl = process.env.FORGE_EDITOR_WEBGPU === "1" ? "" : "&forceWebGL";
 let temp: string, project: string, server: ViteDevServer | undefined, base: string;
 const disk = (path: string) => join(project, ...path.split("/"));
 const json = async (path: string) => JSON.parse(await readFile(disk(path), "utf8"));
@@ -44,13 +44,8 @@ export default defineGameModule({ id:'starter.assets', features:[defineFeature({
 });
 test.afterAll(async () => { await server?.close(); if (temp) await rm(temp, { recursive: true, force: true }); });
 
-async function open(page: Page) {
-  const errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => { if (message.type() === "error" && /WebGPU|WGSL|Shader|Pipeline/.test(message.text())) errors.push(message.text()); });
-  await page.goto(`${base}?editor&level=${LEVEL}${webgl}`);
-  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
-  if (!webgl) await expect(page.getByTestId("forge-canvas")).toHaveAttribute("data-forge-backend", "webgpu");
-  return errors;
+async function open(page: Page, allow: readonly RegExp[] = []) {
+  return openEditor(page, { level: LEVEL, base, allow });
 }
 async function asset(page: Page, file: string) {
   await page.locator("[data-content-toggle]").click();
@@ -71,7 +66,7 @@ async function previewShot(page: Page, name: string, info: TestInfo) {
   await expect(page.getByTestId("asset-editor-preview")).toHaveAttribute("data-preview-ready", "1");
   await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
   const clip = (await page.getByTestId("asset-editor-preview").boundingBox())!;
-  const shot = await page.screenshot({ clip, path: join(REPO, ".forge-cache/asset-editor-visual", `${name}-${webgl ? "webgl" : "webgpu"}.png`) });
+  const shot = await page.screenshot({ clip, path: join(REPO, ".forge-cache/asset-editor-visual", `${name}-${WEBGL_QUERY ? "webgl" : "webgpu"}.png`) });
   const deviation = await page.evaluate(async (base64) => {
     const image = new Image(); image.src = `data:image/png;base64,${base64}`; await image.decode();
     const canvas = document.createElement("canvas"); canvas.width = image.width; canvas.height = image.height;
@@ -82,7 +77,7 @@ async function previewShot(page: Page, name: string, info: TestInfo) {
     return Math.sqrt(Math.max(0, squares / count - (sum / count) ** 2));
   }, shot.toString("base64"));
   expect(deviation, "the asset preview draws visible geometry").toBeGreaterThan(4);
-  await page.screenshot({ path: join(REPO, ".forge-cache/asset-editor-visual", `${name}-window-${webgl ? "webgl" : "webgpu"}.png`) });
+  await page.screenshot({ path: join(REPO, ".forge-cache/asset-editor-visual", `${name}-window-${WEBGL_QUERY ? "webgl" : "webgpu"}.png`) });
   await info.attach(`${name}-preview`, { body: shot, contentType: "image/png" });
 }
 
@@ -164,7 +159,7 @@ test("dirty close: Cancel keeps draft, Discard closes; 409 keeps draft and Reloa
 });
 
 test("409 Compare (step 8): disjoint changes merge and both are saved; a conflict picked Theirs takes the disk's value", async ({ page }) => {
-  const errors = await open(page); await asset(page, "surface.material.json");
+  const errors = await open(page, [SAVE_CONFLICT]); await asset(page, "surface.material.json");
   const file = `${FOLDER}/surface.material.json`, original = await readFile(disk(file));
   const roughness = page.getByTestId("asset-field-roughness");
   await roughness.fill("0.6"); await roughness.press("Tab");

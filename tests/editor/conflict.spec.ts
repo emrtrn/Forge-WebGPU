@@ -7,14 +7,14 @@
 // Save writes both. Reload drops the session's changes. On a two-cube level
 // of this run's temporary project copy (never samples/, D14).
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
+import { shape, openEditor, writeLevel, SAVE_CONFLICT } from "./support.ts";
 
 const LEVEL = "content/levels/conflict-smoke";
 const A = "act_aaaa2222333344445555666677778888";
 const B = "act_bbbb2222333344445555666677778888";
-const query = (): string => `/?editor&level=${encodeURIComponent(LEVEL)}${process.env.FORGE_EDITOR_WEBGPU === "1" ? "" : "&forceWebGL"}`;
 let file = "";
 
 interface ActorJson {
@@ -34,18 +34,13 @@ const cube = (id: string, name: string, x: number) => ({
   spatiallyLoaded: false,
   transform: { p: [x, 1, 0], r: [0, 0, 0, 1], s: [2, 2, 2] },
   components: {
-    shape: { type: "forge.shape@2", parent: null, local: { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] }, primitive: "cube", color: "#c8c8c8", castShadow: true, collision: true },
+    shape: shape("cube", "#c8c8c8"),
   },
 });
 
 test.beforeEach(() => {
-  const project = process.env.FORGE_EDITOR_SMOKE_PROJECT;
-  if (!project) throw new Error("FORGE_EDITOR_SMOKE_PROJECT is not set (the editor smoke config sets it).");
-  const folder = join(project, ...LEVEL.split("/"));
-  mkdirSync(folder, { recursive: true });
-  file = join(folder, "level.json");
-  const level = { schema: "forge.level/1", id: "lvl_cccc2222333344445555666677778888", settings: { cellSize: 128 }, actors: [cube(A, "Cube A", 0), cube(B, "Cube B", 4)] };
-  writeFileSync(file, `${JSON.stringify(level, null, 2)}\n`);
+  const actors = [cube(A, "Cube A", 0), cube(B, "Cube B", 4)];
+  file = join(writeLevel(LEVEL, "lvl_cccc2222333344445555666677778888", actors), "level.json");
 });
 
 const readLevel = (): LevelJson => JSON.parse(readFileSync(file, "utf8")) as LevelJson;
@@ -58,11 +53,8 @@ function changeOnDisk(change: (level: LevelJson) => void): void {
 const actorOf = (level: LevelJson, id: string): ActorJson => level.actors.find((actor) => actor.id === id)!;
 
 async function open(page: Page): Promise<string[]> {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto(query());
-  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
-  return errors;
+  // Every test here makes the disk refuse a save on purpose.
+  return openEditor(page, { level: LEVEL, allow: [SAVE_CONFLICT] });
 }
 
 async function moveA(page: Page, x: number): Promise<void> {

@@ -5,17 +5,14 @@
 // cube selecting the group, and Alt + gizmo drag duplicating as one undo
 // step. The level is written into this run's temporary project copy (D14).
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { shape, row, named, openEditor, writeLevel, IDENTITY } from "./support.ts";
 
 const LEVEL = "content/levels/edit-smoke";
 const id = (n: number): string => `act_${n.toString(16).padStart(32, "0")}`;
 const CUBE_A = id(0xe1);
 const CUBE_B = id(0xe2);
 const FOG = id(0xe3);
-const IDENTITY = { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] };
-const webgl = process.env.FORGE_EDITOR_WEBGPU === "1" ? "" : "&forceWebGL";
 
 const cube = (actorId: string, name: string, x: number) => ({
   id: actorId,
@@ -24,32 +21,22 @@ const cube = (actorId: string, name: string, x: number) => ({
   parent: null,
   spatiallyLoaded: false,
   transform: { p: [x, 1, 0], r: [0, 0, 0, 1], s: [2, 2, 2] },
-  components: { shape: { type: "forge.shape@2", parent: null, local: IDENTITY, primitive: "cube", color: "#c8c8c8", castShadow: true, collision: true } },
+  components: { shape: shape("cube", "#c8c8c8") },
 });
 
 test.beforeAll(() => {
-  const project = process.env.FORGE_EDITOR_SMOKE_PROJECT;
-  if (!project) throw new Error("FORGE_EDITOR_SMOKE_PROJECT is not set (the editor smoke config sets it).");
-  const folder = join(project, ...LEVEL.split("/"));
-  mkdirSync(folder, { recursive: true });
   const actors = [
     cube(CUBE_A, "Cube A", 0),
     cube(CUBE_B, "Cube B", 6),
     { id: FOG, name: "Fog", class: "ast_d01ad35f291add6b77e6eb9737e62b69", parent: null, spatiallyLoaded: false, transform: IDENTITY, overrides: {} },
   ];
-  writeFileSync(join(folder, "level.json"), `${JSON.stringify({ schema: "forge.level/1", id: "lvl_0000000000000000000000000000e001", settings: { cellSize: 128 }, actors }, null, 2)}\n`);
+  writeLevel(LEVEL, "lvl_0000000000000000000000000000e001", actors);
 });
 
 async function open(page: Page): Promise<string[]> {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto(`/?editor&level=${encodeURIComponent(LEVEL)}${webgl}`);
-  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
-  return errors;
+  return openEditor(page, { level: LEVEL });
 }
 
-const row = (page: Page, actorId: string): Locator => page.locator(`[data-testid="outliner-row"][data-actor-id="${actorId}"]`);
-const named = (page: Page, name: string): Locator => page.getByTestId("outliner-row").filter({ has: page.locator("strong", { hasText: new RegExp(`^${name}$`) }) });
 const summary = (page: Page) => page.getByTestId("outliner-summary");
 const press = (page: Page, keys: string) => page.locator("body").press(keys);
 

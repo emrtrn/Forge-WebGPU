@@ -15,6 +15,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { join } from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { cubeGlb } from "./glb.ts";
+import { smokeProject, openEditor, writeLevel } from "./support.ts";
 
 const LEVEL = "content/levels/content-smoke";
 const MODEL = "ast_000000000000000000000000000c0001";
@@ -25,20 +26,14 @@ const OPS_LEVEL = "content/levels/ops-smoke";
 const ROCK = "ast_000000000000000000000000000c0004";
 const PAINT = "ast_000000000000000000000000000c0005";
 const MANY = 1500;
-const webgl = process.env.FORGE_EDITOR_WEBGPU === "1" ? "" : "&forceWebGL";
 
 const meta = (id: string, type: string) =>
   `${JSON.stringify({ schema: "forge.assetMeta/1", id, type, license: "CC0-1.0", source: { origin: "content smoke" }, import: {} }, null, 2)}\n`;
 
 test.beforeAll(() => {
-  const project = process.env.FORGE_EDITOR_SMOKE_PROJECT;
-  if (!project) throw new Error("FORGE_EDITOR_SMOKE_PROJECT is not set (the editor smoke config sets it).");
+  const project = smokeProject();
   const at = (path: string): string => join(project, ...path.split("/"));
-  mkdirSync(at(LEVEL), { recursive: true });
-  writeFileSync(
-    at(`${LEVEL}/level.json`),
-    `${JSON.stringify({ schema: "forge.level/1", id: "lvl_0000000000000000000000000000c001", settings: { cellSize: 128 }, actors: [] }, null, 2)}\n`,
-  );
+  writeLevel(LEVEL, "lvl_0000000000000000000000000000c001", []);
   mkdirSync(at("content/props/sub"), { recursive: true });
   writeFileSync(at("content/props/crate.glb"), "glTF");
   writeFileSync(at("content/props/crate.glb.meta.json"), meta(MODEL, "forge.model@2"));
@@ -61,7 +56,6 @@ test.beforeAll(() => {
     at("content/ops-materials/painted.material.json"),
     `${JSON.stringify({ schema: "forge.material/1", id: "ast_000000000000000000000000000c0006", baseColorTexture: PAINT }, null, 2)}\n`,
   );
-  mkdirSync(at(OPS_LEVEL), { recursive: true });
   const rockActor = {
     id: "act_000000000000000000000000000c0001",
     name: "Rock",
@@ -71,20 +65,13 @@ test.beforeAll(() => {
     transform: { p: [0, 0.5, 0], r: [0, 0, 0, 1], s: [1, 1, 1] },
     components: { mesh: { type: "forge.staticMesh@2", parent: null, local: { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] }, mesh: ROCK, materials: [], color: null, castShadow: true } },
   };
-  writeFileSync(
-    at(`${OPS_LEVEL}/level.json`),
-    `${JSON.stringify({ schema: "forge.level/1", id: "lvl_0000000000000000000000000000c002", settings: { cellSize: 128 }, actors: [rockActor] }, null, 2)}\n`,
-  );
+  writeLevel(OPS_LEVEL, "lvl_0000000000000000000000000000c002", [rockActor]);
   mkdirSync(at("content/many"), { recursive: true });
   for (let i = 0; i < MANY; i += 1) writeFileSync(at(`content/many/item${String(i).padStart(4, "0")}.bin`), "x");
 });
 
 async function open(page: Page): Promise<string[]> {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto(`/?editor&level=${encodeURIComponent(LEVEL)}${webgl}`);
-  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
-  return errors;
+  return openEditor(page, { level: LEVEL });
 }
 
 const drawer = (page: Page): Locator => page.locator("[data-content-drawer]");
@@ -229,7 +216,7 @@ test("thumbnails: a model and a material are drawn once, stored in the server's 
 
   // Both stored in the server's cache (the image shows before it is stored).
   const groundId = (await card(page, `${MATERIALS}/Ground.material.json`).getAttribute("data-asset-id"))!;
-  const cached = () => readdirSync(join(process.env.FORGE_EDITOR_SMOKE_PROJECT!, ".forge-cache", "thumbnails"));
+  const cached = () => readdirSync(join(smokeProject(), ".forge-cache", "thumbnails"));
   await expect.poll(() => [CUBE, groundId].every((id) => cached().some((file) => file.startsWith(`${id}-`)))).toBe(true);
 
   // After a reload the server's cache answers: neither is drawn or stored again (the folder's other
@@ -249,13 +236,11 @@ test("thumbnails: a model and a material are drawn once, stored in the server's 
 });
 
 test("operations: rename in place, a delete refused while the level uses it (who uses it is listed), cut / copy / paste, Delete, the open level locked", async ({ page }) => {
-  const project = process.env.FORGE_EDITOR_SMOKE_PROJECT!;
+  const project = smokeProject();
   const onDisk = (path: string): boolean => existsSync(join(project, ...path.split("/")));
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
   page.on("dialog", (dialog) => void dialog.accept());
-  await page.goto(`/?editor&level=${encodeURIComponent(OPS_LEVEL)}${webgl}`);
-  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
+  // The delete the level still uses is refused with a 409 on purpose.
+  const errors = await openEditor(page, { level: OPS_LEVEL, allow: [/^409 POST \/__forge\/content$/] });
   await page.locator("[data-content-toggle]").click();
   await folderRow(page, "content/ops").click();
 
@@ -317,7 +302,7 @@ test("operations: rename in place, a delete refused while the level uses it (who
 });
 
 test("new: a folder, a material from its Metal preset, an actor class, a level with Forge's default actors", async ({ page }) => {
-  const project = process.env.FORGE_EDITOR_SMOKE_PROJECT!;
+  const project = smokeProject();
   const json = (path: string) => JSON.parse(readFileSync(join(project, ...path.split("/")), "utf8")) as Record<string, unknown>;
   const names = ["made", "Steel", "Door", "Fresh"];
   page.on("dialog", (dialog) => void dialog.accept(names.shift()));
@@ -367,11 +352,9 @@ test("new: a folder, a material from its Metal preset, an actor class, a level w
 const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
 
 test("import: the dialog asks the license (Unknown refused) and source, the meta files say them, a GLB is optimised; files dropped from the system import too; reimport keeps the GUID", async ({ page }) => {
-  const project = process.env.FORGE_EDITOR_SMOKE_PROJECT!;
+  const project = smokeProject();
   const disk = (path: string) => join(project, ...path.split("/"));
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await open(page);
+  const errors = await open(page);
   await page.locator("[data-content-toggle]").click();
   await folderRow(page, "content/imp").click();
 
@@ -426,10 +409,8 @@ test("import: the dialog asks the license (Unknown refused) and source, the meta
 });
 
 test("drag into the viewport: a model card places a static mesh (one undo step); a material card dropped on it fills the slot under the pointer", async ({ page }) => {
-  const project = process.env.FORGE_EDITOR_SMOKE_PROJECT!;
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await open(page);
+  const project = smokeProject();
+  const errors = await open(page);
   const canvas = page.locator(".editor-viewport-host canvas");
   const drag = async (source: Locator) => {
     const box = (await canvas.boundingBox())!;
@@ -479,13 +460,10 @@ test("drag into the viewport: a model card places a static mesh (one undo step);
 });
 
 test("Ctrl + B and Details' Browse To show the asset; Use Selected takes the browser's selection; Open Level opens another; Set as Start Level writes the manifest", async ({ page }) => {
-  const project = process.env.FORGE_EDITOR_SMOKE_PROJECT!;
+  const project = smokeProject();
   const manifest = () => JSON.parse(readFileSync(join(project, "forge.project.json"), "utf8")) as { startLevel: string };
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
   page.on("dialog", (dialog) => void dialog.accept());
-  await page.goto(`/?editor&level=${encodeURIComponent(OPS_LEVEL)}${webgl}`);
-  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
+  const errors = await openEditor(page, { level: OPS_LEVEL });
   await page.locator('[data-testid="outliner-row"]').first().click();
 
   // Ctrl + B: the Rock actor's model, wherever its file is now.

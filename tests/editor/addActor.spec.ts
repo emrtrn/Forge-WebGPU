@@ -5,31 +5,19 @@
 // the viewport placing on the drop, each one undo step. The level is written
 // into this run's temporary project copy (D14).
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { named, openEditor, writeLevel } from "./support.ts";
 
 const LEVEL = "content/levels/add-actor-smoke";
-const webgl = process.env.FORGE_EDITOR_WEBGPU === "1" ? "" : "&forceWebGL";
 
 test.beforeAll(() => {
-  const project = process.env.FORGE_EDITOR_SMOKE_PROJECT;
-  if (!project) throw new Error("FORGE_EDITOR_SMOKE_PROJECT is not set (the editor smoke config sets it).");
-  const folder = join(project, ...LEVEL.split("/"));
-  mkdirSync(folder, { recursive: true });
-  writeFileSync(join(folder, "level.json"), `${JSON.stringify({ schema: "forge.level/1", id: "lvl_0000000000000000000000000000f001", settings: { cellSize: 128 }, actors: [] }, null, 2)}\n`);
+  writeLevel(LEVEL, "lvl_0000000000000000000000000000f001", []);
 });
 
 async function open(page: Page): Promise<string[]> {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto(`/?editor&level=${encodeURIComponent(LEVEL)}${webgl}`);
-  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
-  await expect(page.getByTestId("forge-canvas")).toHaveAttribute("data-forge-ready", "1", { timeout: 60_000 });
-  return errors;
+  return openEditor(page, { level: LEVEL, drawn: true });
 }
 
-const named = (page: Page, name: string): Locator => page.getByTestId("outliner-row").filter({ has: page.locator("strong", { hasText: new RegExp(`^${name}$`) }) });
 /** Opens the hover menu and a category's flyout. */
 async function category(page: Page, label: string): Promise<void> {
   await page.getByTestId("add-actor-button").hover();
@@ -101,5 +89,30 @@ test("a drag into the viewport places on the drop, one undo step", async ({ page
   await undo(page);
   await expect(page.getByTestId("outliner-summary")).toHaveText("0 actors (0 selected)");
   await expect(page.getByTestId("editor-undo")).toBeDisabled();
+  expect(errors).toEqual([]);
+});
+
+// Forge's add-actor-menu smoke: in a narrow window the menu stays open while the pointer travels
+// from the button to a category and on into its flyout, and the entry there places.
+test("a narrow window: the menu stays open from the button to a category's flyout, and the entry places", async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 700 });
+  const errors = await open(page);
+  const centre = async (locator: Locator): Promise<[number, number]> => {
+    const box = (await locator.boundingBox())!;
+    return [box.x + box.width / 2, box.y + box.height / 2];
+  };
+  await page.getByTestId("add-actor-button").hover();
+  const label = page.locator(".add-actor-category-label", { hasText: "Shapes" });
+  await expect(label).toBeVisible();
+  const [lx, ly] = await centre(label);
+  await page.mouse.move(lx, ly, { steps: 12 });
+  const cube = page.getByTestId("add-shape-cube");
+  await expect(cube).toBeVisible();
+  const [cx, cy] = await centre(cube);
+  expect(cx).toBeLessThan(1100);
+  await page.mouse.move(cx, cy, { steps: 12 });
+  await expect(cube).toBeVisible();
+  await page.mouse.click(cx, cy);
+  await expect(named(page, "Cube")).toHaveClass(/active/);
   expect(errors).toEqual([]);
 });
