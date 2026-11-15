@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.24 · 2026-11-14 (kullanıcı kararı: WES + prosedürel bitki ortak sözleşmesi; bitki ailesi, tekil aktör / foliage eşitliği, zaman / mevsim / örtü sahipliği ve 5c bağı; yalnız plan, uygulama yok). v1.23 · 2026-11-14 (v1.22’den fark: §4.3 assetEditors / assetPreviews sözleşmeleri (SDK 0.1.10); §4.11 A13 uygulaması — ortak asset oturumu ve sanal tablo, tek canvas / GPU önizlemesi, sınıf uyumluluk koruması ve kaynak nesli yönetimi). v1.22 · 2026-11-14 (v1.21’den fark: §4.8 motor içeriği kipinin uygulaması — kayıtlı kökler için ayrı kayıt politikası, Content Browser ve level kayıt yönlendirmesi, etiketli 409 / hücre dizini yolları, sınıf tazeleme ve geçici içerikle kabul). v1.21 · 2026-11-14 (v1.20'den fark: §4.3 bir özelliğin editör tarafı `defineFeatureEditor` (Outliner görünüşü, Add Actor girişleri, Details eklentileri; SDK 0.1.5–0.1.7); §4.4 aktörün editöre özgü `locked`'u (kullanıcı kararı); §4.7 paneller: gizleme yalnız görünüm, Details'in şemadan formu ve override'ları, düzenleme işlemleri, gruplama ve pano (kullanıcı kararları 2026-11-14).
+**Sürüm:** v1.25 · 2026-11-15 (v1.24’ten fark: §4.6 Play uçları ve 409 akışının uygulaması — alan düzeyinde üç yönlü birleştirme, oturum tabanı, `compare` / `rebase`, Reload ve birleştirme undo geçmişini temizler (kullanıcı kararları); §4.7 Play oturum katmanının uygulaması). v1.24 · 2026-11-14 (kullanıcı kararı: WES + prosedürel bitki ortak sözleşmesi; bitki ailesi, tekil aktör / foliage eşitliği, zaman / mevsim / örtü sahipliği ve 5c bağı; yalnız plan, uygulama yok). v1.23 · 2026-11-14 (v1.22’den fark: §4.3 assetEditors / assetPreviews sözleşmeleri (SDK 0.1.10); §4.11 A13 uygulaması — ortak asset oturumu ve sanal tablo, tek canvas / GPU önizlemesi, sınıf uyumluluk koruması ve kaynak nesli yönetimi). v1.22 · 2026-11-14 (v1.21’den fark: §4.8 motor içeriği kipinin uygulaması — kayıtlı kökler için ayrı kayıt politikası, Content Browser ve level kayıt yönlendirmesi, etiketli 409 / hücre dizini yolları, sınıf tazeleme ve geçici içerikle kabul). v1.21 · 2026-11-14 (v1.20'den fark: §4.3 bir özelliğin editör tarafı `defineFeatureEditor` (Outliner görünüşü, Add Actor girişleri, Details eklentileri; SDK 0.1.5–0.1.7); §4.4 aktörün editöre özgü `locked`'u (kullanıcı kararı); §4.7 paneller: gizleme yalnız görünüm, Details'in şemadan formu ve override'ları, düzenleme işlemleri, gruplama ve pano (kullanıcı kararları 2026-11-14).
 v1.20 · 2026-11-14 (v1.19'dan fark: §4.4 aktörün editöre özgü `pivot`'u (kullanıcı kararı); §4.7 gizmo'nun uygulaması (three'siz sürükleme, tek transaction, instancing hızlı yolu); §4.9 gizmo katmanın son pass'i.
 v1.19 · 2026-11-14 (v1.18'den fark: §4.2 editör yardımcı bağlamaları (`defineEditorRenderBinding`, `forge.editorHelpers`); §4.9 çizim katmanının uygulaması (sahne derinliği, derinlik ön geçişi, ton eşlemesiz bileşim) ve picking etiketleri.
 v1.18 · 2026-11-13 (v1.17'den fark: §4.8 build'in uygulaması (kullanıcı kararı: Faz 4): statik içerik, `ContentClient`, alt dizin.
@@ -892,7 +892,10 @@ düşen alan uyarı değil, **hatadır**.
     gövde → `.forge-staging/<id>`, sunucu yeniden başlayınca silinir; kayıt
     yalnız kimliği verir, yolu değil), `GET /__forge/read` (dosya +
     `X-Forge-Revision`). Gövde sınırı 64 MB. Durumlar: 200, 409, 403 yol,
-    400 istek, 413 boyut, 422 belge.
+    400 istek, 413 boyut, 422 belge. *Play (Faz 4 adım 8):* `POST /__forge/play`
+    (level'ın kirli dosyaları, kayıtla aynı belge denetimi, kanonik metin; yalnız o
+    level'ın `level.json` ve hücreleri), `GET /__forge/play?id=` (level, kamera),
+    `GET /__forge/read?…&play=<id>` (önce katman; bilinmeyen oturum 410).
   - *Yalıtım:* yazma yalnız yazılabilir köklerde (varsayılan `content/`);
     `tests/fixtures/` ve `samples/` yapılandırmadan bağımsız salt okunur (A9);
     `.` ile başlayan adlar yazılmaz; proje kökünden kaçış, mutlak yol ve
@@ -909,6 +912,18 @@ düşen alan uyarı değil, **hatadır**.
     bir hücreye yazılacaksa plan `needs-load` döner; kirli hücre
     boşaltılmaz. Editör servisleri (`TransactionService`, `SaveService`) ve
     "yeniden yükle / karşılaştır" arayüzü Faz 4'te bu modelin üstüne gelir.
+  - *409 akışı (Faz 4 adım 8, kullanıcı kararları 2026-11-15):* oturum her aktörün
+    tabanını (okunan ya da son kaydedilen belge) tutar. `compare` diskteki level'ı tabana
+    karşı okur, `rebase` onu alır: Reload oturumun değişikliklerini atar, birleştirme
+    (`core/edit/merge.ts`) onları diskin level'ının üstünde kaydedilmemiş tutar. Birleştirme
+    alan düzeyindedir: nesneler anahtar anahtar, diziler ve yapraklar bütün; bileşenler ve
+    override'lar yerel kimlikli map olduğundan bileşen bazında eşleşir. Yalnız bir tarafın
+    değiştirdiği yer o taraftan gelir; iki taraf aynı yeri farklı değiştirdiyse (silme dahil)
+    çakışmadır, aktör başına Mine / Theirs seçilir. Sıra diskin, oturumun yeni aktörleri
+    sonra. Ebeveyni kaybolan birleşme reddedilir. Reload ve birleştirme undo geçmişini
+    temizler (adımların "önce"si artık diske uymaz). Asset editörü aynı birleştirmeyi
+    belgesine uygular (alan başına seçim). Editörde 409 şerit açar (Compare… / Reload);
+    adım 9'un canlı tazelenmesi aynı yolu kullanır.
 
 ### 4.7 Uygulama kabuğu (SceneApp / RuntimeSceneApp yerine)
 
@@ -977,7 +992,13 @@ düşen alan uyarı değil, **hatadır**.
   - *Play (A6'nın yolu):* dev server'da geçici oturum katmanı `.forge-session/<id>/`;
     editör yalnız kirli dosyaları oraya yazar, oyun sekmesi `?play=<id>` ile level'ı
     diskten bu katmanla okur. Play proje dosyalarına yazmaz; sekme yeniden yüklenince
-    de çalışır.
+    de çalışır. *Uygulama (adım 8, 2026-11-15; kullanıcı kararları: yalnız açık level'ın
+    kirli dosyaları, salt okunur projede de çalışır):* katman `tools/server/playSessions.ts`
+    (kayıt denetimi, katman + diskten hücre dizini, oturum sunucu açılışında silinir, en
+    fazla 8), editör sekmesi başına tek oturum (her Play onu değiştirir, yeni sekme
+    `noopener` ile açılır: kendi süreci ve GPU cihazı), oyun `?play=<id>` ile level'ı ve
+    editörün perspektif kamera pozunu oturumdan alır. Asset taslakları Play'e girmez
+    (asset penceresi modal; kapanış kaydeder ya da atar).
 - **Oyun uygulaması:** boot + World + GameModuleHost + UI; boot hataları
   renderer kurulmadan önce de gösterilir (F10).
 - **Editör Play:** v1'de bugünkü gibi yeni sekme (karar A6). Tek kurucu, editör

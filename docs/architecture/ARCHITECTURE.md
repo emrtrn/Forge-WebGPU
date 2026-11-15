@@ -118,7 +118,11 @@ ikililerin içe aktarma ayarlarıyla, JSON asset'ler dahil);
 yalnız localhost ve `X-Forge-Request: 1`. Yazma yalnız
 projenin içerik köklerine; `samples/`, `tests/fixtures/` ve motor içeriği salt
 okunur. İstemci tarafı `src/core/edit`: işlem / undo, sürümlü kirli takibi,
-level oturumu (rapor §4.6).
+level oturumu (rapor §4.6). 409'da editör diskteki level'ı oturumun tabanına karşı
+alan düzeyinde birleştirir (`core/edit/merge.ts`, Compare / Reload; asset editörü de).
+Editörün Play'i kaydetmez: kirli level dosyaları `/__forge/play` ile
+`.forge-session/<id>/` katmanına gider, oyun `?play=<id>` ile katmandan okur
+(rapor §4.6, §4.7, A6).
 
 ## Uygulama kabuğu
 
