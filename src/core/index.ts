@@ -16,6 +16,7 @@ export * from "./edit/contentProtocol.ts";
 export * from "./edit/assetPreviewProtocol.ts";
 export * from "./edit/history.ts";
 export * from "./edit/levelSession.ts";
+export * from "./edit/merge.ts";
 export * from "./edit/saveClient.ts";
 export * from "./edit/saveProtocol.ts";
 export * from "./feature.ts";

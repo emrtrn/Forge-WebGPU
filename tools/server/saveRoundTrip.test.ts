@@ -14,6 +14,7 @@ import {
   createSaveClient,
   normalizeActorClass,
   openLevelFromServer,
+  readLevelFromServer,
   saveLevelSession,
   type ActorClassDoc,
   type ActorDoc,
@@ -102,6 +103,26 @@ describe("save round trip", () => {
     expect(reopened.actor(MESH_ACTOR)?.transform.p).toEqual([10, 0, 10]);
     moveTo(reopened, MESH_ACTOR, 20, 20);
     expect(await saveLevelSession(reopened, client)).toMatchObject({ response: { status: "saved" } });
+    expect(await gateIssues()).toEqual([]);
+  });
+
+  test("a 409, then a merge with the disk (step 8): the next save writes both sessions' changes", async () => {
+    const first = await open();
+    const second = await open();
+    moveTo(first, MESH_ACTOR, 10, 10);
+    const renamed = structuredClone(second.actor(MESH_ACTOR as ActorDoc["id"])!);
+    renamed.name = "Renamed elsewhere";
+    second.edit("Rename", (tx) => tx.setActor(renamed));
+    expect(await saveLevelSession(second, client)).toMatchObject({ response: { status: "saved" } });
+    expect(await saveLevelSession(first, client)).toMatchObject({ response: { status: "conflict" } });
+
+    const disk = await readLevelFromServer(client, FOLDER, options);
+    const { merge } = first.compare(disk.open);
+    expect(merge.conflicts).toEqual([]);
+    expect(first.rebase(disk.open, { mode: "merge" }).ok).toBe(true);
+    expect(await saveLevelSession(first, client)).toMatchObject({ response: { status: "saved" } });
+    const reopened = await open();
+    expect(reopened.actor(MESH_ACTOR as ActorDoc["id"])).toMatchObject({ name: "Renamed elsewhere", transform: { p: [10, 0, 10] } });
     expect(await gateIssues()).toEqual([]);
   });
 

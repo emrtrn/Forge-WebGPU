@@ -40,6 +40,8 @@ export interface History {
   takeRedo(): Transaction | undefined;
   /** Ends coalescing: the next transaction starts a new undo step even with the same key. */
   seal(): void;
+  /** Forgets every step (the level was read again from disk: the steps' "before" no longer holds). */
+  clear(): void;
 }
 
 /** One change per actor: the first before, the last after. Changes that cancel out are kept (they still dirty the actor). */
@@ -84,6 +86,11 @@ export function createHistory(limit = DEFAULT_HISTORY_LIMIT): History {
       return transaction;
     },
     seal() {
+      sealed = true;
+    },
+    clear() {
+      undo.length = 0;
+      redo.length = 0;
       sealed = true;
     },
   };

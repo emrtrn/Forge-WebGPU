@@ -10,7 +10,7 @@ import { CELL_INDEX_FILE, cellFileOf, LEVEL_FILE, normalizeLevelCell, normalizeL
 import type { CellAssignOptions } from "../level/cells.ts";
 import type { LevelPartIssue } from "../level/levelParts.ts";
 import { normalizeLevel } from "../level/normalizeLevel.ts";
-import { openLevelSession, type LevelSession, type LoadedCell, type SavePlan } from "./levelSession.ts";
+import { openLevelSession, type LevelSession, type LoadedCell, type OpenLevelOptions, type SavePlan } from "./levelSession.ts";
 import {
   FORGE_REQUEST_HEADER,
   type ForgeIdentity,
@@ -173,6 +173,14 @@ export interface OpenedLevel {
   readonly cells: readonly string[];
 }
 
+/** A level folder as read from the server: what a session opens with (or rebases onto, step 8). */
+export interface ReadLevel {
+  readonly open: OpenLevelOptions;
+  readonly issues: readonly LevelPartIssue[];
+  /** Every cell the index lists (loaded or not). */
+  readonly cells: readonly string[];
+}
+
 /**
  * Opens a level folder through the server. `pick` chooses the cells to load
  * from those the index lists (all by default; the editor loads around the
@@ -184,6 +192,17 @@ export async function openLevelFromServer(
   options: CellAssignOptions,
   pick: (cells: readonly string[]) => readonly string[] = (cells) => cells,
 ): Promise<OpenedLevel> {
+  const read = await readLevelFromServer(client, folder, options, pick);
+  return { session: openLevelSession(read.open, options), issues: read.issues, cells: read.cells };
+}
+
+/** Reads a level folder through the server with each file's revision (`openLevelFromServer` without the session). */
+export async function readLevelFromServer(
+  client: ContentClient,
+  folder: string,
+  options: CellAssignOptions,
+  pick: (cells: readonly string[]) => readonly string[] = (cells) => cells,
+): Promise<ReadLevel> {
   const at = (relative: string) => `${folder}/${relative}`;
   const levelFile = await client.read(at(LEVEL_FILE));
   if (!levelFile) throw new SaveClientError(404, `No level at ${folder}.`);
@@ -203,11 +222,7 @@ export async function openLevelFromServer(
     for (const found of cell.issues) issues.push({ ...found, file: cellFileOf(key) });
     if (cell.value) cells.push({ doc: cell.value, revision: file.revision });
   }
-  const session = openLevelSession(
-    { folder, persistent: persistent.value, persistentRevision: levelFile.revision, index, cells },
-    options,
-  );
-  return { session, issues, cells: listed };
+  return { open: { folder, persistent: persistent.value, persistentRevision: levelFile.revision, index, cells }, issues, cells: listed };
 }
 
 export type LevelSaveOutcome =

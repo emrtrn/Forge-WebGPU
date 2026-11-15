@@ -14,15 +14,25 @@
 // also ties the two cells of a misplaced actor), `planLevelFiles` gives their
 // text. A part to write that is not loaded stops the plan (`needs-load`). A
 // dirty cell cannot be unloaded.
+//
+// The base (plan phase 4 step 8): every actor as the session read or last
+// saved it, the merge base when a save meets a 409. `compare` reads the level
+// on disk against it (merge.ts); `rebase` takes the disk's level, either
+// dropping this session's changes (Reload) or keeping them over the disk's
+// (merge, each conflict by a pick). Both clear the undo history (user
+// decision 2026-11-15: a step's "before" no longer holds) and announce the
+// actors that changed with the cause "reload".
 
 import type { ActorId } from "../id.ts";
 import { cellFileOf, CELL_INDEX_FILE, LEVEL_FILE } from "../level/cellDocs.ts";
 import { assignCells, type CellAssignment, type CellAssignOptions } from "../level/cells.ts";
 import { mergeLevelParts, partsToWrite, planLevelFiles, type LevelPartIssue, type PartKey } from "../level/levelParts.ts";
 import type { ActorDoc, LevelCellDoc, LevelCellIndexDoc, LevelDoc } from "../level/model.ts";
-import { normalizeActorDoc } from "../level/normalizeLevel.ts";
+import { normalizeActorDoc, normalizeLevel } from "../level/normalizeLevel.ts";
+import type { LevelSettings } from "../level/settings.ts";
 import type { Issue } from "../schema/issues.ts";
 import { createHistory, type ActorChange, type History, type Transaction } from "./history.ts";
+import { jsonEqual, planLevelMerge, type LevelMerge, type MergeKey, type MergeSide } from "./merge.ts";
 import type { SaveRequestBody, SaveResponseBody } from "./saveProtocol.ts";
 
 export interface LoadedCell {
@@ -73,7 +83,17 @@ export type SavePlan =
       readonly parts: ReadonlyMap<string, PartKey>;
       /** Part -> the actors written into it. */
       readonly written: ReadonlyMap<PartKey, readonly ActorId[]>;
+      /** Actor -> what this save sends of it (null: removed); the base once saved. */
+      readonly docs: ReadonlyMap<ActorId, ActorDoc | null>;
     };
+
+/** How `rebase` takes the level on disk. */
+export type RebaseMode =
+  | { readonly mode: "reload" }
+  | { readonly mode: "merge"; readonly pick?: (key: MergeKey) => MergeSide };
+
+/** Why an edit, undo, redo or rebase changed the level. */
+export type ApplyCause = "edit" | "undo" | "redo" | "reload";
 
 export interface LevelSession {
   readonly folder: string;
@@ -96,9 +116,20 @@ export interface LevelSession {
    * order applied; the editor mirrors them into its world. Returns the
    * unsubscribe.
    */
-  onApplied(listener: (changes: readonly AppliedChange[], cause: "edit" | "undo" | "redo") => void): () => void;
+  onApplied(listener: (changes: readonly AppliedChange[], cause: ApplyCause) => void): () => void;
   /** Applies the server's answer to a plan. Only a saved answer changes the session. */
   applySaveResult(plan: Extract<SavePlan, { status: "ready" }>, response: SaveResponseBody): void;
+  /** The actor as last read or saved (the merge base); undefined when the disk did not have it. */
+  baseActor(id: ActorId): ActorDoc | undefined;
+  /** This session against the level on disk (read whole, every cell): what merges by itself and what conflicts. */
+  compare(disk: OpenLevelOptions): { readonly merge: LevelMerge; readonly issues: readonly LevelPartIssue[] };
+  /**
+   * Takes the level on disk (read whole): its revisions and files become the
+   * session's. Reload drops this session's changes; merge keeps them (each
+   * conflict by `pick`, default mine) and they stay unsaved. Refused, with
+   * nothing changed, when the merged level does not check.
+   */
+  rebase(disk: OpenLevelOptions, how: RebaseMode): EditResult;
 }
 
 export function openLevelSession(open: OpenLevelOptions, options: CellAssignOptions): LevelSession {
@@ -106,6 +137,9 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
   const pathOf = (key: PartKey): string => `${folder}/${key === null ? LEVEL_FILE : cellFileOf(key)}`;
   const merged = mergeLevelParts(open.persistent, (open.cells ?? []).map((cell) => cell.doc), options);
   const level = merged.value.level;
+  /** Each actor as read or last saved; documents are never changed in place, so this holds references. */
+  const base = new Map<ActorId, ActorDoc>(level.actors.map((actor) => [actor.id, actor]));
+  let baseSettings: LevelSettings = structuredClone(level.settings);
   /** Id -> actor: lookups stay constant-time at 50.000 actors (the Outliner, Details and the selection ask often). */
   const byId = new Map<ActorId, ActorDoc>(level.actors.map((actor) => [actor.id, actor]));
   const fileOf = new Map(merged.value.fileOf);
@@ -141,7 +175,7 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
     versions.set(id, clock);
   };
 
-  const listeners = new Set<(changes: readonly AppliedChange[], cause: "edit" | "undo" | "redo") => void>();
+  const listeners = new Set<(changes: readonly AppliedChange[], cause: ApplyCause) => void>();
   /** Applies changes; returns them as applied. Listeners hear them once the history is up to date (`announce`). */
   const applyChanges = (changes: readonly ActorChange[], direction: "forward" | "back"): AppliedChange[] => {
     const ordered = direction === "forward" ? changes : [...changes].reverse();
@@ -154,7 +188,7 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
     }
     return applied;
   };
-  const announce = (applied: readonly AppliedChange[], cause: "edit" | "undo" | "redo"): void => {
+  const announce = (applied: readonly AppliedChange[], cause: ApplyCause): void => {
     for (const listener of [...listeners]) listener(applied, cause);
   };
 
@@ -279,6 +313,7 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
         }
         level.actors.push(actor);
         byId.set(actor.id, actor);
+        base.set(actor.id, actor);
         fileOf.set(actor.id, result.value.fileOf.get(actor.id) ?? null);
       }
       for (const cell of fresh) {
@@ -303,6 +338,7 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
         if (fileOf.get(id) === cell) {
           level.actors.splice(index, 1);
           byId.delete(id);
+          base.delete(id);
           fileOf.delete(id);
           versions.delete(id);
           saved.delete(id);
@@ -342,8 +378,12 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
         if (base !== undefined) deletes.push({ path, base });
       }
       const sent = new Map<ActorId, number>();
-      for (const id of dirty) sent.set(id, versions.get(id)!);
-      return { status: "ready", request: { writes, deletes }, versions: sent, parts: pathParts, written };
+      const docs = new Map<ActorId, ActorDoc | null>();
+      for (const id of dirty) {
+        sent.set(id, versions.get(id)!);
+        docs.set(id, byId.get(id) ?? null);
+      }
+      return { status: "ready", request: { writes, deletes }, versions: sent, parts: pathParts, written, docs };
     },
 
     applySaveResult(plan, response) {
@@ -369,7 +409,101 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
       for (const [id, part] of [...fileOf]) if (touched.has(part)) fileOf.delete(id);
       for (const key of touched) for (const id of plan.written.get(key) ?? []) fileOf.set(id, key);
       for (const [id, version] of plan.versions) saved.set(id, version);
+      for (const [id, doc] of plan.docs) {
+        if (doc === null) base.delete(id);
+        else base.set(id, doc);
+      }
       history.seal();
+    },
+
+    baseActor: (id) => base.get(id),
+
+    compare(disk) {
+      const theirs = mergeLevelParts(disk.persistent, (disk.cells ?? []).map((cell) => cell.doc), options);
+      return { merge: planLevelMerge({ base: { settings: baseSettings, actors: base }, mine: level, theirs: theirs.value.level }), issues: theirs.issues };
+    },
+
+    rebase(disk, how) {
+      const theirs = mergeLevelParts(disk.persistent, (disk.cells ?? []).map((cell) => cell.doc), options).value;
+      const theirsById = new Map<ActorId, ActorDoc>(theirs.level.actors.map((actor) => [actor.id, actor]));
+      const issues: Issue[] = [];
+      let nextActors: ActorDoc[];
+      let nextSettings: LevelSettings;
+      if (how.mode === "reload") {
+        nextActors = theirs.level.actors;
+        nextSettings = theirs.level.settings;
+      } else {
+        const resolved = planLevelMerge({ base: { settings: baseSettings, actors: base }, mine: level, theirs: theirs.level }).resolve(how.pick);
+        const checkedLevel = normalizeLevel({ schema: level.schema, id: level.id, settings: resolved.settings, actors: [] }, options);
+        for (const found of checkedLevel.issues) issues.push({ ...found, path: found.path === "" ? "settings" : found.path });
+        nextSettings = checkedLevel.value?.settings ?? theirs.level.settings;
+        nextActors = [];
+        for (const raw of resolved.actors) {
+          const result = normalizeActorDoc(raw, options);
+          const id = (raw as { id?: string }).id ?? "actor";
+          for (const found of result.issues) issues.push({ ...found, path: found.path === "" ? id : `${id}.${found.path}` });
+          if (!result.value) continue;
+          // An actor the disk has as it is keeps the disk's document.
+          const same = theirsById.get(result.value.id);
+          nextActors.push(same && jsonEqual(same, result.value) ? same : result.value);
+        }
+        // Every parent is in the merged level, and no cycle.
+        const nextById = new Map(nextActors.map((actor) => [actor.id, actor]));
+        for (const actor of nextActors) {
+          if (actor.parent === null) continue;
+          const seen = new Set<ActorId>([actor.id]);
+          for (let at: ActorId | null = actor.parent; at !== null; at = nextById.get(at)?.parent ?? null) {
+            if (!nextById.has(at)) {
+              issues.push({ code: "invalid-parent", severity: "error", path: `${actor.id}.parent`, message: `Actor ${at} is not in the merged level (removed on one side).` });
+              break;
+            }
+            if (seen.has(at)) {
+              issues.push({ code: "invalid-parent", severity: "error", path: `${actor.id}.parent`, message: `The merged parents of ${actor.id} make a cycle.` });
+              break;
+            }
+            seen.add(at);
+          }
+        }
+        if (issues.some((found) => found.severity === "error")) return { ok: false, issues };
+      }
+
+      const before = new Map(byId);
+      level.actors.splice(0, level.actors.length, ...nextActors);
+      level.settings = structuredClone(nextSettings);
+      byId.clear();
+      for (const actor of nextActors) byId.set(actor.id, actor);
+      fileOf.clear();
+      for (const [id, key] of theirs.fileOf) fileOf.set(id, key);
+      loaded.clear();
+      for (const cell of theirs.cells) loaded.add(cell);
+      onDisk.clear();
+      for (const cell of Object.keys(disk.index?.cells ?? {})) onDisk.add(cell);
+      revisions.clear();
+      if (disk.persistentRevision !== null) revisions.set(null, disk.persistentRevision);
+      for (const cell of disk.cells ?? []) if (loaded.has(cell.doc.cell)) revisions.set(cell.doc.cell, cell.revision);
+      base.clear();
+      for (const actor of theirs.level.actors) base.set(actor.id, actor);
+      baseSettings = structuredClone(theirs.level.settings);
+      // Dirty: what differs from the disk (a merge's own changes, and its removals).
+      versions.clear();
+      saved.clear();
+      for (const id of new Set([...byId.keys(), ...theirsById.keys()])) {
+        const now = byId.get(id);
+        const disked = theirsById.get(id);
+        if (now === disked || (now !== undefined && disked !== undefined && jsonEqual(now, disked))) continue;
+        clock += 1;
+        versions.set(id, clock);
+      }
+      history.clear();
+      const applied: AppliedChange[] = [];
+      for (const id of new Set([...before.keys(), ...byId.keys()])) {
+        const was = before.get(id) ?? null;
+        const now = byId.get(id) ?? null;
+        if (was === now || (was !== null && now !== null && jsonEqual(was, now))) continue;
+        applied.push({ id, before: was, after: now });
+      }
+      announce(applied, "reload");
+      return { ok: true, issues };
     },
 
     onApplied(listener) {
