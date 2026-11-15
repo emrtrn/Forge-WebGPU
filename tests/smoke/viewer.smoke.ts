@@ -4,39 +4,15 @@
 // (ambient occlusion and grain noise), so a change must stand well clear of
 // the difference between two still frames. The image itself is not compared.
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { SMOKE_SCENES } from "./renderScenes.ts";
-import { openSmokeLevel } from "./smokePage.ts";
+import { difference, openSmokeLevel } from "./smokePage.ts";
 
 const L03 = SMOKE_SCENES.find((scene) => scene.id === "l03")!;
 /** A camera change differs from a still frame at least this many times the still noise, and by this much (0 - 255). */
 const NOISE_FACTOR = 4;
 const MIN_CHANGE = 1;
 
-/** Mean absolute luminance difference of two PNG shots, 0 - 255. */
-async function difference(page: Page, a: Buffer, b: Buffer): Promise<number> {
-  return page.evaluate(async ([first, second]) => {
-    const pixels = async (base64: string) => {
-      const image = new Image();
-      image.src = `data:image/png;base64,${base64}`;
-      await image.decode();
-      const canvas = document.createElement("canvas");
-      canvas.width = image.width;
-      canvas.height = image.height;
-      const context = canvas.getContext("2d")!;
-      context.drawImage(image, 0, 0);
-      return context.getImageData(0, 0, image.width, image.height).data;
-    };
-    const [x, y] = [await pixels(first), await pixels(second)];
-    let sum = 0;
-    for (let index = 0; index < x.length; index += 4) {
-      const lx = 0.2126 * x[index]! + 0.7152 * x[index + 1]! + 0.0722 * x[index + 2]!;
-      const ly = 0.2126 * y[index]! + 0.7152 * y[index + 1]! + 0.0722 * y[index + 2]!;
-      sum += Math.abs(lx - ly);
-    }
-    return sum / (x.length / 4);
-  }, [a.toString("base64"), b.toString("base64")] as const);
-}
 
 test("viewer camera: W moves the view, a right-drag turns it", async ({ page }) => {
   const pageErrors: string[] = [];

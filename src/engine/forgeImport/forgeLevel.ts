@@ -55,6 +55,7 @@ import {
   fieldPhase,
 } from "./fields.ts";
 import { environmentActors } from "./environment.ts";
+import { puddleActors } from "./puddles.ts";
 import { forgeLevelId, stableHex } from "./ids.ts";
 import { forgeLightSources, LIGHT_FIELD_PHASES, lightActors } from "./lights.ts";
 import {
@@ -103,6 +104,8 @@ export interface ForgeLevelOptions {
    * each. Null when unknown: the override is reported, not converted.
    */
   readonly materialSlotCount?: (forgeAssetId: string) => number | null;
+  /** GUID of the `forge.texture` a Forge texture id names; null when the target has none (reported). */
+  readonly textureAsset?: (forgeTextureId: string) => string | null;
 }
 
 export interface ImportedTerrain {
@@ -134,6 +137,8 @@ export interface ForgeLevelReport {
     readonly lights: number;
     /** Sky Atmosphere, Sky Light, Cloud Layer, World Environment and Post Process singletons. */
     readonly environment: number;
+    /** Puddle actors (`puddleWaters`, phase 5a step 6). */
+    readonly puddles: number;
     readonly sourceCells: number;
     /** Forge's level-wide static shadow switch, as resolved into the placements that do not say. */
     readonly staticCastShadow: boolean;
@@ -344,6 +349,10 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
   for (const [type, count] of lights.unknownTypes) note(`lights[type=${type}]`, count, "?");
   for (const [field, count] of lights.unread) note(`lights[].${field}`, count, fieldPhase(LIGHT_FIELD_PHASES, field));
 
+  const puddles = puddleActors(arrayOf(layout.puddleWaters), actorId, options.textureAsset);
+  actors.push(...puddles.actors);
+  for (const entry of puddles.notes) note(entry.field, entry.count, entry.phase);
+
   noteLevelFields(layout);
   place(placementGroups(layout.instances, input.path), "");
   for (const cell of input.cells) {
@@ -359,7 +368,7 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
       source: input.path,
       name: typeof layout.name === "string" ? layout.name : "",
       converted: {
-        ...counts, actors: actors.length, terrains: terrains.length, heightFog, lights: lights.actors.length, environment: environment.actors.length, sourceCells: input.cells.length, staticCastShadow,
+        ...counts, actors: actors.length, terrains: terrains.length, heightFog, lights: lights.actors.length, environment: environment.actors.length, puddles: puddles.actors.length, sourceCells: input.cells.length, staticCastShadow,
       },
       notConverted: [...fields].map(([field, { count, phase }]) => ({ field, count, phase }))
         .sort((a, b) => a.field.localeCompare(b.field)),

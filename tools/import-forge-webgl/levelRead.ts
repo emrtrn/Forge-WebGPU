@@ -9,6 +9,7 @@
 
 import { isJsonObject, type JsonObject } from "../../src/core/index.ts";
 import type { ForgeLevelInput } from "../../src/engine/forgeImport/forgeLevel.ts";
+import { PUDDLE_WIND_NORMAL } from "../../src/engine/terrain/puddleWater.ts";
 import type { ForgeSource } from "./forgeSource.ts";
 
 const LEVEL_SUFFIX = ".level.json";
@@ -92,6 +93,8 @@ export async function readForgeLevel(source: ForgeSource, path: string): Promise
   const base = path.slice(0, -LEVEL_SUFFIX.length);
   const stem = base.slice(base.lastIndexOf("/") + 1);
   const seeds: string[] = [...modelIds(layout)];
+  // Forge's puddles all read its water normal (the component's Wind Normal).
+  if (Array.isArray(layout.puddleWaters) && layout.puddleWaters.length > 0) seeds.push(PUDDLE_WIND_NORMAL);
 
   const cells: Array<{ key: string; doc: unknown }> = [];
   for (const key of Array.isArray(layout.worldCells) ? layout.worldCells : []) {

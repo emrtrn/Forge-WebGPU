@@ -315,6 +315,10 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
               }
               return next.doc;
             }),
+          target: () => {
+            const first = targets()[0];
+            return first ? { actor: first.doc.id, key: section.id } : null;
+          },
           service: (key) => editor.world.services.get(key),
           onFrame: (listener) => {
             const stop = options.onFrame(listener);

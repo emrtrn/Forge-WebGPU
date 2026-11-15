@@ -43,6 +43,22 @@ test("a click places at the middle of the viewport: a cube's base on the ground,
   expect(errors).toEqual([]);
 });
 
+test("a puddle: placed 5 cm above the drop, its Details from the schema with the fill's outcome below", async ({ page }) => {
+  const errors = await open(page);
+  await category(page, "Visual Effects");
+  await page.locator('[data-add-key="forge.puddle"]').first().click();
+  await expect(named(page, "Puddle")).toHaveClass(/active/);
+  await expect(page.getByTestId("detail-transform.p[1]")).toHaveValue("0.05");
+  const section = page.getByTestId("detail-component-puddle");
+  await expect(section).toContainText("Working Area (m)");
+  await expect(section).toContainText("Reflection Mode");
+  // The starter level has no terrain: the binding says so, through Details.
+  await expect(page.getByTestId("puddle-status")).toHaveAttribute("data-puddle-status", "no-terrain");
+  await undo(page);
+  await expect(named(page, "Puddle")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test("one per level: a second click selects the one there is; a class from the project", async ({ page }) => {
   const errors = await open(page);
   await category(page, "Visual Effects");

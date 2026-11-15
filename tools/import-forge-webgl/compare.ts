@@ -34,6 +34,8 @@ interface SourceCounts {
   cloudLayer: number;
   worldEnvironment: number;
   postProcess: number;
+  /** `puddleWaters` bodies. */
+  puddles: number;
   cells: number;
   cellKeys: string[];
   foliageInstances: number;
@@ -88,6 +90,7 @@ async function sourceCounts(source: ForgeSource, path: string, missing: Readonly
     cloudLayer: isJsonObject(layout.cloudLayer) ? 1 : 0,
     worldEnvironment: isJsonObject(layout.worldEnvironment) ? 1 : 0,
     postProcess: isJsonObject(layout.postProcess) ? 1 : 0,
+    puddles: Array.isArray(layout.puddleWaters) ? layout.puddleWaters.length : 0,
     cells: level.input.cells.length,
     cellKeys: level.input.cells.map((cell) => cell.key),
     foliageInstances: 0,
@@ -129,6 +132,7 @@ interface TargetCounts {
   cloudLayer: number;
   worldEnvironment: number;
   postProcess: number;
+  puddles: number;
   playerStarts: number;
   cells: number;
   persistent: number;
@@ -143,7 +147,7 @@ interface TargetCounts {
 async function targetCounts(projectRoot: string, folder: string): Promise<TargetCounts> {
   const counts: TargetCounts = {
     actors: 0, shapes: 0, meshes: 0, roles: 0, terrains: 0, heightFog: 0, lights: 0, playerStarts: 0,
-    skyAtmosphere: 0, skyLight: 0, cloudLayer: 0, worldEnvironment: 0, postProcess: 0, cells: 0, persistent: 0, cellActors: new Map(),
+    skyAtmosphere: 0, skyLight: 0, cloudLayer: 0, worldEnvironment: 0, postProcess: 0, puddles: 0, cells: 0, persistent: 0, cellActors: new Map(),
     tintedMeshes: 0, shadowless: 0, materialOverrides: 0, terrainMaterials: 0,
   };
   const count = (doc: unknown, persistent: boolean): void => {
@@ -176,6 +180,7 @@ async function targetCounts(projectRoot: string, folder: string): Promise<Target
         else if (type === "forge.cloudLayer") counts.cloudLayer += 1;
         else if (type === "forge.worldEnvironment") counts.worldEnvironment += 1;
         else if (type === "forge.postProcess") counts.postProcess += 1;
+        else if (type === "forge.puddle") counts.puddles += 1;
       }
     }
   };
@@ -231,14 +236,15 @@ export async function compareImport(projectRoot: string, source: ForgeSource, re
       row("cloudLayer → forge.cloudLayer", s.cloudLayer, t.cloudLayer, "?"),
       row("worldEnvironment → forge.worldEnvironment", s.worldEnvironment, t.worldEnvironment, "?"),
       row("postProcess → forge.postProcess", s.postProcess, t.postProcess, "?"),
+      row("puddleWaters → forge.puddle", s.puddles, t.puddles, "?"),
       row("model placement colours → forge.staticMesh color", s.tintedModels, t.tintedMeshes, "?"),
       row("placements casting no shadow → castShadow false", s.shadowless, t.shadowless, "?"),
       row("model materialSlot → forge.staticMesh materials", s.materialOverrides, t.materialOverrides,
         report.notConverted.some((entry) => entry.field.startsWith("instances[].materialSlot=")) ? "material or model slots not in the target (report)" : "?"),
       row("landscape materials → forge.terrain material", s.landscapeMaterials, t.terrainMaterials,
         report.notConverted.some((entry) => entry.field.startsWith("landscapes[].material=")) ? "material not in the target (report)" : "?"),
-      row("actors (placements + terrain + fog + lights + environment)", s.shapes + s.models + s.playerStarts + s.landscapes + s.heightFog + s.lights + environment, t.actors,
-        t.actors === s.shapes + s.models - missing + s.playerStarts + s.landscapes + s.heightFog + s.lights + environment ? `placements without a model: ${missing}` : "?"),
+      row("actors (placements + terrain + fog + lights + environment + puddles)", s.shapes + s.models + s.playerStarts + s.landscapes + s.heightFog + s.lights + environment + s.puddles, t.actors,
+        t.actors === s.shapes + s.models - missing + s.playerStarts + s.landscapes + s.heightFog + s.lights + environment + s.puddles ? `placements without a model: ${missing}` : "?"),
       row("cells", s.cells, t.cells, s.cells === 0
         ? "the source level is not partitioned; every level has a grid now and actors are assigned by position (A11)"
         : cellDifference(s.cellKeys, t.cellActors)),

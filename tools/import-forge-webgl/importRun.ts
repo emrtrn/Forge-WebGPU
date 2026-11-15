@@ -276,7 +276,7 @@ export async function runForgeImport(runOptions: ImportRunOptions): Promise<Impo
     const sidecars = levelSidecars(level, folder, labels, pending, project);
     const stages = oldLedgerStages(level.recipe?.json);
     const imported = importForgeLevel(level.input, {
-      meshAsset, materialAsset, materialSlotCount: (id) => slotCounts.get(id) ?? null, stageOf: (id) => stages.get(id),
+      meshAsset, materialAsset, textureAsset, materialSlotCount: (id) => slotCounts.get(id) ?? null, stageOf: (id) => stages.get(id),
     });
     writeLevel(project, folder, imported.level, pending);
     for (const terrain of imported.terrains) {

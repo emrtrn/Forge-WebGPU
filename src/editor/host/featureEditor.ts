@@ -32,7 +32,7 @@
 //   writes it into a component of the actor it is dropped on (a material ->
 //   the static mesh slot under the pointer). Forge did both in its shell.
 
-import { COMPONENT_NAME_PATTERN, SchemaDefinitionError, type ServiceKey } from "../../core/index.ts";
+import { COMPONENT_NAME_PATTERN, SchemaDefinitionError, type ActorId, type ServiceKey } from "../../core/index.ts";
 import { ACTOR_TYPE_ICONS, type ActorTypeIcon } from "../ui/icons.ts";
 import type { AssetEditorPresentation } from "./assetEditorTypes.ts";
 
@@ -98,6 +98,8 @@ export interface DetailsExtensionContext {
   value(): Readonly<Record<string, unknown>>;
   /** Writes these top-level fields into the component of every selected actor: one undo step. */
   edit(label: string, fields: Readonly<Record<string, unknown>>): void;
+  /** The primary selected actor and this component's key in it; null when none. */
+  target(): { readonly actor: ActorId; readonly key: string } | null;
   /** A service of the editor's world (what the viewport shows); undefined when absent. */
   service<T>(key: ServiceKey<T>): T | undefined;
   /** Every editor frame with its seconds; returns the unsubscribe. Dropped when the section goes. */

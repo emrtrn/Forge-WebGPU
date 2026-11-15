@@ -78,7 +78,7 @@ interface JsonAssetTypeDef<M>
 
 type LevelId = `lvl_${string}`
 
-const SDK_VERSION: "0.1.10"
+const SDK_VERSION: "0.1.11"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -272,6 +272,7 @@ interface DetailsExtensionContext
   readonly document: Document
   service: <T>(key: ServiceKey<T>) => T | undefined
   status: (message: string, tone?: "info" | "warning" | "error") => void
+  target: () => { readonly actor: ActorId; readonly key: string; } | null
   value: () => Readonly<Record<string, unknown>>
 
 interface DroppedAsset
@@ -307,7 +308,7 @@ const OUTLINER_TYPES: readonly [{ readonly type: "mesh"; readonly label: "Meshes
 
 type OutlinerType = "mesh" | "character" | "light" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
 
-const SDK_VERSION: "0.1.10"
+const SDK_VERSION: "0.1.11"
 
 function defineFeatureEditor(options: FeatureEditorOptions): FeatureEditorDef
 

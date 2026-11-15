@@ -8,6 +8,15 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.11
+
+API: f4d677b0cd5e7178
+
+Details extensions (plan phase 5a step 6), additive, in `@forge/editor-sdk`:
+`DetailsExtensionContext.target()` gives the primary selected actor's id and
+the component's key in it (null when none), so an extension can ask a world
+service about that component (the puddle's fill outcome). Nothing else changed.
+
 ## 0.1.10
 
 API: bb3bd9b259905ae0

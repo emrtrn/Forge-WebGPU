@@ -246,6 +246,20 @@ async function start(): Promise<void> {
       setHour: (hour: number) => environment()?.setHour(hour),
       /** The Sky Light capture alone, `count` times back to back (pause first). */
       captureBench: (count: number) => (viewer.host ? benchmarkSkyCapture(viewer.host, count) : Promise.resolve(null)),
+      /** Spawns actors from raw documents (normalised as an edit's); their ids. */
+      spawn: (raw: unknown[]) => booted.world.context.spawnActors(raw).map((actor) => actor.id),
+      /** World heights of the first drawn terrain at X / Z points (its live tiles); null off it or where no tile is loaded. */
+      async terrainHeights(points: readonly (readonly [number, number])[]) {
+        const scene = viewer.host?.world?.scene;
+        const [{ taggedTerrainViews }, { terrainHeightAt }] = await Promise.all([import("./render/sync/debugTags.ts"), import("./engine/terrain/terrainHeightQuery.ts")]);
+        const tagged = scene ? taggedTerrainViews(scene)[0] : undefined;
+        return points.map(([x, z]) => (tagged ? terrainHeightAt(tagged.def, tagged.view.source, x, z) : null));
+      },
+      /** A puddle's fill outcome (plan phase 5a step 6); undefined before it has one. */
+      async puddleResult(actor: string, key = "puddle") {
+        const { PuddleStatusKey } = await import("./features/puddle/schema.ts");
+        return booted.world.services.get(PuddleStatusKey)?.result(actor as Parameters<typeof booted.world.context.actor>[0], key);
+      },
       /** G8 (plan phase 5a step 5): the drawn terrain read back from the GPU against its collider and its CPU twin; null without a terrain. */
       async terrainColliderMatch(options?: { size?: number }) {
         const host = viewer.host;

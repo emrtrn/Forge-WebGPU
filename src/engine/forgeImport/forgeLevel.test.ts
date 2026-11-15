@@ -74,7 +74,7 @@ describe("importForgeLevel", () => {
     expect(rock!.transform.s).toEqual([2, 2, 2]);
     expect(bare!.class === null && bare!.components.mesh).toMatchObject({ collision: false, castShadow: false });
     expect(report.converted).toEqual({
-      placements: 3, placeholders: 1, meshes: 2, playerStarts: 1, actors: 8, terrains: 1, heightFog: 1, lights: 1, environment: 1, sourceCells: 0, staticCastShadow: false,
+      placements: 3, placeholders: 1, meshes: 2, playerStarts: 1, actors: 8, terrains: 1, heightFog: 1, lights: 1, environment: 1, puddles: 0, sourceCells: 0, staticCastShadow: false,
     });
     expect(report.missingAssets).toEqual([{ assetId: "kenney-tree", placements: 1 }]);
   });
