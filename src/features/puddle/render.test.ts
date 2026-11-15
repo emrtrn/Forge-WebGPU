@@ -1,5 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { Group, PerspectiveCamera, Scene, type Mesh } from "three/webgpu";
+import { Group, PerspectiveCamera, Scene, Texture, type Mesh } from "three/webgpu";
+import { createPuddleMaterial } from "../../render/materials/puddle.ts";
+import { createPuddleWindNormal } from "../../render/sync/puddleWindNormal.ts";
+import { resolveLevelWind } from "../../engine/environment/wind.ts";
 import { createServices, type ActorId, type ComponentEntry, type WorldActor } from "../../core/index.ts";
 import { resolveQualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { NEW_PUDDLE_APPEARANCE, PUDDLE_WHEEL_RIPPLE_DEFAULTS, PUDDLE_WIND_DEFAULTS } from "../../engine/terrain/puddleWater.ts";
@@ -126,6 +129,59 @@ function defaults(): PuddleData {
 }
 
 describe("puddle binding", () => {
+  test("wind: no normal has no ripples; phase and material graph stay continuous across pause and appearance edits", () => {
+    const d = defaults();
+    const material = createPuddleMaterial(d);
+    const wind = resolveLevelWind({}, null);
+    const normal = new Texture();
+    material.setWindNormal(normal);
+    const graph = material.material.normalNode;
+    const version = material.material.version;
+    material.updateWind(wind, 0, d, 0, 0);
+    material.updateWind(wind, 1, d, 0, 0);
+    const phase = material.windMotion.phase;
+    expect(phase).toBeGreaterThan(0);
+    material.updateWind(wind, 1, { ...d, windSpeedResponse: 2 }, 0, 0);
+    expect(material.windMotion.phase).toBe(phase);
+    material.updateWind(wind, 2, d, 0, 0);
+    expect(material.windMotion.phase).not.toBe(phase);
+    expect(material.material.normalNode).toBe(graph);
+    expect(material.material.version).toBe(version);
+    material.setWindNormal(null);
+    expect(material.material.normalNode).not.toBe(graph);
+    material.dispose();
+    normal.dispose();
+  });
+
+  test("puddle wind: late normal load cannot resurrect a deleted body or discarded draft", async () => {
+    const pending = new Map<string, (texture: Texture) => void>();
+    const released: string[] = [];
+    const shown: (Texture | null)[] = [];
+    const resources = {
+      texture: (guid: string) => new Promise<Texture>((resolve) => pending.set(guid, resolve)),
+      release: (key: string) => released.push(key),
+    } as unknown as WorldResources;
+    const loader = createPuddleWindNormal(resources, (texture) => shown.push(texture));
+    const first = new Texture();
+    const second = new Texture();
+    loader.update("first");
+    loader.update("second");
+    pending.get("first")!(first);
+    await Promise.resolve();
+    expect(shown).toEqual([null, null]);
+    pending.get("second")!(second);
+    await Promise.resolve();
+    expect(shown.at(-1)).toBe(second);
+    loader.update("third");
+    loader.dispose();
+    pending.get("third")!(first);
+    await Promise.resolve();
+    expect(shown.at(-1)).toBeNull();
+    expect(released).toEqual(["texture:first:linear", "texture:second:linear", "texture:third:linear"]);
+    first.dispose();
+    second.dispose();
+  });
+
   test("the schema keeps Forge's defaults and ranges (a new puddle: planar)", () => {
     const d = defaults();
     for (const key of ["color", "opacity", "roughness", "reflectionStrength", "reflectionQuality", "planarReflectionStrength", "mudDensity", "mudColor"] as const) {

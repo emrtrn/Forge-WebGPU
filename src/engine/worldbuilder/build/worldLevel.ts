@@ -90,7 +90,7 @@ export function worldLevel(build: WorldBuild, options: WorldLevelOptions): World
     level: {
       schema: LEVEL_SCHEMA,
       id: levelId,
-      settings: { cellSize: options.cellSize ?? WORLD_LEVEL_CELL_SIZE },
+      settings: { cellSize: options.cellSize ?? WORLD_LEVEL_CELL_SIZE, wind: { directionDeg: 45, strength: .3, gust: .3 } },
       actors,
     },
     terrain: dataDocument(TerrainAssetType, terrainAsset, structuredClone(build.def) as unknown as Record<string, unknown>),

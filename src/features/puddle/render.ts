@@ -17,8 +17,8 @@
 // - The outcome of each fill is published as `PuddleStatusKey` (the editor's
 //   Details shows it). Readiness waits for every puddle's first outcome.
 //
-// Wind ripples arrive with the World Environment's wind (step 7), wheel
-// ripples with vehicles (phase 6 / 8), the deformed bed with phase 8.
+// Wind uses the common WES/level resolver and simulation time (step 7).
+// Wheel ripples arrive with vehicles (phase 6 / 8), the deformed bed with 8.
 
 import * as THREE from "three/webgpu";
 import { parseComponentTypeTag, type ActorId, type WorldActor } from "../../core/index.ts";
@@ -33,6 +33,8 @@ import { PuddleReflections, type PuddleReflectionCeiling } from "../../render/sy
 import { defineRenderBinding, type RenderBindingContext } from "../../render/sync/renderBinding.ts";
 import { tagActorObject } from "../../render/sync/pickTags.ts";
 import { componentWorldMatrix } from "../../render/sync/transforms.ts";
+import { createPuddleWindNormal } from "../../render/sync/puddleWindNormal.ts";
+import { resolveWorldWind } from "../../engine/environment/worldWind.ts";
 import { Puddle, PuddleStatusKey, type PuddleData, type PuddleResult } from "./schema.ts";
 
 /** Fill work per frame, as Forge's cooperative jobs. */
@@ -47,6 +49,7 @@ const MESSAGES = {
 } as const;
 
 interface Placed {
+  readonly windNormal: ReturnType<typeof createPuddleWindNormal>;
   readonly id: string;
   actor: WorldActor;
   readonly key: string;
@@ -83,6 +86,7 @@ function ceilingOf(tier: "low" | "medium" | "high"): PuddleReflectionCeiling {
 export default defineRenderBinding({
   feature: "forge.puddle",
   create(ctx) {
+    let simulationSeconds = 0;
     const placed = new Map<string, Placed>();
     const reflections = new PuddleReflections(ctx.root);
     ctx.world.services.provide(PuddleStatusKey, {
@@ -201,11 +205,13 @@ export default defineRenderBinding({
       tagActorObject(mesh, actor.id);
       ctx.root.add(mesh);
       const entry: Placed = {
+        windNormal: createPuddleWindNormal(ctx.resources, (texture) => material.setWindNormal(texture)),
         id: `${actor.id}/${key}`, actor, key, data, mesh, material,
         result: { status: "loading", area: 0, message: MESSAGES.loading },
         revision: 0, job: null, terrainKey: null, busy: null, removed: false,
       };
       placed.set(entry.id, entry);
+      entry.windNormal.update(data.windNormal);
       fill(entry);
     };
 
@@ -218,6 +224,7 @@ export default defineRenderBinding({
       reflections.remove(entry.mesh);
       entry.mesh.removeFromParent();
       entry.mesh.geometry.dispose();
+      entry.windNormal.dispose();
       entry.material.dispose();
       if (entry.terrainKey) ctx.resources.release(entry.terrainKey);
       entry.busy?.();
@@ -249,6 +256,7 @@ export default defineRenderBinding({
             const resized = data.size !== entry.data.size;
             entry.data = data;
             entry.material.setAppearance(appearanceOf(data));
+            entry.windNormal.update(data.windNormal);
             if (moved || resized) {
               fill(entry);
             } else if (entry.result.status === "ready") {
@@ -260,6 +268,12 @@ export default defineRenderBinding({
         }
       },
       sync(frame) {
+        if (Number.isFinite(frame.dt) && frame.dt > 0) simulationSeconds += frame.dt;
+        const wind = resolveWorldWind(ctx.world);
+        for (const entry of placed.values()) {
+          const { seed } = placement(ctx, entry.actor, entry.key);
+          entry.material.updateWind(wind, simulationSeconds, entry.data, seed[0], seed[1]);
+        }
         // Fills in slices: SLICE_MS a frame over every pending puddle.
         const started = performance.now();
         for (const entry of placed.values()) {

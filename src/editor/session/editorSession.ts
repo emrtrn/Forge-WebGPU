@@ -29,6 +29,7 @@ import {
   readLevelFromServer,
   saveLevelSession,
   SaveClientError,
+  LevelSettingsKey,
   type CellAssignOptions,
   type ReadLevel,
   type RebaseMode,
@@ -147,9 +148,11 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
   const { level, world, client } = options;
   const listeners = new Set<() => void>();
   const notify = (): void => {
+    world.services.require(LevelSettingsKey).current = structuredClone(level.level.settings);
     for (const listener of [...listeners]) listener();
   };
   let selected: ActorId[] = [];
+  world.services.require(LevelSettingsKey).current = structuredClone(level.level.settings);
 
   const hiddenSet = new Set<ActorId>((options.hidden ?? []).filter((id) => level.actor(id) !== undefined));
   const isHidden = (id: ActorId): boolean => {

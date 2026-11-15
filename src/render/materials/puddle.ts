@@ -12,12 +12,14 @@
 //   strength, and let the BRDF apply Fresnel. Here the environment term keeps
 //   (1 - strength) of its intensity and the capture is added with the water's
 //   Schlick Fresnel, sampled with Forge's small roughness-wide footprint.
-// Wind ripples (the wind arrives in phase 5a step 7) and wheel rings (with
-// vehicles, phase 6 / 8) bend the normal and the capture's lookup later; the
-// slope they add is zero until then.
+// Wind (phase 5a step 7, puddleWind.ts) bends both the normal and the planar
+// lookup through the reflection camera. Wheel rings follow in phase 6 / 8.
 
 import * as THREE from "three/webgpu";
 import * as TSLTyped from "three/tsl";
+import type { ResolvedWind } from "../../engine/environment/wind.ts";
+import type { PuddleWindSettings } from "../../engine/terrain/puddleWater.ts";
+import { createPuddleWind } from "./puddleWind.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyNode = any;
@@ -43,6 +45,8 @@ export interface PuddleAppearance {
 export interface PuddleReflection {
   readonly node: AnyNode;
   readonly texel: number;
+  /** Reflection camera world -> clip, updated for the current render camera. */
+  readonly projection?: AnyNode;
 }
 
 export interface PuddleMaterial {
@@ -51,6 +55,9 @@ export interface PuddleMaterial {
   /** The planar capture this surface reflects; null for the environment only. A change rebuilds the graph. */
   setReflection(reflection: PuddleReflection | null): void;
   readonly reflection: PuddleReflection | null;
+  setWindNormal(texture: THREE.Texture | null): void;
+  updateWind(wind: ResolvedWind, seconds: number, appearance: Partial<PuddleWindSettings>, x: number, z: number): void;
+  readonly windMotion: ReturnType<typeof createPuddleWind>["motion"];
   dispose(): void;
 }
 
@@ -64,6 +71,8 @@ export function createPuddleMaterial(appearance: PuddleAppearance): PuddleMateri
   const uPlanar = uniform(appearance.planarReflectionStrength);
   const uTexel = uniform(1 / 256);
   let reflection: PuddleReflection | null = null;
+  const wind = createPuddleWind();
+  let windNormal: THREE.Texture | null = null;
 
   const depth = attribute("puddleDepth", "float");
   // Optical thickness comes from the actual live bed: shallow water stays
@@ -75,9 +84,12 @@ export function createPuddleMaterial(appearance: PuddleAppearance): PuddleMateri
   material.name = "puddle";
   material.colorNode = mix(uColor, uMudColor, mud.mul(0.85));
   material.opacityNode = mud.mul(smoothstep(0, 0.006, depth));
-  material.roughnessNode = uRoughness;
 
   const apply = (): void => {
+    const surface = wind.nodes(depth, uRoughness);
+    material.roughnessNode = surface.roughness;
+    const slope = TSL.vec3(surface.gradient.x.negate(), 0, surface.gradient.y.negate());
+    material.normalNode = TSL.normalize(normalView.add(TSL.cameraViewMatrix.mul(TSL.vec4(slope, 0)).xyz));
     const planar = reflection !== null;
     material.envMapIntensity = appearance.reflectionStrength * (planar ? 1 - appearance.planarReflectionStrength : 1);
     if (!reflection) {
@@ -85,8 +97,15 @@ export function createPuddleMaterial(appearance: PuddleAppearance): PuddleMateri
     } else {
       const node = reflection.node;
       // Forge's footprint: 0.4 at the centre, 0.15 at four taps roughness x 3 texels away.
-      const uv = node.uvNode ?? TSL.screenUV.flipX();
-      const step = uTexel.mul(uRoughness).mul(3);
+      let uv = node.uvNode ?? TSL.screenUV.flipX();
+      if (reflection.projection) {
+        const projected = reflection.projection.mul(TSL.vec4(TSL.positionWorld, 1));
+        const bent = projected.add(reflection.projection.mul(TSL.vec4(slope.mul(.18), 0)));
+        // Project the world slope through the reflection camera, retaining
+        // reflector()'s backend-specific base UV when the slope is zero.
+        uv = uv.add(bent.xy.div(max(.0001, bent.w)).sub(projected.xy.div(max(.0001, projected.w))).mul(vec2(.5, -.5)));
+      }
+      const step = uTexel.mul(surface.roughness).mul(3);
       const reflected = node.sample(uv).rgb.mul(0.4)
         .add(node.sample(uv.add(vec2(step, 0))).rgb.mul(0.15))
         .add(node.sample(uv.sub(vec2(step, 0))).rgb.mul(0.15))
@@ -102,6 +121,14 @@ export function createPuddleMaterial(appearance: PuddleAppearance): PuddleMateri
 
   return {
     material,
+    windMotion: wind.motion,
+    updateWind: wind.update,
+    setWindNormal(next) {
+      if (next === windNormal) return;
+      windNormal = next;
+      wind.setNormal(next);
+      apply();
+    },
     get reflection() {
       return reflection;
     },

@@ -13,6 +13,7 @@ import { createFlatWorldTerrain } from "../../engine/terrain/worldTerrainCreate.
 import { terrainVisualSample } from "../../engine/terrain/terrainVisualHeight.ts";
 import { terrainHeightAt } from "../../engine/terrain/terrainHeightQuery.ts";
 import { fillTerrainHoles, TerrainView, terrainShadowCasters } from "./terrainView.ts";
+import { WORLD_ENVIRONMENT_DEFAULTS } from "../../engine/environment/worldEnvironment.ts";
 
 function terrain(tilesX: number, tilesZ: number) {
   const { def, tiles } = createFlatWorldTerrain({ name: "Plain", tilesX, tilesZ, tileQuads: 64, spacing: 2, baseHeight: 0, heightMin: -10, heightMax: 10 });
@@ -32,6 +33,28 @@ function middleCamera(def: { origin: readonly number[] }): PerspectiveCamera {
 }
 
 describe("terrain view", () => {
+  test("WES cover never writes heights, paint or physical layers, nor rebuilds the shader or the G8 probe", () => {
+    const { def, tiles, global } = terrain(1, 1);
+    const authored = structuredClone({ def, tiles });
+    const view = new TerrainView({ def, global, tiles, layers });
+    const geometry = view.mesh.geometry;
+    const material = view.mesh.material;
+    const graph = [material.colorNode, material.roughnessNode, material.normalNode, material.positionNode, material.maskNode];
+    const probe = view.heightProbe();
+    const version = material.version;
+    for (const [snowCoverage, wetness] of [[1, 0], [0, 1], [.5, .7], [0, 0]]) {
+      view.setSurfaceCover({ state: { snowCoverage: snowCoverage!, wetness: wetness! }, settings: WORLD_ENVIRONMENT_DEFAULTS.surface });
+    }
+    view.setSurfaceCover(null);
+    expect(view.mesh.geometry).toBe(geometry);
+    expect(view.mesh.material).toBe(material);
+    expect(material.version).toBe(version);
+    expect([material.colorNode, material.roughnessNode, material.normalNode, material.positionNode, material.maskNode]).toEqual(graph);
+    expect(view.heightProbe()).toBe(probe);
+    expect({ def, tiles }).toEqual(authored);
+    view.dispose();
+  });
+
   test("culls by the camera's side planes; a shadow caster aimed behind it keeps the nodes it shades from", () => {
     const { def, tiles, global } = terrain(8, 8);
     const view = new TerrainView({ def, global, tiles, layers });

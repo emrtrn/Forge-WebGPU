@@ -78,7 +78,7 @@ interface JsonAssetTypeDef<M>
 
 type LevelId = `lvl_${string}`
 
-const SDK_VERSION: "0.1.11"
+const SDK_VERSION: "0.1.12"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -308,7 +308,7 @@ const OUTLINER_TYPES: readonly [{ readonly type: "mesh"; readonly label: "Meshes
 
 type OutlinerType = "mesh" | "character" | "light" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
 
-const SDK_VERSION: "0.1.11"
+const SDK_VERSION: "0.1.12"
 
 function defineFeatureEditor(options: FeatureEditorOptions): FeatureEditorDef
 

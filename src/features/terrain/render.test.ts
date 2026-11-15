@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { BufferAttribute, BufferGeometry, Group, Mesh, MeshBasicMaterial, PerspectiveCamera, Raycaster, Scene, Vector3, type InstancedBufferGeometry } from "three/webgpu";
-import type { ComponentEntry, WorldActor } from "../../core/index.ts";
+import { createServices, type ComponentEntry, type WorldActor } from "../../core/index.ts";
 import { buildTerrainGlobalAttributes, worldTerrainRenderSource } from "../../engine/terrain/terrainRenderSource.ts";
 import { tileKey, type TerrainTileData, type WorldTerrainDef } from "../../engine/terrain/terrainTypes.ts";
 import { createFlatWorldTerrain } from "../../engine/terrain/worldTerrainCreate.ts";
@@ -64,7 +64,7 @@ function harness(options: { tilesX: number; tilesZ: number; streams: boolean }) 
   const root = new Group();
   const quality = { ...resolveQualitySettings("high") };
   const ctx = {
-    world: { services: null, actor: () => actor, componentsOf: () => [] as ComponentEntry[] },
+    world: { services: createServices(), actor: () => actor, componentsOf: () => [] as ComponentEntry[] },
     scene: new Scene(),
     root,
     resources,

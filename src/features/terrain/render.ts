@@ -35,6 +35,7 @@
 
 import { Box3, Vector3 } from "three/webgpu";
 import { parseComponentTypeTag, type WorldActor } from "../../core/index.ts";
+import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
 import { tagSceneSource } from "../../engine/perf/sceneCost.ts";
 import { raycastTerrain } from "../../engine/terrain/terrainHeightQuery.ts";
 import { TerrainRuntimeStreaming } from "../../engine/terrain/terrainRuntimeStreaming.ts";
@@ -176,11 +177,15 @@ export default defineRenderBinding({
         frame.camera.updateMatrixWorld();
         let casters: ReturnType<typeof terrainShadowCasters> | null = null;
         const quality = ctx.quality();
+        const runtime = ctx.world.services.get(WorldEnvironmentKey);
+        const state = runtime?.controller.current();
+        const cover = state && runtime?.environment ? { state: state.surface, settings: runtime.environment.surface } : null;
         for (const entry of placed.values()) {
           const { view, stream } = entry;
           if (!view) continue;
           view.setSelfShadow(quality.terrainSelfShadow);
           view.setFarTiling(quality.terrainFarTiling);
+          view.setSurfaceCover(cover);
           if (stream) {
             entry.sources = [{ position: [camera.x, camera.z] }];
             stream.update(entry.sources);

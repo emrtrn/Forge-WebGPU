@@ -244,6 +244,8 @@ async function start(): Promise<void> {
         return actor ? { id: actor.id, name: actor.name, transform: structuredClone(actor.transform) } : null;
       },
       setHour: (hour: number) => environment()?.setHour(hour),
+      setSurface: (surface: { snowCoverage?: number; wetness?: number }) => environment()?.setSurface(surface),
+      environmentState: () => environment()?.current() ?? null,
       /** The Sky Light capture alone, `count` times back to back (pause first). */
       captureBench: (count: number) => (viewer.host ? benchmarkSkyCapture(viewer.host, count) : Promise.resolve(null)),
       /** Spawns actors from raw documents (normalised as an edit's); their ids. */

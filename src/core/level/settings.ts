@@ -15,9 +15,17 @@
 // - `locked` (Forge's Lock Movement, same kind of editor data): written only
 //   when true.
 
-import { bool, num, vec3, type FieldValues } from "../schema/fields.ts";
+import { bool, num, object, vec3, type FieldValues } from "../schema/fields.ts";
+import { createServiceKey } from "../world/services.ts";
 
 export const DEFAULT_CELL_SIZE = 128;
+
+/** Forge's wind defaults/ranges; same fields in level settings and WES. */
+export const WindFields = {
+  directionDeg: num({ min: 0, max: 360, default: 45, step: 1, label: "Direction (°)", hint: "Rüzgârın estiği pusula yönü; 0 = +Z, 90 = +X." }),
+  strength: num({ min: 0, max: 1, default: .3, step: .05, hint: "Rüzgârın taban gücü; 0 sakin. Hava ve mevsim etkin gücü ölçekler." }),
+  gust: num({ min: 0, max: 1, default: .3, step: .05, hint: "Gücün hamlelerle gelen payı (0–1)." }),
+};
 
 export const LevelSettingsFields = {
   cellSize: num({
@@ -28,9 +36,12 @@ export const LevelSettingsFields = {
     label: "Cell Size",
     hint: "Akış ızgarasının hücre kenarı (metre). Aktörler kayıtta bu ızgaraya göre hücre dosyalarına dağılır; değiştirmek bütün hücreleri yeniden yazar.",
   }),
+  wind: object(WindFields, { hint: "WES'in level rüzgârını kullanması seçiliyken veya WES yokken kullanılan rüzgâr." }),
 };
 
 export type LevelSettings = FieldValues<typeof LevelSettingsFields>;
+/** The assembler/editor refresh the holder; consumers read live settings. */
+export const LevelSettingsKey = createServiceKey<{ current: LevelSettings }>("forge.levelSettings");
 
 export const ActorStreamingFields = {
   spatiallyLoaded: bool({

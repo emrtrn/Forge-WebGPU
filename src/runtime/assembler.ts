@@ -8,7 +8,7 @@
 // development; in a production build it is left out with a report, together
 // with its child actors (the dropped-field rule, §4.5).
 
-import { reportLoss, createContext, type ActorDoc, type ActorId, type ClassResolver, type Issue, type LevelDoc, type WorldActor } from "../core/index.ts";
+import { reportLoss, createContext, LevelSettingsKey, type ActorDoc, type ActorId, type ClassResolver, type Issue, type LevelDoc, type WorldActor } from "../core/index.ts";
 import { WorldError, type World } from "./world.ts";
 
 export interface AssembleOptions {
@@ -51,5 +51,6 @@ export function assembleActors(world: World, actors: readonly ActorDoc[], option
 
 /** Builds a world's actors from a level. The world must be initialised. */
 export function assembleLevel(world: World, level: LevelDoc, options: AssembleOptions): AssembleResult {
+  world.services.require(LevelSettingsKey).current = structuredClone(level.settings);
   return assembleActors(world, level.actors, options);
 }

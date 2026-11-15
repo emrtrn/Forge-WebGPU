@@ -7,8 +7,8 @@
 // A material in the resource cache is keyed by its asset and the set of
 // contributions it carries (`material:<guid>:<signature>`), so two placements
 // that need the same contributions share one material. Phase 3 brings the
-// order and the world mask; the others arrive in their phases and take their
-// place in `MATERIAL_CONTRIBUTIONS` and `applyContributions`.
+// order and world mask; 5a adds uniform-driven visual cover. The remaining
+// contributions take their place in `applyContributions` in their phases.
 //
 // World mask (Forge WebGL's worldMaskPatch, rewritten): per-fragment hiding
 // driven by a top-down mask texture. A fragment asks what the mask says about
@@ -18,7 +18,9 @@
 // engine system drives one yet.
 
 import { clamp, dot, float, fract, Fn, positionWorld, screenCoordinate, smoothstep, texture, uniform, vec2 } from "three/tsl";
-import { Vector2, type NodeMaterial, type Texture, type UniformNode } from "three/webgpu";
+import { Vector2, type MeshStandardNodeMaterial, type NodeMaterial, type Texture, type UniformNode } from "three/webgpu";
+import * as TSL from "three/tsl";
+import type { SurfaceCover } from "./surfaceCover.ts";
 
 export const MATERIAL_CONTRIBUTIONS = ["worldMask", "fade", "wind", "wetness", "dent"] as const;
 export type MaterialContribution = (typeof MATERIAL_CONTRIBUTIONS)[number];
@@ -37,6 +39,7 @@ export interface WorldMask {
 
 export interface MaterialContributions {
   readonly worldMask?: WorldMask;
+  readonly wetness?: SurfaceCover;
 }
 
 /** The cache key part of a contribution set: the names in contribution order, or `none`. */
@@ -68,11 +71,17 @@ export function worldMaskKeeps(mask: WorldMask) {
 }
 
 /** Applies the contributions to a material in the fixed order. */
-export function applyContributions(material: NodeMaterial, contributions: MaterialContributions): void {
+export function applyContributions(material: NodeMaterial, contributions: MaterialContributions, baseNormal: any = TSL.normalWorldGeometry): void {
   if (contributions.worldMask) {
     const keeps = worldMaskKeeps(contributions.worldMask);
     material.maskNode = keeps;
     material.maskShadowNode = keeps;
   }
-  // fade (5b), wind (5c), wetness (5a), dent (8) follow here, in this order.
+  // fade (5b), wind (5c) are inserted above cover; dent (8) follows it.
+  if (contributions.wetness) {
+    const lit = material as MeshStandardNodeMaterial;
+    const covered = contributions.wetness.nodes(material.colorNode ?? TSL.materialColor, lit.roughnessNode ?? TSL.materialRoughness, baseNormal);
+    material.colorNode = covered.color;
+    lit.roughnessNode = covered.roughness;
+  }
 }

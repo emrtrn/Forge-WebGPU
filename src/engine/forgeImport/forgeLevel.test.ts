@@ -51,7 +51,7 @@ describe("importForgeLevel", () => {
   test("placements become shape / static mesh / Player Start actors after the terrain, the fog, the environment and the lights", () => {
     const { level, report } = importForgeLevel(fixture(), resolvers);
     expect(level.id).toBe(forgeLevelId(PATH));
-    expect(level.settings).toEqual({ cellSize: 64 });
+    expect(level.settings).toEqual({ cellSize: 64, wind: { directionDeg: 45, strength: .3, gust: .3 } });
     expect(level.actors.map((actor) => actor.name)).toEqual([
       "WB Valley", "Fog", "Sky Light", "directional#0", "Player Start", "building.house", "rock#0", "rock#1",
     ]);
@@ -75,6 +75,7 @@ describe("importForgeLevel", () => {
     expect(bare!.class === null && bare!.components.mesh).toMatchObject({ collision: false, castShadow: false });
     expect(report.converted).toEqual({
       placements: 3, placeholders: 1, meshes: 2, playerStarts: 1, actors: 8, terrains: 1, heightFog: 1, lights: 1, environment: 1, puddles: 0, sourceCells: 0, staticCastShadow: false,
+      wesSurface: 0, wesWind: 0, levelWind: 1,
     });
     expect(report.missingAssets).toEqual([{ assetId: "kenney-tree", placements: 1 }]);
   });
@@ -172,7 +173,7 @@ describe("importForgeLevel", () => {
     expect(component(1)).toEqual({ type: "forge.skyLight@1", intensity: 0.5, ambientColor: "#ece6da", ambientIntensity: 1.1, backgroundColor: "#d7d7c7" });
     expect(component(2)).toEqual({ type: "forge.cloudLayer@1", color: "#ffffff", coverage: 0.4, density: 0.85, softness: 0.3, scale: 2, speed: 0.1 });
     expect(component(3)).toMatchObject({
-      type: "forge.worldEnvironment@1", hour: 10, season: "summer", weather: { preset: "rain", intensity: 0.5 },
+      type: "forge.worldEnvironment@2", hour: 10, season: "summer", weather: { preset: "rain", intensity: 0.5 },
       sunPath: { azimuthDeg: 96.056, noonElevationDeg: 60, sunriseHour: 6, sunsetHour: 18 },
       night: { moonIntensity: 0.1, moonColor: "#9fb4ff", ambientIntensity: 1.5 },
     });
@@ -180,10 +181,9 @@ describe("importForgeLevel", () => {
     expect(report.notConverted).toEqual(expect.arrayContaining([
       { field: "skyAtmosphere.hidden", count: 1, phase: "4" },
       { field: "cloudLayer.flavour", count: 1, phase: "?" },
-      { field: "worldEnvironment.surface", count: 1, phase: "5a" },
-      { field: "worldEnvironment.wind", count: 1, phase: "5c" },
       { field: "worldEnvironment.time.dayLengthMinutes", count: 1, phase: "- (sürekli gün döngüsü yok, kullanıcı kararı)" },
     ]));
+    expect(report.notConverted.some((entry) => ["worldEnvironment.surface", "worldEnvironment.wind", "worldSettings.wind"].includes(entry.field))).toBe(false);
     // A level with only a legacy reflection actor still gets the Sky Light, at its intensity.
     const legacy = importForgeLevel(fixture({ worldSettings: {}, reflection: { intensity: 2 } }), resolvers);
     expect(legacy.level.actors.find((actor) => actor.name === "Sky Light")).toMatchObject({ components: { skyLight: { intensity: 2 } } });
@@ -239,7 +239,7 @@ describe("importForgeLevel", () => {
     ]);
     const bare = importForgeLevel(fixture({ worldSettings: { partition: { enabled: false } }, lights: [] }), resolvers);
     expect(bare.report.notConverted.map((entry) => entry.field).filter((field) => field.startsWith("worldSettings"))).toEqual([]);
-    expect(bare.level.settings).toEqual({ cellSize: 128 });
+    expect(bare.level.settings).toEqual({ cellSize: 128, wind: { directionDeg: 45, strength: .3, gust: .3 } });
   });
 
   test("cell files add their placements; id-less placements of the same group stay apart per cell", () => {

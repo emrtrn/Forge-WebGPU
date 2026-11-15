@@ -23,6 +23,14 @@ export function forgeWorldEnvironment(data: WorldEnvironmentData) {
     night: { ...data.night },
     season: data.season,
     weather: { ...data.weather },
+    surface: {
+      snowCoverage: data.surface.snowCoverage, wetness: data.surface.wetness,
+      snowColor: data.surface.snowColor, snowSlopeStartDeg: data.surface.snowSlopeStartDeg,
+      snowSlopeEndDeg: data.surface.snowSlopeEndDeg,
+      snowMinAltitude: data.surface.snowAltitudeEnabled ? data.surface.snowMinAltitude : null,
+      snowAltitudeBlend: data.surface.snowAltitudeBlend,
+    },
+    ...(!data.wind.useLevelWind ? { wind: { directionDeg: data.wind.directionDeg, strength: data.wind.strength, gust: data.wind.gust } } : {}),
   };
 }
 
@@ -35,17 +43,24 @@ export const WorldEnvironmentSubsystem = defineSubsystem({
     const controller = new WorldEnvironmentController();
     const runtime: { controller: WorldEnvironmentController; environment: ResolvedWorldEnvironment | null } = { controller, environment: null };
     let loaded: unknown = null;
+    let record: Record<string, unknown> | null = null;
+    const stop = controller.onChanged((state) => {
+      if (record) record.liveEnvironment = { initialized: true, ...structuredClone(state), surfaceTarget: controller.getSurfaceTarget() };
+    });
     const refresh = (): void => {
       const component = ctx.componentsOf(WorldEnvironment.name)[0]?.component ?? null;
       if (component === loaded) return;
       loaded = component;
+      record = component;
       if (component === null) {
         controller.clear();
         runtime.environment = null;
         return;
       }
       const layout = forgeWorldEnvironment(component as unknown as WorldEnvironmentData);
-      controller.load(layout);
+      const saved = structuredClone(component.liveEnvironment) as ({ initialized?: boolean } & Parameters<typeof controller.restore>[0]) | undefined;
+      controller.load(layout, (component as unknown as WorldEnvironmentData).surface);
+      if (saved?.initialized) controller.restore(saved);
       runtime.environment = resolveWorldEnvironment(normalizeWorldEnvironment(layout).environment);
     };
     ctx.services.provide(WorldEnvironmentKey, runtime);
@@ -54,6 +69,8 @@ export const WorldEnvironmentSubsystem = defineSubsystem({
       actorsRemoved: refresh,
       tick: (_group, dt) => controller.advance(dt),
       dispose: () => {
+        stop();
+        record = null;
         controller.clear();
         runtime.environment = null;
         loaded = null;

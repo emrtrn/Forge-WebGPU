@@ -28,6 +28,7 @@ import {
   parseComponentTypeTag,
   TICK_GROUPS,
   createServices,
+  defaultValue, object, LevelSettingsFields, LevelSettingsKey, type LevelSettings,
   type ActorDoc,
   type ActorId,
   type ClassResolver,
@@ -106,6 +107,7 @@ export function createWorld(options: WorldOptions): World {
   const subsystems: Running[] = [];
   const definitions: SubsystemDef[] = [];
   const editor = (options.mode ?? "game") === "editor";
+  services.provide(LevelSettingsKey, { current: defaultValue(object(LevelSettingsFields)) as LevelSettings });
   for (const feature of options.features) {
     for (const def of feature.subsystems) {
       if (definitions.some((other) => other.id === def.id)) {

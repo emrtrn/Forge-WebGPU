@@ -16,7 +16,7 @@ import type { ResolvedWorldEnvironment, Season, WeatherPreset } from "./worldEnv
  * actor, or a hidden one) means "render exactly what is authored".
  */
 
-/** The live, non-persisted environment: editor preview or the Play capability (§5.6). */
+/** The live environment: transient preview, A7 shared runtime state in Play. */
 export interface WorldEnvironmentState {
   hour: number;
   season: Season;

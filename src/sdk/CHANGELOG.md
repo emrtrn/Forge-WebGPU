@@ -8,6 +8,16 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.12
+
+API: 188fc6a99722ea29
+
+Phase 5a step 7: level settings include the base wind. WES v2 migrates v1,
+adds independent surface targets/rates and an optional wind override, and
+persists its shared live cover/targets through the A7 component state codec.
+The cover advances in simulation seconds; hour transitions do not add elapsed
+time. Editor preview stays transient; plants consume this state in 5c.
+
 ## 0.1.11
 
 API: f4d677b0cd5e7178

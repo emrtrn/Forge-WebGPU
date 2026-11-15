@@ -5,8 +5,8 @@
 // (scrubbed, or played at 0,25 / 1 / 4 hours a second), the season, the
 // weather and its intensity, shown in the viewport through the editor
 // world's World Environment and never saved. Make Default writes them into
-// the level (one undo step); Reset goes back to the level's. Forge's snow
-// cover and wetness wait for their fields (5a).
+// the level (one undo step); Reset goes back to the level's. Cover sliders
+// preview the amount directly; only Make Default changes authored targets.
 import { componentTypeTag } from "../../core/index.ts";
 import { defineFeatureEditor, type DetailsExtensionContext } from "../../editor-sdk/index.ts";
 import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
@@ -97,6 +97,16 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
   intensity.step = "0.05";
   intensity.dataset.testid = "wes-preview-intensity";
   row("Intensity", intensity);
+  const coverSlider = (label: string, field: "snowCoverage" | "wetness") => {
+    const slider = el("input", "param-slider");
+    slider.type = "range"; slider.min = "0"; slider.max = "1"; slider.step = ".01";
+    slider.dataset.testid = `wes-preview-${field}`;
+    slider.addEventListener("input", () => controller()?.setSurface({ [field]: Number(slider.value) }));
+    row(label, slider);
+    return slider;
+  };
+  const snow = coverSlider("Snow Coverage", "snowCoverage");
+  const wetness = coverSlider("Wetness", "wetness");
 
   const actions = el("div", "wes-preview-buttons");
   const makeDefault = el("button", "detail-action-button", "Make Default");
@@ -117,7 +127,7 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
   const update = (): void => {
     const live = controller()?.current() ?? null;
     missing.hidden = live !== null;
-    for (const control of [hour, play, speed, intensity, makeDefault, reset, ...seasons, ...weathers]) control.disabled = live === null;
+    for (const control of [hour, play, speed, intensity, snow, wetness, makeDefault, reset, ...seasons, ...weathers]) control.disabled = live === null;
     if (!live) return;
     if (doc.activeElement !== hour) hour.value = String(live.hour);
     hourLabel.textContent = formatHour(live.hour);
@@ -125,8 +135,11 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
     for (const button of seasons) button.classList.toggle("on", button.dataset.value === live.season);
     for (const button of weathers) button.classList.toggle("on", button.dataset.value === live.weather.preset);
     if (doc.activeElement !== intensity) intensity.value = String(live.weather.intensity);
+    if (doc.activeElement !== snow) snow.value = String(live.surface.snowCoverage);
+    if (doc.activeElement !== wetness) wetness.value = String(live.surface.wetness);
     const level = authored();
-    const modified = Math.abs(live.hour - level.hour) > 1e-6 || live.season !== level.season || live.weather.preset !== level.weather.preset || Math.abs(live.weather.intensity - level.weather.intensity) > 1e-6;
+    const modified = Math.abs(live.hour - level.hour) > 1e-6 || live.season !== level.season || live.weather.preset !== level.weather.preset || Math.abs(live.weather.intensity - level.weather.intensity) > 1e-6
+      || Math.abs(live.surface.snowCoverage - level.surface.snowCoverage) > 1e-6 || Math.abs(live.surface.wetness - level.surface.wetness) > 1e-6;
     makeDefault.disabled = !modified;
     reset.disabled = !modified;
   };
@@ -147,7 +160,8 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
     const live = controller()?.current();
     if (!live) return;
     playing = false;
-    ctx.edit("Make preview default", { hour: Number(live.hour.toFixed(2)), season: live.season, weather: { preset: live.weather.preset, intensity: live.weather.intensity } });
+    ctx.edit("Make preview default", { hour: Number(live.hour.toFixed(2)), season: live.season, weather: { preset: live.weather.preset, intensity: live.weather.intensity },
+      surface: { ...authored().surface, ...live.surface } });
   });
   reset.addEventListener("click", () => {
     const level = authored();
@@ -156,6 +170,7 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
     live?.setHour(level.hour);
     live?.setSeason(level.season);
     live?.setWeather(level.weather.preset, level.weather.intensity);
+    live?.setSurface(level.surface);
   });
 
   const stopChanged = controller()?.onChanged(() => update()) ?? (() => {});

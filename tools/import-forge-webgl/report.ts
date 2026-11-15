@@ -22,6 +22,7 @@ export function formatImportReport(result: ImportRunResult): string {
       + `Player Start ${c.playerStarts}; terrains ${c.terrains}; height fog ${c.heightFog}; lights ${c.lights}; environment ${c.environment}; puddles ${c.puddles}); source cells ${c.sourceCells}.`);
     lines.push(`- Static shadow switch (\`worldSettings.staticObjectsCastShadow\`): ${c.staticCastShadow ? "on" : "off"}, `
       + "written as `castShadow` on every placement that does not say.");
+    lines.push(`- WES v2: surface ${c.wesSurface}, wind ${c.wesWind}; level wind ${c.levelWind}. Cover rates use simulation seconds; weather and season never choose cover targets. Wind field priority is resolved before live weather/season scaling.`);
     if (sidecars.length) lines.push(`- Sidecars: ${sidecars.join(", ")}.`);
     if (report.missingAssets.length) {
       lines.push(`- Placements left out (no model in the target): ${report.missingAssets.map((entry) => `${entry.assetId} ${entry.placements}`).join(", ")}.`);

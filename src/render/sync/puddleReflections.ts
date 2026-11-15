@@ -83,8 +83,12 @@ export const createPuddleReflectionSource: PuddleSourceFactory = (level, quality
   // The reflector's plane faces its target's +Z: turned to +Y.
   target.rotation.x = -Math.PI / 2;
   root.add(target);
+  const projection = TSL.uniform(new THREE.Matrix4()).onRenderUpdate(({ camera }: { camera: THREE.Camera }) => {
+    const reflected = node.reflector.getVirtualCamera(camera) as THREE.Camera;
+    return projection.value.multiplyMatrices(reflected.projectionMatrix, reflected.matrixWorldInverse);
+  });
   return {
-    reflection: { node, texel: TEXEL[quality] },
+    reflection: { node, texel: TEXEL[quality], projection },
     target,
     dispose() {
       target.removeFromParent();

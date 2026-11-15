@@ -12,7 +12,8 @@
  * - `worldEnvironment` -> `forge.worldEnvironment`, through Forge's own
  *   normalizer (clamps, sunrise / sunset rule) and defaults. There is no day
  *   cycle (decision 8): a `dayLengthMinutes` above 0 is reported as not
- *   converted, the hour stays. `surface` waits for 5a, `wind` for 5c;
+ *   converted, the hour stays. V2 brings visual cover and wind (5a step 7):
+ *   independent targets/rates, WES -> settings -> default wind priority;
  * - `postProcess` -> `forge.postProcess` (phase 3 step 6), Forge's
  *   `resolvePostProcess` rule: each field or group member left out takes
  *   Forge's default. `antialias` keeps its value (`none | smaa`; TRAA is new),
@@ -26,11 +27,13 @@
 import type { ActorDoc, ActorId, ComponentMap, JsonObject } from "../../core/index.ts";
 import { isJsonObject } from "../../core/index.ts";
 import { normalizeWorldEnvironment, resolveWorldEnvironment } from "../environment/worldEnvironment.ts";
+import { normalizeLayoutWind, resolveWind } from "../environment/wind.ts";
+import { SURFACE_RATES } from "../environment/surfaceAccumulation.ts";
 
 export const SKY_ATMOSPHERE_TAG = "forge.skyAtmosphere@1";
 export const SKY_LIGHT_TAG = "forge.skyLight@1";
 export const CLOUD_LAYER_TAG = "forge.cloudLayer@1";
-export const WORLD_ENVIRONMENT_TAG = "forge.worldEnvironment@1";
+export const WORLD_ENVIRONMENT_TAG = "forge.worldEnvironment@2";
 export const POST_PROCESS_TAG = "forge.postProcess@1";
 
 /** Forge's `SKY_ATMOSPHERE_DEFAULTS` (engine/scene/skyAtmosphere.ts). */
@@ -64,8 +67,6 @@ export const SKY_LIGHT_WORLD_SETTINGS = ["backgroundColor", "ambientColor", "amb
 /** Fields beside the converted ones, with the phase that takes them. */
 export const ENVIRONMENT_FIELD_PHASES: Readonly<Record<string, string>> = {
   hidden: "4",
-  "worldEnvironment.surface": "5a",
-  "worldEnvironment.wind": "5c",
   "worldEnvironment.time.dayLengthMinutes": "- (sürekli gün döngüsü yok, kullanıcı kararı)",
 };
 
@@ -73,7 +74,7 @@ const CONVERTED: Readonly<Record<string, readonly string[]>> = {
   skyAtmosphere: ["name", "rayleigh", "turbidity", "mie", "mieDirectionalG", "exposure", "skyLightCapture"],
   reflection: ["name", "source", "intensity"],
   cloudLayer: ["name", ...Object.keys(FORGE_CLOUD)],
-  worldEnvironment: ["name", "time", "sunPath", "night", "season", "weather"],
+  worldEnvironment: ["name", "time", "sunPath", "night", "season", "weather", "surface", "wind"],
   postProcess: ["name", ...Object.keys(FORGE_POST)],
 };
 
@@ -120,6 +121,13 @@ function singleton(id: ActorId, name: string, key: string, component: JsonObject
     transform: { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] },
     components: { [key]: component as unknown as ComponentMap[string] },
   };
+}
+
+/** Base wind only: weather/season are applied once, by the live resolver. */
+export function forgeLevelWind(layout: JsonObject) {
+  const settings = isJsonObject(layout.worldSettings) ? layout.worldSettings : {};
+  const wind = resolveWind(undefined, normalizeLayoutWind(settings.wind, "worldSettings.wind", []), null);
+  return { directionDeg: wind.directionDeg, strength: wind.strength, gust: wind.gust };
 }
 
 export function environmentActors(layout: JsonObject, actorId: (key: string) => ActorId): EnvironmentActors {
@@ -187,6 +195,9 @@ export function environmentActors(layout: JsonObject, actorId: (key: string) => 
   const wes = isJsonObject(layout.worldEnvironment) ? layout.worldEnvironment : null;
   if (wes) {
     const env = resolveWorldEnvironment(normalizeWorldEnvironment(wes).environment);
+    const authoredWind = normalizeLayoutWind(wes.wind, "worldEnvironment.wind", []);
+    const baseWind = resolveWind(authoredWind, forgeLevelWind(layout), null);
+    const { winterSnowCoverage: _winterSnow, snowMinAltitude, ...surface } = env.surface;
     actors.push(singleton(actorId("worldEnvironment"), name(wes, NAMES.worldEnvironment), "environment", {
       type: WORLD_ENVIRONMENT_TAG,
       hour: env.time.hour,
@@ -194,9 +205,15 @@ export function environmentActors(layout: JsonObject, actorId: (key: string) => 
       weather: { ...env.weather },
       sunPath: { ...env.sunPath },
       night: { ...env.night },
+      surface: { ...surface, ...SURFACE_RATES, snowAltitudeEnabled: snowMinAltitude !== null, snowMinAltitude: snowMinAltitude ?? 0 },
+      wind: { useLevelWind: !authoredWind || Object.keys(authoredWind).length === 0,
+        directionDeg: baseWind.directionDeg, strength: baseWind.strength, gust: baseWind.gust },
     }));
     counts.worldEnvironment = 1;
     noteRest("worldEnvironment", wes);
+    if (isJsonObject(wes.surface) && wes.surface.winterSnowCoverage !== undefined) {
+      notes.push({ field: "worldEnvironment.surface.winterSnowCoverage", count: 1, phase: "- (mevsim örtü hedefini değiştirmez; kullanıcı kararı 2026-11-15)" });
+    }
     if (env.time.dayLengthMinutes > 0) {
       notes.push({ field: "worldEnvironment.time.dayLengthMinutes", count: 1, phase: ENVIRONMENT_FIELD_PHASES["worldEnvironment.time.dayLengthMinutes"]! });
     }

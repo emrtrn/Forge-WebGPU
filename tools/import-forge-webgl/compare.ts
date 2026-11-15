@@ -10,6 +10,7 @@ import { isJsonObject, type JsonObject } from "../../src/core/index.ts";
 import type { ImportRunResult } from "./importRun.ts";
 import type { ForgeSource } from "./forgeSource.ts";
 import { readForgeLevel } from "./levelRead.ts";
+import { compareEnvironment } from "./compareEnvironment.ts";
 
 export interface CountRow {
   readonly what: string;
@@ -223,6 +224,7 @@ export async function compareImport(projectRoot: string, source: ForgeSource, re
     const environment = s.skyAtmosphere + s.skyLight + s.cloudLayer + s.worldEnvironment + s.postProcess;
     const missingNote = report.missingAssets.map((entry) => `${entry.assetId} ${entry.placements}`).join(", ");
     tables.set(`${report.source} → ${folder}`, [
+      ...await compareEnvironment(source, report.source, projectRoot, folder),
       row("shape placements → forge.shape", s.shapes, t.shapes, "?"),
       row("model placements → forge.staticMesh", s.models, t.meshes,
         missing === s.models - t.meshes ? `no model in the target: ${missingNote}` : "?"),

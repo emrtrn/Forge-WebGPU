@@ -48,13 +48,12 @@ export const LEVEL_FIELD_PHASES: Readonly<Record<string, string>> = {
  * (phase 3 decision 7).
  */
 export const CONVERTED_WORLD_SETTINGS_FIELDS: ReadonlySet<string> = new Set([
-  "partition", "staticObjectsCastShadow", "backgroundColor", "ambientColor", "ambientIntensity",
+  "partition", "staticObjectsCastShadow", "backgroundColor", "ambientColor", "ambientIntensity", "wind",
 ]);
 
 export const WORLD_SETTINGS_FIELD_PHASES: Readonly<Record<string, string>> = {
   staticObjectsReceiveShadow: "- (gölge almak hep açık, kullanıcı kararı 2026-11-13)",
   viewDistance: "5b",
-  wind: "5c",
   gravity: "6",
   killZ: "6",
   gameMode: "6",

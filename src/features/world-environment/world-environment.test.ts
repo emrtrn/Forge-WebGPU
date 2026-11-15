@@ -9,10 +9,11 @@ import { forgeWorldEnvironment } from "./runtime.ts";
 import { SEASONS, WEATHER_PRESETS, WorldEnvironment } from "./schema.ts";
 
 describe("world environment schema", () => {
-  test("defaults are Forge WebGL's WORLD_ENVIRONMENT_DEFAULTS, without a day length, surface or wind", () => {
+  test("defaults preserve Forge's lighting and neutral cover; wind inherits the level", () => {
     const d = WORLD_ENVIRONMENT_DEFAULTS;
-    expect(createComponent(WorldEnvironment)).toEqual({
-      type: "forge.worldEnvironment@1", hour: d.time.hour, season: d.season, weather: d.weather, sunPath: d.sunPath, night: d.night,
+    expect(createComponent(WorldEnvironment)).toMatchObject({
+      type: "forge.worldEnvironment@2", hour: d.time.hour, season: d.season, weather: d.weather, sunPath: d.sunPath, night: d.night,
+      surface: { snowCoverage: 0, wetness: 0 }, wind: { useLevelWind: true },
     });
     expect(SEASONS).toEqual(FORGE_SEASONS);
     expect(WEATHER_PRESETS).toEqual(FORGE_WEATHER);
@@ -28,7 +29,7 @@ describe("world environment schema", () => {
 
   test("every row has an English name and a Turkish hint", () => {
     const rows = formOf(WorldEnvironment).fields;
-    expect(rows.map((field) => field.key)).toEqual(["hour", "season", "weather", "sunPath", "night"]);
+    expect(rows.map((field) => field.key)).toEqual(["hour", "season", "surface", "wind", "weather", "sunPath", "night"]);
     const flat = (fields: typeof rows): typeof rows =>
       fields.flatMap((field) => (field.kind === "object" ? [field, ...flat(field.fields)] : [field]));
     for (const field of flat(rows)) {

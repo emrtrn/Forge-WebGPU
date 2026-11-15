@@ -317,6 +317,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
         models,
         materials,
         terrains,
+        textures,
         bindings: options.bindings,
         features,
         name,

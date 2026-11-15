@@ -11,10 +11,11 @@
 //
 // No continuous day cycle (phase 3 decision 8, the user's event-based time of
 // day): the hour is fixed; gameplay moves it with a timed transition
-// (`transitionTo`, phase 3 step 7). Forge's `dayLengthMinutes` has no field. Not here yet: the visual
-// snow / wetness cover (`surface`, phase 5a) and the sway wind (`wind`, 5c).
+// (`transitionTo`, phase 3 step 7). Forge's `dayLengthMinutes` has no field.
+// V2 (5a step 7) adds independent cover targets/rates, A7 live state and wind;
+// vegetation consumes the common state in 5c.
 
-import { color, defineComponent, enumOf, num, object, type ComponentData } from "../../core/index.ts";
+import { bool, color, defineComponent, enumOf, num, object, WindFields, type ComponentData } from "../../core/index.ts";
 
 /** Forge's seasons and weather presets (engine/environment/worldEnvironment.ts). */
 export const SEASONS = ["spring", "summer", "autumn", "winter"] as const;
@@ -23,9 +24,18 @@ export const WEATHER_PRESETS = ["clear", "cloudy", "rain", "snow", "fog"] as con
 const hour = (fallback: number, min: number, max: number, hint: string) =>
   num({ min, max, default: fallback, step: 0.25, hint });
 
+const amounts = () => ({
+  snowCoverage: num({ min: 0, max: 1, default: 0, step: .05, hint: "Görsel kar örtüsü (0–1); mevsimden bağımsız." }),
+  wetness: num({ min: 0, max: 1, default: 0, step: .05, hint: "Görsel ıslaklık (0–1). Boya, yükseklik ve fizik materyali değişmez." }),
+});
+const weatherFields = () => ({
+  preset: enumOf(WEATHER_PRESETS, { default: "clear" }),
+  intensity: num({ min: 0, max: 1, default: 1 }),
+});
+
 export const WorldEnvironment = defineComponent(
   "forge.worldEnvironment",
-  1,
+  2,
   {
     hour: num({
       min: 0,
@@ -39,6 +49,23 @@ export const WorldEnvironment = defineComponent(
       labels: { spring: "Spring", summer: "Summer", autumn: "Autumn", winter: "Winter" },
       hint: "Mevsim. Summer level'daki görünümü korur.",
     }),
+    surface: object({
+      ...amounts(),
+      snowAccumulationRate: num({ min: 0, max: 1, default: .01, step: .001, label: "Snow Accumulation (/s)", hint: "Kar hedefe doğru birikir: 0–1 örtü / simülasyon saniyesi. 0 durdurur." }),
+      snowMeltRate: num({ min: 0, max: 1, default: .005, step: .001, label: "Snow Melt (/s)", hint: "Kar hedefe doğru erir: 0–1 örtü / simülasyon saniyesi." }),
+      wettingRate: num({ min: 0, max: 1, default: .1, step: .001, label: "Wetting (/s)", hint: "Islanma hızı: 0–1 örtü / simülasyon saniyesi." }),
+      dryingRate: num({ min: 0, max: 1, default: .01, step: .001, label: "Drying (/s)", hint: "Kuruma hızı: 0–1 örtü / simülasyon saniyesi." }),
+      snowColor: color({ default: "#f2f5fa", hint: "Karın rengi." }),
+      snowSlopeStartDeg: num({ min: 0, max: 90, default: 30, step: 1, hint: "Kar örtüsünün eğimle azalmaya başladığı açı (derece)." }),
+      snowSlopeEndDeg: num({ min: 0, max: 90, default: 55, step: 1, hint: "Karın tutunmadığı eğim (derece)." }),
+      snowAltitudeEnabled: bool({ default: false, hint: "Kar örtüsünü en düşük dünya yüksekliğiyle sınırla." }),
+      snowMinAltitude: num({ min: -100000, max: 100000, default: 0, step: 1, hint: "Kar örtüsünün başladığı dünya Y yüksekliği (metre)." }),
+      snowAltitudeBlend: num({ min: 0, max: 10000, default: 20, step: 1, hint: "Yükseklik sınırının yumuşak geçişi (metre)." }),
+    }, { hint: "Başlangıç örtüsü ve hedefleri. Saat atlamak birikim süresi değildir; mevsim ve hava hedefleri kendiliğinden değiştirmez." }),
+    wind: object({
+      useLevelWind: bool({ default: true, label: "Use Level Wind", hint: "Level ayarlarındaki rüzgârı kullan. Kapalıyken aşağıdaki değerler geçerli; hava ve mevsim her iki durumda ölçekler." }),
+      ...WindFields,
+    }, { hint: "Ortak rüzgâr. Terrain boyasına veya fizik nesnelerine yazmaz." }),
     weather: object(
       {
         preset: enumOf(WEATHER_PRESETS, {
@@ -173,6 +200,19 @@ export const WorldEnvironment = defineComponent(
     label: "World Environment",
     hint: "Günün saati, mevsim ve hava: level'daki güneşi, gökyüzünü, sisi ve bulutları kendi değerlerini değiştirmeden yeniden yorumlar. Level başına bir tane olur.",
     singleton: true,
+    // V1 had neither cover nor wind. The normalizer adds their neutral
+    // defaults. Identity is deliberately partial-safe for overrides/saves.
+    migrations: { 1: (data) => ({ ...data }) },
+    state: {
+      liveEnvironment: object({
+        initialized: bool({ default: false }),
+        hour: num({ min: 0, max: 24, default: 12 }),
+        season: enumOf(SEASONS, { default: "summer" }),
+        weather: object(weatherFields()),
+        surface: object(amounts()),
+        surfaceTarget: object(amounts()),
+      }),
+    },
   },
 );
 

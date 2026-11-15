@@ -281,4 +281,36 @@ describe("import:forge", () => {
     expect(again.removed).toEqual([]);
     expect(await readFile(join(project, "content/levels/Valley/cells/0_0.json"), "utf8")).toBe(before);
   });
+
+  test("WES v2 imports cover and sparse wind priority; --compare detects lost cover or wind values", async () => {
+    const sourcePath = join(forge, LEVEL);
+    const before = await readFile(sourcePath, "utf8");
+    const layout = JSON.parse(before);
+    layout.worldSettings.wind = { directionDeg: 270, strength: .4, gust: .2 };
+    layout.worldEnvironment = { surface: { snowCoverage: .45, wetness: .7, snowMinAltitude: 30, snowColor: "#ddeeFF" },
+      wind: { strength: .8 }, weather: { preset: "rain", intensity: 1 } };
+    await writeFile(sourcePath, json(layout));
+    try {
+      const result = await run({ force: true });
+      const source = await openForgeSource(forge);
+      const tables = await compareImport(project, source, result);
+      expect(unexplained(tables)).toEqual([]);
+      const path = join(project, "content/levels/Valley/level.json");
+      const target = JSON.parse(await readFile(path, "utf8"));
+      const wes = target.actors.find((actor: { components: { environment?: unknown } }) => actor.components.environment).components.environment;
+      expect(wes).toMatchObject({ type: "forge.worldEnvironment@2",
+        surface: { snowCoverage: .45, wetness: .7, snowAltitudeEnabled: true, snowMinAltitude: 30, snowColor: "#ddeeff" },
+        wind: { useLevelWind: false, directionDeg: 270, strength: .8, gust: .2 } });
+      expect(result.levels[0]!.report.notConverted.some((entry) => /worldEnvironment\.(surface|wind)$|worldSettings.wind/.test(entry.field))).toBe(false);
+      expect(formatImportReport(result)).toContain("WES v2: surface 1, wind 1; level wind 1");
+      target.settings.wind.strength = .01;
+      wes.surface.wetness = 0;
+      await writeFile(path, json(target));
+      const lost = unexplained(await compareImport(project, source, result));
+      expect(lost.some((entry) => entry.includes("level wind values"))).toBe(true);
+      expect(lost.some((entry) => entry.includes("WES surface values"))).toBe(true);
+    } finally {
+      await writeFile(sourcePath, before);
+    }
+  });
 });

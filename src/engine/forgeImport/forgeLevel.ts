@@ -54,7 +54,7 @@ import {
   WORLD_SETTINGS_FIELD_PHASES,
   fieldPhase,
 } from "./fields.ts";
-import { environmentActors } from "./environment.ts";
+import { environmentActors, forgeLevelWind } from "./environment.ts";
 import { puddleActors } from "./puddles.ts";
 import { forgeLevelId, stableHex } from "./ids.ts";
 import { forgeLightSources, LIGHT_FIELD_PHASES, lightActors } from "./lights.ts";
@@ -139,6 +139,9 @@ export interface ForgeLevelReport {
     readonly environment: number;
     /** Puddle actors (`puddleWaters`, phase 5a step 6). */
     readonly puddles: number;
+    readonly wesSurface: number;
+    readonly wesWind: number;
+    readonly levelWind: number;
     readonly sourceCells: number;
     /** Forge's level-wide static shadow switch, as resolved into the placements that do not say. */
     readonly staticCastShadow: boolean;
@@ -362,13 +365,14 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
   }
 
   return {
-    level: { schema: LEVEL_SCHEMA, id: levelId, settings: { cellSize: mainGridCellSize(layout) }, actors },
+    level: { schema: LEVEL_SCHEMA, id: levelId, settings: { cellSize: mainGridCellSize(layout), wind: forgeLevelWind(layout) }, actors },
     terrains,
     report: {
       source: input.path,
       name: typeof layout.name === "string" ? layout.name : "",
       converted: {
         ...counts, actors: actors.length, terrains: terrains.length, heightFog, lights: lights.actors.length, environment: environment.actors.length, puddles: puddles.actors.length, sourceCells: input.cells.length, staticCastShadow,
+        wesSurface: environment.counts.worldEnvironment, wesWind: environment.counts.worldEnvironment, levelWind: 1,
       },
       notConverted: [...fields].map(([field, { count, phase }]) => ({ field, count, phase }))
         .sort((a, b) => a.field.localeCompare(b.field)),

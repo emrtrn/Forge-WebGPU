@@ -14,6 +14,7 @@ import {
   type TimeTransitionRequest,
 } from "./timeTransition.ts";
 import { WorldClock } from "./worldClock.ts";
+import { advanceSurface, SURFACE_RATES, type SurfaceAmount, type SurfaceRates } from "./surfaceAccumulation.ts";
 import {
   normalizeWorldEnvironment,
   resolveWorldEnvironment,
@@ -47,6 +48,9 @@ export interface WorldEnvironmentService {
   /** K1: the change is immediate; timed transitions arrive with precipitation (K3). */
   setWeather(preset: WeatherPreset, intensity?: number): void;
   setSurface(partial: Partial<WorldEnvironmentState["surface"]>): void;
+  /** Changes the target; accumulation/melt/wetting/drying use simulation seconds. */
+  setSurfaceTarget(partial: Partial<SurfaceAmount>): void;
+  getSurfaceTarget(): Readonly<SurfaceAmount>;
   onChanged(listener: (state: Readonly<WorldEnvironmentState>) => void): () => void;
 }
 
@@ -58,6 +62,8 @@ export interface WorldEnvironmentService {
  * renderer can skip unchanged frames.
  */
 export class WorldEnvironmentController implements WorldEnvironmentService {
+  private surfaceTarget: SurfaceAmount = { snowCoverage: 0, wetness: 0 };
+  private surfaceRates: SurfaceRates = { ...SURFACE_RATES };
   private clock: WorldClock | null = null;
   private state: WorldEnvironmentState | null = null;
   private readonly listeners = new Set<(state: Readonly<WorldEnvironmentState>) => void>();
@@ -66,7 +72,7 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
   private settle: ((reached: boolean) => void) | null = null;
 
   /** Starts from a level's actor; null (no actor, or a hidden one) leaves no state. */
-  load(actor: LayoutWorldEnvironment | null | undefined): void {
+  load(actor: LayoutWorldEnvironment | null | undefined, rates: SurfaceRates = SURFACE_RATES): void {
     this.endTransition(false);
     this.clock = null;
     this.state = null;
@@ -76,6 +82,8 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
     if (env.hidden) return;
     this.clock = new WorldClock(env.time.hour, env.time.dayLengthMinutes);
     this.state = stateFromDefaults(env);
+    this.surfaceTarget = { ...this.state.surface };
+    this.surfaceRates = { ...rates };
     this.emit();
   }
 
@@ -112,6 +120,14 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
    * until it is done.
    */
   advance(simulationSeconds: number): void {
+    if (!Number.isFinite(simulationSeconds) || simulationSeconds <= 0) return;
+    if (this.state) {
+      const surface = advanceSurface(this.state.surface, this.surfaceTarget, this.surfaceRates, simulationSeconds);
+      if (surface.snowCoverage !== this.state.surface.snowCoverage || surface.wetness !== this.state.surface.wetness) {
+        this.state = { ...this.state, surface };
+        this.emit();
+      }
+    }
     if (this.transition && this.clock && this.state) {
       this.transition = advanceTimeTransition(this.transition, simulationSeconds);
       const hour = transitionHour(this.transition);
@@ -181,7 +197,28 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
       if (value !== undefined && Number.isFinite(value)) surface[key] = Math.min(1, Math.max(0, value));
     }
     this.state = { ...this.state, surface };
+    this.surfaceTarget = { ...surface };
     this.emit();
+  }
+
+  setSurfaceTarget(partial: Partial<SurfaceAmount>): void {
+    if (!this.state) return;
+    for (const key of ["snowCoverage", "wetness"] as const) {
+      const value = partial[key];
+      if (value !== undefined && Number.isFinite(value)) this.surfaceTarget[key] = Math.min(1, Math.max(0, value));
+    }
+    this.emit();
+  }
+
+  getSurfaceTarget(): Readonly<SurfaceAmount> { return { ...this.surfaceTarget }; }
+
+  /** A7: restore the common WES state; no elapsed time or historical effects. */
+  restore(state: WorldEnvironmentState & { surfaceTarget: SurfaceAmount }): void {
+    this.setHour(state.hour);
+    this.setSeason(state.season);
+    this.setWeather(state.weather.preset, state.weather.intensity);
+    this.setSurface(state.surface);
+    this.setSurfaceTarget(state.surfaceTarget);
   }
 
   onChanged(listener: (state: Readonly<WorldEnvironmentState>) => void): () => void {

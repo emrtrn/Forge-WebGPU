@@ -54,6 +54,7 @@ import {
   type TerrainMaterialInput,
 } from "../materials/terrain.ts";
 import type { TerrainLayerInput } from "../resources/terrains.ts";
+import type { SurfaceCoverInput } from "../materials/surfaceCover.ts";
 
 /** Forge's defaults (terrainRenderer.ts). */
 export const TERRAIN_SLOT_CAPACITY = 64;
@@ -160,6 +161,11 @@ export interface TerrainSelection {
 }
 
 export class TerrainView {
+  private cover: SurfaceCoverInput | null = null;
+  setSurfaceCover(input: SurfaceCoverInput | null): void {
+    this.cover = input;
+    this.terrainMaterial.setSurfaceCover(input);
+  }
   readonly mesh: THREE.Mesh<THREE.InstancedBufferGeometry, THREE.MeshStandardNodeMaterial>;
   /** World position of terrain-local 0. */
   readonly origin: THREE.Vector3;
@@ -354,6 +360,7 @@ export class TerrainView {
     const previous = this.mesh.material;
     const material = createTerrainMaterial({ ...this.materialInput, farTiling: enabled });
     this.terrainMaterial = material;
+    material.setSurfaceCover(this.cover);
     this.mesh.material = material.material;
     previous.dispose();
     this.selectionDirty = true;

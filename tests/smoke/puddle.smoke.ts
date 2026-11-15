@@ -16,10 +16,13 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { Quaternion, Vector3 } from "three";
+import sharp from "sharp";
 import { RENDER_REFS, SMOKE_SCENES } from "./renderScenes.ts";
 import { difference, openSmokeLevel } from "./smokePage.ts";
 
 interface Dev {
+  pause(): void;
+  step(ms: number): Promise<unknown>;
   spawn(raw: unknown[]): string[];
   terrainHeights(points: [number, number][]): Promise<(number | null)[]>;
   puddleResult(actor: string): Promise<{ status: string; area: number; message: string } | undefined>;
@@ -61,6 +64,32 @@ async function findBasin(page: Page, centre: [number, number]): Promise<{ x: num
 test("puddle: a basin ahead of the camera fills, draws and reflects the scene", async ({ page }, testInfo) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("console", (message) => { if (message.type() === "warning" && message.text().includes("puddle")) console.log(message.text()); });
+  const gpuErrors: string[] = [];
+  page.on("console", (message) => { if (message.type() === "error") gpuErrors.push(message.text()); });
+  // A test-only repeating normal: exercise the actual texture loader and
+  // both TSL wind samples without adding assets to the reference project.
+  const normalId = "ast_fffffffffffffffffffffffffffffff7";
+  const pixels = Buffer.alloc(32 * 32 * 4);
+  for (let y = 0; y < 32; y += 1) for (let x = 0; x < 32; x += 1) {
+    const i = (y * 32 + x) * 4;
+    pixels[i] = 128 + Math.round(Math.sin(x * Math.PI / 4) * 30);
+    pixels[i + 1] = 128 + Math.round(Math.cos(y * Math.PI / 4) * 30);
+    pixels[i + 2] = 250;
+    pixels[i + 3] = 255;
+  }
+  const normal = await sharp(pixels, { raw: { width: 32, height: 32, channels: 4 } }).png().toBuffer();
+  let normalRequests = 0;
+  await page.route("**/__forge/asset-files", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.assets[normalId] = { type: "forge.texture", file: "project/smoke-puddle-normal.png", import: { mipmaps: true } };
+    await route.fulfill({ response, json: body });
+  });
+  await page.route(/\/__forge\/read\?path=.*smoke-puddle-normal\.png/, async (route) => {
+    normalRequests += 1;
+    await route.fulfill({ contentType: "image/png", body: normal });
+  });
   const scene = SMOKE_SCENES.find((entry) => entry.id === "derekavak")!;
   const pose = scene.poses[0]!;
   const opened = await openSmokeLevel(page, scene.level, pose);
@@ -90,7 +119,7 @@ test("puddle: a basin ahead of the camera fills, draws and reflects the scene", 
       parent: null,
       spatiallyLoaded: true,
       transform: { p: [basin.x, basin.y + depth, basin.z], r: [0, 0, 0, 1], s: [1, 1, 1] },
-      components: { puddle: { type: "forge.puddle@1", size: 32, reflectionQuality: "high" } },
+      components: { puddle: { type: "forge.puddle@1", size: 32, reflectionQuality: "high", windNormal: normalId, windNormalStrength: .2 } },
     }]);
     await expect.poll(async () => (await dev(page).result(id!))?.status, { timeout: 30_000 }).not.toBe("loading");
     result = (await dev(page).result(id!))!;
@@ -112,5 +141,18 @@ test("puddle: a basin ahead of the camera fills, draws and reflects the scene", 
   console.log(`image change ${change.toFixed(3)} (still noise ${noise.toFixed(3)}); draw calls ${callsBefore} -> ${callsAfter}`);
   expect(change, "the puddle is drawn").toBeGreaterThan(Math.max(0.05, noise * 4));
   expect(callsAfter - callsBefore, "the planar reflection draws the scene again").toBeGreaterThan(10);
+  expect(normalRequests, "the wind normal was requested and sampled by the water").toBeGreaterThan(0);
+  await page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.pause());
+  // pause holds the *next* request; allow the already queued rAF to finish.
+  await page.waitForTimeout(200);
+  const waterShot = () => page.screenshot({ clip: { x: viewport.width * .4, y: viewport.height * .3, width: viewport.width * .4, height: viewport.height * .5 } });
+  const windBefore = await waterShot();
+  await page.waitForTimeout(150);
+  expect(await difference(page, windBefore, await waterShot()), "pause freezes the water").toBe(0);
+  for (let i = 0; i < 20; i += 1) await page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.step(100));
+  const windChange = await difference(page, windBefore, await waterShot());
+  console.log(`wind normal requests ${normalRequests}; 2 simulation seconds image change ${windChange.toFixed(5)}`);
+  expect(windChange, "the textured wind ripples animate on the actual GPU").toBeGreaterThan(.001);
   expect(pageErrors).toEqual([]);
+  expect(gpuErrors).toEqual([]);
 });

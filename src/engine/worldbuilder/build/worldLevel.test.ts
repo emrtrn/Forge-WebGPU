@@ -78,7 +78,7 @@ describe("worldLevel", () => {
     expect(level.terrain.data).toEqual(build.def);
     expect(level.terrainFile).toBe("terrain/valley.terrain.json");
     expect(start).toMatchObject({ name: "Player Start", components: {}, transform: { p: [10, 22, -4] } });
-    expect(level.level.settings).toEqual({ cellSize: 128 });
+    expect(level.level.settings).toEqual({ cellSize: 128, wind: { directionDeg: 45, strength: .3, gust: .3 } });
   });
 
   test("the written recipe carries no ledger: provenance is on the objects", () => {

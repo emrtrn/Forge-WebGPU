@@ -28,6 +28,8 @@ import * as TSLTyped from "three/tsl";
 import { TERRAIN_RENDER_LAYERS } from "../../engine/terrain/terrainRenderData.ts";
 import type { TerrainLayerInput } from "../resources/terrains.ts";
 import { terrainStaticDetail, type TerrainDetailParams } from "./terrainDetail.ts";
+import { applyContributions } from "./contributions.ts";
+import { createSurfaceCover, type SurfaceCoverInput } from "./surfaceCover.ts";
 import { createTerrainLayerArray, packTerrainLayerRoughness, readTerrainLayerPixels, type TerrainLayerSource } from "./terrainLayerArray.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -197,6 +199,7 @@ export interface TerrainMaterialInput {
 }
 
 export interface TerrainMaterial {
+  setSurfaceCover(input: SurfaceCoverInput | null): void;
   readonly material: THREE.MeshStandardNodeMaterial;
   /** Sets the terrain-local camera position the morph reads (the view, on each selection). */
   setLodCamera(x: number, y: number, z: number): void;
@@ -375,9 +378,12 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
   material.normalNode = transformNormalToView(worldNormal);
   // A hole in the far map (no tile covers the sample) is cut, in every pass.
   material.maskNode = useTile.or(globalNormal.b.lessThan(0.5));
+  const surfaceCover = createSurfaceCover();
+  applyContributions(material, { wetness: surfaceCover }, base);
   let probe: THREE.MeshBasicNodeMaterial | null = null;
   return {
     material,
+    setSurfaceCover: (input) => surfaceCover.update(input),
     setLodCamera(x, y, z) {
       (uLodCamera.value as THREE.Vector3).set(x, y, z);
     },

@@ -8,7 +8,8 @@
 // written into this run's temporary project copy (D14).
 
 import { expect, test, type Page } from "@playwright/test";
-import { row, openEditor, writeLevel, IDENTITY } from "./support.ts";
+import { readFileSync } from "node:fs";
+import { row, openEditor, writeLevel, IDENTITY, projectPath } from "./support.ts";
 
 const LEVEL = "content/levels/world-smoke";
 const id = (n: number): string => `act_${n.toString(16).padStart(32, "0")}`;
@@ -81,13 +82,24 @@ test("the World Environment preview never dirties the level; Make Default writes
   await expect(page.getByTestId("wes-preview-season-winter")).toHaveClass(/\bon\b/);
   await expect(page.getByTestId("editor-undo")).toBeDisabled();
   await expect(page.getByTestId("detail-environment-hour")).toHaveValue("12");
+  for (const field of ["snowCoverage", "wetness"]) {
+    await page.getByTestId(`wes-preview-${field}`).evaluate((slider) => {
+      (slider as HTMLInputElement).value = ".8";
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await expect(page.getByRole("spinbutton", { name: field === "snowCoverage" ? "Snow Coverage" : "Wetness", exact: true })).toHaveValue("0");
+  }
+  await expect(page.getByTestId("editor-undo")).toBeDisabled();
 
   await page.getByTestId("wes-preview-default").click();
   await expect(page.getByTestId("detail-environment-hour")).toHaveValue("18.5");
   await expect(page.getByTestId("detail-environment-season")).toHaveValue("winter");
+  await expect(page.getByRole("spinbutton", { name: "Snow Coverage", exact: true })).toHaveValue("0.8");
   await expect(page.getByTestId("wes-preview-default")).toBeDisabled();
   await page.getByTestId("editor-undo").click();
   await expect(page.getByTestId("detail-environment-hour")).toHaveValue("12");
+  await expect(page.getByRole("spinbutton", { name: "Snow Coverage", exact: true })).toHaveValue("0");
+  await expect(page.getByTestId("wes-preview-snowCoverage")).toHaveValue("0");
   await expect(page.getByTestId("editor-undo")).toBeDisabled();
 
   await page.getByTestId("wes-preview-weather-rain").click();
@@ -132,6 +144,31 @@ test("Play starts from the World Environment's Make Default, unsaved", async ({ 
     return frame.hour;
   });
   expect(hour).toBe(18.5);
+  await game.close();
+  expect(errors).toEqual([]);
+});
+
+test("cover preview stays out of level bytes and Play state", async ({ page, context }) => {
+  const errors = await open(page);
+  const path = projectPath(`${LEVEL}/level.json`);
+  const before = readFileSync(path, "utf8");
+  await row(page, WES).click();
+  for (const field of ["snowCoverage", "wetness"]) {
+    await page.getByTestId(`wes-preview-${field}`).evaluate((slider) => {
+      (slider as HTMLInputElement).value = ".9";
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+  await expect(page.getByTestId("editor-save")).toBeDisabled();
+  await page.keyboard.press("Control+s");
+  expect(readFileSync(path, "utf8")).toBe(before);
+  const opened = context.waitForEvent("page");
+  await page.getByTestId("editor-play").click();
+  const game = await opened;
+  await expect(game.getByTestId("forge-canvas")).toHaveAttribute("data-forge-ready", "1", { timeout: 60_000 });
+  const state = await game.evaluate(() => (window as unknown as { __forgeDev: { environmentState(): { surface: unknown } } }).__forgeDev.environmentState());
+  expect(state.surface).toEqual({ snowCoverage: 0, wetness: 0 });
+  expect(readFileSync(path, "utf8")).toBe(before);
   await game.close();
   expect(errors).toEqual([]);
 });

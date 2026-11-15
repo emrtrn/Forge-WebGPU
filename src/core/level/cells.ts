@@ -109,7 +109,7 @@ export type CellAssignment = Map<ActorId, string | null>;
  */
 export function assignCells(
   actors: readonly ActorDoc[],
-  settings: LevelSettings,
+  settings: Pick<LevelSettings, "cellSize">,
   options: CellAssignOptions,
 ): NormalizeResult<CellAssignment> {
   const ctx = createContext(options);
