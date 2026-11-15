@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.26 · 2026-11-15 (v1.25’ten fark: §4.6 süreçler arası kayıt kilidi, ortak authoring modülü, dosya olayları (`forge:files`); §4.11 A12 uygulaması — `forge edit` komutları, ortak işlemler `src/engine/edit`, editörün canlı tazelenmesi; kullanıcı kararları 2026-11-15). v1.25 · 2026-11-15 (v1.24’ten fark: §4.6 Play uçları ve 409 akışının uygulaması — alan düzeyinde üç yönlü birleştirme, oturum tabanı, `compare` / `rebase`, Reload ve birleştirme undo geçmişini temizler (kullanıcı kararları); §4.7 Play oturum katmanının uygulaması). v1.24 · 2026-11-14 (kullanıcı kararı: WES + prosedürel bitki ortak sözleşmesi; bitki ailesi, tekil aktör / foliage eşitliği, zaman / mevsim / örtü sahipliği ve 5c bağı; yalnız plan, uygulama yok). v1.23 · 2026-11-14 (v1.22’den fark: §4.3 assetEditors / assetPreviews sözleşmeleri (SDK 0.1.10); §4.11 A13 uygulaması — ortak asset oturumu ve sanal tablo, tek canvas / GPU önizlemesi, sınıf uyumluluk koruması ve kaynak nesli yönetimi). v1.22 · 2026-11-14 (v1.21’den fark: §4.8 motor içeriği kipinin uygulaması — kayıtlı kökler için ayrı kayıt politikası, Content Browser ve level kayıt yönlendirmesi, etiketli 409 / hücre dizini yolları, sınıf tazeleme ve geçici içerikle kabul). v1.21 · 2026-11-14 (v1.20'den fark: §4.3 bir özelliğin editör tarafı `defineFeatureEditor` (Outliner görünüşü, Add Actor girişleri, Details eklentileri; SDK 0.1.5–0.1.7); §4.4 aktörün editöre özgü `locked`'u (kullanıcı kararı); §4.7 paneller: gizleme yalnız görünüm, Details'in şemadan formu ve override'ları, düzenleme işlemleri, gruplama ve pano (kullanıcı kararları 2026-11-14).
+**Sürüm:** v1.27 · 2026-11-15 (v1.26’dan fark: §4.3 oyunun editör tarafı uygulandı (INV-A32): dev server projenin `editor.ts`’lerini `virtual:forge/game-editors` ile editöre verir, hatalı olan editörü dosya adıyla durdurur; §4.10 editör smoke tam seti (Faz 4 kapısı) ve gerçek GPU’daki koşusu `npm run smoke:editor:webgpu`). v1.26 · 2026-11-15 (v1.25’ten fark: §4.6 süreçler arası kayıt kilidi, ortak authoring modülü, dosya olayları (`forge:files`); §4.11 A12 uygulaması — `forge edit` komutları, ortak işlemler `src/engine/edit`, editörün canlı tazelenmesi; kullanıcı kararları 2026-11-15). v1.25 · 2026-11-15 (v1.24’ten fark: §4.6 Play uçları ve 409 akışının uygulaması — alan düzeyinde üç yönlü birleştirme, oturum tabanı, `compare` / `rebase`, Reload ve birleştirme undo geçmişini temizler (kullanıcı kararları); §4.7 Play oturum katmanının uygulaması). v1.24 · 2026-11-14 (kullanıcı kararı: WES + prosedürel bitki ortak sözleşmesi; bitki ailesi, tekil aktör / foliage eşitliği, zaman / mevsim / örtü sahipliği ve 5c bağı; yalnız plan, uygulama yok). v1.23 · 2026-11-14 (v1.22’den fark: §4.3 assetEditors / assetPreviews sözleşmeleri (SDK 0.1.10); §4.11 A13 uygulaması — ortak asset oturumu ve sanal tablo, tek canvas / GPU önizlemesi, sınıf uyumluluk koruması ve kaynak nesli yönetimi). v1.22 · 2026-11-14 (v1.21’den fark: §4.8 motor içeriği kipinin uygulaması — kayıtlı kökler için ayrı kayıt politikası, Content Browser ve level kayıt yönlendirmesi, etiketli 409 / hücre dizini yolları, sınıf tazeleme ve geçici içerikle kabul). v1.21 · 2026-11-14 (v1.20'den fark: §4.3 bir özelliğin editör tarafı `defineFeatureEditor` (Outliner görünüşü, Add Actor girişleri, Details eklentileri; SDK 0.1.5–0.1.7); §4.4 aktörün editöre özgü `locked`'u (kullanıcı kararı); §4.7 paneller: gizleme yalnız görünüm, Details'in şemadan formu ve override'ları, düzenleme işlemleri, gruplama ve pano (kullanıcı kararları 2026-11-14).
 v1.20 · 2026-11-14 (v1.19'dan fark: §4.4 aktörün editöre özgü `pivot`'u (kullanıcı kararı); §4.7 gizmo'nun uygulaması (three'siz sürükleme, tek transaction, instancing hızlı yolu); §4.9 gizmo katmanın son pass'i.
 v1.19 · 2026-11-14 (v1.18'den fark: §4.2 editör yardımcı bağlamaları (`defineEditorRenderBinding`, `forge.editorHelpers`); §4.9 çizim katmanının uygulaması (sahne derinliği, derinlik ön geçişi, ton eşlemesiz bileşim) ve picking etiketleri.
 v1.18 · 2026-11-13 (v1.17'den fark: §4.8 build'in uygulaması (kullanıcı kararı: Faz 4): statik içerik, `ContentClient`, alt dizin.
@@ -351,6 +351,16 @@ features/height-fog/
   Ground Mist Setup, World Environment önizlemesi); düzenlemesi `edit` ile (seçili her
   aktöre tek undo adımı), önizlemesi editör World'ünün servisleriyle, level'a hiç
   yazmadan. Editör host'u `features/*/editor.ts`'leri Vite glob'uyla toplar.
+  *Oyunun editör tarafı (Faz 4 adım 10, INV-A32):* oyun da `defineFeatureEditor`'ü
+  `editor.ts` dosyasından döndürür (projenin kökünde ya da `src/` altında; `forge
+  check` `@forge/editor-sdk`'yı yalnız bunlarda ve `src/editor/`'da kabul eder). Oyun
+  onları anmaz: dev server bulur ve editöre `virtual:forge/game-editors` ile verir
+  (yalnız `npm run dev`; build'de boş liste, oyun paketine girmez); sunucu açıkken
+  eklenen ya da silinen dosya sonraki açılışta görünür. Editör onları motorunkilerle
+  aynı listeye katar (Outliner, Add Actor, Details, New, sürükle-bırak, asset
+  pencereleri); özellik editörü olmayan ya da editörün çalıştırmadığı özelliği anan
+  dosya editörü dosya adıyla durdurur. Oyunun kendi Add Actor kategorisi Forge'unkilerden
+  sonra gelir.
   *Adım 7 (SDK 0.1.10):* `assetEditors` asset türüne göre ortak pencere
   sunumu, önizleme anahtarı, form yerine araçların ele aldığı alan yolları
   (`handledFields`) ve DOM araç eklentisi kaydeder. Eklenti bağlamı taslak,
@@ -1610,7 +1620,16 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   backend'inde de çalışır); render kabulü yerelde, gerçek GPU'da. Bu kip hiçbir
   zaman "WebGPU çalışıyor" sayılmaz. *Editör smoke'ları (Faz 4 kararı,
   2026-11-13):* CI'da bu kipte, her koşuda geçici bir proje kopyasında (D14);
-  Playwright Chromium CI'a girer. Yerelde gerçek WebGPU'da da koşar.
+  Playwright Chromium CI'a girer. Yerelde gerçek WebGPU'da da koşar. *Tam set
+  (Faz 4 adım 10):* Forge'un `editor-authoring` testinin tam karşılığı (yerleştir,
+  araçlar, gizmo, Details'te X, undo / redo, kayıt sürerken meşgul Save, diskte dosya,
+  yeniden aç, Play) ve Forge'un editör smoke'larının kapsamdaki adımları; ortak
+  yardımcı `tests/editor/support.ts` sayfa hatasını, her `console.error`'ı ve 400 üstü
+  her yanıtı (`409 POST /__forge/save` biçiminde) hata sayar; tasarım gereği eksik
+  yanıtlar (hücresiz level'ın `cells.json`'u, önbellekte olmayan küçük resim) ve testin
+  bilerek ürettiği 409 açıkça izinlidir. `npm run smoke:editor:webgpu` aynı seti
+  başlıklı Chrome'da `forceWebGL`'siz koşar; her açılan editör ve Play sekmesi
+  `data-forge-backend` = `webgpu` kanıtlar.
 - **Render regresyon smoke'u (Faz 3 kararı, 2026-11-12):** `npm run
   smoke:render`, Playwright (`@playwright/test`, Forge'daki sürüm, tam sabit),
   başlıklı Chrome (`channel: "chrome"`, gerçek GPU), port 5283, referans
