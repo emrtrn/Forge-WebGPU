@@ -161,7 +161,7 @@ parçasını çizer; Sky Light aynı PMREM'e, ölçülmüş hızla yeniden yakal
 spike S2'nin TSL CDLOD'uyla salt çizilir; çok tile'lı terrain kamera çevresinde
 akar (Forge'un akış çekirdeği, worker'da çözme, global haritadan uzak alan, görüş
 ve gölge frustum'u kesimi; rapor §4.9 Faz 5a); görüntüleyicinin varsayılan kamerası
-ve `?debug` paneli (dinamik import) var (rapor §4.9).
+ve `?debug` paneli (dinamik import; akan terrain'in tile haritası) var (rapor §4.9).
 
 ## Oyun projesi sözleşmesi
 
