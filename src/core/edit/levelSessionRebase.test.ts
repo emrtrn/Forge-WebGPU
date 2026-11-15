@@ -151,3 +151,22 @@ describe("compare and rebase", () => {
     expect(session.level.settings.cellSize).toBe(200);
   });
 });
+
+describe("file revisions", () => {
+  test("are the ones read, then the ones a save or a rebase brought; files the session does not hold have none", () => {
+    const { session } = open();
+    expect(session.fileRevision(`${FOLDER}/level.json`)).toBe(rev(1));
+    expect(session.fileRevision(`${FOLDER}/cells/0_0.json`)).toBe(rev(2));
+    expect(session.fileRevision(`${FOLDER}/cells/1_0.json`)).toBe(rev(3));
+    expect(session.fileRevision(`${FOLDER}/cells/9_9.json`)).toBeUndefined();
+    expect(session.fileRevision(`${FOLDER}/cells.json`)).toBeUndefined();
+    expect(session.fileRevision("content/levels/other/level.json")).toBeUndefined();
+    moveX(session, "a", 30);
+    const plan = session.planSave();
+    if (plan.status !== "ready") throw new Error(plan.status);
+    session.applySaveResult(plan, { status: "saved", files: plan.request.writes.map((write) => ({ path: write.path, revision: rev(50) })), warnings: [] });
+    expect(session.fileRevision(`${FOLDER}/cells/0_0.json`)).toBe(rev(50));
+    expect(session.rebase(disk(ORIGINAL, 70), { mode: "reload" }).ok).toBe(true);
+    expect(session.fileRevision(`${FOLDER}/level.json`)).toBe(rev(70));
+  });
+});

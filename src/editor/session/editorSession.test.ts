@@ -123,6 +123,20 @@ describe("the editor session mirrors edits into its world", () => {
     expect(saves).toHaveLength(1);
     expect(editor.dirty()).toBe(0);
   });
+
+  test("idle waits for the save that is running, and holds the revisions it wrote (step 9f)", async () => {
+    const editor = open();
+    const moved = doc(editor, "a");
+    moved.transform.p = [5, 0, 0];
+    editor.edit("Move a", (tx) => tx.setActor(moved));
+    expect(editor.level.fileRevision(`${FOLDER}/cells/0_0.json`)).toBe("0000000000000002");
+    const saving = editor.save();
+    // When idle resolves, the session holds what the save wrote.
+    const seen = await editor.idle().then(() => editor.level.fileRevision(`${FOLDER}/cells/0_0.json`));
+    expect(seen).toBe("0000000000000009");
+    expect((await saving).ok).toBe(true);
+    await expect(editor.idle()).resolves.toBeUndefined();
+  });
 });
 
 describe("hiding is a view of the editor (user decision 2026-11-14)", () => {

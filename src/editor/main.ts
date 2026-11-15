@@ -28,6 +28,7 @@ import {
   normalizeActorClass,
   normalizeActorDoc,
   effectiveComponents,
+  FILE_EVENT,
   openLevelFromServer,
   type ActorClassDoc,
   type ActorId,
@@ -66,6 +67,7 @@ import { installWorldSettingsStyle } from "./world/worldSettingsPanel.ts";
 import { createEditorPlay } from "./play/play.ts";
 import { createEditorSession, type EditorSession } from "./session/editorSession.ts";
 import { createShell } from "./shell/shell.ts";
+import type { ChangedFile } from "./session/liveRefresh.ts";
 import { createTransformTools, type TransformTools } from "./transformTools.ts";
 import { installShellStyle } from "./shell/shellStyle.ts";
 import { installKitStyle } from "./ui/kitStyle.ts";
@@ -268,12 +270,15 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       status: (message, tone) => shell.status(message, tone),
     });
     const catalog = createEditorCatalog(FEATURE_EDITORS, registry);
+    // Files changed on disk by anything but this editor (step 9f): bound once the panels exist.
+    let followDisk: (files: readonly ChangedFile[]) => Promise<void> = async () => undefined;
     shell.attach(session, {
       catalog,
       registry,
       resolveClass,
       assets,
       commands,
+      followDisk: (files) => followDisk(files),
       onFrame: (listener) => {
         frameListeners.add(listener);
         return () => frameListeners.delete(listener);
@@ -399,19 +404,38 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       },
       saved: async (opened) => {
         await content.refresh(true); await refreshAssetUrls(); await refreshClasses();
-        const guid = opened.asset.id;
-        if (opened.adapter.kind === "model") viewport.host?.cache.evict(`model:${guid}`);
-        else if (opened.asset.type === "forge.material") viewport.host?.cache.evictPrefix(`material:${guid}:`);
-        const references = new Set([guid]);
-        for (const item of content.index().assets) if (item.id && item.type === "forge.model" && JSON.stringify(options.assetUrls.importSettings(item.id)).includes(guid)) references.add(item.id);
-        const users = session.level.level.actors.filter((actor) => {
-          const value = JSON.stringify({ class: actor.class, components: effectiveComponents(actor, actor.class ? classes.get(actor.class) : undefined) });
-          return [...references].some((id) => value.includes(id));
-        });
-        session.reload(users.map((actor) => actor.id));
-        const item = content.index().byId(guid); if (item) thumbnails?.refresh(item);
+        assetChanged(opened.asset.id, opened.asset.type);
       },
     });
+    /** After an asset's file changed (saved here or on disk): caches forget it, the actors that use it read it again, its thumbnail redraws. */
+    const assetChanged = (guid: string, type: string): void => {
+      if (type === "forge.model") viewport.host?.cache.evict(`model:${guid}`);
+      else if (type === "forge.material") viewport.host?.cache.evictPrefix(`material:${guid}:`);
+      const references = new Set([guid]);
+      for (const item of content.index().assets) if (item.id && item.type === "forge.model" && JSON.stringify(options.assetUrls.importSettings(item.id)).includes(guid)) references.add(item.id);
+      const users = session.level.level.actors.filter((actor) => {
+        const value = JSON.stringify({ class: actor.class, components: effectiveComponents(actor, actor.class ? classes.get(actor.class) : undefined) });
+        return [...references].some((id) => value.includes(id));
+      });
+      session.reload(users.map((actor) => actor.id));
+      const item = content.index().byId(guid); if (item) thumbnails?.refresh(item);
+    };
+    // The open level follows the disk in the shell (liveRefresh.ts); the rest of the project here: the listing, the
+    // renderer's file table, the classes, the assets the scene uses, the asset window.
+    followDisk = async (files) => {
+      const others = files.filter((file) => !file.path.startsWith(`${options.level}/`));
+      if (others.length === 0) return;
+      await content.refresh(true); await refreshAssetUrls(); await refreshClasses();
+      const changed = new Map<string, string>();
+      for (const file of others) {
+        const item = content.index().byFile(file.path) ?? content.index().byFile(file.path.replace(/\.meta\.json$/, ""));
+        if (item?.id && item.type) changed.set(item.id, item.type);
+      }
+      for (const [guid, type] of changed) assetChanged(guid, type);
+      assetEditor.diskChanged(others);
+    };
+    // The dev server's file events (tools/server/fileEvents.ts) come on Vite's HMR channel; the editor is dev-only.
+    import.meta.hot?.on(FILE_EVENT, (body: { readonly files: readonly ChangedFile[] }) => void shell.diskChanged(body.files));
     shell.attachContent(
       createContentPanel({
         document: doc,

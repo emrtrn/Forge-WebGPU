@@ -24,7 +24,7 @@
 // actors that changed with the cause "reload".
 
 import type { ActorId } from "../id.ts";
-import { cellFileOf, CELL_INDEX_FILE, LEVEL_FILE } from "../level/cellDocs.ts";
+import { cellFileOf, cellKeyOfFile, CELL_INDEX_FILE, LEVEL_FILE } from "../level/cellDocs.ts";
 import { assignCells, type CellAssignment, type CellAssignOptions } from "../level/cells.ts";
 import { mergeLevelParts, partsToWrite, planLevelFiles, type LevelPartIssue, type PartKey } from "../level/levelParts.ts";
 import type { ActorDoc, LevelCellDoc, LevelCellIndexDoc, LevelDoc } from "../level/model.ts";
@@ -121,6 +121,11 @@ export interface LevelSession {
   applySaveResult(plan: Extract<SavePlan, { status: "ready" }>, response: SaveResponseBody): void;
   /** The actor as last read or saved (the merge base); undefined when the disk did not have it. */
   baseActor(id: ActorId): ActorDoc | undefined;
+  /**
+   * The revision of a level file (`<folder>/level.json`, `<folder>/cells/<x>_<z>.json`) as last read or saved;
+   * undefined for a file the session does not hold (plan phase 4 step 9f: a change on disk is a revision it does not know).
+   */
+  fileRevision(path: string): string | undefined;
   /** This session against the level on disk (read whole, every cell): what merges by itself and what conflicts. */
   compare(disk: OpenLevelOptions): { readonly merge: LevelMerge; readonly issues: readonly LevelPartIssue[] };
   /**
@@ -200,6 +205,13 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
     history,
     actor: (id) => byId.get(id),
     isLoaded,
+    fileRevision(path) {
+      if (!path.startsWith(`${folder}/`)) return undefined;
+      const inside = path.slice(folder.length + 1);
+      const key = inside === LEVEL_FILE ? null : cellKeyOfFile(inside);
+      if (key === null && inside !== LEVEL_FILE) return undefined;
+      return revisions.get(key);
+    },
 
     edit(label, build, editOptions = {}) {
       const issues: Issue[] = [];

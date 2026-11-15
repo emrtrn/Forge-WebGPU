@@ -1,6 +1,7 @@
 // The level's 409 flow (plan phase 4 step 8): the level file changes on disk
 // while the editor has unsaved edits (as an agent's command would change it);
-// Save is refused and the strip offers Compare / Reload. Compare merges
+// the strip opens as soon as the dev server tells the editor (step 9f), and
+// Save is refused with it (409); the strip offers Compare / Reload. Compare merges
 // disjoint changes by itself and asks for the rest (Mine / Theirs); Apply
 // keeps this session's changes unsaved over the disk's level and the next
 // Save writes both. Reload drops the session's changes. On a two-cube level
@@ -73,6 +74,8 @@ async function moveA(page: Page, x: number): Promise<void> {
 }
 
 async function saveRefused(page: Page): Promise<void> {
+  // The dev server tells the editor at once (step 9f): with unsaved changes, the strip opens before any Save.
+  await expect(page.getByTestId("level-conflict-text")).toContainText("while you have unsaved changes", { timeout: 15_000 });
   await page.getByTestId("editor-save").click();
   await expect(page.getByTestId("level-conflict")).toBeVisible();
   await expect(page.getByTestId("level-conflict-text")).toContainText("Changed on disk since it was read (level.json)");

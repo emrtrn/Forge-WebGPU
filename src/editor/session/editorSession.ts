@@ -61,6 +61,8 @@ export interface EditorSession {
   /** Unsaved actors. */
   dirty(): number;
   save(): Promise<SaveReport>;
+  /** Resolves when no save is running (a file event waits for the save that wrote it, step 9f). */
+  idle(): Promise<void>;
   /** The level as it is on disk now, every cell (to compare with, or rebase onto). */
   readDisk(): Promise<ReadLevel>;
   /** Takes the level on disk (Reload or merge); the world, the selection and the toolbar follow. */
@@ -241,6 +243,7 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
   });
 
   let saving = false;
+  let saved: Promise<void> = Promise.resolve();
 
   return {
     level,
@@ -270,6 +273,8 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
     async save() {
       if (saving) return { ok: false, message: "A save is already running" };
       saving = true;
+      let done!: () => void;
+      saved = new Promise<void>((resolve) => (done = resolve));
       try {
         const outcome = await saveLevelSession(level, client);
         if (outcome.status === "clean") return { ok: true, message: "Nothing to save" };
@@ -290,9 +295,11 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
         return { ok: false, message: `Save failed: ${message}` };
       } finally {
         saving = false;
+        done();
         notify();
       }
     },
+    idle: () => saved,
     readDisk: () => readLevelFromServer(client, level.folder, options.read),
     rebase(disk, how) {
       const result = level.rebase(disk.open, how);

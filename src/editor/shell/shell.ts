@@ -38,6 +38,7 @@ import { UI_ICONS } from "../ui/icons.ts";
 import { createWorldSettings } from "../world/worldSettingsPanel.ts";
 import { createOutlinerPanel } from "../outliner/outlinerPanel.ts";
 import { createConflictStrip } from "../session/conflictUi.ts";
+import { createLiveRefresh, type ChangedFile, type LiveRefresh } from "../session/liveRefresh.ts";
 import type { EditorSession } from "../session/editorSession.ts";
 import type { TransformTools } from "../transformTools.ts";
 import { createTransformToolbar } from "./transformToolbar.ts";
@@ -101,6 +102,8 @@ export interface ShellContext {
   readonly commands: EditCommands;
   /** Each editor frame with its seconds (a Details preview that plays); returns the unsubscribe. */
   readonly onFrame: (listener: (dt: number) => void) => () => void;
+  /** Files changed on disk, after the level followed them (step 9f): the Content Browser, the classes, the asset window. */
+  readonly followDisk?: (files: readonly ChangedFile[]) => void | Promise<void>;
 }
 
 export interface EditorShell {
@@ -121,6 +124,8 @@ export interface EditorShell {
   attachPlay(play: () => Promise<{ readonly ok: boolean; readonly message: string }>): void;
   /** Saves the level, as the Save button does (the drawer's Save All). */
   save(): void;
+  /** Files changed on disk (the dev server's `forge:files`, step 9f): a clean level follows, a dirty one shows the strip. */
+  diskChanged(files: readonly ChangedFile[]): Promise<void>;
   /** The status line; errors and warnings also show as a toast. */
   status(message: string, tone?: "info" | "warning" | "error"): void;
 }
@@ -188,6 +193,7 @@ export function createShell(options: ShellOptions): EditorShell {
   });
   let placerNow: ActorPlacer | null = null;
   let saveNow = (): void => {};
+  let live: LiveRefresh | null = null;
   /** The Content Browser, once attached (step 6). */
   let contentPanel: ContentPanel | null = null;
   workbar.append(viewControls);
@@ -320,6 +326,7 @@ export function createShell(options: ShellOptions): EditorShell {
       workbar.prepend(createAddActorMenu({ document: doc, placer, viewport, status }));
     },
     save: () => saveNow(),
+    diskChanged: (files) => live?.handle(files) ?? Promise.resolve(),
     attachPlay(play) {
       const split = el("div", "editor-play-split");
       const button = el("button", "editor-play-button primary");
@@ -400,6 +407,8 @@ export function createShell(options: ShellOptions): EditorShell {
 
       // A save the disk refused (409, step 8): the strip offers Compare / Reload and carries the warning.
       const conflict = createConflictStrip({ document: doc, host: root, editor, status });
+      // A file changed on disk (an agent's command, another tool; step 9f): the same strip when the level is dirty.
+      live = createLiveRefresh({ editor, strip: conflict, status, ...(context.followDisk ? { others: context.followDisk } : {}) });
       const runSave = async (): Promise<void> => {
         if (options.readOnly) return;
         save.disabled = true;
