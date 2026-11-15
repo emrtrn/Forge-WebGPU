@@ -1,33 +1,39 @@
-// The World Terrain's material (plan phase 3 step 8, decision 1): spike S2's
-// TSL port of Forge WebGL's CDLOD terrain material
-// (engine/render-three/terrain/terrainMaterial.ts), taken from Forge
-// `spikes/webgpu/shared/terrain.ts` with its height read-back material left
-// out. Vertex: tile slot or global map heights (the collider's triangle in a
-// slot, bilinear on the global map), morph between LOD levels, skirts on
-// borders of coarser or missing neighbours. Fragment: normals, 8-layer splat,
-// far tiling break. Forge `high`: far tiling on.
+// The World Terrain's material (plan phase 3 step 8, decision 1; production
+// layers phase 5a step 3): spike S2's TSL port of Forge WebGL's CDLOD terrain
+// material (engine/render-three/terrain/terrainMaterial.ts). Vertex: tile slot
+// or global map heights (the collider's triangle in a slot, bilinear on the
+// global map), morph between LOD levels, skirts on borders of coarser or
+// missing neighbours. Fragment (Forge's lit layer shader): the paint layers'
+// albedo and normal arrays (terrainLayerArray.ts; one binding each, whatever
+// the layer count), roughness packed in the albedo's alpha, layer normals in
+// the terrain normal's tangent space, static detail stamps (terrainDetail.ts),
+// the quality-gated far tiling break, and the far map's holes cut by
+// `maskNode` in every pass.
 //
 // The textures, the instanced patch and its node attributes are the view's
-// (sync/terrainView.ts: tile slots, residency, culling, selection; phase 5a
-// step 2). Puddles, detail and production quality are phase 5a; shore and
-// caustics phase 7.
+// (sync/terrainView.ts: tile slots, residency, culling, selection). Puddles
+// are phase 5a step 6; shore and caustics phase 7; tracks phase 8; the debug
+// views and the far foliage tint come with their tools (5d, 5c).
 //
 // TSL's typings reject several valid uses here (integer texel coordinates,
-// vector element access); this module takes the functions untyped, as the
-// spike did. Nothing else in the renderer does.
+// vector element access); the terrain modules take the functions untyped, as
+// the spike did. Nothing else in the renderer does.
 
 import * as THREE from "three/webgpu";
 import * as TSLTyped from "three/tsl";
+import { TERRAIN_RENDER_LAYERS } from "../../engine/terrain/terrainRenderData.ts";
 import type { TerrainLayerInput } from "../resources/terrains.ts";
+import { terrainStaticDetail, type TerrainDetailParams } from "./terrainDetail.ts";
+import { createTerrainLayerArray, packTerrainLayerRoughness, readTerrainLayerPixels, type TerrainLayerSource } from "./terrainLayerArray.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyNode = any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const TSL = TSLTyped as unknown as Record<string, any>;
 const {
-  Fn, attribute, clamp, distance, dot, float, floor, fract, int, ivec2, length, max, mix, positionLocal,
-  positionView, select, smoothstep, sqrt, texture, textureLoad, transformNormalToView, uniform, vec2, vec3, vec4,
-  varyingProperty, mat2,
+  Fn, attribute, clamp, cross, dFdx, dFdy, distance, dot, float, floor, fract, int, ivec2, length, max, mix, normalize,
+  positionLocal, positionView, select, smoothstep, sqrt, texture, textureLoad, transformNormalToView, uniform, vec2, vec3,
+  vec4, varyingProperty, mat2,
 } = TSL;
 
 const SKIRT_RATIO = 0.05;
@@ -95,6 +101,65 @@ export function setTerrainInstanceCapacity(geometry: THREE.InstancedBufferGeomet
   }
 }
 
+/**
+ * The paint layers' textures as two arrays (Forge's createTerrainMaterials):
+ * albedo (sRGB, roughness packed in alpha where the material has a roughness
+ * map) and normals (linear: each layer's normal map, then each layer's detail
+ * map, a 2 x 2 atlas as four slices). Built once per terrain; a material
+ * rebuild (a quality switch) reuses it.
+ */
+export interface TerrainLayerTextures {
+  readonly albedo: THREE.DataArrayTexture | null;
+  readonly normals: THREE.DataArrayTexture | null;
+  /** Per layer: albedo slice, -1 drawn with its colour. */
+  readonly albedoIndex: readonly number[];
+  /** Per layer: the albedo's alpha is roughness. */
+  readonly roughnessInAlpha: readonly boolean[];
+  /** Per layer: normal map slice, -1 for none. */
+  readonly normalIndex: readonly number[];
+  /** Per layer: detail first slice, -1 for none. */
+  readonly detailIndex: readonly number[];
+  dispose(): void;
+}
+
+export function createTerrainLayerTextures(input: readonly TerrainLayerInput[]): TerrainLayerTextures {
+  const layers = input.slice(0, TERRAIN_RENDER_LAYERS);
+  const roughnessInAlpha = layers.map(() => false);
+  const albedoSources: TerrainLayerSource[] = layers.map((layer, i) => {
+    const rough = layer.roughnessTexture ? readTerrainLayerPixels(layer.roughnessTexture, layer.flipY) : null;
+    if (!rough) return layer.texture ? { texture: layer.texture, flipY: layer.flipY } : null;
+    const albedo = layer.texture ? readTerrainLayerPixels(layer.texture, layer.flipY) : null;
+    // A base colour texture that cannot be read keeps the colour, as Forge's packing failed to the layer colour.
+    if (layer.texture && !albedo) return null;
+    roughnessInAlpha[i] = true;
+    return packTerrainLayerRoughness(albedo, rough, layer.color);
+  });
+  const albedo = createTerrainLayerArray(albedoSources);
+  albedo.index.forEach((slice, i) => {
+    if (slice < 0) roughnessInAlpha[i] = false;
+  });
+  const normals = createTerrainLayerArray(
+    [
+      ...layers.map((layer) => (layer.normalTexture ? { texture: layer.normalTexture, flipY: layer.flipY } : null)),
+      ...layers.map((layer) => (layer.detail ? { texture: layer.detail.normalTexture, flipY: layer.flipY } : null)),
+    ],
+    true,
+    [...layers.map(() => 1), ...layers.map((layer) => layer.detail?.atlasSize ?? 1)],
+  );
+  return {
+    albedo: albedo.texture,
+    normals: normals.texture,
+    albedoIndex: albedo.index,
+    roughnessInAlpha,
+    normalIndex: layers.map((_, i) => normals.index[i] ?? -1),
+    detailIndex: layers.map((_, i) => normals.index[layers.length + i] ?? -1),
+    dispose() {
+      albedo.texture?.dispose();
+      normals.texture?.dispose();
+    },
+  };
+}
+
 export interface TerrainMaterialInput {
   /** Tile slots: heights (R32F, nearest), normals X / Z (RG), paint weights (2 RGBA8 layers per slot). */
   readonly heights: THREE.DataArrayTexture;
@@ -116,6 +181,9 @@ export interface TerrainMaterialInput {
   readonly extent: readonly [number, number];
   readonly patchQuads: number;
   readonly layers: readonly TerrainLayerInput[];
+  readonly layerTextures: TerrainLayerTextures;
+  /** Forge's quality-gated far tiling break (`terrainFarTiling`). */
+  readonly farTiling: boolean;
 }
 
 export interface TerrainMaterial {
@@ -204,45 +272,97 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
   const globalUv = vLocal.div(uGlobalSpacing).add(0.5).div(uGlobalSize);
   const useTile = slotFrag.greaterThanEqual(0);
   const nTile = texture(normalTex, tileUv).depth(slotI).rg;
-  const nGlobal = texture(globalNormalTex, globalUv).rg;
-  const nXZ = select(useTile, nTile, nGlobal);
+  const globalNormal = texture(globalNormalTex, globalUv);
+  const nXZ = select(useTile, nTile, globalNormal.rg);
   const nY = sqrt(max(float(1).sub(dot(nXZ, nXZ)), float(0)));
-  const worldNormal = vec3(nXZ.x, nY, nXZ.y).normalize();
+  const base = vec3(nXZ.x, nY, nXZ.y).normalize();
   const w0 = select(useTile, texture(weightTex, tileUv).depth(slotI.mul(2)), texture(globalWeightTex, globalUv).depth(int(0)));
   const w1 = select(useTile, texture(weightTex, tileUv).depth(slotI.mul(2).add(1)), texture(globalWeightTex, globalUv).depth(int(1)));
   const weightsOf = (i: number): AnyNode => (i < 4 ? w0.element(int(i)) : w1.element(int(i - 4)));
 
-  // Far tiling break (Forge high profile: terrainFarTiling on).
+  // The Landscape look (Forge's fragmentColor): each layer's albedo slice or
+  // colour, roughness (times the packed alpha), normal map and static detail,
+  // weighted by its paint. Every read is unconditional (uniform control flow
+  // for derivatives); a layer without a slice compiles no read at all.
+  const { layerTextures: textures } = input;
+  const P = vLocal;
+  const dPx = dFdx(P);
+  const dPy = dFdy(P);
+  // Far tiling break: past 25 m each painted layer also reads a rotated 0.23x
+  // copy and averages the two, whose periods share no multiple.
   const farT = smoothstep(FAR_TILING_START, FAR_TILING_END, length(positionView));
-  const farP = mat2(Math.cos(FAR_TILING_ANGLE), Math.sin(FAR_TILING_ANGLE), -Math.sin(FAR_TILING_ANGLE), Math.cos(FAR_TILING_ANGLE)).mul(vLocal).mul(FAR_TILING_SCALE);
-  const flipV = (uv: AnyNode, flip: boolean): AnyNode => (flip ? vec2(uv.x, float(1).sub(uv.y)) : uv);
+  const farP = mat2(Math.cos(FAR_TILING_ANGLE), Math.sin(FAR_TILING_ANGLE), -Math.sin(FAR_TILING_ANGLE), Math.cos(FAR_TILING_ANGLE)).mul(P).mul(FAR_TILING_SCALE);
   let sum: AnyNode = vec3(0, 0, 0);
   let total: AnyNode = float(0);
   let rough: AnyNode = float(0);
-  input.layers.forEach((layer, i) => {
+  let normalSum: AnyNode = vec3(0, 0, 0);
+  const normalMapped = textures.normals !== null;
+  input.layers.slice(0, TERRAIN_RENDER_LAYERS).forEach((layer, i) => {
     const w = weightsOf(i);
+    const scale = vec2(layer.scale[0], layer.scale[1]);
+    const albedoSlice = textures.albedoIndex[i] ?? -1;
     let color: AnyNode;
-    if (layer.texture) {
-      const scale = uniform(new THREE.Vector2(layer.scale[0], layer.scale[1]));
-      const near = texture(layer.texture, flipV(vLocal.mul(scale), layer.flipY));
-      const far = texture(layer.texture, flipV(farP.mul(scale), layer.flipY));
-      color = mix(near, near.add(far).mul(0.5), farT).rgb;
+    let r: AnyNode = float(layer.roughness);
+    if (textures.albedo && albedoSlice >= 0) {
+      let sample = texture(textures.albedo, P.mul(scale)).depth(int(albedoSlice));
+      if (input.farTiling) {
+        const far = texture(textures.albedo, farP.mul(scale)).depth(int(albedoSlice));
+        sample = mix(sample, sample.add(far).mul(0.5), farT);
+      }
+      color = sample.rgb;
+      if (textures.roughnessInAlpha[i]) r = r.mul(sample.a);
     } else {
       color = vec3(uniform(new THREE.Color(layer.color)));
     }
+    if (normalMapped) {
+      const normalSlice = textures.normalIndex[i] ?? -1;
+      let n: AnyNode = normalSlice >= 0 ? texture(textures.normals!, P.mul(scale)).depth(int(normalSlice)).xyz.mul(2).sub(1) : vec3(0, 0, 1);
+      const detailSlice = textures.detailIndex[i] ?? -1;
+      if (layer.detail && detailSlice >= 0) {
+        const d = layer.detail;
+        const params: TerrainDetailParams = {
+          index: detailSlice,
+          grid: d.atlasSize,
+          uv: d.uvTiling,
+          strength: d.strength,
+          coverage: d.coverage,
+          patchSize: d.patchSize,
+          seed: d.seed,
+          direction: (d.direction * Math.PI) / 180,
+          directionVariation: (d.directionVariation * Math.PI) / 180,
+        };
+        n = normalize(vec3(n.xy.mul(d.baseNormalStrength), n.z));
+        const stamp = terrainStaticDetail(textures.normals!, P, dPx, dPy, scale.mul(vec2(d.uvTiling[0], d.uvTiling[1])), params);
+        n = normalize(vec3(n.xy.add(stamp.xy), n.z.mul(stamp.z)));
+        r = mix(r, float(d.roughness), stamp.w);
+      }
+      normalSum = normalSum.add(n.mul(w));
+    }
     sum = sum.add(color.mul(w));
     total = total.add(w);
-    rough = rough.add(float(layer.roughness).mul(w));
+    rough = rough.add(r.mul(w));
   });
+  const painted = total.greaterThan(0.0001);
   const fallback = vec3(uniform(new THREE.Color(input.layers[0]?.color ?? "#808080")));
-  const albedo = select(total.greaterThan(0.0001), sum.div(total), fallback);
+  const albedo = select(painted, sum.div(total), fallback);
+
+  // Layer normals in the terrain normal's tangent space (Forge's normal block).
+  let worldNormal: AnyNode = base;
+  if (normalMapped) {
+    const layerNormal = select(painted, normalize(normalSum.add(vec3(0, 0, 0.00001))), vec3(0, 0, 1));
+    const tangent = normalize(vec3(1, 0, 0).sub(base.mul(base.x)).add(vec3(0, 0, 0.000001)));
+    const bitangent = normalize(cross(tangent, base));
+    worldNormal = normalize(tangent.mul(layerNormal.x).add(bitangent.mul(layerNormal.y)).add(base.mul(max(layerNormal.z, float(0.05)))));
+  }
 
   const material = new THREE.MeshStandardNodeMaterial({ metalness: 0 });
   material.name = "terrain";
   material.positionNode = position;
   material.colorNode = vec4(albedo, 1);
-  material.roughnessNode = select(total.greaterThan(0.0001), rough.div(total), float(1));
+  material.roughnessNode = select(painted, rough.div(total), float(1));
   material.normalNode = transformNormalToView(worldNormal);
+  // A hole in the far map (no tile covers the sample) is cut, in every pass.
+  material.maskNode = useTile.or(globalNormal.b.lessThan(0.5));
   return {
     material,
     setLodCamera(x, y, z) {

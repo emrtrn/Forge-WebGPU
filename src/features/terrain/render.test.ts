@@ -7,6 +7,7 @@ import { createFlatWorldTerrain } from "../../engine/terrain/worldTerrainCreate.
 import type { TerrainData, TerrainTileReader } from "../../render/resources/terrains.ts";
 import type { WorldResources } from "../../render/resources/worldResources.ts";
 import type { RenderBindingContext } from "../../render/sync/renderBinding.ts";
+import { resolveQualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import binding from "./render.ts";
 
 const DATA = "ast_00000000000000000000000000000001";
@@ -19,7 +20,7 @@ function harness(options: { tilesX: number; tilesZ: number; streams: boolean }) 
     def,
     global: buildTerrainGlobalAttributes(worldTerrainRenderSource(def, tiles)),
     tiles: options.streams ? null : tiles,
-    layers: [{ color: "#6f9a4a", texture: null, scale: [0.1, 0.1], roughness: 1, flipY: false }],
+    layers: [{ color: "#6f9a4a", texture: null, scale: [0.1, 0.1], roughness: 1, flipY: false, normalTexture: null, roughnessTexture: null, detail: null }],
     openTiles(): TerrainTileReader {
       const state = { disposed: false };
       readers.push(state);
@@ -59,16 +60,18 @@ function harness(options: { tilesX: number; tilesZ: number; streams: boolean }) 
     },
   } as unknown as WorldResources;
   const root = new Group();
+  const quality = { ...resolveQualitySettings("high") };
   const ctx = {
     world: { services: null, actor: () => actor, componentsOf: () => [] as ComponentEntry[] },
     scene: new Scene(),
     root,
     resources,
+    quality: () => quality,
   } as unknown as RenderBindingContext;
   const instance = binding.create(ctx);
   instance.actorsAdded?.([actor]);
   const camera = new PerspectiveCamera(44, 1, 0.1, 4000);
-  return { instance, actor, root, released, camera, def, tiles: tiles as Map<string, TerrainTileData>, reads, readers, holds, frame: () => instance.sync?.({ dt: 0, camera }) };
+  return { instance, actor, root, released, camera, def, quality, tiles: tiles as Map<string, TerrainTileData>, reads, readers, holds, frame: () => instance.sync?.({ dt: 0, camera }) };
 }
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));

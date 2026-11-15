@@ -27,10 +27,50 @@ export class MaterialNotFoundError extends Error {
 }
 
 /** What a terrain paint layer draws from its material (plan phase 3 step 8; Forge's loadForgeMaterialLayer, read-only drawing). */
+/** A material's `terrainDetail` (Forge's static normal stamps), with its normal map loaded. */
+/** The `terrainDetail` fields of a `forge.material` (features/material/schema.ts). */
+interface TerrainDetailFields {
+  readonly normalTexture: string | null;
+  readonly atlasSize: "1x1" | "2x2";
+  readonly uvTiling: readonly [number, number];
+  readonly strength: number;
+  readonly coverage: number;
+  readonly baseNormalStrength: number;
+  readonly patchSize: number;
+  readonly direction: number;
+  readonly directionVariation: number;
+  readonly seed: number;
+  readonly roughness: number;
+}
+
+export interface TerrainLayerDetail {
+  readonly normalTexture: Texture;
+  /** 1: one image; 2: a 2 x 2 atlas of variants. */
+  readonly atlasSize: 1 | 2;
+  readonly uvTiling: readonly [number, number];
+  readonly strength: number;
+  readonly coverage: number;
+  readonly baseNormalStrength: number;
+  /** Metres. */
+  readonly patchSize: number;
+  /** Degrees. */
+  readonly direction: number;
+  /** Degrees. */
+  readonly directionVariation: number;
+  readonly seed: number;
+  readonly roughness: number;
+}
+
 export interface TerrainLayerMaterial {
   readonly baseColor: string;
   /** The base colour texture (sRGB, shared through the cache); null without one or when it failed. */
   readonly baseColorTexture: Texture | null;
+  /** Tangent-space normal map (linear); null without one or when it failed. */
+  readonly normalTexture: Texture | null;
+  /** Roughness map (linear, green); Forge packs it into the albedo's alpha. */
+  readonly roughnessTexture: Texture | null;
+  /** Static detail; null when off (no detail normal map, Forge's rule) or when its map failed. */
+  readonly detail: TerrainLayerDetail | null;
   readonly uvTiling: readonly [number, number];
   readonly roughness: number;
   /** Metres per texture repeat; 0 uses the terrain's default tiling. */
@@ -98,18 +138,44 @@ export function createSurfaceMaterials(options: SurfaceMaterialOptions): Surface
       return material;
     },
     async terrainLayer(guid) {
-      const fields = (await data(guid)) as SurfaceMaterialData & { terrainMetersPerRepeat?: number };
-      let baseColorTexture: Texture | null = null;
-      if (fields.baseColorTexture) {
+      const fields = (await data(guid)) as SurfaceMaterialData & { terrainMetersPerRepeat?: number; terrainDetail?: TerrainDetailFields | null };
+      const load = async (texture: string | null | undefined, colorSpace: "srgb" | "linear", slot: string): Promise<Texture | null> => {
+        if (!texture) return null;
         try {
-          baseColorTexture = await options.textureOwner.acquire(resourceKey.texture(fields.baseColorTexture, "srgb"), () => options.textures.load(fields.baseColorTexture!, "srgb"));
+          return await options.textureOwner.acquire(resourceKey.texture(texture, colorSpace), () => options.textures.load(texture, colorSpace));
         } catch (error) {
-          warn(`forge render: terrain layer material ${guid} draws without texture ${fields.baseColorTexture}`, error);
+          warn(`forge render: terrain layer material ${guid} draws without its ${slot} ${texture}`, error);
+          return null;
         }
-      }
+      };
+      const detailFields = fields.terrainDetail ?? null;
+      const [baseColorTexture, normalTexture, roughnessTexture, detailTexture] = await Promise.all([
+        load(fields.baseColorTexture, "srgb", "base colour texture"),
+        load(fields.normalTexture, "linear", "normal map"),
+        load(fields.roughnessTexture, "linear", "roughness map"),
+        load(detailFields?.normalTexture, "linear", "detail normal map"),
+      ]);
+      const detail: TerrainLayerDetail | null = detailFields && detailTexture
+        ? {
+            normalTexture: detailTexture,
+            atlasSize: detailFields.atlasSize === "2x2" ? 2 : 1,
+            uvTiling: [detailFields.uvTiling[0], detailFields.uvTiling[1]],
+            strength: detailFields.strength,
+            coverage: detailFields.coverage,
+            baseNormalStrength: detailFields.baseNormalStrength,
+            patchSize: detailFields.patchSize,
+            direction: detailFields.direction,
+            directionVariation: detailFields.directionVariation,
+            seed: detailFields.seed,
+            roughness: detailFields.roughness,
+          }
+        : null;
       return {
         baseColor: fields.baseColor,
         baseColorTexture,
+        normalTexture,
+        roughnessTexture,
+        detail,
         uvTiling: [fields.uvTiling[0], fields.uvTiling[1]],
         roughness: fields.roughness,
         terrainMetersPerRepeat: fields.terrainMetersPerRepeat ?? 0,

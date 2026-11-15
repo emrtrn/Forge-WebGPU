@@ -20,7 +20,12 @@
 //   the slot nodes it touches hang one); the patch grows to the next power of
 //   two when a selection needs more nodes.
 //
-// Left for later steps: half-float normals, edits (5d), track detail (8).
+// - Quality (step 3): Forge's hooks, self shadow (`castShadow`, joins the
+//   cull) and far tiling (a material rebuild). Normals are half floats, as in
+//   Forge (filterable without a float32 feature).
+// - The paint layers' textures are two arrays built once (materials/terrain.ts).
+//
+// Left for later steps: edits (5d), track detail (8).
 
 import * as THREE from "three/webgpu";
 import {
@@ -34,7 +39,14 @@ import { TerrainLodSelector, terrainResidentTileKeys, type TerrainLodBox, type T
 import { TERRAIN_PATCH_QUADS, TERRAIN_WEIGHT_BLOCKS } from "../../engine/terrain/terrainRenderData.ts";
 import { TerrainSlotPool } from "../../engine/terrain/terrainSlotPool.ts";
 import { parseTileKey, tileKey, type TerrainTileData, type WorldTerrainDef } from "../../engine/terrain/terrainTypes.ts";
-import { createTerrainMaterial, createTerrainPatchGeometry, setTerrainInstanceCapacity } from "../materials/terrain.ts";
+import {
+  createTerrainLayerTextures,
+  createTerrainMaterial,
+  createTerrainPatchGeometry,
+  setTerrainInstanceCapacity,
+  type TerrainLayerTextures,
+  type TerrainMaterialInput,
+} from "../materials/terrain.ts";
 import type { TerrainLayerInput } from "../resources/terrains.ts";
 
 /** Forge's defaults (terrainRenderer.ts). */
@@ -109,7 +121,7 @@ export function fillTerrainHoles(heights: Float32Array, width: number, height: n
   return out;
 }
 
-function arrayTexture(data: Float32Array | Uint8Array, size: number, layers: number, format: THREE.PixelFormat, type: THREE.TextureDataType, filter: THREE.MagnificationTextureFilter): THREE.DataArrayTexture {
+function arrayTexture(data: Float32Array | Uint16Array | Uint8Array, size: number, layers: number, format: THREE.PixelFormat, type: THREE.TextureDataType, filter: THREE.MagnificationTextureFilter): THREE.DataArrayTexture {
   const tex = new THREE.DataArrayTexture(data, size, size, layers);
   tex.format = format;
   tex.type = type;
@@ -130,6 +142,9 @@ export interface TerrainViewOptions {
   readonly slotCapacity?: number;
   /** New tile uploads per update (default 4). */
   readonly uploadsPerFrame?: number;
+  /** Forge's quality hooks (`terrainSelfShadow`, `terrainFarTiling`); both on by default. */
+  readonly selfShadow?: boolean;
+  readonly farTiling?: boolean;
 }
 
 export interface TerrainSelection {
@@ -152,7 +167,8 @@ export class TerrainView {
   private readonly allResident: boolean;
   private readonly uploadsPerFrame: number;
   private readonly heights: Float32Array;
-  private readonly normals: Float32Array;
+  /** Half floats: normal X / Z per texel (Forge's slot format). */
+  private readonly normals: Uint16Array;
   private readonly weights: Uint8Array;
   private readonly normalScratch: Float32Array;
   private readonly heightTex: THREE.DataArrayTexture;
@@ -162,7 +178,10 @@ export class TerrainView {
   private readonly bounds: TerrainWorldHeightBounds;
   private readonly selector: TerrainLodSelector;
   private readonly pool: TerrainSlotPool;
-  private readonly setLodCamera: (x: number, y: number, z: number) => void;
+  private setLodCamera: (x: number, y: number, z: number) => void;
+  private readonly layerTextures: TerrainLayerTextures;
+  private readonly materialInput: Omit<TerrainMaterialInput, "farTiling">;
+  private farTiling: boolean;
   /** Tiles that hold a slot and want it; the pool may still cache released ones. */
   private readonly active = new Set<string>();
   /** Tiles whose slot holds their current data. */
@@ -192,11 +211,11 @@ export class TerrainView {
     this.pool = new TerrainSlotPool(capacity);
 
     this.heights = new Float32Array(this.tileTexels * capacity);
-    this.normals = new Float32Array(this.tileTexels * 2 * capacity);
+    this.normals = new Uint16Array(this.tileTexels * 2 * capacity);
     this.weights = new Uint8Array(this.tileTexels * 4 * TERRAIN_WEIGHT_BLOCKS * capacity);
     this.normalScratch = new Float32Array(this.tileTexels * 2);
     this.heightTex = arrayTexture(this.heights, size, capacity, THREE.RedFormat, THREE.FloatType, THREE.NearestFilter);
-    this.normalTex = arrayTexture(this.normals, size, capacity, THREE.RGFormat, THREE.FloatType, THREE.LinearFilter);
+    this.normalTex = arrayTexture(this.normals, size, capacity, THREE.RGFormat, THREE.HalfFloatType, THREE.LinearFilter);
     this.weightTex = arrayTexture(this.weights, size, capacity * TERRAIN_WEIGHT_BLOCKS, THREE.RGBAFormat, THREE.UnsignedByteType, THREE.LinearFilter);
 
     this.bounds = new TerrainWorldHeightBounds(this.source, TERRAIN_PATCH_QUADS);
@@ -205,14 +224,15 @@ export class TerrainView {
     const globalHeightTex = new THREE.DataTexture(globalHeights, map.width, map.height, THREE.RedFormat, THREE.FloatType);
     globalHeightTex.magFilter = globalHeightTex.minFilter = THREE.NearestFilter;
     globalHeightTex.needsUpdate = true;
-    const gn = new Float32Array(map.width * map.height * 4);
+    // Normal X, normal Z, hole flag; alpha spare (Forge keeps the far foliage tint there, 5c).
+    const gn = new Uint16Array(map.width * map.height * 4);
     for (let i = 0; i < map.width * map.height; i += 1) {
-      gn[i * 4] = global.normals[i * 3]!;
-      gn[i * 4 + 1] = global.normals[i * 3 + 1]!;
-      gn[i * 4 + 2] = global.normals[i * 3 + 2]!;
-      gn[i * 4 + 3] = 1;
+      gn[i * 4] = THREE.DataUtils.toHalfFloat(global.normals[i * 3]!);
+      gn[i * 4 + 1] = THREE.DataUtils.toHalfFloat(global.normals[i * 3 + 1]!);
+      gn[i * 4 + 2] = THREE.DataUtils.toHalfFloat(global.normals[i * 3 + 2]!);
+      gn[i * 4 + 3] = 0;
     }
-    const globalNormalTex = new THREE.DataTexture(gn, map.width, map.height, THREE.RGBAFormat, THREE.FloatType);
+    const globalNormalTex = new THREE.DataTexture(gn, map.width, map.height, THREE.RGBAFormat, THREE.HalfFloatType);
     globalNormalTex.magFilter = globalNormalTex.minFilter = THREE.LinearFilter;
     globalNormalTex.needsUpdate = true;
     const globalWeightTex = new THREE.DataArrayTexture(global.weights, map.width, map.height, TERRAIN_WEIGHT_BLOCKS);
@@ -225,7 +245,9 @@ export class TerrainView {
 
     const world = { tileQuads: def.tileQuads, spacing: def.spacing, tilesX: def.tilesX, tilesZ: def.tilesZ, origin: [0, 0, 0] as [number, number, number] };
     this.selector = new TerrainLodSelector(world, (level, ix, iz) => this.bounds.node(level, ix, iz), { patchQuads: TERRAIN_PATCH_QUADS, extent: this.source.extent });
-    const material = createTerrainMaterial({
+    this.layerTextures = createTerrainLayerTextures(options.layers);
+    this.farTiling = options.farTiling ?? true;
+    this.materialInput = {
       heights: this.heightTex,
       normals: this.normalTex,
       weights: this.weightTex,
@@ -240,13 +262,15 @@ export class TerrainView {
       extent: this.source.extent,
       patchQuads: TERRAIN_PATCH_QUADS,
       layers: options.layers,
-    });
+      layerTextures: this.layerTextures,
+    };
+    const material = createTerrainMaterial({ ...this.materialInput, farTiling: this.farTiling });
     this.setLodCamera = material.setLodCamera;
     const leaves = (def.tilesX * def.tilesZ * def.tileQuads * def.tileQuads) / (TERRAIN_PATCH_QUADS * TERRAIN_PATCH_QUADS);
     this.mesh = new THREE.Mesh(createTerrainPatchGeometry(TERRAIN_PATCH_QUADS, Math.min(leaves, 1024)), material.material);
     this.mesh.name = `terrain/${def.name}`;
     this.mesh.frustumCulled = false;
-    this.mesh.castShadow = true;
+    this.mesh.castShadow = options.selfShadow ?? true;
     this.mesh.receiveShadow = true;
 
     if (this.allResident) for (const key of this.declared) this.makeResident(key);
@@ -273,6 +297,25 @@ export class TerrainView {
   /** Terrain-local height range (relative to the datum), resident tiles and declared summaries. */
   heightRange(): { min: number; max: number } {
     return this.bounds.range();
+  }
+
+  /** Quality hook: cast shadows onto itself; re-selects on the next update (shadow frusta join the cull). */
+  setSelfShadow(enabled: boolean): void {
+    if (this.mesh.castShadow === enabled) return;
+    this.mesh.castShadow = enabled;
+    this.selectionDirty = true;
+  }
+
+  /** Quality hook: the far tiling break is compiled in or out (a material rebuild, not a per-frame cost). */
+  setFarTiling(enabled: boolean): void {
+    if (this.farTiling === enabled) return;
+    this.farTiling = enabled;
+    const previous = this.mesh.material;
+    const material = createTerrainMaterial({ ...this.materialInput, farTiling: enabled });
+    this.setLodCamera = material.setLodCamera;
+    this.mesh.material = material.material;
+    previous.dispose();
+    this.selectionDirty = true;
   }
 
   /** Streaming changed tile `key`'s residency; the global map never changes (Forge's refreshTile). */
@@ -319,6 +362,7 @@ export class TerrainView {
     this.mesh.removeFromParent();
     this.mesh.geometry.dispose();
     this.mesh.material.dispose();
+    this.layerTextures.dispose();
     for (const tex of [this.heightTex, this.normalTex, this.weightTex, ...this.globalTextures]) tex.dispose();
   }
 
@@ -442,7 +486,8 @@ export class TerrainView {
     const texels = this.tileTexels;
     this.heights.set(tile.heights, slot * texels);
     computeTileNormals(this.source, key, this.normalScratch);
-    this.normals.set(this.normalScratch, slot * texels * 2);
+    const normalBase = slot * texels * 2;
+    for (let i = 0; i < texels * 2; i += 1) this.normals[normalBase + i] = THREE.DataUtils.toHalfFloat(this.normalScratch[i]!);
     const blockBytes = texels * 4;
     const blocks = Math.ceil(tile.layerCount / 4);
     for (let block = 0; block < TERRAIN_WEIGHT_BLOCKS; block += 1) {

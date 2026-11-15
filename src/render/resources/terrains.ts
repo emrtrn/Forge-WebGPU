@@ -26,7 +26,7 @@ import { parseTileKey, type TerrainTileData, type WorldTerrainDef } from "../../
 import { isMultiTileTerrain, worldTerrainExtent } from "../../engine/terrain/worldTerrainActor.ts";
 import type { Texture } from "three/webgpu";
 import type { AssetUrls } from "./assetUrls.ts";
-import type { SurfaceMaterials } from "./surfaceMaterials.ts";
+import type { SurfaceMaterials, TerrainLayerDetail } from "./surfaceMaterials.ts";
 import { TerrainWorkerPool } from "./terrainWorkerPool.ts";
 
 export const TERRAIN_DOCUMENT_SUFFIX = ".terrain.json";
@@ -49,8 +49,14 @@ export interface TerrainLayerInput {
   /** UV per local metre (x, z). */
   readonly scale: readonly [number, number];
   readonly roughness: number;
-  /** The texture is sampled with V flipped (an uncompressed image under a flipping material). */
+  /** The layer's textures are read with V flipped (a flipping material; the layer array honours it). */
   readonly flipY: boolean;
+  /** Tangent-space normal map (linear). */
+  readonly normalTexture: Texture | null;
+  /** Roughness map (green), packed into the albedo's alpha by the layer array. */
+  readonly roughnessTexture: Texture | null;
+  /** Forge's static normal stamps; null when off. */
+  readonly detail: TerrainLayerDetail | null;
 }
 
 /** Reads streamed tiles of one terrain; dispose ends its workers and fails what is in flight. */
@@ -177,7 +183,8 @@ export function createTerrainSource(options: TerrainSourceOptions): TerrainSourc
       const layers = await Promise.all(
         def.layers.slice(0, TERRAIN_RENDER_LAYERS).map(async (layer): Promise<TerrainLayerInput> => {
           const own = layer.color ?? "#808080";
-          if (!layer.material || options.materials === null) return { color: own, texture: null, scale: terrainLayerScale(width, 0, [1, 1]), roughness: 1, flipY: false };
+          const plain: TerrainLayerInput = { color: own, texture: null, scale: terrainLayerScale(width, 0, [1, 1]), roughness: 1, flipY: false, normalTexture: null, roughnessTexture: null, detail: null };
+          if (!layer.material || options.materials === null) return plain;
           try {
             const material = await options.materials.terrainLayer(layer.material);
             const texture = material.baseColorTexture;
@@ -186,12 +193,15 @@ export function createTerrainSource(options: TerrainSourceOptions): TerrainSourc
               texture,
               scale: terrainLayerScale(width, material.terrainMetersPerRepeat, material.uvTiling),
               // Forge: a layer without a texture is matte.
-              roughness: texture ? material.roughness : 1,
-              flipY: material.flipY && (texture as (Texture & { isCompressedTexture?: boolean }) | null)?.isCompressedTexture !== true,
+              roughness: texture || material.roughnessTexture ? material.roughness : 1,
+              flipY: material.flipY,
+              normalTexture: material.normalTexture,
+              roughnessTexture: material.roughnessTexture,
+              detail: material.detail,
             };
           } catch (error) {
             warn(`forge render: terrain ${guid} layer ${layer.id} paints with its colour (material ${layer.material})`, error);
-            return { color: own, texture: null, scale: terrainLayerScale(width, 0, [1, 1]), roughness: 1, flipY: false };
+            return plain;
           }
         }),
       );

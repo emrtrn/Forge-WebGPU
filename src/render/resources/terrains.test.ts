@@ -31,7 +31,7 @@ function fixture(withGlobalMap = false) {
   const materials = {
     terrainLayer: async (guid: string): Promise<TerrainLayerMaterial> => {
       if (guid !== MOSS) throw new Error("no such material");
-      return { baseColor: "#c8c2a7", baseColorTexture: texture, uvTiling: [2, 1], roughness: 0.6, terrainMetersPerRepeat: 0, flipY: true };
+      return { baseColor: "#c8c2a7", baseColorTexture: texture, normalTexture: null, roughnessTexture: null, detail: null, uvTiling: [2, 1], roughness: 0.6, terrainMetersPerRepeat: 0, flipY: true };
     },
   } as unknown as SurfaceMaterials;
   const asked: string[] = [];
@@ -69,7 +69,7 @@ describe("terrain source", () => {
     expect(terrain.tiles!.get("0_0")!.heights[0]).toBeCloseTo(tiles.get("0_0")!.heights[0]!, 2);
     expect([terrain.global.map.width, terrain.global.map.height]).toEqual([2 * 64 / 4 + 1, 64 / 4 + 1]);
     const [meadow, rock, bare] = terrain.layers;
-    expect(meadow).toEqual({ color: "#c8c2a7", texture, scale: terrainLayerScale(256, 0, [2, 1]), roughness: 0.6, flipY: true });
+    expect(meadow).toEqual({ color: "#c8c2a7", texture, scale: terrainLayerScale(256, 0, [2, 1]), roughness: 0.6, flipY: true, normalTexture: null, roughnessTexture: null, detail: null });
     // A material that fails paints with the layer's colour; a layer without one too.
     expect(rock).toMatchObject({ color: "#8b8a84", texture: null, roughness: 1 });
     expect(bare).toMatchObject({ color: "#123456", texture: null, roughness: 1 });

@@ -11,7 +11,7 @@ function terrain(tilesX: number, tilesZ: number) {
   return { def, tiles: tiles as Map<string, TerrainTileData>, global };
 }
 
-const layers = [{ color: "#808080", texture: null, scale: [0.1, 0.1] as const, roughness: 1, flipY: false }];
+const layers = [{ color: "#808080", texture: null, scale: [0.1, 0.1] as const, roughness: 1, flipY: false, normalTexture: null, roughnessTexture: null, detail: null }];
 
 /** A camera at the middle of an 8 x 8 grid (1024 m), low, looking along +X. */
 function middleCamera(def: { origin: readonly number[] }): PerspectiveCamera {
@@ -51,6 +51,23 @@ describe("terrain view", () => {
     view.mesh.castShadow = false;
     view.update(camera, casters);
     expect(view.selection.nodes).toBe(culled);
+    view.dispose();
+  });
+
+  test("quality hooks: self shadow toggles casting and the shadow cull; far tiling rebuilds the material once", () => {
+    const { def, tiles, global } = terrain(4, 4);
+    const view = new TerrainView({ def, global, tiles, layers, selfShadow: false, farTiling: true });
+    expect(view.mesh.castShadow).toBe(false);
+    view.setSelfShadow(true);
+    expect(view.mesh.castShadow).toBe(true);
+    const first = view.mesh.material;
+    let disposed = 0;
+    first.addEventListener("dispose", () => (disposed += 1));
+    view.setFarTiling(true);
+    expect(view.mesh.material).toBe(first);
+    view.setFarTiling(false);
+    expect(view.mesh.material).not.toBe(first);
+    expect(disposed).toBe(1);
     view.dispose();
   });
 

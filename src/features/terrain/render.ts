@@ -16,7 +16,8 @@
 //   is built without collision (the collider's World binding is phase 6, which
 //   moves the stream to where physics can share it).
 // - Each frame the view streams its slots and re-selects, culled by the camera
-//   and the scene's shadow-casting directional lights (cascades included).
+//   and the scene's shadow-casting directional lights (cascades included), and
+//   follows the quality profile's terrain self shadow and far tiling (step 3).
 // - Readiness: a placement holds the cache busy (`resources.busy`) from its
 //   creation until its stream has nothing queued or in flight and its view no
 //   tile waiting for a slot; tile reads count as loads (`resources.track`).
@@ -86,7 +87,15 @@ export default defineRenderBinding({
 
     const show = (actor: WorldActor, key: string, entry: Placed, terrain: LoadedTerrain): void => {
       const document = { def: terrain.def, tiles: new Map<string, TerrainTileData>(), globalAttributes: terrain.global };
-      const view = new TerrainView({ def: terrain.def, global: terrain.global, tiles: terrain.tiles ?? document.tiles, layers: terrain.layers });
+      const quality = ctx.quality();
+      const view = new TerrainView({
+        def: terrain.def,
+        global: terrain.global,
+        tiles: terrain.tiles ?? document.tiles,
+        layers: terrain.layers,
+        selfShadow: quality.terrainSelfShadow,
+        farTiling: quality.terrainFarTiling,
+      });
       if (terrain.tiles === null) {
         const reader = terrain.openTiles();
         entry.reader = reader;
@@ -154,9 +163,12 @@ export default defineRenderBinding({
         frame.camera.getWorldPosition(camera);
         frame.camera.updateMatrixWorld();
         let casters: ReturnType<typeof terrainShadowCasters> | null = null;
+        const quality = ctx.quality();
         for (const entry of placed.values()) {
           const { view, stream } = entry;
           if (!view) continue;
+          view.setSelfShadow(quality.terrainSelfShadow);
+          view.setFarTiling(quality.terrainFarTiling);
           stream?.update([{ position: [camera.x, camera.z] }]);
           casters ??= terrainShadowCasters(ctx.scene);
           view.update(frame.camera, casters);
