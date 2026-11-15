@@ -163,6 +163,35 @@ test("dirty close: Cancel keeps draft, Discard closes; 409 keeps draft and Reloa
   await expect(page.getByTestId("asset-editor")).toHaveCount(0);
 });
 
+test("409 Compare (step 8): disjoint changes merge and both are saved; a conflict picked Theirs takes the disk's value", async ({ page }) => {
+  const errors = await open(page); await asset(page, "surface.material.json");
+  const file = `${FOLDER}/surface.material.json`, original = await readFile(disk(file));
+  const roughness = page.getByTestId("asset-field-roughness");
+  await roughness.fill("0.6"); await roughness.press("Tab");
+  await write(file, { ...(await json(file)), baseColor: "#00ff00" });
+  await page.getByTestId("asset-editor-save").click(); await expect(page.getByTestId("asset-editor-status")).toContainText("409");
+  await page.getByTestId("asset-editor-compare").click();
+  await expect(page.getByTestId("asset-compare-summary")).toContainText("0 conflicts");
+  await page.getByTestId("asset-compare-apply").click(); await expect(page.getByTestId("asset-compare")).toHaveCount(0);
+  await expect(page.getByTestId("asset-editor-status")).toContainText("Merged with the disk; save to write");
+  await save(page);
+  expect(await json(file)).toMatchObject({ roughness: 0.6, baseColor: "#00ff00" });
+
+  await roughness.fill("0.7"); await roughness.press("Tab");
+  await write(file, { ...(await json(file)), roughness: 0.2 });
+  await page.getByTestId("asset-editor-save").click(); await expect(page.getByTestId("asset-editor-status")).toContainText("409");
+  await page.getByTestId("asset-editor-compare").click();
+  const row = page.getByTestId("asset-compare-row"); await expect(row).toHaveCount(1); await expect(row).toContainText("roughness");
+  await row.getByTestId("asset-compare-theirs").click(); await page.getByTestId("asset-compare-apply").click();
+  await expect(roughness).toHaveValue("0.2"); await expect(page.getByTestId("asset-editor-save")).toBeDisabled();
+  // Escape closes the Compare window, not the asset window.
+  await page.getByTestId("asset-editor-compare").click(); await expect(page.getByTestId("asset-compare")).toBeVisible();
+  await page.keyboard.press("Escape"); await expect(page.getByTestId("asset-compare")).toHaveCount(0); await expect(page.getByTestId("asset-editor")).toBeVisible();
+  await close(page); expect(errors).toEqual([]);
+  // The later tests start from the material as it was.
+  await writeFile(disk(file), original);
+});
+
 test("actor class: Ctrl+E, component tree/defaults and live instances; destructive override changes refused", async ({ page }, info) => {
   const errors = await open(page), levelBefore = await readFile(disk(`${LEVEL}/level.json`), "utf8");
   await page.locator(`[data-testid="outliner-row"][data-actor-id="${INSTANCE}"]`).click(); await page.keyboard.press("Control+e");

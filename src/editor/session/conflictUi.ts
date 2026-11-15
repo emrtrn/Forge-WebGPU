@@ -13,9 +13,10 @@
 //   disk's level, so the next Save writes them against the disk's revisions.
 //
 // Both clear the undo history (user decision 2026-11-15). Step 9's live
-// refresh shows the same strip when a dirty level changes on disk.
+// refresh shows the same strip when a dirty level changes on disk. The
+// Compare window (`openCompareWindow`) is the asset editor's too.
 
-import type { LevelConflict, MergeKey, MergeSide, ReadLevel } from "../../core/index.ts";
+import type { FieldConflict, LevelConflict, MergeKey, MergeSide, ReadLevel } from "../../core/index.ts";
 import type { EditorSession } from "./editorSession.ts";
 
 export interface ConflictStrip {
@@ -112,6 +113,131 @@ export function shortValue(value: unknown): string {
   return text.length > 60 ? `${text.slice(0, 57)}…` : text;
 }
 
+/** One thing both sides changed differently: an actor, the level's settings, an asset's field. */
+export interface CompareRow {
+  readonly key: string;
+  readonly label: string;
+  readonly fields: readonly FieldConflict[];
+  /** Shown for a field at the row's root (a removed actor). */
+  readonly wholeLabel?: string;
+  /** Selects what the row is about (an actor still in the level). */
+  readonly select?: () => void;
+}
+
+export interface CompareWindowOptions {
+  readonly document: Document;
+  readonly host: HTMLElement;
+  /** `level-compare`, `asset-compare`: the window's test id and its parts' prefix. */
+  readonly testId: string;
+  readonly summary: string;
+  readonly rows: readonly CompareRow[];
+  /** Merges with the picks (key -> side, every row mine at first); true closes the window. */
+  readonly apply: (picks: ReadonlyMap<string, MergeSide>) => boolean;
+}
+
+/** The Compare window: a summary, a row per conflict with Mine / Theirs, All mine / All theirs, Cancel, Apply. */
+export function openCompareWindow(options: CompareWindowOptions): { close(): void } {
+  const doc = options.document;
+  installStyle(doc);
+  const id = options.testId;
+  const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className = "", text?: string): HTMLElementTagNameMap[K] => {
+    const node = doc.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const button = (label: string, testId: string, run: () => void): HTMLButtonElement => {
+    const node = el("button", "detail-inline-button", label);
+    node.type = "button";
+    node.dataset.testid = testId;
+    node.addEventListener("click", run);
+    return node;
+  };
+  const picks = new Map<string, MergeSide>(options.rows.map((row) => [row.key, "mine"]));
+  const backdrop = el("div", "level-compare-backdrop");
+  const window = el("div", "level-compare");
+  window.dataset.testid = id;
+  window.setAttribute("role", "dialog");
+  window.setAttribute("aria-modal", "true");
+  window.setAttribute("aria-label", "Compare with disk");
+  const head = el("div", "level-compare-head");
+  head.append(el("strong", "", "Compare with disk"));
+  const summary = el("div", "level-compare-summary", options.summary);
+  summary.dataset.testid = `${id}-summary`;
+  const list = el("div", "level-compare-list");
+  const painted: { key: string; mine: HTMLButtonElement; theirs: HTMLButtonElement }[] = [];
+  const paint = (): void => {
+    for (const row of painted) {
+      const side = picks.get(row.key);
+      row.mine.classList.toggle("active", side === "mine");
+      row.theirs.classList.toggle("active", side === "theirs");
+    }
+  };
+  for (const conflict of options.rows) {
+    const row = el("div", "level-compare-row");
+    row.dataset.testid = `${id}-row`;
+    row.dataset.key = conflict.key;
+    const rowHead = el("div", "level-compare-row-head");
+    const pick = el("span", "level-compare-pick");
+    const choose = (side: MergeSide) => () => {
+      picks.set(conflict.key, side);
+      paint();
+    };
+    const mine = button("Mine", `${id}-mine`, choose("mine"));
+    const theirs = button("Theirs", `${id}-theirs`, choose("theirs"));
+    pick.append(mine, theirs);
+    rowHead.append(el("span", "level-compare-label", conflict.label));
+    if (conflict.select) rowHead.append(button("Select", `${id}-select`, conflict.select));
+    rowHead.append(pick);
+    row.append(rowHead);
+    const fieldHead = el("div", "level-compare-field");
+    fieldHead.append(el("span", "", "Field"), el("span", "", "Mine"), el("span", "", "Theirs (disk)"));
+    row.append(fieldHead);
+    for (const field of conflict.fields) {
+      const line = el("div", "level-compare-field");
+      const mineValue = el("code", "", shortValue(field.mine));
+      const theirsValue = el("code", "", shortValue(field.theirs));
+      mineValue.title = JSON.stringify(field.mine) ?? "(removed)";
+      theirsValue.title = JSON.stringify(field.theirs) ?? "(removed)";
+      line.append(el("span", "", field.path.length === 0 ? (conflict.wholeLabel ?? "(whole)") : field.path.join(".")), mineValue, theirsValue);
+      row.append(line);
+    }
+    painted.push({ key: conflict.key, mine, theirs });
+    list.append(row);
+  }
+  paint();
+  const close = (): void => {
+    backdrop.remove();
+    doc.removeEventListener("keydown", keydown, true);
+  };
+  const keydown = (event: KeyboardEvent): void => {
+    // The editor's shortcuts do not run under the window.
+    event.stopPropagation();
+    if (event.key === "Escape") {
+      event.preventDefault();
+      close();
+    }
+  };
+  const foot = el("div", "level-compare-foot");
+  const all = (side: MergeSide) => () => {
+    for (const key of picks.keys()) picks.set(key, side);
+    paint();
+  };
+  if (options.rows.length > 0) foot.append(button("All mine", `${id}-all-mine`, all("mine")), button("All theirs", `${id}-all-theirs`, all("theirs")));
+  foot.append(
+    button("Cancel", `${id}-cancel`, close),
+    button("Apply", `${id}-apply`, () => {
+      if (options.apply(picks)) close();
+    }),
+  );
+  window.append(head, summary, list, foot);
+  backdrop.append(window);
+  options.host.append(backdrop);
+  doc.addEventListener("keydown", keydown, true);
+  window.querySelector<HTMLButtonElement>(`[data-testid=${id}-apply]`)?.focus();
+  return { close };
+}
+
 export function createConflictStrip(options: ConflictStripOptions): ConflictStrip {
   const doc = options.document;
   const { editor, status } = options;
@@ -168,109 +294,37 @@ export function createConflictStrip(options: ConflictStripOptions): ConflictStri
     const disk = await read();
     if (!disk) return;
     const { merge } = editor.level.compare(disk.open);
-    const picks = new Map<MergeKey, MergeSide>(merge.conflicts.map((conflict) => [conflict.key, "mine"]));
-
-    const backdrop = el("div", "level-compare-backdrop");
-    const window = el("div", "level-compare");
-    window.dataset.testid = "level-compare";
-    window.setAttribute("role", "dialog");
-    window.setAttribute("aria-modal", "true");
-    window.setAttribute("aria-label", "Compare with disk");
-    const head = el("div", "level-compare-head");
-    head.append(el("strong", "", "Compare with disk"));
-    const summary = el("div", "level-compare-summary");
-    summary.dataset.testid = "level-compare-summary";
     const parts = [
       `${merge.fromMine.length} of your change${merge.fromMine.length === 1 ? "" : "s"} kept`,
       `${merge.fromTheirs.length + (merge.settingsFromTheirs ? 1 : 0)} from disk taken`,
       `${merge.conflicts.length} conflict${merge.conflicts.length === 1 ? "" : "s"}`,
     ];
-    summary.textContent = `${parts.join(" · ")}. Apply merges them; your changes stay unsaved until you save.`;
-    const list = el("div", "level-compare-list");
-    const rows: { conflict: LevelConflict; mine: HTMLButtonElement; theirs: HTMLButtonElement }[] = [];
-    const paint = (): void => {
-      for (const row of rows) {
-        const side = picks.get(row.conflict.key);
-        row.mine.classList.toggle("active", side === "mine");
-        row.theirs.classList.toggle("active", side === "theirs");
-      }
-    };
-    for (const conflict of merge.conflicts) {
-      const row = el("div", "level-compare-row");
-      row.dataset.testid = "level-compare-row";
-      row.dataset.key = conflict.key;
-      const rowHead = el("div", "level-compare-row-head");
-      const label = el("span", "level-compare-label", conflict.label);
-      const pick = el("span", "level-compare-pick");
-      const mine = button("Mine", "level-compare-mine", () => {
-        picks.set(conflict.key, "mine");
-        paint();
-      });
-      const theirs = button("Theirs", "level-compare-theirs", () => {
-        picks.set(conflict.key, "theirs");
-        paint();
-      });
-      pick.append(mine, theirs);
-      rowHead.append(label);
-      if (conflict.key !== "settings" && editor.level.actor(conflict.key) !== undefined) {
-        const id = conflict.key;
-        rowHead.append(button("Select", "level-compare-select", () => editor.selection.set([id])));
-      }
-      rowHead.append(pick);
-      row.append(rowHead);
-      const fieldHead = el("div", "level-compare-field");
-      fieldHead.append(el("span", "", "Field"), el("span", "", "Mine"), el("span", "", "Theirs (disk)"));
-      row.append(fieldHead);
-      for (const field of conflict.fields) {
-        const line = el("div", "level-compare-field");
-        const mineValue = el("code", "", shortValue(field.mine));
-        const theirsValue = el("code", "", shortValue(field.theirs));
-        mineValue.title = JSON.stringify(field.mine) ?? "(removed)";
-        theirsValue.title = JSON.stringify(field.theirs) ?? "(removed)";
-        line.append(el("span", "", field.path.length === 0 ? "(whole actor)" : field.path.join(".")), mineValue, theirsValue);
-        row.append(line);
-      }
-      rows.push({ conflict, mine, theirs });
-      list.append(row);
-    }
-    paint();
-    const close = (): void => {
-      backdrop.remove();
-      doc.removeEventListener("keydown", keydown, true);
-    };
-    const keydown = (event: KeyboardEvent): void => {
-      // The level's shortcuts do not run under the window.
-      event.stopPropagation();
-      if (event.key === "Escape") {
-        event.preventDefault();
-        close();
-      }
-    };
-    const foot = el("div", "level-compare-foot");
-    const all = (side: MergeSide) => () => {
-      for (const key of picks.keys()) picks.set(key, side);
-      paint();
-    };
-    if (merge.conflicts.length > 0) foot.append(button("All mine", "level-compare-all-mine", all("mine")), button("All theirs", "level-compare-all-theirs", all("theirs")));
-    foot.append(
-      button("Cancel", "level-compare-cancel", close),
-      button("Apply", "level-compare-apply", () => {
+    openCompareWindow({
+      document: doc,
+      host: options.host,
+      testId: "level-compare",
+      summary: `${parts.join(" · ")}. Apply merges them; your changes stay unsaved until you save.`,
+      rows: merge.conflicts.map((conflict: LevelConflict) => ({
+        key: conflict.key,
+        label: conflict.label,
+        fields: conflict.fields,
+        wholeLabel: "(whole actor)",
+        ...(conflict.key !== "settings" && editor.level.actor(conflict.key) !== undefined
+          ? { select: () => editor.selection.set([conflict.key as Exclude<MergeKey, "settings">]) }
+          : {}),
+      })),
+      apply: (picks) => {
         const result = editor.rebase(disk, { mode: "merge", pick: (key) => picks.get(key) ?? "mine" });
         if (!result.ok) {
           status(`The merge does not check: ${result.issues.filter((issue) => issue.severity === "error").map((issue) => `${issue.path}: ${issue.message}`).join("; ")}`, "error");
-          return;
+          return false;
         }
-        close();
         hide();
         const unsaved = editor.dirty();
         status(unsaved === 0 ? "Merged with the disk; nothing left to save" : `Merged with the disk; ${unsaved} actor${unsaved === 1 ? "" : "s"} to save (undo history cleared)`);
-      }),
-    );
-    window.append(head, summary, list, foot);
-    backdrop.append(window);
-    options.host.append(backdrop);
-    doc.addEventListener("keydown", keydown, true);
-    window.querySelector<HTMLButtonElement>("[data-testid=level-compare-apply]")?.focus();
+        return true;
+      },
+    });
   };
 
   strip.append(text, button("Compare…", "level-conflict-compare", () => void compare()), button("Reload", "level-conflict-reload", () => void reload()));

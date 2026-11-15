@@ -2,6 +2,7 @@
 // tools/preview, never another save path, history or hand-written field form.
 import { isJsonAssetType, type AssetPreviewController, type FormField, type SaveClient, type SchemaRegistry } from "../../core/index.ts";
 import { openPicker } from "../details/pickerPopover.ts";
+import { openCompareWindow } from "../session/conflictUi.ts";
 import type { AssetEditorExtension, AssetEditorExtensionContext, AssetEditorPresentation } from "../host/assetEditorTypes.ts";
 import type { FeatureEditorDef } from "../host/featureEditor.ts";
 import { isEditableTarget, shortcutOf } from "../input/shortcuts.ts";
@@ -122,6 +123,27 @@ export function createAssetEditor(options: AssetEditorOptions) {
         if (opened.dirty() && !doc.defaultView!.confirm("Reload from disk? Your unsaved asset changes will be discarded.")) return;
         void opened.reload().then(() => status("Reloaded from disk."), (error: unknown) => status(String(error)));
       });
+      // After a 409 (step 8): the draft against the disk's version, merged field by field.
+      const compare = button("Compare…", "asset-editor-compare", () => {
+        void opened.compare().then((disk) => {
+          if (ticket !== generation || root.querySelector("[data-testid=asset-compare]")) return;
+          const count = disk.conflicts.length;
+          openCompareWindow({
+            document: doc,
+            host: root,
+            testId: "asset-compare",
+            summary: disk.unchanged
+              ? "The disk's version is the one this draft started from; nothing to merge."
+              : `${count} conflict${count === 1 ? "" : "s"}. Apply merges your draft with the disk's version; it stays unsaved until you save.`,
+            rows: disk.conflicts.map((conflict) => ({ key: conflict.path.join("."), label: conflict.path.length === 0 ? asset.name : conflict.path.join("."), fields: [conflict] })),
+            apply: (picks) => {
+              const result = opened.merge(disk, (path) => picks.get(path.join(".")) ?? "mine");
+              status(result.message);
+              return result.ok;
+            },
+          });
+        }, (error: unknown) => status(String(error)));
+      });
       button("Open Asset…", "asset-editor-open", () => {
         const items = options.catalog.ofType(null).filter((item) => { const candidate = options.lookup(item.guid); return candidate && assetDocumentAdapter(candidate, options.registry); });
         void openPicker({ document: doc, host: fields, title: "Open Asset", testId: "asset-open-picker", items: items.map((item) => ({ id: item.guid, label: item.name, note: item.type })) }).then((id) => {
@@ -157,7 +179,7 @@ export function createAssetEditor(options: AssetEditorOptions) {
       let lastPreviewValue: Readonly<Record<string, unknown>> | null = null;
       const update = () => {
         title.textContent = `${asset.name}${opened.dirty() ? " *" : ""} · ${contentTypeLabel(asset.type)}${asset.writable ? "" : " · Read Only"}`;
-        save.disabled = !asset.writable || !opened.dirty() || opened.busy(); undo.disabled = !opened.canUndo(); redo.disabled = !opened.canRedo(); reload.disabled = opened.busy(); fields.inert = opened.busy();
+        save.disabled = !asset.writable || !opened.dirty() || opened.busy(); undo.disabled = !opened.canUndo(); redo.disabled = !opened.canRedo(); reload.disabled = opened.busy(); compare.disabled = !asset.writable || opened.busy(); fields.inert = opened.busy();
         form?.update(opened.value()); table?.update(); extension?.update?.();
         if (preview && lastPreviewValue !== opened.value()) {
           lastPreviewValue = opened.value();
@@ -178,6 +200,8 @@ export function createAssetEditor(options: AssetEditorOptions) {
     }
     // Picker Escape belongs to its own dialog; all other shortcuts stay here.
     if (event.key === "Escape" && overlay.querySelector(".details-picker")) return;
+    // The Compare window takes its own keys (Escape closes it, not the asset).
+    if (overlay.querySelector("[data-testid=asset-compare]")) return;
     if (overlay.querySelector(".asset-editor-confirm")) {
       if (event.key === "Escape") { event.preventDefault(); event.stopImmediatePropagation(); overlay.querySelector<HTMLButtonElement>("[data-testid=asset-unsaved-cancel]")?.click(); }
       return;

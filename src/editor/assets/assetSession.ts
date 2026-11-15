@@ -1,8 +1,25 @@
 // Independent asset history: persistent document roots share untouched data
 // (notably vertex arrays); one slider/gizmo gesture coalesces to one step.
-import { jsonEquals, stringifyDocument, type SaveClient, type SaveResponseBody } from "../../core/index.ts";
+//
+// A save the disk refuses (409) keeps the draft. `compare` reads the disk's
+// version against the baseline (plan phase 4 step 8): the same field-level
+// three-way merge as the level (core merge.ts); `merge` takes the disk's
+// version as the new baseline with the draft's changes over it (each conflict
+// by a pick), clears the history (user decision 2026-11-15) and stays dirty
+// until saved. Reload drops the draft.
+import { jsonEquals, mergeJson, stringifyDocument, type FieldConflict, type MergeSide, type SaveClient, type SaveResponseBody } from "../../core/index.ts";
 import { setAtPath, type FormPath } from "../ui/formPath.ts";
 import type { AssetDocument, AssetDocumentAdapter, EditableAsset } from "./assetDocument.ts";
+
+/** The disk's version against the draft (`AssetSession.compare`). */
+export interface AssetDiskCompare {
+  readonly theirs: AssetDocument;
+  readonly revision: string;
+  /** Places the draft and the disk both changed differently. */
+  readonly conflicts: readonly FieldConflict[];
+  /** The disk's version is the baseline (nothing changed there since it was read). */
+  readonly unchanged: boolean;
+}
 
 export interface AssetSession {
   readonly asset: EditableAsset;
@@ -18,6 +35,9 @@ export interface AssetSession {
   redo(): void;
   save(): Promise<{ readonly ok: boolean; readonly message: string }>;
   reload(): Promise<void>;
+  compare(): Promise<AssetDiskCompare>;
+  /** The draft over the disk's version read by `compare`, each conflict by `pick` (by its path). */
+  merge(disk: AssetDiskCompare, pick: (path: readonly string[]) => MergeSide): { readonly ok: boolean; readonly message: string };
   result(): SaveResponseBody | null;
   onChange(listener: () => void): () => void;
 }
@@ -72,7 +92,7 @@ export async function openAssetSession(asset: EditableAsset, adapter: AssetDocum
       try {
         lastResult = await client.save({ writes: [{ path: adapter.path, base: revision, text: stringifyDocument(checked.value) }], deletes: [] });
         if (lastResult.status !== "saved") return {
-          ok: false, message: lastResult.status === "conflict" ? "Changed on disk (409). Your draft is kept. Reload to read the new version."
+          ok: false, message: lastResult.status === "conflict" ? "Changed on disk (409). Your draft is kept. Compare to merge it, or Reload to read the new version."
             : lastResult.message ?? lastResult.issues?.map((issue) => `${issue.file} ${issue.path}: ${issue.message}`).join("; ") ?? "Save refused.",
         };
         const saved = await read();
@@ -87,6 +107,22 @@ export async function openAssetSession(asset: EditableAsset, adapter: AssetDocum
       busy = true; notify();
       try { const loaded = await read(); current = baseline = loaded.doc; revision = loaded.revision; undo.length = redo.length = 0; lastResult = null; }
       finally { busy = false; notify(); }
+    },
+    async compare() {
+      const disk = await read();
+      const conflicts = mergeJson(baseline, current, disk.doc).conflicts;
+      return { theirs: disk.doc, revision: disk.revision, conflicts, unchanged: jsonEquals(disk.doc, baseline) };
+    },
+    merge(disk, pick) {
+      if (busy) return { ok: false, message: "A save is in progress." };
+      const merged = mergeJson(baseline, current, disk.theirs, (conflict) => pick(conflict.path)).value;
+      const checked = adapter.normalize(merged);
+      if (!checked.ok || !checked.value) return { ok: false, message: `The merge does not check: ${checked.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; ")}` };
+      baseline = disk.theirs; revision = disk.revision;
+      current = jsonEquals(checked.value, disk.theirs) ? disk.theirs : checked.value;
+      undo.length = redo.length = 0; lastResult = null;
+      notify();
+      return { ok: true, message: session.dirty() ? "Merged with the disk; save to write your changes (undo history cleared)." : "Merged with the disk; nothing left to save." };
     },
     result: () => lastResult,
     onChange(listener) { listeners.add(listener); return () => listeners.delete(listener); },

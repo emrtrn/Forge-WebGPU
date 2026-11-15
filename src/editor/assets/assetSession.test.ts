@@ -27,6 +27,8 @@ function fixture(writable = true) {
   };
   return { open: () => openAssetSession(asset, assetDocumentAdapter(asset, registry)!, client), requests,
     fail: (result: SaveResponseBody) => { fail = result; }, disk: () => disk,
+    /** Another writer changes the file on disk. */
+    change: (next: Partial<typeof disk>) => { disk = { ...disk, ...next }; revision = "0000000000000003"; },
   };
 }
 
@@ -53,6 +55,26 @@ describe("asset documents have their own edit/save session", () => {
       expect(session.value().amount).toBe(4); expect(fix.disk().amount).toBe(1);
       await session.reload(); expect(session.dirty()).toBe(false); expect(session.value().amount).toBe(1);
     }
+  });
+  test("after a 409, compare merges the draft with the disk field by field (step 8)", async () => {
+    const fix = fixture(), session = await fix.open();
+    session.edit("Amount", ["amount"], 4);
+    fix.change({ rows: [{ label: "Disk", value: 5 }] });
+    const disjoint = await session.compare();
+    expect(disjoint).toMatchObject({ conflicts: [], unchanged: false, revision: "0000000000000003" });
+    expect(session.merge(disjoint, () => "mine")).toMatchObject({ ok: true });
+    expect(session.value()).toMatchObject({ amount: 4, rows: [{ label: "Disk", value: 5 }] });
+    expect(session.dirty()).toBe(true);
+    expect(session.canUndo()).toBe(false);
+    expect(session.revision()).toBe("0000000000000003");
+
+    // Both change the amount: a conflict; theirs leaves nothing to save.
+    fix.change({ amount: 7 });
+    const conflicting = await session.compare();
+    expect(conflicting.conflicts.map((conflict) => [conflict.path, conflict.mine, conflict.theirs])).toEqual([[["amount"], 4, 7]]);
+    expect(session.merge(conflicting, () => "theirs")).toMatchObject({ ok: true, message: "Merged with the disk; nothing left to save." });
+    expect(session.value().amount).toBe(7);
+    expect(session.dirty()).toBe(false);
   });
   test("validation, read-only and envelope changes never write", async () => {
     const fix = fixture(), session = await fix.open();
