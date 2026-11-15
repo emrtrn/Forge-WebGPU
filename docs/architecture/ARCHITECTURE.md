@@ -160,7 +160,7 @@ parçasını çizer; Sky Light aynı PMREM'e, ölçülmüş hızla yeniden yakal
 (rapor §4.9). Static mesh ve şekiller otomatik instanced batch'lerle, terrain
 spike S2'nin TSL CDLOD'uyla salt çizilir; çok tile'lı terrain kamera çevresinde
 akar (Forge'un akış çekirdeği, worker'da çözme, global haritadan uzak alan, görüş
-ve gölge frustum'u kesimi; görsel yükseklik collider'la G8 testleriyle eşleşir; rapor §4.9 Faz 5a); görüntüleyicinin varsayılan kamerası
+ve gölge frustum'u kesimi; görsel yükseklik collider'la G8 testleriyle eşleşir; su birikintisi `forge.puddle`, `reflector()` yansımasıyla; rapor §4.9 Faz 5a); görüntüleyicinin varsayılan kamerası
 ve `?debug` paneli (dinamik import; akan terrain'in tile haritası) var (rapor §4.9).
 
 ## Oyun projesi sözleşmesi
