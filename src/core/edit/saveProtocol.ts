@@ -40,6 +40,43 @@ export type SaveResponseBody =
       readonly message?: string;
     };
 
+/** Where the editor's viewport camera was when Play started: the game's default camera starts there. */
+export interface PlayCameraBody {
+  readonly position: readonly [number, number, number];
+  readonly quaternion: readonly [number, number, number, number];
+}
+
+/**
+ * The body of `POST /__forge/play` (plan phase 4 step 8): the level's unsaved
+ * files, as a save would write them, in a layer the game tab reads through.
+ * `id` is the editor tab's session (every Play replaces it); omitted, the
+ * server picks one.
+ */
+export interface PlayRequestBody {
+  readonly id?: string;
+  /** Level folder, e.g. `content/levels/main`. */
+  readonly level: string;
+  readonly camera?: PlayCameraBody | null;
+  readonly writes: readonly { readonly path: string; readonly text: string }[];
+  readonly deletes: readonly string[];
+}
+
+export type PlayResponseBody =
+  | { readonly status: "ready"; readonly id: string }
+  | {
+      readonly status: "rejected";
+      readonly reason: "request" | "path" | "document";
+      readonly message: string;
+      readonly issues?: readonly SaveIssueBody[];
+    };
+
+/** What `GET /__forge/play?id=` answers. */
+export interface PlaySessionBody {
+  readonly id: string;
+  readonly level: string;
+  readonly camera: PlayCameraBody | null;
+}
+
 /** The HTTP header every `/__forge/` request carries. */
 export const FORGE_REQUEST_HEADER = "X-Forge-Request";
 

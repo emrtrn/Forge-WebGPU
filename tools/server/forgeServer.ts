@@ -23,6 +23,10 @@
 //   GET  /__forge/asset-files   every binary asset (with its import settings), schema-defined JSON asset and data document:
 //                               GUID -> { type, file, import? }, `file` for /__forge/read
 //                               (the renderer resolves model and texture GUIDs with it)
+//   POST /__forge/play          a play session: the editor's unsaved level files, checked, in a layer over the
+//                               project (playSessions.ts, plan phase 4 step 8); `GET /__forge/read?…&play=<id>`
+//                               reads through it, `GET /__forge/play?id=` names its level and camera. A
+//                               read-only project plays too: the layer is not the project's files
 //
 // A project opened read-only (the engine's samples and fixtures, A9) refuses
 // saves and uploads with 403; it can still be read.
@@ -61,6 +65,7 @@ import { defaultContentRoots } from "../assets/verify.ts";
 import { createClassStore, createDocumentCheck } from "../save/documentCheck.ts";
 import { ENGINE_LABEL_PREFIX } from "../assets/engineContent.ts";
 import { engineContentAccess, engineContentResult } from "./engineContentMode.ts";
+import { createPlaySessions, PLAY_ID, PlaySessionMissing } from "./playSessions.ts";
 import { createSaveService, MANIFEST_FILE, type SaveRequest, type SaveResult, type SaveService } from "../save/transaction.ts";
 import {
   createWritePolicy,
@@ -257,9 +262,10 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
   const classFiles = async () => (await indexRoots()).scan.files.filter((file) => file.json !== undefined).map((file) => ({ file: `${file.root}/${file.path}`, json: file.json }));
   const writableLabel = (label: string): boolean =>
     readOnlyRoots.some((root) => root.label === label) ? engine?.rootOf(label) !== undefined : !options.readOnly;
+  const check = createDocumentCheck(options.registry, classes, { files: classFiles, label: (path) => path });
   const saves = createSaveService({
     policy,
-    check: createDocumentCheck(options.registry, classes, { files: classFiles, label: (path) => path }),
+    check,
     afterSave: (files) => {
       snapshot = null;
       return classes.refresh(files.map((file) => file.path));
@@ -362,20 +368,40 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
     send(res, 200, { id, size: bytes.length, revision: fileRevision(bytes) });
   };
 
+  /** Where a readable path is on disk: a labelled read-only root, else the project; throws `ProjectPathError`. */
+  const resolveReadable = (path: string): string => {
+    const outside = readOnlyRoots.find((root) => path.startsWith(`${root.label}/`));
+    return outside ? resolveReadOnlyPath(outside, path.slice(outside.label.length + 1)) : resolveWritablePath(policy, path).absolute;
+  };
+  const plays = await createPlaySessions({ root: policy.root, resolve: resolveReadable, check });
+
   const read = async (url: URL, res: ServerResponse): Promise<void> => {
     const path = url.searchParams.get("path") ?? "";
+    const play = url.searchParams.get("play");
     let absolute: string;
     try {
-      const outside = readOnlyRoots.find((root) => path.startsWith(`${root.label}/`));
-      absolute = outside ? resolveReadOnlyPath(outside, path.slice(outside.label.length + 1)) : resolveWritablePath(policy, path).absolute;
+      absolute = resolveReadable(path);
     } catch (error) {
       if (!(error instanceof ProjectPathError)) throw error;
       send(res, 403, { status: "rejected", reason: "path", message: error.message });
       return;
     }
-    let bytes: Buffer;
+    let bytes: Buffer | null | undefined;
+    if (play !== null) {
+      try {
+        bytes = await plays.overlay(play, path);
+      } catch (error) {
+        if (!(error instanceof PlaySessionMissing)) throw error;
+        send(res, 410, { status: "missing-session", message: error.message });
+        return;
+      }
+      if (bytes === null) {
+        send(res, 404, { status: "missing", path });
+        return;
+      }
+    }
     try {
-      bytes = await readFile(absolute);
+      bytes ??= await readFile(absolute);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       send(res, 404, { status: "missing", path });
@@ -520,6 +546,24 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
     };
   };
 
+  const playCreate = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    let body: unknown;
+    try {
+      body = JSON.parse((await readBody(req, maxBody)).toString("utf8"));
+    } catch (error) {
+      send(res, error instanceof BodyTooLarge ? 413 : 400, { status: "rejected", reason: "request", message: error instanceof Error ? error.message : String(error) });
+      return;
+    }
+    const result = await plays.create(body);
+    send(res, result.status === "ready" ? 200 : STATUS_OF[result.reason], result);
+  };
+  const playInfo = (url: URL, res: ServerResponse): void => {
+    const id = url.searchParams.get("id") ?? "";
+    const info = PLAY_ID.test(id) ? plays.info(id) : null;
+    if (info) send(res, 200, info);
+    else send(res, 404, { status: "missing-session", message: `No play session ${id}; press Play in the editor again.` });
+  };
+
   const thumbnailDir = join(policy.root, ...THUMBNAIL_DIR.split("/"));
   const thumbnail = async (req: IncomingMessage, url: URL, res: ServerResponse): Promise<void> => {
     const id = url.searchParams.get("id") ?? "";
@@ -587,6 +631,8 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
       "POST /__forge/content": () => contentOp(req, res),
       "GET /__forge/thumbnail": () => thumbnail(req, url, res),
       "POST /__forge/thumbnail": () => thumbnail(req, url, res),
+      "POST /__forge/play": () => playCreate(req, res),
+      "GET /__forge/play": async () => playInfo(url, res),
     };
     const handle = Object.hasOwn(routes, route) ? routes[route]!() : null;
     if (handle === null) {

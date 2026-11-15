@@ -129,7 +129,8 @@ export async function createProject(options: CreateProjectOptions): Promise<{ re
   await mkdir(target, { recursive: true });
   await cp(starter, target, {
     recursive: true,
-    filter: (source) => !relative(starter, source).split(sep).some((part) => part === ".forge"),
+    // What the dev server and forge check make in the starter (`.forge/`, `.forge-session/`, caches) stays there.
+    filter: (source) => !relative(starter, source).split(sep).some((part) => part === ".forge" || part.startsWith(".forge-")),
   });
 
   const manifest = normalizeProjectManifest(JSON.parse(await readFile(join(starter, PROJECT_FILE), "utf8")), { strict: true }).value!;

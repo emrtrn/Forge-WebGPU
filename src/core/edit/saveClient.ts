@@ -11,7 +11,15 @@ import type { CellAssignOptions } from "../level/cells.ts";
 import type { LevelPartIssue } from "../level/levelParts.ts";
 import { normalizeLevel } from "../level/normalizeLevel.ts";
 import { openLevelSession, type LevelSession, type LoadedCell, type SavePlan } from "./levelSession.ts";
-import { FORGE_REQUEST_HEADER, type ForgeIdentity, type SaveRequestBody, type SaveResponseBody } from "./saveProtocol.ts";
+import {
+  FORGE_REQUEST_HEADER,
+  type ForgeIdentity,
+  type PlayRequestBody,
+  type PlayResponseBody,
+  type PlaySessionBody,
+  type SaveRequestBody,
+  type SaveResponseBody,
+} from "./saveProtocol.ts";
 
 type Fetch = (input: string, init?: { method?: string; headers?: Record<string, string>; body?: string | Uint8Array }) => Promise<{
   readonly status: number;
@@ -34,6 +42,10 @@ export interface ContentClient {
 export interface SaveClient extends ContentClient {
   save(request: SaveRequestBody): Promise<SaveResponseBody>;
   stageBinary(bytes: Uint8Array): Promise<{ readonly id: string; readonly size: number; readonly revision: string }>;
+  /** Starts (or replaces) a play session: the level's unsaved files in a layer, never the project's files. */
+  play(request: PlayRequestBody): Promise<PlayResponseBody>;
+  /** A play session's level and camera; null when the session is gone (the server restarted). */
+  playSession(id: string): Promise<PlaySessionBody | null>;
 }
 
 /**
@@ -83,13 +95,27 @@ export class SaveClientError extends Error {
   }
 }
 
-export function createSaveClient(options: { readonly fetch: Fetch; readonly baseUrl?: string }): SaveClient {
+/** The play session a game tab reads through is gone (the dev server restarted). */
+export class PlaySessionGoneError extends SaveClientError {
+  constructor(message: string) {
+    super(410, message);
+    this.name = "PlaySessionGoneError";
+  }
+}
+
+/**
+ * The dev server's client. With `play`, reads go through that play session's
+ * layer (plan phase 4 step 8): the game tab of the editor's Play.
+ */
+export function createSaveClient(options: { readonly fetch: Fetch; readonly baseUrl?: string; readonly play?: string }): SaveClient {
   const base = (options.baseUrl ?? "").replace(/\/+$/, "");
   const headers = { [FORGE_REQUEST_HEADER]: "1" };
+  const layer = options.play === undefined ? "" : `&play=${encodeURIComponent(options.play)}`;
   return {
     async read(path) {
-      const response = await options.fetch(`${base}/__forge/read?path=${encodeURIComponent(path)}`, { headers });
+      const response = await options.fetch(`${base}/__forge/read?path=${encodeURIComponent(path)}${layer}`, { headers });
       if (response.status === 404) return null;
+      if (response.status === 410) throw new PlaySessionGoneError(((await response.json()) as { message?: string }).message ?? "The play session is gone.");
       if (response.status !== 200) throw new SaveClientError(response.status, `Reading ${path} failed: ${await response.text()}`);
       const revision = response.headers.get("x-forge-revision");
       if (revision === null) throw new SaveClientError(response.status, `No revision for ${path}.`);
@@ -109,6 +135,22 @@ export function createSaveClient(options: { readonly fetch: Fetch; readonly base
       const response = await options.fetch(`${base}/__forge/stage-binary`, { method: "POST", headers, body: bytes });
       if (response.status !== 200) throw new SaveClientError(response.status, `Staging failed: ${await response.text()}`);
       return (await response.json()) as { id: string; size: number; revision: string };
+    },
+    async play(request) {
+      const response = await options.fetch(`${base}/__forge/play`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      });
+      const body = (await response.json()) as PlayResponseBody | { status: "error"; message: string };
+      if (body.status === "error") throw new SaveClientError(response.status, body.message);
+      return body;
+    },
+    async playSession(id) {
+      const response = await options.fetch(`${base}/__forge/play?id=${encodeURIComponent(id)}`, { headers });
+      if (response.status === 404) return null;
+      if (response.status !== 200) throw new SaveClientError(response.status, `No play session: ${await response.text()}`);
+      return (await response.json()) as PlaySessionBody;
     },
     async identity() {
       const response = await options.fetch(`${base}/__forge/identity`, { headers });

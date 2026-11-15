@@ -23,6 +23,7 @@ function fixture(writable = true) {
       return { status: "saved", files: [{ path: asset.file, revision }], warnings: [] };
     },
     identity: async () => { throw new Error("unused"); }, classes: async () => [], stageBinary: async () => { throw new Error("unused"); },
+    play: async () => { throw new Error("unused"); }, playSession: async () => { throw new Error("unused"); },
   };
   return { open: () => openAssetSession(asset, assetDocumentAdapter(asset, registry)!, client), requests,
     fail: (result: SaveResponseBody) => { fail = result; }, disk: () => disk,
