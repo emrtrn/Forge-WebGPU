@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.27 · 2026-11-15 (v1.26’dan fark: §4.3 oyunun editör tarafı uygulandı (INV-A32): dev server projenin `editor.ts`’lerini `virtual:forge/game-editors` ile editöre verir, hatalı olan editörü dosya adıyla durdurur; §4.10 editör smoke tam seti (Faz 4 kapısı) ve gerçek GPU’daki koşusu `npm run smoke:editor:webgpu`). v1.26 · 2026-11-15 (v1.25’ten fark: §4.6 süreçler arası kayıt kilidi, ortak authoring modülü, dosya olayları (`forge:files`); §4.11 A12 uygulaması — `forge edit` komutları, ortak işlemler `src/engine/edit`, editörün canlı tazelenmesi; kullanıcı kararları 2026-11-15). v1.25 · 2026-11-15 (v1.24’ten fark: §4.6 Play uçları ve 409 akışının uygulaması — alan düzeyinde üç yönlü birleştirme, oturum tabanı, `compare` / `rebase`, Reload ve birleştirme undo geçmişini temizler (kullanıcı kararları); §4.7 Play oturum katmanının uygulaması). v1.24 · 2026-11-14 (kullanıcı kararı: WES + prosedürel bitki ortak sözleşmesi; bitki ailesi, tekil aktör / foliage eşitliği, zaman / mevsim / örtü sahipliği ve 5c bağı; yalnız plan, uygulama yok). v1.23 · 2026-11-14 (v1.22’den fark: §4.3 assetEditors / assetPreviews sözleşmeleri (SDK 0.1.10); §4.11 A13 uygulaması — ortak asset oturumu ve sanal tablo, tek canvas / GPU önizlemesi, sınıf uyumluluk koruması ve kaynak nesli yönetimi). v1.22 · 2026-11-14 (v1.21’den fark: §4.8 motor içeriği kipinin uygulaması — kayıtlı kökler için ayrı kayıt politikası, Content Browser ve level kayıt yönlendirmesi, etiketli 409 / hücre dizini yolları, sınıf tazeleme ve geçici içerikle kabul). v1.21 · 2026-11-14 (v1.20'den fark: §4.3 bir özelliğin editör tarafı `defineFeatureEditor` (Outliner görünüşü, Add Actor girişleri, Details eklentileri; SDK 0.1.5–0.1.7); §4.4 aktörün editöre özgü `locked`'u (kullanıcı kararı); §4.7 paneller: gizleme yalnız görünüm, Details'in şemadan formu ve override'ları, düzenleme işlemleri, gruplama ve pano (kullanıcı kararları 2026-11-14).
+**Sürüm:** v1.28 · 2026-11-15 (v1.27’den fark: §4.9 Faz 5a kararları, kullanıcı onayı — kıyı ıslaklığı ve kostik Faz 7’ye, `forge.puddle` bileşeni + `reflector()` yansıması, terrain tile akışı (worker, editör, frustum), G8 collider eşleşmesi testle, WES `surface` örtüsü simülasyon süresiyle, `?debug` terrain haritası, öksüz tile `verify:assets`’te). v1.27 · 2026-11-15 (v1.26’dan fark: §4.3 oyunun editör tarafı uygulandı (INV-A32): dev server projenin `editor.ts`’lerini `virtual:forge/game-editors` ile editöre verir, hatalı olan editörü dosya adıyla durdurur; §4.10 editör smoke tam seti (Faz 4 kapısı) ve gerçek GPU’daki koşusu `npm run smoke:editor:webgpu`). v1.26 · 2026-11-15 (v1.25’ten fark: §4.6 süreçler arası kayıt kilidi, ortak authoring modülü, dosya olayları (`forge:files`); §4.11 A12 uygulaması — `forge edit` komutları, ortak işlemler `src/engine/edit`, editörün canlı tazelenmesi; kullanıcı kararları 2026-11-15). v1.25 · 2026-11-15 (v1.24’ten fark: §4.6 Play uçları ve 409 akışının uygulaması — alan düzeyinde üç yönlü birleştirme, oturum tabanı, `compare` / `rebase`, Reload ve birleştirme undo geçmişini temizler (kullanıcı kararları); §4.7 Play oturum katmanının uygulaması). v1.24 · 2026-11-14 (kullanıcı kararı: WES + prosedürel bitki ortak sözleşmesi; bitki ailesi, tekil aktör / foliage eşitliği, zaman / mevsim / örtü sahipliği ve 5c bağı; yalnız plan, uygulama yok). v1.23 · 2026-11-14 (v1.22’den fark: §4.3 assetEditors / assetPreviews sözleşmeleri (SDK 0.1.10); §4.11 A13 uygulaması — ortak asset oturumu ve sanal tablo, tek canvas / GPU önizlemesi, sınıf uyumluluk koruması ve kaynak nesli yönetimi). v1.22 · 2026-11-14 (v1.21’den fark: §4.8 motor içeriği kipinin uygulaması — kayıtlı kökler için ayrı kayıt politikası, Content Browser ve level kayıt yönlendirmesi, etiketli 409 / hücre dizini yolları, sınıf tazeleme ve geçici içerikle kabul). v1.21 · 2026-11-14 (v1.20'den fark: §4.3 bir özelliğin editör tarafı `defineFeatureEditor` (Outliner görünüşü, Add Actor girişleri, Details eklentileri; SDK 0.1.5–0.1.7); §4.4 aktörün editöre özgü `locked`'u (kullanıcı kararı); §4.7 paneller: gizleme yalnız görünüm, Details'in şemadan formu ve override'ları, düzenleme işlemleri, gruplama ve pano (kullanıcı kararları 2026-11-14).
 v1.20 · 2026-11-14 (v1.19'dan fark: §4.4 aktörün editöre özgü `pivot`'u (kullanıcı kararı); §4.7 gizmo'nun uygulaması (three'siz sürükleme, tek transaction, instancing hızlı yolu); §4.9 gizmo katmanın son pass'i.
 v1.19 · 2026-11-14 (v1.18'den fark: §4.2 editör yardımcı bağlamaları (`defineEditorRenderBinding`, `forge.editorHelpers`); §4.9 çizim katmanının uygulaması (sahne derinliği, derinlik ön geçişi, ton eşlemesiz bileşim) ve picking etiketleri.
 v1.18 · 2026-11-13 (v1.17'den fark: §4.8 build'in uygulaması (kullanıcı kararı: Faz 4): statik içerik, `ContentClient`, alt dizin.
@@ -1580,8 +1580,35 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     §6.9 / §10 / §11'dedir. Gerçek WebGPU'da üretilmiş ormanla G6, geçişin
     en uzun karesi, GPU süresi, toplam / tepe bellek ve hücre döngüsü ölçülür.
 - *Terrain:* Faz 3'te salt çizim (spike S2'nin TSL CDLOD'u: yükseklik, 8
-  katman, normal, gölge); su birikintisi, kıyı, kostik, tile akışı ve üretim
-  kalitesi 5a'da. HLOD 5b'de.
+  katman, normal, gölge); su birikintisi, tile akışı ve üretim kalitesi 5a'da;
+  kıyı ıslaklığı ve kostik su gövdeleriyle Faz 7'de. HLOD 5b'de.
+- *Terrain, Faz 5a kararları (kullanıcı, 2026-11-15; henüz uygulanmadı):*
+  - *Kapsam:* Forge'un `terrainShoreWetness` / `terrainCaustics`'i göl, nehir ve
+    okyanus gövdelerinden beslenir; o gövdeler Faz 7'de gelir, iki özellik de
+    onlarla. INV-G14 bölünür.
+  - *Su birikintisi:* uzamsal `forge.puddle` bileşeni (§4.4: aktör, kök
+    konumunun hücresinde). Forge'un çamur, önizleme, yansıma, dalgacık ve rüzgâr
+    alanları şemada; Details şemadan, özel panel yok. Yansıma `reflector()` ile
+    planar (Faz 7'nin düz yüzey kararının ilk kullanıcısı), kalite profiline
+    bağlı. İçe aktarıcı `puddleWaters`'ı çevirir.
+  - *Tile akışı:* terrain aktörü kalıcı katmanda kalır; tile'lar kamera
+    çevresinde slot havuzuna (64) akar, uzak alan global haritadan çizilir.
+    Tile çözme Web Worker'da (`src/runtime`; `engine` DOM'suz kalır). Editör
+    aynı akışı kullanır, düzenlenen tile bellekte sabittir (`keptTerrainTiles`).
+    Frustum kesimi açıktır. 5b'nin hücre akışından bağımsızdır.
+  - *Collider eşleşmesi (Faz 1 G8):* `engine/physics/terrainCollider` (Rapier
+    heightfield) 5a'da kurulur; Node testi görsel yüksekliğin CPU ikizini
+    collider'la, render smoke'u GPU'dan okunan yüksekliği aynı noktalarda
+    karşılaştırır. Collider'ın World'e bağlanması Faz 6.
+  - *WES örtüsü:* `forge.worldEnvironment` sürüm artışıyla `surface`: kar /
+    ıslaklık hedefi ve birimi tanımlı birikim / erime / kuruma oranları. Birikim
+    simülasyon süresiyle ilerler, `transitionTo`'nun saat atlaması geçen süre
+    sayılmaz; durum WES servisinde ve kayıt oyununda. Terrain materyalinde
+    ıslaklık katkısı (sıra yukarıda: world mask → fade → rüzgâr → ıslaklık →
+    göçük). Authored paint, yükseklik ve fizik materyali yazılmaz; editör
+    önizlemesi geçicidir, level'a yazılmaz.
+  - *Teşhis ve bakım:* `?debug` terrain haritası 5a'da; öksüz tile modülü
+    taşınır, ayrı araç yerine `verify:assets` raporlar.
 - *Görüntüleyici, uygulama (adım 8, 2026-11-13):* **Instancing** canlı batch
   (`render/sync/instanceBatches.ts`): parça başına `InstancedMesh`, yerleşim rengi
   instance rengi (Forge'un bölen kuralı), batch anahtarı static mesh'te model + slot
