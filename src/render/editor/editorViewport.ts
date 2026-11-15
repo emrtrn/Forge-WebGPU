@@ -36,7 +36,7 @@ import type { Ray } from "../../engine/gizmo/transformDrag.ts";
 import { actorWorldMatrix } from "../sync/transforms.ts";
 import { createRenderHost, type RenderHost, type RenderHostOptions, type RenderQuality } from "../host/renderHost.ts";
 import { CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR, frameBounds, READY_FRAMES, sceneRoomBounds } from "../viewer/levelViewer.ts";
-import { createEditorCameraPoseStore, type PoseStorage } from "./cameraPoseStore.ts";
+import { createEditorCameraPoseStore, readEditorCameraPose, type PoseStorage } from "./cameraPoseStore.ts";
 import { createEditorCamera, type CameraView, type EditorCamera, type ViewportCamera } from "./editorCamera.ts";
 import { createEditorGrid, type EditorGrid, type GridPlane } from "./grid.ts";
 import { createActorIcons, type ActorIcons } from "./actorIcon.ts";
@@ -113,6 +113,8 @@ export interface EditorViewport {
    * the primary actor's position; false when nothing is selected.
    */
   focusSelection(): boolean;
+  /** The perspective camera's pose (Forge's getPlayCameraPose): where Play's camera starts. */
+  playPose(): { readonly position: [number, number, number]; readonly quaternion: [number, number, number, number] };
   readonly gridVisible: boolean;
   setGridVisible(visible: boolean): void;
   setQuality(quality: RenderQuality): void;
@@ -418,6 +420,10 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
     },
     focus(box, fallback) {
       camera.focus(box, fallback);
+    },
+    playPose() {
+      const { position, quaternion } = readEditorCameraPose(camera.perspective);
+      return { position, quaternion };
     },
     focusSelection() {
       const ids = selected();

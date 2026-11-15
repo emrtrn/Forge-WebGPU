@@ -30,6 +30,8 @@ const FRAMING_DIRECTION = new Vector3(0.6, 0.55, 1).normalize();
 export interface LevelViewerOptions extends RenderHostOptions {
   /** Where the pose handoff lives; null when the page has no storage. */
   readonly storage: Pick<Storage, "getItem" | "removeItem"> | null;
+  /** The camera's start (the editor's Play session names it); the storage handoff is left alone then. */
+  readonly cameraPose?: CameraPose | null;
 }
 
 export interface LevelViewer {
@@ -105,7 +107,7 @@ export function createLevelViewer(options: LevelViewerOptions): LevelViewer {
     },
     camera,
     async init() {
-      const pose = consumeCameraPose(options.storage);
+      const pose = options.cameraPose ?? consumeCameraPose(options.storage);
       if (pose) {
         applyCameraPose(camera, pose);
         framed = true;

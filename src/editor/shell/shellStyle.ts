@@ -310,6 +310,39 @@ html, body {
   margin-right: var(--editor-details-width);
 }
 
+/* Forge's Play: one primary action with the accent fill, right of the Show menu. */
+.editor-play-split {
+  display: inline-flex;
+  align-items: stretch;
+  margin-left: 4px;
+}
+
+.editor-shell .editor-play-split .editor-play-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0 10px 0 9px;
+  border-radius: 5px;
+  border-color: var(--forge-accent);
+  background: var(--forge-accent);
+  color: var(--forge-accent-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.editor-shell .editor-play-split .editor-play-button:hover:not(:disabled) {
+  border-color: var(--forge-accent-hover);
+  background: var(--forge-accent-hover);
+}
+
+.editor-shell .editor-play-split .editor-play-button svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+
 .editor-shell .topbar-menu-button {
   display: inline-flex;
   align-items: center;

@@ -6,8 +6,8 @@
 // it only in the Outliner's menu), and Unreal's Ctrl + Space for the Content
 // Drawer (step 6a; Forge had only its button). Ctrl stands for Cmd too.
 //
-// Not here: the camera's own keys (WASD / QE while flying, editorCamera.ts),
-// P (Play, step 8). Ctrl + E opens the source asset (step 7). Ctrl + B shows the
+// Not here: the camera's own keys (WASD / QE while flying, editorCamera.ts).
+// P is Forge's Play (step 8). Ctrl + E opens the source asset (step 7). Ctrl + B shows the
 // selected actor's asset in the Content Browser (Forge's Browse To, step 6f).
 
 export type ShortcutId =
@@ -39,7 +39,8 @@ export type ShortcutId =
   | "snapToFloor"
   | "contentDrawer"
   | "editAsset"
-  | "browseTo";
+  | "browseTo"
+  | "play";
 
 export interface KeyPress {
   readonly code: string;
@@ -80,6 +81,7 @@ const PLAIN: Readonly<Record<string, ShortcutId>> = {
   KeyH: "hide",
   KeyX: "toggleSpace",
   End: "snapToFloor",
+  KeyP: "play",
 };
 
 /** The action a key press means; null for none. Alt is never a shortcut (Forge). */

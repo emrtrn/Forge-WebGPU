@@ -15,11 +15,17 @@
 // `?debug` mounts the diagnostics panel (render/viewer/debug), loaded only
 // then, through a dynamic import.
 //
+// Development only: `?play=<id>` is the editor's Play (plan phase 4 step 8):
+// the level and camera of that play session, read through its layer (the
+// editor's unsaved files over the project's). A session the dev server no
+// longer holds (it restarted) shows an information screen.
+//
 // Development only: `window.__forgeDev` pauses the frame loop and steps it at
 // a fixed rate, pairing each frame with its GPU time and Sky Light captures,
 // and starts World Environment transitions (the capture measurement, plan
 // phase 3 step 7: `npm run measure:sky-capture`).
 
+import type { CameraPose } from "./render/viewer/cameraPose.ts";
 import type { FeatureDef } from "./core/index.ts";
 import { createSaveClient, createStaticContentClient, isJsonAssetType, STATIC_CONTENT_DIR, staticContentFile, type ContentClient } from "./core/index.ts";
 import { loadDevAssetUrls, assetUrlsFromIndex, type AssetUrls } from "./render/resources/assetUrls.ts";
@@ -56,7 +62,7 @@ const pageFetch = (input: string, init?: { method?: string; headers?: Record<str
 // Development reads (and the editor writes) through the dev server; a production build reads the
 // static content tools/build-content.ts wrote under the page's base URL (plan phase 4 step 2b). The
 // condition is a build-time constant, so the save client is not in a game build.
-const client: ContentClient = import.meta.env.DEV
+const pageClient: ContentClient = import.meta.env.DEV
   ? createSaveClient({ fetch: pageFetch })
   : createStaticContentClient({ fetch: pageFetch, baseUrl: import.meta.env.BASE_URL });
 const strict = import.meta.env.DEV;
@@ -99,6 +105,8 @@ function hardwareHints(gpu: string | null): HardwareHintInputs {
 
 async function start(): Promise<void> {
   let startLevel = "";
+  let client = pageClient;
+  let cameraPose: CameraPose | null = null;
   try {
     const identity = await client.identity();
     document.title = identity.project.name ?? "Forge WebGPU";
@@ -107,6 +115,20 @@ async function start(): Promise<void> {
       return;
     }
     startLevel = params.get("level") ?? identity.project.startLevel;
+    // A build-time constant: a game build has no play sessions and no save client.
+    const play = params.get("play");
+    if (import.meta.env.DEV && play !== null) {
+      const playing = createSaveClient({ fetch: pageFetch, play });
+      const session = await playing.playSession(play);
+      if (!session) {
+        screen.info("Play session ended", "The dev server no longer holds this play session (it restarted). Press Play in the editor again.");
+        return;
+      }
+      client = playing;
+      startLevel = session.level;
+      cameraPose = session.camera;
+      document.title = `${identity.project.name ?? "Forge WebGPU"} · Play`;
+    }
   } catch (error) {
     screen.error(bootErrorView("project", error));
     return;
@@ -128,6 +150,7 @@ async function start(): Promise<void> {
     assetUrls: urls,
     materialType: materialType && isJsonAssetType(materialType) ? materialType : null,
     storage: pageStorage,
+    cameraPose,
   });
   let settingsStore: UserSettingsStore | null = null;
   try {
@@ -215,6 +238,11 @@ async function start(): Promise<void> {
         return transitions.length - 1;
       },
       transitions,
+      /** An actor of the running world (its id, name and transform); null when it is not there. The editor smoke reads Play with it. */
+      actor: (id: string) => {
+        const actor = booted.world.context.actor(id as Parameters<typeof booted.world.context.actor>[0]);
+        return actor ? { id: actor.id, name: actor.name, transform: structuredClone(actor.transform) } : null;
+      },
       setHour: (hour: number) => environment()?.setHour(hour),
       /** The Sky Light capture alone, `count` times back to back (pause first). */
       captureBench: (count: number) => (viewer.host ? benchmarkSkyCapture(viewer.host, count) : Promise.resolve(null)),
@@ -235,7 +263,7 @@ if (import.meta.env.DEV && params.has("editor-kit")) {
 /** Development only: the editor (plan phase 4), the project's start level or `?level=`. */
 async function openEditor(): Promise<void> {
   try {
-    const identity = await client.identity();
+    const identity = await pageClient.identity();
     if (identity.project.problems.length > 0) {
       screen.error({ ...bootErrorView("project", new Error(identity.project.root)), details: identity.project.problems });
       return;

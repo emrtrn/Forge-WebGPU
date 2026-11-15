@@ -48,6 +48,7 @@ const TOOLBAR_ICONS = {
   redo: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4l3 3-3 3"/><path d="M13 7H7.5a3.5 3.5 0 0 0 0 7H9"/></svg>',
   viewmode: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 0 0 12z" fill="currentColor" stroke="none"/></svg>',
   camera: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.5h6.5L10 3.5h3.5v9H2z"/><circle cx="6.5" cy="9" r="2.4"/></svg>',
+  play: '<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M5 3.4l7.2 4.6L5 12.6z"/></svg>',
 } as const;
 
 const MENU_CHEVRON =
@@ -115,6 +116,8 @@ export interface EditorShell {
   attachTools(tools: TransformTools, navigating: () => boolean): void;
   /** Adds the Content Browser's drawer (step 6a). */
   attachContent(panel: ContentPanel): void;
+  /** Adds Forge's Play button after the view menus, and its key P (step 8); `play` reports for the status line. */
+  attachPlay(play: () => Promise<{ readonly ok: boolean; readonly message: string }>): void;
   /** Saves the level, as the Save button does (the drawer's Save All). */
   save(): void;
   /** The status line; errors and warnings also show as a toast. */
@@ -316,6 +319,31 @@ export function createShell(options: ShellOptions): EditorShell {
       workbar.prepend(createAddActorMenu({ document: doc, placer, viewport, status }));
     },
     save: () => saveNow(),
+    attachPlay(play) {
+      const split = el("div", "editor-play-split");
+      const button = el("button", "editor-play-button primary");
+      button.type = "button";
+      button.innerHTML = TOOLBAR_ICONS.play; // The shell's own static SVG.
+      button.append(el("span", "", "Play"));
+      button.setAttribute("aria-label", "Play");
+      button.dataset.testid = "editor-play";
+      button.title = "Oyunu yeni sekmede aç; kaydedilmemiş değişiklikler de oynar, kaydedilmez (P)";
+      const run = async (): Promise<void> => {
+        if (button.disabled) return;
+        button.disabled = true;
+        status("Starting Play");
+        try {
+          const report = await play();
+          status(report.message, report.ok ? "info" : "error");
+        } finally {
+          button.disabled = false;
+        }
+      };
+      button.addEventListener("click", () => void run());
+      split.append(button);
+      viewControls.append(split);
+      actions.play = () => void run();
+    },
     attachContent(panel) {
       contentPanel = panel;
       root.append(panel.element);

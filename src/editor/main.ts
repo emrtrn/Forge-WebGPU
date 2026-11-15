@@ -16,6 +16,10 @@
 //
 // The actors hidden in the editor's view (session visibility, step 5a) are
 // the page's, per level (localStorage), never the level's.
+//
+// Play (step 8, play/play.ts) opens the game in a new tab with the level as
+// the editor holds it, through a play session: nothing is saved. Leaving the
+// page with unsaved level edits asks first.
 
 import {
   createSchemaRegistry,
@@ -59,6 +63,7 @@ import { createActorPlacer, EMPTY_ACTOR } from "./place/actorPlacer.ts";
 import { installAddActorStyle } from "./place/addActorStyle.ts";
 import { installContextMenuStyle } from "./ui/contextMenu.ts";
 import { installWorldSettingsStyle } from "./world/worldSettingsPanel.ts";
+import { createEditorPlay } from "./play/play.ts";
 import { createEditorSession, type EditorSession } from "./session/editorSession.ts";
 import { createShell } from "./shell/shell.ts";
 import { createTransformTools, type TransformTools } from "./transformTools.ts";
@@ -93,6 +98,15 @@ function writeHidden(storage: Storage | null, levelKey: string, ids: readonly Ac
     else storage?.setItem(HIDDEN_STORAGE_PREFIX + levelKey, JSON.stringify(ids));
   } catch {
     // The page keeps them until it is closed.
+  }
+}
+
+/** The tab's session storage (the Play session's id); null where the browser refuses it. */
+function tabStorage(doc: Document): Storage | null {
+  try {
+    return doc.defaultView?.sessionStorage ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -268,6 +282,24 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     const editCommands = commands;
     tools = createTransformTools({ editor: session, viewport, storage: pageStorage(doc), status: (message, tone) => shell.status(message, tone), duplicate: (coalesce) => editCommands.duplicateForDrag(coalesce) });
     shell.attachTools(tools, () => viewport.camera.navigating);
+    const play = createEditorPlay({
+      level: session.level,
+      client: options.client,
+      camera: () => viewport.playPose(),
+      storage: tabStorage(doc),
+      // The editor's WebGL2 test mode (the editor smoke, CI) plays in it too.
+      extraQuery: options.forceWebGL ? "&forceWebGL" : "",
+      // noopener: the game gets its own browsing context group (its own process and GPU device), as Forge's Play did.
+      open: (url) => void doc.defaultView?.open(url, "_blank", "noopener"),
+    });
+    shell.attachPlay(() => play.play());
+    // Unsaved level edits are not lost to a closed tab or a reload without a question (Open Level asks on its own).
+    let leaveConfirmed = false;
+    doc.defaultView?.addEventListener("beforeunload", (event) => {
+      if (leaveConfirmed || session.dirty() === 0) return;
+      event.preventDefault();
+      event.returnValue = "";
+    });
     const snapOf = tools;
     // A Content Browser asset dragged into the viewport (step 6f) is placed under its own key.
     let assetDrop: AssetDrop | null = null;
@@ -398,6 +430,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         openLevel: (folder, name) => {
           const view = doc.defaultView!;
           if (session.dirty() > 0 && !view.confirm(`Open "${name}"?\nUnsaved changes to the current level will be lost.`)) return;
+          leaveConfirmed = true;
           const url = new URL(view.location.href);
           url.searchParams.set("level", folder);
           view.location.assign(url.toString());
