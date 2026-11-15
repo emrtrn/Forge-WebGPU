@@ -91,6 +91,8 @@ export function createFileEvents(options: FileEventsOptions): FileEvents {
     pending.clear();
     const files: ChangedFile[] = [];
     for (const [path, absolute] of batch) files.push({ path, revision: await revisionOf(absolute) });
+    // A batch still reading revisions when the events were disposed is dropped, not sent.
+    if (disposed) return;
     await options.emit(files);
   };
   const schedule = (): void => {

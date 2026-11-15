@@ -2,7 +2,6 @@ import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { fileRevision } from "../assets/revision.ts";
 import { createWritePolicy } from "../server/projectPaths.ts";
@@ -10,7 +9,8 @@ import { JOURNAL_DIR } from "./journal.ts";
 import { lockPath, ProjectLockTimeout, withProjectLock } from "./projectLock.ts";
 import { createSaveService } from "./transaction.ts";
 
-const LOCK_MODULE = fileURLToPath(new URL("./projectLock.ts", import.meta.url));
+// A URL, not a path: an ESM import of "C:\..." fails on Windows (the drive reads as a URL scheme).
+const LOCK_MODULE = new URL("./projectLock.ts", import.meta.url).href;
 
 let project: string;
 

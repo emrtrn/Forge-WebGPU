@@ -60,7 +60,8 @@ describe("file events", () => {
     const batches: ChangedFile[][] = [];
     const events = createFileEvents({ roots: roots(), emit: (files) => void batches.push([...files]), quietMs: 40, maxWaitMs: 100 });
     const started = Date.now();
-    while (Date.now() - started < 220) {
+    // Three of the longest waits: at least two batches even with Windows' ~15.6 ms timer steps.
+    while (Date.now() - started < 330) {
       events.push(join(project, "content/a.json"));
       await new Promise((resolve) => setTimeout(resolve, 15));
     }
