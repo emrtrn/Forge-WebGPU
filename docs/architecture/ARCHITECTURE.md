@@ -20,13 +20,13 @@ kendini de sınar (rapor §4.2, A3).
 | Katman | İçerik | three |
 |---|---|---|
 | `core` | aktör / bileşen modeli, şema DSL'i ve kaydı, kimlik, level ve hücre modeli, asset modeli, düzenleme modeli, alt sistem sözleşmesi, proje manifesti | yok; DOM ve `import.meta.env` de yok |
-| `engine` | three'siz alt sistemler (fizik, terrain verisi, nav, hareket, ses…; 2b'de taşınır, kapsam K12) ve editörün gizmo matematiği (`engine/gizmo`: sürükleme, snap, pivot); DOM ve Web Audio yok, düz Node'da yüklenir | yok |
+| `engine` | three'siz alt sistemler (fizik, terrain verisi, nav, hareket, ses…; 2b'de taşınır, kapsam K12) editörün gizmo matematiği (`engine/gizmo`: sürükleme, snap, pivot) ve düzenleme işlemleri (`engine/edit`: çoğalt / sil / grupla, hiyerarşi, Details'in alan ve override düzenlemesi, Add Actor'ün yeni aktörü; editör ve ajan komutları ortak); DOM ve Web Audio yok, düz Node'da yüklenir | yok |
 | `render` | renderer host, GUID anahtarlı kaynak önbelleği, render bağlamaları, materyaller, pipeline, görüntüleyici (Faz 3; rapor §4.9); editörün 3B kodu `render/editor/` (viewport, editör kamerası, çizim katmanı, ızgara, picking, seçim çerçevesi, yardımcı bağlamalar, gizmo çizimi; yalnız editör yükler, Faz 4) | tek sahip (`three/webgpu`, `three/tsl`) |
 | `runtime` | World, sahne kurucu, oyun modülü host'u, boot; tarayıcı API'si gereken alt sistem kodu (`runtime/audio`) | dolaylı |
 | `gameplay` | yeniden kullanılabilir oyun çatısı (Faz 6) | yok |
 | `editor` | editör: DOM ve servisler; yalnız dinamik import, oyun bundle'ına girmez (Faz 4) | yok; 3B kodu `render/editor/`'da |
 | `sdk`, `editor-sdk` | oyun projelerinin import edebildiği tek yüzey | — |
-| `tools/` (Node) | dev server, kayıt servisi, asset kapısı, başlatıcı, World Builder CLI, Forge WebGL içe aktarıcısı, ölçümler | yok |
+| `tools/` (Node) | dev server, kayıt servisi, asset kapısı, başlatıcı ve ajan komutları (`forge edit`), World Builder CLI, Forge WebGL içe aktarıcısı, ölçümler | yok |
 
 `src/core` ve `features/*/schema.ts` düz Node'da yüklenir (`verify:node-load`);
 `src/**` Node modülü import etmez.
@@ -123,6 +123,23 @@ alan düzeyinde birleştirir (`core/edit/merge.ts`, Compare / Reload; asset edit
 Editörün Play'i kaydetmez: kirli level dosyaları `/__forge/play` ile
 `.forge-session/<id>/` katmanına gider, oyun `?play=<id>` ile katmandan okur
 (rapor §4.6, §4.7, A6).
+
+Kurtarma + kayıt projenin kayıt kilidi altında (`.forge-journal/save.lock`):
+aynı projeye yazan süreçler (dev server, `forge edit`, `world:random`, içe
+aktarıcı) birbirini bekler. Uçların okuyup yazdığı her şey tek modülde
+(`tools/server/authoring.ts`); ajanın komutları onu dev server'sız açar. Dev
+server dışında değişen dosyalar içerik kökleri klasör klasör izlenerek duyulur:
+sunucu önbelleğini tazeler, editöre Vite'ın HMR kanalında `forge:files`
+(`{ path, revision }`) gider (rapor §4.6).
+
+## Ajan komutları
+
+`npm run forge -- edit --project … --level … [--json] <komut>` (ya da `-`:
+stdin'den satır başına bir komut, tek kayıt): `add`, `move`, `delete`, `set`,
+`reset`; okuyan `find`, `show`. Her yazma editörün işlemidir (`engine/edit`),
+çekirdek level oturumunda bir düzenleme, editörün kaydedicisiyle kayıt servisinden
+geçer: editörle aynı kanonik dosya. Editör açıksa temiz level kendiliğinden
+tazelenir, kirliyse 409 şeridi açılır (`editor/session/liveRefresh.ts`; rapor §4.11, A12).
 
 ## Uygulama kabuğu
 

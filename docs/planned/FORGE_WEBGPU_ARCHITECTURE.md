@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.25 · 2026-11-15 (v1.24’ten fark: §4.6 Play uçları ve 409 akışının uygulaması — alan düzeyinde üç yönlü birleştirme, oturum tabanı, `compare` / `rebase`, Reload ve birleştirme undo geçmişini temizler (kullanıcı kararları); §4.7 Play oturum katmanının uygulaması). v1.24 · 2026-11-14 (kullanıcı kararı: WES + prosedürel bitki ortak sözleşmesi; bitki ailesi, tekil aktör / foliage eşitliği, zaman / mevsim / örtü sahipliği ve 5c bağı; yalnız plan, uygulama yok). v1.23 · 2026-11-14 (v1.22’den fark: §4.3 assetEditors / assetPreviews sözleşmeleri (SDK 0.1.10); §4.11 A13 uygulaması — ortak asset oturumu ve sanal tablo, tek canvas / GPU önizlemesi, sınıf uyumluluk koruması ve kaynak nesli yönetimi). v1.22 · 2026-11-14 (v1.21’den fark: §4.8 motor içeriği kipinin uygulaması — kayıtlı kökler için ayrı kayıt politikası, Content Browser ve level kayıt yönlendirmesi, etiketli 409 / hücre dizini yolları, sınıf tazeleme ve geçici içerikle kabul). v1.21 · 2026-11-14 (v1.20'den fark: §4.3 bir özelliğin editör tarafı `defineFeatureEditor` (Outliner görünüşü, Add Actor girişleri, Details eklentileri; SDK 0.1.5–0.1.7); §4.4 aktörün editöre özgü `locked`'u (kullanıcı kararı); §4.7 paneller: gizleme yalnız görünüm, Details'in şemadan formu ve override'ları, düzenleme işlemleri, gruplama ve pano (kullanıcı kararları 2026-11-14).
+**Sürüm:** v1.26 · 2026-11-15 (v1.25’ten fark: §4.6 süreçler arası kayıt kilidi, ortak authoring modülü, dosya olayları (`forge:files`); §4.11 A12 uygulaması — `forge edit` komutları, ortak işlemler `src/engine/edit`, editörün canlı tazelenmesi; kullanıcı kararları 2026-11-15). v1.25 · 2026-11-15 (v1.24’ten fark: §4.6 Play uçları ve 409 akışının uygulaması — alan düzeyinde üç yönlü birleştirme, oturum tabanı, `compare` / `rebase`, Reload ve birleştirme undo geçmişini temizler (kullanıcı kararları); §4.7 Play oturum katmanının uygulaması). v1.24 · 2026-11-14 (kullanıcı kararı: WES + prosedürel bitki ortak sözleşmesi; bitki ailesi, tekil aktör / foliage eşitliği, zaman / mevsim / örtü sahipliği ve 5c bağı; yalnız plan, uygulama yok). v1.23 · 2026-11-14 (v1.22’den fark: §4.3 assetEditors / assetPreviews sözleşmeleri (SDK 0.1.10); §4.11 A13 uygulaması — ortak asset oturumu ve sanal tablo, tek canvas / GPU önizlemesi, sınıf uyumluluk koruması ve kaynak nesli yönetimi). v1.22 · 2026-11-14 (v1.21’den fark: §4.8 motor içeriği kipinin uygulaması — kayıtlı kökler için ayrı kayıt politikası, Content Browser ve level kayıt yönlendirmesi, etiketli 409 / hücre dizini yolları, sınıf tazeleme ve geçici içerikle kabul). v1.21 · 2026-11-14 (v1.20'den fark: §4.3 bir özelliğin editör tarafı `defineFeatureEditor` (Outliner görünüşü, Add Actor girişleri, Details eklentileri; SDK 0.1.5–0.1.7); §4.4 aktörün editöre özgü `locked`'u (kullanıcı kararı); §4.7 paneller: gizleme yalnız görünüm, Details'in şemadan formu ve override'ları, düzenleme işlemleri, gruplama ve pano (kullanıcı kararları 2026-11-14).
 v1.20 · 2026-11-14 (v1.19'dan fark: §4.4 aktörün editöre özgü `pivot`'u (kullanıcı kararı); §4.7 gizmo'nun uygulaması (three'siz sürükleme, tek transaction, instancing hızlı yolu); §4.9 gizmo katmanın son pass'i.
 v1.19 · 2026-11-14 (v1.18'den fark: §4.2 editör yardımcı bağlamaları (`defineEditorRenderBinding`, `forge.editorHelpers`); §4.9 çizim katmanının uygulaması (sahne derinliği, derinlik ön geçişi, ton eşlemesiz bileşim) ve picking etiketleri.
 v1.18 · 2026-11-13 (v1.17'den fark: §4.8 build'in uygulaması (kullanıcı kararı: Faz 4): statik içerik, `ContentClient`, alt dizin.
@@ -924,6 +924,29 @@ düşen alan uyarı değil, **hatadır**.
     temizler (adımların "önce"si artık diske uymaz). Asset editörü aynı birleştirmeyi
     belgesine uygular (alan başına seçim). Editörde 409 şerit açar (Compare… / Reload);
     adım 9'un canlı tazelenmesi aynı yolu kullanır.
+  - *Süreçler arası kilit (Faz 4 adım 9a, kullanıcı kararı 2026-11-15):* bir servisin kayıtları
+    yalnız kendi sürecinde sıralıydı; dev server, `forge edit`, `world:random` ve içe aktarıcı aynı
+    projeye ayrı servislerle yazar. Kurtarma + kayıt `<proje>/.forge-journal/save.lock` altında
+    çalışır (`wx` ile oluşturulur; sahibin pid'i, makinesi, zamanı). Sahibi ölmüş kilit (aynı makine,
+    pid yok) ya da uzun süre okunamayan kilit devralınır; başka makinenin kilidi alınmaz, bekleme
+    sonunda hata silinecek dosyayı söyler. Böylece kurtarma başka sürecin süren kaydını geri sarmaz
+    ve iki kayıt aynı dosyanın revizyon denetimini birlikte geçemez.
+  - *Ortak authoring modülü (adım 9b):* `tools/server/authoring.ts` uçların okuyup yazdığı her şeydir
+    (yazma politikası, salt okunur kökler, asset dizini, sınıf deposu, belge denetimi, kayıt
+    servisleri ve motor içeriği kipinde motorunki, JSON kaydının yanıtı ve HTTP durumu).
+    `forgeServer.ts` HTTP'yi, staging'i ve Play katmanını ekler; `forge edit` modülü dev server'sız
+    açar (`projectAuthoring.ts`: `npm run dev`'in seçenekleri). Oyun modülünün şemaları
+    `tools/project/gameSchemas.ts`'ten (kendi geçici Vite önbelleği, bağımlılık taraması yok: yanında
+    çalışan dev server'ın `node_modules/.vite`'ı değişmez).
+  - *Dosya olayları (adım 9e, kullanıcı kararı 2026-11-15: Vite'ın HMR kanalı):* içerik kökleri
+    klasör klasör Node `fs.watch` ile izlenir (Vite'ın izleyicisi silinip yeniden kurulan klasörü,
+    özyinelemeli `fs.watch` üzerine yeniden adlandırılan dosyayı kaybetti; klasörün olayları girdiyi
+    inode'dan bağımsız adlandırır; yeni klasör hemen izlenir, içindeki dosyalar bildirilir); dev
+    server dışında yazılan dosyalar (ajanın komutu, başka araç, elle düzenleme) disk
+    sessizleşene kadar toplanır (bir kayıt = bir paket; `.` ile başlayan adlar sayılmaz), sunucunun
+    dizinini ve sınıf deposunu tazeler (level dosyaları sınıf diye okunmaz) ve editöre HMR kanalında
+    `forge:files` olayıyla `{ files: [{ path, revision }] }` gider (`core/edit/saveProtocol.ts`). Yeni
+    HTTP ucu yok. Sunucu dosyayı kimin yazdığını söylemez; editör revizyondan ayırt eder (§4.11).
 
 ### 4.7 Uygulama kabuğu (SceneApp / RuntimeSceneApp yerine)
 
@@ -1645,6 +1668,28 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   çağırır (dev server gerekmez; aynı doğrulama, günlük, revizyon). Editör açıksa
   dev server dosya değişikliğini bildirir: kirli olmayan dosyalar kendiliğinden
   tazelenir, kirli dosyada "yeniden yükle / karşılaştır" şeridi.
+  *Uygulama (Faz 4 adım 9, 2026-11-15; kullanıcı kararları: `add` sınıf ya da bileşen
+  türüyle, toplu kip, motor içeriği ve paketler yalnız okunur, asset penceresi de tazelenir):*
+  `npm run forge -- edit --project … --level … [--json] <komut>`; `-` stdin'den satır başına
+  bir komut okur, hepsi tek kayıt. Yazanlar `add` (`--class` ya da `--component <yerel>=<tür>`,
+  `--at` / `--rot` / `--scale` / `--parent` / `--set`), `move` (`--to` / `--by` / `--rot` /
+  `--scale` aktörün kendi dönüşümü, ebeveyn uzayında, Details gibi; `--parent` dünya yerini
+  korur, Outliner gibi), `delete` (altındakilerle), `set <yol>=<değer>` (yol bileşenin yerel
+  kimliğinden ya da `actor.`'dan; değer JSON, ayrıştırılamazsa metin; sınıflı aktörde alanın
+  bütün değeri override), `reset` (override'ı kaldırır); okuyanlar `find` (`--name`,
+  `--component`, `--class`, `--near` + `--radius`, `--limit`) ve `show <id> [--effective]`.
+  Kimlik GUID ya da benzersiz öneki. Her yazma editörün işlemidir (`src/engine/edit`:
+  actorOps, hierarchy, actorFields, newActor; adım 9c'de editörden taşındı), çekirdek level
+  oturumunda bir düzenleme; level bütün hücreleriyle yerel istemciden okunur ve editörün
+  kaydedicisiyle (`saveLevelSession`) bir kez kaydedilir. Çalışamayan komut hiçbir şey
+  kaydetmez; 409'da level yeniden okunup komutlar bir kez daha koşar, ikinci 409 çıkış 2.
+  Çıktı satır başına bir aktör (GUID, ad, tür / sınıf, dünya konumu), kaydedilen dosyalar ve
+  uyarılar (sınıra çekme); `--json` aynısını tek nesnede verir. Editör tarafında
+  `editor/session/liveRefresh.ts`: oturumun (`LevelSession.fileRevision`) tutmadığı revizyonda
+  level dosyası değişiklik sayılır; paket süren kaydı bekler (`EditorSession.idle`), kendi
+  kaydı böylece ayırt edilir. Temiz level Reload'la izler (undo geçmişi temizlenir), kirliyse
+  409 şeridi; Content Browser, renderer'ın dosya tablosu, sınıflar, sahnenin kullandığı
+  asset'ler ve asset penceresi (temiz taslak yeniden okunur) da izler. *Kabul:* gate 2.021 test, 57 editör ve 1 dist smoke; editör ↔ komut level dosyaları bayt bayt aynı (`agent.spec`, `forceWebGL`; gerçek WebGPU koşusu yapılmadı).
 - **Genel veri editörü (A13):** oyun kendi veri türünü şemayla tanımlar
   (`registerAssetType`, A7); Content Browser'dan açılan asset, Details ile aynı
   form kitiyle şemadan üretilen bir formla düzenlenir (tablo görünümü dahil).
