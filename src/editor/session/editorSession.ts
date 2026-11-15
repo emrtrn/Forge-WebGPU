@@ -11,6 +11,10 @@
 //   taking children down with the group.
 // - SaveService: `save()` plans and sends one save of the session (the save
 //   service, 2a) and reports what happened in a few words for the status line.
+//   A 409 (step 8) is reported as a conflict: `readDisk()` reads the level as
+//   it is on disk now and `rebase(disk, how)` takes it (Reload drops this
+//   session's changes, merge keeps them over the disk's; conflictUi.ts asks).
+//   The world follows the changed actors; the undo history is cleared.
 // - Selection: the selected actor ids, the first is the primary; actors that
 //   leave the level leave the selection.
 // - Visibility (step 5a, user decision 2026-11-14): Forge's Hide / Show
@@ -22,8 +26,12 @@
 // No DOM here: the shell (shell/*.ts) draws it, Node tests drive it.
 
 import {
+  readLevelFromServer,
   saveLevelSession,
   SaveClientError,
+  type CellAssignOptions,
+  type ReadLevel,
+  type RebaseMode,
   type ActorDoc,
   type ActorId,
   type AppliedChange,
@@ -38,6 +46,8 @@ export interface SaveReport {
   readonly ok: boolean;
   /** Short English status text, e.g. `Saved 2 files`. */
   readonly message: string;
+  /** The files changed on disk since they were read (a 409): compare or reload. */
+  readonly conflict?: true;
 }
 
 export interface EditorSession {
@@ -51,6 +61,10 @@ export interface EditorSession {
   /** Unsaved actors. */
   dirty(): number;
   save(): Promise<SaveReport>;
+  /** The level as it is on disk now, every cell (to compare with, or rebase onto). */
+  readDisk(): Promise<ReadLevel>;
+  /** Takes the level on disk (Reload or merge); the world, the selection and the toolbar follow. */
+  rebase(disk: ReadLevel, how: RebaseMode): EditResult;
   readonly selection: Selection;
   readonly visibility: Visibility;
   /** Any edit, undo, redo, save, selection or visibility change; returns the unsubscribe. */
@@ -121,6 +135,8 @@ export interface EditorSessionOptions {
   /** The world the level was assembled into; hidden actors leave it. */
   readonly world: World;
   readonly client: SaveClient;
+  /** How the level's files are read (`readDisk`): the registry and the class resolver. */
+  readonly read: CellAssignOptions;
   /** Actors hidden when the editor opens (the page remembers them per level). */
   readonly hidden?: readonly ActorId[];
 }
@@ -263,7 +279,10 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
           const files = response.files.length;
           return { ok: true, message: `Saved ${files} file${files === 1 ? "" : "s"}` };
         }
-        if (response.status === "conflict") return { ok: false, message: "Files changed on disk; reload before saving" };
+        if (response.status === "conflict") {
+          const files = response.conflicts.map((conflict) => conflict.path.slice(conflict.path.lastIndexOf("/") + 1));
+          return { ok: false, conflict: true, message: `Changed on disk since it was read (${files.join(", ")}): compare or reload` };
+        }
         const issues = (response.issues ?? []).map((issue) => `${issue.file} ${issue.path}: ${issue.message}`);
         return { ok: false, message: `Save refused: ${[response.message ?? response.reason, ...issues].join("; ")}` };
       } catch (error) {
@@ -273,6 +292,12 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
         saving = false;
         notify();
       }
+    },
+    readDisk: () => readLevelFromServer(client, level.folder, options.read),
+    rebase(disk, how) {
+      const result = level.rebase(disk.open, how);
+      notify();
+      return result;
     },
     onChange(listener) {
       listeners.add(listener);

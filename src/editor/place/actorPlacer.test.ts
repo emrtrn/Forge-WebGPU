@@ -33,7 +33,7 @@ function open(withFog = false) {
   world.init();
   assembleLevel(world, session.level, OPTIONS);
   world.beginPlay();
-  const editor = createEditorSession({ level: session, world, client: {} as SaveClient });
+  const editor = createEditorSession({ level: session, world, client: {} as SaveClient, read: OPTIONS });
   const messages: string[] = [];
   const placer = createActorPlacer({
     editor,

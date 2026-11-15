@@ -34,7 +34,7 @@ function open() {
   world.init();
   assembleLevel(world, session.level, OPTIONS);
   world.beginPlay();
-  const editor = createEditorSession({ level: session, world, client: {} as SaveClient });
+  const editor = createEditorSession({ level: session, world, client: {} as SaveClient, read: OPTIONS });
   const position = (id: ActorId): Vec3 => {
     const own = world.context.actor(id)!;
     const parent = own.parent === null ? null : world.context.actor(own.parent)!;

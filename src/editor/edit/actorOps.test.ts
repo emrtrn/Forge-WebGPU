@@ -107,7 +107,7 @@ describe("the commands on the editor session", () => {
     world.init();
     assembleLevel(world, session.level, OPTIONS);
     world.beginPlay();
-    const editor = createEditorSession({ level: session, world, client: {} as SaveClient });
+    const editor = createEditorSession({ level: session, world, client: {} as SaveClient, read: OPTIONS });
     const messages: string[] = [];
     const commands = createEditCommands({ editor, registry: OPTIONS.registry, resolveClass: OPTIONS.resolveClass, clipboard: memoryClipboard(), status: (message) => messages.push(message), newId });
     return { editor, commands, messages };

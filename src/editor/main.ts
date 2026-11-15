@@ -224,7 +224,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     world.beginPlay();
     const levelKey = `${options.projectName}/${options.level}`;
     const storage = pageStorage(doc);
-    const session = createEditorSession({ level: opened.session, world, client: options.client, hidden: readHidden(storage, levelKey) });
+    const session = createEditorSession({ level: opened.session, world, client: options.client, read: { strict: true, registry, resolveClass }, hidden: readHidden(storage, levelKey) });
     editor = session;
     let hiddenKey = JSON.stringify(session.visibility.ids());
     session.onChange(() => {

@@ -38,7 +38,7 @@ function open(saves: SaveRequestBody[] = [], hidden: readonly string[] = []) {
       return { status: "saved" as const, files: request.writes.map((write) => ({ path: write.path, revision: "0000000000000009" })), warnings: [] };
     },
   } as unknown as SaveClient;
-  return createEditorSession({ level: session, world, client, hidden: hidden.map((seed) => actorId(seed)) });
+  return createEditorSession({ level: session, world, client, read: OPTIONS, hidden: hidden.map((seed) => actorId(seed)) });
 }
 
 const doc = (editor: ReturnType<typeof open>, seed: string): ActorDoc => structuredClone(editor.level.actor(actorId(seed))!);

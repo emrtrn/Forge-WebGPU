@@ -37,6 +37,7 @@ import { openContextMenu } from "../ui/contextMenu.ts";
 import { UI_ICONS } from "../ui/icons.ts";
 import { createWorldSettings } from "../world/worldSettingsPanel.ts";
 import { createOutlinerPanel } from "../outliner/outlinerPanel.ts";
+import { createConflictStrip } from "../session/conflictUi.ts";
 import type { EditorSession } from "../session/editorSession.ts";
 import type { TransformTools } from "../transformTools.ts";
 import { createTransformToolbar } from "./transformToolbar.ts";
@@ -397,12 +398,20 @@ export function createShell(options: ShellOptions): EditorShell {
         save.disabled = options.readOnly || editor.dirty() === 0;
       };
 
+      // A save the disk refused (409, step 8): the strip offers Compare / Reload and carries the warning.
+      const conflict = createConflictStrip({ document: doc, host: root, editor, status });
       const runSave = async (): Promise<void> => {
         if (options.readOnly) return;
         save.disabled = true;
         status("Saving");
         const report = await editor.save();
-        status(report.message, report.ok ? "info" : "error");
+        if (report.conflict) {
+          conflict.show(report.message);
+          status(report.message);
+        } else {
+          status(report.message, report.ok ? "info" : "error");
+          if (report.ok) conflict.hide();
+        }
         renderToolbar();
       };
       const runUndo = (): void => {
