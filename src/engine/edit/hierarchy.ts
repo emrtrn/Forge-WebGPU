@@ -12,8 +12,8 @@
 //   (Forge's cycle guard); those are skipped and reported.
 
 import type { ActorDoc, ActorId, Transform } from "../../core/index.ts";
-import { dragRoots, parentWorldMatrix } from "../../engine/gizmo/dragSession.ts";
-import { composeMat4, decomposeMat4, invertMat4, multiplyMat4, type Mat4 } from "../../engine/math/affine.ts";
+import { dragRoots, parentWorldMatrix } from "../gizmo/dragSession.ts";
+import { composeMat4, decomposeMat4, invertMat4, multiplyMat4, type Mat4 } from "../math/affine.ts";
 
 export type ActorLookup = (id: ActorId) => ActorDoc | undefined;
 

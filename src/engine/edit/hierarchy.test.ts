@@ -1,8 +1,8 @@
 import { describe, expect, test } from "vitest";
 import type { ActorDoc, ActorId, Transform } from "../../core/index.ts";
 import { actorId } from "../../core/level/testKit.ts";
-import { composeMat4, decomposeMat4, transformPoint } from "../../engine/math/affine.ts";
-import { eulerDegreesToQuaternion } from "../../engine/math/euler.ts";
+import { composeMat4, decomposeMat4, transformPoint } from "../math/affine.ts";
+import { eulerDegreesToQuaternion } from "../math/euler.ts";
 import { isSelfOrAncestor, reparentActors, worldMatrixOf } from "./hierarchy.ts";
 
 const doc = (seed: string, parent: string | null, transform: Partial<Transform>): ActorDoc => ({

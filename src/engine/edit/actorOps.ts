@@ -2,8 +2,9 @@
 // Forge WebGL editor/scene/EditorSceneController.ts `duplicateSelected`,
 // `groupSelected`, `ungroupSelected`, `parentSelectionToActive`,
 // `unparentSelected` and the delete @ forge-webgl-final). Three-free and
-// DOM-free: documents in, documents out; editCommands.ts makes each one
-// transaction.
+// DOM-free: documents in, documents out; the editor's editCommands.ts makes
+// each one transaction, and the agent's commands (`npm run forge -- edit`,
+// A12) run the same ones (plan phase 4 step 9c: engine, so Node tools load it).
 //
 // - Duplicate copies the selection's roots with everything under them: new
 //   GUIDs (A1), the copies' links remapped, a root keeps its parent and its
@@ -23,8 +24,8 @@
 //   (Forge selected a group's members together).
 
 import { createId, parseComponentTypeTag, type ActorDoc, type ActorId, type ClassResolver, type SchemaRegistry, type Vec3 } from "../../core/index.ts";
-import { dragRoots } from "../../engine/gizmo/dragSession.ts";
-import { composeMat4, transformPoint } from "../../engine/math/affine.ts";
+import { dragRoots } from "../gizmo/dragSession.ts";
+import { composeMat4, transformPoint } from "../math/affine.ts";
 import { reparentActors, transformUnder, worldMatrixOf, type ActorLookup } from "./hierarchy.ts";
 
 export const CLIPBOARD_SCHEMA = "forge.actors/1";

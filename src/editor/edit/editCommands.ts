@@ -16,8 +16,8 @@ import {
   selectTarget,
   ungroupActors,
   type OpsContext,
-} from "./actorOps.ts";
-import { reparentActors } from "./hierarchy.ts";
+} from "../../engine/edit/actorOps.ts";
+import { reparentActors } from "../../engine/edit/hierarchy.ts";
 
 export interface EditClipboard {
   write(text: string): Promise<void>;

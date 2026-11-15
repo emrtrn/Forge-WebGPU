@@ -1,11 +1,11 @@
 // The actor-class adapter's tree and defaults share the Details form kit.
 // Component ids are stable addresses for instance overrides, not display names.
 import { componentTypeTag, createComponent, enumOf, formFields, formOf, normalizeActorClass, parseComponentTypeTag, transform, type ComponentMap, type ComponentRecord, type FormField } from "../../core/index.ts";
-import { newComponentId } from "../details/detailsModel.ts";
+import { newComponentId } from "../../engine/edit/actorFields.ts";
 import { openPicker } from "../details/pickerPopover.ts";
 import type { AssetEditorExtension, AssetEditorExtensionContext } from "../host/assetEditorTypes.ts";
 import { createFormView, type FormView } from "../ui/formView.ts";
-import { setAtPath } from "../ui/formPath.ts";
+import { setAtPath } from "../../engine/edit/formPath.ts";
 
 export function createClassTools(ctx: AssetEditorExtensionContext): AssetEditorExtension {
   const doc = ctx.document, element = doc.createElement("section"), tree = doc.createElement("div"), inspector = doc.createElement("div"), bar = doc.createElement("div");

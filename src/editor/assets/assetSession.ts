@@ -8,7 +8,7 @@
 // by a pick), clears the history (user decision 2026-11-15) and stays dirty
 // until saved. Reload drops the draft.
 import { jsonEquals, mergeJson, stringifyDocument, type FieldConflict, type MergeSide, type SaveClient, type SaveResponseBody } from "../../core/index.ts";
-import { setAtPath, type FormPath } from "../ui/formPath.ts";
+import { setAtPath, type FormPath } from "../../engine/edit/formPath.ts";
 import type { AssetDocument, AssetDocumentAdapter, EditableAsset } from "./assetDocument.ts";
 
 /** The disk's version against the draft (`AssetSession.compare`). */

@@ -14,7 +14,7 @@
 // DOM listeners on the viewport host; three-free.
 
 import { normalizeActorDoc, parseComponentTypeTag, type ActorId, type ClassResolver, type SchemaRegistry } from "../../core/index.ts";
-import { detailsTarget, editComponent } from "../details/detailsModel.ts";
+import { detailsTarget, editComponent } from "../../engine/edit/actorFields.ts";
 import type { AssetDropRule, FeatureEditorDef } from "../host/featureEditor.ts";
 import type { ActorPlacer } from "../place/actorPlacer.ts";
 import type { EditorSession } from "../session/editorSession.ts";

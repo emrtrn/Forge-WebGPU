@@ -2,7 +2,7 @@
 // compound values stay in a selected row's details, never flattened by guessing.
 import type { ArrayFormField, FormField } from "../../core/index.ts";
 import { createFormView, type FormView, type FormViewOptions } from "../ui/formView.ts";
-import { getAtPath, pathKey, type FormPath } from "../ui/formPath.ts";
+import { getAtPath, pathKey, type FormPath } from "../../engine/edit/formPath.ts";
 import type { AssetSession } from "./assetSession.ts";
 
 export function arrayFields(fields: readonly FormField[], path: FormPath = []): { field: ArrayFormField; path: FormPath }[] {

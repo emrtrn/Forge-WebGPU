@@ -1,18 +1,8 @@
 import { describe, expect, test } from "vitest";
 import { normalizeActorDoc, openLevelSession, type ActorDoc, type LevelDoc } from "../../core/index.ts";
 import { actorId, CAR_CLASS_ID, Collider, createOptions, Driver, Fog, levelId } from "../../core/level/testKit.ts";
-import {
-  addComponent,
-  cannotAdd,
-  componentSections,
-  detailsTarget,
-  editActor,
-  editComponent,
-  mixedPaths,
-  removeComponent,
-  resetOverride,
-  withRotationAxis,
-} from "./detailsModel.ts";
+import { addComponent, cannotAdd, detailsTarget, editActor, editComponent, removeComponent, resetOverride, withRotationAxis } from "../../engine/edit/actorFields.ts";
+import { componentSections, mixedPaths } from "./detailsModel.ts";
 
 const OPTIONS = createOptions(true);
 const IDENTITY = { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] };

@@ -12,7 +12,7 @@
 // - Click selects, Ctrl + click adds or takes out, Shift + click takes the
 //   range from the anchor (Forge). Double click renames (Forge's prompt).
 // - Dragging rows onto a row parents them there, keeping their world
-//   placement (edit/hierarchy.ts; one undo step).
+//   placement (engine/edit/hierarchy.ts; one undo step).
 // - The eye hides the actor in the editor's view (session visibility, not
 //   saved); the lock is the actor's Lock Movement (`locked`, one undo step).
 // - New against Forge: a row with children has a collapse chevron (groups are
@@ -23,7 +23,7 @@
 // Text is set with textContent; the only markup is the kit's static icons.
 
 import { effectiveComponents, type ActorDoc, type ActorId, type ClassResolver, type ComponentMap } from "../../core/index.ts";
-import { reparentActors } from "../edit/hierarchy.ts";
+import { reparentActors } from "../../engine/edit/hierarchy.ts";
 import type { EditCommands } from "../edit/editCommands.ts";
 import type { ActorPresentation, EditorCatalog } from "../host/editorCatalog.ts";
 import { OUTLINER_TYPES, type OutlinerType } from "../host/featureEditor.ts";

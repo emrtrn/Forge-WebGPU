@@ -7,7 +7,7 @@ import type { AssetEditorExtension, AssetEditorExtensionContext, AssetEditorPres
 import type { FeatureEditorDef } from "../host/featureEditor.ts";
 import { isEditableTarget, shortcutOf } from "../input/shortcuts.ts";
 import { createFormView, type FormView } from "../ui/formView.ts";
-import { getAtPath, pathKey } from "../ui/formPath.ts";
+import { getAtPath, pathKey } from "../../engine/edit/formPath.ts";
 import type { AssetCatalog } from "./assetCatalog.ts";
 import { contentTypeLabel } from "../content/contentModel.ts";
 import { assetDocumentAdapter, type EditableAsset } from "./assetDocument.ts";

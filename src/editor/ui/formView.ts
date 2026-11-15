@@ -24,7 +24,7 @@
 
 import type { FormField, NumberFormField, Transform } from "../../core/index.ts";
 import { eulerDegreesToQuaternion, quaternionToEulerDegrees } from "../../engine/math/euler.ts";
-import { getAtPath, pathKey, setAtPath, type FormPath } from "./formPath.ts";
+import { getAtPath, pathKey, setAtPath, type FormPath } from "../../engine/edit/formPath.ts";
 import { UI_ICONS } from "./icons.ts";
 import { clampParam, clampWarning, paramRangeText, sliderStep } from "./paramFields.ts";
 

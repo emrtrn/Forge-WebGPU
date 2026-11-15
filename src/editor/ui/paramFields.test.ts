@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { getAtPath, pathKey, setAtPath } from "./formPath.ts";
+import { getAtPath, pathKey, setAtPath } from "../../engine/edit/formPath.ts";
 import { clampParam, clampWarning, formatParamLimit, paramRangeText, sliderStep } from "./paramFields.ts";
 
 describe("parameter rules (Forge paramFields, user rules 2026-10-31)", () => {

@@ -6,9 +6,9 @@ import { eulerDegreesToQuaternion } from "../../engine/math/euler.ts";
 import { assembleLevel } from "../../runtime/assembler.ts";
 import { createWorld } from "../../runtime/world.ts";
 import { createEditorSession } from "../session/editorSession.ts";
-import { copyText, deletionOf, duplicateActors, groupActors, pasteActors, readClipboard, selectTarget, ungroupActors, uniqueName, type OpsContext } from "./actorOps.ts";
+import { copyText, deletionOf, duplicateActors, groupActors, pasteActors, readClipboard, selectTarget, ungroupActors, uniqueName, type OpsContext } from "../../engine/edit/actorOps.ts";
 import { createEditCommands, memoryClipboard } from "./editCommands.ts";
-import { worldMatrixOf } from "./hierarchy.ts";
+import { worldMatrixOf } from "../../engine/edit/hierarchy.ts";
 
 const OPTIONS = createOptions(true);
 const IDENTITY = { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] };

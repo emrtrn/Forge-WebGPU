@@ -21,7 +21,6 @@
 
 import {
   createId,
-  normalizeActorDoc,
   parseComponentTypeTag,
   type ActorClassDoc,
   type ActorDoc,
@@ -34,8 +33,7 @@ import {
 import type { Box } from "../../engine/gizmo/surfaceSnap.ts";
 import { snapValue, type SnapSettings } from "../../engine/gizmo/snap.ts";
 import type { Ray } from "../../engine/gizmo/transformDrag.ts";
-import { eulerDegreesToQuaternion } from "../../engine/math/euler.ts";
-import { uniqueName } from "../edit/actorOps.ts";
+import { newActorDoc } from "../../engine/edit/newActor.ts";
 import type { EditorCatalog } from "../host/editorCatalog.ts";
 import type { AddActorEntry } from "../host/featureEditor.ts";
 import type { EditorSession } from "../session/editorSession.ts";
@@ -147,21 +145,22 @@ export function createActorPlacer(options: ActorPlacerOptions): ActorPlacer {
 
   /** The new actor's stored form, normalised (the world takes it as it is). */
   const build = (entry: PlacerEntry, id: ActorId, position: Vec3): ActorDoc | null => {
-    const raw = {
-      id,
-      name: uniqueName(entry.label, new Set(editor.level.level.actors.map((actor) => actor.name))),
-      class: entry.classId ?? null,
-      parent: null,
-      spatiallyLoaded: true,
-      transform: { p: position, r: eulerDegreesToQuaternion(entry.rotation ?? [0, 0, 0]), s: [1, 1, 1] },
-      ...(entry.classId ? { overrides: {} } : { components: structuredClone(entry.components) }),
-    };
-    const result = normalizeActorDoc(raw, normalizeOptions);
-    if (!result.ok || !result.value) {
+    const result = newActorDoc(
+      {
+        id,
+        label: entry.label,
+        ...(entry.classId ? { classId: entry.classId } : { components: entry.components }),
+        position,
+        rotation: entry.rotation ?? [0, 0, 0],
+      },
+      editor.level.level.actors,
+      normalizeOptions,
+    );
+    if (!result.ok) {
       status(`${entry.label} cannot be placed: ${result.issues.map((issue) => issue.message).join("; ")}`, "error");
       return null;
     }
-    return result.value;
+    return result.doc;
   };
 
   // The drag preview: an actor in the world only, under the pointer.

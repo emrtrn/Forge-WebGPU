@@ -35,21 +35,20 @@ import type { AssetCatalog } from "../assets/assetCatalog.ts";
 import type { EditorCatalog } from "../host/editorCatalog.ts";
 import type { EditorSession } from "../session/editorSession.ts";
 import type { PivotPreset, TransformTools } from "../transformTools.ts";
-import { getAtPath, pathKey, type FormPath } from "../ui/formPath.ts";
+import { getAtPath, pathKey, type FormPath } from "../../engine/edit/formPath.ts";
 import { createFormView, createSection, MIXED_TEXT, type FormChange } from "../ui/formView.ts";
 import {
   addComponent,
   cannotAdd,
-  componentSections,
   detailsTarget,
   editActor,
   editComponent,
-  mixedPaths,
   removeComponent,
   resetOverride,
   withRotationAxis,
   type DetailsTarget,
-} from "./detailsModel.ts";
+} from "../../engine/edit/actorFields.ts";
+import { componentSections, mixedPaths } from "./detailsModel.ts";
 import { openPicker } from "./pickerPopover.ts";
 
 const ACTOR_FIELDS = formFields({
