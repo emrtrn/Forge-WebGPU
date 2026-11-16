@@ -10,6 +10,11 @@
 // those versions saved. An actor edited again while the save was on its way
 // stays dirty.
 //
+// Level settings (phase 5b: view distance, load range) are edited in the
+// same transactions (`setSettings`) and versioned the same way; dirty
+// settings write `level.json`. The grid's `cellSize` is not edited here: it
+// moves every actor to other cells, a world-wide Node operation (A11).
+//
 // Saving: the dirty actors give the parts to write (`partsToWrite`, which
 // also ties the two cells of a misplaced actor), `planLevelFiles` gives their
 // text. A part to write that is not loaded stops the plan (`needs-load`). A
@@ -31,7 +36,7 @@ import type { ActorDoc, LevelCellDoc, LevelCellIndexDoc, LevelDoc } from "../lev
 import { normalizeActorDoc, normalizeLevel } from "../level/normalizeLevel.ts";
 import type { LevelSettings } from "../level/settings.ts";
 import type { Issue } from "../schema/issues.ts";
-import { createHistory, type ActorChange, type History, type Transaction } from "./history.ts";
+import { createHistory, type ActorChange, type History, type SettingsChange, type Transaction } from "./history.ts";
 import { jsonEqual, planLevelMerge, type LevelMerge, type MergeKey, type MergeSide } from "./merge.ts";
 import type { SaveRequestBody, SaveResponseBody } from "./saveProtocol.ts";
 
@@ -56,6 +61,8 @@ export interface EditTx {
   /** Adds the actor, or replaces the actor with its id. The actor is normalised and copied. */
   setActor(actor: unknown): void;
   removeActor(id: ActorId): void;
+  /** Changes level settings (a partial patch over the current ones, normalised); `cellSize` cannot change. */
+  setSettings(patch: Readonly<Record<string, unknown>>): void;
 }
 
 export interface EditResult {
@@ -85,6 +92,8 @@ export type SavePlan =
       readonly written: ReadonlyMap<PartKey, readonly ActorId[]>;
       /** Actor -> what this save sends of it (null: removed); the base once saved. */
       readonly docs: ReadonlyMap<ActorId, ActorDoc | null>;
+      /** The settings this save sends, when they were dirty; the base once saved. */
+      readonly settings?: { readonly version: number; readonly value: LevelSettings };
     };
 
 /** How `rebase` takes the level on disk. */
@@ -108,6 +117,8 @@ export interface LevelSession {
   undo(): boolean;
   redo(): boolean;
   dirtyActors(): ActorId[];
+  /** True while the level's settings have unsaved changes. */
+  settingsDirty(): boolean;
   /** Adds cells read from disk. Issues are about those cells only. */
   loadCells(cells: readonly LoadedCell[]): LevelPartIssue[];
   /** Drops a loaded cell's actors; refused while the cell has unsaved changes. */
@@ -115,8 +126,8 @@ export interface LevelSession {
   planSave(): SavePlan;
   /**
    * Hears every change the session applies (an edit, an undo, a redo), in the
-   * order applied; the editor mirrors them into its world. Returns the
-   * unsubscribe.
+   * order applied; the editor mirrors them into its world. A change of only the
+   * settings is heard with no actor changes. Returns the unsubscribe.
    */
   onApplied(listener: (changes: readonly AppliedChange[], cause: ApplyCause) => void): () => void;
   /** Applies the server's answer to a plan. Only a saved answer changes the session. */
@@ -160,6 +171,14 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
   const versions = new Map<ActorId, number>();
   const saved = new Map<ActorId, number>();
   let clock = 0;
+  /** The settings' version, like an actor's; 0 is as read. */
+  let settingsVersion = 0;
+  let savedSettingsVersion = 0;
+  const putSettings = (next: LevelSettings): void => {
+    level.settings = structuredClone(next);
+    clock += 1;
+    settingsVersion = clock;
+  };
 
   /** The actor's place in the level's list; -1 when it is not there. */
   const indexOf = (id: ActorId): number => {
@@ -184,7 +203,8 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
 
   const listeners = new Set<(changes: readonly AppliedChange[], cause: ApplyCause) => void>();
   /** Applies changes; returns them as applied. Listeners hear them once the history is up to date (`announce`). */
-  const applyChanges = (changes: readonly ActorChange[], direction: "forward" | "back"): AppliedChange[] => {
+  const applyChanges = (changes: readonly ActorChange[], direction: "forward" | "back", settings?: SettingsChange): AppliedChange[] => {
+    if (settings) putSettings(direction === "forward" ? settings.after : settings.before);
     const ordered = direction === "forward" ? changes : [...changes].reverse();
     const applied: AppliedChange[] = [];
     for (const change of ordered) {
@@ -219,6 +239,7 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
     edit(label, build, editOptions = {}) {
       const issues: Issue[] = [];
       const staged = new Map<ActorId, ActorDoc | null>();
+      let stagedSettings: LevelSettings | null = null;
       const current = (id: ActorId): ActorDoc | null =>
         staged.has(id) ? staged.get(id)! : (byId.get(id) ?? null);
       build({
@@ -230,6 +251,23 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
         },
         removeActor(id) {
           staged.set(id, null);
+        },
+        setSettings(patch) {
+          const merged = { ...(stagedSettings ?? level.settings), ...structuredClone(patch) };
+          const checked = normalizeLevel({ schema: level.schema, id: level.id, settings: merged, actors: [] }, options);
+          for (const found of checked.issues) issues.push({ ...found, path: found.path === "" ? "settings" : found.path });
+          const next = checked.value?.settings;
+          if (!next) return;
+          if (next.cellSize !== level.settings.cellSize) {
+            issues.push({
+              code: "invalid-value",
+              severity: "error",
+              path: "settings.cellSize",
+              message: "Cell Size moves every actor to other cells; change it with the world-wide tool, not an edit.",
+            });
+            return;
+          }
+          stagedSettings = next;
         },
       });
       // A parent is another actor of the level (a child is saved with its root).
@@ -275,7 +313,10 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
           });
         }
       }
-      if (issues.some((found) => found.severity === "error") || staged.size === 0) {
+      const settingsChange: SettingsChange | undefined = stagedSettings !== null && !jsonEqual(stagedSettings, level.settings)
+        ? { before: structuredClone(level.settings), after: stagedSettings }
+        : undefined;
+      if (issues.some((found) => found.severity === "error") || (staged.size === 0 && !settingsChange)) {
         return { ok: !issues.some((found) => found.severity === "error"), issues };
       }
       const changes: ActorChange[] = [];
@@ -285,8 +326,8 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
         if (before === null && after === null) continue;
         changes.push({ id, before, beforeIndex: beforeIndex >= 0 ? beforeIndex : level.actors.length, after });
       }
-      const applied = applyChanges(changes, "forward");
-      const transaction: Transaction = { label, coalesce: editOptions.coalesce ?? null, changes };
+      const applied = applyChanges(changes, "forward", settingsChange);
+      const transaction: Transaction = { label, coalesce: editOptions.coalesce ?? null, changes, ...(settingsChange ? { settings: settingsChange } : {}) };
       history.push(transaction);
       announce(applied, "edit");
       return { ok: true, issues };
@@ -295,20 +336,22 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
     undo() {
       const transaction = history.takeUndo();
       if (!transaction) return false;
-      announce(applyChanges(transaction.changes, "back"), "undo");
+      announce(applyChanges(transaction.changes, "back", transaction.settings), "undo");
       return true;
     },
 
     redo() {
       const transaction = history.takeRedo();
       if (!transaction) return false;
-      announce(applyChanges(transaction.changes, "forward"), "redo");
+      announce(applyChanges(transaction.changes, "forward", transaction.settings), "redo");
       return true;
     },
 
     dirtyActors() {
       return [...versions].filter(([id, version]) => saved.get(id) !== version).map(([id]) => id);
     },
+
+    settingsDirty: () => settingsVersion !== savedSettingsVersion,
 
     loadCells(cells) {
       const fresh = cells.filter((cell) => !loaded.has(cell.doc.cell));
@@ -366,9 +409,11 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
 
     planSave() {
       const dirty = session.dirtyActors();
-      if (dirty.length === 0) return { status: "clean" };
+      const settingsDirty = session.settingsDirty();
+      if (dirty.length === 0 && !settingsDirty) return { status: "clean" };
       const assignment: CellAssignment = assignCells(level.actors, level.settings, options).value;
-      const parts = partsToWrite(fileOf, assignment, dirty);
+      const parts = new Set(partsToWrite(fileOf, assignment, dirty));
+      if (settingsDirty) parts.add(null);
       const loadedNow = new Set([...parts].filter((key): key is string => key !== null && isLoaded(key)));
       const plan = planLevelFiles(level, assignment, parts, loadedNow);
       if (plan.notLoaded.length > 0) return { status: "needs-load", cells: plan.notLoaded };
@@ -398,7 +443,10 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
         sent.set(id, versions.get(id)!);
         docs.set(id, byId.get(id) ?? null);
       }
-      return { status: "ready", request: { writes, deletes }, versions: sent, parts: pathParts, written, docs };
+      return {
+        status: "ready", request: { writes, deletes }, versions: sent, parts: pathParts, written, docs,
+        ...(settingsDirty ? { settings: { version: settingsVersion, value: structuredClone(level.settings) } } : {}),
+      };
     },
 
     applySaveResult(plan, response) {
@@ -424,6 +472,10 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
       for (const [id, part] of [...fileOf]) if (touched.has(part)) fileOf.delete(id);
       for (const key of touched) for (const id of plan.written.get(key) ?? []) fileOf.set(id, key);
       for (const [id, version] of plan.versions) saved.set(id, version);
+      if (plan.settings && touched.has(null)) {
+        savedSettingsVersion = plan.settings.version;
+        baseSettings = structuredClone(plan.settings.value);
+      }
       for (const [id, doc] of plan.docs) {
         if (doc === null) base.delete(id);
         else base.set(id, doc);
@@ -499,6 +551,10 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
       base.clear();
       for (const actor of theirs.level.actors) base.set(actor.id, actor);
       baseSettings = structuredClone(theirs.level.settings);
+      // The settings are dirty when the merge kept this session's.
+      clock += 1;
+      settingsVersion = clock;
+      savedSettingsVersion = jsonEqual(level.settings, theirs.level.settings) ? clock : 0;
       // Dirty: what differs from the disk (a merge's own changes, and its removals).
       versions.clear();
       saved.clear();

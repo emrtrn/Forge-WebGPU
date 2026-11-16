@@ -7,6 +7,11 @@
 // moved, the level is not reframed) and the ready signal the render smoke
 // waits for:
 //
+// The camera's far plane is the level's `viewDistance` × the quality's
+// `viewDistanceMultiplier` (Forge's applyViewDistance, phase 5b decision 1);
+// a level without one keeps CAMERA_FAR. The editor's camera keeps its own far
+// plane (Forge: the view distance is Play's).
+//
 //   data-forge-ready="1" on the canvas once the world is attached, no
 //   resource load is in flight and READY_FRAMES frames were drawn after that;
 //   `data-forge-resource-errors` says how many loads failed.
@@ -16,6 +21,7 @@
 import { Box3, PerspectiveCamera, Quaternion, Sphere, Vector3, type Object3D } from "three/webgpu";
 import type { FeatureDef } from "../../core/index.ts";
 import type { FrameMetrics } from "../../engine/perf/frameMetrics.ts";
+import { effectiveViewDistance } from "../../engine/world/viewDistance.ts";
 import { createRenderHost, type RenderHost, type RenderHostOptions, type RenderQuality } from "../host/renderHost.ts";
 import { consumeCameraPose, type CameraPose } from "./cameraPose.ts";
 import { attachFlyCamera, createFlyCamera } from "./flyCamera.ts";
@@ -128,6 +134,11 @@ export function createLevelViewer(options: LevelViewerOptions): LevelViewer {
       const dt = lastFrame === null ? 0 : Math.min(0.1, Math.max(0, (now - lastFrame) / 1000));
       lastFrame = now;
       if (fly.update(dt)) framed = true;
+      const far = effectiveViewDistance(host.world.levelSettings?.()?.viewDistance, quality?.extensions?.viewDistanceMultiplier) ?? CAMERA_FAR;
+      if (camera.far !== far) {
+        camera.far = far;
+        camera.updateProjectionMatrix();
+      }
       const { pending, failed } = host.cache.stats();
       if (pending === 0 && !framed) {
         frameBounds(camera, sceneRoomBounds(host.world.root));

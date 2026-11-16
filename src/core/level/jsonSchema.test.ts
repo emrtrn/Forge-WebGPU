@@ -99,7 +99,7 @@ describe("level schema", () => {
       level([], { settings: { cellSize: 8 } }),
       ["settings.cellSize: minimum"],
     ],
-    ["an unknown setting", level([], { settings: { loadRange: 1 } }), ["settings.loadRange: not allowed"]],
+    ["an unknown setting", level([], { settings: { streamDistance: 1 } }), ["settings.streamDistance: not allowed"]],
     [
       "a streaming flag that is not a boolean",
       level([{ id: actorId("a"), spatiallyLoaded: "no" }]),

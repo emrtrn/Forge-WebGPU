@@ -22,7 +22,7 @@
  *   same level gives the same GUIDs.
  */
 import type { ActorDoc, ActorId, AssetId, DataDocument, LevelDoc, LevelId } from "../../../core/index.ts";
-import { LEVEL_SCHEMA, TerrainAssetType, WorldRecipeAssetType, dataDocument } from "../../../core/index.ts";
+import { LEVEL_SCHEMA, LevelSettingsFields, TerrainAssetType, WorldRecipeAssetType, dataDocument } from "../../../core/index.ts";
 import { environmentActors } from "../../forgeImport/environment.ts";
 import { stableHex } from "../../forgeImport/ids.ts";
 import { forgeLightSources, lightActors } from "../../forgeImport/lights.ts";
@@ -90,7 +90,12 @@ export function worldLevel(build: WorldBuild, options: WorldLevelOptions): World
     level: {
       schema: LEVEL_SCHEMA,
       id: levelId,
-      settings: { cellSize: options.cellSize ?? WORLD_LEVEL_CELL_SIZE, wind: { directionDeg: 45, strength: .3, gust: .3 } },
+      settings: {
+        cellSize: options.cellSize ?? WORLD_LEVEL_CELL_SIZE,
+        wind: { directionDeg: 45, strength: .3, gust: .3 },
+        viewDistance: LevelSettingsFields.viewDistance.default,
+        loadRange: LevelSettingsFields.loadRange.default,
+      },
       actors,
     },
     terrain: dataDocument(TerrainAssetType, terrainAsset, structuredClone(build.def) as unknown as Record<string, unknown>),

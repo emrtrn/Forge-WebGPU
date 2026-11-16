@@ -52,6 +52,33 @@ test("World Settings: the level's Cell Size, its one-per-level actors, select on
   expect(errors).toEqual([]);
 });
 
+test("View Distance is a level setting with one undo step; the fog's Fit to View Distance follows it (phase 5b)", async ({ page }) => {
+  const errors = await open(page);
+  await page.getByTestId("editor-main-menu").click();
+  await page.getByTestId("main-menu-world-settings").click();
+  await expect(page.getByTestId("world-settings-streaming")).toBeVisible();
+  const view = page.getByTestId("world-settings-viewDistance");
+  await expect(view).toHaveValue("0");
+  await expect(page.getByTestId("world-settings-loadRange")).toHaveValue("384");
+  await view.fill("50"); // the default fog (density 0.03) is ~78 % there: a hard edge
+  await view.press("Tab");
+  await expect(view).toHaveValue("50");
+
+  await page.getByTestId("world-settings-select-forge.heightFog").click();
+  await expect(page.getByTestId("fog-view-opacity")).toContainText("At 50 m");
+  await expect(page.getByTestId("fog-view-warning")).toBeVisible();
+  await page.getByTestId("fog-fit-view").click();
+  await expect(page.getByTestId("fog-view-opacity")).toContainText("98% fog");
+  await expect(page.getByTestId("fog-view-warning")).toHaveCount(0);
+
+  await page.getByTestId("editor-undo").click(); // the fit
+  await expect(page.getByTestId("fog-view-warning")).toBeVisible();
+  await page.getByTestId("editor-undo").click(); // the view distance
+  await expect(page.getByTestId("fog-view-distance")).toContainText("World Settings > Streaming > View Distance");
+  await expect(page.getByTestId("editor-undo")).toBeDisabled();
+  expect(errors).toEqual([]);
+});
+
 test("Ground Mist Setup is one undo step", async ({ page }) => {
   const errors = await open(page);
   await row(page, FOG).click();

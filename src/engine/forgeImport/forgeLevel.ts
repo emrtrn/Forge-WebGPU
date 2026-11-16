@@ -27,6 +27,7 @@
  */
 import {
   LEVEL_SCHEMA,
+  LevelSettingsFields,
   TerrainAssetType,
   dataDocument,
   isJsonObject,
@@ -189,6 +190,22 @@ function arrayOf(value: unknown): unknown[] {
 
 function isEmpty(value: unknown): boolean {
   return value === undefined || value === null || (Array.isArray(value) && value.length === 0);
+}
+
+/**
+ * Forge's `worldSettings.viewDistance` and main grid `loadRange` (phase 5b
+ * decision 1: both are level settings). An invalid or missing value keeps the
+ * level setting's default (view distance 0: the camera's own far plane).
+ */
+function streamingSettings(layout: JsonObject): { viewDistance: number; loadRange: number } {
+  const settings = isJsonObject(layout.worldSettings) ? layout.worldSettings : {};
+  const view = settings.viewDistance;
+  const grids = isJsonObject(settings.partition) && isJsonObject(settings.partition.grids) ? settings.partition.grids : {};
+  const range = isJsonObject(grids.main) ? grids.main.loadRange : undefined;
+  return {
+    viewDistance: typeof view === "number" && Number.isFinite(view) && view > 0 ? view : LevelSettingsFields.viewDistance.default,
+    loadRange: typeof range === "number" && Number.isFinite(range) && range > 0 ? range : LevelSettingsFields.loadRange.default,
+  };
 }
 
 /** Cell size of the Forge main grid, when it is a valid one. */
@@ -365,7 +382,7 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
   }
 
   return {
-    level: { schema: LEVEL_SCHEMA, id: levelId, settings: { cellSize: mainGridCellSize(layout), wind: forgeLevelWind(layout) }, actors },
+    level: { schema: LEVEL_SCHEMA, id: levelId, settings: { cellSize: mainGridCellSize(layout), wind: forgeLevelWind(layout), ...streamingSettings(layout) }, actors },
     terrains,
     report: {
       source: input.path,

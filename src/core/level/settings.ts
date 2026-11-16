@@ -37,6 +37,26 @@ export const LevelSettingsFields = {
     hint: "Akış ızgarasının hücre kenarı (metre). Aktörler kayıtta bu ızgaraya göre hücre dosyalarına dağılır; değiştirmek bütün hücreleri yeniden yazar.",
   }),
   wind: object(WindFields, { hint: "WES'in level rüzgârını kullanması seçiliyken veya WES yokken kullanılan rüzgâr." }),
+  // Phase 5b decision 1 (user, 2026-11-16): the streaming ranges are level
+  // settings, scaled by the quality profile's `viewDistanceMultiplier`.
+  viewDistance: num({
+    min: 0,
+    max: 20000,
+    step: 10,
+    slider: [0, 5000],
+    default: 0,
+    label: "View Distance",
+    hint: "Oyunda kameranın uzak düzlemi (metre); kalite ayarıyla ölçeklenir. 0 ise kamera kendi uzak düzlemini kullanır. 1000 m'nin üstünde Height Fog > Fit to View Distance ile eşleştirin.",
+  }),
+  loadRange: num({
+    min: 16,
+    max: 20000,
+    step: 1,
+    slider: [64, 2048],
+    default: 384,
+    label: "Load Range",
+    hint: "Kameraya bu kadar metre yakın hücreler yüklenir; ötesi boşaltılır. Kalite ayarıyla ölçeklenir.",
+  }),
 };
 
 export type LevelSettings = FieldValues<typeof LevelSettingsFields>;

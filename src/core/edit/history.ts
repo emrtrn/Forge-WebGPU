@@ -6,11 +6,15 @@
 // coalesce key (a drag, a slider) merge into one: per actor, the first
 // "before" and the last "after" are kept.
 //
+// A transaction may also change the level's settings (phase 5b: view
+// distance, load range): the settings before and after, merged the same way.
+//
 // The history holds at most `limit` transactions; the oldest falls off.
 // A new transaction clears the redo stack.
 
 import type { ActorId } from "../id.ts";
 import type { ActorDoc } from "../level/model.ts";
+import type { LevelSettings } from "../level/settings.ts";
 
 export interface ActorChange {
   readonly id: ActorId;
@@ -25,6 +29,13 @@ export interface Transaction {
   /** Transactions with the same key that follow each other merge. */
   readonly coalesce: string | null;
   readonly changes: readonly ActorChange[];
+  /** The level's settings before and after, when the transaction changed them. */
+  readonly settings?: SettingsChange;
+}
+
+export interface SettingsChange {
+  readonly before: LevelSettings;
+  readonly after: LevelSettings;
 }
 
 export const DEFAULT_HISTORY_LIMIT = 200;
@@ -66,7 +77,10 @@ export function createHistory(limit = DEFAULT_HISTORY_LIMIT): History {
       redo.length = 0;
       const top = undo.at(-1);
       if (!sealed && top && transaction.coalesce !== null && top.coalesce === transaction.coalesce) {
-        undo[undo.length - 1] = { ...top, changes: mergeChanges(top.changes, transaction.changes) };
+        const settings = top.settings && transaction.settings
+          ? { before: top.settings.before, after: transaction.settings.after }
+          : (transaction.settings ?? top.settings);
+        undo[undo.length - 1] = { ...top, changes: mergeChanges(top.changes, transaction.changes), ...(settings ? { settings } : {}) };
       } else {
         undo.push(transaction);
         if (undo.length > limit) undo.shift();

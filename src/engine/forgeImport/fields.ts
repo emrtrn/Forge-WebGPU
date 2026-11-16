@@ -43,17 +43,17 @@ export const LEVEL_FIELD_PHASES: Readonly<Record<string, string>> = {
  * (`partition`), the static shadow switch, resolved into every placement's
  * `castShadow` (user decision 2026-11-13), and the background and ambient
  * light, which `forge.skyLight` owns (phase 3 step 5, user decision
- * 2026-11-13). Each other field is reported on its own
+ * 2026-11-13), and the view distance (with the main grid's `loadRange`, level
+ * settings since phase 5b). Each other field is reported on its own
  * (`worldSettings.<field>`), with the phase of the singleton that takes it
  * (phase 3 decision 7).
  */
 export const CONVERTED_WORLD_SETTINGS_FIELDS: ReadonlySet<string> = new Set([
-  "partition", "staticObjectsCastShadow", "backgroundColor", "ambientColor", "ambientIntensity", "wind",
+  "partition", "staticObjectsCastShadow", "backgroundColor", "ambientColor", "ambientIntensity", "wind", "viewDistance",
 ]);
 
 export const WORLD_SETTINGS_FIELD_PHASES: Readonly<Record<string, string>> = {
   staticObjectsReceiveShadow: "- (gölge almak hep açık, kullanıcı kararı 2026-11-13)",
-  viewDistance: "5b",
   gravity: "6",
   killZ: "6",
   gameMode: "6",

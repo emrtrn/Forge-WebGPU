@@ -29,7 +29,7 @@
 
 import { PerspectiveCamera, PMREMGenerator, TimestampQuery, WebGPURenderer, type Camera, type Scene, type Texture } from "three/webgpu";
 import type { FeatureDef, JsonAssetTypeDef } from "../../core/index.ts";
-import { effectiveDevicePixelRatio, resolveQualitySettings, type QualitySettings } from "../../engine/perf/qualityProfiles.ts";
+import { effectiveDevicePixelRatio, resolveQualitySettings, type QualityExtensions, type QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { probeMrtBudget, type MrtProbeResult, type ProbeDevice } from "../pipeline/mrtProbe.ts";
 import { createFramePipeline } from "../pipeline/renderPipeline.ts";
 import type { AssetUrls } from "../resources/assetUrls.ts";
@@ -47,6 +47,8 @@ import { createPerfSampler, type PerfQuality, type PerfSampler } from "./perfSam
 
 /** The effective quality the renderer draws with. */
 export interface RenderQuality extends PerfQuality {
+  /** A game's opt-in scales (Forge's fork-owned quality extensions); the view distance multiplier scales the camera's far plane. */
+  readonly extensions?: QualityExtensions;
   readonly settings: QualitySettings;
 }
 

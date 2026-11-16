@@ -10,7 +10,7 @@ const LENIENT = createOptions(false);
 const CANONICAL = {
   schema: "forge.level/1",
   id: levelId("1"),
-  settings: { cellSize: 128, wind: { directionDeg: 45, strength: .3, gust: .3 } },
+  settings: { cellSize: 128, wind: { directionDeg: 45, strength: .3, gust: .3 }, viewDistance: 0, loadRange: 384 },
   actors: [
     {
       id: actorId("a"),
@@ -320,7 +320,7 @@ describe("level settings and the streaming flag (A11)", () => {
   test("a level without settings takes the default grid", () => {
     const result = normalizeLevel(level([]), STRICT);
     expect(result.issues).toEqual([]);
-    expect(result.value?.settings).toEqual({ cellSize: 128, wind: { directionDeg: 45, strength: .3, gust: .3 } });
+    expect(result.value?.settings).toEqual({ cellSize: 128, wind: { directionDeg: 45, strength: .3, gust: .3 }, viewDistance: 0, loadRange: 384 });
   });
 
   test("a cell size out of range is pulled to the limit with a warning", () => {
@@ -335,9 +335,9 @@ describe("level settings and the streaming flag (A11)", () => {
     expect(summary(normalizeLevel(level([], { settings: 64 }), STRICT).issues)).toEqual([
       "error invalid-value settings",
     ]);
-    const unknown = normalizeLevel(level([], { settings: { cellSize: 64, loadRange: 300 } }), LENIENT);
-    expect(summary(unknown.issues)).toEqual(["warning unknown-field settings.loadRange"]);
-    expect(unknown.value?.settings).toEqual({ cellSize: 64, wind: { directionDeg: 45, strength: .3, gust: .3 } });
+    const unknown = normalizeLevel(level([], { settings: { cellSize: 64, streamDistance: 300 } }), LENIENT);
+    expect(summary(unknown.issues)).toEqual(["warning unknown-field settings.streamDistance"]);
+    expect(unknown.value?.settings).toEqual({ cellSize: 64, wind: { directionDeg: 45, strength: .3, gust: .3 }, viewDistance: 0, loadRange: 384 });
   });
 
   test("an actor is spatially loaded unless it says otherwise", () => {

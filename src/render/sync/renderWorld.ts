@@ -18,7 +18,7 @@
 
 import { Group, Scene, type Camera } from "three/webgpu";
 import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
-import { defineFeature, defineSubsystem, type FeatureDef, type SubsystemContext } from "../../core/index.ts";
+import { defineFeature, defineSubsystem, LevelSettingsKey, type FeatureDef, type LevelSettings, type SubsystemContext } from "../../core/index.ts";
 import type { ResourceCache } from "../resources/resourceCache.ts";
 import type { SurfaceMaterials } from "../resources/surfaceMaterials.ts";
 import type { TerrainSource } from "../resources/terrains.ts";
@@ -42,6 +42,8 @@ export interface RenderWorld {
   readonly output: RenderOutput;
   /** Absent in older host adapters means on. This world's authored scene gate. */
   readonly shadowsEnabled?: boolean;
+  /** The level's settings now (view distance, load range); absent before a level is assembled. */
+  readonly levelSettings?: () => LevelSettings | undefined;
 }
 
 export interface RenderFeatureOptions {
@@ -99,7 +101,11 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           capture: options.capture ?? null, quality: effectiveQuality,
         }),
       );
-      const world: RenderWorld = { name: options.name, scene, root, resources, output, get shadowsEnabled() { return sceneShadowsEnabled(view); } };
+      const world: RenderWorld = {
+        name: options.name, scene, root, resources, output,
+        get shadowsEnabled() { return sceneShadowsEnabled(view); },
+        levelSettings: () => ctx.services.get(LevelSettingsKey)?.current,
+      };
       options.attach?.(world);
       return {
         actorsAdded(actors) {

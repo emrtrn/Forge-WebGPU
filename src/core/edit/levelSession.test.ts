@@ -63,6 +63,49 @@ const savedResponse = (plan: ReturnType<typeof ready>, start = 10): SaveResponse
   warnings: [],
 });
 
+describe("level settings (phase 5b)", () => {
+  const setRange = (session: LevelSession, loadRange: number, coalesce?: string) =>
+    session.edit("Edit loadRange", (tx) => tx.setSettings({ loadRange }), coalesce === undefined ? {} : { coalesce });
+
+  test("a settings edit is one undo step, coalesces like a drag and only writes level.json", () => {
+    const session = open();
+    const heard: number[] = [];
+    session.onApplied((changes) => heard.push(changes.length));
+    expect(setRange(session, 500, "drag").ok).toBe(true);
+    expect(setRange(session, 600, "drag").ok).toBe(true);
+    expect(session.level.settings.loadRange).toBe(600);
+    expect(heard).toEqual([0, 0]); // heard with no actor change
+    expect(session.history.undoStack).toHaveLength(1);
+    expect(session.settingsDirty()).toBe(true);
+    expect(session.dirtyActors()).toEqual([]);
+    const plan = ready(session.planSave());
+    expect(plan.request.writes.map((write) => write.path)).toEqual([`${FOLDER}/level.json`]);
+    expect(JSON.parse(plan.request.writes[0]!.text ?? "").settings.loadRange).toBe(600);
+    session.applySaveResult(plan, savedResponse(plan));
+    expect(session.settingsDirty()).toBe(false);
+    expect(session.planSave()).toEqual({ status: "clean" });
+    expect(session.undo()).toBe(true);
+    expect(session.level.settings.loadRange).toBe(384);
+    expect(session.settingsDirty()).toBe(true);
+    expect(session.redo()).toBe(true);
+    expect(session.level.settings.loadRange).toBe(600);
+  });
+
+  test("an edit cannot change the cell size; out-of-range values clamp; no change is no step", () => {
+    const session = open();
+    const sized = session.edit("Cell size", (tx) => tx.setSettings({ cellSize: 50 }));
+    expect(sized.ok).toBe(false);
+    expect(summary(sized.issues)).toContain("error invalid-value settings.cellSize");
+    expect(session.level.settings.cellSize).toBe(100);
+    expect(session.history.undoStack).toHaveLength(0);
+    session.edit("Far", (tx) => tx.setSettings({ viewDistance: 1e9 }));
+    expect(session.level.settings.viewDistance).toBe(20000);
+    const steps = session.history.undoStack.length;
+    expect(session.edit("Same", (tx) => tx.setSettings({ viewDistance: 20000 })).ok).toBe(true);
+    expect(session.history.undoStack).toHaveLength(steps);
+  });
+});
+
 describe("opening and editing", () => {
   test("a freshly opened level is clean", () => {
     const session = open();

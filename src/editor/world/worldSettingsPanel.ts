@@ -4,11 +4,15 @@
 // what World Settings is now (worldSettings.ts): the level's settings and its
 // one-per-level environment actors. Escape, a click outside or the close
 // button closes it. Text is set with textContent.
+//
+// Streaming (phase 5b decision 1): the level's View Distance and Load Range,
+// one undo step per slider drag; the form is kept across redraws and the
+// panel does not redraw while a slider moves (the drag would be lost).
 
-import type { ClassResolver, SchemaRegistry } from "../../core/index.ts";
+import { formFields, LevelSettingsFields, type ClassResolver, type SchemaRegistry } from "../../core/index.ts";
 import type { ActorPlacer } from "../place/actorPlacer.ts";
 import type { EditorSession } from "../session/editorSession.ts";
-import { createSection } from "../ui/formView.ts";
+import { createFormView, createSection } from "../ui/formView.ts";
 import { environmentRows } from "./worldSettings.ts";
 import { SHADOW_SETTINGS_COMPONENT, setObjectShadows, setSceneShadows, shadowSettingsTarget } from "./sceneShadows.ts";
 
@@ -58,7 +62,35 @@ export function createWorldSettings(options: WorldSettingsOptions): WorldSetting
     return line;
   };
 
+  const streamingFeedback = el("div", "detail-hint");
+  streamingFeedback.setAttribute("role", "status");
+  const streamingValue = (): Record<string, unknown> => ({
+    viewDistance: editor.level.level.settings.viewDistance,
+    loadRange: editor.level.level.settings.loadRange,
+  });
+  let streamingInput = false;
+  const streamingForm = createFormView({
+    document: doc,
+    fields: formFields({ viewDistance: LevelSettingsFields.viewDistance, loadRange: LevelSettingsFields.loadRange }),
+    value: streamingValue(),
+    testIdPrefix: "world-settings",
+    warn: (message) => { streamingFeedback.textContent = message; },
+    onChange: (change) => {
+      const key = String(change.path[0]);
+      streamingInput = change.phase === "input";
+      let result;
+      try {
+        result = editor.edit(`Edit ${key}`, (tx) => tx.setSettings({ [key]: change.value }), { coalesce: `world-settings:${key}` });
+      } finally {
+        streamingInput = false;
+      }
+      if (change.phase === "commit") editor.level.history.seal();
+      streamingFeedback.textContent = result.ok ? "" : result.issues.map((issue) => issue.message).join(" ");
+    },
+  });
+
   const draw = (): void => {
+    if (streamingInput) return;
     const level = editor.level.level;
     const heading = el("div", "detail-heading");
     heading.append(el("strong", "", "World Settings"), el("span", "", editor.level.folder));
@@ -69,6 +101,13 @@ export function createWorldSettings(options: WorldSettingsOptions): WorldSetting
       row("Level", el("output", "detail-value", level.id)),
       row("Cell Size (m)", cellSize),
       el("div", "detail-hint", "Akış ızgarasının hücre kenarı. Değiştirmek bütün hücre dosyalarını yeniden yazan dünya çapı bir işlemdir; editörden değiştirilmez."),
+    );
+    const streaming = createSection(doc, "Streaming", { testId: "world-settings-streaming" });
+    streamingForm.update(streamingValue());
+    streaming.body.append(
+      streamingForm.element,
+      el("div", "detail-hint", "Hücreler kameranın Load Range çevresinde yüklenir. View Distance oyun kamerasının uzak düzlemidir; editör kamerası kendi uzak düzlemini kullanır."),
+      streamingFeedback,
     );
     const shadows = createSection(doc, "Shadows", { testId: "world-settings-shadows" });
     const enabled = el("input");
@@ -129,7 +168,7 @@ export function createWorldSettings(options: WorldSettingsOptions): WorldSetting
       environment.body.append(row(item.label, button));
     }
     environment.body.append(el("div", "detail-hint", "Ortamın değerleri bu aktörlerin bileşenlerindedir; seçip Details'te düzenleyin."));
-    body.replaceChildren(heading, levelPart.section, shadows.section, environment.section);
+    body.replaceChildren(heading, levelPart.section, streaming.section, shadows.section, environment.section);
   };
 
   const onPointerDown = (event: Event): void => {

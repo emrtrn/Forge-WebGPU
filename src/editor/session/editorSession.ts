@@ -59,7 +59,7 @@ export interface EditorSession {
   redo(): boolean;
   canUndo(): boolean;
   canRedo(): boolean;
-  /** Unsaved actors. */
+  /** Unsaved actors, plus one for unsaved level settings. */
   dirty(): number;
   save(): Promise<SaveReport>;
   /** Resolves when no save is running (a file event waits for the save that wrote it, step 9f). */
@@ -272,7 +272,7 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
     redo: () => level.redo(),
     canUndo: () => level.history.undoStack.length > 0,
     canRedo: () => level.history.redoStack.length > 0,
-    dirty: () => level.dirtyActors().length,
+    dirty: () => level.dirtyActors().length + (level.settingsDirty() ? 1 : 0),
     async save() {
       if (saving) return { ok: false, message: "A save is already running" };
       saving = true;

@@ -167,7 +167,7 @@ describe("import:forge", () => {
     expect(report).toContain("lights 1; environment 0; puddles 0); source cells");
     expect(report).not.toContain("| `lights` |");
     expect(report).toContain("| `instances[].fracture` | 1 | 8 |");
-    expect(report).toContain("| `worldSettings.viewDistance` | 1 | 5b |");
+    expect(report).not.toContain("`worldSettings.viewDistance`");
     expect(report).not.toContain("| `worldSettings` |");
     expect(report).toContain("| `instances[].materialSlot=m-gone` | 1 |");
     expect(report).toContain("Static shadow switch (`worldSettings.staticObjectsCastShadow`): off");
