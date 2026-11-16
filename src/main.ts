@@ -225,6 +225,11 @@ async function start(): Promise<void> {
           camera: viewer.camera.position.toArray(),
         };
       },
+      /** This frame's cell streaming work (ms) and active cells: cheap enough to read every frame. */
+      streamingFrame() {
+        const cells = booted.world.services.get(CellStreamingKey)?.snapshot();
+        return cells ? { ms: cells.lastFrameMs, active: cells.active, actors: cells.actors, pending: viewer.host?.cache.stats().pending ?? 0 } : null;
+      },
       /** Moves the game camera (measure:streaming's route), looking at a point when given. */
       moveCamera(x: number, y: number, z: number, look?: readonly [number, number, number]) {
         viewer.camera.position.set(x, y, z);

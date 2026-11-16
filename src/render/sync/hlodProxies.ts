@@ -74,6 +74,9 @@ export function createHlodProxies(source: HlodSource, parent: Group, track: <T>(
     if (!cell.mesh) return;
     parent.remove(cell.mesh);
     cell.mesh.geometry.dispose();
+    // A plain Mesh has no dispose(): the renderer frees the object's render objects
+    // and bindings only on its "dispose" event (InstancedMesh.dispose sends it).
+    cell.mesh.dispatchEvent({ type: "dispose" });
     cell.mesh = null;
   };
 

@@ -9,9 +9,13 @@
 //   kept up to a byte budget), activated within the load range, at most a
 //   frame budget of activations per frame. Both ranges are the level's
 //   `loadRange` × the quality's view distance multiplier.
-// - Activating a cell adds its actors to the world (`assembleActors`, the
-//   same path as the level). An actor the ledger has as removed stays out; an
-//   actor with saved state joins with it (`applyActorState`).
+// - Activating a cell queues its actors; each frame adds them to the world
+//   (`assembleActors`, the same path as the level), parents first, in chunks
+//   until ACTOR_BUDGET_MS went (Forge's frame budget at the actor level: a
+//   dense cell of hundreds of actors does not land in one frame). The cell is
+//   active once all are in (HLOD keeps its proxy until then). An actor the
+//   ledger has as removed stays out; an actor with saved state joins with it
+//   (`applyActorState`).
 // - Deactivating a cell captures each of its actors' state against what was
 //   authored into the ledger, then removes the cell's root actors (children go
 //   with them).
@@ -44,8 +48,13 @@ import type { World } from "../world.ts";
 
 /** Cells are fetched this far beyond the load range, so they are in memory before they activate (Forge's prefetch factor). */
 export const PREFETCH_FACTOR = 1.5;
-/** Activations start each frame until this much time went (ms); one cell is atomic. */
+/** Cell activations (queueing their actors) start each frame until this much time went (ms). */
 export const ACTIVATION_BUDGET_MS = 4;
+/** Actors join the world each frame until this much time went (ms), at least one chunk. */
+export const ACTOR_BUDGET_MS = 3;
+export const ACTOR_CHUNK = 32;
+/** Inactive cell data kept in memory, by file size (parsed documents take a few times more). */
+export const CELL_MEMORY_BUDGET_BYTES = 16 * 1024 * 1024;
 
 export interface CellPayload {
   readonly actors: readonly ActorDoc[];
@@ -132,8 +141,10 @@ export function createCellStreaming(options: CellStreamingOptions): CellStreamin
   if (bounds === null) return null;
   const listed = new Set(source.cells);
   const ledger = new SaveLedger(options.level);
-  /** Cell -> the ids its activation added (roots first). */
+  /** Cell -> the ids its activation added so far (parents first). */
   const live = new Map<string, ActorId[]>();
+  /** Cells whose actors are still joining, in activation order: the documents left to add. */
+  const joining = new Map<string, ActorDoc[]>();
   /** Actor -> what it is without play: its effective components and level transform. */
   const authored = new Map<ActorId, ActorStateSnapshot>();
   const multiplier = (): number => {
@@ -164,21 +175,47 @@ export function createCellStreaming(options: CellStreamingOptions): CellStreamin
       const state = applyActorState(authoredState, saved, options.registry, doc.id, ctx);
       docs.push({ id: doc.id, name: doc.name, parent: doc.parent, spatiallyLoaded: doc.spatiallyLoaded, transform: state.transform, class: null, components: state.components });
     }
-    // A child whose parent the ledger removed goes with it.
+    // A child whose parent the ledger removed goes with it; parents come before their children.
     const kept = new Set(docs.map((doc) => doc.id));
-    const ordered = docs.filter((doc) => doc.parent === null || kept.has(doc.parent) || !payload.actors.some((other) => other.id === doc.parent));
-    try {
-      const result = assembleActors(world, ordered, { strict: options.strict, resolveClass: options.resolveClass });
-      live.set(key, result.actors.map((actor) => actor.id));
-      if (result.issues.length > 0) options.warn?.(`Cell ${key}: actors left out.`, result.issues);
-    } catch (error) {
-      live.set(key, []);
-      options.warn?.(`Cell ${key} could not be added: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    const inCell = new Set(payload.actors.map((doc) => doc.id));
+    const byId = new Map(docs.map((doc) => [doc.id, doc]));
+    const depth = (doc: ActorDoc): number => {
+      let count = 0;
+      for (let at = doc.parent; at !== null && byId.has(at) && count < docs.length; at = byId.get(at)!.parent) count += 1;
+      return count;
+    };
+    const ordered = docs
+      .filter((doc) => doc.parent === null || kept.has(doc.parent) || !inCell.has(doc.parent))
+      .map((doc, index) => ({ doc, index, depth: depth(doc) }))
+      .sort((a, b) => a.depth - b.depth || a.index - b.index)
+      .map((entry) => entry.doc);
+    live.set(key, []);
+    joining.set(key, ordered);
     if (ctx.issues.length > 0) options.warn?.(`Cell ${key}: saved state dropped.`, ctx.issues);
   };
 
+  /** Adds queued actors until the budget went; at least one chunk. */
+  const join = (): void => {
+    const started = options.clock();
+    for (const [key, docs] of joining) {
+      while (docs.length > 0) {
+        const chunk = docs.splice(0, ACTOR_CHUNK);
+        try {
+          const result = assembleActors(world, chunk, { strict: options.strict, resolveClass: options.resolveClass });
+          live.get(key)!.push(...result.actors.map((actor) => actor.id));
+          if (result.issues.length > 0) options.warn?.(`Cell ${key}: actors left out.`, result.issues);
+        } catch (error) {
+          options.warn?.(`Cell ${key}: actors could not be added: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        if (options.clock() - started >= ACTOR_BUDGET_MS) return;
+      }
+      joining.delete(key);
+    }
+  };
+
   const deactivate = (key: string): void => {
+    for (const doc of joining.get(key) ?? []) authored.delete(doc.id);
+    joining.delete(key);
     const ids = live.get(key) ?? [];
     live.delete(key);
     const roots: ActorId[] = [];
@@ -198,6 +235,7 @@ export function createCellStreaming(options: CellStreamingOptions): CellStreamin
     bounds,
     clock: options.clock,
     activationBudgetMs: ACTIVATION_BUDGET_MS,
+    memoryBudgetBytes: CELL_MEMORY_BUDGET_BYTES,
     warn: (message) => options.warn?.(message),
     loader: {
       async fetch(key, signal) {
@@ -223,8 +261,9 @@ export function createCellStreaming(options: CellStreamingOptions): CellStreamin
       if (disposed) return;
       settings.viewDistanceMultiplier = multiplier();
       subsystem.update(sources);
+      join();
       const stats = subsystem.stats();
-      const working = stats.inFlight + stats.queued > 0;
+      const working = stats.inFlight + stats.queued > 0 || joining.size > 0;
       if (working && hold === null && options.busy) hold = options.busy();
       if (!working && hold !== null) {
         hold();
@@ -248,14 +287,14 @@ export function createCellStreaming(options: CellStreamingOptions): CellStreamin
         active,
         loaded,
         fetching: stats.inFlight,
-        queued: stats.queued,
+        queued: stats.queued + joining.size,
         actors,
         bytes: stats.bytesResident,
         failures: stats.failures,
         lastFrameMs: stats.lastFrameMs,
       };
     },
-    isCellActive: (key) => live.has(key),
+    isCellActive: (key) => live.has(key) && !joining.has(key),
     forEachCell: (visit) => subsystem.forEachCell(visit),
     waitForArea: (position, radius) => subsystem.waitForArea(position, radius),
     dispose() {
