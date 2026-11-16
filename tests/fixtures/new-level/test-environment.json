@@ -1,0 +1,318 @@
+[
+  {
+    "name": "Sky Atmosphere",
+    "transform": {
+      "p": [
+        0,
+        0,
+        0
+      ],
+      "r": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "s": [
+        1,
+        1,
+        1
+      ]
+    },
+    "components": {
+      "sky": {
+        "type": "forge.skyAtmosphere@1",
+        "rayleigh": 1,
+        "turbidity": 2,
+        "mie": 0.002,
+        "mieDirectionalG": 0.7,
+        "exposure": 1
+      }
+    }
+  },
+  {
+    "name": "Sky Light",
+    "transform": {
+      "p": [
+        0,
+        0,
+        0
+      ],
+      "r": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "s": [
+        1,
+        1,
+        1
+      ]
+    },
+    "components": {
+      "skyLight": {
+        "type": "forge.skyLight@1",
+        "intensity": 1,
+        "ambientColor": "#ffffff",
+        "ambientIntensity": 0,
+        "backgroundColor": "#d7d7c7"
+      }
+    }
+  },
+  {
+    "name": "Exponential Height Fog",
+    "transform": {
+      "p": [
+        0,
+        0,
+        0
+      ],
+      "r": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "s": [
+        1,
+        1,
+        1
+      ]
+    },
+    "components": {
+      "fog": {
+        "type": "forge.heightFog@1",
+        "mode": "exp",
+        "color": "#bcc6d1",
+        "density": 0.03,
+        "heightFalloff": 0,
+        "baseHeight": 0,
+        "startDistance": 0,
+        "maxOpacity": 1,
+        "sunColor": "#ffe2bd",
+        "sunStrength": 0,
+        "start": 5,
+        "end": 60
+      }
+    }
+  },
+  {
+    "name": "Cloud Layer",
+    "transform": {
+      "p": [
+        0,
+        0,
+        0
+      ],
+      "r": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "s": [
+        1,
+        1,
+        1
+      ]
+    },
+    "components": {
+      "clouds": {
+        "type": "forge.cloudLayer@1",
+        "color": "#ffffff",
+        "coverage": 0.4,
+        "density": 0.4,
+        "softness": 0.3,
+        "scale": 8,
+        "speed": 0.2
+      }
+    }
+  },
+  {
+    "name": "World Environment",
+    "transform": {
+      "p": [
+        0,
+        0,
+        0
+      ],
+      "r": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "s": [
+        1,
+        1,
+        1
+      ]
+    },
+    "components": {
+      "environment": {
+        "type": "forge.worldEnvironment@2",
+        "hour": 9,
+        "season": "summer",
+        "surface": {
+          "snowCoverage": 0,
+          "wetness": 0,
+          "snowAccumulationRate": 0,
+          "snowMeltRate": 0.005,
+          "wettingRate": 0.1,
+          "dryingRate": 0.01,
+          "snowColor": "#f2f5fa",
+          "snowSlopeStartDeg": 30,
+          "snowSlopeEndDeg": 55,
+          "snowAltitudeEnabled": false,
+          "snowMinAltitude": 0,
+          "snowAltitudeBlend": 20
+        },
+        "wind": {
+          "useLevelWind": true,
+          "directionDeg": 45,
+          "strength": 0.3,
+          "gust": 0.3
+        },
+        "weather": {
+          "preset": "clear",
+          "intensity": 1
+        },
+        "sunPath": {
+          "azimuthDeg": 180,
+          "noonElevationDeg": 60,
+          "sunriseHour": 6,
+          "sunsetHour": 18
+        },
+        "night": {
+          "moonIntensity": 0.08,
+          "moonShadowStrength": 0.45,
+          "moonColor": "#9fb4ff",
+          "moonAngularDiameterDeg": 1.2,
+          "moonBrightness": 1,
+          "moonHaloIntensity": 0.5,
+          "moonHaloSize": 4,
+          "starBrightness": 1,
+          "starDensity": 0.5,
+          "starSize": 1,
+          "ambientFloor": 0.15,
+          "ambientIntensity": 1.5
+        }
+      }
+    }
+  },
+  {
+    "name": "Post Process",
+    "transform": {
+      "p": [
+        0,
+        0,
+        0
+      ],
+      "r": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "s": [
+        1,
+        1,
+        1
+      ]
+    },
+    "components": {
+      "post": {
+        "type": "forge.postProcess@1",
+        "exposure": 1,
+        "toneMapping": "aces",
+        "antialias": "smaa",
+        "reflection": "off",
+        "bloom": {
+          "enabled": true,
+          "threshold": 1,
+          "intensity": 1,
+          "radius": 1
+        },
+        "saturation": 1,
+        "contrast": 1,
+        "temperature": 0,
+        "tint": 0,
+        "vignette": {
+          "enabled": false,
+          "intensity": 0.35,
+          "offset": 1
+        },
+        "dof": {
+          "enabled": false,
+          "focusDistance": 10,
+          "aperture": 1,
+          "maxBlur": 1
+        },
+        "ao": {
+          "enabled": true,
+          "radius": 1,
+          "intensity": 1
+        },
+        "chromaticAberration": {
+          "enabled": false,
+          "amount": 0.5
+        },
+        "grain": {
+          "enabled": false,
+          "intensity": 0.5
+        }
+      }
+    }
+  },
+  {
+    "name": "Sun",
+    "transform": {
+      "p": [
+        3,
+        9,
+        4
+      ],
+      "r": [
+        -0.44037747942673894,
+        0.2667293017598086,
+        -0.13885048591283025,
+        0.8459572670993778
+      ],
+      "s": [
+        1,
+        1,
+        1
+      ]
+    },
+    "components": {
+      "light": {
+        "type": "forge.directionalLight@1",
+        "parent": null,
+        "local": {
+          "p": [
+            0,
+            0,
+            0
+          ],
+          "r": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "s": [
+            1,
+            1,
+            1
+          ]
+        },
+        "color": "#ffffff",
+        "intensity": 2,
+        "castShadow": true,
+        "cascadedShadows": true,
+        "atmosphereSun": true
+      }
+    }
+  }
+]

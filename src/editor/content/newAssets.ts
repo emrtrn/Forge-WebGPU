@@ -46,14 +46,16 @@ interface TemplateActor {
   readonly fields?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 }
 
-/** Forge's default level (engine/scene/defaultLevel.ts): environment, sun, floor, cube. */
+/** Environment tuned in content/levels/test (2026-11-16), plus Forge's floor and cube.
+ * Only new levels use these overrides; schema defaults also serve existing levels.
+ */
 export const NEW_LEVEL_TEMPLATE: readonly TemplateActor[] = [
-  { entry: "forge.sky:atmosphere" },
+  { entry: "forge.sky:atmosphere", fields: { sky: { rayleigh: 1, turbidity: 2, mie: 0.002, mieDirectionalG: 0.7 } } },
   { entry: "forge.sky:light" },
   { entry: "forge.heightFog" },
-  { entry: "forge.cloudLayer" },
-  { entry: "forge.worldEnvironment" },
-  { entry: "forge.postProcess" },
+  { entry: "forge.cloudLayer", fields: { clouds: { coverage: 0.4, density: 0.4, scale: 8, speed: 0.2 } } },
+  { entry: "forge.worldEnvironment", fields: { environment: { hour: 9, surface: { snowAccumulationRate: 0 } } } },
+  { entry: "forge.postProcess", fields: { post: { antialias: "smaa", bloom: { enabled: true, threshold: 1, intensity: 1, radius: 1 }, ao: { enabled: true, radius: 1, intensity: 1 } } } },
   { entry: "forge.light:directional", name: "Sun", position: [3, 9, 4], fields: { light: { atmosphereSun: true, castShadow: true, cascadedShadows: true } } },
   { entry: "forge.shape:plane", name: "Floor", scale: [4, 1, 4] },
   // Shape solids are 0,5 m: scale 2 is Forge's 1 m cube, resting on the floor.
