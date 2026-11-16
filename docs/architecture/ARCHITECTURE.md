@@ -22,11 +22,11 @@ kendini de sınar (rapor §4.2, A3).
 | `core` | aktör / bileşen modeli, şema DSL'i ve kaydı, kimlik, level ve hücre modeli, asset modeli, düzenleme modeli, alt sistem sözleşmesi, proje manifesti | yok; DOM ve `import.meta.env` de yok |
 | `engine` | three'siz alt sistemler (fizik, terrain verisi, nav, hareket, ses…; 2b'de taşınır, kapsam K12) editörün gizmo matematiği (`engine/gizmo`: sürükleme, snap, pivot) ve düzenleme işlemleri (`engine/edit`: çoğalt / sil / grupla, hiyerarşi, Details'in alan ve override düzenlemesi, Add Actor'ün yeni aktörü; editör ve ajan komutları ortak); DOM ve Web Audio yok, düz Node'da yüklenir | yok |
 | `render` | renderer host, GUID anahtarlı kaynak önbelleği, render bağlamaları, materyaller, pipeline, görüntüleyici (Faz 3; rapor §4.9); editörün 3B kodu `render/editor/` (viewport, editör kamerası, çizim katmanı, ızgara, picking, seçim çerçevesi, yardımcı bağlamalar, gizmo çizimi; yalnız editör yükler, Faz 4) | tek sahip (`three/webgpu`, `three/tsl`) |
-| `runtime` | World, sahne kurucu, oyun modülü host'u, boot; tarayıcı API'si gereken alt sistem kodu (`runtime/audio`) | dolaylı |
+| `runtime` | World, sahne kurucu, oyun modülü host'u, boot; kamera çevresindeki hücre dosyalarını getirip aktörleri kuran / boşaltan `runtime/streaming/cellStreaming` (A11); tarayıcı API'si gereken alt sistem kodu (`runtime/audio`) | dolaylı |
 | `gameplay` | yeniden kullanılabilir oyun çatısı (Faz 6) | yok |
 | `editor` | editör: DOM ve servisler; yalnız dinamik import, oyun bundle'ına girmez (Faz 4) | yok; 3B kodu `render/editor/`'da |
 | `sdk`, `editor-sdk` | oyun projelerinin import edebildiği tek yüzey | — |
-| `tools/` (Node) | dev server, kayıt servisi, asset kapısı, başlatıcı ve ajan komutları (`forge edit`), World Builder CLI, Forge WebGL içe aktarıcısı, ölçümler | yok |
+| `tools/` (Node) | dev server, kayıt servisi, asset kapısı, başlatıcı ve ajan komutları (`forge edit`, `forge hlod`), World Builder CLI, Forge WebGL içe aktarıcısı, ölçümler | yok |
 
 `src/core` ve `features/*/schema.ts` düz Node'da yüklenir (`verify:node-load`);
 `src/**` Node modülü import etmez.
@@ -93,9 +93,13 @@ override uyumsuzluğunu kayıtta reddeder (rapor §4.11).
   (`src/engine/forgeImport/`, rapor §4.4).
 - Tek dünya ızgarası `src/core/grid/worldGrid.ts`: level hücreleri (sıfır
   orijin), terrain tile'ları ve akış politikası onu kullanır; hücre yerleşim
-  planlayıcısı `src/engine/world`, runtime ve editör akışı 5b'de; menziller
-  (`viewDistance`, `loadRange`) level ayarında, HLOD level klasöründe
-  (`hlod.json` + `hlod/<x>_<z>.glb`, `forge hlod` üretir) (rapor §4.4).
+  planlayıcısı ve saf residency / culling / harita hesapları `src/engine/world`'de;
+  runtime hücre akışı `src/runtime/streaming/cellStreaming.ts`'de, durum belleği
+  `SaveLedger`'da. Editör akışı 5b adım 6'da bekler. Menziller
+  (`viewDistance`, `loadRange`) level ayarında; HLOD level klasöründe
+  (`hlod.json` + `hlod/<x>_<z>.glb`, `tools/world` içindeki `forge hlod` üretir),
+  runtime proxy çizimi `render/sync/hlodProxies.ts`'de; editörde gösterim
+  bekler (rapor §4.4, 5b uygulama notu).
 - Kayıt oyunu `forge.saveGame/1` (`src/core/save/`): her şey GUID'le, bileşen
   alanının `persist` bayrağı, bileşenin `state` bölümü, `defineSaveState`;
   yüklenmemiş hücrelerin durumu `SaveLedger`'da. Slot deposu
@@ -152,7 +156,9 @@ değişebilir durum yok), editör / Play / oyunun ortak sahne kurucusu
 `renderSync` grubunda tek bir `forge.render` alt sistemi ekler ve render
 bağlamalarını çalıştırır. Kaynak önbelleği host'undur, World'ün değil (A6;
 rapor §4.7, §4.9): `model:`, `texture:<guid>:<srgb|linear>`,
-`material:<guid>:<katkı imzası>`. Materyaller TSL slot düğümleriyle, özellik
+`material:<guid>:<katkı imzası>`. `AssetResidency` son sahip bıraktıktan
+30 sn sonra host karesinde atmayı yönetir; GPU kaynaklarını
+`render/resources/disposeResource.ts` bırakır. Materyaller TSL slot düğümleriyle, özellik
 katkıları sabit sırayla (world mask → fade → rüzgâr → ıslaklık → göçük;
 rapor §4.9). Çevre tekillerdir (`forge.skyAtmosphere`, `forge.skyLight`:
 IBL + ortam ışığı + arka plan, `forge.cloudLayer`, `forge.worldEnvironment`:

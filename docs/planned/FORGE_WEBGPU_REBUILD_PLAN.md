@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.35 · 2026-11-16 — Kullanıcı Faz 5a görsel kabulünü onayladı; 5a Terrain kutusu kapandı (mimari v1.38). Aşağıdaki önceki sürümler ve inceleme kayıtları kabul öncesi geçmişi gösterir.
+**Güncelleme:** v1.37 · 2026-11-16 — Faz 5b ilerlemesi HEAD `63815f9`'a kadar kod ve mevcut kayıtlarla doğrulandı: adım 1–5 tamam, 9'un build / runtime çizimi ve 10'un üretici / ölçüm düzeneği uygulandı; editör gösterimi ve ölçüm kabulü açık. A 982 / 1.021; mimari v1.40. v1.36: 5b dökümü ve kararları. v1.35: kullanıcı Faz 5a görsel kabulünü onayladı; 5a Terrain kutusu kapandı (mimari v1.38). Önceki sürümler ve inceleme kayıtları kendi tarihlerinin durumunu gösterir.
 
 **Sürüm:** v1.34 · 2026-11-16 (v1.33’ten fark: World Settings genel gölge anahtarı ve tek Undo ile toplu nesne gölgeleri; Island sahne verisi korunur; mimari v1.37). v1.33 · 2026-11-16: Derekavak canlı kabulü; Island'da kamerayı izleyen koyu dörtgenin düzeltilmesi — ters derinlikte takip gölgesinin alt Z sınırı, kaynak geçişi ve GPU regresyonu; mimari v1.36. v1.32 · 2026-11-16: Faz 5a adım 8 teknik kapısı, A 957 / 1.021 ve görsel kabul adayları (mimari v1.35).
 
@@ -486,7 +486,7 @@ statik detay, seam (R'lerin çoğu) · 4 global harita ve `?debug` terrain harit
 5 collider eşleşmesi (G8) · 6 su birikintisi + içe aktarıcı çeviricisi (3 A) ·
 7 WES örtüsü ve rüzgâr (tamam) · 8 öksüz tile ve kapı (§2.10 ölçümü, smoke, gerçek WebGPU: tamam; kullanıcı görsel kabulü 2026-11-16 tarihinde onaylandı).
 
-**5b dökümü (2026-11-16).** INV-B11 (World Partition paneli), D31 (HLOD proxy'leri),
+**5b başlangıç dökümü (2026-11-16, `65b5efd`; uygulama öncesi anlık görüntü).** INV-B11 (World Partition paneli), D31 (HLOD proxy'leri),
 F24 (runtime akışı, asset residency, akış politikası), G12 (mesafe LOD + statik detay
 culling), H13 (HLOD build); D32'nin akış kısmı ve D17'nin view distance'ı. Ertelenen
 **25 A**: `assetResidency` 18, `worldMapView` 5, `detailCulling` 2. Forge'un `hlod.test`'i
@@ -570,35 +570,95 @@ Referans level'lar küçük (en çok 46 hücre, WbPilotValley); `cellSize` hepsi
 **5b adım sırası** (C: Claude, X: Codex — tanımı yazılmış saf modül / Node aracı /
 mekanik taşıma; X'in diff'ini Claude inceler, kapıları çalıştırır, commit'i atar):
 
-1. Döküm ve kararlar (bu docs commit'i) — C.
+1. Döküm ve kararlar — C. **Tamam:** `65b5efd`.
 2. Saf modüller: `assetResidency` (18 A), `detailCulling` (2 A), `worldMapView` (5 A)
    `npm run port:forge -- tests` ile `src/engine/world`'e; `hlod`'un saf kısmı yeni
    modelle (dizin normalize, `sourceHash`, aktörlerden yerleşim, dahil etme kuralı) ve
-   testleri — **X** (high), C inceler. A 957 → 982.
+   testleri — **X** (high), C inceler. **Tamam:** `4cef956`; 25 A taşındı,
+   **A 957 → 982 / 1.021**, 5b'ye ertelenmiş A kalmadı. HLOD'un saf kısmı ve
+   yeni model kontrolleri de bu commit'te; render culling'i adım 8'de bekliyor.
 3. Level ayarları `viewDistance` / `loadRange`, kamera far, Fit to View Distance,
-   kalite çarpanı — C.
+   kalite çarpanı — C. **Tamam:** `89b6a87`, kanonik kayıt beklentisi
+   `de8654d`; World Settings Streaming alanları, Height Fog Fit to View Distance,
+   oyun kamerası ve içe aktarıcı bağı uygulandı (`viewDistance: 0`: kameranın far'ı).
 4. Runtime hücre akışı: hücre istemcisi (dev / dist / Play), World'e ekle-çıkar, kayıt
    defteri, hazır olma, `?debug` satırları — C. Hücre istemcisinin URL / hata
-   tablosunun Node testleri — X (medium).
+   tablosunun Node testleri — X (medium). **Tamam:** `c7a5174`; `63815f9` ile
+   aktörler ebeveyn önce, 32'lik parçalarla, kare başına 3 ms ekleme bütçesiyle
+   katılır (en az bir parça); etkin olmayan hücre verisinin önbellek bütçesi
+   16 MiB. Hücre etkinleştirme kuyruğunun ayrı bütçesi 4 ms; HLOD bütün aktörler
+   katılınca gizlenir. Başsız açılış bütün hücreleri kurar; editör akışı adım 6'da.
 5. Asset residency ↔ kaynak önbelleği, gecikmeli atma, sızıntı anlık görüntüsü — C;
    önbelleğin atma kurallarının Node testleri sözleşmeden — X (medium).
+   **Tamam:** `045964c`; `AssetResidency` son kaynak sahibi bırakınca 30 sn
+   sonra host'un `update()` çağrısında atar; `disposeResource` GPU nesnelerini
+   bırakır. Önbellek / World / GPU sayaçları ölçüm kancasında (`dddd81b`, `63815f9`).
 6. Editör akışı: kısmi level oturumu, `needs-load` yükle-sonra-uygula, kirli hücre
    tutma, canlı tazeleme yüklenmemiş hücrede, Outliner WP sekmesi / rozet, editör
    smoke'u (kamerayı taşı → hücre gelir / gider; hücrede düzenle → kaydet → yeniden
-   aç) — C.
+   aç) — C. **Bekliyor.**
 7. World Partition paneli + dünya haritası (karar 7), Forge panelinin taşınması —
    **X** (high; dosyalar, panel API'si ve kit bileşenleri istemde), C inceler ve
-   editör smoke'unu yazar.
+   editör smoke'unu yazar. **Bekliyor:** saf `worldMapView` adım 2'de var;
+   panel ve harita UI'si henüz yok.
 8. Detay culling TSL'de + hücreye bölünmüş batch'ler + draw call ölçümü — C.
+   **Bekliyor:** saf `detailCulling` adım 2'de var; TSL fade / batch bölme ve
+   Derekavak P2 öncesi / sonrası ölçümü yapılmadı.
 9. HLOD build: `forge hlod` komutu, `hlodBuild`'in Node'a taşınması (gltf-transform /
    meshoptimizer bağımlılıkları depoda), dosya düzeni, `verify:assets` bayatlık
    uyarısı, build kopyası — **X** (high), C inceler. HLOD proxy'lerinin render'ı ve
-   editörde gösterimi — C.
+   editörde gösterimi — C. **Kısmen tamam:** build, bayatlık uyarısı ve üretim
+   kopyası `d8676b4`; runtime proxy çizimi `dddd81b`; geometriyi bırakırken
+   Mesh `dispose` olayı `63815f9` (renderer'ın render nesnelerini de bırakması
+   için). **Editörde gösterim adım 6'ya bağlı, bekliyor.**
 10. Sentetik level üreticisi — **X** (medium; tohum, boyut, aktör dağılımı istemde);
     `measure:streaming` (Playwright, gerçek GPU) ve koşusu — C.
+    **Düzenek tamam:** `f202569` (`bench:streaming-level`), `63815f9`
+    (`measure:streaming`). Mevcut koşular aşağıda; **ölçüm kabulü AÇIK.**
 11. Kapı: 25 A, editör / render / dist smoke'ları (dist'te hücreler statik içerikten),
     gerçek WebGPU editör seti, `measure:streaming`, belgeler; kullanıcı görsel kabulü
-    (HLOD geçişi, detay fade) — C.
+    (HLOD geçişi, detay fade) — C. **Bekliyor:** 25 A'nın taşınmış olması ve
+    bu ilerleme kaydı toplu kapı / görsel kabul yerine geçmez.
+
+**5b ilerleme notu (2026-11-16, HEAD `63815f9`).** Adım 1–5 tamam; adım 9'un
+build / runtime çizimi ve adım 10'un üretici / ölçüm düzeneği uygulandı. Adım
+6, 7, 8 ve 11 bekliyor; editörde HLOD gösterimi adım 6 ile tamamlanacak.
+5b kutusu ve Faz 5 toplu kabulü açık; faz arşivlenmez. Bu belge güncellemesinde
+yalnız git geçmişi, kaynak ve mevcut JSON kayıtları okundu; test, tam kapı veya
+yeni ölçüm çalıştırılmadı.
+
+**Mevcut streaming ölçümü (adım 10, kabul AÇIK).** Son kayıt
+[`2026-11-16T17-41-23-820Z-streaming.json`](../../../Games/ForgeReference/render-refs/runs/2026-11-16T17-41-23-820Z-streaming.json)
+(`Games/ForgeReference/render-refs/runs/`): kayıt metadata'sı `dddd81b`,
+`dirty: true`; temiz `63815f9` koşusu değildir. Düzenek
+`tests/smoke/{streaming.measure.ts,streamingMeasure.config.ts}`: referans projesinin
+`.forge-cache/measure-streaming/webgpu-scenes` kopyasında sentetik level + HLOD,
+başlıklı gerçek WebGPU, 1080p `high`, DPR 1, uncapped; 40 m/sn çapraz uçuş,
+sıcak dönüş ve 10 A/B yükle / boşalt döngüsü. Uçuş özetleri her yöndeki ilk
+60 kare aralığını dışarıda bırakır. Sonuçlar:
+
+| Ölçüt | Kayıt | Durum |
+|---|---|---|
+| İlk uçuş p99 / en uzun kare | **9,4 / 57,7 ms** | p99 ≤ 20 ms içinde; en uzun kare ≤ 50 ms sınırını aşıyor |
+| Sıcak dönüş p99 / en uzun kare | **10 / 31,1 ms** | İki eşik içinde; ilk uçuşun kabul açığını kapatmaz |
+| Hücre aktörü / önbellek girdisi | İlk varış, ilk döngü, 10. döngü ve 32 sn atma bekleyişi sonrası **2.583 / 63** | Döngü sayaçları başa dönüyor |
+| GPU geometri / doku | İlk varış **216 / 30**; ilk döngü, 10. döngü ve bekleyiş sonrası **214 / 30** | Harness karşılaştırması ilk tam döngünün kararlı durumuna karşı; ilk varışla birebir eşitlik iddiası yok |
+| GC sonrası JS heap | İlk varış **38.134.088 B**; ilk döngü **37.349.980 B**; 10. döngü **37.716.976 B**; bekleyiş sonrası **37.689.828 B** | Harness: ilk döngü → bekleyiş sonrası **%0,91** artış, ≤ %5 içinde |
+| Bekleyiş sonrası işler | Hücre fetching / queued / failures **0 / 0 / 0**; önbellek pending / failed / pendingEvict / evicted **0 / 0 / 0 / 0** | Bu koşuda kaynak atma sayacı artmadı; paylaşılan starter kaynaklarıyla döngü kararlılığı, tüm kaynak türlerinin atıldığına dair kanıt değil |
+
+HLOD yüklü / görünür sayıları ilk varışta 502 / 421, ilk döngüden bekleyiş
+sonrasına 530 / 421; 1,25 × görüş mesafesi tutma kuralıyla ilk görülen proxy'ler
+kalabilir. Sıçrama kayıtlarında 57,7 ms karede hücre işi 1,6 ms, 55,8 ms karede
+3,7 ms; bunlar nedenin pipeline derlemesi olduğunu kanıtlamaz. İlk kez pipeline
+derleme **hipotezdir**; `compileAsync` ile ön ısıtma **önerilen sonraki inceleme**,
+uygulanmış bir çözüm değildir. İlk uçuş 50 ms sınırı ve adım 6–8 / 11 açıkken
+tam performans, sızıntı veya faz kabulü verilmez.
+
+Önceki mevcut koşular (salt okunur kanıt geçmişi; yeni koşu üretilmedi):
+[`2026-11-16T17-09-48-501Z-streaming.json`](../../../Games/ForgeReference/render-refs/runs/2026-11-16T17-09-48-501Z-streaming.json),
+[`2026-11-16T17-15-35-260Z-streaming.json`](../../../Games/ForgeReference/render-refs/runs/2026-11-16T17-15-35-260Z-streaming.json),
+[`2026-11-16T17-21-20-544Z-streaming.json`](../../../Games/ForgeReference/render-refs/runs/2026-11-16T17-21-20-544Z-streaming.json),
+[`2026-11-16T17-34-06-960Z-streaming.json`](../../../Games/ForgeReference/render-refs/runs/2026-11-16T17-34-06-960Z-streaming.json).
 
 5c ile paralel yürürse ortak dosyalar: `render/sync/instanceBatches.ts` (adım 8; foliage
 kendi batch'ini kurar), kalite profilleri, `?debug` satırları. Çakışmada adım 8 5c'nin
@@ -928,3 +988,4 @@ silinebilir.
 | 2026-11-16 | v1.34 | Kullanıcı kararıyla yalnız sistem: World Settings → Shadows genel anahtarı (`forge.light` içinde tekil `forge.shadowSettings@1`, yoksa açık), nesne tercihlerini koruyan render kapısı + kalite sınırı; ayrı Enable / Disable on Objects tek Undo, sınıf örneklerine override, yüklenmemiş hücrede atomik ret. Yeni şekil / model gölge varsayılanı açık kaldı. Sistem kurulumu Island verisine yazmadı; son karşılaştırmada düzenlenebilir kopyada 15:58'de kaydedilmiş 8 dosya güncellemesi görüldü (581 şeklin gölgesi açık), eşzamanlı kayıtlar korundu; asıl referans değişmedi. Kapı ikinci tam koşuda 2.113 test + 72 editör + 1 dist geçti; ilk koşudaki Content Browser silme / thumbnail 404'ü bağımsız ve tam tekrarda görülmedi, bu kapsamda kaynak / test beklentisi değiştirilmedi. Gerçek WebGPU yeni gölge testleri 4 / 4 (görüntü aç / kapa / geri dönüş, kalite, Undo, kayıt ve Play), tam render 24 / 24. SDK / A değişmedi; mimari v1.37. 5a son canlı kabulü açık |
 | 2026-11-16 | v1.35 | Kullanıcı Faz 5a görsel kabulünü onayladı; Island son canlı kabulü dahil bekleyiş kapandı ve 5a Terrain kutusu işaretlendi. Mevcut teknik kapı / ölçüm kayıtları korundu; yeni test koşusu veya referans görüntü yenilemesi yapılmadı. A 957 / 1.021, SDK 0.1.12 değişmedi; mimari v1.38. 5b–5d ve Faz 5 toplu kapısı açık; Faz 5 bölümü arşivlenmedi. Sıradaki: 5b / 5c dökümü ve kararları |
 | 2026-11-16 | v1.36 | Faz 5b dökümü ve kararları (kullanıcı): menziller level ayarında (`viewDistance`, `loadRange` 384 m), HLOD level klasöründe + `forge hlod` komutu, mesafe LOD 5b'den çıktı (meshlet hattı konuşulacak), kapı sentetik büyük level'da `measure:streaming`; runtime / editör hücre akışı, residency, detay culling (hücreye bölünmüş batch), World Partition paneli A11'in uygulaması. 11 adım, Codex adımları işaretli (2, 7, 9, 10 ve test dilimleri). Ertelenen 25 A; kod yok; mimari v1.39 |
+| 2026-11-16 | v1.37 | Faz 5b ilerlemesi HEAD `63815f9`'a kadar doğrulandı: adım 1 `65b5efd`; 2 saf modüller + HLOD `4cef956` (25 A, A 982 / 1.021); 3 ayarlar / UI / kamera / içe aktarıcı `89b6a87`, `de8654d`; 4 runtime hücre akışı `c7a5174`, 32 aktör / 3 ms / 16 MiB `63815f9`; 5 kaynakların 30 sn sonra atılması `045964c`; 9 HLOD build `d8676b4`, runtime çizimi `dddd81b`, Mesh dispose olayı `63815f9` (editör adım 6'yı bekler); 10 üretici `f202569`, ölçüm düzeneği `63815f9`. Mevcut son JSON: ilk uçuş p99 / max 9,4 / 57,7 ms (20 / 50 ms; max aşıyor), sıcak dönüş 10 / 31,1 ms; kararlı döngü sayaçları eşit, harness heap artışı %0,91. Ölçüm kabulü AÇIK; pipeline derlemesi hipotez, compileAsync ön ısıtma yalnız öneri. Adım 6, 7, 8, 11 ve 5b kutusu açık; arşiv yok. Yeni test / gate / ölçüm yok; mimari v1.40 |

@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.39 · 2026-11-16 — §4.4 Faz 5b kararları (kullanıcı): menziller level ayarında, hücre akışı runtime + editör, HLOD level klasöründe ve `forge hlod` komutuyla, mesafe LOD 5b dışında (plan v1.36). v1.38 · 2026-11-16 — Faz 5a kullanıcı görsel kabulü onaylandı (§4.10, plan v1.35); mimari sözleşme değişmedi.
+**Güncelleme:** v1.40 · 2026-11-16 — §4.4 Faz 5b uygulaması HEAD `63815f9`'a kadar: saf modüller, menzil ayarları, runtime hücre akışı, kaynak atma, HLOD build / runtime çizimi ve streaming ölçüm düzeneği; §4.9 önbellek atma notu güncel. Editör akışı / HLOD gösterimi, panel, TSL detay culling ve ölçüm / faz kabulü açık (plan v1.37). v1.39: §4.4 Faz 5b kararları (kullanıcı): menziller level ayarında, hücre akışı runtime + editör, HLOD level klasöründe ve `forge hlod` komutuyla, mesafe LOD 5b dışında (plan v1.36). v1.38: Faz 5a kullanıcı görsel kabulü onaylandı (§4.10, plan v1.35); mimari sözleşme değişmedi.
 
 **Sürüm:** v1.37 · 2026-11-16 (v1.36’dan fark: World Settings sahne gölge anahtarı, `forge.shadowSettings@1`, nesne tercihlerini koruyan render kapısı ve tek Undo ile toplu nesne gölgesi işlemleri; Island içeriği değiştirilmez). v1.36 · 2026-11-16: §4.9 Island takip gölgesi — ters derinlikte eksik alt Z sınırı, `BoundedShadowNode`, CSM / takip haritası kaynak geçişi ve gerçek GPU regresyonu. v1.35 · 2026-11-16: §4.9 öksüz terrain parça denetimi, §4.10 terrain performans ölçümü ve görsel kabul adayları (Faz 5a adım 8).
 
@@ -650,6 +650,54 @@ features/height-fog/
     ile okunur (`vertexColors` bayrağı yok; three'nin meshlet hattıyla uyum).
   - *Mesafe LOD:* 5b'de yok; three'nin meshlet hattı ayrıca konuşulacak (§4.9'un
     Faz 9 notu).
+- **5b uygulama notu (2026-11-16, HEAD `63815f9`; kararlar değişmedi):**
+  - *Saf kısım / ayarlar:* `engine/world/{assetResidency,detailCulling,worldMapView}`
+    ve HLOD'un yeni modele uyarlanmış saf kısmı `4cef956` ile var; 25 A taşındı,
+    **A 982 / 1.021**, 5b'ye ertelenmiş A kalmadı. `89b6a87`, `de8654d`:
+    level menzilleri (`viewDistance: 0`: kameranın far'ı; `loadRange: 384`),
+    işlemsel ayar düzenleme, World Settings Streaming alanları, Height Fog Fit
+    to View Distance, oyun kamerası kalite çarpanı ve içe aktarıcı bağı uygulandı.
+  - *Runtime akışı:* `runtime/streaming/cellStreaming.ts`, `projectLevel.ts`
+    ve boot bağı (`c7a5174`) kalıcı katmanla açılır; dev / Play / dist aynı
+    içerik istemcisiyle hücre okur. Getirme 1,5 × yükleme menziline, etkinleştirme
+    yükleme menziline göre; ikisi kalite çarpanıyla. `63815f9`: ebeveyn önce,
+    32 aktörlük parçalar, kare başına 3 ms aktör ekleme bütçesi (en az bir
+    parça); hücre etkinleştirme kuyruğu ayrıca 4 ms. Etkin olmayan hücre
+    verisinin önbellek bütçesi 16 MiB'dir; toplam JS / GPU bellek sınırı değildir.
+    `SaveLedger` boşalan aktörün durumunu tutar, dönüşte uygular; hazır olma
+    yükleme / katılma işlerini bekler. Başsız açılış bütün hücreleri kurar.
+  - *Kaynak yaşamı:* `045964c`: host'un `resourceCache` sahipleri
+    `AssetResidency`'ye bağlıdır; son kullanım bırakılınca 30 sn gecikmeyle
+    host karesinde atılır, `render/resources/disposeResource.ts` modelin
+    geometri / materyal / dokularını, bağımsız materyal / geometri / dokuyu
+    bırakır; terrain slotları kendi sahibinde kalır (§4.9). Sayaçlar ölçüm
+    kancasında hücre / World ve renderer sayaçlarıyla birlikte okunur.
+  - *HLOD:* `tools/world/hlod{Cli,Build,Input,Assets,Stale,Math}.ts`
+    (`d8676b4`): `forge hlod`, hücre başına level parçası GLB, bayatlık
+    uyarısı (`verify:assets`, `check:projects`, build) ve build kopyası var.
+    Runtime `HlodSourceKey` sağlar; `render/sync/hlodProxies.ts` (`dddd81b`)
+    menzil içindeki etkin olmayan hücreyi proxy ile çizer (aynı anda 4 okuma,
+    1,25 × menzil ötesinde bırakma, ortak materyal / `colorNode`). Hücrenin
+    bütün aktörleri katılınca proxy gizlenir; `63815f9` geometriyle birlikte
+    Mesh `dispose` olayını gönderir, renderer render nesnelerini de bırakır.
+    **Editörde gösterim adım 6'yı bekler.**
+  - *Ölçüm / kalanlar:* üretici `tools/bench/streamingLevel.ts`, CLI
+    `tools/bench-streaming-level.ts` (`f202569`); `measure:streaming`
+    (`63815f9`) referans projesinin geçici kopyasında çalışır. Mevcut son
+    [`2026-11-16T17-41-23-820Z-streaming.json`](../../../Games/ForgeReference/render-refs/runs/2026-11-16T17-41-23-820Z-streaming.json)
+    metadata'sı `dddd81b`, `dirty: true`; ilk uçuş p99 / max **9,4 / 57,7 ms**
+    (eşikler 20 / 50 ms; max aşıyor), sıcak dönüş **10 / 31,1 ms**. İlk tam
+    döngü, 10. döngü ve 32 sn bekleme sonrası sayaçlar kararlı: hücre aktörü
+    2.583, önbellek 63, GPU geometri / doku 214 / 30. Harness ilk tam döngüyü
+    esas alır (ilk varış GPU 216 / 30); GC sonrası heap ilk döngü
+    37.349.980 B → bekleme sonrası 37.689.828 B (**%0,91**, sınır %5).
+    Kaynak atma sayacı bu koşuda 0; tüm kaynak türlerinin atılma kabulü
+    çıkarılmaz. Ham kayıt listesi ve yöntem plan 5b ilerleme notunda.
+    Pipeline derlemesi **hipotez**, `compileAsync` ön ısıtması **önerilen
+    sonraki incelemedir**, uygulanmadı. **Ölçüm kabulü AÇIK**; editör akışı
+    (6), panel / harita (7), TSL detay fade / hücre batch'leri / draw call
+    ölçümü (8) ve toplu kapı / görsel kabul (11) bekler. 5b kutusu açık;
+    bu belge işinde test, tam kapı veya yeni ölçüm çalıştırılmadı.
 - **Ölçek ölçümü (2a, 2026-11-10):** 50.000 aktörlük level R1'de eşik içinde
   (bütün level yükleme ~0,9 s, hücre yükleme p95 ~1,5 ms, tek aktör kaydı
   ~40 ms, tam kayıt ~2,2 s, heap ~58 MB; [Faz 2a arşivi](../archive/PHASE_2A.md)). Aşağıdaki çarelere
@@ -1354,7 +1402,13 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   ayrıdır. Anahtarlar `model:<guid>`, `texture:<guid>:<srgb|linear>`,
   `material:<guid>:<katkı imzası>`, `shape:<primitive>` (şekiller prosedürel
   geometri, asset değil). Her World kullandığını sayaçla alır, dispose'da
-  bırakır; sayacı sıfır olanın atılması ve bellek bütçesi 5b'de. Pipeline
+  bırakır; `045964c` ile son sahipten 30 sn sonra `AssetResidency` üzerinden
+  host'un `update()` çağrısında atılır; arada yeniden alınırsa korunur.
+  `disposeResource` GPU kaynaklarını bırakır; materyalin bağımsız doku
+  kullanımları da bırakılır, terrain havuzu kendi sahibindedir. `pendingEvict`
+  / `evicted` sayaçları var. Bu gecikmeli atma, render kaynakları için bir
+  bayt bütçesi değildir; 5b'deki 16 MiB bütçe runtime'ın etkin olmayan hücre
+  verisine aittir (§4.4). Pipeline
   önbelleği three'nin kendisi; derleme süresi kayda yazılır. GUID → URL
   çözümü asset dizininden (geliştirmede dev server, üretimde build'in dizini).
   glTF: KTX2 ve meshopt three'nin `examples/jsm/libs` dosyalarıyla (yeni npm
