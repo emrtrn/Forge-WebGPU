@@ -8,6 +8,6 @@ import { REPO_ROOT } from "./renderScenes.ts";
 
 export default defineConfig({
   ...smoke,
-  testMatch: "*.measure.ts",
+  testMatch: "skyCapture.measure.ts",
   outputDir: `${REPO_ROOT}/test-results/measure`,
 });

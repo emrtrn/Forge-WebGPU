@@ -14,6 +14,11 @@
 
 import { bool, color, defineComponent, num, type ComponentData } from "../../core/index.ts";
 
+/** Authored scene-wide gate; absent means on. Object flags remain independent. */
+export const ShadowSettings = defineComponent("forge.shadowSettings", 1, {
+  enabled: bool({ default: true, label: "Scene Shadows", hint: "Sahnedeki gölgeleri açar. Nesnelerin kendi gölge tercihlerini değiştirmez; kalite profili gölgeyi ayrıca sınırlar." }),
+}, { singleton: true, label: "Shadow Settings", hint: "Sahnenin genel gölge anahtarı. World Settings üzerinden düzenlenir." });
+
 const lightColor = () =>
   color({
     default: "#ffffff",

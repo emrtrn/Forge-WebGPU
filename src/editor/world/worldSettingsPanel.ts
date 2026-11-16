@@ -10,6 +10,7 @@ import type { ActorPlacer } from "../place/actorPlacer.ts";
 import type { EditorSession } from "../session/editorSession.ts";
 import { createSection } from "../ui/formView.ts";
 import { environmentRows } from "./worldSettings.ts";
+import { SHADOW_SETTINGS_COMPONENT, setObjectShadows, setSceneShadows, shadowSettingsTarget } from "./sceneShadows.ts";
 
 export interface WorldSettingsOptions {
   readonly document: Document;
@@ -69,10 +70,43 @@ export function createWorldSettings(options: WorldSettingsOptions): WorldSetting
       row("Cell Size (m)", cellSize),
       el("div", "detail-hint", "Akış ızgarasının hücre kenarı. Değiştirmek bütün hücre dosyalarını yeniden yazan dünya çapı bir işlemdir; editörden değiştirilmez."),
     );
+    const shadows = createSection(doc, "Shadows", { testId: "world-settings-shadows" });
+    const enabled = el("input");
+    enabled.type = "checkbox";
+    enabled.setAttribute("aria-label", "Scene Shadows");
+    enabled.dataset.testid = "world-settings-shadows-enabled";
+    enabled.checked = shadowSettingsTarget(level.actors, options.resolveClass)?.enabled ?? true;
+    const supported = options.registry.components().some((component) => component.name === SHADOW_SETTINGS_COMPONENT);
+    enabled.disabled = !supported;
+    const feedback = el("div", "detail-hint");
+    feedback.setAttribute("role", "status");
+    enabled.addEventListener("change", () => {
+      const result = setSceneShadows(editor, options.resolveClass, enabled.checked);
+      if (!result.ok) { enabled.checked = !enabled.checked; feedback.textContent = result.issues.map((issue) => issue.message).join(" "); }
+    });
+    const bulk = el("div", "world-settings-shadow-actions");
+    const incomplete = editor.level.unloadedCells().length > 0;
+    for (const value of [true, false]) {
+      const button = el("button", "detail-action-button", value ? "Enable on Objects" : "Disable on Objects");
+      button.type = "button";
+      button.dataset.testid = `world-settings-object-shadows-${value ? "on" : "off"}`;
+      button.disabled = !supported || incomplete;
+      button.addEventListener("click", () => {
+        const result = setObjectShadows(editor, options.resolveClass, value);
+        if (!result.ok) feedback.textContent = result.issues.map((issue) => issue.message).join(" ");
+      });
+      bulk.append(button);
+    }
+    shadows.body.append(row("Scene Shadows", enabled),
+      el("div", "detail-hint", "Sahnenin genel gölge anahtarı. Nesnelerin kendi tercihlerini korur; kalite profili gölgeyi ayrıca sınırlar."),
+      bulk, el("div", "detail-hint", incomplete
+        ? "Toplu işlem için sahnenin bütün hücrelerini yükleyin."
+        : "Modellerin ve temel şekillerin Cast Shadow değerlerini topluca değiştirir. Her işlem tek adımda geri alınır."), feedback);
     const environment = createSection(doc, "Environment", { testId: "world-settings-environment" });
     const placer = options.placer();
     const entries = placer?.entries() ?? [];
     for (const item of environmentRows(options.registry, level.actors, options.resolveClass, entries)) {
+      if (item.component === SHADOW_SETTINGS_COMPONENT) continue;
       const button = el("button", "detail-action-button", item.actor ? item.actor.name || item.actor.id : "Add");
       button.type = "button";
       if (item.actor) {
@@ -95,7 +129,7 @@ export function createWorldSettings(options: WorldSettingsOptions): WorldSetting
       environment.body.append(row(item.label, button));
     }
     environment.body.append(el("div", "detail-hint", "Ortamın değerleri bu aktörlerin bileşenlerindedir; seçip Details'te düzenleyin."));
-    body.replaceChildren(heading, levelPart.section, environment.section);
+    body.replaceChildren(heading, levelPart.section, shadows.section, environment.section);
   };
 
   const onPointerDown = (event: Event): void => {
@@ -213,6 +247,12 @@ export const WORLD_SETTINGS_CSS = `
   display: grid;
   gap: 6px;
   padding: 8px 4px;
+}
+
+.world-settings-shadow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 `;
 

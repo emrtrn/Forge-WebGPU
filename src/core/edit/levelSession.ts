@@ -102,6 +102,8 @@ export interface LevelSession {
   readonly history: History;
   actor(id: ActorId): ActorDoc | undefined;
   isLoaded(cell: string): boolean;
+  /** Cells on disk that are not loaded; scene-wide authoring must not silently skip them. */
+  unloadedCells(): readonly string[];
   edit(label: string, build: (tx: EditTx) => void, options?: { readonly coalesce?: string }): EditResult;
   undo(): boolean;
   redo(): boolean;
@@ -205,6 +207,7 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
     history,
     actor: (id) => byId.get(id),
     isLoaded,
+    unloadedCells: () => [...onDisk].filter((cell) => !isLoaded(cell)),
     fileRevision(path) {
       if (!path.startsWith(`${folder}/`)) return undefined;
       const inside = path.slice(folder.length + 1);

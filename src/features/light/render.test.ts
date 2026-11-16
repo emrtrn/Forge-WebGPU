@@ -9,6 +9,7 @@ import { actorId } from "../../core/level/testKit.ts";
 import { resolveQualitySettings, type QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { createResourceCache } from "../../render/resources/resourceCache.ts";
 import { createRenderFeature, type RenderWorld } from "../../render/sync/renderWorld.ts";
+import { BoundedShadowNode } from "../../render/sync/boundedShadow.ts";
 import { createWorld } from "../../runtime/world.ts";
 import lightFeature from "./feature.ts";
 import lightBinding from "./render.ts";
@@ -73,6 +74,38 @@ const sun = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe("light binding", () => {
+  test("the scene gate suppresses every light and restores only authored shadows; Low remains off", () => {
+    const { world, lights, settings } = boot({ Sun: sun({ cascadedShadows: true }),
+      Lamp: { type: "forge.pointLight@1", castShadow: true },
+      Torch: { type: "forge.spotLight@1", castShadow: false } }, resolveQualitySettings("high"));
+    expect(lights().filter((light) => !light.name.startsWith("CSM")).slice(0, 3).map((light) => light.castShadow)).toContain(true);
+    const gateId = actorId("f");
+    const gate = (enabled: boolean): ActorDoc => ({ id: gateId, name: "Shadow Settings", class: null, parent: null,
+      spatiallyLoaded: false, transform: IDENTITY, components: { shadows: { type: "forge.shadowSettings@1", enabled } } });
+    world.addActors([gate(false)], "level"); world.tick(0.016);
+    expect(lights().every((light) => !light.castShadow)).toBe(true);
+    world.removeActors([gateId]); world.addActors([gate(true)], "level"); world.tick(0.016);
+    const authored = () => lights().filter((light) => ["Sun/light", "Lamp/light", "Torch/light"].includes(light.name));
+    expect(authored().map((light) => light.castShadow)).toEqual([true, true, false]);
+    settings.current = resolveQualitySettings("low"); world.tick(0.016);
+    expect(lights().every((light) => !light.castShadow)).toBe(true);
+    settings.current = resolveQualitySettings("high"); world.tick(0.016);
+    expect(authored().map((light) => light.castShadow)).toEqual([true, true, false]);
+    world.dispose();
+  });
+
+  test("a settings-only scene gates the fallback sun without suppressing its lighting", () => {
+    const { world, lights } = boot({}, resolveQualitySettings("high"));
+    const sunLight = lights().find((light) => light.type === "DirectionalLight")!;
+    expect(sunLight.castShadow).toBe(true);
+    const intensity = sunLight.intensity;
+    world.addActors([{ id: actorId("f"), name: "Shadow Settings", class: null, parent: null, spatiallyLoaded: false,
+      transform: IDENTITY, components: { shadows: { type: "forge.shadowSettings@1", enabled: false } } }], "level");
+    world.tick(0.016); expect(sunLight.castShadow).toBe(false); expect(sunLight.intensity).toBe(intensity);
+    world.removeActors([actorId("f")]); world.tick(0.016); expect(sunLight.castShadow).toBe(true);
+    world.dispose();
+  });
+
   test("authored lights replace the default sun; each component gets its light", () => {
     const { lights, world } = boot(
       {
@@ -152,7 +185,7 @@ describe("light binding", () => {
     const plain = boot({ Sun: sun() }, resolveQualitySettings("medium"));
     const followSun = plain.lights()[0] as DirectionalLight;
     expect(followSun.castShadow).toBe(true);
-    expect((followSun.shadow as { shadowNode?: unknown }).shadowNode ?? null).toBeNull();
+    expect((followSun.shadow as { shadowNode?: unknown }).shadowNode).toBeInstanceOf(BoundedShadowNode);
     // The follow map: 60 m x Medium's distance scale, centred ahead of the camera.
     const half = 60 * resolveQualitySettings("medium").shadowDistanceScale;
     expect(followSun.shadow.camera.right).toBeCloseTo(half);

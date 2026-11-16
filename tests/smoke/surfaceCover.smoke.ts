@@ -1,7 +1,9 @@
 // Terrain's visual WES cover on the actual GPU. Dev-only state, no reference
 // project changes and no snapshot updates. Round-trip back to the base image.
 import { expect, test } from "@playwright/test";
-import { SMOKE_SCENES } from "./renderScenes.ts";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { RENDER_REFS, SMOKE_SCENES } from "./renderScenes.ts";
 import { difference, openSmokeLevel } from "./smokePage.ts";
 
 interface Dev {
@@ -47,5 +49,10 @@ test("terrain: WES snow and wetness draw without rebuilding the surface; zero re
   expect(zeroChange, "cover removal restores the authored terrain").toBeLessThan(.01);
   await info.attach("terrain-snow.png", { body: snow, contentType: "image/png" });
   await info.attach("terrain-wet.png", { body: wet, contentType: "image/png" });
+  const candidates = join(RENDER_REFS, "candidates");
+  mkdirSync(candidates, { recursive: true });
+  for (const [name, shot] of [["dry", dry], ["wet", wet], ["snow", snow]] as const) {
+    writeFileSync(join(candidates, `terrain-cover-${name}.png`), shot);
+  }
   expect(errors).toEqual([]);
 });

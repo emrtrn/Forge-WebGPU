@@ -196,8 +196,9 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   // (Forge's invalidateMaterialsForShadowToggle: a program compiled for the
   // other state would sample a missing shadow map).
   const applyShadowSwitch = (): void => {
-    if (renderer.shadowMap.enabled === quality.settings.shadowsEnabled) return;
-    renderer.shadowMap.enabled = quality.settings.shadowsEnabled;
+    const enabled = quality.settings.shadowsEnabled && world?.shadowsEnabled !== false;
+    if (renderer.shadowMap.enabled === enabled) return;
+    renderer.shadowMap.enabled = enabled;
     world?.scene.traverse((object) => {
       const material = (object as { material?: { needsUpdate: boolean } | { needsUpdate: boolean }[] }).material;
       if (!material) return;
@@ -356,6 +357,8 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       if (previewDraw) { applySize(); previewDraw(renderer, width, height); return; }
       if (world === null) return;
       applySize();
+      applyShadowSwitch();
+      if (options.dev) canvas.dataset.forgeShadows = String(renderer.shadowMap.enabled);
       pipeline.render(world.scene, camera, world.output, quality.settings);
       overlay?.render({ renderer, scene: world.scene, camera, sceneDepth: pipeline.sceneDepth });
       perf.frame(now);

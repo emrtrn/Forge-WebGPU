@@ -111,6 +111,18 @@ for (const scene of SMOKE_SCENES) {
   }
 }
 
+// Phase 5a's temporary effects have no authored counterpart in the reference
+// levels: show their smoke candidates separately, never as accepted references.
+const effects = ([
+  ["terrain-cover-dry.png", "Terrain — authored surface (no cover)"],
+  ["terrain-cover-wet.png", "Terrain — WES wetness 1"],
+  ["terrain-cover-snow.png", "Terrain — WES snow coverage 1"],
+  ["puddle-derekavak.png", "Puddle — dev-injected basin and planar reflection"],
+] as const).flatMap(([name, label]) => {
+  const path = join(RENDER_REFS, "candidates", name);
+  return existsSync(path) ? [`<figure><figcaption>${escape(label)}</figcaption><a href="${href(path)}"><img src="${href(path)}" alt="${escape(label)}" loading="lazy"></a></figure>`] : [];
+});
+
 const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -150,6 +162,7 @@ code { font-size: 12px; }
 <p class="lede">Same pose, same size (${SMOKE_VIEWPORT.width} x ${SMOKE_VIEWPORT.height}, DPR 1). Generated ${new Date().toISOString().slice(0, 16).replace("T", " ")} by <code>npm run smoke:grid</code>; click an image for full size.</p>
 ${notes.length ? `<div class="notes"><strong>Mismatches</strong><ul>${notes.map((note) => `<li>${escape(note)}</li>`).join("")}</ul></div>` : ""}
 <nav>${SMOKE_SCENES.flatMap((scene) => scene.poses.map((pose) => `<a href="#${escape(scene.id)}-${escape(pose.id)}">${escape(scene.id)} ${escape(pose.id)}</a>`)).join("")}</nav>
+${effects.length ? `<section class="row" id="terrain-effects"><header><h2>Phase 5a — visual acceptance candidates</h2><p>Derekavak, 1280 x 720: cover at P1; puddle in a close view of its basin. Temporary WES cover and puddle; project files and accepted references are unchanged.</p></header><div class="pair">${effects.join("\n")}</div></section>` : ""}
 ${rows.join("\n")}
 </main>
 </body>

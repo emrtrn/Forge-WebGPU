@@ -45,7 +45,7 @@ kararları plan K12'de; taşınmayan Forge kodu `forge-webgl-final` etiketinde.
 | `npm run verify:layers` | Katman denetimi + öz-testi |
 | `npm run verify:file-size` | Dosya bütçesi: 800 satırda uyarı, 1.500'de hata |
 | `npm run verify:node-load` | `src/core` ve `features/*/schema.ts` düz Node'da yüklenir |
-| `npm run verify:assets` | `content/` (motor içeriği + paketler) ve `samples/*/content/` asset kapısı: tür + lisans + kaynak, meta'sız ikili, çift GUID, asılı referans, paket bağımlılık yönü |
+| `npm run verify:assets` | `content/` (motor içeriği + paketler) ve `samples/*/content/` asset kapısı: tür + lisans + kaynak, meta'sız ikili, çift GUID, asılı referans, paket bağımlılık yönü; aynı kökte tanımı olmayan terrain parçaları ve tanımda listelenmeyen tile'lar (`orphan-terrain-part`), yalnız raporlar |
 | `npm run assets:index` | `.forge-cache/asset-index.json` önbelleğini yeniden üretir (commit'lenmez) |
 | `npm run verify:sdk-api` | SDK yüzeyi `src/sdk/api.snapshot.txt` ile aynı ve `src/sdk/CHANGELOG.md`'nin en üst girdisi `API: <hash>` taşıyor; yüzey değişince `npm run sdk:snapshot` + changelog girdisi aynı commit'te |
 | `npm run check:projects` | `samples/*` ve `forge.projects.local.json`'daki oyun projeleri: `forge check` + proje asset kapısı + başsız açılış |
@@ -63,6 +63,7 @@ kararları plan K12'de; taşınmayan Forge kodu `forge-webgl-final` etiketinde.
 | `npm run smoke:editor:webgpu` | Aynı editör seti gerçek GPU'da: başlıklı Chrome, `forceWebGL` yok, her açılan editör ve Play sekmesi `data-forge-backend` = `webgpu` kanıtlar (`tests/editor/webgpu.config.ts`). Gate'te ve CI'da değil; editörün çizimine dokunan push'tan önce, faz kapısında |
 | `npm run smoke:grid` | Her smoke pozunun Faz 0 WebGL çekimiyle smoke'un son WebGPU çekimini yan yana koyan yerel sayfa: `render-refs/grid.html` (Faz 0 çekimi olmayan, boyutu tutmayan, çekilmemiş pozlar başta listelenir). Görsel kabulden önce |
 | `npm run measure:sky-capture` | Sky Light (PMREM) yakalama ölçümü: smoke sunucusu ve profili, L03, kare döngüsü duraklatılıp 60 Hz adımlanır (`window.__forgeDev`, yalnız dev); yakalamanın tek başına GPU / CPU süresi ve gün saati geçişlerinde yakalama sayısı, kayıt `render-refs/runs/*-sky-capture.json`. Kapıda değil |
+| `npm run measure:terrain` | Faz 5a §2.10 ölçümü: dört terrain sahnesi × üç Faz 0 pozu × 1080p / 1440p, `high`, DPR 1, başlıklı gerçek WebGPU, uncapped; 10 sn ısınma + 15 sn kare örneği, GPU timestamp ortalamaları, soğuk / sıcak açılış ve shader / pipeline API gecikmesi; ayrıca editörden yeni sekme Play'in soğuk cihaz açılışı. HTTP önbelleği temizlenir; OS / sürücü önbelleği temizlenmez. Kayıt `render-refs/runs/*-terrain-measure.json`. Kapıda ve CI'da değil; tam foliage / su / oyun kabulü sayılmaz |
 | `npm run port:forge-tests -- --forge <Forge>` | 2b test sınıflaması ve ilerleme (A taşınan / payda); `docs/port/forge-engine-tests.tsv` |
 | `npm run port:forge -- <tests\|closure\|subset\|members> … --forge <Forge>` | Taşıma araçları: hazır kontrolleri taşı / neyin beklettiğini söyle (`--deferred <faz>` o faza ertelenmişleri de alır), import kapanışı, eski dosyadan alt küme, bölme planı (ayrıntı `tools/port-forge.ts` başında) |
 | `npm run build` | Projenin üretim build'i (`FORGE_PROJECT_ROOT`, yoksa `samples/starter`): Vite + `tools/build-content.ts` (proje içeriği, motor içeriği ve seçili paketler, kimlik / sınıf / asset dizinleri `dist/forge/`'a); oyun dev server'sız, `BASE_URL` altından okur |
@@ -83,6 +84,19 @@ okunur kalır. Projenin `forge dev` komutu bu kipi açmaz. `verify:assets` paket
 bağımlılık yönünü ve asılı referansları kapıda denetler.
 Smoke portu **5283**. Forge WebGL 5173 / 5273, Ridgebound 5175 kullanır; başka
 projenin sunucusunu yeniden kullanma.
+
+VS Code **Terminal → Run Build Task** varsayılan `Open Editor` görevini çalıştırır:
+5183'te `?editor&level=content/levels/Derekavak`, referans projenin
+`%TEMP%/forge-webgpu-reference-editor/webgpu-scenes` altındaki düzenlenebilir
+kopyası. Kopya ilk açılışta oluşturulur; yeniden başlatmak kaydedilen
+düzenlemelerin üzerine yazmaz. `Open Editor (Reference)` aynı projede L03'ü
+açar. `npm run dev`'in proje seçimi ve `/` oyun görünümü sözleşmesi değişmez.
+
+World Settings → **Shadows**: Scene Shadows genel sahne anahtarıdır
+(`forge.shadowSettings@1`, yoksa açık); nesne tercihlerini değiştirmez.
+Enable / Disable on Objects şekil ve modellerin `castShadow` alanlarını tek
+Undo ile değiştirir; sınıf asset'ine dokunmaz, yüklenmemiş hücre varsa durur.
+Yeni nesnelerde gölge varsayılan açık; kalite profili ayrıca sınırlar.
 
 ## Katmanlar
 

@@ -8,7 +8,8 @@ import assert from "node:assert/strict";
 import { describe, test } from "vitest";
 import { DirectionalLight, Group, Matrix4, PerspectiveCamera, Scene, Vector3, WebGPUCoordinateSystem, type NodeFrame } from "three/webgpu";
 import { computeFollowShadowFrame, type FollowShadowVec3 } from "../../engine/world/followShadow.ts";
-import { CASCADE_BIAS_METERS, CASCADE_NORMAL_BIAS_TEXELS, FOLLOW_SHADOW_DEPTH, SHADOW_DEPTH_BIAS, SunCascadeShadowNode, configureShadow, updateFollowShadow } from "./sunShadow.ts";
+import { CASCADE_BIAS_METERS, CASCADE_NORMAL_BIAS_TEXELS, FOLLOW_SHADOW_DEPTH, SHADOW_DEPTH_BIAS, SunCascadeShadowNode, configureShadow, createSunCascades, updateFollowShadow } from "./sunShadow.ts";
+import { BoundedShadowNode } from "./boundedShadow.ts";
 
 function sunUnderRotatedRoot(): { scene: Scene; sun: DirectionalLight } {
   const scene = new Scene();
@@ -33,6 +34,28 @@ function lightDirection(sun: DirectionalLight): Vector3 {
 }
 
 describe("sun follow shadow (Forge checks, rewritten)", () => {
+  test("camera movement reuses the bounded follow node; switching to cascades releases it and back restores it", () => {
+    const { sun } = sunUnderRotatedRoot();
+    const pointer = sun.shadow as typeof sun.shadow & { shadowNode?: unknown };
+    updateFollowShadow(sun, new Vector3(0, 500, 0), new Vector3(0, -1, 0), 45);
+    const follow = pointer.shadowNode;
+    assert.ok(follow instanceof BoundedShadowNode);
+    let disposed = 0;
+    follow.addEventListener("dispose", () => { disposed += 1; });
+    updateFollowShadow(sun, new Vector3(20, 300, 40), new Vector3(0, -1, 0), 45);
+    assert.equal(pointer.shadowNode, follow);
+    const cascades = createSunCascades(sun);
+    assert.equal(cascades.apply(3, 200, 1024), true);
+    assert.equal(disposed, 1);
+    assert.ok(pointer.shadowNode instanceof SunCascadeShadowNode);
+    cascades.deactivate();
+    assert.equal(pointer.shadowNode, undefined);
+    updateFollowShadow(sun, new Vector3(20, 10, 40), new Vector3(0, -1, 0), 45);
+    const restored = (sun.shadow as { shadowNode?: unknown }).shadowNode;
+    assert.ok(restored instanceof BoundedShadowNode);
+    assert.notEqual(restored, follow);
+  });
+
   test("sun follow shadow: re-centres ahead of the camera without turning the light", () => {
     const { sun } = sunUnderRotatedRoot();
     const before = lightDirection(sun);

@@ -14,6 +14,7 @@ import { join } from "node:path";
 import { buildAssetIndex, type AssetIndex, type SchemaRegistry } from "../../src/core/index.ts";
 import { engineContentRoots, listContentPacks, packWithRequired } from "./engineContent.ts";
 import { scanContentRoots, scanRoots, type ScanResult } from "./scan.ts";
+import { terrainOrphanLines } from "../terrainOrphans.ts";
 
 /** `content/` and every `samples/<name>/content/`. Missing ones are skipped by the scan. */
 export function defaultContentRoots(projectRoot: string): string[] {
@@ -45,8 +46,10 @@ export async function verifyAssets(
   const lines = index.issues.map(
     (issue) => `${issue.severity} ${issue.code} ${issue.file}${issue.path === "" ? "" : ` ${issue.path}`}: ${issue.message}`,
   );
+  const orphans = terrainOrphanLines(scan.files, index);
+  lines.push(...orphans);
   const where = scan.roots.length === 0 ? "no content root yet" : `${scan.roots.length} root(s): ${scan.roots.join(", ")}`;
-  let errors = index.issues.filter((issue) => issue.severity === "error").length;
+  let errors = index.issues.filter((issue) => issue.severity === "error").length + orphans.length;
   for (const pack of [null, ...(await listContentPacks(projectRoot))]) {
     const packs = pack === null ? [] : await packWithRequired(projectRoot, pack);
     const seen = pack === null ? "engine content alone" : `pack ${packs.join(" + ")} with engine content`;

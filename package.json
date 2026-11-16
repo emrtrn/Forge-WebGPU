@@ -33,6 +33,7 @@
     "smoke:editor:webgpu": "playwright test -c tests/editor/webgpu.config.ts",
     "smoke:dist": "playwright test -c tests/production/playwright.config.ts",
     "measure:sky-capture": "playwright test -c tests/smoke/measure.config.ts",
+    "measure:terrain": "playwright test -c tests/smoke/terrainMeasure.config.ts",
     "build": "vite build && node tools/build-content.ts",
     "verify:dist": "node tools/verify-dist.ts",
     "gate": "npm run typecheck && npm run verify:layers && npm run verify:file-size && npm run verify:node-load && npm run verify:assets && npm run verify:sdk-api && npm run check:projects && npm run test && npm run build && npm run verify:dist -- --strict && npm run smoke:editor && npm run smoke:dist"

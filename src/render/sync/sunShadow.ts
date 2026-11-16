@@ -36,6 +36,7 @@ import { CSMShadowNode } from "three/examples/jsm/csm/CSMShadowNode.js";
 import { Matrix4, Vector3, type DirectionalLight, type DirectionalLightShadow, type Light, type NodeFrame, type Object3D, type PointLight, type SpotLight } from "three/webgpu";
 import { computeFollowShadowFrame } from "../../engine/world/followShadow.ts";
 import { computeCascadeSplits, SUN_CASCADE_DEPTH_MARGIN, SUN_CASCADE_NEAR, SUN_CASCADE_SPLIT_LAMBDA } from "../../engine/world/sunCascades.ts";
+import { releaseBoundedFollowShadow, useBoundedFollowShadow } from "./boundedShadow.ts";
 
 export const SHADOW_DEPTH_BIAS = -0.0005;
 export const SHADOW_NORMAL_BIAS = 0.02;
@@ -102,6 +103,7 @@ export function updateFollowShadow(light: DirectionalLight, cameraPosition: Vect
     depthBelow: FOLLOW_SHADOW_DEPTH,
   });
   if (!frame) return false;
+  useBoundedFollowShadow(light);
   setWorldPosition(light, frame.position);
   setWorldPosition(light.target, frame.target);
   const camera = light.shadow.camera;
@@ -168,7 +170,7 @@ export function createSunCascades(light: DirectionalLight): SunCascades {
   let key = "";
   const deactivate = (): void => {
     if (!node) return;
-    (light.shadow as { shadowNode?: unknown }).shadowNode = null;
+    delete (light.shadow as { shadowNode?: unknown }).shadowNode;
     node.dispose();
     node = null;
     key = "";
@@ -182,6 +184,7 @@ export function createSunCascades(light: DirectionalLight): SunCascades {
       const next = `${count}|${distance}|${mapSize}`;
       if (node && next === key) return true;
       deactivate();
+      releaseBoundedFollowShadow(light);
       configureShadow(light, mapSize);
       node = new SunCascadeShadowNode(light as unknown as ConstructorParameters<typeof CSMShadowNode>[0], {
         cascades: count,

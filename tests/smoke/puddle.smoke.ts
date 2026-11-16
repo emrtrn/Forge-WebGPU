@@ -137,7 +137,6 @@ test("puddle: a basin ahead of the camera fills, draws and reflects the scene", 
   await testInfo.attach("puddle.png", { body: drawn, contentType: "image/png" });
   // For the eye only: never a reference.
   mkdirSync(join(RENDER_REFS, "candidates"), { recursive: true });
-  writeFileSync(join(RENDER_REFS, "candidates", "puddle-derekavak.png"), drawn);
   console.log(`image change ${change.toFixed(3)} (still noise ${noise.toFixed(3)}); draw calls ${callsBefore} -> ${callsAfter}`);
   expect(change, "the puddle is drawn").toBeGreaterThan(Math.max(0.05, noise * 4));
   expect(callsAfter - callsBefore, "the planar reflection draws the scene again").toBeGreaterThan(10);
@@ -155,4 +154,10 @@ test("puddle: a basin ahead of the camera fills, draws and reflects the scene", 
   expect(windChange, "the textured wind ripples animate on the actual GPU").toBeGreaterThan(.001);
   expect(pageErrors).toEqual([]);
   expect(gpuErrors).toEqual([]);
+  // The readout is useful evidence, but it covers half the basin in the
+  // acceptance gallery. Keep the debug attachment and publish a clean view too.
+  await page.locator("#debug-stats").evaluate((element) => { (element as HTMLElement).style.display = "none"; });
+  const clean = await shot();
+  await testInfo.attach("puddle-clean.png", { body: clean, contentType: "image/png" });
+  writeFileSync(join(RENDER_REFS, "candidates", "puddle-derekavak.png"), clean);
 });

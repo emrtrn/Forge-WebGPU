@@ -27,6 +27,7 @@ import { createWorldResources, type ModelSource, type WorldResources } from "../
 import { createDefaultLighting } from "./defaultLighting.ts";
 import { createEnvironmentOverride } from "./environment.ts";
 import { createOutputState } from "./output.ts";
+import { sceneShadowQuality, sceneShadowsEnabled } from "./sceneShadows.ts";
 import type { EnvironmentCapture, RenderBindingDef, RenderBindingInstance, RenderOutput, RenderWorldView } from "./renderBinding.ts";
 
 export const RENDER_FEATURE_ID = "forge.render";
@@ -39,6 +40,8 @@ export interface RenderWorld {
   readonly resources: WorldResources;
   /** The output transform the frame is presented with, resolved each frame. */
   readonly output: RenderOutput;
+  /** Absent in older host adapters means on. This world's authored scene gate. */
+  readonly shadowsEnabled?: boolean;
 }
 
 export interface RenderFeatureOptions {
@@ -89,13 +92,14 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       const environment = createEnvironmentOverride(view, lighting);
       const outputState = createOutputState(view);
       const output = outputState.output;
+      const effectiveQuality = sceneShadowQuality(view, options.quality);
       const instances: RenderBindingInstance[] = bindings.map((binding) =>
         binding.create({
           world: view, scene, root, resources, lighting, environment: environment.environment, output,
-          capture: options.capture ?? null, quality: options.quality,
+          capture: options.capture ?? null, quality: effectiveQuality,
         }),
       );
-      const world: RenderWorld = { name: options.name, scene, root, resources, output };
+      const world: RenderWorld = { name: options.name, scene, root, resources, output, get shadowsEnabled() { return sceneShadowsEnabled(view); } };
       options.attach?.(world);
       return {
         actorsAdded(actors) {
@@ -121,7 +125,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
         tick(_group, dt) {
           const frame = { dt, camera: options.camera() };
           environment.update();
-          lighting.sync(frame.camera, options.quality(), environment.environment.override);
+          lighting.sync(frame.camera, effectiveQuality(), environment.environment.override);
           outputState.update(environment.environment.override, options.quality());
           for (const instance of instances) instance.sync?.(frame);
         },

@@ -3,14 +3,21 @@
   "tasks": [
     {
       "label": "Open Editor",
-      "type": "shell",
+      "detail": "Derekavak terrain in the editor on 5183; editable reference copy, original reference content is preserved",
+      "type": "process",
       "command": "powershell",
       "args": [
         "-NoProfile",
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        "${workspaceFolder}/tools/open-dev-server.ps1"
+        "${workspaceFolder}/tools/open-dev-server.ps1",
+        "-Path",
+        "/?editor&level=content/levels/Derekavak",
+        "-Project",
+        "${env:TEMP}/forge-webgpu-reference-editor/webgpu-scenes",
+        "-MirrorFrom",
+        "${workspaceFolder}/../Games/ForgeReference/webgpu-scenes"
       ],
       "group": {
         "kind": "build",
@@ -25,7 +32,7 @@
     },
     {
       "label": "Open Editor (Reference)",
-      "detail": "A scratch copy of Games/ForgeReference/webgpu-scenes (refreshed when the server starts), L03 in the editor on 5183",
+      "detail": "The same editable reference copy, L03 in the editor on 5183; existing edits are preserved",
       "type": "process",
       "command": "powershell",
       "args": [

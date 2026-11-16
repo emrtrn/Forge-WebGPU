@@ -215,3 +215,21 @@ gate'te ve CI'da değil, `render/**` ya da `features/*/render.ts` dokunan
 push'tan önce; `tests/smoke/`, referans görüntüler ve koşu kayıtları depo
 dışında `Games/ForgeReference/render-refs/`; Faz 0 ile yan yana sayfa
 `npm run smoke:grid`; rapor §4.10).
+
+Terrain bakım kapısı `tools/terrainOrphans.ts` ile aynı kökte tanımı olmayan
+parçaları ve tanımın tile listesinde olmayan ikilileri raporlar; kayıtlı ama
+yerleştirilmemiş terrain korunur, otomatik silme yoktur (`verify:assets` ve
+`check:projects`). `npm run measure:terrain`, dört terrain sahnesinin kayıtlı
+pozlarında 1080p / 1440p kare ve GPU süreleri, soğuk / sıcak açılış, shader /
+pipeline API gecikmesi ve yeni sekme Play açılışını kaydeder; tam açık dünya
+kabulü sonraki alt fazlarla tamamlanır (rapor §4.9, §4.10).
+Takipli yönlü gölge `render/sync/boundedShadow.ts` ile üç eksende [0,1]
+kapsamını korur; ters derinlikte far dışındaki zeminde harita izi oluşmaz.
+CSM kendi kaskatlarını kullanır; takip / CSM geçişinde eski düğüm bırakılır
+(rapor §4.9, Island düzeltmesi).
+
+World Settings → Shadows genel kapısının sahibi `forge.light` içindeki tekil
+`forge.shadowSettings@1` bileşenidir (yoksa açık). `render/sync/sceneShadows`
+ve host, kaliteyle birlikte uygular. Nesne tercihleri bağımsız kalır;
+`engine/edit/objectShadows` toplu değişikliği planlar, `editor/world/sceneShadows`
+tek Undo işlemi uygular ve yüklenmemiş hücrede durdurur (rapor §4.9).

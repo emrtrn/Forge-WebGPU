@@ -1,9 +1,9 @@
 param(
-  [string]$Path = "/",
+  [string]$Path = "/?editor",
   # Project the editor opens; empty = samples/starter (npm run dev's default).
   [string]$Project = "",
-  # When given, $Project is mirrored from this folder before the server starts
-  # (a scratch copy: saving in the editor never touches the source).
+  # When given, a missing $Project is initialized from this folder. Reopening
+  # preserves edits in the copy; saving never touches the source.
   [string]$MirrorFrom = ""
 )
 
@@ -64,16 +64,18 @@ if (Test-Listening) {
   }
 }
 
-if ($MirrorFrom -ne "") {
+if ($MirrorFrom -ne "" -and -not (Test-Path -LiteralPath (Join-Path $WantedRoot "forge.project.json"))) {
   $Source = Normalize-Root $MirrorFrom
   if (-not (Test-Path (Join-Path $Source "forge.project.json"))) {
     Write-Host "Not a Forge project: $Source"
     exit 1
   }
-  Write-Host "Mirroring $Source -> $WantedRoot"
-  # /MIR copies only what changed and deletes what the source lacks; the
-  # project's .forge cache stays out.
-  robocopy $Source $WantedRoot /MIR /XD (Join-Path $Source ".forge") /NFL /NDL /NJH /NJS /NP | Out-Null
+  if ($WantedRoot -ieq $Source -or $Source.StartsWith($WantedRoot + '\', [System.StringComparison]::OrdinalIgnoreCase) -or $WantedRoot.StartsWith($Source + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "The editor copy and source must be separate folders."
+  }
+  Write-Host "Initializing editor copy $Source -> $WantedRoot"
+  # Add files to the new copy, never delete or resync an existing editor project.
+  robocopy $Source $WantedRoot /E /XD (Join-Path $Source ".forge") (Join-Path $Source ".forge-cache") (Join-Path $Source ".forge-session") /NFL /NDL /NJH /NJS /NP | Out-Null
   if ($LASTEXITCODE -ge 8) {
     Write-Host "robocopy failed (exit $LASTEXITCODE)."
     exit 1

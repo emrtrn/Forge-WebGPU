@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Sürüm:** v1.34 · 2026-11-15 (v1.33’ten fark: §4.9 Faz 5a adım 7 — WES v2 örtü / rüzgâr ve A7 state, terrain katkısı, birikinti rüzgârı TSL; §4.4 settings.wind; kullanıcı kararları; SDK 0.1.12). v1.33 · 2026-11-15 (v1.32’den fark: §4.9 Faz 5a adım 6 — su birikintisinin uygulaması ve kullanıcı kararları; §4.3 Details eklentisine `target()`, SDK 0.1.11). v1.32 · 2026-11-15 (v1.31’den fark: §4.9 Faz 5a adım 5 — G8: görsel yüksekliğin CPU ikizi, terrain materyalinin yükseklik sondası ve yalnız dev’deki GPU ölçümü). v1.31 · 2026-11-15 (v1.30’dan fark: §4.9 Faz 5a adım 4 — `?debug` terrain haritası, panelin sahnedeki debug etiketleri, pick yüzeyi terrain’in yerel çerçevesinde). v1.30 · 2026-11-15 (v1.29’dan fark: §4.9 Faz 5a adım 3 — terrain katman dizileri, alfa pürüzlülük, katman normali, statik detay, delik maskesi, kalite kancaları). v1.29 · 2026-11-15 (v1.28’den fark: §4.9 Faz 5a adım 2’nin uygulaması — terrain akışının sahibi şimdilik render bağlaması (Faz 6’da fizikle paylaşılan alt sisteme), worker havuzu render katmanında, akış çekirdeği 5b’den öne alındı, hazır olma `track` / `busy`). v1.28 · 2026-11-15 (v1.27’den fark: §4.9 Faz 5a kararları, kullanıcı onayı — kıyı ıslaklığı ve kostik Faz 7’ye, `forge.puddle` bileşeni + `reflector()` yansıması, terrain tile akışı (worker, editör, frustum), G8 collider eşleşmesi testle, WES `surface` örtüsü simülasyon süresiyle, `?debug` terrain haritası, öksüz tile `verify:assets`’te). v1.27 · 2026-11-15 (v1.26’dan fark: §4.3 oyunun editör tarafı uygulandı (INV-A32): dev server projenin `editor.ts`’lerini `virtual:forge/game-editors` ile editöre verir, hatalı olan editörü dosya adıyla durdurur; §4.10 editör smoke tam seti (Faz 4 kapısı) ve gerçek GPU’daki koşusu `npm run smoke:editor:webgpu`). v1.26 · 2026-11-15 (v1.25’ten fark: §4.6 süreçler arası kayıt kilidi, ortak authoring modülü, dosya olayları (`forge:files`); §4.11 A12 uygulaması — `forge edit` komutları, ortak işlemler `src/engine/edit`, editörün canlı tazelenmesi; kullanıcı kararları 2026-11-15). v1.25 · 2026-11-15 (v1.24’ten fark: §4.6 Play uçları ve 409 akışının uygulaması — alan düzeyinde üç yönlü birleştirme, oturum tabanı, `compare` / `rebase`, Reload ve birleştirme undo geçmişini temizler (kullanıcı kararları); §4.7 Play oturum katmanının uygulaması). v1.24 · 2026-11-14 (kullanıcı kararı: WES + prosedürel bitki ortak sözleşmesi; bitki ailesi, tekil aktör / foliage eşitliği, zaman / mevsim / örtü sahipliği ve 5c bağı; yalnız plan, uygulama yok). v1.23 · 2026-11-14 (v1.22’den fark: §4.3 assetEditors / assetPreviews sözleşmeleri (SDK 0.1.10); §4.11 A13 uygulaması — ortak asset oturumu ve sanal tablo, tek canvas / GPU önizlemesi, sınıf uyumluluk koruması ve kaynak nesli yönetimi). v1.22 · 2026-11-14 (v1.21’den fark: §4.8 motor içeriği kipinin uygulaması — kayıtlı kökler için ayrı kayıt politikası, Content Browser ve level kayıt yönlendirmesi, etiketli 409 / hücre dizini yolları, sınıf tazeleme ve geçici içerikle kabul). v1.21 · 2026-11-14 (v1.20'den fark: §4.3 bir özelliğin editör tarafı `defineFeatureEditor` (Outliner görünüşü, Add Actor girişleri, Details eklentileri; SDK 0.1.5–0.1.7); §4.4 aktörün editöre özgü `locked`'u (kullanıcı kararı); §4.7 paneller: gizleme yalnız görünüm, Details'in şemadan formu ve override'ları, düzenleme işlemleri, gruplama ve pano (kullanıcı kararları 2026-11-14).
+**Sürüm:** v1.37 · 2026-11-16 (v1.36’dan fark: World Settings sahne gölge anahtarı, `forge.shadowSettings@1`, nesne tercihlerini koruyan render kapısı ve tek Undo ile toplu nesne gölgesi işlemleri; Island içeriği değiştirilmez). v1.36 · 2026-11-16: §4.9 Island takip gölgesi — ters derinlikte eksik alt Z sınırı, `BoundedShadowNode`, CSM / takip haritası kaynak geçişi ve gerçek GPU regresyonu. v1.35 · 2026-11-16: §4.9 öksüz terrain parça denetimi, §4.10 terrain performans ölçümü ve görsel kabul adayları (Faz 5a adım 8).
+
+**Önceki sürümler:** v1.34 · 2026-11-15 (v1.33’ten fark: §4.9 Faz 5a adım 7 — WES v2 örtü / rüzgâr ve A7 state, terrain katkısı, birikinti rüzgârı TSL; §4.4 settings.wind; kullanıcı kararları; SDK 0.1.12). v1.33 · 2026-11-15 (v1.32’den fark: §4.9 Faz 5a adım 6 — su birikintisinin uygulaması ve kullanıcı kararları; §4.3 Details eklentisine `target()`, SDK 0.1.11). v1.32 · 2026-11-15 (v1.31’den fark: §4.9 Faz 5a adım 5 — G8: görsel yüksekliğin CPU ikizi, terrain materyalinin yükseklik sondası ve yalnız dev’deki GPU ölçümü). v1.31 · 2026-11-15 (v1.30’dan fark: §4.9 Faz 5a adım 4 — `?debug` terrain haritası, panelin sahnedeki debug etiketleri, pick yüzeyi terrain’in yerel çerçevesinde). v1.30 · 2026-11-15 (v1.29’dan fark: §4.9 Faz 5a adım 3 — terrain katman dizileri, alfa pürüzlülük, katman normali, statik detay, delik maskesi, kalite kancaları). v1.29 · 2026-11-15 (v1.28’den fark: §4.9 Faz 5a adım 2’nin uygulaması — terrain akışının sahibi şimdilik render bağlaması (Faz 6’da fizikle paylaşılan alt sisteme), worker havuzu render katmanında, akış çekirdeği 5b’den öne alındı, hazır olma `track` / `busy`). v1.28 · 2026-11-15 (v1.27’den fark: §4.9 Faz 5a kararları, kullanıcı onayı — kıyı ıslaklığı ve kostik Faz 7’ye, `forge.puddle` bileşeni + `reflector()` yansıması, terrain tile akışı (worker, editör, frustum), G8 collider eşleşmesi testle, WES `surface` örtüsü simülasyon süresiyle, `?debug` terrain haritası, öksüz tile `verify:assets`’te). v1.27 · 2026-11-15 (v1.26’dan fark: §4.3 oyunun editör tarafı uygulandı (INV-A32): dev server projenin `editor.ts`’lerini `virtual:forge/game-editors` ile editöre verir, hatalı olan editörü dosya adıyla durdurur; §4.10 editör smoke tam seti (Faz 4 kapısı) ve gerçek GPU’daki koşusu `npm run smoke:editor:webgpu`). v1.26 · 2026-11-15 (v1.25’ten fark: §4.6 süreçler arası kayıt kilidi, ortak authoring modülü, dosya olayları (`forge:files`); §4.11 A12 uygulaması — `forge edit` komutları, ortak işlemler `src/engine/edit`, editörün canlı tazelenmesi; kullanıcı kararları 2026-11-15). v1.25 · 2026-11-15 (v1.24’ten fark: §4.6 Play uçları ve 409 akışının uygulaması — alan düzeyinde üç yönlü birleştirme, oturum tabanı, `compare` / `rebase`, Reload ve birleştirme undo geçmişini temizler (kullanıcı kararları); §4.7 Play oturum katmanının uygulaması). v1.24 · 2026-11-14 (kullanıcı kararı: WES + prosedürel bitki ortak sözleşmesi; bitki ailesi, tekil aktör / foliage eşitliği, zaman / mevsim / örtü sahipliği ve 5c bağı; yalnız plan, uygulama yok). v1.23 · 2026-11-14 (v1.22’den fark: §4.3 assetEditors / assetPreviews sözleşmeleri (SDK 0.1.10); §4.11 A13 uygulaması — ortak asset oturumu ve sanal tablo, tek canvas / GPU önizlemesi, sınıf uyumluluk koruması ve kaynak nesli yönetimi). v1.22 · 2026-11-14 (v1.21’den fark: §4.8 motor içeriği kipinin uygulaması — kayıtlı kökler için ayrı kayıt politikası, Content Browser ve level kayıt yönlendirmesi, etiketli 409 / hücre dizini yolları, sınıf tazeleme ve geçici içerikle kabul). v1.21 · 2026-11-14 (v1.20'den fark: §4.3 bir özelliğin editör tarafı `defineFeatureEditor` (Outliner görünüşü, Add Actor girişleri, Details eklentileri; SDK 0.1.5–0.1.7); §4.4 aktörün editöre özgü `locked`'u (kullanıcı kararı); §4.7 paneller: gizleme yalnız görünüm, Details'in şemadan formu ve override'ları, düzenleme işlemleri, gruplama ve pano (kullanıcı kararları 2026-11-14).
 v1.20 · 2026-11-14 (v1.19'dan fark: §4.4 aktörün editöre özgü `pivot`'u (kullanıcı kararı); §4.7 gizmo'nun uygulaması (three'siz sürükleme, tek transaction, instancing hızlı yolu); §4.9 gizmo katmanın son pass'i.
 v1.19 · 2026-11-14 (v1.18'den fark: §4.2 editör yardımcı bağlamaları (`defineEditorRenderBinding`, `forge.editorHelpers`); §4.9 çizim katmanının uygulaması (sahne derinliği, derinlik ön geçişi, ton eşlemesiz bileşim) ve picking etiketleri.
 v1.18 · 2026-11-13 (v1.17'den fark: §4.8 build'in uygulaması (kullanıcı kararı: Faz 4): statik içerik, `ContentClient`, alt dizin.
@@ -790,6 +792,20 @@ düşen alan uyarı değil, **hatadır**.
     `staticObjectsReceiveShadow`'u taşınmaz; `castShadow` bileşenin alanıdır
     (varsayılan açık, Unreal gibi), içe aktarıcı Forge level'ının ayarını her
     yerleşime çözer (Forge'da kapalıysa `false` yazar); gölge almak hep açık.
+    **Sahne gölge yönetimi (kullanıcı kararı 2026-11-16):** nesne başına
+    `castShadow` varsayılan açık kalır. World Settings → Shadows ayrı genel
+    kapıdır: light özelliğinin uzamsal olmayan tekil `forge.shadowSettings@1`
+    bileşenindeki `enabled` (varsayılan açık, bileşen yoksa açık). İlk açık
+    durumdan ayrılmada standart aktör işlemiyle oluşturulur; yükleme içerik
+    yazmaz. Render host'u ve varsayılan / yerleştirilmiş ışıklar bu kapıyı
+    kalite profiliyle AND uygular; anahtar nesne ve ışık alanlarını değiştirmez.
+    Yeniden açmak önceki tercihleri geri kullanır; Low gölgeyi yine sınırlar.
+    Ayrı Enable / Disable on Objects işlemleri yalnız `forge.staticMesh` ve
+    `forge.shape` alanlarını (gizli nesneler dahil) tek Undo ile değiştirir;
+    sınıf örneğine override, sınıf asset'ine yazma yok. `LevelSession.unloadedCells`
+    boş değilse toplu işlem reddedilir; yalnız yüklü kısma sessiz uygulama yok.
+    Genel ayar normal kayıt / geri alma / Play yolunu kullanır. Mevcut Island
+    verisi ve içe aktarıcının eski ayarları çözme davranışı değiştirilmez.
   - *Uygulama (Faz 3 adım 4, 2026-11-13):* `defineJsonAssetType(ad, sürüm,
     { suffix, fields }, { migrations })` (`src/core/assets/jsonAsset.ts`),
     tanım `DocumentAssetTypeDef` + `json` (sürüm, sonek, alanlar, geçişler);
@@ -1402,6 +1418,19 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   ışıklarını ışığın ebeveynine ekler: dönük / taşınmış bir aktörün altında
   kaskatlar görüşü ıskalıyordu (terrain level'larında hiç statik gölge yoktu;
   Faz 0 ızgarasında bulundu).
+  *Island düzeltmesi (2026-11-16):* r187 `ShadowNode.setupShadowFilter`
+  XY'yi [0,1] ve Z'yi yalnız ≤ 1 denetler. Ters derinlikte far düzleminin
+  ötesindeki alıcı Z < 0'dır; kamera yükselince boş takip haritası bile
+  zeminde kamerayı izleyen koyu dörtgen oluşturuyordu. Takipli yönlü
+  harita `render/sync/boundedShadow.ts`'teki `BoundedShadowNode` ile alt
+  Z ≥ 0 kontrolünü de uygular; three'nin filtresi, harita menzili ve bias
+  korunur. Düğüm kamera hareketinde yeniden kurulmaz. CSM'ye geçişte
+  takip düğümü serbest bırakılır; CSM kapanınca özel düğüm alanı silinir
+  (`undefined`, fallback sözleşmesi), takip düğümü sonraki sync'te kurulur.
+  CSM kaskatlarının örneklemesi değişmez. GPU regresyonu
+  `tests/smoke/followShadow.smoke.ts`: gerçek WebGPU'da normal / ters
+  derinlik, boş harita içinde / dışında aydınlık zemin ve gerçek kutu
+  gölgesi; fixture authored level'a yazmaz.
 - *Editör çizim katmanı (Faz 4 kararı, 2026-11-13):* gizmo, ızgara, seçim çerçevesi
   ve yardımcı çizimler pipeline'ın çıktısından sonra, jitter'sız kamerayla ayrı bir
   pass'te çizilir; derinlik testi sahne pass'inin derinliğine karşı. Picking CPU'da:
@@ -1586,7 +1615,7 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
 - *Terrain:* Faz 3'te salt çizim (spike S2'nin TSL CDLOD'u: yükseklik, 8
   katman, normal, gölge); su birikintisi, tile akışı ve üretim kalitesi 5a'da;
   kıyı ıslaklığı ve kostik su gövdeleriyle Faz 7'de. HLOD 5b'de.
-- *Terrain, Faz 5a kararları (kullanıcı, 2026-11-15; henüz uygulanmadı):*
+- *Terrain, Faz 5a kararları (kullanıcı, 2026-11-15; uygulamalar aşağıda):*
   - *Kapsam:* Forge'un `terrainShoreWetness` / `terrainCaustics`'i göl, nehir ve
     okyanus gövdelerinden beslenir; o gövdeler Faz 7'de gelir, iki özellik de
     onlarla. INV-G14 bölünür.
@@ -1664,6 +1693,14 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     *Uygulama (adım 7, 2026-11-15; kullanıcı kararları):* `forge.worldEnvironment@2` v1'i partial-safe identity migration ile okur; yeni alanların nötr varsayılanları normalizasyonda gelir. `surface.snowCoverage / wetness` açılıştaki örtü ve hedeflerdir; mevsim / hava hedefleri değiştirmez. `snowAccumulationRate / snowMeltRate / wettingRate / dryingRate`: 0–1 örtü / simülasyon saniyesi; varsayılan 0,01 / 0,005 / 0,1 / 0,01, sıfır tutar. Saf `engine/environment/surfaceAccumulation`; controller `advance(dt)` saatin farkını kullanmaz, sabit saatte de ilerler, pause'da durur. `setSurfaceTarget` hedef, `setSurface` anlık atama / önizleme; mevsim ve örtü bağımsızdır. Ortak WES state'i (geçerli saat / mevsim / hava, örtü ve hedefler) bileşenin A7 `liveEnvironment` runtime state'ine yansır; level belgesine yazılmaz. Save/load aynı durumdan devam eder, ağaç başına kayıt yoktur. Editör sürgüleri doğrudan gösterir, yalnız Make Default authored hedefleri tek undo adımıyla değiştirir; dosya baytları ve Play izolasyonu testlidir. Terrain `materials/surfaceCover` katkısını sabit sırada (wetness) kullanır: ıslaklık renk / pürüzlülük, kar renk / pürüzlülük + yukarı bakan geometrik normal / dünya yüksekliği maskeleri; yalnız uniform güncellenir, paint / yükseklik / fizik materyali, vertex / G8 ve shader grafiği değişmez. Birikinti `materials/puddleWind`: Forge'un iki normal katmanı, eğrisel tepeler, paket / esinti pencereleri, türev süzme / pürüzlülük genişlemesi TSL'de; yansıma kamerasının projeksiyonu eğimi planar okumaya taşır. `PuddleWindMotion` simülasyon süresiyle beslenir, boş normal dalgacık üretmez. Normal World cache'inden ödünç, generation koruması geç yüklemenin silineni diriltmesini engeller; World'ün kaynaklarına host'un texture kaynağı da verilir. İçe aktarıcı surface / wind'i v2'ye çevirir, `--compare` yazılmış değerleri de karşılaştırır. Bitki tüketimi / PG0–PG3 5c'de.
   - *Teşhis ve bakım:* `?debug` terrain haritası 5a'da; öksüz tile modülü
     taşınır, ayrı araç yerine `verify:assets` raporlar.
+    *Öksüz parçalar (adım 8, 2026-11-16):* `tools/terrainOrphans.ts`, Forge'un
+    `collectJsonStrings` algoritması ve kalan 1 A testi; sahiplik yeni modele
+    uyarlanır. Kayıtlı `forge.terrain` tanımı aynı içerik kökünde olmalıdır;
+    tile ayrıca tanımın `data.tiles[].key` listesinde olmalıdır. Global harita
+    aynı kökteki tanıma aittir. Level'a yerleştirilmemiş terrain normal bir
+    asset'tir, öksüz sayılmaz. `verify:assets` ve `check:projects`
+    `orphan-terrain-part` hatasını dosya / tanım yoluyla raporlar; dosya
+    silmez. Okunamayan tile listesi boş liste kabul edilmez.
     *Uygulama (adım 4, 2026-11-15):* harita Forge'un `debugTerrainMap`'i
     (`render/viewer/debug/debugTerrainMap.ts`), okumada Forge'un akış satırları.
     Akışın sahibi render bağlaması olduğu için panel bağlamayı tanımaz: bağlama
@@ -1747,6 +1784,27 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   Referanslar kullanıcı kabulüyle yazıldı (2026-11-13); karşılaştırma
   `maxDiffPixelRatio` 0,01 (GTAO / gren gürültüsü bu eşiğin içinde, ikinci
   koşu 15 / 15).
+- **Terrain performans ölçümü (5a adım 8, 2026-11-16):** `npm run
+  measure:terrain`, `tests/smoke/terrainMeasure.config.ts`: smoke sunucusu /
+  gerçek WebGPU, uncapped Chrome; dört terrain sahnesinin Faz 0 P1–P3 pozları,
+  1920 × 1080 ve 2560 × 1440, DPR 1, sabit `high`, adaptive kapalı. 10 sn
+  ısınma, 15 sn ham rAF örneği (ortalama / medyan / p95 / en uzun kare).
+  GPU timestamp-query'nin 120 örneklik hareketli ortalaması 500 ms'lik perf
+  kaydından alınır; ham kare süreleriyle karıştırılmaz. Soğuk: yeni context +
+  temiz HTTP cache; sıcak: aynı sekmenin reload'u. OS / sürücü shader cache'i
+  temizlenmez. `measurementPage.ts` yalnız testte, navigasyondan önce WebGPU
+  shader / pipeline API gecikmesini ve hazır canvas zamanını ölçer; async
+  gecikmeler örtüşebilir, toplamları yükleme / saf derleyici süresi değildir.
+  Ayrıca Derekavak editöründen Play, yeni sekme / cihaz / modül grafiğiyle
+  ölçülür (editörün ısıttığı HTTP cache ayrıca belirtilir). Commit, dirty,
+  three, tarayıcı, backend, GPU / sürücü, poz, profil ve ham örnekler
+  `render-refs/runs/*-terrain-measure.json`'a; GPU bellek baytı erişilemiyorsa
+  null ve gerekçesi. 1080p ortalama ≤ 14 / p95 ≤ 16,6 ms; 1440p ≤ 16,6 /
+  p95 ≤ 20 ms terrain diliminin bütçeleridir. Foliage / su gövdeleri / oyun
+  henüz yok; G1 içerik eşdeğerliği ve tam dünya G2 / G3 / G6 kabulü sayılmaz.
+  WES'in kuru / ıslak / karlı çekimleri ve debug paneli olmadan birikinti
+  `render-refs/candidates/`'e yazılır; `smoke:grid` bunları ayrıca
+  `#terrain-effects` altında gösterir. Adaylar kabul edilmiş referans değildir.
 - **Dağıtım tabanı:** bütün URL'ler `base`'e göre; alt dizin yayını ilk günden
   test edilir (F06).
 - **Asset kökeni:** içe aktarmada tür + lisans + kaynak zorunlu; CI'da kapı
