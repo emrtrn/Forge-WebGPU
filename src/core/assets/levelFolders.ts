@@ -29,6 +29,7 @@ import {
   normalizeLevelCellIndex,
 } from "../level/cellDocs.ts";
 import { compareCellKeys } from "../level/cells.ts";
+import { HLOD_INDEX_FILE, HLOD_DIR, hlodCellFileOf, normalizeHlodIndex } from "../level/hlod.ts";
 import { mergeLevelParts } from "../level/levelParts.ts";
 import type { LevelCellDoc, LevelCellIndexDoc } from "../level/model.ts";
 import { normalizeLevel } from "../level/normalizeLevel.ts";
@@ -59,9 +60,12 @@ export function partFolderOf(path: string): string | null {
   const slash = path.lastIndexOf("/");
   const name = path.slice(slash + 1);
   const parent = slash < 0 ? "" : path.slice(0, slash);
-  if (name === CELL_INDEX_FILE) return parent;
-  if (parent === CELLS_DIR) return "";
-  return parent.endsWith(`/${CELLS_DIR}`) ? parent.slice(0, -CELLS_DIR.length - 1) : null;
+  if (name === CELL_INDEX_FILE || name === HLOD_INDEX_FILE) return parent;
+  for (const dir of [CELLS_DIR, HLOD_DIR]) {
+    if (parent === dir) return "";
+    if (parent.endsWith(`/${dir}`)) return parent.slice(0, -dir.length - 1);
+  }
+  return null;
 }
 
 /** `<folder>/<relative>`; at the root, just `<relative>`. */
@@ -142,6 +146,26 @@ export function indexLevelFolder(
     withFile(label(relative), ctx.issues, issues);
   };
 
+  const hlodPath = inFolder(folder, HLOD_INDEX_FILE);
+  const hlodFile = parts.find((file) => file.path === hlodPath);
+  const hlod = hlodFile ? normalizeHlodIndex(hlodFile.json, options) : null;
+  if (hlodFile?.parseError) report(HLOD_INDEX_FILE, (ctx) =>
+    reportLoss(ctx, "invalid-document", "", `Not valid JSON: ${hlodFile.parseError}`));
+  if (hlod) withFile(label(HLOD_INDEX_FILE), hlod.issues, issues);
+  if (hlod?.value && hlod.value.level !== persistent.id) report(HLOD_INDEX_FILE, (ctx) =>
+    reportLoss(ctx, "invalid-value", "level", `The HLOD index belongs to level ${hlod.value!.level}.`));
+  if (hlod?.value && hlod.value.cellSize !== persistent.settings.cellSize) report(HLOD_INDEX_FILE, (ctx) =>
+    reportLoss(ctx, "invalid-value", "cellSize", "HLOD cellSize differs from the level's cellSize; rebuild HLOD."));
+  const proxyPaths = new Set((hlod?.value?.cells ?? []).map((cell) => inFolder(folder, hlodCellFileOf(cell.key))));
+  const partPaths = new Set(parts.map((file) => file.path));
+  for (const path of proxyPaths) if (!partPaths.has(path)) report(HLOD_INDEX_FILE, (ctx) =>
+    reportLoss(ctx, "dangling-reference", "cells", `The HLOD proxy ${path} is missing.`));
+  for (const file of parts) {
+    if (!file.path.startsWith(inFolder(folder, `${HLOD_DIR}/`))) continue;
+    if (!proxyPaths.has(file.path)) report(file.path.slice(folder ? folder.length + 1 : 0), (ctx) =>
+      reportLoss(ctx, "orphan-part", "", "The HLOD proxy is not listed in hlod.json."));
+  }
+
   // The index.
   let index: LevelCellIndexDoc | null = null;
   const indexPath = inFolder(folder, CELL_INDEX_FILE);
@@ -175,7 +199,7 @@ export function indexLevelFolder(
   const cells: LevelCellDoc[] = [];
   const present = new Set<string>();
   for (const file of parts) {
-    if (file.path === indexPath) continue;
+    if (file.path === indexPath || file.path === hlodPath || file.path.startsWith(inFolder(folder, `${HLOD_DIR}/`))) continue;
     const relative = folder === "" ? file.path : file.path.slice(folder.length + 1);
     const key = cellKeyOfFile(relative);
     if (key === null) {

@@ -37,6 +37,8 @@ import { loadEngineRegistry } from "../assets/engineRegistry.ts";
 import { projectIndexRoots } from "../assets/engineContent.ts";
 import { scanRoots } from "../assets/scan.ts";
 import { terrainOrphanLines } from "../terrainOrphans.ts";
+import { diskHlodInput } from "../world/hlodInput.ts";
+import { hlodStaleness, hlodWarningLine } from "../world/hlodStale.ts";
 import { checkProject, formatProblem } from "./check.ts";
 
 // The runtime is loaded through Vite (`ssrLoadModule`), never imported: tools
@@ -138,6 +140,9 @@ async function checkOne(vite: ViteDevServer, engineRoot: string, root: string): 
   // The project's roots, the engine's content and the packs it names (A9).
   const scan = await scanRoots(projectIndexRoots(engineRoot, root, manifest));
   const index = buildAssetIndex(scan.files, { strict: true, registry });
+  for (const warning of await hlodStaleness(diskHlodInput(scan.files, index, registry, projectIndexRoots(engineRoot, root, manifest)))) {
+    console.warn(hlodWarningLine(warning));
+  }
   problems.push(...terrainOrphanLines(scan.files, index));
   problems.push(...index.issues.map((issue) => `${issue.file}${issue.path === "" ? "" : ` ${issue.path}`} ${issue.code}: ${issue.message}`));
   if (problems.length > 0) return { root, name, ok: false, problems, start: "not started" };

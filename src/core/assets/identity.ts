@@ -134,7 +134,9 @@ export function identifyAssets(files: readonly ContentFile[], options: AssetInde
     const label = fileLabel(file.root, file.path);
     const ctx = createContext(options);
     const assetPath = assetPathOfMeta(file.path);
-    if (assetPath !== null) {
+    if (/(^|\/)hlod\.json$/.test(file.path) || /(^|\/)hlod\/[^/]+\.glb$/i.test(file.path)) {
+      result.levelParts.push(file);
+    } else if (assetPath !== null) {
       identifyMeta(file, assetPath, present, ctx, options, result, claim);
     } else if (isJsonPath(file.path)) {
       identifyDocument(file, ctx, options, result, claim);

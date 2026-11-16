@@ -19,6 +19,7 @@ import { createServer } from "vite";
 import { parseSdkVersion, SDK_VERSION } from "../src/core/index.ts";
 import { checkProject, formatProblem, loadProject, writeProjectTsconfig } from "./project/check.ts";
 import { editMain } from "./edit/cli.ts";
+import { hlodMain } from "./world/hlodCli.ts";
 
 const engineRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -43,13 +44,17 @@ async function changelogSince(projectSdk: string): Promise<string> {
 
 async function main(): Promise<void> {
   const [command, ...args] = process.argv.slice(2);
+  if (command === "hlod") {
+    process.exitCode = await hlodMain(args, engineRoot);
+    return;
+  }
   if (command === "edit") {
     process.exitCode = await editMain(args, engineRoot);
     return;
   }
   const project = option(args, "project");
   if ((command !== "check" && command !== "dev") || project === undefined) {
-    console.error("Usage: npm run forge -- <check|dev|edit> --project <path> [--port <port>]");
+    console.error("Usage: npm run forge -- <check|dev|edit|hlod> --project <path> [--port <port>]");
     process.exitCode = 1;
     return;
   }

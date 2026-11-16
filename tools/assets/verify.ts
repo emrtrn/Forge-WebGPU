@@ -13,7 +13,9 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { buildAssetIndex, type AssetIndex, type SchemaRegistry } from "../../src/core/index.ts";
 import { engineContentRoots, listContentPacks, packWithRequired } from "./engineContent.ts";
-import { scanContentRoots, scanRoots, type ScanResult } from "./scan.ts";
+import { projectContentRoots, scanContentRoots, scanRoots, type ScanResult } from "./scan.ts";
+import { diskHlodInput } from "../world/hlodInput.ts";
+import { hlodStaleness, hlodWarningLine } from "../world/hlodStale.ts";
 import { terrainOrphanLines } from "../terrainOrphans.ts";
 
 /** `content/` and every `samples/<name>/content/`. Missing ones are skipped by the scan. */
@@ -48,6 +50,8 @@ export async function verifyAssets(
   );
   const orphans = terrainOrphanLines(scan.files, index);
   lines.push(...orphans);
+  lines.push(...(await hlodStaleness(diskHlodInput(scan.files, index, options.registry,
+    projectContentRoots(projectRoot, options.roots ?? defaultContentRoots(projectRoot))))).map(hlodWarningLine));
   const where = scan.roots.length === 0 ? "no content root yet" : `${scan.roots.length} root(s): ${scan.roots.join(", ")}`;
   let errors = index.issues.filter((issue) => issue.severity === "error").length + orphans.length;
   for (const pack of [null, ...(await listContentPacks(projectRoot))]) {

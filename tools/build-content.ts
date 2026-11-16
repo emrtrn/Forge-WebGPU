@@ -29,6 +29,8 @@ import { scanRoots } from "./assets/scan.ts";
 import { createClassStore } from "./save/documentCheck.ts";
 import { identityOf, resolveDevProject } from "./server/devProject.ts";
 import { rendererAssetFiles } from "./server/forgeServer.ts";
+import { diskHlodInput } from "./world/hlodInput.ts";
+import { hlodStaleness, hlodWarningLine } from "./world/hlodStale.ts";
 
 const ENGINE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -56,6 +58,7 @@ export async function buildContent(options: { readonly outDir: string; readonly 
   });
   const scan = await scanRoots(roots);
   const index = buildAssetIndex(scan.files, { strict: false, registry });
+  for (const warning of await hlodStaleness(diskHlodInput(scan.files, index, registry, roots))) console.warn(hlodWarningLine(warning));
   const classes = createClassStore(project.root, registry, index).all();
   const assets = rendererAssetFiles(index);
 

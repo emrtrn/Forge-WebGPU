@@ -37,11 +37,15 @@ export function installGameSchemas(registry: SchemaRegistry, features: readonly 
  * `forge edit` runs) keeps its optimised dependencies in `node_modules/.vite`, which a second server there
  * would replace under it.
  */
-export async function withModuleLoader<T>(engineRoot: string, work: (load: ModuleLoader) => Promise<T>): Promise<T> {
+export async function withModuleLoader<T>(engineRoot: string, work: (load: ModuleLoader) => Promise<T>, options: { readonly readOnly?: boolean } = {}): Promise<T> {
   const cacheDir = await mkdtemp(join(tmpdir(), "forge-schemas-"));
   const vite = await createServer({
     root: engineRoot,
     configFile: false,
+    // Offline readers must also work before forge check generated .forge/tsconfig.json.
+    ...(options.readOnly ? { esbuild: { tsconfigRaw: JSON.stringify({ compilerOptions: {
+      target: "ES2022", useDefineForClassFields: true, verbatimModuleSyntax: true,
+    } }) } } : {}),
     cacheDir,
     optimizeDeps: { noDiscovery: true, include: [] },
     logLevel: "silent",
@@ -67,8 +71,8 @@ export async function withModuleLoader<T>(engineRoot: string, work: (load: Modul
  * The project's tsconfig extends the generated one (`.forge/tsconfig.json`, git-ignored): Vite reads it to
  * transform the game's files, so it is written first, as the dev server does.
  */
-export async function loadGameSchemas(engineRoot: string, projectRoot: string, module: string, registry: SchemaRegistry): Promise<void> {
+export async function loadGameSchemas(engineRoot: string, projectRoot: string, module: string, registry: SchemaRegistry, options: { readonly readOnly?: boolean } = {}): Promise<void> {
   if (module === "") return;
-  await writeProjectTsconfig(projectRoot, engineRoot);
-  await withModuleLoader(engineRoot, async (load) => installGameSchemas(registry, await gameFeatures(load, projectRoot, module)));
+  if (!options.readOnly) await writeProjectTsconfig(projectRoot, engineRoot);
+  await withModuleLoader(engineRoot, async (load) => installGameSchemas(registry, await gameFeatures(load, projectRoot, module)), options);
 }
