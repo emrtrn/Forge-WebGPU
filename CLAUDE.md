@@ -134,8 +134,24 @@ Yeni nesnelerde gölge varsayılan açık; kalite profili ayrıca sınırlar.
 
 ## Çalışma kuralları
 
-- Doğrudan `main`. Her yeşil adım commit + push; kırık ara durum commit'lenmez.
-- Push'tan önce `npm run gate`. İnceleme adımı yok; kapı tek güvence.
+- Doğrudan `main`. Commit ve push yalnız kullanıcı açıkça istediğinde yapılır;
+  bir değişiklik talebi bunları kendiliğinden yetkilendirmez. Commit isteği push
+  izni değildir. Kırık ara durum commit'lenmez.
+- Doğrulama değişikliğin kapsamıyla orantılı tutulur (kullanıcı kararı,
+  2026-11-16):
+  - Küçük değer, görünüm, varsayılan ayar ve belge değişikliklerinde diff
+    kontrolü ve doğrudan ilgili kısa doğrulama yeterlidir. Otomatik test
+    eklenmez; tam test paketi, build, smoke veya `gate` çalıştırılmaz.
+  - Davranış değişikliği veya hata düzeltmesinde yalnız etkilenen testler bir
+    kez çalıştırılır. Yeni test yalnız anlamlı bir regresyon riskini kapsıyorsa
+    eklenir; uygulamanın aynısını tekrar eden test yazılmaz.
+  - Yeni değişiklik, başarısızlık veya somut açık risk yoksa geçen kontroller
+    tekrarlanmaz ve doğrulama kapsamı genişletilmez. Kullanıcının testleri
+    atlama yönündeki açık talimatı önceliklidir.
+- Tam `npm run gate`, kullanıcı push istediğinde push öncesinde veya tam
+  kapıyı açıkça istediğinde çalıştırılır; sıradan iş tamamlama ya da yalnız
+  commit isteği tam kapı gerekçesi değildir. Sonuçta yapılan doğrulama ve
+  kalan sınırlar kısaca belirtilir.
 - Commit yol sınırlı atılır: `git commit -m "..." -- <yollar>`.
 - three `0.187.0` tam sabit (K5). Rapier `0.19.3` Forge ile aynı; TypeScript ve
   Vite ana sürümleri de Forge'la aynı. Yükseltme faz sınırında, ayrı adımdır.
