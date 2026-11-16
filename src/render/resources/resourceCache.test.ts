@@ -58,7 +58,7 @@ describe("resource cache", () => {
         throw new Error("bad");
       }),
     ).rejects.toThrow("bad");
-    expect(cache.stats()).toEqual({ entries: 0, pending: 0, failed: 1 });
+    expect(cache.stats()).toMatchObject({ entries: 0, pending: 0, failed: 1 });
   });
 
   test("pending counts loads in flight; settled waits for them", async () => {
@@ -125,4 +125,72 @@ test("tracked work and busy holds count as pending until they end; a tracked fai
   await expect(cache.track(Promise.reject(new Error("404")))).rejects.toThrow("404");
   await expect(cache.track(Promise.reject(new DOMException("Aborted", "AbortError")))).rejects.toThrow("Aborted");
   expect(cache.stats()).toMatchObject({ pending: 0, failed: 1 });
+});
+
+describe("eviction (phase 5b step 5: Forge's asset residency over the owners)", () => {
+  const setup = () => {
+    let now = 0;
+    const disposed: string[] = [];
+    const cache = createResourceCache({ evictDelayMs: 1000, now: () => now, dispose: (key, value) => disposed.push(`${key}=${String(value)}`) });
+    return { cache, disposed, at: (time: number) => { now = time; cache.update(); } };
+  };
+  /** Residency hears a load settle a few microtasks after the cache's promise. */
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  test("an entry no owner holds is evicted and disposed once, after the delay", async () => {
+    const { cache, disposed, at } = setup();
+    const a = cache.owner("a");
+    await a.acquire("model:1", () => "m1");
+    a.release("model:1");
+    await flush();
+    at(999);
+    expect(cache.has("model:1")).toBe(true);
+    expect(cache.stats().pendingEvict).toBe(1);
+    at(1000);
+    await flush();
+    expect(cache.has("model:1")).toBe(false);
+    expect(disposed).toEqual(["model:1=m1"]);
+    at(5000);
+    expect(disposed).toHaveLength(1);
+    expect(cache.stats()).toMatchObject({ entries: 0, pendingEvict: 0, evicted: 1 });
+  });
+
+  test("taking it again before the delay keeps it; another owner's use keeps it; releaseAll counts as releasing", async () => {
+    const { cache, disposed, at } = setup();
+    const a = cache.owner("a");
+    const b = cache.owner("b");
+    await a.acquire("texture:1:srgb", () => "t");
+    a.release("texture:1:srgb");
+    await flush();
+    at(500);
+    await a.acquire("texture:1:srgb", () => "again");
+    at(2000);
+    expect(cache.has("texture:1:srgb")).toBe(true);
+    await b.acquire("texture:1:srgb", () => "unused");
+    a.releaseAll();
+    at(4000);
+    expect(cache.has("texture:1:srgb")).toBe(true);
+    b.release("texture:1:srgb");
+    await flush();
+    at(4500);
+    at(5500);
+    await flush();
+    expect(cache.has("texture:1:srgb")).toBe(false);
+    expect(disposed).toEqual(["texture:1:srgb=t"]);
+  });
+
+  test("a failed load is not disposed; without update nothing is evicted", async () => {
+    const { cache, disposed, at } = setup();
+    const a = cache.owner("a");
+    await expect(a.acquire("model:2", () => Promise.reject(new Error("404")))).rejects.toThrow("404");
+    a.release("model:2");
+    await flush();
+    at(5000);
+    expect(disposed).toEqual([]);
+    const idle = createResourceCache({ evictDelayMs: 0 });
+    const owner = idle.owner("x");
+    await owner.acquire("shape:cube", () => 1);
+    owner.release("shape:cube");
+    expect(idle.has("shape:cube")).toBe(true);
+  });
 });

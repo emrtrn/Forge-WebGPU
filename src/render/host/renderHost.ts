@@ -35,6 +35,7 @@ import { createFramePipeline } from "../pipeline/renderPipeline.ts";
 import type { AssetUrls } from "../resources/assetUrls.ts";
 import { createGltfModelSource, type GltfModelSource } from "../resources/gltfModels.ts";
 import { createResourceCache, type ResourceCache } from "../resources/resourceCache.ts";
+import { disposeResource } from "../resources/disposeResource.ts";
 import { createSurfaceMaterials } from "../resources/surfaceMaterials.ts";
 import { createTerrainSource } from "../resources/terrains.ts";
 import { createTextureSource } from "../resources/textures.ts";
@@ -172,7 +173,15 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   }
   const badge = mountBadge(document, container, proof, options.dev);
 
-  const cache = createResourceCache();
+  // Evicted entries free their GPU objects; a material gives back its textures first (phase 5b step 5).
+  let releaseMaterialTextures: (material: unknown) => void = () => {};
+  const cache = createResourceCache({
+    now: () => performance.now(),
+    dispose: (key, value) => {
+      if (key.startsWith("material:")) releaseMaterialTextures(value);
+      disposeResource(key, value);
+    },
+  });
   const gltf: GltfModelSource = createGltfModelSource(renderer, options.assetUrls);
   const textures = createTextureSource(options.assetUrls, gltf.ktx2, () => renderer.getMaxAnisotropy());
   const materials = createSurfaceMaterials({
@@ -182,6 +191,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     textureOwner: cache.owner("material textures"),
     strict: options.dev,
   });
+  releaseMaterialTextures = (material) => materials.releaseTextures(material);
   const terrains = createTerrainSource({ urls: options.assetUrls, materials });
   const models: ModelSource = {
     load: (guid) =>
@@ -359,6 +369,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       if (previewDraw) { applySize(); previewDraw(renderer, width, height); return; }
       if (world === null) return;
       applySize();
+      cache.update();
       applyShadowSwitch();
       if (options.dev) canvas.dataset.forgeShadows = String(renderer.shadowMap.enabled);
       pipeline.render(world.scene, camera, world.output, quality.settings);

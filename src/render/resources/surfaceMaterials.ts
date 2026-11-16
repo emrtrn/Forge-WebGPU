@@ -85,7 +85,12 @@ export interface SurfaceMaterials {
   build(guid: string, contributions?: MaterialContributions): Promise<Material>;
   /** A terrain layer's inputs from the material; its texture is held by the host-level owner like a cached material's. */
   terrainLayer(guid: string): Promise<TerrainLayerMaterial>;
+  /** Gives back the texture uses a built material holds (the cache evicted it, phase 5b). */
+  releaseTextures(material: unknown): void;
 }
+
+/** The texture keys a built material holds under the texture owner. */
+const TEXTURE_KEYS = "forgeTextureKeys";
 
 export interface SurfaceMaterialOptions {
   readonly urls: AssetUrls;
@@ -124,10 +129,13 @@ export function createSurfaceMaterials(options: SurfaceMaterialOptions): Surface
     async build(guid, contributions = {}) {
       const fields = await data(guid);
       const textures = new Map<string, Texture>();
+      const held: string[] = [];
       await Promise.all(
         surfaceTextureSlots(fields).map(async ({ slot, guid: texture, colorSpace }) => {
+          const key = resourceKey.texture(texture, colorSpace);
           try {
-            textures.set(slot, await options.textureOwner.acquire(resourceKey.texture(texture, colorSpace), () => options.textures.load(texture, colorSpace)));
+            textures.set(slot, await options.textureOwner.acquire(key, () => options.textures.load(texture, colorSpace)));
+            held.push(key);
           } catch (error) {
             warn(`forge render: material ${guid} draws ${slot} without texture ${texture}`, error);
           }
@@ -135,7 +143,15 @@ export function createSurfaceMaterials(options: SurfaceMaterialOptions): Surface
       );
       const material = createSurfaceMaterial(fields, textures, contributions);
       material.name = guid;
+      material.userData[TEXTURE_KEYS] = held;
       return material;
+    },
+    releaseTextures(material) {
+      const data = (material as { userData?: Record<string, unknown> } | null)?.userData;
+      const keys = data?.[TEXTURE_KEYS];
+      if (!Array.isArray(keys)) return;
+      for (const key of keys as string[]) options.textureOwner.release(key);
+      data![TEXTURE_KEYS] = [];
     },
     async terrainLayer(guid) {
       const fields = (await data(guid)) as SurfaceMaterialData & { terrainMetersPerRepeat?: number; terrainDetail?: TerrainDetailFields | null };

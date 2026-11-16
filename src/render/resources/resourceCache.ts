@@ -5,13 +5,20 @@
 // tearing one world down leaves the other's resources alone.
 //
 // Each world takes what it uses through its own owner and counts it; disposing
-// the world releases its counts. Evicting an entry whose count reached zero,
-// and the memory budget, come with streaming in phase 5b: until then an entry
-// stays loaded after its last user leaves. A load that fails is not kept, so
-// the next request tries again (Forge's GltfModelLoader rule: a transient
-// failure must not poison the id).
+// the world releases its counts. A load that fails is not kept, so the next
+// request tries again (Forge's GltfModelLoader rule: a transient failure must
+// not poison the id).
 //
-// Pure: no three, no DOM. The loaders are handed in by whoever asks.
+// Eviction (plan phase 5b step 5, decision 3): every owner's held keys are an
+// owner of Forge's AssetResidency. A key no owner holds any more is evicted
+// `evictDelayMs` later (Forge's MODEL_EVICT_DELAY_MS, 30 s) on `update()`, the
+// host's frame: the entry goes and `dispose` frees what it loaded. Taking it
+// again before then keeps it. Without `update()` (tests, tools) nothing is
+// evicted.
+//
+// Pure: no three, no DOM. The loaders and the disposer are handed in.
+
+import { AssetResidency } from "../../engine/world/assetResidency.ts";
 
 export const resourceKey = {
   model: (guid: string): string => `model:${guid}`,
@@ -38,6 +45,10 @@ export interface ResourceOwner {
 export interface ResourceCacheStats {
   /** Entries held, loaded or loading. */
   readonly entries: number;
+  /** Entries no owner holds, waiting for their eviction delay. */
+  readonly pendingEvict: number;
+  /** Entries evicted (and disposed) since the cache was made. */
+  readonly evicted: number;
   /** Loads still in flight. */
   readonly pending: number;
   /** Loads that failed since the cache was made. */
@@ -47,6 +58,8 @@ export interface ResourceCacheStats {
 export interface ResourceCache {
   /** A world's handle on the cache. */
   owner(name: string): ResourceOwner;
+  /** Evicts what waited out its delay (the host's frame). */
+  update(): void;
   /** Uses of `key` over every owner. 0 when it is unused or unknown. */
   uses(key: string): number;
   /** True when `key` is held (loaded or loading). */
@@ -79,10 +92,36 @@ interface Entry {
   uses: number;
 }
 
-export function createResourceCache(): ResourceCache {
+/** Forge's MODEL_EVICT_DELAY_MS: an unused resource stays this long in case it is taken again. */
+export const EVICT_DELAY_MS = 30_000;
+
+export interface ResourceCacheOptions {
+  /** Frees what an evicted entry loaded (geometry, materials, textures). */
+  readonly dispose?: (key: string, value: unknown) => void;
+  readonly evictDelayMs?: number;
+  readonly now?: () => number;
+}
+
+export function createResourceCache(options: ResourceCacheOptions = {}): ResourceCache {
   const entries = new Map<string, Entry>();
   let pending = 0;
   let failed = 0;
+  let evicted = 0;
+  let owners = 0;
+  const residency = new AssetResidency(
+    {
+      // The entry is already loading (acquire made it); residency only follows it.
+      load: (key) => entries.get(key)?.promise.then(() => undefined) ?? Promise.resolve(),
+      evict: (key) => {
+        const entry = entries.get(key);
+        if (!entry || entry.uses > 0) return;
+        entries.delete(key);
+        evicted += 1;
+        entry.promise.then((value) => options.dispose?.(key, value), () => {});
+      },
+    },
+    { evictDelayMs: options.evictDelayMs ?? EVICT_DELAY_MS, now: options.now ?? (() => Date.now()) },
+  );
   let waiters: (() => void)[] = [];
 
   const finishLoad = (): void => {
@@ -128,12 +167,22 @@ export function createResourceCache(): ResourceCache {
       // Retain the acquired generation. An asset save may evict/reacquire a
       // key before its old users release it; they must not release the new one.
       const held = new Map<string, Entry[]>();
+      const id = `${name}#${(owners += 1)}`;
+      const keys = new Set<string>();
+      const follow = (key: string): void => {
+        const holds = held.has(key);
+        if (holds === keys.has(key)) return;
+        if (holds) keys.add(key);
+        else keys.delete(key);
+        residency.setOwner(id, keys);
+      };
       return {
         name,
         acquire<T>(key: string, load: () => T | Promise<T>): Promise<T> {
           const entry = entryFor(key, load);
           entry.uses += 1;
           const list = held.get(key) ?? []; list.push(entry); held.set(key, list);
+          follow(key);
           return entry.promise as Promise<T>;
         },
         release(key) {
@@ -141,16 +190,20 @@ export function createResourceCache(): ResourceCache {
           if (!entry) return;
           if (!list!.length) held.delete(key);
           entry.uses = Math.max(0, entry.uses - 1);
+          follow(key);
         },
         releaseAll() {
           for (const list of held.values()) for (const entry of list) entry.uses = Math.max(0, entry.uses - 1);
           held.clear();
+          keys.clear();
+          residency.releaseOwner(id);
         },
       };
     },
+    update: () => residency.update(),
     uses: (key) => entries.get(key)?.uses ?? 0,
     has: (key) => entries.has(key),
-    stats: () => ({ entries: entries.size, pending, failed }),
+    stats: () => ({ entries: entries.size, pending, failed, pendingEvict: residency.snapshot().pendingEvict, evicted }),
     settled: () => (pending === 0 ? Promise.resolve() : new Promise<void>((resolve) => waiters.push(resolve))),
     track(work) {
       pending += 1;
