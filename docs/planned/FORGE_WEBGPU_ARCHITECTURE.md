@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.38 · 2026-11-16 — Faz 5a kullanıcı görsel kabulü onaylandı (§4.10, plan v1.35); mimari sözleşme değişmedi.
+**Güncelleme:** v1.39 · 2026-11-16 — §4.4 Faz 5b kararları (kullanıcı): menziller level ayarında, hücre akışı runtime + editör, HLOD level klasöründe ve `forge hlod` komutuyla, mesafe LOD 5b dışında (plan v1.36). v1.38 · 2026-11-16 — Faz 5a kullanıcı görsel kabulü onaylandı (§4.10, plan v1.35); mimari sözleşme değişmedi.
 
 **Sürüm:** v1.37 · 2026-11-16 (v1.36’dan fark: World Settings sahne gölge anahtarı, `forge.shadowSettings@1`, nesne tercihlerini koruyan render kapısı ve tek Undo ile toplu nesne gölgesi işlemleri; Island içeriği değiştirilmez). v1.36 · 2026-11-16: §4.9 Island takip gölgesi — ters derinlikte eksik alt Z sınırı, `BoundedShadowNode`, CSM / takip haritası kaynak geçişi ve gerçek GPU regresyonu. v1.35 · 2026-11-16: §4.9 öksüz terrain parça denetimi, §4.10 terrain performans ölçümü ve görsel kabul adayları (Faz 5a adım 8).
 
@@ -631,6 +631,25 @@ features/height-fog/
   ayarı, HLOD, görüş mesafesi ve culling 5b'de; kaskat ve takipli gölge
   Faz 3'te, foliage halkası 5c'de. Yüklenmemiş bir hücrenin aktörlerinin
   oyun durumu kayıt oyununun durum defterinde durur (§4.8).
+- **5b kararları (kullanıcı, 2026-11-16; ayrıntı plan Faz 5b):**
+  - *Menziller:* `settings.viewDistance` (isteğe bağlı; kamera far, Fit to View
+    Distance, HLOD menzili) ve `settings.loadRange` (varsayılan 384 m) level
+    ayarıdır; kalite profilinin `viewDistanceMultiplier`'ı ikisini ölçekler.
+    Akışın sahibi motordur, tekil bileşen yoktur.
+  - *Akış:* hücreler kalıcı katmandan sonra kaynak çevresinde getirilir,
+    `assembleActors` / `removeActors` ile World'e girer / çıkar, oyun durumu
+    defterde; getirme `src/runtime`'da (dev uçları, dist statik içerik, Play
+    oturumu). Editör aynı politikayla akar; kirli hücre kaydedilene kadar kalır,
+    yüklenmemiş hücreye yazan işlem önce hücreyi yükler, olmazsa atomik reddedilir.
+    Asset residency'nin sahibi hücredir; kaynak önbelleği son sahipten sonra
+    gecikmeyle atar.
+  - *HLOD:* level klasöründe `hlod.json` (`cellSize`, hücre başına üçgen sayısı ve
+    `sourceHash`) + `hlod/<x>_<z>.glb`; hücre gibi level parçasıdır, asset değildir,
+    commit'lenir. `forge hlod` Node komutu üretir; bayat `sourceHash` uyarıdır
+    (editör, `verify:assets`, build). Proxy rengi köşe niteliğinden `colorNode`
+    ile okunur (`vertexColors` bayrağı yok; three'nin meshlet hattıyla uyum).
+  - *Mesafe LOD:* 5b'de yok; three'nin meshlet hattı ayrıca konuşulacak (§4.9'un
+    Faz 9 notu).
 - **Ölçek ölçümü (2a, 2026-11-10):** 50.000 aktörlük level R1'de eşik içinde
   (bütün level yükleme ~0,9 s, hücre yükleme p95 ~1,5 ms, tek aktör kaydı
   ~40 ms, tam kayıt ~2,2 s, heap ~58 MB; [Faz 2a arşivi](../archive/PHASE_2A.md)). Aşağıdaki çarelere

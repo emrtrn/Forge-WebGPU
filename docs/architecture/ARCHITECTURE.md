@@ -93,7 +93,9 @@ override uyumsuzluğunu kayıtta reddeder (rapor §4.11).
   (`src/engine/forgeImport/`, rapor §4.4).
 - Tek dünya ızgarası `src/core/grid/worldGrid.ts`: level hücreleri (sıfır
   orijin), terrain tile'ları ve akış politikası onu kullanır; hücre yerleşim
-  planlayıcısı `src/engine/world`, runtime akışı 5b'de (rapor §4.4).
+  planlayıcısı `src/engine/world`, runtime ve editör akışı 5b'de; menziller
+  (`viewDistance`, `loadRange`) level ayarında, HLOD level klasöründe
+  (`hlod.json` + `hlod/<x>_<z>.glb`, `forge hlod` üretir) (rapor §4.4).
 - Kayıt oyunu `forge.saveGame/1` (`src/core/save/`): her şey GUID'le, bileşen
   alanının `persist` bayrağı, bileşenin `state` bölümü, `defineSaveState`;
   yüklenmemiş hücrelerin durumu `SaveLedger`'da. Slot deposu

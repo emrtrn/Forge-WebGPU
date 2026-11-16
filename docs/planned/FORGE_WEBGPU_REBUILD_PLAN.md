@@ -486,6 +486,124 @@ statik detay, seam (R'lerin çoğu) · 4 global harita ve `?debug` terrain harit
 5 collider eşleşmesi (G8) · 6 su birikintisi + içe aktarıcı çeviricisi (3 A) ·
 7 WES örtüsü ve rüzgâr (tamam) · 8 öksüz tile ve kapı (§2.10 ölçümü, smoke, gerçek WebGPU: tamam; kullanıcı görsel kabulü 2026-11-16 tarihinde onaylandı).
 
+**5b dökümü (2026-11-16).** INV-B11 (World Partition paneli), D31 (HLOD proxy'leri),
+F24 (runtime akışı, asset residency, akış politikası), G12 (mesafe LOD + statik detay
+culling), H13 (HLOD build); D32'nin akış kısmı ve D17'nin view distance'ı. Ertelenen
+**25 A**: `assetResidency` 18, `worldMapView` 5, `detailCulling` 2. Forge'un `hlod.test`'i
+eski model sayıldı (`OLD_MODEL_MODULES`), A değil; kuralları yeni testlerle yeniden yazılır.
+
+| Var (2b / 3 / 5a) | Eksik (5b) |
+|---|---|
+| Izgara `core/grid`, hücre ataması ve dosyaları `core/level/{cells,cellDocs,levelParts}`, kısmi level (`mergeLevelParts`, `notLoaded`) | Runtime ve editör bütün hücreleri açılışta okur (`runtime/projectLevel.ts`, `editor/main.ts`) |
+| Akış politikası, yerleşim planlayıcısı `WorldPartitionStreaming<Id>`, eşzamansız yükleyici `WorldStreamingSubsystem` (terrain bunu kullanıyor), `streamedActorState`, kayıt defteri | Hücre getirme (dev uçları + dist statik içerik), `assembleActors` / `removeActors` ile ekle-çıkar, defter bağı, hazır olma |
+| World'ün `addActors` / `removeActors`'u; render kaynak önbelleği World başına sayaçlı (A6) | Sayaç sıfırlanınca gecikmeli atma (`disposeGltfResources`, Faz 3'ten 5b'ye), sızıntı sayaçları |
+| `engine/world/viewDistance` (sis CPU ikizi, Faz 3), kalite profilinde `viewDistanceMultiplier` / `lodBias` | `settings.viewDistance` / `loadRange`, kamera far, Fit to View Distance |
+| Otomatik instancing (`render/sync/instanceBatches`): anahtar başına dünya çapında tek batch | Detay culling (dither fade + batch atlama), HLOD, World Partition paneli, Outliner WP sekmesi / hücre rozeti |
+
+Referans level'lar küçük (en çok 46 hücre, WbPilotValley); `cellSize` hepsinde 128.
+
+**5b kararları (kullanıcı, 2026-11-16; 1, 5, 9 ve 10 kullanıcının seçimi, gerisi A11'in ve
+önceki kararların uygulaması):**
+
+1. *Menziller level ayarında:* `settings.viewDistance` (isteğe bağlı; kamera far,
+   Ground Mist'in Fit to View Distance'ı, HLOD menzili; yoksa bugünkü far) ve
+   `settings.loadRange` (varsayılan 384 m, Forge'unki), `cellSize` / `wind` gibi
+   `level.json`'da. Kalite profilinin `viewDistanceMultiplier`'ı ikisini ölçekler
+   (Forge kuralı). Akışın sahibi motordur, tekil bileşen yok.
+2. *Runtime hücre akışı (A11):* açılışta kalıcı katman; hücreler `WorldStreamingSubsystem`
+   + `WorldPartitionStreaming` ile kamera / oyuncu kaynağı çevresinde getirilir, normalize
+   edilir, `assembleActors` ile eklenir, boşalınca `removeActors`; aktörün oyun durumu
+   kayıt defterine yazılır, hücre yeniden gelince uygulanır (§4.8). Kare bütçesi
+   planlayıcının. Getirme `src/runtime`'da (dev: kayıt servisinin uçları, dist:
+   `dist/forge/` statik içerik, Play: oturum katmanı). Hazır olma başlangıç hücreleri
+   etkinleşene kadar bekler. Terrain tile akışı ayrı kalır (5a karar 3).
+3. *Asset residency:* Forge'un `AssetResidency`'si olduğu gibi; sahip hücre, kimlikler
+   aktörlerin model / doku GUID'leri; render kaynak önbelleği son sahip bırakınca
+   Forge'un gecikmesiyle atar. Ölçüm için önbellek, `renderer.info` ve World aktör
+   sayıları tek anlık görüntüde.
+4. *Editör akışı (A11):* oyunla aynı politika ve `loadRange`; kirli hücre kaydedilene
+   kadar boşalmaz; tutulan bölgeler World Partition panelinden. Yüklenmemiş hücreye
+   yazan işlem (`notLoaded` / `needs-load`) önce hücreyi yükler; yüklenemiyorsa işlem
+   atomik reddedilir (gölge işlemlerindeki kural). Outliner yalnız yüklü aktörleri
+   listeler, World Partition sekmesi hücreleri ve rozetleri gösterir. Dünya çapı
+   işler dosyalardan (ajan komutları, `forge edit find`) değişmez.
+5. *HLOD (kullanıcı seçimi):* level klasöründe `hlod.json` dizini (`cellSize`, hücre
+   başına üçgen sayısı ve `sourceHash`) + `hlod/<x>_<z>.glb`; hücre gibi level parçası,
+   asset değil, commit'lenir. `npm run forge -- hlod --project <yol> --level <klasör>`
+   üretir (ajan da aynı komutu çalıştırır); Forge'un `hlodBuild` algoritması
+   (weld + meshoptimizer simplify, oran 0,25, hata 0,01; materyal başına doğrusal
+   ortalama renk; detay culling'le hücre boşalmadan kaybolan küçük nesne girmez).
+   Bayat `sourceHash` editör panelinde ve `verify:assets`'te uyarı, `npm run build`
+   uyarır. Runtime Forge'un `HlodProxies` kuralı: hücre view distance içinde ve
+   etkin değilken proxy, etkinleşince gerçek mesh; 1,25 × view distance ötesinde
+   bırakılır; aynı anda 4 okuma; tek paylaşılan materyal, doku ve gölge yok.
+   Editör de aynı proxy'leri çizer (akışlı editörde boş görünen uzak hücreler için).
+   Renk `vertexColors` bayrağıyla değil `colorNode` ile köşe niteliğinden okunur:
+   three'nin meshlet hattı `vertexColors`'lı materyali reddeder (karar 10).
+6. *Detay culling:* Forge'un `detailCulling` kuralı (yarıçap × 200 × ölçek, 1.000 m
+   üstü hiç; %80–100 arası dither fade, gölge dahil; kalite ölçeği) TSL'de yeniden
+   yazılır. Batch atlaması anlamlı olsun diye otomatik instancing batch'leri hücreye
+   bölünür (anahtar + hücre; hücre boşalınca yalnız onun batch'i gider, frustum
+   sınırı hücre kadar). Derekavak P2'de draw call ve render gönderimi öncesi / sonrası
+   ölçülür; G6'yı (5c kapısı) tehdit ederse bölme geri alınır ve kullanıcıya getirilir.
+7. *Dünya haritası + World Partition paneli (INV-B11):* `worldMapView` (5 A) ve Forge'un
+   paneli: terrain tile'ları ve durumları, dolu / yüklü / kirli hücreler, kamera ve
+   menzil, tıklayınca odak, sürükleyince tutulan bölge, Load / Unload, HLOD bayatlığı.
+   UI kitiyle (`src/editor/ui`), parametre kuralları geçerli.
+8. *View distance:* kamera far `effectiveViewDistance`; far > 1.000 m'de Forge'un
+   uzak görüş kipi (Faz 3'te takip gölgesi var); Fit to View Distance (INV-A15'te
+   5b'ye bırakılmıştı) Ground Mist'i bu alana oturtur.
+9. *Kapı ölçümü (kullanıcı seçimi):* sentetik büyük level, geçici kopyada araçla
+   üretilir (~4 × 4 km, ~50.000 aktör, starter içeriği; `bench:level`'ın tohumlu
+   üreticisi gibi). `npm run measure:streaming`: başlıklı gerçek WebGPU, 1080p
+   `high`, DPR 1, sabit kamera rotası. Ölçüt: akış sırasında p99 ≤ 20 ms ve akışa
+   bağlı tek kare ≤ 50 ms; 10 yükle / boşalt döngüsünden sonra aktör, geometri, doku
+   ve kaynak önbelleği sayıları başa döner, JS heap artışı ≤ %5. Kayıt
+   `render-refs/runs/*-streaming.json`. Kapıda ve CI'da değil.
+10. *Mesafe LOD (kullanıcı kararı):* 5b'den çıkarıldı (INV-G12'nin bu kısmı). Yerine
+    three r187'nin meshlet hattı (`MeshletDrawingPipeline`: 64 üçgenlik kümeler,
+    meshoptimizer'la en çok 6 düzey, compute'ta nesne başına düzey seçimi, küme
+    frustum / derinlik culling'i, geometri + materyal başına tek dolaylı çizim)
+    konuşulacak; bugünkü kaydı Faz 9 maddesinde ve bina planı Ek A.2'de. Karar
+    verilene kadar 5b bu hatta bağlanmaz ama ona engel olmaz (karar 5'teki renk).
+
+**5b adım sırası** (C: Claude, X: Codex — tanımı yazılmış saf modül / Node aracı /
+mekanik taşıma; X'in diff'ini Claude inceler, kapıları çalıştırır, commit'i atar):
+
+1. Döküm ve kararlar (bu docs commit'i) — C.
+2. Saf modüller: `assetResidency` (18 A), `detailCulling` (2 A), `worldMapView` (5 A)
+   `npm run port:forge -- tests` ile `src/engine/world`'e; `hlod`'un saf kısmı yeni
+   modelle (dizin normalize, `sourceHash`, aktörlerden yerleşim, dahil etme kuralı) ve
+   testleri — **X** (high), C inceler. A 957 → 982.
+3. Level ayarları `viewDistance` / `loadRange`, kamera far, Fit to View Distance,
+   kalite çarpanı — C.
+4. Runtime hücre akışı: hücre istemcisi (dev / dist / Play), World'e ekle-çıkar, kayıt
+   defteri, hazır olma, `?debug` satırları — C. Hücre istemcisinin URL / hata
+   tablosunun Node testleri — X (medium).
+5. Asset residency ↔ kaynak önbelleği, gecikmeli atma, sızıntı anlık görüntüsü — C;
+   önbelleğin atma kurallarının Node testleri sözleşmeden — X (medium).
+6. Editör akışı: kısmi level oturumu, `needs-load` yükle-sonra-uygula, kirli hücre
+   tutma, canlı tazeleme yüklenmemiş hücrede, Outliner WP sekmesi / rozet, editör
+   smoke'u (kamerayı taşı → hücre gelir / gider; hücrede düzenle → kaydet → yeniden
+   aç) — C.
+7. World Partition paneli + dünya haritası (karar 7), Forge panelinin taşınması —
+   **X** (high; dosyalar, panel API'si ve kit bileşenleri istemde), C inceler ve
+   editör smoke'unu yazar.
+8. Detay culling TSL'de + hücreye bölünmüş batch'ler + draw call ölçümü — C.
+9. HLOD build: `forge hlod` komutu, `hlodBuild`'in Node'a taşınması (gltf-transform /
+   meshoptimizer bağımlılıkları depoda), dosya düzeni, `verify:assets` bayatlık
+   uyarısı, build kopyası — **X** (high), C inceler. HLOD proxy'lerinin render'ı ve
+   editörde gösterimi — C.
+10. Sentetik level üreticisi — **X** (medium; tohum, boyut, aktör dağılımı istemde);
+    `measure:streaming` (Playwright, gerçek GPU) ve koşusu — C.
+11. Kapı: 25 A, editör / render / dist smoke'ları (dist'te hücreler statik içerikten),
+    gerçek WebGPU editör seti, `measure:streaming`, belgeler; kullanıcı görsel kabulü
+    (HLOD geçişi, detay fade) — C.
+
+5c ile paralel yürürse ortak dosyalar: `render/sync/instanceBatches.ts` (adım 8; foliage
+kendi batch'ini kurar), kalite profilleri, `?debug` satırları. Çakışmada adım 8 5c'nin
+GPU güdümlü yolunu bekler.
+
 - [x] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
       Faz 3 karar 1) üretim kalitesine çıkar: morph,
       tile seam, 8 boya katmanı, su birikintisi (kıyı ıslaklığı ve kostik
@@ -503,7 +621,9 @@ statik detay, seam (R'lerin çoğu) · 4 global harita ve `?debug` terrain harit
       akış sırasında kare süresi sıçraması sınırın içinde; ertelenen 25 A yeşil
       (asset residency 18, dünya haritası 5, ayrıntı culling 2; görüş mesafesi
       9 + sis 1 Faz 3'te, eşzamansız hücre yükleyici 17 ve `terrainRuntimeStreaming`
-      2 5a adım 2'de taşındı).
+      2 5a adım 2'de taşındı); sentetik büyük level'da `measure:streaming` ölçütleri
+      (5b karar 9); HLOD `forge hlod` ile üretilip editörde ve oyunda geçiş yapıyor.
+      Mesafe LOD 5b'de yok (karar 10, meshlet hattı tartışması).
 - [ ] **5c Foliage:** instancing + compute culling + indirect draw; impostor /
       billboard, rüzgâr, fade; foliage hücreleri; PG0–PG3 ile ortak bitki
       ailesi ve WES tepkisi: tekil aktör / foliage eşitliği, kademeli renk /
@@ -807,3 +927,4 @@ silinebilir.
 | 2026-11-16 | v1.33 | Kullanıcı Derekavak canlı görünümünü kabul etti; Island'da kamerayı izleyen koyu dörtgen: r187 takip gölgesinin ters derinlikte alt Z sınırı eksikti. `BoundedShadowNode` + CSM / takip kaynak geçişi; GPU'da boş harita farkı 36 → 0, gerçek kutu gölgesi korundu. Kapı 2.107 test + 68 editör + 1 dist (4 Vitest worker); render mevcut 22 + yeni 2 GPU regresyonu ve gerçek WebGPU editör viewport / ortam / Play 10 / 10. Island gerçek sahnede aynı pozun önce / sonra çekimi doğrulandı. SDK / A değişmedi; mimari v1.36. Island son canlı kabulü bekleniyor, 5a açık |
 | 2026-11-16 | v1.34 | Kullanıcı kararıyla yalnız sistem: World Settings → Shadows genel anahtarı (`forge.light` içinde tekil `forge.shadowSettings@1`, yoksa açık), nesne tercihlerini koruyan render kapısı + kalite sınırı; ayrı Enable / Disable on Objects tek Undo, sınıf örneklerine override, yüklenmemiş hücrede atomik ret. Yeni şekil / model gölge varsayılanı açık kaldı. Sistem kurulumu Island verisine yazmadı; son karşılaştırmada düzenlenebilir kopyada 15:58'de kaydedilmiş 8 dosya güncellemesi görüldü (581 şeklin gölgesi açık), eşzamanlı kayıtlar korundu; asıl referans değişmedi. Kapı ikinci tam koşuda 2.113 test + 72 editör + 1 dist geçti; ilk koşudaki Content Browser silme / thumbnail 404'ü bağımsız ve tam tekrarda görülmedi, bu kapsamda kaynak / test beklentisi değiştirilmedi. Gerçek WebGPU yeni gölge testleri 4 / 4 (görüntü aç / kapa / geri dönüş, kalite, Undo, kayıt ve Play), tam render 24 / 24. SDK / A değişmedi; mimari v1.37. 5a son canlı kabulü açık |
 | 2026-11-16 | v1.35 | Kullanıcı Faz 5a görsel kabulünü onayladı; Island son canlı kabulü dahil bekleyiş kapandı ve 5a Terrain kutusu işaretlendi. Mevcut teknik kapı / ölçüm kayıtları korundu; yeni test koşusu veya referans görüntü yenilemesi yapılmadı. A 957 / 1.021, SDK 0.1.12 değişmedi; mimari v1.38. 5b–5d ve Faz 5 toplu kapısı açık; Faz 5 bölümü arşivlenmedi. Sıradaki: 5b / 5c dökümü ve kararları |
+| 2026-11-16 | v1.36 | Faz 5b dökümü ve kararları (kullanıcı): menziller level ayarında (`viewDistance`, `loadRange` 384 m), HLOD level klasöründe + `forge hlod` komutu, mesafe LOD 5b'den çıktı (meshlet hattı konuşulacak), kapı sentetik büyük level'da `measure:streaming`; runtime / editör hücre akışı, residency, detay culling (hücreye bölünmüş batch), World Partition paneli A11'in uygulaması. 11 adım, Codex adımları işaretli (2, 7, 9, 10 ve test dilimleri). Ertelenen 25 A; kod yok; mimari v1.39 |
