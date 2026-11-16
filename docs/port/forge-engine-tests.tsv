@@ -15,24 +15,24 @@ tests/engine/aiModule.test.ts	414	checkAsync	R			engine/core,engine/scene,src	th
 tests/engine/aiModule.test.ts	438	checkAsync	R			src	three-via:src		a runtime with no AI host registers nothing at all	
 tests/engine/aiModule.test.ts	455	checkAsync	R			engine/core,engine/physics,engine/scene,src	three-via:src,three:three		ai module plans moveTo through Recast when the host hands out collider triangles	
 tests/engine/aiModule.test.ts	554	checkAsync	R			engine/core,engine/physics,engine/scene,src	three-via:src,three:three		ai module suspends pawns beyond a partitioned level's load range	
-tests/engine/assetResidency.test.ts	40	checkAsync	A			engine/world			asset residency: eviction delay rejects negative and nonfinite values	5b
-tests/engine/assetResidency.test.ts	45	checkAsync	A			engine/world			asset residency: loading and resident ids share one load across owners	5b
-tests/engine/assetResidency.test.ts	66	checkAsync	A			engine/world			asset residency: setOwner diffs ids and an empty iterable releases the owner	5b
-tests/engine/assetResidency.test.ts	87	checkAsync	A			engine/world			asset residency: only pending ids evict at the inclusive release deadline	5b
-tests/engine/assetResidency.test.ts	107	checkAsync	A			engine/world			asset residency: unowned loading ids start their delay at successful settle	5b
-tests/engine/assetResidency.test.ts	126	checkAsync	A			engine/world			asset residency: reacquiring an unowned loading id shares the pending load	5b
-tests/engine/assetResidency.test.ts	138	checkAsync	A			engine/world			asset residency: reacquiring pending eviction cancels its deadline without loading	5b
-tests/engine/assetResidency.test.ts	160	checkAsync	A			engine/world			asset residency: rejected loads stay failed until the last owner releases then retry	5b
-tests/engine/assetResidency.test.ts	184	checkAsync	A			engine/world			asset residency: synchronous load throws settle as failed without eviction	5b
-tests/engine/assetResidency.test.ts	202	checkAsync	A			engine/world			asset residency: an unowned rejected load is deleted without eviction	5b
-tests/engine/assetResidency.test.ts	214	checkAsync	A			engine/world			asset residency: whenReady resolves for empty unknown and already-ready owners	5b
-tests/engine/assetResidency.test.ts	225	checkAsync	A			engine/world			asset residency: waiters track every listed owner's current ids until ready	5b
-tests/engine/assetResidency.test.ts	245	checkAsync	A			engine/world			asset residency: releasing or dropping loading ids rechecks waiters	5b
-tests/engine/assetResidency.test.ts	264	checkAsync	A			engine/world			asset residency: waiting owners settle on rejection and when released	5b
-tests/engine/assetResidency.test.ts	278	checkAsync	A			engine/world			asset residency: snapshot counts ids by state and owners with nonempty sets	5b
-tests/engine/assetResidency.test.ts	294	checkAsync	A			engine/world			asset residency: releaseAll releases every owner while allowing cross-level reuse	5b
-tests/engine/assetResidency.test.ts	320	checkAsync	A			engine/world			asset residency: zero delay evicts settled unowned assets only during update	5b
-tests/engine/assetResidency.test.ts	331	checkAsync	A			engine/world			asset residency: stale success and failure cannot settle a recreated entry	5b
+tests/engine/assetResidency.test.ts	40	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: eviction delay rejects negative and nonfinite values	
+tests/engine/assetResidency.test.ts	45	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: loading and resident ids share one load across owners	
+tests/engine/assetResidency.test.ts	66	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: setOwner diffs ids and an empty iterable releases the owner	
+tests/engine/assetResidency.test.ts	87	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: only pending ids evict at the inclusive release deadline	
+tests/engine/assetResidency.test.ts	107	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: unowned loading ids start their delay at successful settle	
+tests/engine/assetResidency.test.ts	126	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: reacquiring an unowned loading id shares the pending load	
+tests/engine/assetResidency.test.ts	138	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: reacquiring pending eviction cancels its deadline without loading	
+tests/engine/assetResidency.test.ts	160	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: rejected loads stay failed until the last owner releases then retry	
+tests/engine/assetResidency.test.ts	184	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: synchronous load throws settle as failed without eviction	
+tests/engine/assetResidency.test.ts	202	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: an unowned rejected load is deleted without eviction	
+tests/engine/assetResidency.test.ts	214	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: whenReady resolves for empty unknown and already-ready owners	
+tests/engine/assetResidency.test.ts	225	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: waiters track every listed owner's current ids until ready	
+tests/engine/assetResidency.test.ts	245	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: releasing or dropping loading ids rechecks waiters	
+tests/engine/assetResidency.test.ts	264	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: waiting owners settle on rejection and when released	
+tests/engine/assetResidency.test.ts	278	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: snapshot counts ids by state and owners with nonempty sets	
+tests/engine/assetResidency.test.ts	294	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: releaseAll releases every owner while allowing cross-level reuse	
+tests/engine/assetResidency.test.ts	320	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: zero delay evicts settled unowned assets only during update	
+tests/engine/assetResidency.test.ts	331	checkAsync	A			engine/world		src/engine/world/assetResidency.test.ts	asset residency: stale success and failure cannot settle a recreated entry	
 tests/engine/audioModule.test.ts	127	checkAsync	M			engine/scene,src	model:engine/scene,model:src		audio module ticks with presentation and starts the level's ambient emitters	
 tests/engine/audioModule.test.ts	159	checkAsync	M			src	model:src		audio module plays dialogue lines from both source kinds	
 tests/engine/audioModule.test.ts	195	checkAsync	M			src	model:src		audio module owns the live mix and drops the level's lookups on teardown	
@@ -206,8 +206,8 @@ tests/engine/deformationPersistence.test.ts	183	check	M			engine/scene	level-dat
 tests/engine/deformationPersistence.test.ts	195	check	M			engine/scene	level-data:layouts/雪.level.json,level-data:other.level.json,model:engine/scene		deformation persistence: mismatched level or terrain ignored	
 tests/engine/deformationPersistence.test.ts	203	check	M			engine/scene	level-data:layouts/雪.level.json,model:engine/scene		deformation persistence: byte budget drops window preserving current and old coarse tracks	
 tests/engine/deformationPersistence.test.ts	239	check	M			engine/scene	level-data:layouts/雪.level.json,model:engine/scene		deformation persistence: two kilometre four-wheel drive stays within 64 KiB	
-tests/engine/detailCulling.test.ts	30	check	A			engine/world			detail culling: cull distance is 200 × radius, and large assets never cull	5b
-tests/engine/detailCulling.test.ts	40	check	A			engine/world			detail culling: a batch is skipped only when its nearest point is past its largest instance's distance	5b
+tests/engine/detailCulling.test.ts	30	check	A			engine/world		src/engine/world/detailCulling.test.ts	detail culling: cull distance is 200 × radius, and large assets never cull	
+tests/engine/detailCulling.test.ts	40	check	A			engine/world		src/engine/world/detailCulling.test.ts	detail culling: a batch is skipped only when its nearest point is past its largest instance's distance	
 tests/engine/detailCulling.test.ts	48	check	R			engine/render-three	three-via:engine/render-three,three:three		detail culling: small assets render through shared size-scaled fade clones, large ones are left alone	
 tests/engine/detailCulling.test.ts	70	check	R			engine/render-three	three-via:engine/render-three,three:three		detail culling: compact batches hide past range and come back, never un-hiding someone else's mesh	
 tests/engine/detailCulling.test.ts	98	check	R			engine/render-three	three-via:engine/render-three,three:three		detail culling: an asset's own node scale (a centimetre model) does not shrink its cull distance	
@@ -1517,11 +1517,11 @@ tests/engine/worldLandUse.test.ts	161	check	A	yes		engine/worldbuilder	boundary-
 tests/engine/worldLandUse.test.ts	177	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldLandUse.test.ts	world land use: unplaceable lines are reported with the reason	
 tests/engine/worldLandUse.test.ts	188	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldLandUse.test.ts	world land use: protected settlements keep their parcels; a re-run after save + reload is empty (WB-02)	
 tests/engine/worldLandUse.test.ts	203	check	A	yes		engine/worldbuilder	boundary-model:engine/worldbuilder	src/engine/worldbuilder/worldLandUse.test.ts	world land use: partOf must name an unmerged parcel of the same settlement	
-tests/engine/worldMapView.test.ts	17	check	A			engine/world			world map view: the frame is a padded square around every rect, centred	5b
-tests/engine/worldMapView.test.ts	27	check	A			engine/world			world map view: world and map pixels convert both ways, +Z down	5b
-tests/engine/worldMapView.test.ts	37	check	A			engine/world			world map view: shading ramps by height, lights north-west slopes, leaves holes transparent	5b
-tests/engine/worldMapView.test.ts	55	check	A			engine/world			world map view: height lookup takes the nearest sample, null outside and on holes	5b
-tests/engine/worldMapView.test.ts	64	check	A			engine/world			world map view: focus keeps the view direction and height above the ground, or pulls back from the horizon	5b
+tests/engine/worldMapView.test.ts	17	check	A			engine/world		src/engine/world/worldMapView.test.ts	world map view: the frame is a padded square around every rect, centred	
+tests/engine/worldMapView.test.ts	27	check	A			engine/world		src/engine/world/worldMapView.test.ts	world map view: world and map pixels convert both ways, +Z down	
+tests/engine/worldMapView.test.ts	37	check	A			engine/world		src/engine/world/worldMapView.test.ts	world map view: shading ramps by height, lights north-west slopes, leaves holes transparent	
+tests/engine/worldMapView.test.ts	55	check	A			engine/world		src/engine/world/worldMapView.test.ts	world map view: height lookup takes the nearest sample, null outside and on holes	
+tests/engine/worldMapView.test.ts	64	check	A			engine/world		src/engine/world/worldMapView.test.ts	world map view: focus keeps the view direction and height above the ground, or pulls back from the horizon	
 tests/engine/worldMasks.test.ts	72	check	A			engine/worldbuilder		src/engine/worldbuilder/worldMasks.test.ts	world masks: grid spec covers the bounds, cell centres and the cell cap	
 tests/engine/worldMasks.test.ts	85	check	A			engine/worldbuilder		src/engine/worldbuilder/worldMasks.test.ts	world masks: fieldAt interpolates between cell centres and is NaN outside the grid	
 tests/engine/worldMasks.test.ts	94	check	A			engine/worldbuilder		src/engine/worldbuilder/worldMasks.test.ts	world masks: height field marks off-terrain cells as no data, slope reads degrees	
