@@ -181,6 +181,8 @@ async function start(): Promise<void> {
     },
     onLost: (listener) => viewer.onLost(listener),
     dispose: () => viewer.dispose(),
+    streamingSources: () => [{ position: [viewer.camera.position.x, viewer.camera.position.z] }],
+    busy: () => viewer.host?.cache.busy() ?? (() => {}),
   };
   const scheduler = createSteppableScheduler(
     { request: (frame) => requestAnimationFrame(frame), cancel: (handle) => cancelAnimationFrame(handle) },

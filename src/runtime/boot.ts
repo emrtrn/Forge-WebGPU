@@ -23,7 +23,9 @@ import {
   type Issue,
   type SchemaRegistry,
 } from "../core/index.ts";
-import { assembleLevel } from "./assembler.ts";
+import { assembleActors, assembleLevel } from "./assembler.ts";
+import { CellStreamingKey, createCellStreaming, type CellSource, type CellStreaming } from "./streaming/cellStreaming.ts";
+import type { StreamingSource } from "../engine/world/streamingPolicy.ts";
 import { gameModuleSubsystem, type GameModuleDef } from "./gameModule.ts";
 import { createWorld, WorldError, type World } from "./world.ts";
 
@@ -62,12 +64,24 @@ export interface BootRender {
   /** Called once if the GPU device is lost. */
   onLost(listener: (message: string) => void): void;
   dispose(): void;
+  /** Where cells stream around (the camera until phase 6's player); none streams nothing. */
+  streamingSources?(): readonly StreamingSource[];
+  /** Holds the ready signal while the returned release is not called (cells loading). */
+  busy?(): () => void;
+  /** The quality's view distance multiplier now. */
+  viewDistanceMultiplier?(): number;
 }
 
 export interface LoadedLevel {
   /** The level document as read (it is normalised here). */
   readonly level: unknown;
   readonly resolveClass?: ClassResolver;
+  /**
+   * The level's cells, when they stream (phase 5b): `level` is then the
+   * persistent layer. With a renderer they stream around its sources; a
+   * headless boot adds them all at once.
+   */
+  readonly cells?: CellSource;
 }
 
 export interface BootOptions {
@@ -126,6 +140,7 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
   const { screen, render } = options;
   let stage: BootStage = "features";
   let world: World | null = null;
+  let streaming: CellStreaming | null = null;
   try {
     const features = [...options.features, ...(options.gameModule?.features ?? [])];
     if (options.gameModule) {
@@ -162,9 +177,36 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
     // A missing class is already reported by normalisation; report it once.
     const seen = new Set(warnings.map((issue) => `${issue.code} ${issue.path}`));
     warnings.push(...assembled.issues.filter((issue) => !seen.has(`${issue.code} ${issue.path}`)));
+    if (loaded.cells && render?.streamingSources) {
+      const live = world;
+      streaming = createCellStreaming({
+        world: live,
+        source: loaded.cells,
+        level: level.value.id,
+        registry,
+        resolveClass,
+        strict: options.strict,
+        settings: () => level.value!.settings,
+        ...(render.viewDistanceMultiplier ? { viewDistanceMultiplier: () => render.viewDistanceMultiplier!() } : {}),
+        ...(render.busy ? { busy: () => render.busy!() } : {}),
+        warn: (message, issues) => options.warn?.(issues && issues.length > 0 ? issues : [{ code: "invalid-document", severity: "warning", path: "", message }]),
+        clock: () => (typeof performance === "undefined" ? Date.now() : performance.now()),
+      });
+      if (streaming) live.services.provide(CellStreamingKey, streaming);
+    } else if (loaded.cells) {
+      // No renderer: no camera to stream around; the whole level is assembled (headless checks).
+      const signal = new AbortController().signal;
+      for (const key of loaded.cells.cells) {
+        const read = await loaded.cells.read(key, signal);
+        warnings.push(...read.issues.filter((issue) => issue.severity === "warning"));
+        if (options.strict && read.issues.some((issue) => issue.severity === "error")) throw new StageError(`Cell ${key} has errors.`, read.issues);
+        warnings.push(...assembleActors(world, read.payload.actors, { strict: options.strict, resolveClass }).issues);
+      }
+    }
     if (warnings.length > 0) options.warn?.(warnings);
     world.beginPlay();
   } catch (error) {
+    streaming?.dispose();
     if (world !== null) disposeQuietly(world);
     if (render) disposeRenderQuietly(render);
     screen.error(bootErrorView(stage, error, error instanceof StageError ? error.issues : []));
@@ -194,6 +236,7 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
     const dt = last === null ? 0 : (time - last) / 1000;
     last = time;
     try {
+      if (streaming && render?.streamingSources) streaming.update(render.streamingSources());
       running.tick(dt);
       render?.frame(time);
     } catch (error) {
@@ -214,6 +257,7 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
       halted = true;
       if (handle !== null) options.scheduler.cancel(handle);
       handle = null;
+      streaming?.dispose();
       running.dispose();
       render?.dispose();
     },
