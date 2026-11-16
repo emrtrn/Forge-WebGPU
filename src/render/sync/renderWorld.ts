@@ -25,6 +25,8 @@ import type { TerrainSource } from "../resources/terrains.ts";
 import type { TextureSource } from "../resources/textures.ts";
 import { createWorldResources, type ModelSource, type WorldResources } from "../resources/worldResources.ts";
 import { createDefaultLighting } from "./defaultLighting.ts";
+import { createHlodProxies, type HlodProxies } from "./hlodProxies.ts";
+import { HlodSourceKey } from "../../engine/world/hlod.ts";
 import { createEnvironmentOverride } from "./environment.ts";
 import { createOutputState } from "./output.ts";
 import { sceneShadowQuality, sceneShadowsEnabled } from "./sceneShadows.ts";
@@ -107,6 +109,11 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
         levelSettings: () => ctx.services.get(LevelSettingsKey)?.current,
       };
       options.attach?.(world);
+      // HLOD proxies (phase 5b): the level's source is provided once the world is assembled.
+      let hlod: HlodProxies | null = null;
+      const hlodRoot = new Group();
+      hlodRoot.name = "hlod";
+      scene.add(hlodRoot);
       return {
         actorsAdded(actors) {
           lighting.refresh();
@@ -134,8 +141,15 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           lighting.sync(frame.camera, effectiveQuality(), environment.environment.override);
           outputState.update(environment.environment.override, options.quality());
           for (const instance of instances) instance.sync?.(frame);
+          if (hlod === null) {
+            const source = ctx.services.get(HlodSourceKey);
+            if (source) hlod = createHlodProxies(source, hlodRoot, (work) => resources.track(work));
+          }
+          hlod?.sync(frame.camera, ctx.services.get(LevelSettingsKey)?.current);
         },
         dispose() {
+          hlod?.dispose();
+          hlod = null;
           for (const instance of [...instances].reverse()) instance.dispose?.();
           instances.length = 0;
           lighting.dispose();

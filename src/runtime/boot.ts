@@ -26,6 +26,8 @@ import {
 import { assembleActors, assembleLevel } from "./assembler.ts";
 import { CellStreamingKey, createCellStreaming, type CellSource, type CellStreaming } from "./streaming/cellStreaming.ts";
 import type { StreamingSource } from "../engine/world/streamingPolicy.ts";
+import { HlodSourceKey } from "../engine/world/hlod.ts";
+import type { HlodIndex } from "../core/level/hlod.ts";
 import { gameModuleSubsystem, type GameModuleDef } from "./gameModule.ts";
 import { createWorld, WorldError, type World } from "./world.ts";
 
@@ -82,6 +84,8 @@ export interface LoadedLevel {
    * headless boot adds them all at once.
    */
   readonly cells?: CellSource;
+  /** The level's HLOD proxies (phase 5b), drawn for streamed cells that are not active. */
+  readonly hlod?: { readonly index: HlodIndex; load(key: string): Promise<ArrayBuffer | null> };
 }
 
 export interface BootOptions {
@@ -192,7 +196,11 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
         warn: (message, issues) => options.warn?.(issues && issues.length > 0 ? issues : [{ code: "invalid-document", severity: "warning", path: "", message }]),
         clock: () => (typeof performance === "undefined" ? Date.now() : performance.now()),
       });
-      if (streaming) live.services.provide(CellStreamingKey, streaming);
+      if (streaming) {
+        const active = streaming;
+        live.services.provide(CellStreamingKey, active);
+        if (loaded.hlod) live.services.provide(HlodSourceKey, { index: loaded.hlod.index, load: loaded.hlod.load, isCellActive: (key) => active.isCellActive(key) });
+      }
     } else if (loaded.cells) {
       // No renderer: no camera to stream around; the whole level is assembled (headless checks).
       const signal = new AbortController().signal;

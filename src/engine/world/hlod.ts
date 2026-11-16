@@ -9,6 +9,23 @@ import { worldMatrixOf } from "../edit/hierarchy.ts";
 import { composeMat4, multiplyMat4, type Mat4 } from "../math/affine.ts";
 import { detailCullDistance } from "./detailCulling.ts";
 
+import { createServiceKey } from "../../core/world/services.ts";
+import type { HlodIndex as HlodIndexDoc } from "../../core/level/hlod.ts";
+
+/**
+ * A level's HLOD proxies as the world sees them (phase 5b decision 5): the
+ * index, whether a cell's real actors are in the world, and a proxy's GLB
+ * bytes. The run time (or the editor) provides it; the renderer draws the
+ * proxies of cells within the view distance whose actors are not active.
+ */
+export interface HlodSource {
+  readonly index: HlodIndexDoc;
+  isCellActive(key: string): boolean;
+  load(key: string): Promise<ArrayBuffer | null>;
+}
+
+export const HlodSourceKey = createServiceKey<HlodSource>("forge.hlodSource");
+
 export { HLOD_SCHEMA, HLOD_INDEX_FILE, HLOD_DIR, hlodCellFileOf, normalizeHlodIndex, type HlodCellEntry, type HlodIndex } from '../../core/level/hlod.ts';
 
 export interface HlodPlacement {

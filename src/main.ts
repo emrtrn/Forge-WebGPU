@@ -35,6 +35,7 @@ import { createLevelViewer } from "./render/viewer/levelViewer.ts";
 import { UserSettingsStore } from "./engine/persistence/userSettingsStore.ts";
 import type { HardwareHintInputs } from "./engine/perf/hardwareHints.ts";
 import { WorldEnvironmentKey } from "./engine/environment/worldEnvironmentRuntime.ts";
+import { CellStreamingKey } from "./runtime/streaming/cellStreaming.ts";
 import { bootErrorView, bootGame, type BootRender } from "./runtime/boot.ts";
 import { createBootScreen } from "./runtime/bootScreen.ts";
 import { createLocalStorageAdapter } from "./runtime/persistence/localStorageAdapter.ts";
@@ -211,6 +212,25 @@ async function start(): Promise<void> {
     (window as unknown as { __forgeDev?: unknown }).__forgeDev = {
       pause: () => scheduler.pause(),
       resume: () => scheduler.resume(),
+      /** Phase 5b: cell streaming, HLOD proxies, the resource cache and the GPU's live objects in one snapshot (measure:streaming). */
+      streaming() {
+        const scene = viewer.host?.world?.scene;
+        const proxies = scene?.getObjectByName("hlod")?.children ?? [];
+        const memory = viewer.host?.renderer.info.memory;
+        return {
+          cells: booted.world.services.get(CellStreamingKey)?.snapshot() ?? null,
+          hlod: { loaded: proxies.length, visible: proxies.filter((proxy) => proxy.visible).length },
+          cache: viewer.host?.cache.stats() ?? null,
+          gpu: memory ? { geometries: memory.geometries, textures: memory.textures } : null,
+          camera: viewer.camera.position.toArray(),
+        };
+      },
+      /** Moves the game camera (measure:streaming's route), looking at a point when given. */
+      moveCamera(x: number, y: number, z: number, look?: readonly [number, number, number]) {
+        viewer.camera.position.set(x, y, z);
+        if (look) viewer.camera.lookAt(look[0], look[1], look[2]);
+        viewer.camera.updateMatrixWorld();
+      },
       /** One frame `ms` after the last: its CPU time, GPU time, Sky Light captures and hour. */
       async step(ms: number) {
         const before = viewer.host?.captures ?? { count: 0, cpuMs: 0 };

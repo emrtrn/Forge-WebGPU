@@ -26,12 +26,16 @@ type Fetch = (input: string, init?: { method?: string; headers?: Record<string, 
   readonly headers: { get(name: string): string | null };
   text(): Promise<string>;
   json(): Promise<unknown>;
+  /** Absent in fakes that only serve text. */
+  arrayBuffer?(): Promise<ArrayBuffer>;
 }>;
 
 /** What a game reads (plan phase 4 step 2b): the dev server, or the static files of a production build. */
 export interface ContentClient {
   /** A project file with its revision; null when it does not exist. */
   read(path: string): Promise<{ readonly text: string; readonly revision: string } | null>;
+  /** A project file's bytes (a level's HLOD proxy, phase 5b); null when it does not exist. */
+  readBinary?(path: string): Promise<ArrayBuffer | null>;
   /** Which engine and project the server serves. */
   identity(): Promise<ForgeIdentity>;
   /** The project's actor classes as the server holds them (not normalised here). */
@@ -81,6 +85,13 @@ export function createStaticContentClient(options: { readonly fetch: Fetch; read
       if (response.status !== 200) throw new SaveClientError(response.status, `Reading ${path} failed: ${response.status}`);
       return { text: await response.text(), revision: STATIC_REVISION };
     },
+    async readBinary(path) {
+      const response = await options.fetch(`${base}/${staticContentFile(path).split("/").map(encodeURIComponent).join("/")}`);
+      if (response.status === 404) return null;
+      if (response.status !== 200) throw new SaveClientError(response.status, `Reading ${path} failed: ${response.status}`);
+      if (!response.arrayBuffer) throw new SaveClientError(response.status, `Reading ${path}: no binary body.`);
+      return response.arrayBuffer();
+    },
     identity: async () => (await json("identity.json")) as ForgeIdentity,
     classes: async () => ((await json("classes.json")) as { classes: unknown[] }).classes,
   };
@@ -112,6 +123,13 @@ export function createSaveClient(options: { readonly fetch: Fetch; readonly base
   const headers = { [FORGE_REQUEST_HEADER]: "1" };
   const layer = options.play === undefined ? "" : `&play=${encodeURIComponent(options.play)}`;
   return {
+    async readBinary(path) {
+      const response = await options.fetch(`${base}/__forge/read?path=${encodeURIComponent(path)}${layer}`, { headers });
+      if (response.status === 404) return null;
+      if (response.status !== 200) throw new SaveClientError(response.status, `Reading ${path} failed: ${response.status}`);
+      if (!response.arrayBuffer) throw new SaveClientError(response.status, `Reading ${path}: no binary body.`);
+      return response.arrayBuffer();
+    },
     async read(path) {
       const response = await options.fetch(`${base}/__forge/read?path=${encodeURIComponent(path)}${layer}`, { headers });
       if (response.status === 404) return null;

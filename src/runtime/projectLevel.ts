@@ -7,6 +7,9 @@
 
 import {
   cellFileOf,
+  HLOD_INDEX_FILE,
+  hlodCellFileOf,
+  normalizeHlodIndex,
   normalizeActorClass,
   normalizeLevelCell,
   readLevelFromServer,
@@ -41,7 +44,20 @@ export async function loadProjectLevel(
   if (strict && issues.some((found) => found.severity === "error")) {
     throw new WorldError(`The level at ${folder} has errors.`, issues);
   }
-  return { level: read.open.persistent, resolveClass, cells: levelCellSource(client, folder, read.cells, options) };
+  const hlod = await levelHlod(client, folder, issues);
+  return { level: read.open.persistent, resolveClass, cells: levelCellSource(client, folder, read.cells, options), ...(hlod ? { hlod } : {}) };
+}
+
+/** The level's HLOD index and proxy reader (phase 5b decision 5); null without an index or a binary reader. */
+async function levelHlod(client: ContentClient, folder: string, issues: Issue[]): Promise<LoadedLevel["hlod"] | null> {
+  if (!client.readBinary) return null;
+  const file = await client.read(`${folder}/${HLOD_INDEX_FILE}`);
+  if (!file) return null;
+  const index = normalizeHlodIndex(JSON.parse(file.text), { strict: false });
+  issues.push(...index.issues.map((found) => ({ ...found, path: `${HLOD_INDEX_FILE} ${found.path}`.trim() })));
+  if (!index.value) return null;
+  const readBinary = client.readBinary.bind(client);
+  return { index: index.value, load: (key) => readBinary(`${folder}/${hlodCellFileOf(key)}`) };
 }
 
 /** The cells of a level folder read one by one through a content client. */

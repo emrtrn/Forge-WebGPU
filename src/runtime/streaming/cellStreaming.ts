@@ -97,6 +97,8 @@ export interface CellStreaming {
   /** What unloaded cells keep (A11); a save writes it with the loaded actors' state. */
   readonly ledger: SaveLedger;
   snapshot(): CellStreamingSnapshot;
+  /** True while the cell's actors are in the world (HLOD hides its proxy then). */
+  isCellActive(key: string): boolean;
   /** Every cell the subsystem tracks; an untracked listed cell is Unloaded. */
   forEachCell(visit: (key: string, state: WorldCellState, failed: boolean) => void): void;
   /** Resolves once every cell within `radius` of the position is active (a later update). */
@@ -253,6 +255,7 @@ export function createCellStreaming(options: CellStreamingOptions): CellStreamin
         lastFrameMs: stats.lastFrameMs,
       };
     },
+    isCellActive: (key) => live.has(key),
     forEachCell: (visit) => subsystem.forEachCell(visit),
     waitForArea: (position, radius) => subsystem.waitForArea(position, radius),
     dispose() {
