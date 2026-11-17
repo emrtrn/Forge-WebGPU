@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.52 · 2026-11-17 — §4.4 5b ve R1 görsel kabulleri kullanıcı tarafından onaylandı. Önceki v1.51 · 2026-11-17 — §4.4 5c sahne maliyet raporu (R5). v1.50 — §4.4 5c foliage batch'leri (5.4). v1.49 — §4.4 5c render bundle (5.3) ölçümü. v1.48 — §4.4 5c gölge görünümleri (5.2). v1.47 — §4.4 5b HLOD: şekiller pişirilir (5c R1). Önceki v1.46 — §4.4 5c: üçgen / draw call ayrımı, sanal geometri adayları ve spike'ı 5.5 öncesi, HLOD'a şekiller (karar 5'in static mesh kuralı kalkar), three-nanite elendi. Plan v1.46.
+**Güncelleme:** v1.53 · 2026-11-17 — §4.4 R6 ölçümü ve öneri; R7 kullanıcı kararı bekliyor. v1.52 — 5b / R1 görsel kabulleri onaylandı.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — §4.4 5c: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı). Plan v1.45.
 
@@ -831,6 +831,19 @@ features/height-fog/
     görünüm ve gölge kaskadı başına draw, foliage, HLOD. Çalışma anı karşılığı editör
     Stats'ı: draw call ve üçgene GPU güdümlü batch'ler eklenir (üçgen, görünür
     sayaçların eşzamansız geri okumasıyla).
+  - *R6 ölçümü (2026-11-17; karar değil):* gerçek WebGPU P2 / yoğun küre stresi,
+    üç aday ve bundle; ayrıntı plan R6, kayıt `2026-11-17-r6-triangles.json`.
+    Ayrı tarayıcı karesi beklenmeyen ilk ölçümler PassNode cache'i nedeniyle
+    geçersiz sayıldı. r187 meshlet kopyası yalnız uygun FrontSide statiklerde,
+    ters derinlik + MRT + üç gölge kaskadında çalıştı; bundle gönderimi yaklaşık
+    3,0 ms. DoubleSide binalar normal çizimde kaldı. Terrain context'li materyal
+    WGSL hatası verdiği için adaydan çıkarıldı; occlusion kapalı. VG daha yüksek
+    bellek ve bundle altında ayrı gölge kesimi açığı taşıyor. 5.1 + ayrık LOD
+    WebGL2 ikizini koruyor, küçük parçalarda gereksiz LOD'lar kaldırılmalı.
+    Öneri: yoğun uygun statiklerde meshlet; destek dışı materyaller / WebGL2'de
+    otomatik ayrık LOD fallback, foliage 5.1'de. Bu yeni seçim **kullanıcı kararı
+    bekliyor**; üretim mimarisi değiştirilmedi, R7 başlamadı. Picking / fade /
+    HLOD hazır olma ve genel asset kabulü sonraki kapsamdır.
   - *Üçgen ve draw call ayrımı (kullanıcı, 2026-11-17; sıra plan 5c "yeni sıra"):*
     üçgen azaltma meshlet / sanal geometriyle (otomatik, elle LOD yok); r187'nin
     `MeshletDrawingPipeline`'ı ters derinlikte kapandığı için aday three-virtual-geometry

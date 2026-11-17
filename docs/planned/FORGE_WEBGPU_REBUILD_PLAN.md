@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.52 · 2026-11-17 — Kullanıcı 5b HLOD / detay fade ve R1 Derekavak görsel kabullerini onayladı; 5b kapandı, R6 başladı. Önceki v1.51 · 2026-11-17 — Faz 5c R5: sahne maliyet raporu (`forge stats`) + Stats üçgeni. v1.50 — Faz 5c R4 (5.4): foliage türü batch katmanı. v1.49 — Faz 5c R3 (5.3): bundle ölçüldü, kazanç yok, varsayılan kapalı. v1.48 — Faz 5c R2 (5.2): GPU güdümlü batch'ler gölge kaskatlarında. v1.47 — Faz 5c R1: HLOD'a `forge.shape` (three'siz primitive üreticisi, eşitlik testi). Önceki v1.46 — Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; R1 HLOD'a şekiller → R2–R4 (5.2–5.4) → R5 sahne maliyet raporu → R6 üçgen spike'ı (three-virtual-geometry / ters derinlikli meshlet kopyası / 5.1 + ayrık LOD) → R7 üretim → R8 HLOD katmanları → R9 (5.5) → R10 (5.6). three-nanite elendi. Mimari v1.46.
+**Güncelleme:** v1.53 · 2026-11-17 — R6 üç aday ölçüldü; yoğun FrontSide statiklerde r187 meshlet + ayrık LOD fallback önerisi kullanıcı kararı bekliyor. R7 başlamadı. v1.52 — 5b / R1 görsel kabulleri onaylandı, 5b kapandı.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — Faz 5c adım 5: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı, `2544bdb`); çizim sayacı iki geçişli saydam materyalleri sayar. Mimari v1.45.
 
@@ -1142,6 +1142,92 @@ R6'nın ölçü dili: üçgen ağırlığı model başına, draw ağırlığı p
 üretimi Derekavak'ta 21.360 üçgen yazdı, kaynakla aynı (sadeleştirme bu modellerde
 üçgen düşürmüyor); R8'de bakılır.
 
+**R6 ölçüldü (2026-11-17): karar bekliyor; R7 başlamadı.** Scratchpad
+`.forge-cache/r6/` (kod commit'lenmedi), ayrı Vite cache / dev kancası yalnız
+5284'te; 5183 / 5283'e dokunulmadı. Kayıt
+`ForgeReference/render-refs/runs/2026-11-17-r6-triangles.json`; yanında
+`2026-11-17-r6/` ham kayıtlar, çalıştırıcı / uyarlama ve görüntüler var.
+Kod tabanı `be4ce93`, görsel kabul kaydı `fa683e8`; three 0.187.0,
+three-virtual-geometry 0.1.3 (npm shasum 51a07fd2eec18c81149b1a10f9ad3cde1bbbfc43).
+
+**Yöntem:** NVIDIA Ampere gerçek WebGPU, Chrome 157, 1920 × 1080, DPR 1,
+high, adaptif kalite kapalı. P2'de 60 ısınma + 180 örnek; her 60 Hz engine
+adımı öncesi ayrı `requestAnimationFrame` beklendi. Aralıksız elle adımlama
+three PassNode'un aynı tarayıcı karesinde scene pass'ini yeniden kullanmasına
+neden oldu; bu ilk denemelerin süreleri kullanılmadı. Draw sayacı native
+pass / bundle komutlarını (bundle replay dahil) sayar. GPU render ve compute
+zamanları ayrı; toplamları tam kare duvar süresi veya G6 kabulü değildir.
+Bellek `renderer.info` tahmini GPU ayırımıdır (önceden yüklenmiş kaynaklar dahil),
+sürücü VRAM'i / tepe ön işleme belleği değildir. Ön işleme duvar süresi modül
+hazırlığını içerir; shader ısınması ayrıca 60 karede dışarıda tutulur.
+
+P2'nin akışla yüklenen statik alt kümesi 117 primitive / 661 primitive örneği,
+8.004 kaynak üçgendir; R5'in bütün level 21.360 sayısıyla karıştırılmaz.
+Stres, bu sahneye kamera önünde 1.600 adet 16.128 üçgenli küre ekler:
+25.812.804 kaynak üçgen. Terrain, şekiller, gökyüzü ve MRT yerinde kaldı.
+Karşılaştırma statik kopyalar üzerinde; materyalin detay fade context'i kaldırıldı.
+Bu nedenle picking / fade / akış ve hareketli kamera üretim kabulü değildir.
+
+**Derekavak P2, stres yok (ortalama):** 5.1 tam detay 496 draw / 10,75 ms
+gönderim / 11,40 ms CPU / 5,23 ms GPU render; üç LOD'u küçük parçalara da
+kuran naif ayrık LOD 1.432 draw / 20,02 / 20,77 / 5,39 ms. VG 964 draw /
+9,52 / 10,22 / 5,14 ms; ana görünüm 1.420, gölge kesimi 1.172 üçgen.
+Meshlet 398 draw / 4,31 / 4,93 / 5,10 ms; **0 meshlet**: bütün bina
+materyalleri DoubleSide olduğundan normal çizimde kaldı. Bu bir üçgen kazancı
+olarak yorumlanmaz. Bu level'da draw / primitive işi R8'e aittir.
+
+**Yoğun sahne:** bütün sahnenin draw / zaman / bellek ölçümü aşağıda. Ayrık
+LOD için küçük parçalarda gereksiz LOD kopyaları kaldırıldı (≤ 500 üçgen tek
+LOD); yalnız büyük model üç LOD (1 / 0,5 / 0,15; mesafe 40 / 90 m).
+
+| Aday | Draw | Gönderim ort. / p95 ms | CPU ms | GPU render ms | GPU compute ms | Bellek MiB | Ön işlem ms |
+|---|---|---|---|---|---|---|---|
+| 5.1 + ayrık LOD | 508 | 10.29 / 13.50 | 10.98 | 8.12 | 3.80 | 303.1 | 21 |
+| 5.1 + ayrık LOD + R3 bundle | 508 | 9.40 / 13.00 | 10.11 | 8.26 | 3.81 | 303.1 | 23 |
+| VG doğrudan | 972 | 9.73 / 11.20 | 10.46 | 6.22 | 1.84 | 521.5 | 1870 |
+| VG bundle (gölge kabulü yok) | 972 | 7.01 / 7.90 | 7.64 | 5.78 | 1.31 | 412.2 | 2187 |
+| r187 meshlet doğrudan | 402 | 4.83 / 6.40 | 5.42 | 6.35 | 0.22 | 320.3 | 152 |
+| r187 meshlet bundle | 500 | 3.03 / 3.90 | 3.61 | 6.37 | 0.22 | 320.3 | 141 |
+
+Tam detay 5.1 karşılığı: 500 draw, 10,42 ms gönderim, 11,09 ms CPU,
+14,73 ms GPU render; ana + gölge 49.504.812 statik üçgen. Ayrık LOD bunu
+12.847.134'e indirdi; ana görünüm örnekleri 36 / 144 / 1.036 (LOD 0 / 1 / 2).
+WebGPU ana görünüm sayaçları CPU kesin–olası aralığında; WebGL2 CPU ikizi aynı
+36 / 144 / 1.036 sayısını ve üç kaskadı verdi, shader / sayfa hatası yok.
+WebGL2 GPU timestamp / native WebGPU draw sayacı yoktur; kayıttaki sıfırlar
+çizim yapılmadığı anlamına gelmez. Görüntü kaydedildi; görsel eşitlik kabulü değil.
+
+VG: ana 1.652.584 + gölge 868.036 üçgen, overflow yok, thresholdScale 1;
+ters derinlikte occlusion kapalı. `BundleGroup.needsUpdate` dönüşümden sonra
+zorunlu (aksi halde orijinal kaynaklar çizilir); düzeltince ana kesim çizildi,
+fakat ayrı gölge kesimi sayacı **0**: bundle + kaskat yolu kabul edilmedi.
+
+r187 kopyası: reversed-depth engeli kaldırıldı, occlusion / HZB kapalı; three
+çekirdeği değişmedi. İlk tüm-sahne denemesi terrain `vTerrainLocal` WGSL
+hatası verdi; yalnız aday statik materyaller kabul edilince geçti. Ağır kürede
+ana görünüm 21.669 küme × 64 = **1.386.816** (degenerate padding dahil), üç
+kaskat 839 / 6.830 / 17.210 küme = **1.592.256** üçgen; bina fallback'leri
+bu sayaçlara dahil değil. Doğrudan ve bundle sayaçları aynı. DoubleSide,
+saydam, custom context / maskShadowNode vb. native destek dışı; kaynak
+materyal sessizce FrontSide'a çevrilmedi. MRT ve ters derinlikle bu sınırlı
+statik örnekte hata yok; genel malzeme / normal-motion kabulü ayrıca gerekir.
+
+**İç API bağı / maliyet:** VG node materyal, storage / indirect, pool ve
+onBeforeRender / onBeforeShadow yaşam döngüsüne; r187 kopyası DrawingPipeline,
+renderer render list / context / node builder, geometri havuzu ve gölge
+geçişine bağlıdır. Kopya 5.500+ satırdır; sürüm yükseltme bakım yükü yüksektir.
+5.1 + meshoptimizer var olan batch / WebGL2 ikiziyle en dar sözleşmedir, fakat
+LOD × parça × görünüm draw ve yüzlerce compute dispatch CPU / GPU maliyetidir.
+
+**Öneri (kullanıcı kararı bekleniyor):** R7'de r187 meshlet kopyasını yalnız
+uygun, yoğun, FrontSide statik geometri için üretimleştirmek; DoubleSide /
+saydam / özel düğümlü statikler ve WebGL2 için 5.1 + otomatik ayrık LOD
+fallback'i korumak. Foliage mevcut 5.1 yolunda kalır. Terrain meshlet'e girmez,
+occlusion ilk sürümde kapalı kalır; picking / fade / HLOD hazır olma / build
+ön işlemesi tasarımı onaydan sonra netleştirilir. VG bu ölçümde varsayılan
+öneri değil (bellek ve bundle-gölge açığı). Küçük bina parçalarındaki draw
+sorunu bu seçimle kapanmaz; R8 / R9 ve son G6 hâlâ açık. **R7'ye başlanmadı.**
+
 5c ile paralel yürürse ortak dosyalar: `render/sync/instanceBatches.ts` (adım 8; foliage
 kendi batch'ini kurar), kalite profilleri, `?debug` satırları. Çakışmada adım 8 5c'nin
 GPU güdümlü yolunu bekler.
@@ -1488,5 +1574,5 @@ silinebilir.
 | 2026-11-17 | v1.49 | Faz 5c R3 (5.3): isteğe bağlı bundle (`bundle: true`, kamera başına kayıt, yeniden kayıt yalnız mesh / görünüm değişince, saydamlar dışarıda) + `npm run measure:gpu-driven`. Kazanç yok (foliage 1,54 → 1,49 ms, 1.200 draw'lık stres 20,2 → 21,7 ms): three r187 düğüm materyalli render nesnelerini her karede tam yeniler; varsayılan kapalı, kullanıcı kararı bekliyor. Sıradaki R4 |
 | 2026-11-17 | v1.50 | Faz 5c R4 (5.4): `render/foliage/foliageBatches.ts`: foliage türü başına GPU güdümlü batch (LOD zinciri, kalite ölçekli solma, ekran boyundan LOD, gölge), sahip anahtarlı örnek API'si (halka adım 6, boyanmış hücreler adım 7 buna bağlanır); smoke iki arka uçta bu katmandan. Sıradaki R5 |
 | 2026-11-17 | v1.51 | Faz 5c R5: `npm run forge -- stats` sahne maliyet raporu (aktör, model / materyal birleşimi, kaynak üçgen, saydam / çift yüzlü, batch ve görünüm / kaskat başına draw, foliage, HLOD); editör Stats üçgenine GPU güdümlü batch'ler (eşzamansız geri okuma). Derekavak 118 draw / görünüm, 21.360 üçgen; sentetik 182 draw, 40,4 M üçgen. Sıradaki R6 |
-
 | 2026-11-17 | v1.52 | Kullanıcı görsel kabulleri onayladı: 5b HLOD / detay fade + otomatik HLOD, 5c R1 Derekavak şekil proxy. 5b kutusu kapandı; Faz 5 bütünü açık, arşiv yok. Referanslar yenilenmedi, yeni test / gate yok. R6 başladı; R7 karar bekler. |
+| 2026-11-17 | v1.53 | R6: gerçek WebGPU P2 ve 25,8 M üçgen stres; VG / ters derinlikli r187 meshlet / 5.1 + meshoptimizer LOD, bundle ve WebGL2 ikizi. Ayrı RAF ile PassNode ölçüm sorunu giderildi; geçersiz ilk koşular dışarıda. Yoğun FrontSide statik meshlet + diğerlerinde ayrık LOD fallback önerisi karar bekliyor. Spike kodu commit edilmedi; kayıt render-refs/runs/2026-11-17-r6-triangles.json. R7 başlamadı. |
