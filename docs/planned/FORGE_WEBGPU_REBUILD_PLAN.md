@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.68 · 2026-11-18 — R9a O5 ağır mesh testi: 768 × 36,5 bin üçgenlik eşyada instanced GPU 19–20,5 ms, GPU yolu + otomatik LOD 1,75–2,1 ms, + occlusion 1,73–1,85 ms (LOD'a göre fark gürültü içinde). R9.0'ın "statikler instanced" kararı ağır içerik için yeniden açılmalı; bölge / PVS değerlendirmesi kullanıcıda.
+**Güncelleme:** v1.69 · 2026-11-18 — Kullanıcı kararı: occlusion culling iptal (kod Z0'da kaldırılır), PVS yok. Yerine R9b bölge sistemi: otomatik kurulur, editörde Blocking Volume gibi sürükle-bırak ve gizmo ile elle düzeltilir; çalışma anında portal üzerinden görünür bölgeler. Plan Z0–Z7; kod yok.
+
+**Önceki güncelleme:** v1.68 · 2026-11-18 — R9a O5 ağır mesh testi: 768 × 36,5 bin üçgenlik eşyada instanced GPU 19–20,5 ms, GPU yolu + otomatik LOD 1,75–2,1 ms, + occlusion 1,73–1,85 ms (LOD'a göre fark gürültü içinde). R9.0'ın "statikler instanced" kararı ağır içerik için yeniden açılmalı; bölge / PVS değerlendirmesi kullanıcıda.
 
 **Önceki güncelleme:** v1.67 · 2026-11-18 — R9a O1–O4 uygulandı (level ayarı, otomatik engelleyiciler, GPU Hi-Z, ana görünüm örnek ayıklaması): doğru (GPU piramidi = CPU, yanlış gizleme yok), iç mekânda örneklerin %50–90'ı gizleniyor; sentetik sahnede GPU süresi değişmedi. Varsayılan kapalı; sonraki adım kullanıcı kararında.
 
@@ -1041,7 +1043,8 @@ işleyicisi (`clusterlod.h` portu) ve çatlak denetimi referanstır. Bütün ad�
 | R7 | Otomatik LOD üretimi (tamamlandı) | Meshoptimizer ile otomatik ayrık LOD, deterministik ön işleme / cache / build ve seçilebilir runtime bağı; WebGPU + WebGL2. Meshlet üretim kapsamı dışında; foliage mevcut 5.1 yolunda. Küçük nesnede önce üçgen düşer, sonra detay culling | 21 odaklı test, typecheck, katman, gerçek WebGPU + WebGL2 smoke; uygulama kaydı aşağıda. R8 / R9 / R9a / R10 ayrı |
 | R8 | HLOD katmanları (draw call; tamamlandı, kullanıcı kabulü 2026-11-17) | Hiyerarşik HLOD (öneri: ikinci katman 4 × 4 hücre, uzak menzilde), siluet / landmark işareti (view distance ötesinde uzak katman), slot düzeyinde materyal birleştirme; proxy'ler düz mesh, bundle kapalı (v1.57 kararları ve R8.0–R8.6 aşağıda) | Draw call ve gönderim öncesi / sonrası |
 | R9 | 5.5 statiklerin geçişi (tamamlandı 2026-11-17: altyapı bağlı, statikler ölçüm kararıyla `instanced`; R9.0–R9.4 aşağıda) | 5.1 yolu + otomatik LOD; picking, detay fade, transform hızlı yolu, HLOD hazır olma, `compileAsync` korunur | Editör / render smoke'ları iki arka uçta |
-| R9a | GPU occlusion culling (açık; adım 1 tamamlandı) | İlk adım (tamamlandı 2026-11-17): ikincil kameralar (yansıma) kendi GPU culling görünümü ve sayacı. Sonra R10 öncesinde meshlet'ten bağımsız nesne / instance düzeyinde konservatif Hi-Z adayı: önce tasarım + açık alan / örtülü alan A/B ölçümü, sonra yararlıysa üretim. Ters derinlik, MRT, MSAA, kamera hareketi ve gölge doğruluğu | Yanlış gizleme yok; culling kapalı referansla doğruluk; CPU / GPU render + compute / bellek / görünür nesne / üçgen karşılaştırması; WebGL2 mevcut culling ile çalışır |
+| R9a | GPU occlusion culling (**iptal**, kullanıcı 2026-11-18; adım 1 kamera görünümleri kalır, occlusion kodu R9b Z0'da kaldırılır) | İlk adım (tamamlandı 2026-11-17): ikincil kameralar (yansıma) kendi GPU culling görünümü ve sayacı. Sonra R10 öncesinde meshlet'ten bağımsız nesne / instance düzeyinde konservatif Hi-Z adayı: önce tasarım + açık alan / örtülü alan A/B ölçümü, sonra yararlıysa üretim. Ters derinlik, MRT, MSAA, kamera hareketi ve gölge doğruluğu | Yanlış gizleme yok; culling kapalı referansla doğruluk; CPU / GPU render + compute / bellek / görünür nesne / üçgen karşılaştırması; WebGL2 mevcut culling ile çalışır |
+| R9b | Bölge sistemi (yeni, kullanıcı 2026-11-18) | Otomatik bölge + portal üretimi, editörde elle düzenleme, çalışma anında portal üzerinden görünür bölgeler; Z0–Z7 aşağıda | Draw / gölge / GPU önce–sonra; açık dünya değişmez; smoke iki arka uçta |
 | R10 | 5.6 G6 ölçümü | Derekavak P2 60 Hz, R5 raporuyla; sonra 5c adım 6–11 eski sırayla | G6 sınırları |
 
 Öneriyle ilerleyen kararlar (kullanıcı itiraz ederse değişir): foliage 5.1 yolunda
@@ -1260,6 +1263,50 @@ occlusion eklenmedi. Tam gate ve push çalıştırılmadı.
 - Kaynak araştırması: [r187 HZB](https://github.com/mrdoob/three.js/blob/r187/examples/jsm/pipelines/MeshletDrawingPipeline.js)
   ve [Niagara](https://github.com/zeux/niagara) (Vulkan, algoritma referansı;
   doğrudan three/WebGPU eklentisi değil). Yeni bağımlılık kararı verilmedi.
+
+**R9b bölge sistemi (kullanıcı kararı, 2026-11-18; v1.69):** R9a'nın ölçümleri iç mekânda asıl
+yükün gizlenen içeriğin draw'ı, gölgesi ve köşe işi olduğunu gösterdi; GPU occlusion gölgeyi ve
+draw'ı düşüremedi (ana görünüm sonucu gölgeye uygulanamaz), PVS düzenlemede canlı akışla çelişir.
+Kullanıcı: occlusion iptal, PVS yok; yalnız **bölge sistemi**, otomatik kurulur, sonra Blocking Volume
+gibi sahneye sürüklenen ve gizmoyla boyutlanan hacimlerle elle düzeltilir.
+
+Tasarım:
+- **Bölge (`forge.zone`):** kutu hacim (boyut, ad). Bir statik yerleşim sınır küresinin merkezinin
+  düştüğü en küçük bölgeye aittir; hiçbir bölgeye düşmeyen içerik bölgesizdir ve **hep görünür**
+  (açık dünya, dış cephe, gökyüzü etkilenmez). Kamera bir bölgede değilse bütün bölgeler görünür.
+- **Portal (`forge.portal`):** dikdörtgen açıklık (kapı, pencere, koridor ağzı); kenarına değdiği /
+  kestiği iki bölgeyi bağlar (otomatik, elle de seçilebilir). İleride kapı açık / kapalı durumu
+  portalı açıp kapatır (oyun kodu); şimdilik hep açık.
+- **Çalışma anı (CPU, iki arka uç):** kamera bölgesinden başlayıp portal grafını gezer; bir portal
+  ancak o ana kadar daralmış görüş alanının içindeyse geçilir, görüş alanı portalın dikdörtgenine
+  daraltılır (klasik portal görünürlüğü; derinlik sınırı ve kare başına bütçe). Sonuç kare başına
+  görünür bölge kümesidir; önceden hesap yok, düzenleme anında geçerli.
+- **Çizim:** statik batch'ler bölgeye göre ayrılır (batch anahtarına bölge eki; R9a adım a'nın
+  `batchCells.ts`'i bölge bölmesine genelleşir). Görünmeyen bölgenin batch'leri çizilmez ve **gölge
+  düşürmez** (öneri; bölge başına "gölgesi hep düşsün" seçeneği). Instanced ve GPU yolu ikisi de.
+  HLOD, foliage halkası ve bölgesiz içerik değişmez. Önce yalnız görünürlük; bellekten boşaltma
+  (bölgeye göre akış) sonra ayrı karar.
+- **Otomatik üretim:** `npm run forge -- zones --project <yol> --level <klasör> [--json]` ve editörde
+  "Generate Zones": level'ın büyük opak statiklerinden (duvar, döşeme, tavan; dünya yarıçapı eşiği)
+  bir voksel ızgarası kurulur, göz yüksekliğinde boş hücreler taşkın doldurmayla odalara ayrılır,
+  dar boğazlar portal olur; her oda bir kutu bölgeye, her boğaz bir portala yazılır. Kayıt servisi
+  üzerinden, tek Undo; elle düzeltilmiş bölgeler korunur (`generated` işareti olanlar yeniden
+  üretilir). Dünya kurucu ve sentetik üreteçler bölgeleri doğrudan yazabilir.
+- **Editör:** Place panelinde "Zone Volume" ve "Portal"; sahneye sürükle-bırak, gizmo ile taşı /
+  döndür / ölçekle (kutu kenarı ölçekten), Details'ta ad / portal bağlantıları; yalnız editörde
+  çizilen yarı saydam kutu + kenar (`editorRender.ts`, ışık yardımcıları gibi), seçili bölgenin
+  portalları vurgulu. `?debug`: aktif bölge, görünür bölge sayısı, gizlenen batch / draw.
+
+| # | İş | Kapı |
+|---|---|---|
+| Z0 | Occlusion kodunun kaldırılması: `occlusionCulling` level ayarı, engelleyici ikizleri, GPU Hi-Z geçişi, batch'in occlusion testi, dev kancaları (`levelSettings` hariç), CPU Hi-Z + çalışma ölçümleri. Kalır: kamera görünümleri (R9a adım 1), `tools/scenes/indoorScene.ts`, `heavyPropsDev`, `batchCells` (Z3'te bölgeye genelleşir) | Tip / katman / odaklı test; render smoke GPU alt kümesi |
+| Z1 | Şemalar `forge.zone@1` (boyut, ad, `generated`, gölge seçeneği) ve `forge.portal@1` (boyut, `generated`, isteğe bağlı bağlı bölgeler); SDK yüzeyi değişirse snapshot + changelog | Node yükleme, kanonik biçim, odaklı test |
+| Z2 | Saf çekirdek `engine/world/zones.ts`: yerleşim → bölge ataması, portal → bölge bağlantıları, kamera bölgesi, portal görüş alanı daralmasıyla görünür bölge kümesi (X, Codex) | Odaklı test (iç içe / komşu / kapalı portal / bölge dışı kamera) |
+| Z3 | Çizim: batch'lerin bölgeye göre bölünmesi, kare başına görünürlük (ana görünüm + gölge), bölge değiştiren düzenleme; instanced + GPU yolu | Odaklı test; render smoke iki arka uçta |
+| Z4 | Otomatik üretim: voksel + taşkın doldurma + boğaz tespiti (saf çekirdek X, Codex), `forge zones` komutu, kayıt servisiyle yazım, `generated` kuralı | Sentetik iç mekânda 64 oda / 112 kapı birebir; tekrar koşu aynı baytlar |
+| Z5 | Editör: Place girdileri, sürükle-bırak, gizmo ölçeği, Details, yardımcı çizim, "Generate Zones" düğmesi, `?debug` satırları | Editör smoke iki arka uçta |
+| Z6 | Ölçüm: ağır eşyalı sentetik iç mekânda bölgesiz / bölgeli draw, gölge, GPU, gönderim; açık dünyada fark yok | Kayıt `render-refs/runs/`; kullanıcı görsel kabulü |
+| Z7 | Belgeler: mimari rapor, harita, CLAUDE.md komut satırı | — |
 
 **R8 kararları ve uygulama planı (kullanıcı, 2026-11-17; v1.57):**
 Bulgular: HLOD proxy'leri zaten tek ortak materyalli (renk köşe renginde, gölge
@@ -1999,6 +2046,7 @@ silinebilir.
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
+| 2026-11-18 | v1.69 | Kullanıcı: occlusion iptal, PVS yok; R9b bölge sistemi (otomatik + elle düzenlenen hacimler, portal görünürlüğü, bölgeye göre batch ve gölge); Z0 occlusion kodunun kaldırılması, Z1–Z7. Kod yok |
 | 2026-11-18 | v1.68 | R9a O5 ağır mesh (`994c3b1`): instanced 19–20,5 ms → GPU yolu + otomatik LOD 1,75–2,1 ms → + occlusion 1,73–1,85 ms; kazanç LOD'dan, occlusion farkı gürültüde. Statik yol varsayılanı ve bölge / PVS kararı açık |
 | 2026-11-18 | v1.67 | R9a O1 (`5f1ab63`) ve O2–O4 (`6510965`): occlusion level ayarı, otomatik engelleyici ön geçişi, GPU Hi-Z (Codex `gpt-6.2-sol` paket düzeni), ana görünüm örnek ayıklaması; doğru (piramit 0 fark, yanlış gizleme yok), iç mekânda %50–90 örnek gizli; sentetik sahnede GPU süresi değişmedi, gönderim arttı. Varsayılan kapalı |
 | 2026-11-18 | v1.66 | R9a hücre batch'i ölçümü (`fab7066`, kapalı): iç mekân draw 4 → 63; query yolu bırakıldı. Üretim kararı (kullanıcı): örnek başına GPU occlusion O1–O5 (level ayarı, otomatik engelleyici ön geçişi, GPU Hi-Z, ana görünüm örnek ayıklaması, A/B) |
