@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.53 · 2026-11-17 — §4.4 R6 ölçümü ve öneri; R7 kullanıcı kararı bekliyor. v1.52 — 5b / R1 görsel kabulleri onaylandı.
+**Güncelleme:** v1.54 · 2026-11-17 — §4.4 kullanıcı R6 seçimini onayladı: uygun yoğun FrontSide statiklerde r187 meshlet, diğer materyaller / WebGL2 için otomatik ayrık LOD, foliage 5.1 yolunda. R7 yeni oturumda başlayacak.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — §4.4 5c: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı). Plan v1.45.
 
@@ -831,7 +831,7 @@ features/height-fog/
     görünüm ve gölge kaskadı başına draw, foliage, HLOD. Çalışma anı karşılığı editör
     Stats'ı: draw call ve üçgene GPU güdümlü batch'ler eklenir (üçgen, görünür
     sayaçların eşzamansız geri okumasıyla).
-  - *R6 ölçümü (2026-11-17; karar değil):* gerçek WebGPU P2 / yoğun küre stresi,
+  - *R6 ölçümü ve onaylanan seçim (kullanıcı, 2026-11-17):* gerçek WebGPU P2 / yoğun küre stresi,
     üç aday ve bundle; ayrıntı plan R6, kayıt `2026-11-17-r6-triangles.json`.
     Ayrı tarayıcı karesi beklenmeyen ilk ölçümler PassNode cache'i nedeniyle
     geçersiz sayıldı. r187 meshlet kopyası yalnız uygun FrontSide statiklerde,
@@ -840,9 +840,11 @@ features/height-fog/
     WGSL hatası verdiği için adaydan çıkarıldı; occlusion kapalı. VG daha yüksek
     bellek ve bundle altında ayrı gölge kesimi açığı taşıyor. 5.1 + ayrık LOD
     WebGL2 ikizini koruyor, küçük parçalarda gereksiz LOD'lar kaldırılmalı.
-    Öneri: yoğun uygun statiklerde meshlet; destek dışı materyaller / WebGL2'de
-    otomatik ayrık LOD fallback, foliage 5.1'de. Bu yeni seçim **kullanıcı kararı
-    bekliyor**; üretim mimarisi değiştirilmedi, R7 başlamadı. Picking / fade /
+    Karar: yoğun uygun statiklerde meshlet; destek dışı materyaller / WebGL2'de
+    otomatik ayrık LOD fallback, foliage 5.1'de. Bu seçim **kullanıcı tarafından
+    onaylandı**; önceki genel meshlet reddinin bu kapsamdaki yerini alır. Terrain
+    meshlet dışında, occlusion ilk sürümde kapalı. Üretim kodu henüz yok; R7 yeni
+    oturumda başlayacak. Picking / fade /
     HLOD hazır olma ve genel asset kabulü sonraki kapsamdır.
   - *Üçgen ve draw call ayrımı (kullanıcı, 2026-11-17; sıra plan 5c "yeni sıra"):*
     üçgen azaltma meshlet / sanal geometriyle (otomatik, elle LOD yok); r187'nin

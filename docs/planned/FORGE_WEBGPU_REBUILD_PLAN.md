@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.53 · 2026-11-17 — R6 üç aday ölçüldü; yoğun FrontSide statiklerde r187 meshlet + ayrık LOD fallback önerisi kullanıcı kararı bekliyor. R7 başlamadı. v1.52 — 5b / R1 görsel kabulleri onaylandı, 5b kapandı.
+**Güncelleme:** v1.54 · 2026-11-17 — Kullanıcı R6 seçimini onayladı: yoğun uygun FrontSide statiklerde r187 meshlet; diğer materyaller / WebGL2 için otomatik ayrık LOD; foliage 5.1 yolunda. R7 yeni oturumda başlayacak.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — Faz 5c adım 5: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı, `2544bdb`); çizim sayacı iki geçişli saydam materyalleri sayar. Mimari v1.45.
 
@@ -1013,8 +1013,8 @@ işleyicisi (`clusterlod.h` portu) ve çatlak denetimi referanstır. Bütün ad�
 | R3 | 5.3 bundle | Dolaylı mesh'ler tek `BundleGroup`'ta, kamera başına kayıt; yeniden kayıt politikası ve sayısı | Gönderim süresi bundle öncesi / sonrası, yeniden kayıt sayacı |
 | R4 | 5.4 foliage bu yolda | Halka (adım 6) ve boyanmış hücreler (adım 7) bu batch'leri kullanır; WebGL2 ikizi korunur | Smoke iki arka uçta |
 | R5 | Sahne maliyet raporu | Ajan komutu (öneri `npm run forge -- stats --project <yol> --level <klasör> [--json]`): aktör, benzersiz geometri / materyal, model başına materyal, saydam / çift yüzlü, kaynak üçgen; editör Stats: görünür draw call (dolaylı + bundle dahil) ve çizilen üçgen. `verify:assets` eşikleri sonra (yalnız rapor) | Derekavak ve sentetik level raporu; R6'nın ortak ölçü dili |
-| R6 | Üçgen spike'ı (kod commit'lenmez, port 5284+) | Derekavak P2 + yoğun mesh stres sahnesi: (a) three-virtual-geometry, (b) r187 meshlet hattının ters derinlik kopyası, (c) 5.1 yolu + meshoptimizer ayrık LOD zinciri. Ölçüt: çizilen üçgen, draw call, gönderim / ana iş parçacığı, GPU süresi, kaskat gölgesi, ters derinlik, MRT, R3 bundle'ı, WebGL2 ikizi, bellek / ön işleme süresi, three iç API bağımlılığı | Kayıt `render-refs/runs/`; sonuç ve öneri kullanıcıya, karar sonra |
-| R7 | Seçilen üçgen yolunun üretimi | Otomatik ön işleme (elle LOD yok), runtime bağı; küçük nesnede önce üçgen düşer, sonra detay culling (aynı geçiş) | Karar sonrası tasarım |
+| R6 | Üçgen spike'ı (tamamlandı; kod commit'lenmez, port 5284+) | Derekavak P2 + yoğun mesh stres sahnesi: (a) three-virtual-geometry, (b) r187 meshlet hattının ters derinlik kopyası, (c) 5.1 yolu + meshoptimizer ayrık LOD zinciri. Ölçüt: çizilen üçgen, draw call, gönderim / ana iş parçacığı, GPU süresi, kaskat gölgesi, ters derinlik, MRT, R3 bundle'ı, WebGL2 ikizi, bellek / ön işleme süresi, three iç API bağımlılığı | Kayıt `render-refs/runs/`; kullanıcı seçimi aşağıda (2026-11-17) |
+| R7 | Seçilen üçgen yolunun üretimi (sıradaki; yeni oturum) | Yoğun uygun FrontSide statiklerde r187 meshlet; diğer materyaller / WebGL2 için otomatik ayrık LOD. Foliage 5.1 yolunda. Otomatik ön işleme (elle LOD yok), runtime bağı; küçük nesnede önce üçgen düşer, sonra detay culling (aynı geçiş) | Onaylanan seçimle tasarım ve üretim; R8 / R9 / R10 ayrı |
 | R8 | HLOD katmanları (draw call) | Hiyerarşik HLOD (öneri: ikinci katman 4 × 4 hücre, uzak menzilde), siluet / landmark işareti (view distance ötesinde uzak katman), proxy'ler GPU yoluna / bundle'a. Materyal birleştirme R5 raporuyla ayrı karar | Draw call ve gönderim öncesi / sonrası |
 | R9 | 5.5 statiklerin geçişi | R6 kararıyla 5.1 yolu ya da sanal geometri; picking, detay fade, transform hızlı yolu, HLOD hazır olma, `compileAsync` korunur | Editör / render smoke'ları iki arka uçta |
 | R10 | 5.6 G6 ölçümü | Derekavak P2 60 Hz, R5 raporuyla; sonra 5c adım 6–11 eski sırayla | G6 sınırları |
@@ -1142,7 +1142,7 @@ R6'nın ölçü dili: üçgen ağırlığı model başına, draw ağırlığı p
 üretimi Derekavak'ta 21.360 üçgen yazdı, kaynakla aynı (sadeleştirme bu modellerde
 üçgen düşürmüyor); R8'de bakılır.
 
-**R6 ölçüldü (2026-11-17): karar bekliyor; R7 başlamadı.** Scratchpad
+**R6 ölçüldü; seçim kullanıcı tarafından onaylandı (2026-11-17). R7 başlamadı.** Scratchpad
 `.forge-cache/r6/` (kod commit'lenmedi), ayrı Vite cache / dev kancası yalnız
 5284'te; 5183 / 5283'e dokunulmadı. Kayıt
 `ForgeReference/render-refs/runs/2026-11-17-r6-triangles.json`; yanında
@@ -1219,12 +1219,12 @@ geçişine bağlıdır. Kopya 5.500+ satırdır; sürüm yükseltme bakım yük�
 5.1 + meshoptimizer var olan batch / WebGL2 ikiziyle en dar sözleşmedir, fakat
 LOD × parça × görünüm draw ve yüzlerce compute dispatch CPU / GPU maliyetidir.
 
-**Öneri (kullanıcı kararı bekleniyor):** R7'de r187 meshlet kopyasını yalnız
+**Karar (kullanıcı, 2026-11-17; öneriyi onayladı):** R7'de r187 meshlet kopyasını yalnız
 uygun, yoğun, FrontSide statik geometri için üretimleştirmek; DoubleSide /
 saydam / özel düğümlü statikler ve WebGL2 için 5.1 + otomatik ayrık LOD
 fallback'i korumak. Foliage mevcut 5.1 yolunda kalır. Terrain meshlet'e girmez,
 occlusion ilk sürümde kapalı kalır; picking / fade / HLOD hazır olma / build
-ön işlemesi tasarımı onaydan sonra netleştirilir. VG bu ölçümde varsayılan
+ön işlemesi tasarımı R7’de netleştirilir; yeni mimari soru varsa kullanıcıya sorulur. VG bu ölçümde varsayılan
 öneri değil (bellek ve bundle-gölge açığı). Küçük bina parçalarındaki draw
 sorunu bu seçimle kapanmaz; R8 / R9 ve son G6 hâlâ açık. **R7'ye başlanmadı.**
 
@@ -1576,3 +1576,4 @@ silinebilir.
 | 2026-11-17 | v1.51 | Faz 5c R5: `npm run forge -- stats` sahne maliyet raporu (aktör, model / materyal birleşimi, kaynak üçgen, saydam / çift yüzlü, batch ve görünüm / kaskat başına draw, foliage, HLOD); editör Stats üçgenine GPU güdümlü batch'ler (eşzamansız geri okuma). Derekavak 118 draw / görünüm, 21.360 üçgen; sentetik 182 draw, 40,4 M üçgen. Sıradaki R6 |
 | 2026-11-17 | v1.52 | Kullanıcı görsel kabulleri onayladı: 5b HLOD / detay fade + otomatik HLOD, 5c R1 Derekavak şekil proxy. 5b kutusu kapandı; Faz 5 bütünü açık, arşiv yok. Referanslar yenilenmedi, yeni test / gate yok. R6 başladı; R7 karar bekler. |
 | 2026-11-17 | v1.53 | R6: gerçek WebGPU P2 ve 25,8 M üçgen stres; VG / ters derinlikli r187 meshlet / 5.1 + meshoptimizer LOD, bundle ve WebGL2 ikizi. Ayrı RAF ile PassNode ölçüm sorunu giderildi; geçersiz ilk koşular dışarıda. Yoğun FrontSide statik meshlet + diğerlerinde ayrık LOD fallback önerisi karar bekliyor. Spike kodu commit edilmedi; kayıt render-refs/runs/2026-11-17-r6-triangles.json. R7 başlamadı. |
+| 2026-11-17 | v1.54 | Kullanıcı R6 önerisini onayladı: yoğun uygun tek yüzlü statiklerde ters derinliğe uyarlanmış r187 meshlet; diğer materyallerde / WebGL2’de otomatik ayrık LOD; foliage mevcut 5.1 yolunda. Terrain meshlet dışında, occlusion ilk sürümde kapalı. Önceki genel meshlet reddi bu kapsamda geçersiz; R7 yeni oturumda başlayacak, üretim kodu yok. |
