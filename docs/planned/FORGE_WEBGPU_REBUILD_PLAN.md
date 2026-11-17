@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.39 · 2026-11-17 — Faz 5b teknik kontroller ve streaming ölçümü geçti: temiz a6f3521, ilk uçuş p99 / max 13,3 / 35,1 ms, heap %0,34. Editör akışı / WP paneli / HLOD / TSL fade ve compileAsync hazırlığı uygulandı; hücre bölmesi kullanıcı onayıyla 5c öncesi G6 / meshlet spike'ında. Kullanıcı HLOD / fade görsel kabulü bekliyor; 5b açık. Mimari v1.42.
+**Güncelleme:** v1.40 · 2026-11-17 — Faz 5c başladı: döküm, kullanıcı kararları 1–9 ("hepsi öneri gibi") ve 11 adımlık sıra; adım 3'ün saf taşıması uygulandı (foliage halkası 8 A, A 990 / 1.021). 5b görsel kabulü açık. Mimari v1.43.
+
+**Önceki güncelleme:** v1.39 · 2026-11-17 — Faz 5b teknik kontroller ve streaming ölçümü geçti: temiz a6f3521, ilk uçuş p99 / max 13,3 / 35,1 ms, heap %0,34. Editör akışı / WP paneli / HLOD / TSL fade ve compileAsync hazırlığı uygulandı; hücre bölmesi kullanıcı onayıyla 5c öncesi G6 / meshlet spike'ında. Kullanıcı HLOD / fade görsel kabulü bekliyor; 5b açık. Mimari v1.42.
 
 **Sürüm:** v1.34 · 2026-11-16 (v1.33’ten fark: World Settings genel gölge anahtarı ve tek Undo ile toplu nesne gölgeleri; Island sahne verisi korunur; mimari v1.37). v1.33 · 2026-11-16: Derekavak canlı kabulü; Island'da kamerayı izleyen koyu dörtgenin düzeltilmesi — ters derinlikte takip gölgesinin alt Z sınırı, kaynak geçişi ve GPU regresyonu; mimari v1.36. v1.32 · 2026-11-16: Faz 5a adım 8 teknik kapısı, A 957 / 1.021 ve görsel kabul adayları (mimari v1.35).
 
@@ -743,6 +745,136 @@ doğrulanır. Önceki kayıt tam performans, sızıntı veya faz kabulü değild
 [`2026-11-16T17-21-20-544Z-streaming.json`](../../../Games/ForgeReference/render-refs/runs/2026-11-16T17-21-20-544Z-streaming.json),
 [`2026-11-16T17-34-06-960Z-streaming.json`](../../../Games/ForgeReference/render-refs/runs/2026-11-16T17-34-06-960Z-streaming.json).
 
+**5c başlangıç dökümü (2026-11-17).** INV-D29 (foliage hücreleri, kompakt dizi),
+D30 (prosedürel halka, ground cover), E21 (Foliage Type), G16 (instancing, fade,
+impostor / billboard, rüzgâr). Ertelenen **8 A** (`foliageRing`). Eski modelden
+yeniden yazılacaklar: `proceduralFoliage` 14 M + 2 R, `windSway` 13 R,
+`foliageFade` 5 R, `proceduralFoliageRing` 4 R, `foliageCell*` M.
+
+| Var (2b / 3 / 5a / 5b) | Eksik (5c) |
+|---|---|
+| WES rüzgârı ve örtüsü (5a adım 7), `engine/environment/wind` | Foliage Type asset'i, landscape kuralları, boyanmış foliage dosya biçimi |
+| TSL detay fade `render/materials/detailFade.ts`, `compileAsync` ön ısıtması, residency, HLOD (5b) | GPU güdümlü çizim (compute culling + indirect), gölge kaskatlarında da |
+| Terrain maskesi, katman ağırlıkları, global harita (5a) | Prosedürel halka + worker, uzak billboard blokları |
+| `groundCover` (World Builder, 2b) | Rüzgâr salınımı TSL, foliage fade, impostor |
+| three r187 `IndirectStorageBufferAttribute`, `geometry.setIndirect`, örnek `MeshletDrawingPipeline` | İçe aktarıcı çeviricileri (bugün "→ phase 5c" raporlanıyor) |
+
+Referans içerik: Derekavak'ta boyanmış foliage yok, 7 landscape kuralı var
+(`layerId` + `foliageTypeId` + yoğunluk + `minWeight` + `seed`): foliage'ın
+tamamı prosedürel halka ve uzak billboard. Island ve WbPilotValley'de
+`.foliage.json`; 12 `foliagetype`. S4 hedefi: Derekavak P2'nin 327 draw
+call'unun 260'ı foliage; foliage çizimleri toplanınca gönderim 3,9 → 2,2 ms.
+
+**5c kararları (kullanıcı, 2026-11-17, "hepsi öneri gibi"; ayrıntı mimari v1.43 §4.4):**
+
+1. *Önce G6 / meshlet spike'ı:* 5b'den bırakılan hücre bölmesi ve meshlet sorusu,
+   üretim yolundan önce Derekavak P2'de 60 Hz'de ölçülür: ortak batch / hücreye
+   bölünmüş batch / foliage compute culling + indirect / meshlet. Spike kodu
+   commit'lenmez; kayıt `render-refs/runs/`'a, sonuç plana.
+2. *Foliage Type:* şemalı JSON asset `forge.foliageType`: model GUID'i (ileride
+   bitki ailesi GUID'i), Forge'un yerleşim alanları, cull / far alanları, rüzgâr
+   kaynağı, LOD zinciri ve impostor yuvası (PG0 sözleşmesi 1). Genel veri
+   editörüyle (A13).
+3. *Landscape kuralları:* terrain aktöründe şemalı `forge.landscapeFoliage`
+   bileşeni (kural başına katman, tür GUID'i, yoğunluk, `minWeight`, `seed`);
+   ajan `forge edit set` ile düzenler.
+4. *Boyanmış örnekler:* HLOD gibi level parçası: `foliage.json` dizini + hücre
+   başına ikili `foliage/<x>_<z>.bin` (tür başına konum / dönüş / ölçek / seed).
+   WP hücre akışıyla gelir; prosedürel halka terrain tile'ı gibi kameraya bağlı ayrı akar.
+5. *GPU güdümlü çizim, bütün türlerde zorunlu:* örnekler tür başına storage
+   buffer'da; compute geçişi görüş alanı, mesafe, fade ve LOD seçimini yapar,
+   atomik sayaçla indirect argümanlarını yazar; çizim `drawIndexedIndirect`,
+   gölge kaskatlarında da. Fade 5b'nin dither'ı; rüzgâr WES'ten, köşe niteliği
+   varsa ondan, yoksa Forge'un yükseklik formülüyle (PG0 sözleşmesi 2). Çevre
+   değişimi uniform'la, yeniden derleme yok.
+6. *Uzak temsil:* önce Forge'un çalışma anı billboard'u TSL'de, içe aktarılan
+   GLB türleri için; üretilen bitkinin offline impostor'u ve PK7 PG3'te.
+7. *Bitki dilimi (PG0–PG3, 5c ile):* `forge.plantFamily` asset'i + `forge.plant`
+   bileşeni; tepki çözücü `engine`'de saf, tekil aktör ve foliage aynı
+   uniform'ları kullanır. PG1 kayası saf çekirdeğin (rastgele akışlar, mesh
+   yazımı, LOD) ince dilimi olarak kapsamda.
+8. *İçe aktarıcı:* foliage type, landscape kuralları ve boyanmış gruplar
+   çevrilir; referans projesi yeniden alınmadan önce kullanıcıya sorulur.
+9. *Kapı ölçümü:* `npm run measure:foliage`, başlıklı gerçek WebGPU: Derekavak
+   P2 60 Hz G6, S4'ün üretim karşılığı (draw call, GPU), üretilmiş ormanda G6,
+   çevre geçişinde en uzun kare / pipeline sayısı / tepe bellek, PV-WES-01–08.
+
+**5c adım sırası** (C: Claude, X: Codex; X'in diff'ini Claude inceler, kapıları
+çalıştırır, commit'i atar):
+
+1. Döküm ve kararlar — C (bu docs güncellemesi).
+2. G6 / meshlet spike'ı, sonucun kullanıcıya getirilmesi — C.
+   **Ölçüldü (2026-11-17), karar kullanıcıda.** Spike kodu commit'lenmedi (kararın
+   gereği). Düzenek: Derekavak P2, 1920 × 1080, `high`, DPR 1, başlıklı gerçek WebGPU
+   (NVIDIA Ampere); kare döngüsü duraklatılıp 16,7 ms aralıkla 300 kare adımlandı
+   (60 Hz; GPU yetişir, swapchain beklemesi yok). Ana iş parçacığı = adımın CPU süresi,
+   gönderim = host'un `pipeline.render` + overlay duvar süresi (+ GPU culling dispatch).
+   Foliage içeriği Node'da yeni saf modüllerle Derekavak'ın 7 kuralı ve gerçek
+   terrain'iyle üretildi: **370 hücre / 1.640 örnek**, S4'ün WebGL sayımıyla birebir.
+   Materyaller GLB'nin hamı (slot materyali yok); sallanma / fade yok. Koşular arası
+   gürültü ±0,5 ms. Kayıtlar `render-refs/runs/2026-11-17T08-21-07-840Z-foliage-spike.json`,
+   `…08-26-17-370Z…` (tekrar), `…08-29-05-175Z…` (bundle).
+
+   | Kip | Gönderim ort. / p95 | Ana iş parçacığı ort. | Draw call |
+   |---|---|---|---|
+   | Foliage yok (bugünkü statikler) | 2,9–3,1 / 4,0–4,4 ms | 3,4–3,6 ms | 398 |
+   | Forge yapısı (hücre × mesh, 583 nesne) | 8,4 / 11,6–17,3 | 9,1 | 775 |
+   | 256 m bloklar (S4 kip b) | 8,0 / 14,7 | 9,2 | 650 |
+   | Tür başına tek batch, CPU frustum | 3,15–3,45 / 3,7–5,1 | 3,6–4,0 | 440 |
+   | Compute culling + indirect (9 parça), gölgesiz | 3,45–3,55 / 4,4–4,6 | 4,0 | 398 + 9 |
+   | Aynısı gölgeli (ana kamera listesiyle) | 3,7–4,2 / 4,7–9,6 | 4,2–4,7 | |
+   | **Statikler `BundleGroup`'ta**, foliage yok | **1,98** / 3,7 | 2,51 | (sayılmıyor) |
+   | **Statikler + tek batch foliage `BundleGroup`'ta** | **1,81** / 2,1 | **2,31** | (sayılmıyor) |
+   | Statikler bundle'da + compute culling foliage, gölgeli | 2,63 / 3,3 | 3,13 | |
+   | Meshlet hattı | devreye girmiyor (0 küme) | | |
+
+   Bulgular: (1) **G6'nın 3 ms gönderim sınırı foliage gelmeden aşılıyor**; statiklerin
+   398 draw call'u düşmeden hiçbir foliage yapısı G6'yı geçiremez. (2) CPU maliyeti
+   draw call başına; GPU culling örnek sayısını azaltır, draw call'u azaltmaz. (3)
+   three r187'nin `MeshletDrawingPipeline`'ı `reversedDepthBuffer` açıkken hiç devreye
+   girmez (`_meshletsSupported`); motor ters derinlikle çalışıyor (`renderHost`).
+   Ayrıca çift yüzlü, `transparent` ve `maskShadowNode`'lu materyalleri reddeder:
+   Derekavak'ta 121 materyalden 2'si uygun, foliage'ın hiçbiri. (4) Hücre bölmesi draw
+   call'u artırır (5b: 398 → 713); CPU modeline göre G6'yı kötüleştirir. (5) Render
+   bundle CPU'yu draw call sayısından ayırır: kayıt bir kez, her kare yeniden oynatılır.
+   Bundle içinde frustum culling yok (`StandardDrawingPipeline.isCulled`,
+   `_bundleDepth > 0`): kamera hareketinde nesne kaybolmaz ama hepsi çizilir; GPU
+   culling + indirect bunu tamamlar (argümanlar her kare compute'ta, bundle aynı
+   dolaylı çizimi oynatır). `renderer.info` bundle çizimlerini saymaz; G5 / `?debug`
+   için kendi sayacımız gerekir. Bundle; üye eklenince / çıkınca, görünürlük ya da
+   örnek sayısı değişince yeniden kaydedilir: sayı indirect argümanında tutulmalı,
+   akış ve detay fade'in batch atlamasıyla yeniden kayıt maliyeti ölçülmeli.
+   **Karar (kullanıcı, 2026-11-17: öneriyle adım 4–5'e geçişi onayladı):** meshlet ve hücre bölmesi 5c'de reddedilir
+   (meshlet three yükseltmesinde ve ters derinlik desteğiyle yeniden bakılır, Faz 9
+   notu); statikler ve foliage için ortak GPU güdümlü yol: batch başına storage
+   buffer, görünüm başına (ana kamera + kaskatlar) compute culling, indirect çizim,
+   çizimler `BundleGroup` içinde. Bu, 5b'nin `instanceBatches`'ine dokunur.
+3. Saf modüller: `foliageRing` (8 A), prosedürel üretim, uzak ton — **X** (high).
+   **Uygulandı (2026-11-17, `c03f40d`):** `engine/world/foliageRing.ts`
+   (8 A, **A 982 → 990 / 1.021**, 5c'ye ertelenmiş A kalmadı),
+   `engine/foliage/{foliageTypeParams,foliageRoll,proceduralFoliage}.ts` ve
+   12 saf kontrol yeni arayüzle (25 test). `FoliageGlobalMap` dünya uzayındaki
+   `TerrainGlobalMap`'i okur; dosyadan çözülen datum'a göreli haritanın çevirisi
+   halkayı bağlayan adımda. Boya / silme fırçası 5d'de.
+4. `forge.foliageType` + `forge.landscapeFoliage` şemaları, boyanmış foliage
+   dosya biçimi — C; içe aktarıcı çeviricileri — X (medium).
+5. GPU güdümlü çizim: compute culling, indirect, kaskatlar, fade, rüzgâr — C.
+6. Prosedürel halka + worker + uzak billboard — C (worker mesajlaşması X).
+7. Boyanmış hücreler ↔ WP akışı, residency, `?debug` satırları — C.
+8. PG0 sözleşmeleri + PG1 kaya — X saf çekirdek ve üretici / C materyal.
+   **Saf çekirdek uygulandı (2026-11-17, Codex, Claude inceledi; `c03f40d`):**
+   `engine/procgen/{random,noise,mesh,stats,convexHull,vector}.ts` ve
+   `procgen/rock/{rockParams,rockGenerator,icosphere,rockCollider}.ts`: yol ağacından
+   rastgele akışlar (Mulberry32, çatallanma ebeveyni ilerletmez), tohumlu 3B gradyan
+   gürültü + fBm, ikosfer üstünde tek şekil fonksiyonu (düzlem kesikleri, normal
+   boyunca gürültü, alt düzleme, gömülme), her LOD aynı fonksiyonun kaba örneklemesi,
+   köşe rengi R oyukluk / G üst yüz / B yükseklik, LOD0'ı saran ≤ 32 noktalı collider,
+   köşe bütçesi raporu. Varsayılan: LOD0 / 1 / 2 642 / 162 / 42 köşe, Node'da
+   14–40 ms. 24 test. Şema, GLB yazımı, CLI ve materyal (A / C ölçümü) sonra.
+9. PG2 iki ağaç: aile, bileşen, WES tepkisi — X üretici / C TSL ve tepki.
+10. PG3 LOD / kart / impostor bake, PK7 — X rasterleyici / C.
+11. `measure:foliage`, PV-WES, kapı, belgeler, görsel kabul — C.
+
 5c ile paralel yürürse ortak dosyalar: `render/sync/instanceBatches.ts` (adım 8; foliage
 kendi batch'ini kurar), kalite profilleri, `?debug` satırları. Çakışmada adım 8 5c'nin
 GPU güdümlü yolunu bekler.
@@ -1077,3 +1209,4 @@ silinebilir.
 | 2026-11-16 | v1.37 | Faz 5b ilerlemesi HEAD `63815f9`'a kadar doğrulandı: adım 1 `65b5efd`; 2 saf modüller + HLOD `4cef956` (25 A, A 982 / 1.021); 3 ayarlar / UI / kamera / içe aktarıcı `89b6a87`, `de8654d`; 4 runtime hücre akışı `c7a5174`, 32 aktör / 3 ms / 16 MiB `63815f9`; 5 kaynakların 30 sn sonra atılması `045964c`; 9 HLOD build `d8676b4`, runtime çizimi `dddd81b`, Mesh dispose olayı `63815f9` (editör adım 6'yı bekler); 10 üretici `f202569`, ölçüm düzeneği `63815f9`. Mevcut son JSON: ilk uçuş p99 / max 9,4 / 57,7 ms (20 / 50 ms; max aşıyor), sıcak dönüş 10 / 31,1 ms; kararlı döngü sayaçları eşit, harness heap artışı %0,91. Ölçüm kabulü AÇIK; pipeline derlemesi hipotez, compileAsync ön ısıtma yalnız öneri. Adım 6, 7, 8, 11 ve 5b kutusu açık; arşiv yok. Yeni test / gate / ölçüm yok; mimari v1.40 |
 | 2026-11-17 | v1.38 | Faz 5b adım 6–7 ve editör HLOD uygulandı: kısmi oturum / atomik ret / kirli hücre tutma / canlı tazeleme, Outliner WP sekmesi ve harita; Codex çekirdek ve panel diff'leri incelendi. TSL detay fade geometri ve gölgede; hücre bölmesi 398 → 713 draw call nedeniyle kullanıcı onayıyla geri alındı ve 5c öncesi G6 / meshlet spike'ına bırakıldı. Kullanıcı onaylı compileAsync batch hazırlığı ve HLOD hazır olma bağı; async GPU nesne ömrü, render target / MRT geri yükleme, statik isteğe bağlı HLOD ve kısmi Compare regresyonları düzeltildi. Tam gate'in Vitest 2.215 / başsız editör 76 adımları geçti; dist düzeltme sonrası 1 / 1; son değişiklikler odaklı test / tip kontrolüyle. Gerçek WebGPU editör 76 / 76, render 23 + odaklı 2 / 2 (25 kontrol); referans görüntüler yenilenmedi. A 982 / 1.021, SDK 0.1.12 değişmedi. Nihai streaming ölçümü ve kullanıcı HLOD / fade görsel kabulü açık; 5b kapatılmadı, arşiv yok. Mimari v1.41 |
 | 2026-11-17 | v1.39 | Faz 5b adım 10 ölçümü geçti: temiz a6f3521 (kod 1e1c987), 50.000 aktör / 1.024 hücre, gerçek WebGPU 1080p high DPR 1 uncapped. 2026-11-17T07-06-57-259Z-streaming.json: ilk uçuş p99 / max 13,3 / 35,1 ms, dönüş 13,8 / 36 ms; 10 döngü ve 32 sn bekleyiş sonrası aktör / önbellek 2.583 / 63, kararlı GPU 216 / 30, heap artışı %0,34 (sınır %5). API derleme sayaçları kaydedildi; saf derleyici / nedensel kanıt değil. Kaynak atma sayacı 0 sınırı korunur. Teknik kontroller ve ölçüm geçti; kullanıcı HLOD / detay fade görsel kabulü bekliyor, 5b kutusu açık ve arşiv yok. Hücre bölmesi 5c öncesi G6 / meshlet spike'ında; push yapılmadı. Mimari v1.42 |
+| 2026-11-17 | v1.40 | Faz 5c dökümü ve kararları (kullanıcı, "hepsi öneri gibi"): önce G6 / meshlet spike'ı (kod commit'lenmez), `forge.foliageType` asset'i, terrain aktöründe `forge.landscapeFoliage`, boyanmış foliage level parçası `foliage/<x>_<z>.bin`, bütün türlerde ve kaskatlarda compute culling + indirect, önce çalışma anı billboard'u, `forge.plantFamily` + `forge.plant`, içe aktarıcı çeviricileri, `measure:foliage`. 11 adım, Codex adımları işaretli. Adım 3 (Codex, Claude inceledi): `foliageRing` 8 A → **A 990 / 1.021**, prosedürel üretim saf modülleri, 25 odaklı test geçti; tam gate yok. Adım 2 spike'ı (kod commit'lenmedi): G6 gönderim sınırı foliage'sız statiklerle aşılıyor (2,9–3,1 ms); meshlet r187'de ters derinlikle devreye girmiyor; statikler + foliage `BundleGroup`'ta 1,81 ms gönderim / 2,31 ms ana iş parçacığı. Karar (kullanıcı): GPU culling + indirect + render bundle, statiklere de; meshlet ve hücre bölmesi reddedildi. Adım 3 ve 8'in kodu `c03f40d`. Adım 8'in saf çekirdeği ve kaya üreticisi (Codex) 24 testle. Mimari v1.43 |

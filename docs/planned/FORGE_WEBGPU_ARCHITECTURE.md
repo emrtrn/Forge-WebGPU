@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.42 · 2026-11-17 — §4.4 / §4.7 kısmi editör akışı, WP paneli, ortak tutulan bölgeler ve editör HLOD; TSL detay fade ve compileAsync hazırlığı. Teknik kontroller ve temiz a6f3521 streaming ölçümü geçti; kullanıcı görsel kabulü bekliyor (plan v1.39). Hücre batch bölmesi kullanıcı kararıyla 5c öncesi G6 / meshlet spike'ında.
+**Güncelleme:** v1.43 · 2026-11-17 — §4.4 Faz 5c kararları (kullanıcı, "hepsi öneri gibi"): önce G6 / meshlet spike'ı, `forge.foliageType` asset'i, terrain aktöründe `forge.landscapeFoliage`, boyanmış foliage level parçası (`foliage/<x>_<z>.bin`), bütün türlerde GPU güdümlü çizim, önce çalışma anı billboard'u, bitki ailesi + bileşen, `measure:foliage`; foliage halkası ve prosedürel üretim taşındı (A 990 / 1.021). Plan v1.40.
+
+**Önceki güncelleme:** v1.42 · 2026-11-17 — §4.4 / §4.7 kısmi editör akışı, WP paneli, ortak tutulan bölgeler ve editör HLOD; TSL detay fade ve compileAsync hazırlığı. Teknik kontroller ve temiz a6f3521 streaming ölçümü geçti; kullanıcı görsel kabulü bekliyor (plan v1.39). Hücre batch bölmesi kullanıcı kararıyla 5c öncesi G6 / meshlet spike'ında.
 
 **Sürüm:** v1.37 · 2026-11-16 (v1.36’dan fark: World Settings sahne gölge anahtarı, `forge.shadowSettings@1`, nesne tercihlerini koruyan render kapısı ve tek Undo ile toplu nesne gölgesi işlemleri; Island içeriği değiştirilmez). v1.36 · 2026-11-16: §4.9 Island takip gölgesi — ters derinlikte eksik alt Z sınırı, `BoundedShadowNode`, CSM / takip haritası kaynak geçişi ve gerçek GPU regresyonu. v1.35 · 2026-11-16: §4.9 öksüz terrain parça denetimi, §4.10 terrain performans ölçümü ve görsel kabul adayları (Faz 5a adım 8).
 
@@ -730,6 +732,57 @@ features/height-fog/
   sayacı 0 olduğundan genel atılma / sızıntısızlık iddiası yok. Teknik kapı
   ve yöntem planın 5b ilerleme kaydı / §11'inde; kullanıcı HLOD geçişi ve
   detay fade görsel kabulü ayrıca gerekir, 5b kutusu açık kalır.
+- **5c kararları (kullanıcı, 2026-11-17; "hepsi öneri gibi"; ayrıntı plan Faz 5c):**
+  - *Önce spike:* 5b'den bırakılan hücreye bölünmüş batch ve meshlet sorusu
+    üretim yolundan önce Derekavak P2'de 60 Hz G6 ölçümüyle karşılaştırılır
+    (ortak batch / hücre bölmesi / foliage compute culling + indirect / meshlet).
+    Spike kodu commit'lenmez; kayıt `render-refs/runs/`'a, sonuç plana.
+  - *Foliage Type (INV-E21):* şemalı JSON asset `forge.foliageType` (A13 genel
+    veri editörü): model GUID'i (bitki ailesi gelince aile GUID'i), Forge'un
+    yerleşim alanları, cull / far alanları, rüzgâr kaynağı, LOD zinciri ve
+    impostor yuvası (bitki planı PG0 sözleşmesi 1). Saf üretim
+    `engine/foliage`'ın `FoliageTypeParams`'ını okur; şema ona eşlenir.
+  - *Landscape kuralları (INV-D30):* terrain aktöründe şemalı
+    `forge.landscapeFoliage` bileşeni (kural başına katman, tür GUID'i,
+    yoğunluk, `minWeight`, `seed`); ajan `forge edit set` ile düzenler.
+    Prosedürel halka terrain tile'ı gibi kameraya bağlı, WP hücrelerinden
+    bağımsız akar; uzak bloklar global haritadan (dünya uzayı yüksekliği;
+    dosyadan çözülen harita datum'a göreli, çeviri çağıranda).
+  - *Boyanmış örnekler (INV-D29):* HLOD gibi level parçası, asset değil:
+    `foliage.json` dizini + hücre başına ikili `foliage/<x>_<z>.bin` (tür
+    başına konum / dönüş / ölçek / seed dizileri); WP hücre akışıyla gelir,
+    residency sahibi hücredir. §4.4'teki "büyük ikili veri sidecar'da"
+    kuralının foliage için biçimi budur.
+  - *GPU güdümlü çizim (Faz 1 GO koşulu):* bütün türlerde ve gölge
+    kaskatlarında; tür başına storage buffer'da örnekler, compute geçişi
+    (görüş alanı, mesafe, fade, LOD seçimi) atomik sayaçla indirect
+    argümanlarını yazar, çizim `drawIndexedIndirect`. Fade 5b'nin dither'ı;
+    rüzgâr WES'ten, köşe niteliği varsa ondan, yoksa Forge'un yükseklik
+    formülüyle (PG0 sözleşmesi 2). Çevre değişimi uniform'la, yeniden
+    derleme yok.
+  - *Uzak temsil:* önce Forge'un çalışma anı billboard'u TSL'de (içe aktarılan
+    GLB türleri); üretilen bitkinin offline impostor'u ve PK7 PG3'te.
+  - *Bitki dilimi:* `forge.plantFamily` asset'i + `forge.plant` bileşeni;
+    tepki çözücü `engine`'de saf, tekil aktör ve foliage aynı uniform'larla
+    (§4.9 ortak sözleşme). PG1 kayası saf çekirdeğin ince dilimi olarak kalır.
+  - *İçe aktarıcı:* foliage type, landscape kuralları ve boyanmış gruplar
+    çevrilir; referans projesi yeniden alınmadan önce kullanıcıya sorulur.
+  - *Kapı ölçümü:* `npm run measure:foliage` (başlıklı gerçek WebGPU):
+    Derekavak P2 60 Hz G6, S4'ün üretim karşılığı, üretilmiş ormanda G6,
+    çevre geçişinde en uzun kare / pipeline sayısı / tepe bellek, PV-WES-01–08.
+  - *Spike sonucu ve karar (2026-11-17, kullanıcı; ayrıntı plan 5c adım 2):*
+    statikler ve foliage ortak GPU güdümlü yolda: batch başına storage buffer,
+    görünüm başına (ana kamera + kaskatlar) compute culling, indirect çizim,
+    çizimler `BundleGroup`'ta; meshlet ve hücre bölmesi 5c'de reddedildi.
+    G6 gönderim sınırı foliage'sız statiklerle aşılıyor; CPU draw call başına.
+    r187 meshlet hattı `reversedDepthBuffer` ile devreye girmiyor (motor ters
+    derinlikte), çift yüzlü / `transparent` / `maskShadowNode`'lu materyali de
+    reddediyor. `BundleGroup` (render bundle) statik + foliage gönderimini
+    1,81 ms'ye indiriyor; bundle içinde frustum culling yok, GPU culling +
+    indirect onu tamamlar. `renderer.info` bundle çizimlerini saymaz.
+  - *Uygulama başı (2026-11-17):* `engine/world/foliageRing` (8 A, A 990 /
+    1.021) ve `engine/foliage/{foliageTypeParams,foliageRoll,proceduralFoliage}`
+    Forge algoritmalarıyla taşındı; boya / silme fırçası 5d'de.
 - **Ölçek ölçümü (2a, 2026-11-10):** 50.000 aktörlük level R1'de eşik içinde
   (bütün level yükleme ~0,9 s, hücre yükleme p95 ~1,5 ms, tek aktör kaydı
   ~40 ms, tam kayıt ~2,2 s, heap ~58 MB; [Faz 2a arşivi](../archive/PHASE_2A.md)). Aşağıdaki çarelere
