@@ -16,7 +16,7 @@
 //   both (three draws a transparent double-sided material twice).
 // - Draws: the static batches the renderer builds (`staticMeshBatchKey`:
 //   model + slot overrides + shadow switch; shapes by primitive + shadow) and
-//   one view's draws (each part's material group, ×2 for transparent
+//   one view's draws (one per model slot after slot merging, ×2 for transparent
 //   double-sided), how many batches cast shadows (each draws again per
 //   shadow cascade).
 // - Foliage: landscape rules, painted instances; HLOD: cells and triangles.
@@ -200,7 +200,9 @@ export async function sceneStats(source: SceneStatsInput): Promise<SceneStats> {
       placedMaterials.set(id, flags);
     }
     let draws = 0;
-    for (const slot of info.primitiveSlots) {
+    // A batch draws one mesh per slot (render/resources/modelParts.ts, plan 5c R8.1);
+    // primitives with differing vertex attributes stay apart there, not counted here.
+    for (const slot of new Set(info.primitiveSlots)) {
       const { flags } = flagsOf(slot);
       draws += flags.transparent && flags.doubleSided ? 2 : 1;
     }

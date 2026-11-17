@@ -4,7 +4,8 @@
 //
 // - A model template: every geometry, material and the material's textures
 //   in its scene. They are the GLB's own: slot override materials and
-//   `forge.texture` textures are cache entries of their own.
+//   `forge.texture` textures are cache entries of their own. Its merged slot
+//   geometries (modelParts.ts) go too.
 // - A material (`forge.material`, a shape material): the material only; its
 //   textures are cache entries (`texture:<guid>:<space>`) and go on their own.
 // - A geometry or a texture: itself.
@@ -12,6 +13,7 @@
 //   to its owner.
 
 import type { BufferGeometry, Material, Object3D, Texture } from "three/webgpu";
+import { disposeMergedParts } from "./modelParts.ts";
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
 const isTexture = (value: unknown): value is Texture => isObject(value) && value.isTexture === true;
@@ -46,6 +48,7 @@ export function disposeResource(key: string, value: unknown): void {
   if (!isObject(value)) return;
   if (key.startsWith("model:") && isObject(value.scene) && value.scene.isObject3D === true) {
     disposeModel(value.scene as unknown as Object3D);
+    disposeMergedParts(value.scene as unknown as Object3D);
     return;
   }
   if (key.startsWith("terrain:")) return;

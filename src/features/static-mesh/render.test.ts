@@ -33,11 +33,47 @@ describe("static mesh material slots", () => {
   test("each part knows the model slot it draws, for picking (a dropped material goes to the slot under the pointer)", () => {
     const { template, body, trim } = twoSlotModel();
     const parts = modelParts(template, [body, trim]);
-    expect(parts.map((part) => part.slots)).toEqual([[0], [1], [0]]);
+    // The two body boxes merge into one slot geometry (plan 5c R8.1).
+    expect(parts.map((part) => part.slots)).toEqual([[0], [1]]);
     const mesh = new InstancedMesh(parts[1]!.geometry, parts[1]!.material, 1);
     expect(slotOfHit({ object: mesh, face: { materialIndex: 0 } })).toBeNull();
     mesh.userData.forgePickSlots = parts[1]!.slots;
     expect(slotOfHit({ object: mesh, face: { materialIndex: 0 } })).toBe(1);
+  });
+
+  test("slot merging bakes matrices, keeps mirrored winding outward and splits multi-material groups (plan 5c R8.1)", () => {
+    const body = new MeshStandardMaterial({ name: "Body" }), trim = new MeshStandardMaterial({ name: "Trim" });
+    const scene = new Group();
+    const left = new Mesh(new BoxGeometry(1, 1, 1), body);
+    left.position.set(-5, 0, 0);
+    const mirrored = new Mesh(new BoxGeometry(1, 1, 1), body);
+    mirrored.position.set(5, 0, 0);
+    mirrored.scale.set(-1, 1, 1);
+    // BoxGeometry has six groups (materialIndex 0..5): faces 0-1 trim, the rest body.
+    const multi = new Mesh(new BoxGeometry(1, 1, 1), [trim, trim, body, body, body, body]);
+    multi.position.set(0, 0, 5);
+    scene.add(left, mirrored, multi);
+    const template: ModelTemplate = { scene, slots: modelMaterialSlots(scene), slotMaterials: [] };
+    const parts = modelParts(template, []);
+    expect(parts.map((part) => [part.slots, part.material])).toEqual([[[0], body], [[1], trim]]);
+    const [merged, trimPart] = parts;
+    expect(merged!.local.equals(new Matrix4())).toBe(true);
+    expect(merged!.geometry.index!.count).toBe(36 + 36 + 24);
+    expect(trimPart!.geometry.index!.count).toBe(12);
+    merged!.geometry.computeBoundingBox();
+    expect(merged!.geometry.boundingBox!.min.x).toBeCloseTo(-5.5);
+    expect(merged!.geometry.boundingBox!.max.x).toBeCloseTo(5.5);
+    // Every merged triangle faces away from its own box's centre (winding kept outward).
+    const p = merged!.geometry.getAttribute("position"), index = merged!.geometry.index!;
+    const corner = (i: number) => new Vector3().fromBufferAttribute(p, index.getX(i));
+    for (let t = 0; t < index.count / 3; t += 1) {
+      const [a, b, c] = [corner(3 * t), corner(3 * t + 1), corner(3 * t + 2)];
+      const normal = new Vector3().subVectors(b, a).cross(new Vector3().subVectors(c, a));
+      const centre = new Vector3(Math.round(a.x / 5) * 5, 0, Math.round(a.z / 5) * 5);
+      expect(normal.dot(new Vector3().subVectors(a, centre))).toBeGreaterThan(0);
+    }
+    // Merged once per template: the same geometry on every ask.
+    expect(modelParts(template, [])[0]!.geometry).toBe(merged!.geometry);
   });
 
   test("slots follow the unique material order; an override replaces only its slot", () => {
@@ -103,7 +139,8 @@ describe("static mesh binding (instanced)", () => {
     expect((meshes[1]!.material as Material).name).toBe(materials.get(BRICK)!.name);
     expect((meshes[1]!.material as MeshStandardNodeMaterial).maskNode).not.toBeNull();
     expect(materials.get(BRICK)!.maskNode).toBeNull();
-    expect(meshes[2]!.material).toBe(body);
+    // The model's two body boxes are one merged slot mesh (plan 5c R8.1).
+    expect(meshes).toHaveLength(2);
     for (const mesh of meshes) {
       expect([mesh.count, mesh.castShadow, mesh.receiveShadow]).toEqual([2, false, true]);
     }
@@ -117,7 +154,7 @@ describe("static mesh binding (instanced)", () => {
     const { root, frame } = harness([{}, { castShadow: false }, { materials: [MOSS] }]);
     await settle();
     frame();
-    expect(instanced(root)).toHaveLength(9);
+    expect(instanced(root)).toHaveLength(6);
     expect(staticMeshBatchKey({ mesh: MODEL, materials: [MOSS, null], castShadow: true } as never)).toBe(`${MODEL}|${MOSS},|cast`);
   });
 

@@ -33,6 +33,7 @@ interface Stats { batches: number; instances: number; draws: number; views: numb
 interface Dev {
   pause(): void;
   step(ms: number): Promise<Step>;
+  host(): { renderer: { info: { render: { drawCalls: number } } }; gpuDriven: { lastDraws: number } } | null;
   gpuDriven: {
     install(types: FoliageSceneType[], cullScale: number, castShadow?: boolean, bundle?: boolean): Promise<unknown>;
     stats(): Stats | null;
@@ -117,13 +118,18 @@ test("gpu-driven drawing: submission with and without render bundles", async ({ 
     const steps = await measureWindow();
     const after = await dev(page, (d) => d.gpuDriven.stats());
     const recorded = (await dev(page, (d) => d.gpuDriven.bundleRecords())) - recordsBefore;
+    // The last frame's draws as `?debug` counts them: the renderer's calls plus indirect batches (plan 5c R8).
+    const sceneDraws = await dev(page, (d) => {
+      const host = d.host();
+      return host ? host.renderer.info.render.drawCalls + host.gpuDriven.lastDraws : null;
+    });
     const submit = steps.map((step) => step.submitMs ?? NaN).filter(Number.isFinite);
     const cpu = steps.map((step) => step.cpuMs);
     const gpu = steps.map((step) => step.gpuMs ?? NaN).filter(Number.isFinite);
     const steadyUpdates = (after?.bundleUpdates ?? 0) - (before?.bundleUpdates ?? 0);
     results.push({
       id: scenario.id, bundle: scenario.bundle, batches: after?.batches ?? 0, instances: after?.instances ?? 0,
-      draws: after?.draws ?? 0, views: after?.views ?? 0, bundleUpdatesTotal: after?.bundleUpdates ?? 0, steadyBundleUpdates: steadyUpdates, steadyBundleRecords: recorded,
+      draws: after?.draws ?? 0, sceneDraws, views: after?.views ?? 0, bundleUpdatesTotal: after?.bundleUpdates ?? 0, steadyBundleUpdates: steadyUpdates, steadyBundleRecords: recorded,
       submitMs: { mean: round(mean(submit)), p95: round(percentile(submit, 0.95)), max: round(Math.max(...submit)) },
       cpuMs: { mean: round(mean(cpu)), p95: round(percentile(cpu, 0.95)) },
       gpuMs: gpu.length ? { mean: round(mean(gpu)), p95: round(percentile(gpu, 0.95)), samples: gpu.length } : null,
@@ -146,5 +152,5 @@ test("gpu-driven drawing: submission with and without render bundles", async ({ 
   const stamp = record.date.replace(/[:.]/g, "-");
   mkdirSync(join(RENDER_REFS, "runs"), { recursive: true });
   writeFileSync(join(RENDER_REFS, "runs", `${stamp}-gpu-driven.json`), `${JSON.stringify(record, null, 2)}\n`);
-  for (const result of results) console.log(`${result.id}: submit ${result.submitMs.mean} / p95 ${result.submitMs.p95} ms, cpu ${result.cpuMs.mean} ms, gpu ${result.gpuMs?.mean ?? "-"} ms, draws ${result.draws} (${result.views} views), bundle updates ${result.bundleUpdatesTotal}, records in window ${result.steadyBundleRecords}`);
+  for (const result of results) console.log(`${result.id}: submit ${result.submitMs.mean} / p95 ${result.submitMs.p95} ms, cpu ${result.cpuMs.mean} ms, gpu ${result.gpuMs?.mean ?? "-"} ms, draws ${result.draws} (${result.views} views), scene draws ${result.sceneDraws ?? "-"}, bundle updates ${result.bundleUpdatesTotal}, records in window ${result.steadyBundleRecords}`);
 });
