@@ -15,12 +15,14 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
+import { indoorScene } from "../../tools/scenes/indoorScene.ts";
 import { derekavakFoliage, type FoliageSceneType } from "./gpuFoliageScene.ts";
 import { RENDER_REFS, SMOKE_SCENES, SMOKE_VIEWPORT } from "./renderScenes.ts";
 import { git, isOptionalHlodMiss, openSmokeLevel } from "./smokePage.ts";
 
 interface StudyBatch { name: string; instances: number; visible: number; occluded: number; visibleTriangles: number; occludedTriangles: number }
-interface Study { width: number; height: number; cpuMs: number; skyShare: number; batches: StudyBatch[] }
+interface StudyDraws { objects: number; objectsOccluded: number; batches: number; batchesOccluded: number; cellSize: number; cells: number; cellsOccluded: number; triangles: number; trianglesOccluded: number }
+interface Study { width: number; height: number; cpuMs: number; skyShare: number; batches: StudyBatch[]; statics: StudyDraws }
 interface Dev {
   pause(): void;
   step(ms: number): Promise<unknown>;
@@ -28,6 +30,7 @@ interface Dev {
   terrainHeights(points: [number, number][]): Promise<(number | null)[]>;
   gpuDriven: { install(types: FoliageSceneType[], cullScale: number, castShadow?: boolean, bundle?: boolean): Promise<unknown> };
   occlusionStudy(): Promise<Study | null>;
+  spawn(raw: unknown[]): string[];
 }
 const forge = <T>(page: Page, run: string, arg?: unknown): Promise<T> =>
   page.evaluate(([source, value]) => (new Function("dev", "arg", `return (${source})(dev, arg);`) as (dev: Dev, arg: unknown) => unknown)(
@@ -88,4 +91,44 @@ test("occlusion study: what a Hi-Z pass could hide", async ({ page }) => {
   };
   mkdirSync(join(RENDER_REFS, "runs"), { recursive: true });
   writeFileSync(join(RENDER_REFS, "runs", `${record.date.replace(/[:.]/g, "-")}-occlusion.json`), `${JSON.stringify(record, null, 2)}\n`);
+});
+
+const percent = (part: number, whole: number): string => (whole ? (100 * part / whole).toFixed(1) : "-");
+
+// An FPS-like interior (plan 5c R9a, user 2026-11-17): `tools/scenes/indoorScene.ts`, 8 × 8 rooms of 8 m with door
+// gaps and 12 props each, spawned at runtime into L03 300 m from its content; statics instanced (as shipped). The
+// study counts the instanced statics: object draws, today's batches and batches split by 16 m cells.
+test("occlusion study: an indoor level", async ({ page }) => {
+  test.setTimeout(900_000);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => { if (message.type() === "error" && !isOptionalHlodMiss(message)) errors.push(message.text()); });
+  const scene = SMOKE_SCENES.find((entry) => entry.id === "l03")!;
+  const indoor = indoorScene({ origin: [300, 0, 300] });
+  await openSmokeLevel(page, scene.level, scene.poses[0]!, "&staticPath=instanced");
+  await expect(page.locator("canvas[data-forge-backend='webgpu']")).toBeVisible();
+  await page.waitForTimeout(1000);
+  await forge(page, "(d) => d.pause()");
+  const spawned = await forge<string[]>(page, "(d, a) => d.spawn(a)", indoor.actors);
+  expect(spawned).toHaveLength(indoor.actors.length);
+  await steps(page, 30);
+  const results = [];
+  for (const pose of indoor.poses) {
+    await forge(page, "(d, a) => d.moveCamera(a[0][0], a[0][1], a[0][2], a[1])", [pose.position, pose.target]);
+    await steps(page, 20);
+    const study = (await forge<Study | null>(page, "(d) => d.occlusionStudy()"))!;
+    const s = study.statics;
+    results.push({ pose: pose.id, position: pose.position, target: pose.target, skyShare: study.skyShare, cpuMs: study.cpuMs, statics: s });
+    console.log(`indoor ${pose.id}: objects ${s.objects} / occluded ${s.objectsOccluded} (${percent(s.objectsOccluded, s.objects)} %), batches ${s.batches} / ${s.batchesOccluded}, `
+      + `cells(${s.cellSize} m) ${s.cells} / ${s.cellsOccluded} (${percent(s.cellsOccluded, s.cells)} %), triangles ${s.triangles} / ${s.trianglesOccluded} (${percent(s.trianglesOccluded, s.triangles)} %), cpu ${study.cpuMs.toFixed(1)} ms`);
+  }
+  expect(errors).toEqual([]);
+  const record = {
+    schema: 1, kind: "phase 5c R9a occlusion study, indoor (upper bound, current-frame layer-0 occluders, CPU Hi-Z)",
+    date: new Date().toISOString(), commit: git(["rev-parse", "HEAD"]), dirty: git(["status", "--porcelain"]) !== "",
+    level: scene.level, viewport: SMOKE_VIEWPORT, indoor: { ...indoor.counts, bounds: indoor.bounds }, results,
+  };
+  mkdirSync(join(RENDER_REFS, "runs"), { recursive: true });
+  writeFileSync(join(RENDER_REFS, "runs", `${record.date.replace(/[:.]/g, "-")}-occlusion-indoor.json`), `${JSON.stringify(record, null, 2)}
+`);
 });
