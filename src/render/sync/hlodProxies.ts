@@ -10,7 +10,8 @@
 // - One shared material for every proxy: no textures, rough, no shadow
 //   casting. The colour comes from the proxy's COLOR_0 through `colorNode`,
 //   not the `vertexColors` flag: three's meshlet pipeline refuses materials
-//   with that flag (decision 10 keeps that path open).
+//   with that flag (decision 10 keeps that path open). Proxies carry no
+//   normals (plan R8.0: they blocked simplification) and shade flat.
 //
 // The camera's far plane already includes the level's distance and the
 // quality multiplier. Read it so proxies and real geometry share the range.
@@ -60,7 +61,7 @@ async function parseProxy(bytes: ArrayBuffer): Promise<BufferGeometry | null> {
 
 /** `track` counts a read toward readiness (the cache's `track`). */
 export function createHlodProxies(source: HlodSource, parent: Group, track: <T>(work: Promise<T>) => Promise<T> = (work) => work): HlodProxies {
-  const material = new MeshStandardNodeMaterial({ roughness: 1, metalness: 0 });
+  const material = new MeshStandardNodeMaterial({ roughness: 1, metalness: 0, flatShading: true });
   material.colorNode = attribute<"vec3">("color", "vec3");
   const grid = { cellSize: source.index.cellSize };
   const cells: ProxyCell[] = source.index.cells.flatMap((entry) => {

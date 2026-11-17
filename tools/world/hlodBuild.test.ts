@@ -31,7 +31,8 @@ test("Forge: in-memory build produces two world-space red proxies and a canonica
     const colors = primitive.getAttribute("COLOR_0")!;
     expect(colors.getType()).toBe("VEC3");
     for (let index = 0; index < colors.getCount(); index += 1) expect(colors.getElement(index, [])).toEqual([1, 0, 0]);
-    expect(primitive.getAttribute("NORMAL")!.getCount()).toBe(colors.getCount());
+    // Normals blocked weld + simplify (plan R8.0); proxies shade flat.
+    expect(primitive.getAttribute("NORMAL")).toBeNull();
     expect(primitive.getMaterial()!.getBaseColorFactor()).toEqual([1, 1, 1, 1]);
     expect(primitive.getMaterial()!.getBaseColorTexture()).toBeNull();
     const positions = primitive.getAttribute("POSITION")!;
@@ -135,19 +136,18 @@ test("texture colour uses Forge's decoded average in linear space times GLTF fac
   expect((await new NodeIO().readBinary(result.files.get("hlod/0_0.glb")!)).getRoot().listTextures()).toEqual([]);
 });
 
-test("mirrored non-uniform matrices correct winding and use inverse-transpose normals", async () => {
+test("mirrored non-uniform matrices correct winding", async () => {
   const source = await fixture(), doc = await cube();
   const primitive = doc.getRoot().listMeshes()[0]!.listPrimitives()[0]!;
   primitive.setIndices(null).getAttribute("POSITION")!.setArray(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 1]));
   source.set("content/cube.glb", await new NodeIO().writeBinary(doc));
   source.set(`${FOLDER}/level.json`, encode(level([actor(1, 10, [-3, 6, 9])])));
   const result = await buildLevelHlod(FOLDER, await inputOf(source), { ratio: 1 });
-  const built = await proxy(result.files, "0_0"), p = built.getAttribute("POSITION")!, n = built.getAttribute("NORMAL")!;
+  const built = await proxy(result.files, "0_0"), p = built.getAttribute("POSITION")!;
   const indices = built.getIndices()!, vertices = [0, 1, 2].map((i) => p.getElement(indices.getScalar(i), [0, 0, 0] as [number, number, number]));
   const face = normalize(cross(sub(vertices[1]!, vertices[0]!), sub(vertices[2]!, vertices[0]!)));
   const expected = normalize([0, -1 / 6, 1 / 9]);
   expect(dot(face, expected)).toBeCloseTo(1);
-  for (let i = 0; i < n.getCount(); i += 1) n.getElement(i, []).forEach((value, j) => expect(value).toBeCloseTo(expected[j]!, 5));
 });
 
 test("small placements and shapes/markers/editor helpers leave an empty index; bad model warns once", async () => {
@@ -180,8 +180,10 @@ test("large shapes bake in their colour (plan 5c R1); a plane bakes both sides",
   expect(Math.min(...values)).toBeCloseTo(5); expect(Math.max(...values)).toBeCloseTo(15);
   expect(result.index.cells[1]!.triangles).toBe(4);
   const plane = await proxy(result.files, "2_0");
-  const normals = plane.getAttribute("NORMAL")!;
-  const ys = new Set(Array.from({ length: normals.getCount() }, (_, index) => Math.sign(normals.getElement(index, [])[1]!)));
+  const p = plane.getAttribute("POSITION")!, indices = plane.getIndices()!;
+  const corner = (i: number) => p.getElement(indices.getScalar(i), [0, 0, 0] as [number, number, number]);
+  const ys = new Set(Array.from({ length: indices.getCount() / 3 }, (_, t) =>
+    Math.sign(cross(sub(corner(3 * t + 1), corner(3 * t)), sub(corner(3 * t + 2), corner(3 * t)))[1]!)));
   expect(ys).toEqual(new Set([1, -1]));
 });
 
