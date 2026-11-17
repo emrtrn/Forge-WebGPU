@@ -1,8 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.42 · 2026-11-17 — Faz 5b: editörde otomatik HLOD üretimi (`0c16852`): WP panelinde Auto Generate HLOD ve Generate / Rebuild, dev server kuyruğu + ayrı Node worker, kilitli atomik yayımlama, canlı proxy yenileme. Başsız editör 78 / 78, gerçek WebGPU alt küme 11 / 11; kullanıcı Derekavak kabulü açık. Mimari v1.44.
+**Güncelleme:** v1.43 · 2026-11-17 — Faz 5c adım 4 tamam: içe aktarıcı foliage çeviricileri (`cbad9d5`): foliage type → `forge.foliageType`, landscape kuralları → terrain'de `forge.landscapeFoliage`, boyanmış gruplar → `foliage.json` + `foliage/<x>_<z>.bin`; kayıt servisi `forge.levelFoliage/1`'i kabul eder. Referans projesi yeniden alınmadı. Mimari v1.44.
 
-**Önceki güncelleme:** v1.41 · 2026-11-17 — Faz 5c adım 4 (şemalar, boyanmış foliage level parçası, `3706bc4`) ve adım 5 tasarımı; içe aktarıcı çeviricileri kaldı. v1.40: Faz 5c başladı: döküm, kullanıcı kararları 1–9 ("hepsi öneri gibi") ve 11 adımlık sıra; adım 3'ün saf taşıması uygulandı (foliage halkası 8 A, A 990 / 1.021). 5b görsel kabulü açık. Mimari v1.43.
+**Önceki güncelleme:** v1.42 · 2026-11-17 — Faz 5b: editörde otomatik HLOD üretimi (`0c16852`): WP panelinde Auto Generate HLOD ve Generate / Rebuild, dev server kuyruğu + ayrı Node worker, kilitli atomik yayımlama, canlı proxy yenileme. Başsız editör 78 / 78, gerçek WebGPU alt küme 11 / 11; kullanıcı Derekavak kabulü açık. Mimari v1.44.
 
 **Sürüm:** v1.34 · 2026-11-16 (v1.33’ten fark: World Settings genel gölge anahtarı ve tek Undo ile toplu nesne gölgeleri; Island sahne verisi korunur; mimari v1.37). v1.33 · 2026-11-16: Derekavak canlı kabulü; Island'da kamerayı izleyen koyu dörtgenin düzeltilmesi — ters derinlikte takip gölgesinin alt Z sınırı, kaynak geçişi ve GPU regresyonu; mimari v1.36. v1.32 · 2026-11-16: Faz 5a adım 8 teknik kapısı, A 957 / 1.021 ve görsel kabul adayları (mimari v1.35).
 
@@ -896,6 +896,25 @@ call'unun 260'ı foliage; foliage çizimleri toplanınca gönderim 3,9 → 2,2 m
    yanlış tür `asset-type-mismatch`); build zaten bütün dosyaları kopyalıyor. SDK
    yüzeyi değişmedi. 518 core + 5 feature testi, tip / katman / dosya bütçesi /
    `verify:assets` geçti. **Kalan:** içe aktarıcı çeviricileri (Codex).
+   **İçe aktarıcı çeviricileri uygulandı (2026-11-17, `cbad9d5`, C; Codex kotası dolu):**
+   saf `engine/forgeImport/foliage.ts`. Foliage type Forge'un `normalizeFoliageType`
+   sırasıyla: `meshAssetId` → modelin GUID'i (tür modelini plana getirir), ölçek X,
+   yükseklik sınırı `enabled` grubu (olmayan uç ±10000), `sway` → `source: height`,
+   `farDistance` / `farTint` → `far`; `name`, `receiveShadow` düşer, `lods` boş.
+   Kurallar Forge'un `normalizeLandscapeFoliageRule` varsayılan / sınırlarıyla
+   `landscapeId`'nin terrain aktöründe `forge.landscapeFoliage@1`; landscape'i ya da
+   türü hedefte olmayan kural raporlanır, yazılmaz. Boyanmış gruplar (bölünmüş
+   level'ın `<Level>.cells/foliage/<key>.foliage.json` dosyaları dahil, Forge'un
+   `mergeFoliageCells` sırası) `buildLevelFoliage` ile level parçası: Euler XYZ →
+   kuaterniyon (`eulerXyzQuaternion`), ölçek X, seed yoksa grup kimliği + indeksten;
+   staticMesh hedefli gruplar alınır ve sayılır, düzgün olmayan ölçek / boyama
+   normali raporlanır. Kayıt servisi `forge.levelFoliage/1`'i (level klasöründe
+   `foliage.json`, level kimliği) kabul eder; `--force` içe aktarıcının eski
+   foliage parçalarını siler. `--compare` yazılan kural / örnek sayılarını sayar,
+   fark nedeniyle. Testler: saf 3 + içe aktarıcı fikstürü (bölünmüş hücreler, eksik
+   tür, başka landscape; ikinci koşu aynı baytlar); geçici kopyada `--dry-run`:
+   Derekavak 7 kural / 6 tür, Island ve WbPilotValley 7'şer kural, boyanmış örnek
+   yok. Referans projesi yeniden alınmadı (kullanıcıya sorulacak).
 5. GPU güdümlü çizim: compute culling, indirect, kaskatlar, fade, rüzgâr — C.
    **Tasarım (2026-11-17, spike kararının uygulaması):** batch başına örnek
    storage buffer'ı (mat4 + fade / seed), görünüm başına compute culling (görüş
@@ -1267,3 +1286,4 @@ silinebilir.
 | 2026-11-17 | v1.40 | Faz 5c dökümü ve kararları (kullanıcı, "hepsi öneri gibi"): önce G6 / meshlet spike'ı (kod commit'lenmez), `forge.foliageType` asset'i, terrain aktöründe `forge.landscapeFoliage`, boyanmış foliage level parçası `foliage/<x>_<z>.bin`, bütün türlerde ve kaskatlarda compute culling + indirect, önce çalışma anı billboard'u, `forge.plantFamily` + `forge.plant`, içe aktarıcı çeviricileri, `measure:foliage`. 11 adım, Codex adımları işaretli. Adım 3 (Codex, Claude inceledi): `foliageRing` 8 A → **A 990 / 1.021**, prosedürel üretim saf modülleri, 25 odaklı test geçti; tam gate yok. Adım 2 spike'ı (kod commit'lenmedi): G6 gönderim sınırı foliage'sız statiklerle aşılıyor (2,9–3,1 ms); meshlet r187'de ters derinlikle devreye girmiyor; statikler + foliage `BundleGroup`'ta 1,81 ms gönderim / 2,31 ms ana iş parçacığı. Karar (kullanıcı): GPU culling + indirect + render bundle, statiklere de; meshlet ve hücre bölmesi reddedildi. Adım 3 ve 8'in kodu `c03f40d`. Adım 8'in saf çekirdeği ve kaya üreticisi (Codex) 24 testle. Mimari v1.43 |
 | 2026-11-17 | v1.41 | Faz 5c adım 4: `forge.foliageType@1`, `forge.landscapeFoliage@1`, eşleyici (şema varsayılanı = Forge varsayılan türü), boyanmış foliage level parçası `foliage.json` + `FFOL` v1 hücre dosyaları ve asset dizini denetimleri (`3706bc4`); 518 core + 5 feature testi, tip / katman / `verify:assets` geçti, SDK değişmedi. Kalan: içe aktarıcı çeviricileri (Codex kotası bitti, Claude yapacak). Adım 5 tasarımı: görünüm başına compute culling, kaskatlar `layers` ile ayrı dolaylı mesh, tek `BundleGroup`, kendi draw call sayacı; alt adımlar 5.1–5.6. Mimari v1.43 |
 | 2026-11-17 | v1.42 | Faz 5b: editörde otomatik HLOD üretimi (`0c16852`): WP panelinde Auto Generate HLOD + Generate / Rebuild / Save and Generate, beş durum ve son rapor; dev server'da proje başına kuyruk (`/__forge/hlod`), ayrı Node worker, `.forge-cache/hlod` tazelik önbelleği, kilitli atomik yayımlama / geri alma, canlı proxy yenileme. Claude incelemesinde foliage parçaları izlemeden çıkarıldı, durum mesajları İngilizce, okunmuş yayımlama proxy'leri yeniden düşürmez. Odaklı Vitest 96 / 96, başsız editör 78 / 78, gerçek WebGPU alt küme 11 / 11; tam gate yok. Kullanıcı Derekavak kabulü ve 5b görsel kabulü açık. Mimari v1.44 |
+| 2026-11-17 | v1.43 | Faz 5c adım 4 kalanı: içe aktarıcı foliage çeviricileri (`cbad9d5`): `forge.foliageType` asset'leri (modelini getirir), terrain'de `forge.landscapeFoliage`, boyanmış gruplar (bölünmüş hücreler dahil) `foliage.json` + `.bin`; kayıt servisi `forge.levelFoliage/1`. Odaklı Vitest 78 + içe aktarıcı 11, tip / katman / dosya bütçesi / `verify:assets` geçti; geçici kopyada `--dry-run` Derekavak 7 kural / 6 tür. Referans projesi yeniden alınmadı. Sıradaki: adım 5.1 |
