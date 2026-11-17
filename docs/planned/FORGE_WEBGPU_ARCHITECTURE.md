@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.50 · 2026-11-17 — §4.4 5c foliage batch'leri (5.4). v1.49 — §4.4 5c render bundle (5.3) ölçümü. v1.48 — §4.4 5c gölge görünümleri (5.2). v1.47 — §4.4 5b HLOD: şekiller pişirilir (5c R1). Önceki v1.46 — §4.4 5c: üçgen / draw call ayrımı, sanal geometri adayları ve spike'ı 5.5 öncesi, HLOD'a şekiller (karar 5'in static mesh kuralı kalkar), three-nanite elendi. Plan v1.46.
+**Güncelleme:** v1.51 · 2026-11-17 — §4.4 5c sahne maliyet raporu (R5). v1.50 — §4.4 5c foliage batch'leri (5.4). v1.49 — §4.4 5c render bundle (5.3) ölçümü. v1.48 — §4.4 5c gölge görünümleri (5.2). v1.47 — §4.4 5b HLOD: şekiller pişirilir (5c R1). Önceki v1.46 — §4.4 5c: üçgen / draw call ayrımı, sanal geometri adayları ve spike'ı 5.5 öncesi, HLOD'a şekiller (karar 5'in static mesh kuralı kalkar), three-nanite elendi. Plan v1.46.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — §4.4 5c: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı). Plan v1.45.
 
@@ -824,6 +824,12 @@ features/height-fog/
     kalite ölçeği, ekran boyundan LOD, `castShadow`); örnekler sahip anahtarıyla
     (boyanmış hücre, halka karosu) eklenir / değiştirilir / silinir. Halka ve
     boyanmış hücre akışı bu API'yi kullanır (5c adım 6 / 7).
+  - *Sahne maliyet raporu (R5, 2026-11-17):* `forge stats` (`tools/stats/`, salt
+    okur) level'ın dosyalarından ajan için maliyet dili verir: aktör, model + materyal
+    birleşimi, kaynak üçgen, saydam / çift yüzlü materyal, statik / şekil batch'leri,
+    görünüm ve gölge kaskadı başına draw, foliage, HLOD. Çalışma anı karşılığı editör
+    Stats'ı: draw call ve üçgene GPU güdümlü batch'ler eklenir (üçgen, görünür
+    sayaçların eşzamansız geri okumasıyla).
   - *Üçgen ve draw call ayrımı (kullanıcı, 2026-11-17; sıra plan 5c "yeni sıra"):*
     üçgen azaltma meshlet / sanal geometriyle (otomatik, elle LOD yok); r187'nin
     `MeshletDrawingPipeline`'ı ters derinlikte kapandığı için aday three-virtual-geometry

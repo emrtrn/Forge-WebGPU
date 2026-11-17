@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.50 · 2026-11-17 — Faz 5c R4 (5.4): foliage türü batch katmanı. v1.49 — Faz 5c R3 (5.3): bundle ölçüldü, kazanç yok, varsayılan kapalı. v1.48 — Faz 5c R2 (5.2): GPU güdümlü batch'ler gölge kaskatlarında. v1.47 — Faz 5c R1: HLOD'a `forge.shape` (three'siz primitive üreticisi, eşitlik testi). Önceki v1.46 — Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; R1 HLOD'a şekiller → R2–R4 (5.2–5.4) → R5 sahne maliyet raporu → R6 üçgen spike'ı (three-virtual-geometry / ters derinlikli meshlet kopyası / 5.1 + ayrık LOD) → R7 üretim → R8 HLOD katmanları → R9 (5.5) → R10 (5.6). three-nanite elendi. Mimari v1.46.
+**Güncelleme:** v1.51 · 2026-11-17 — Faz 5c R5: sahne maliyet raporu (`forge stats`) + Stats üçgeni. v1.50 — Faz 5c R4 (5.4): foliage türü batch katmanı. v1.49 — Faz 5c R3 (5.3): bundle ölçüldü, kazanç yok, varsayılan kapalı. v1.48 — Faz 5c R2 (5.2): GPU güdümlü batch'ler gölge kaskatlarında. v1.47 — Faz 5c R1: HLOD'a `forge.shape` (three'siz primitive üreticisi, eşitlik testi). Önceki v1.46 — Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; R1 HLOD'a şekiller → R2–R4 (5.2–5.4) → R5 sahne maliyet raporu → R6 üçgen spike'ı (three-virtual-geometry / ters derinlikli meshlet kopyası / 5.1 + ayrık LOD) → R7 üretim → R8 HLOD katmanları → R9 (5.5) → R10 (5.6). three-nanite elendi. Mimari v1.46.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — Faz 5c adım 5: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı, `2544bdb`); çizim sayacı iki geçişli saydam materyalleri sayar. Mimari v1.45.
 
@@ -1110,6 +1110,37 @@ katmandan kurar: `gpuCulling.smoke.ts` iki arka uçta geçti (P2 / P1 / gökyüz
 gelen, tür değişimi, kalite, `castShadow: false`). Halkanın ve hücrelerin bu API'ye
 bağlanması adım 6 / 7'de.
 
+**R5 uygulandı (2026-11-17, C): sahne maliyet raporu.** `npm run forge -- stats
+--project <yol> --level <klasör> [--json] [--top <n>]` (`tools/stats/`; salt okur,
+motor / paket level'ı da): aktör (uzamsal / kalıcı, hücre), bileşen türleri, statik
+mesh yerleşimi, benzersiz model ve model + materyal birleşimi, kaynak üçgen (her
+yerleşim tam detayda), şekiller, benzersiz materyal (saydam / çift yüzlü / ikisi),
+renderer'ın kurduğu statik batch'ler (`staticMeshBatchKey`) ve şekil batch'leri,
+görünüm başına draw ve gölge kaskadı başına draw, foliage kuralları / boyanmış örnek,
+HLOD; yerleşmiş üçgene göre ilk n model (üçgen, primitive, slot, saydam / çift yüzlü,
+yarıçap). Editör Stats (`?debug`) çizilen üçgene GPU güdümlü batch'lerin üçgenlerini
+ekler (sayaçlar en çok saniyede iki kez eşzamansız okunur; WebGL2'de three sayar);
+draw call'a dolaylı çizimler 5.1'den beri ekleniyor. Görüntüleyicinin bütçe sinyalleri
+de aynı üçgeni okur. Smoke iki arka uçta: P2'de üçgen 1.845.942 → 2.132.334 (WebGPU)
+/ 2.146.928 (WebGL2). Raporlar:
+
+| | Derekavak (referans projesi) | Sentetik StreamingBench (ölçüm kopyası) |
+|---|---|---|
+| Aktör | 117 (109 uzamsal, 8 kalıcı), 22 hücre | 50.000 (49.999 / 1), 1.024 hücre |
+| Statik mesh | 25 yerleşim, 2 model, 2 birleşim, 20.364 üçgen | 44.999, 27 model, 27 birleşim, 40.376.037 üçgen |
+| Şekil | 83 küp, 996 üçgen | 5.001 (5.000 küp + 1 düzlem), 60.002 üçgen |
+| Materyal | 14 benzersiz, 0 saydam, 14 çift yüzlü | 34, 0 saydam, 28 çift yüzlü |
+| Draw / görünüm | 118 (2 statik + 1 şekil batch'i; dk-house 68, dk-depot 49 primitive) | 182 (27 + 2 batch) |
+| Gölge kaskadı başına | 118 draw (3 batch) | 181 draw (28 batch) |
+| Kaynak üçgen | 21.360 | 40.436.039 (SM_DentPanel 1.666 × 19.200 = 32,0 M) |
+| Foliage / HLOD | 0 kural (referans yeniden alınmadı) / yok | 0 / 1.024 hücre, 3.366.912 üçgen |
+
+Okuma: Derekavak'ta draw'ın kaynağı primitive sayısı (iki bina modeli 117 primitive,
+bütün materyaller çift yüzlü); sentetik level'da üçgen tek modelde yoğun. İki level da
+R6'nın ölçü dili: üçgen ağırlığı model başına, draw ağırlığı primitive başına. Not: HLOD
+üretimi Derekavak'ta 21.360 üçgen yazdı, kaynakla aynı (sadeleştirme bu modellerde
+üçgen düşürmüyor); R8'de bakılır.
+
 5c ile paralel yürürse ortak dosyalar: `render/sync/instanceBatches.ts` (adım 8; foliage
 kendi batch'ini kurar), kalite profilleri, `?debug` satırları. Çakışmada adım 8 5c'nin
 GPU güdümlü yolunu bekler.
@@ -1455,3 +1486,4 @@ silinebilir.
 | 2026-11-17 | v1.48 | Faz 5c R2 (5.2): GPU güdümlü batch'ler gölge kaskatlarına çizer: görünüm başına kaynak, gölge görünümü kendi katmanında, örnek dönüşümü `castShadowPositionNode`, solma `maskShadowNode`, mesafe ana kameradan; WebGL2 ikizi aynı. Smoke iki arka uçta: her kaskatta GPU = CPU, `?debug` +60 (15 × 4 görünüm), gölge görüntüyü değiştirir. Sıradaki R3 bundle |
 | 2026-11-17 | v1.49 | Faz 5c R3 (5.3): isteğe bağlı bundle (`bundle: true`, kamera başına kayıt, yeniden kayıt yalnız mesh / görünüm değişince, saydamlar dışarıda) + `npm run measure:gpu-driven`. Kazanç yok (foliage 1,54 → 1,49 ms, 1.200 draw'lık stres 20,2 → 21,7 ms): three r187 düğüm materyalli render nesnelerini her karede tam yeniler; varsayılan kapalı, kullanıcı kararı bekliyor. Sıradaki R4 |
 | 2026-11-17 | v1.50 | Faz 5c R4 (5.4): `render/foliage/foliageBatches.ts`: foliage türü başına GPU güdümlü batch (LOD zinciri, kalite ölçekli solma, ekran boyundan LOD, gölge), sahip anahtarlı örnek API'si (halka adım 6, boyanmış hücreler adım 7 buna bağlanır); smoke iki arka uçta bu katmandan. Sıradaki R5 |
+| 2026-11-17 | v1.51 | Faz 5c R5: `npm run forge -- stats` sahne maliyet raporu (aktör, model / materyal birleşimi, kaynak üçgen, saydam / çift yüzlü, batch ve görünüm / kaskat başına draw, foliage, HLOD); editör Stats üçgenine GPU güdümlü batch'ler (eşzamansız geri okuma). Derekavak 118 draw / görünüm, 21.360 üçgen; sentetik 182 draw, 40,4 M üçgen. Sıradaki R6 |
