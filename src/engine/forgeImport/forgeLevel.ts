@@ -56,6 +56,7 @@ import {
   fieldPhase,
 } from "./fields.ts";
 import { environmentActors, forgeLevelWind } from "./environment.ts";
+import { convertForgeFoliage, LANDSCAPE_FOLIAGE_TAG, type ForgeFoliageConversion, type ForgeFoliageInput, type ForgeFoliageReport } from "./foliage.ts";
 import { puddleActors } from "./puddles.ts";
 import { forgeLevelId, stableHex } from "./ids.ts";
 import { forgeLightSources, LIGHT_FIELD_PHASES, lightActors } from "./lights.ts";
@@ -88,6 +89,8 @@ export interface ForgeLevelInput {
   readonly cells: ReadonlyArray<{ readonly key: string; readonly doc: unknown }>;
   /** Parsed terrain definitions by the landscapes' `dataRef`. */
   readonly terrains: ReadonlyMap<string, unknown>;
+  /** The level's foliage sidecar and its cell files (`foliage.ts`); absent when it has none. */
+  readonly foliage?: ForgeFoliageInput | undefined;
 }
 
 export interface ForgeLevelOptions {
@@ -107,6 +110,8 @@ export interface ForgeLevelOptions {
   readonly materialSlotCount?: (forgeAssetId: string) => number | null;
   /** GUID of the `forge.texture` a Forge texture id names; null when the target has none (reported). */
   readonly textureAsset?: (forgeTextureId: string) => string | null;
+  /** GUID of the `forge.foliageType` a Forge foliage type id names; null when the target has none (reported). */
+  readonly foliageTypeAsset?: (forgeFoliageTypeId: string) => string | null;
 }
 
 export interface ImportedTerrain {
@@ -152,11 +157,15 @@ export interface ForgeLevelReport {
   readonly missingAssets: ReadonlyArray<{ readonly assetId: string; readonly placements: number }>;
   /** Placements whose id another placement already had: their actor id was disambiguated. */
   readonly duplicateIds: number;
+  /** Landscape rules and painted foliage; null when the level has no foliage sidecar. */
+  readonly foliage: ForgeFoliageReport | null;
 }
 
 export interface ForgeLevelImport {
   readonly level: LevelDoc;
   readonly terrains: readonly ImportedTerrain[];
+  /** Painted foliage as the level part (`foliage.json` + `foliage/<x>_<z>.bin`); null without painted instances. */
+  readonly foliage: ForgeFoliageConversion["part"];
   readonly report: ForgeLevelReport;
 }
 
@@ -306,6 +315,15 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
     }
   };
 
+  const cellSize = mainGridCellSize(layout);
+  const foliage = input.foliage === undefined ? null : convertForgeFoliage(input.foliage, {
+    levelPath: input.path,
+    levelId,
+    cellSize,
+    landscapes: new Set(arrayOf(layout.landscapes).flatMap((landscape) => (isJsonObject(landscape) && typeof landscape.id === "string" ? [landscape.id] : []))),
+    foliageTypeAsset: options.foliageTypeAsset ?? (() => null),
+  });
+
   // Terrain first, as World Builder writes it: the persistent layer leads.
   const terrains: ImportedTerrain[] = [];
   const terrainFiles = new Set<string>();
@@ -326,7 +344,11 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
       material = (options.materialAsset?.(landscape.material) ?? null) as AssetId | null;
       if (material === null) note(`landscapes[].material=${landscape.material}`, 1, "- (materyal hedefte yok)");
     }
-    actors.push(terrainActor(actorId(`terrain/${landscape.id}`), name, def, data, material));
+    const terrain = terrainActor(actorId(`terrain/${landscape.id}`), name, def, data, material);
+    const rules = foliage?.rulesByLandscape.get(landscape.id);
+    actors.push(rules?.length && "components" in terrain
+      ? { ...terrain, components: { ...terrain.components, foliage: { type: LANDSCAPE_FOLIAGE_TAG, rules: structuredClone(rules) } as unknown as ComponentMap[string] } }
+      : terrain);
     terrains.push({
       file,
       source: landscape.dataRef,
@@ -382,8 +404,9 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
   }
 
   return {
-    level: { schema: LEVEL_SCHEMA, id: levelId, settings: { cellSize: mainGridCellSize(layout), wind: forgeLevelWind(layout), ...streamingSettings(layout) }, actors },
+    level: { schema: LEVEL_SCHEMA, id: levelId, settings: { cellSize, wind: forgeLevelWind(layout), ...streamingSettings(layout) }, actors },
     terrains,
+    foliage: foliage?.part ?? null,
     report: {
       source: input.path,
       name: typeof layout.name === "string" ? layout.name : "",
@@ -396,6 +419,7 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
       missingAssets: [...missing].map(([assetId, placements]) => ({ assetId, placements }))
         .sort((a, b) => a.assetId.localeCompare(b.assetId)),
       duplicateIds,
+      foliage: foliage?.report ?? null,
     },
   };
 }

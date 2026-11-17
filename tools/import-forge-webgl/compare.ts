@@ -7,6 +7,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { isJsonObject, type JsonObject } from "../../src/core/index.ts";
+import type { ForgeLevelReport } from "../../src/engine/forgeImport/forgeLevel.ts";
 import type { ImportRunResult } from "./importRun.ts";
 import type { ForgeSource } from "./forgeSource.ts";
 import { readForgeLevel } from "./levelRead.ts";
@@ -107,14 +108,19 @@ async function sourceCounts(source: ForgeSource, path: string, missing: Readonly
   const staticCastShadow = settings.staticObjectsCastShadow === true;
   sourcePlacements(layout, counts, staticCastShadow, missing);
   for (const cell of level.input.cells) if (isJsonObject(cell.doc)) sourcePlacements(cell.doc, counts, staticCastShadow, missing);
-  const foliage = path.replace(/\.level\.json$/, ".foliage.json");
-  if (await source.exists(foliage)) {
-    const doc = await source.readJson(foliage);
+  // Painted instances of the sidecar and of its cell files (a partitioned level), raw.
+  const base = path.replace(/\.level\.json$/, "");
+  if (await source.exists(`${base}.foliage.json`)) {
+    const doc = await source.readJson(`${base}.foliage.json`);
+    const instancesOf = (value: unknown): number => (isJsonObject(value) && Array.isArray(value.groups) ? value.groups : [])
+      .reduce((sum: number, group) => sum + (isJsonObject(group) && Array.isArray(group.instances) ? group.instances.length : 0), 0);
     if (isJsonObject(doc)) {
-      for (const group of Array.isArray(doc.groups) ? doc.groups : []) {
-        if (isJsonObject(group) && Array.isArray(group.instances)) counts.foliageInstances += group.instances.length;
-      }
+      counts.foliageInstances += instancesOf(doc);
       counts.foliageRules = Array.isArray(doc.landscapeRules) ? doc.landscapeRules.length : 0;
+      for (const key of Array.isArray(doc.foliageCells) ? doc.foliageCells : []) {
+        const cell = `${base}.cells/foliage/${String(key)}.foliage.json`;
+        if (await source.exists(cell)) counts.foliageInstances += instancesOf(await source.readJson(cell));
+      }
     }
   }
   return counts;
@@ -141,6 +147,10 @@ interface TargetCounts {
   shadowless: number;
   materialOverrides: number;
   terrainMaterials: number;
+  /** `forge.landscapeFoliage` rules on the terrains. */
+  foliageRules: number;
+  /** Instances `foliage.json` lists. */
+  foliageInstances: number;
   /** Actor names per cell key. */
   cellActors: Map<string, string[]>;
 }
@@ -149,7 +159,7 @@ async function targetCounts(projectRoot: string, folder: string): Promise<Target
   const counts: TargetCounts = {
     actors: 0, shapes: 0, meshes: 0, roles: 0, terrains: 0, heightFog: 0, lights: 0, playerStarts: 0,
     skyAtmosphere: 0, skyLight: 0, cloudLayer: 0, worldEnvironment: 0, postProcess: 0, puddles: 0, cells: 0, persistent: 0, cellActors: new Map(),
-    tintedMeshes: 0, shadowless: 0, materialOverrides: 0, terrainMaterials: 0,
+    tintedMeshes: 0, shadowless: 0, materialOverrides: 0, terrainMaterials: 0, foliageRules: 0, foliageInstances: 0,
   };
   const count = (doc: unknown, persistent: boolean): void => {
     const key = isJsonObject(doc) && typeof doc.cell === "string" ? doc.cell : null;
@@ -174,6 +184,7 @@ async function targetCounts(projectRoot: string, folder: string): Promise<Target
           counts.terrains += 1;
           if (typeof data.material === "string") counts.terrainMaterials += 1;
         }
+        else if (type === "forge.landscapeFoliage") counts.foliageRules += Array.isArray(data.rules) ? data.rules.length : 0;
         else if (type === "forge.heightFog") counts.heightFog += 1;
         else if (type === "forge.directionalLight" || type === "forge.pointLight" || type === "forge.spotLight") counts.lights += 1;
         else if (type === "forge.skyAtmosphere") counts.skyAtmosphere += 1;
@@ -195,6 +206,12 @@ async function targetCounts(projectRoot: string, folder: string): Promise<Target
   }
   counts.cells = cellFiles.length;
   for (const name of cellFiles) count(JSON.parse(await readFile(join(dir, "cells", name), "utf8")), false);
+  try {
+    const foliage = JSON.parse(await readFile(join(dir, "foliage.json"), "utf8")) as { cells?: Array<{ counts?: number[] }> };
+    for (const cell of foliage.cells ?? []) counts.foliageInstances += (cell.counts ?? []).reduce((sum, n) => sum + n, 0);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
   return counts;
 }
 
@@ -250,11 +267,39 @@ export async function compareImport(projectRoot: string, source: ForgeSource, re
       row("cells", s.cells, t.cells, s.cells === 0
         ? "the source level is not partitioned; every level has a grid now and actors are assigned by position (A11)"
         : cellDifference(s.cellKeys, t.cellActors)),
-      row("foliage instances", s.foliageInstances, 0, "foliage comes in 5c"),
-      row("foliage landscape rules", s.foliageRules, 0, "foliage comes in 5c"),
+      foliageInstancesRow(s.foliageInstances, t.foliageInstances, report.foliage),
+      foliageRulesRow(s.foliageRules, t.foliageRules, report.foliage),
     ]);
   }
   return tables;
+}
+
+/** Painted instances: a difference is explained by the instances Forge dropped and the types the target lacks. */
+function foliageInstancesRow(source: number, target: number, report: ForgeLevelReport["foliage"]): CountRow {
+  const what = "painted foliage instances → foliage.json";
+  if (source === target) return { what, source, target, note: "" };
+  const missing = report?.missingTypes.reduce((sum, entry) => sum + entry.instances, 0) ?? 0;
+  const invalid = report?.invalidInstances ?? 0;
+  const known = report !== null && source - target === missing + invalid;
+  const parts = [
+    ...(missing ? [`no foliage type in the target: ${report!.missingTypes.map((entry) => `${entry.typeId} ${entry.instances}`).join(", ")}`] : []),
+    ...(invalid ? [`without a position (Forge drops them): ${invalid}`] : []),
+  ];
+  return { what, source, target, note: `${known ? "" : "? "}${parts.join("; ") || "unexplained"}` };
+}
+
+/** Landscape rules: a difference is explained by the rules Forge dropped and those without a landscape or type. */
+function foliageRulesRow(source: number, target: number, report: ForgeLevelReport["foliage"]): CountRow {
+  const what = "foliage landscape rules → forge.landscapeFoliage";
+  if (source === target) return { what, source, target, note: "" };
+  const skipped = report?.skippedRules ?? [];
+  const invalid = report?.invalidRules ?? 0;
+  const known = report !== null && source - target === skipped.length + invalid;
+  const parts = [
+    ...skipped.map((entry) => `${entry.id}: ${entry.reason}`),
+    ...(invalid ? [`without a landscape, layer or type id (Forge drops them): ${invalid}`] : []),
+  ];
+  return { what, source, target, note: `${known ? "" : "? "}${parts.join("; ") || "unexplained"}` };
 }
 
 export function formatComparison(tables: ReadonlyMap<string, readonly CountRow[]>): string {

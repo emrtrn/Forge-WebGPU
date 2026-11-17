@@ -27,6 +27,19 @@ export function formatImportReport(result: ImportRunResult): string {
     if (report.missingAssets.length) {
       lines.push(`- Placements left out (no model in the target): ${report.missingAssets.map((entry) => `${entry.assetId} ${entry.placements}`).join(", ")}.`);
     }
+    const foliage = report.foliage;
+    if (foliage) {
+      const notes = [
+        ...foliage.skippedRules.map((entry) => `rule ${entry.id} left out (${entry.reason})`),
+        ...(foliage.invalidRules ? [`${foliage.invalidRules} rules without a landscape, layer or type id (Forge drops them)`] : []),
+        ...foliage.missingTypes.map((entry) => `${entry.instances} instances of ${entry.typeId} left out (no foliage type in the target)`),
+        ...(foliage.invalidInstances ? [`${foliage.invalidInstances} instances without a position (Forge drops them)`] : []),
+        ...(foliage.nonUniformScales ? [`${foliage.nonUniformScales} non-uniform scales kept as X (Forge drew X)`] : []),
+        ...(foliage.normals ? [`${foliage.normals} paint-time normals not kept (not in the format)`] : []),
+      ];
+      lines.push(`- Foliage: landscape rules ${foliage.rules} → \`forge.landscapeFoliage\`; painted instances ${foliage.instances} → \`foliage.json\``
+        + ` (on static meshes ${foliage.staticMeshInstances})${notes.length ? `; ${notes.join("; ")}` : ""}.`);
+    }
     if (report.duplicateIds) lines.push(`- Duplicate placement ids told apart: ${report.duplicateIds}.`);
     for (const sidecar of deferredSidecars) lines.push(`- Not converted: ${sidecar.path} → phase ${sidecar.phase}.`);
     if (report.notConverted.length) {

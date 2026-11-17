@@ -3,9 +3,10 @@
 //
 // From seed asset ids (the models the levels place, the materials of their
 // terrain layers, any asset asked for), the plan follows Forge's chain
-// model -> `<model>.materials.json` slots -> material -> textures. Three Forge
-// types become binary assets (`forge.model`, `forge.texture`, `forge.sound`)
-// and materials JSON assets (`forge.material`, phase 3 step 4); every other
+// foliage type -> model -> `<model>.materials.json` slots -> material ->
+// textures. Three Forge types become binary assets (`forge.model`,
+// `forge.texture`, `forge.sound`), materials and foliage types JSON assets
+// (`forge.material`, phase 3 step 4; `forge.foliageType`, phase 5c); every other
 // type is reported with the phase that brings it, the K12 types are skipped
 // and listed, and the licence decides through the provenance table
 // (`provenance.ts`; a JSON asset carries no licence, its textures do).
@@ -14,7 +15,7 @@ import type { ForgeManifestAsset, ForgeSource } from "./forgeSource.ts";
 import { provenanceOf, type Provenance } from "./provenance.ts";
 
 export type BinaryTarget = "forge.model" | "forge.texture" | "forge.sound";
-export type ImportTarget = BinaryTarget | "forge.material";
+export type ImportTarget = BinaryTarget | "forge.material" | "forge.foliageType";
 
 /** Forge manifest types: the asset type they become now, or the phase that brings them. */
 export const FORGE_ASSET_TYPES: Readonly<Record<string, { readonly type: ImportTarget } | { readonly phase: string }>> = {
@@ -22,7 +23,7 @@ export const FORGE_ASSET_TYPES: Readonly<Record<string, { readonly type: ImportT
   texture: { type: "forge.texture" },
   sound: { type: "forge.sound" },
   material: { type: "forge.material" },
-  foliageType: { phase: "5c" },
+  foliageType: { type: "forge.foliageType" },
   effect: { phase: "6" },
   skeletalMesh: { phase: "6" },
   animation: { phase: "6" },
@@ -120,6 +121,11 @@ export async function planAssets(source: ForgeSource, seeds: Iterable<string>): 
     // A material brings the textures it names.
     if (target.type === "forge.material" && await source.exists(asset.path)) {
       queue.push(...materialTextureIds(await source.readJson(asset.path)));
+    }
+    // A foliage type brings its model.
+    if (target.type === "forge.foliageType" && await source.exists(asset.path)) {
+      const type = (await source.readJson(asset.path)) as { meshAssetId?: unknown };
+      if (typeof type.meshAssetId === "string" && type.meshAssetId !== "") queue.push(type.meshAssetId);
     }
     if (target.type !== "forge.model") continue;
     for (const suffix of Object.keys(MODEL_SIDECAR_PHASES)) {

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
-import { buildAssetIndex } from "../../src/core/index.ts";
+import { buildAssetIndex, decodeFoliageCell } from "../../src/core/index.ts";
 import { forgeAssetId, forgeLevelId } from "../../src/engine/forgeImport/ids.ts";
 import { createFlatWorldTerrain } from "../../src/engine/terrain/worldTerrainCreate.ts";
 import { projectIndexRoots } from "../assets/engineContent.ts";
@@ -63,10 +63,12 @@ beforeAll(async () => {
       asset("grass", "staticMesh", "assets/kenney-nature-kit/grass.glb", "CC0", { origin: "Kenney" }),
       asset("beep", "sound", "assets/sounds/Beep.wav", "Project-local placeholder; replace before distribution if needed"),
       asset("bt", "behaviorTree", "assets/ai/Patrol.behavior.json", "Unknown"),
+      asset("ft-fern", "foliageType", "assets/foliage/Fern.foliagetype.json", "Project-local pilot data"),
+      asset("fern", "staticMesh", "assets/meshes/Fern.glb", "CC0", { origin: "forge" }),
     ],
   }));
   for (const path of ["assets/world-builder/structures/wp-cabin.glb", "assets/meshes/Road.glb",
-    "assets/textures/T_Rock.png", "assets/textures/T_Sand.png", "assets/sounds/Beep.wav"]) {
+    "assets/textures/T_Rock.png", "assets/textures/T_Sand.png", "assets/sounds/Beep.wav", "assets/meshes/Fern.glb"]) {
     await put(path, new Uint8Array([1, 2, 3, path.length]));
   }
   // Two materials on two primitives, the second also on a child node: two slots.
@@ -119,7 +121,32 @@ beforeAll(async () => {
     schemaVersion: 1, recipeId: "valley", seed: 3, regionProfile: "layouts/Valley.regionprofile.json",
     ownership: { placements: { "rock-1": { stage: "scatter", outputHash: "abc" } }, splines: {}, foliageRules: {}, protectedRegions: [] },
   }));
-  await put("layouts/Valley.foliage.json", json({ schema: 1, type: "foliage", groups: [] }));
+  await put("assets/foliage/Fern.foliagetype.json", json({
+    schema: 1, type: "foliageType", name: "Fern", meshAssetId: "fern", radius: 1.2, scaleMin: [0.4, 0.4, 0.4], scaleMax: [0.7, 0.7, 0.7],
+    alignToNormal: true, slopeMax: 35, castShadow: false, receiveShadow: true, cullEnd: 150, sway: { amplitude: 0.12, height: 1, frequency: 0.8 },
+  }));
+  // Partitioned: the painted instances sit in the cell files `foliageCells` lists.
+  await put("layouts/Valley.foliage.json", json({
+    schema: 1, type: "foliage",
+    groups: [
+      { id: "ferns", foliageTypeId: "ft-fern", target: { kind: "landscape", id: "valley" }, instances: [] },
+      { id: "on-rock", foliageTypeId: "ft-fern", target: { kind: "staticMesh", id: "rock" }, instances: [] },
+      { id: "ghosts", foliageTypeId: "ft-gone", target: { kind: "landscape", id: "valley" }, instances: [] },
+    ],
+    landscapeRules: [
+      { id: "meadow-fern", landscapeId: "valley", layerId: "meadow", foliageTypeId: "ft-fern", density: 0.02, minWeight: 0.5, seed: 105, slopeMax: 30 },
+      { id: "elsewhere", landscapeId: "other", layerId: "meadow", foliageTypeId: "ft-fern" },
+    ],
+    foliageCells: ["0_0", "1_0"],
+  }));
+  await put("layouts/Valley.cells/foliage/0_0.foliage.json", json({ schema: 1, type: "foliageCell", key: "0_0", groups: [
+    { id: "ferns", instances: [{ position: [3, 0, 4], rotation: [0, 45, 0], scale: [0.5, 0.5, 0.5], seed: 11 }, { position: [6, 0, 4], scale: [0.6, 0.6, 0.6] }] },
+    { id: "on-rock", instances: [{ position: [20, 1, 20], rotation: [0, 0, 0], scale: [0.4, 0.4, 0.4], normal: [0, 1, 0], seed: 2 }] },
+    { id: "ghosts", instances: [{ position: [1, 0, 1] }] },
+  ] }));
+  await put("layouts/Valley.cells/foliage/1_0.foliage.json", json({ schema: 1, type: "foliageCell", key: "1_0", groups: [
+    { id: "ferns", instances: [{ position: [200, 0, 10], scale: [0.7, 0.7, 0.7], seed: 4 }] },
+  ] }));
   await put("layouts/Other.level.json", json({ schema: 1, name: "Other", loadGroups: [], characters: [], instances: [] }));
   await put("layouts/Other.worldbrief.json", json({ schema: 1, type: "worldBrief", id: "other", name: "Other", regionProfile: "layouts/Valley.regionprofile.json" }));
 });
@@ -173,7 +200,9 @@ describe("import:forge", () => {
     expect(report).toContain("Static shadow switch (`worldSettings.staticObjectsCastShadow`): off");
     expect(report).toContain("converted into the model's import settings: .materials.json 1, .uvw.json 1, .vertexcolors.json 1; not converted: .collision.json → 6 1");
     expect(report).toContain("rock materials → m-gone");
-    expect(report).toContain("layouts/Valley.foliage.json → phase 5c");
+    expect(report).not.toContain("Valley.foliage.json → phase");
+    expect(report).toContain("- Foliage: landscape rules 1 → `forge.landscapeFoliage`; painted instances 4 → `foliage.json` (on static meshes 1); "
+      + "rule elsewhere left out (no landscape other); 1 instances of ft-gone left out (no foliage type in the target); 1 paint-time normals not kept");
     expect(report).toContain("grass (no Kenney or Quaternius content");
   });
 
@@ -185,9 +214,9 @@ describe("import:forge", () => {
       placements: 3, placeholders: 1, meshes: 2, playerStarts: 1, terrains: 1, heightFog: 1, sourceCells: 1, staticCastShadow: false,
     });
     expect(level!.report.missingAssets).toEqual([{ assetId: "ghost", placements: 1 }, { assetId: "grass", placements: 1 }]);
-    expect([...result.plan.imported.keys()].sort()).toEqual(["cabin", "m-rock", "road", "rock", "t-rock", "t-sand"]);
+    expect([...result.plan.imported.keys()].sort()).toEqual(["cabin", "fern", "ft-fern", "m-rock", "road", "rock", "t-rock", "t-sand"]);
     expect([...result.plan.deferred.keys()]).toEqual([]);
-    expect([...result.plan.unknownIds].sort()).toEqual(["ghost", "m-gone"]);
+    expect([...result.plan.unknownIds].sort()).toEqual(["ft-gone", "ghost", "m-gone"]);
     expect(result.missingReferences).toEqual([{ in: "rock", slot: "materials", id: "m-gone" }]);
     expect(Object.fromEntries(result.plan.sidecars)).toEqual({ ".materials.json": 1, ".uvw.json": 1, ".vertexcolors.json": 1, ".collision.json": 1 });
 
@@ -205,6 +234,26 @@ describe("import:forge", () => {
     const persistent = await read("content/levels/Valley/level.json");
     const terrain = (persistent.actors as Actor[]).find((actor) => actor.components.terrain)!;
     expect(terrain.components.terrain).toMatchObject({ type: "forge.terrain@2", material: forgeAssetId("m-rock") });
+    expect(terrain.components.foliage).toEqual({
+      type: "forge.landscapeFoliage@1",
+      rules: [{
+        id: "meadow-fern", layer: "meadow", foliageType: forgeAssetId("ft-fern"), density: 0.02, minWeight: 0.5, seed: 105,
+        height: { enabled: false, min: -10000, max: 10000, falloff: 0 }, slope: { min: 0, max: 30, falloff: 0 }, noise: { amount: 0, scale: 20 }, edgeScale: 1,
+      }],
+    });
+    expect(await read("content/forge/foliage/Fern.foliagetype.json")).toMatchObject({
+      schema: "forge.foliageType/1", id: forgeAssetId("ft-fern"), mesh: forgeAssetId("fern"), radius: 1.2, scaleMin: 0.4, scaleMax: 0.7,
+      slopeMax: 35, castShadow: false, cullEnd: 150, heightLimit: { enabled: false }, sway: { enabled: true, source: "height", amplitude: 0.12, frequency: 0.8 },
+      lods: [],
+    });
+    expect(await read("content/levels/Valley/foliage.json")).toEqual({
+      schema: "forge.levelFoliage/1", level: forgeLevelId(LEVEL), cellSize: 128, types: [forgeAssetId("ft-fern")],
+      cells: [{ key: "0_0", counts: [3] }, { key: "1_0", counts: [1] }],
+    });
+    const [ferns] = decodeFoliageCell(await readFile(join(project, "content/levels/Valley/foliage/0_0.bin")), [3]);
+    expect([...ferns!.positions]).toEqual([3, 0, 4, 6, 0, 4, 20, 1, 20]);
+    expect([...ferns!.scales].map((scale) => Number(scale.toFixed(3)))).toEqual([0.5, 0.6, 0.4]);
+    expect(ferns!.seeds[0]).toBe(11);
     expect(await read("content/forge/meshes/Rock.glb.meta.json")).toMatchObject({
       id: forgeAssetId("rock"), type: "forge.model@2", license: UNVERIFIED_LICENSE,
       import: {
@@ -265,6 +314,12 @@ describe("import:forge", () => {
     });
     expect(rows.find((row) => row.what.startsWith("landscape materials"))).toMatchObject({ source: 1, target: 1, note: "" });
     expect(rows.find((row) => row.what === "cells")).toMatchObject({ source: 1, target: 1, note: "" });
+    expect(rows.find((row) => row.what.startsWith("painted foliage instances"))).toMatchObject({
+      source: 5, target: 4, note: "no foliage type in the target: ft-gone 1",
+    });
+    expect(rows.find((row) => row.what.startsWith("foliage landscape rules"))).toMatchObject({
+      source: 2, target: 1, note: "elsewhere: no landscape other",
+    });
     expect(formatComparison(await tables)).toContain("| shape placements → forge.shape | 1 | 1 | = |");
   });
 
@@ -276,10 +331,11 @@ describe("import:forge", () => {
 
   test("a second run needs --force and writes the same bytes", async () => {
     await expect(run()).rejects.toThrow(/pass --force/);
-    const before = await readFile(join(project, "content/levels/Valley/cells/0_0.json"), "utf8");
+    const files = ["cells/0_0.json", "level.json", "foliage.json", "foliage/0_0.bin", "foliage/1_0.bin"].map((name) => join(project, "content/levels/Valley", name));
+    const before = await Promise.all(files.map((file) => readFile(file)));
     const again = await run({ force: true });
     expect(again.removed).toEqual([]);
-    expect(await readFile(join(project, "content/levels/Valley/cells/0_0.json"), "utf8")).toBe(before);
+    expect(await Promise.all(files.map((file) => readFile(file)))).toEqual(before);
   });
 
   test("WES v2 imports cover and sparse wind priority; --compare detects lost cover or wind values", async () => {

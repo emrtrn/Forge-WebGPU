@@ -11,6 +11,9 @@
 // - `forge.level/1`: named `level.json` (a level is a folder).
 // - `forge.levelCell/1`: at `cells/<key>.json` of a level folder, with that
 //   key and the id of the folder's `level.json`.
+// - `forge.levelFoliage/1`: named `foliage.json` in a level folder, with the
+//   id of the folder's `level.json` (painted foliage, phase 5c; its
+//   `foliage/<key>.bin` cells come through the staged channel).
 // - `forge.actorClass/1`.
 // - A schema-defined JSON asset (`jsonAsset.ts`, e.g. `forge.material/<n>`):
 //   its fields against its type (an older version migrates), with the file
@@ -30,11 +33,13 @@ import {
   assetPathOfMeta,
   cellKeyOfFile,
   claimsFile,
+  FOLIAGE_INDEX_FILE,
   hasDataDocumentName,
   isJsonAssetType,
   isJsonObject,
   LEVEL_CELL_INDEX_SCHEMA,
   LEVEL_CELL_SCHEMA,
+  LEVEL_FOLIAGE_SCHEMA,
   LEVEL_SCHEMA,
   levelFolderOf,
   metaTypeOf,
@@ -44,6 +49,7 @@ import {
   normalizeJsonAsset,
   normalizeLevel,
   normalizeLevelCell,
+  normalizeLevelFoliageIndex,
   partFolderOf,
   stringifyDocument,
   type ActorClassDoc,
@@ -195,6 +201,22 @@ export function createDocumentCheck(registry: SchemaRegistry, classes: ClassStor
         issues.push({ file: path, path: "level", code: "invalid-value", severity: "error", message: `The cell belongs to level ${cell.level}, the folder holds ${String(levelId)}.` });
       }
       return { text: cell ? stringifyDocument(cell) : "", issues };
+    }
+
+    if (schema === LEVEL_FOLIAGE_SCHEMA) {
+      const folder = partFolderOf(path);
+      if (folder === null || path !== (folder === "" ? FOLIAGE_INDEX_FILE : `${folder}/${FOLIAGE_INDEX_FILE}`)) {
+        return refuse(path, "orphan-part", `Painted foliage is saved as ${FOLIAGE_INDEX_FILE} in a level folder.`);
+      }
+      const result = normalizeLevelFoliageIndex(json, options);
+      const issues = toSaveIssues(path, result.issues);
+      const levelText = await context.textAfter(folder === "" ? "level.json" : `${folder}/level.json`);
+      const level = levelText === null ? null : parseJson(levelText);
+      const levelId = level && "json" in level && isJsonObject(level.json) ? level.json.id : undefined;
+      if (result.value && levelId !== undefined && result.value.level !== levelId) {
+        issues.push({ file: path, path: "level", code: "invalid-value", severity: "error", message: `The foliage belongs to level ${result.value.level}, the folder holds ${String(levelId)}.` });
+      }
+      return { text: result.value ? stringifyDocument(result.value) : "", issues };
     }
 
     if (schema === ACTOR_CLASS_SCHEMA) {

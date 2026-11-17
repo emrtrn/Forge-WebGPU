@@ -17,6 +17,10 @@
 //   `*.vertexcolors.json` become its import settings (`forge.model@2`,
 //   `modelSidecars.ts`). A placement's `materialSlot` is written on every
 //   slot of its model (the GLB's unique materials, `glbMaterials.ts`).
+// - Foliage (phase 5c): foliage types become `forge.foliageType` JSON assets
+//   (`foliage.ts`), a level's landscape rules a `forge.landscapeFoliage` on
+//   its terrain, its painted groups the level part `foliage.json` +
+//   `foliage/<x>_<z>.bin`.
 // - Everything is one atomic save through the save service. A level folder
 //   that exists is replaced only with `force`; the importer's own files in it
 //   that it no longer writes are deleted. Assets are rewritten in place (same
@@ -28,6 +32,9 @@ import {
   CELL_INDEX_FILE,
   CELLS_DIR,
   cellFileOf,
+  FOLIAGE_DIR,
+  FOLIAGE_INDEX_FILE,
+  foliageCellFileOf,
   createAssetMeta,
   dataDocument,
   fileLabel,
@@ -49,6 +56,7 @@ import {
   type LevelDoc,
 } from "../../src/core/index.ts";
 import { importForgeLevel, type ForgeLevelReport } from "../../src/engine/forgeImport/forgeLevel.ts";
+import { convertForgeFoliageType } from "../../src/engine/forgeImport/foliage.ts";
 import { convertForgeMaterial } from "../../src/engine/forgeImport/forgeMaterial.ts";
 import { forgeAssetId, stableHex } from "../../src/engine/forgeImport/ids.ts";
 import { convertModelSidecars } from "../../src/engine/forgeImport/modelSidecars.ts";
@@ -117,7 +125,8 @@ export interface ImportRunResult {
 
 /** Files of a level folder the importer owns. */
 function ownedByImport(relative: string): boolean {
-  return relative === LEVEL_FILE || relative === CELL_INDEX_FILE || relative.startsWith(`${CELLS_DIR}/`) || relative.startsWith("terrain/");
+  return relative === LEVEL_FILE || relative === CELL_INDEX_FILE || relative.startsWith(`${CELLS_DIR}/`) || relative.startsWith("terrain/")
+    || relative === FOLIAGE_INDEX_FILE || relative.startsWith(`${FOLIAGE_DIR}/`);
 }
 
 async function listFiles(dir: string, relative = ""): Promise<string[]> {
@@ -197,7 +206,8 @@ const baseName = (path: string): string => path.slice(path.lastIndexOf("/") + 1)
 
 interface PendingWrites {
   readonly texts: Map<string, string>;
-  readonly binaries: Map<string, { readonly from: string }>;
+  /** Copied from a Forge file, or written from bytes the import made (painted foliage cells). */
+  readonly binaries: Map<string, { readonly from: string } | { readonly bytes: Uint8Array }>;
 }
 
 export async function runForgeImport(runOptions: ImportRunOptions): Promise<ImportRunResult> {
@@ -223,6 +233,7 @@ export async function runForgeImport(runOptions: ImportRunOptions): Promise<Impo
   const textureAsset = assetOfType("forge.texture");
   const materialAsset = assetOfType("forge.material");
   const meshAsset = assetOfType("forge.model");
+  const foliageTypeAsset = assetOfType("forge.foliageType");
   const options = { strict: true, registry: project.registry };
   for (const [id, planned] of plan.imported) {
     const guid = forgeAssetId(id);
@@ -238,13 +249,22 @@ export async function runForgeImport(runOptions: ImportRunOptions): Promise<Impo
     const type = project.registry.getAssetType(planned.type);
     if (!type) throw new Error(`the engine has no ${planned.type} asset type`);
     if (isJsonAssetType(type)) {
-      const converted = convertForgeMaterial(await source.readJson(planned.asset.path), guid, textureAsset);
-      for (const missing of converted.missingTextures) missingReferences.push({ in: id, slot: missing.slot, id: missing.textureId });
-      const material = normalizeJsonAsset(type, converted.document, options);
-      if (!material.value || !material.ok) {
-        throw new Error(`${planned.asset.path}: ${material.issues.map((issue) => `${issue.path} ${issue.message}`).join("; ")}`);
+      const raw = await source.readJson(planned.asset.path);
+      let document: JsonObject;
+      if (planned.type === "forge.foliageType") {
+        const converted = convertForgeFoliageType(raw, guid, meshAsset);
+        if (converted.missingMesh !== null) missingReferences.push({ in: id, slot: "mesh", id: converted.missingMesh });
+        document = converted.document;
+      } else {
+        const converted = convertForgeMaterial(raw, guid, textureAsset);
+        for (const missing of converted.missingTextures) missingReferences.push({ in: id, slot: missing.slot, id: missing.textureId });
+        document = converted.document;
       }
-      pending.texts.set(target, stringifyDocument(material.value));
+      const normalized = normalizeJsonAsset(type, document, options);
+      if (!normalized.value || !normalized.ok) {
+        throw new Error(`${planned.asset.path}: ${normalized.issues.map((issue) => `${issue.path} ${issue.message}`).join("; ")}`);
+      }
+      pending.texts.set(target, stringifyDocument(normalized.value));
       continue;
     }
     let settings: JsonObject = {};
@@ -276,7 +296,7 @@ export async function runForgeImport(runOptions: ImportRunOptions): Promise<Impo
     const sidecars = levelSidecars(level, folder, labels, pending, project);
     const stages = oldLedgerStages(level.recipe?.json);
     const imported = importForgeLevel(level.input, {
-      meshAsset, materialAsset, textureAsset, materialSlotCount: (id) => slotCounts.get(id) ?? null, stageOf: (id) => stages.get(id),
+      meshAsset, materialAsset, textureAsset, foliageTypeAsset, materialSlotCount: (id) => slotCounts.get(id) ?? null, stageOf: (id) => stages.get(id),
     });
     writeLevel(project, folder, imported.level, pending);
     for (const terrain of imported.terrains) {
@@ -285,6 +305,10 @@ export async function runForgeImport(runOptions: ImportRunOptions): Promise<Impo
       const toBase = `${folder}/${terrain.file.replace(/\.terrain\.json$/, "")}`;
       for (const key of terrain.tileKeys) pending.binaries.set(`${toBase}.tiles/${key}.tile.bin`, { from: `${fromBase}.tiles/${key}.tile.bin` });
       pending.binaries.set(`${toBase}.global.bin`, { from: `${fromBase}.global.bin` });
+    }
+    if (imported.foliage) {
+      pending.texts.set(`${folder}/${FOLIAGE_INDEX_FILE}`, stringifyDocument(imported.foliage.index));
+      for (const [key, bytes] of imported.foliage.cells) pending.binaries.set(`${folder}/${foliageCellFileOf(key)}`, { bytes });
     }
     summaries.push({ folder, report: imported.report, deferredSidecars: level.deferred, sidecars });
   }
@@ -415,9 +439,9 @@ async function commit(
     const writes: SaveWrite[] = [];
     for (const [path, text] of pending.texts) writes.push({ path, base: await revisionOf(path), text });
     let staged = 0;
-    for (const [path, { from }] of pending.binaries) {
+    for (const [path, binary] of pending.binaries) {
       const file = join(staging, `${(staged += 1)}.bin`);
-      await writeFile(file, await source.readBytes(from));
+      await writeFile(file, "bytes" in binary ? binary.bytes : await source.readBytes(binary.from));
       writes.push({ path, base: await revisionOf(path), staged: file });
     }
     const service = createSaveService({

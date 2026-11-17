@@ -1,11 +1,14 @@
 // Reads a Forge WebGL level with everything beside it (plan 2b importer): the
 // level file, the cell files it lists, the terrain definitions its landscapes
 // name, and its sidecars (World Builder brief, recipe, region profile and
-// reference image; foliage and mesh paint, which are reported).
+// reference image; foliage, with its cell files when the level is partitioned;
+// mesh paint, which is reported).
 //
 // Forge's naming: `<dir>/<Stem>.level.json`, cells under
 // `<dir>/<Stem>.cells/main/<key>.cell.json`, sidecars `<dir>/<Stem>.<kind>`; a
-// brief names its own profile and reference image.
+// brief names its own profile and reference image. Painted foliage of a
+// partitioned level sits in `<dir>/<Stem>.cells/foliage/<key>.foliage.json`,
+// the keys listed in the sidecar's `foliageCells`.
 
 import { isJsonObject, type JsonObject } from "../../src/core/index.ts";
 import type { ForgeLevelInput } from "../../src/engine/forgeImport/forgeLevel.ts";
@@ -39,7 +42,7 @@ export interface ForgeLevelFiles {
 }
 
 /** Sidecars converted later. */
-const DEFERRED_SIDECARS: Readonly<Record<string, string>> = { ".foliage.json": "5c", ".meshpaint.json": "5d" };
+const DEFERRED_SIDECARS: Readonly<Record<string, string>> = { ".meshpaint.json": "5d" };
 
 function text(value: unknown): string | null {
   return typeof value === "string" && value !== "" ? value : null;
@@ -86,6 +89,13 @@ export function profileAssetIds(profile: JsonObject): Array<{ readonly id: strin
   return found;
 }
 
+/** Foliage type ids a foliage sidecar or cell names: its groups' and its landscape rules'. */
+function foliageTypeIds(doc: unknown): string[] {
+  if (!isJsonObject(doc)) return [];
+  return [...(Array.isArray(doc.groups) ? doc.groups : []), ...(Array.isArray(doc.landscapeRules) ? doc.landscapeRules : [])]
+    .flatMap((entry) => (isJsonObject(entry) && typeof entry.foliageTypeId === "string" && entry.foliageTypeId !== "" ? [entry.foliageTypeId] : []));
+}
+
 export async function readForgeLevel(source: ForgeSource, path: string): Promise<ForgeLevelFiles> {
   if (!path.endsWith(LEVEL_SUFFIX)) throw new Error(`not a Forge level file: ${path}`);
   const layout = await source.readJson(path);
@@ -122,6 +132,15 @@ export async function readForgeLevel(source: ForgeSource, path: string): Promise
     }
   }
 
+  const foliageDoc = await readSidecar(source, `${base}.foliage.json`);
+  const foliageCells: Array<{ key: string; doc: unknown }> = [];
+  for (const key of Array.isArray(foliageDoc?.json?.foliageCells) ? foliageDoc.json.foliageCells : []) {
+    if (typeof key !== "string") continue;
+    const cellPath = `${base}.cells/foliage/${key}.foliage.json`;
+    if (await source.exists(cellPath)) foliageCells.push({ key, doc: await source.readJson(cellPath) });
+  }
+  if (foliageDoc?.json) seeds.push(...foliageTypeIds(foliageDoc.json));
+
   const brief = await readSidecar(source, `${base}.worldbrief.json`);
   const recipe = await readSidecar(source, `${base}.worldrecipe.json`);
   // The brief's model rows name models by path: World Builder rebuilds from them.
@@ -141,7 +160,7 @@ export async function readForgeLevel(source: ForgeSource, path: string): Promise
   return {
     path,
     stem,
-    input: { path, layout, cells, terrains },
+    input: { path, layout, cells, terrains, ...(foliageDoc?.json ? { foliage: { doc: foliageDoc.json, cells: foliageCells } } : {}) },
     brief,
     recipe,
     profile,
