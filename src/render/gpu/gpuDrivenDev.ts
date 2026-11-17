@@ -1,15 +1,16 @@
-// Development only (phase 5c step 5.1): the render smoke's GPU-driven batches.
-// The page gets foliage instances the smoke generated in Node (Derekavak's
-// landscape rules, `tests/smoke/gpuFoliageScene.ts`), draws each type as one
-// GPU-driven batch of its model's parts, and compares the GPU's visible count
-// with the CPU reference for the same view (`engine/world/instanceCulling.ts`,
-// as Phase 1 G7 compared culling). The reference project is not changed.
+// Development only (phase 5c steps 5.1–5.4): the render smoke's GPU-driven
+// foliage. The page gets foliage instances the smoke generated in Node
+// (Derekavak's landscape rules, `tests/smoke/gpuFoliageScene.ts`), draws them
+// through the foliage batches (`render/foliage/foliageBatches.ts`, R4: one
+// GPU-driven batch per type) and compares the GPU's visible count of every
+// view with the CPU reference for the same view
+// (`engine/world/instanceCulling.ts`, as Phase 1 G7 compared culling). The
+// reference project is not changed.
 
-import { Box3, Group, Sphere } from "three/webgpu";
-import { cullInstanceCounts, foliageFadeWindow, NO_CULL_DISTANCE, type InstanceCullResult } from "../../engine/world/instanceCulling.ts";
+import { Group, type PerspectiveCamera } from "three/webgpu";
+import { cullInstanceCounts, type InstanceCullResult } from "../../engine/world/instanceCulling.ts";
+import { createFoliageBatches, type FoliageBatches } from "../foliage/foliageBatches.ts";
 import type { RenderHost } from "../host/renderHost.ts";
-import { modelParts } from "../resources/modelParts.ts";
-import { resourceKey } from "../resources/resourceCache.ts";
 import type { GpuDrivenBatch } from "./gpuDrivenBatch.ts";
 
 export interface DevGpuType {
@@ -54,18 +55,14 @@ export interface DevGpuDriven {
 
 export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven {
   let group: Group | null = null;
-  let batches: GpuDrivenBatch[] = [];
-  let keys: string[] = [];
-  const resources = () => host()!.resources("gpuDrivenDev");
+  let foliage: FoliageBatches | null = null;
   let records = 0;
   let counting = false;
 
   const remove = (): void => {
-    const current = host();
-    for (const batch of batches) current?.gpuDriven.removeBatch(batch);
-    if (current) for (const key of keys) resources().release(key);
+    foliage?.dispose();
     group?.removeFromParent();
-    batches = []; keys = []; group = null;
+    foliage = null; group = null;
   };
 
   return {
@@ -77,31 +74,22 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
       group = new Group();
       group.name = "gpuDrivenDev";
       scene.add(group);
-      const world = resources();
-      let parts = 0, instances = 0, draws = 0;
+      const fov = (current.camera as PerspectiveCamera | null)?.fov ?? 60;
+      foliage = createFoliageBatches({
+        gpuDriven: current.gpuDriven, resources: current.resources("gpuDrivenDev"), parent: group,
+        quality: { cullScale, verticalFov: fov }, bundle,
+      });
       for (const type of types) {
-        keys.push(resourceKey.model(type.mesh));
-        const template = await world.model(type.mesh);
-        const materials = await Promise.all(template.slots.map(async (own, slot) => {
-          const guid = template.slotMaterials[slot] ?? null;
-          if (guid === null) return own;
-          keys.push(world.materialKey(guid));
-          return world.material(guid).catch(() => own);
-        }));
-        const templateParts = modelParts(template, materials);
-        const sphere = new Box3().setFromObject(template.scene).getBoundingSphere(new Sphere());
-        const batch = current.gpuDriven.createBatch({
-          name: `foliage/${type.name}`, parent: group, lods: [templateParts], source: "foliage",
-          bounds: { center: [sphere.center.x, sphere.center.y, sphere.center.z], radius: sphere.radius }, distanceMode: "origin",
-          capacity: type.matrices.length / 16, castShadow, bundle,
-        });
-        const window = foliageFadeWindow(type.cullStart, type.cullEnd, cullScale);
-        batch.setDistances({ fadeStart: window?.[0] ?? NO_CULL_DISTANCE, cullEnd: window?.[1] ?? NO_CULL_DISTANCE, lodStarts: [] });
-        batch.instances.addMany(type.matrices, type.matrices.length / 16);
-        batches.push(batch);
-        parts += templateParts.length; instances += batch.instances.count; draws += batch.draws;
+        foliage.set({ id: type.name, mesh: type.mesh, lods: [], castShadow, cullStart: type.cullStart, cullEnd: type.cullEnd }, "smoke", type.matrices);
       }
-      return { path: current.gpuDriven.supported ? "gpu" : "cpu", batches: batches.length, instances, parts, draws };
+      await foliage.ready();
+      const batches = foliage.batches;
+      return {
+        path: current.gpuDriven.supported ? "gpu" : "cpu", batches: batches.length,
+        instances: batches.reduce((sum, batch) => sum + batch.instances.count, 0),
+        parts: batches.reduce((sum, batch) => sum + batch.meshes.length, 0),
+        draws: batches.reduce((sum, batch) => sum + batch.draws, 0),
+      };
     },
     async check() {
       const current = host();
@@ -111,7 +99,7 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
         const cpu = cullInstanceCounts(batch.instances.matrices(), batch.instances.count, batch.cullBatch, views[index]!);
         return { gpu: await batch.readCounts(current.renderer, index), cpu: { counts: cpu.counts, certain: cpu.certain, possible: cpu.possible } };
       };
-      return Promise.all(batches.map(async (batch) => {
+      return Promise.all((foliage?.batches ?? []).map(async (batch) => {
         const shadows: DevGpuViewCheck[] = [];
         for (let index = 1; index < batch.views; index += 1) shadows.push(await viewCheck(batch, index));
         return { name: batch.name, instances: batch.instances.count, ...(await viewCheck(batch, 0)), shadows };
