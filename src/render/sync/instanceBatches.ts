@@ -34,6 +34,7 @@ import { SCENE_SOURCE_KEY } from "../../engine/perf/sceneCost.ts";
 import { tagInstanceActors, tagPartSlots } from "./pickTags.ts";
 import { detailBatchCulled, detailCullDistance } from "../../engine/world/detailCulling.ts";
 import { createDetailFade } from "../materials/detailFade.ts";
+import type { TriangleBinding, TriangleDrawing } from "../triangles/triangleDrawing.ts";
 
 export interface InstancePart {
   readonly geometry: BufferGeometry;
@@ -63,7 +64,9 @@ export interface InstanceBatch {
 }
 
 export interface InstanceBatchOptions {
-  readonly prepare?: (meshes: readonly InstancedMesh[], signal?: AbortSignal) => Promise<void>;
+  readonly prepare?: (meshes: readonly Object3D[], signal?: AbortSignal) => Promise<void>;
+  /** R7 opt-in. General static bindings are deliberately unchanged until R9. */
+  readonly triangles?: TriangleDrawing;
   readonly name: string;
   /** The `?debug` scene-cost bucket its meshes count in (`SCENE_SOURCE_KEY`), e.g. `staticMesh`. */
   readonly source?: string;
@@ -108,6 +111,8 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
   let cullDistance: number | null = null;
   let fade: ReturnType<typeof createDetailFade> | null = null;
   let fadePlacements: InstancedBufferAttribute | null = null;
+  let triangleBindings: TriangleBinding[] = [];
+  let detailRadius: number | undefined;
   let maxScale = 0;
   const cameraPosition = new Vector3(), sphere = new Sphere();
   /** Placements moved since the last flush (their matrices only). */
@@ -121,9 +126,10 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
   const removeMeshes = (): void => {
     preparation?.abort(); preparation = null;
     generation += 1; prepared = false; preparing = false;
-    const oldMeshes = meshes, oldFade = fade;
+    const oldMeshes = meshes, oldFade = fade, oldTriangles = triangleBindings;
+    triangleBindings = [];
     for (const mesh of oldMeshes) mesh.removeFromParent();
-    const release = (): void => { for (const mesh of oldMeshes) mesh.dispose(); oldFade?.dispose(); };
+    const release = (): void => { for (const binding of oldTriangles) binding.dispose(); for (const mesh of oldMeshes) { mesh.removeFromParent(); mesh.dispose(); } oldFade?.dispose(); };
     // A renderer may still be linking these objects. Deleting their programs
     // before compileAsync settles can strand a WebGL parallel-link poll.
     if (preparationWork) void preparationWork.then(release, release);
@@ -153,9 +159,10 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
     get size() {
       return placements.size;
     },
-    setParts(next, detailRadius) {
+    setParts(next, radius) {
       parts = next;
-      cullDistance = detailRadius === undefined ? null : detailCullDistance(detailRadius);
+      detailRadius = radius;
+      cullDistance = radius === undefined ? null : detailCullDistance(radius);
       removeMeshes();
       dirty = true;
     },
@@ -184,6 +191,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         return;
       }
       dirty = false;
+      if (options.triangles && meshes.length > 0) removeMeshes();
       moved.clear();
       indexOf.clear();
       let at = 0;
@@ -198,7 +206,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         removeMeshes();
         capacity = capacityFor(count);
         colored = needsColor;
-        if (cullDistance !== null) {
+        if (cullDistance !== null && !options.triangles) {
           fadePlacements = new InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
           fade = createDetailFade(cullDistance, fadePlacements);
         }
@@ -211,7 +219,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
           mesh.matrixAutoUpdate = false;
           if (options.source !== undefined) mesh.userData[SCENE_SOURCE_KEY] = options.source;
           if (part.slots) tagPartSlots(mesh, part.slots);
-          if (!options.prepare) options.parent.add(mesh);
+          if (!options.prepare && !options.triangles) options.parent.add(mesh);
           return mesh;
         });
       }
@@ -239,15 +247,22 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         mesh.computeBoundingSphere();
         mesh.computeBoundingBox();
       });
-      if (!options.prepare) prepared = true;
+      if (!options.prepare && !options.triangles) prepared = true;
       else if (!prepared && !preparing && meshes.length > 0) {
         preparing = true;
         preparation = new AbortController();
         const ticket = generation, pending = [...meshes];
-        preparationWork = options.prepare(pending, preparation.signal);
+        const pendingBindings = triangleBindings, signal = preparation.signal;
+        const locals = parts!.map((part) => part.local.clone());
+        preparationWork = options.triangles ? (async () => {
+          for (let i = 0; i < pending.length; i += 1) pendingBindings.push(await options.triangles!.prepare(pending[i]!, detailRadius, false, locals[i]));
+          if (signal.aborted) return;
+          await options.prepare?.(pendingBindings.flatMap((binding) => binding.objects), signal);
+        })() : options.prepare!(pending, signal);
         preparationWork.then(() => {
           if (ticket !== generation) return;
           for (const mesh of pending) options.parent.add(mesh);
+          for (const binding of pendingBindings) binding.activate();
           prepared = true; preparing = false; preparationWork = null;
         }).catch((error: unknown) => {
           if (ticket === generation) { preparing = false; console.warn(`forge render: batch warmup failed (${options.name})`, error); }

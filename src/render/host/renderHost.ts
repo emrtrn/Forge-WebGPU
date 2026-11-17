@@ -46,6 +46,8 @@ import { mountBadge } from "./badge.ts";
 import { readBackendProof, type BackendProof } from "./backendProof.ts";
 import { createPerfSampler, type PerfQuality, type PerfSampler } from "./perfSampler.ts";
 import { createGpuDriven, type GpuDrivenDrawing } from "../gpu/gpuDriven.ts";
+import { createTriangleDrawing, type TriangleDrawing } from "../triangles/triangleDrawing.ts";
+import { createTriangleSource } from "../triangles/triangleSource.ts";
 
 /** The effective quality the renderer draws with. */
 export interface RenderQuality extends PerfQuality {
@@ -119,6 +121,8 @@ export interface RenderHost {
   feature(features: readonly FeatureDef[], name: string, options?: { readonly prepare?: boolean }): FeatureDef;
   /** CPU geometry queries may inspect batches while their GPU pipelines prepare. */
   preparingObjects(): readonly Object3D[];
+  /** Shared serial warmup queue with the target scene's lights and MRT formats. */
+  prepare(objects: readonly Object3D[], scene: Scene, signal?: AbortSignal): Promise<void>;
   setCamera(camera: Camera): void;
   readonly camera: Camera;
   /** Draws after every frame; null removes it. */
@@ -131,6 +135,8 @@ export interface RenderHost {
   readonly perf: PerfSampler;
   /** GPU-driven batches (phase 5c step 5): culled for the camera before each frame renders. */
   readonly gpuDriven: GpuDrivenDrawing;
+  /** R7 selectable infrastructure; existing static bindings opt in at R9. */
+  readonly triangles: TriangleDrawing;
   /** CPU wall time of the last frame's cull, render and overlay submission, ms (never GPU time). */
   readonly renderSubmitMs: number;
   /** Sky Light (PMREM) captures since the host started. */
@@ -297,6 +303,8 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
 
   const pipeline = createFramePipeline(renderer);
   const gpuDriven = createGpuDriven(renderer);
+  const triangleSource = createTriangleSource(options.dev);
+  const triangles = createTriangleDrawing(renderer, gpuDriven, triangleSource);
   // The Sky Light capture (Forge's captureSkyEnvironment): the scene seen from
   // its origin, prefiltered into a PMREM. A render target never gets the
   // output's tone mapping, so the map stays linear.
@@ -334,7 +342,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     mrtProbeOk: mrtProbe?.ok ?? null,
     skyCaptures: captures.count,
     renderSubmitMs,
-  }), () => gpuDriven.lastDraws);
+  }), () => gpuDriven.lastDraws, () => gpuDriven.uncountedTriangles());
 
   return {
     preview(surface, draw) {
@@ -367,6 +375,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     get world() {
       return world;
     },
+    prepare,
     preparingObjects: () => [...preparing].filter(([, entry]) => entry.scene === world?.scene && !entry.signal?.aborted).map(([object]) => object),
     feature: (features, name, featureOptions) =>
       createRenderFeature({
@@ -421,6 +430,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       applyShadowSwitch();
       if (options.dev) canvas.dataset.forgeShadows = String(renderer.shadowMap.enabled);
       const submitted = performance.now();
+      triangles.update(camera, quality.settings.foliageCullDistanceScale);
       gpuDriven.cull(world.scene, camera);
       pipeline.render(world.scene, camera, world.output, quality.settings);
       overlay?.render({ renderer, scene: world.scene, camera, sceneDepth: pipeline.sceneDepth });
@@ -431,6 +441,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     },
     perf,
     gpuDriven,
+    triangles,
     get renderSubmitMs() { return renderSubmitMs; },
     captures,
     capture,
@@ -452,6 +463,8 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       gltf.dispose();
       pmrem.dispose();
       pipeline.dispose();
+      triangles.dispose();
+      triangleSource.dispose();
       gpuDriven.dispose();
       renderer.dispose();
       canvas.remove();

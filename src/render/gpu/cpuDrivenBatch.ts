@@ -19,7 +19,7 @@
 //   into three's shadow material.
 // - three counts these draws itself (`uncountedDraws` 0).
 
-import { InstancedBufferAttribute, InstancedMesh, Matrix4, type Material, type Mesh, type WebGPURenderer } from "three/webgpu";
+import { Color, InstancedBufferAttribute, InstancedMesh, Matrix4, type Material, type Mesh, type WebGPURenderer } from "three/webgpu";
 import { instancedDynamicBufferAttribute, varying } from "three/tsl";
 import { SCENE_SOURCE_KEY } from "../../engine/perf/sceneCost.ts";
 import {
@@ -154,6 +154,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
           visible.forEach((at, slot) => {
             instance.fromArray(matrices, at * MATRIX_FLOATS);
             mesh.setMatrixAt(slot, world.multiplyMatrices(instance, local));
+            if (options.instanceColors) mesh.setColorAt(slot, new Color().setRGB(options.instanceColors.getX(at), options.instanceColors.getY(at), options.instanceColors.getZ(at)));
             const distance = measuredDistance(matrices, at * MATRIX_FLOATS, cull.distanceMode, source.origin);
             shown.setX(slot, fadeShown(distance, fadeStart, cull.cullEnd) * extras[at * EXTRA_FLOATS]!);
           });
@@ -161,6 +162,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
           if (visible.length > 0) lastDraws += passes;
           mesh.visible = true;
           mesh.instanceMatrix.needsUpdate = true;
+          if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
           shown.needsUpdate = true;
         }
         view.counts = [...result.counts];

@@ -29,6 +29,7 @@ import { createFileEvents, FILE_EVENT, watchContentRoots, type FileEventsBody } 
 import { createForgeServer } from "./forgeServer.ts";
 import { findGameEditors, GAME_EDITORS_ID, gameEditorsSource, isGameEditorPath } from "./gameEditors.ts";
 import { projectAuthoringOptions } from "./projectAuthoring.ts";
+import { triangleMiddleware } from "../triangles/devTriangles.ts";
 
 export const GAME_MODULE_ID = "virtual:forge/game-module";
 const RESOLVED_GAME_MODULE = `\0${GAME_MODULE_ID}`;
@@ -112,6 +113,7 @@ export function forgeServerPlugin(options: ForgeServerPluginOptions = {}): Plugi
         ...(await projectAuthoringOptions(server.config.root, current, registry, engineContent)),
         identity: identityOf({ ...current, problems }),
       });
+      server.middlewares.use(triangleMiddleware(server.config.root, async () => (await forge.authoring.current()).index, forge.authoring.contentRoots));
       server.middlewares.use(forge.middleware);
       const events = createFileEvents({
         roots: forge.authoring.contentRoots,

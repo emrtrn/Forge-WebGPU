@@ -214,6 +214,8 @@ async function start(): Promise<void> {
     const devGpuDriven = () => (devGpu ??= import("./render/gpu/gpuDrivenDev.ts").then(({ createDevGpuDriven }) => createDevGpuDriven(() => viewer.host)));
     const transitions: { reached: boolean | null }[] = [];
     (window as unknown as { __forgeDev?: unknown }).__forgeDev = {
+      /** Read-only dev access for selectable render-path probes (R7). */
+      host: () => viewer.host,
       pause: () => scheduler.pause(),
       resume: () => scheduler.resume(),
       /** Phase 5b: cell streaming, HLOD proxies, the resource cache and the GPU's live objects in one snapshot (measure:streaming). */

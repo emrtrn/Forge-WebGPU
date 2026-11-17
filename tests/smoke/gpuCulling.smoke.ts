@@ -40,7 +40,10 @@ interface Dev {
 const dev = (page: Page) => ({
   pause: () => page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.pause()),
   resume: () => page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.resume()),
-  step: () => page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.step(1000 / 60)),
+  step: () => page.evaluate(async () => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    return (window as unknown as { __forgeDev: Dev }).__forgeDev.step(1000 / 60);
+  }),
   move: (position: readonly [number, number, number], look: readonly [number, number, number]) =>
     page.evaluate(([p, t]) => (window as unknown as { __forgeDev: Dev }).__forgeDev.moveCamera(p[0], p[1], p[2], t), [position, look] as const),
   install: (types: FoliageSceneType[], scale: number, castShadow = true, bundle = false) =>

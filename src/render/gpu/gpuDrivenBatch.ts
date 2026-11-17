@@ -66,6 +66,7 @@ import {
   Vector4,
   type ComputeNode,
   type Material,
+  type InstancedBufferAttribute,
   type Node,
   type NodeMaterial,
   type Object3D,
@@ -79,6 +80,7 @@ import {
   atomicStore,
   bool,
   cameraViewMatrix,
+  context,
   distance,
   dot,
   float,
@@ -91,6 +93,7 @@ import {
   modelViewPosition,
   modelWorldMatrix,
   modelWorldMatrixInverse,
+  materialColor,
   overrideNodes,
   positionLocal,
   select,
@@ -101,6 +104,7 @@ import {
   uniformArray,
   varying,
   vec4,
+  vec3,
   velocity,
 } from "three/tsl";
 import type { Vec3 } from "../../core/schema/fields.ts";
@@ -147,6 +151,8 @@ export interface GpuDrivenBatchOptions {
   /** Records the opaque draws in a render bundle (5.3; default false, see the header). */
   readonly bundle?: boolean;
   readonly capacity?: number;
+  /** Optional source-slot RGB, compacted with the visible list (R7). */
+  readonly instanceColors?: InstancedBufferAttribute;
 }
 
 /** The fade band and LOD starts, in measured distance (the owner applies the quality scales). */
@@ -272,6 +278,8 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     .reduce((sum, draw) => sum + Math.floor(draw.count / 3) * drawPasses(draw.material), 0));
   const drawLodBuffer = new StorageBufferAttribute(Uint32Array.from(draws.map((draw) => draw.lod)), 1);
   const maxViews = 1 + (options.castShadow === false ? 0 : MAX_SHADOW_VIEWS);
+  const colorBuffer = options.instanceColors ? new StorageBufferAttribute(new Float32Array(options.instanceColors.count * 4), 4) : null;
+  let colorVersion = -1;
 
   // Uniforms every view shares (the compute passes and the materials).
   const count = uniform(0, "uint");
@@ -389,20 +397,24 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         const world = instanceMatrix.mul(uniform(draw.part.local.clone()));
         if (shadow) {
           // The shadow material keeps only the position: the instance's world position, back in the mesh's own space.
-          const local = (material.positionNode as Node<"vec3"> | null) ?? positionLocal;
+          const local = (material.castShadowPositionNode as Node<"vec3"> | null) ?? (material.positionNode as Node<"vec3"> | null) ?? positionLocal;
           material.castShadowPositionNode = modelWorldMatrixInverse.mul(world.mul(vec4(local, 1))).xyz;
         } else {
           const worldPosition = world.mul(vec4(0, 0, 0, 1)).xyz;
-          material.contextNode = overrideNodes([
+          material.contextNode = context(overrideNodes([
             [modelWorldMatrix, world],
             [modelWorldMatrixInverse, world.inverse()],
             [modelNormalMatrix, mat3(world).inverse().transpose()],
             [modelPosition, worldPosition],
             [modelViewPosition, cameraViewMatrix.mul(vec4(worldPosition, 1)).xyz],
             [velocity.previousModelWorldMatrix, world],
-          ]);
+          ]), (material.contextNode as unknown as { getFlowContextData(): Record<string, unknown> } | null)?.getFlowContextData() ?? {});
         }
         const { measured } = measure(instanceMatrix);
+        if (!shadow && colorBuffer) {
+          const color = varying(storage(colorBuffer, "vec4", colorBuffer.count).toReadOnly().element(slot).xyz);
+          material.colorNode = vec3((material.colorNode as Node<"vec3"> | null) ?? materialColor.rgb).mul(color);
+        }
         const shown = varying(float(1).sub(smoothstep(fade.x, fade.y, measured)).mul(extraRead.element(slot).x), "vForgeGpuFade");
         maskWithFade(material, shown);
         sources.set(key, material);
@@ -451,6 +463,10 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       return { center: options.bounds.center, radius: options.bounds.radius, distanceMode: options.distanceMode, cullEnd: Math.min(distances.cullEnd, NO_CULL_DISTANCE), lodStarts: distances.lodStarts };
     },
     prepare(list) {
+      if (colorBuffer && options.instanceColors && colorVersion !== options.instanceColors.version) {
+        for (let i = 0; i < options.instanceColors.count; i += 1) colorBuffer.setXYZW(i, options.instanceColors.getX(i), options.instanceColors.getY(i), options.instanceColors.getZ(i), 1);
+        colorBuffer.needsUpdate = true; colorVersion = options.instanceColors.version;
+      }
       instances.flush();
       count.value = instances.count;
       const next = Math.min(list.length, maxViews);
@@ -485,6 +501,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       bundle?.removeFromParent();
       instances.dispose();
       drawLodBuffer.dispose();
+      colorBuffer?.dispose();
     },
   };
   return batch;
