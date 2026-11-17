@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.62 · 2026-11-17 — R9 kapandı (kullanıcı kararı): statikler instanced, GPU yolu foliage'da; ikincil kamera görünümleri R9a'nın ilk adımı. Sırada R9a.
+**Güncelleme:** v1.63 · 2026-11-17 — R9a adım 1 uygulandı: ikincil kamera görünümleri (yansıma kendi aynalanmış culling listesi, kendi katmanı, sayaca girer); iki arka uçta CPU referansıyla eşit. Sırada R9a occlusion tasarımı.
+
+**Önceki güncelleme:** v1.62 · 2026-11-17 — R9 kapandı (kullanıcı kararı): statikler instanced, GPU yolu foliage'da; ikincil kamera görünümleri R9a'nın ilk adımı.
 
 **Önceki güncelleme:** v1.61 · 2026-11-17 — R9.0–R9.4 uygulandı. Ölçümde GPU yolu hiçbir level'da kazandırmadı; statikler varsayılan olarak instanced kalır.
 
@@ -1029,7 +1031,7 @@ işleyicisi (`clusterlod.h` portu) ve çatlak denetimi referanstır. Bütün ad�
 | R7 | Otomatik LOD üretimi (tamamlandı) | Meshoptimizer ile otomatik ayrık LOD, deterministik ön işleme / cache / build ve seçilebilir runtime bağı; WebGPU + WebGL2. Meshlet üretim kapsamı dışında; foliage mevcut 5.1 yolunda. Küçük nesnede önce üçgen düşer, sonra detay culling | 21 odaklı test, typecheck, katman, gerçek WebGPU + WebGL2 smoke; uygulama kaydı aşağıda. R8 / R9 / R9a / R10 ayrı |
 | R8 | HLOD katmanları (draw call; tamamlandı, kullanıcı kabulü 2026-11-17) | Hiyerarşik HLOD (öneri: ikinci katman 4 × 4 hücre, uzak menzilde), siluet / landmark işareti (view distance ötesinde uzak katman), slot düzeyinde materyal birleştirme; proxy'ler düz mesh, bundle kapalı (v1.57 kararları ve R8.0–R8.6 aşağıda) | Draw call ve gönderim öncesi / sonrası |
 | R9 | 5.5 statiklerin geçişi (tamamlandı 2026-11-17: altyapı bağlı, statikler ölçüm kararıyla `instanced`; R9.0–R9.4 aşağıda) | 5.1 yolu + otomatik LOD; picking, detay fade, transform hızlı yolu, HLOD hazır olma, `compileAsync` korunur | Editör / render smoke'ları iki arka uçta |
-| R9a | GPU occlusion culling (yeni, açık) | İlk adım: ikincil kameralar (yansıma) kendi GPU culling görünümü ve sayacı (R9'da bulundu). Sonra R10 öncesinde meshlet'ten bağımsız nesne / instance düzeyinde konservatif Hi-Z adayı: önce tasarım + açık alan / örtülü alan A/B ölçümü, sonra yararlıysa üretim. Ters derinlik, MRT, MSAA, kamera hareketi ve gölge doğruluğu | Yanlış gizleme yok; culling kapalı referansla doğruluk; CPU / GPU render + compute / bellek / görünür nesne / üçgen karşılaştırması; WebGL2 mevcut culling ile çalışır |
+| R9a | GPU occlusion culling (açık; adım 1 tamamlandı) | İlk adım (tamamlandı 2026-11-17): ikincil kameralar (yansıma) kendi GPU culling görünümü ve sayacı. Sonra R10 öncesinde meshlet'ten bağımsız nesne / instance düzeyinde konservatif Hi-Z adayı: önce tasarım + açık alan / örtülü alan A/B ölçümü, sonra yararlıysa üretim. Ters derinlik, MRT, MSAA, kamera hareketi ve gölge doğruluğu | Yanlış gizleme yok; culling kapalı referansla doğruluk; CPU / GPU render + compute / bellek / görünür nesne / üçgen karşılaştırması; WebGL2 mevcut culling ile çalışır |
 | R10 | 5.6 G6 ölçümü | Derekavak P2 60 Hz, R5 raporuyla; sonra 5c adım 6–11 eski sırayla | G6 sınırları |
 
 Öneriyle ilerleyen kararlar (kullanıcı itiraz ederse değişir): foliage 5.1 yolunda
@@ -1135,6 +1137,17 @@ occlusion eklenmedi. Tam gate ve push çalıştırılmadı.
   smoke'unda yansıyan foliage CPU referansıyla, `puddle.smoke.ts`'in `staticPath=instanced`'ı
   ve sayaç notu kaldırılabilir. Occlusion bunun üstüne kurulur: ana kameranın occlusion
   sonucu ne gölgeye ne yansımaya uygulanır.
+  **Uygulandı (2026-11-17, `ef12079`):** `gpuDriven.add(CameraViewSource)`; görünümler rol
+  (`main` / `shadow` / `camera`) ve katman taşır (`GpuCullView`): gölge 1–8, ana görünüm 9
+  (`MAIN_VIEW_LAYER`, katman 0'dan çıktı; ana kamerada açılır), kamera görünümleri 10–13.
+  Kayıtlı her kamera diğer görünüm katmanlarını kaybeder. Düzlemsel yansıma, ana görünümün su
+  düzlemine göre aynası (`engine/world/instanceCulling.ts` `mirrorCullView`; eğik yakın düzlem
+  yok sayılır, üst küme); mesafe aynalanmış gözden. Su birikintisi kaynağı yüzü dönükken
+  görünüm açmaz (three'nin atlama kuralı). Rolü değişen slot yeniden kurulur; CPU ikizi aynı.
+  Dev kancası `__forgeDev.gpuDriven.mirror(plane)`. Doğrulama: 439 odaklı Vitest (ayna özelliği
+  500 rastgele nokta, CPU ikizi kamera görünümü), tip / katman; render smoke **29 / 29**:
+  `gpuCulling` P2'de 5 m alttaki su düzleminin görünümü her batch'te CPU kesin–olası aralığında
+  (iki arka uçta 49 görünür, ana 177), `puddle.smoke.ts` override'sız (draw 60 → 103).
 - Mevcut frustum / mesafe culling ve ambient occlusion, nesne occlusion culling
   değildir. Mevcut meshlet taslağında `occlusionCulling: false`; bağımsız üretim
   occlusion sistemi doğrulanmadı. R7'ye eklenmez; önce R8 ve R9 tamamlanır.
