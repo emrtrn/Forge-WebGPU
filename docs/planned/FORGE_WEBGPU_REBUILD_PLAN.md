@@ -1,8 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.45 · 2026-11-17 — Faz 5c adım 5: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı, `2544bdb`); çizim sayacı iki geçişli saydam materyalleri sayar. Mimari v1.45.
+**Güncelleme:** v1.46 · 2026-11-17 — Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; R1 HLOD'a şekiller → R2–R4 (5.2–5.4) → R5 sahne maliyet raporu → R6 üçgen spike'ı (three-virtual-geometry / ters derinlikli meshlet kopyası / 5.1 + ayrık LOD) → R7 üretim → R8 HLOD katmanları → R9 (5.5) → R10 (5.6). three-nanite elendi. Mimari v1.46.
 
-**Önceki güncelleme:** v1.44 · 2026-11-17 — Faz 5c adım 5.1 (`9deff0c`): GPU güdümlü çizimin temeli `render/gpu/` (örnek storage buffer'ı, compute culling + indirect, ana görünüm), CPU referansı `engine/world/instanceCulling.ts`; render smoke'unda Derekavak P2 foliage'ı (370 hücre / 1.640 örnek) GPU sayısı CPU referansıyla birebir. WebGL2 test arka ucu için açık soru. Mimari v1.44.
+**Önceki güncelleme:** v1.45 · 2026-11-17 — Faz 5c adım 5: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı, `2544bdb`); çizim sayacı iki geçişli saydam materyalleri sayar. Mimari v1.45.
 
 **Sürüm:** v1.34 · 2026-11-16 (v1.33’ten fark: World Settings genel gölge anahtarı ve tek Undo ile toplu nesne gölgeleri; Island sahne verisi korunur; mimari v1.37). v1.33 · 2026-11-16: Derekavak canlı kabulü; Island'da kamerayı izleyen koyu dörtgenin düzeltilmesi — ters derinlikte takip gölgesinin alt Z sınırı, kaynak geçişi ve GPU regresyonu; mimari v1.36. v1.32 · 2026-11-16: Faz 5a adım 8 teknik kapısı, A 957 / 1.021 ve görsel kabul adayları (mimari v1.35).
 
@@ -986,6 +986,40 @@ call'unun 260'ı foliage; foliage çizimleri toplanınca gönderim 3,9 → 2,2 m
 10. PG3 LOD / kart / impostor bake, PK7 — X rasterleyici / C.
 11. `measure:foliage`, PV-WES, kapı, belgeler, görsel kabul — C.
 
+**5c yeni sıra: üçgen ve draw call işi (kullanıcı, 2026-11-17, plan v1.46).**
+Kullanıcı 5.2'yi durdurdu; adım 5'in kalan alt adımları (5.2–5.6) ve sahne
+optimizasyonu tek sırada. Draw call (CPU gönderimi) ve üçgen (GPU) ayrı ele alınır.
+Üçgen için kullanıcı meshlet / sanal geometri istiyor. r187'nin
+`MeshletDrawingPipeline`'ı ters derinlikte kendini kapatır
+(`reversedDepthBuffer !== true`, `examples/jsm/pipelines`); motor ters derinlikle
+çalışır. Adaylar: **three-virtual-geometry** (MIT, 0.1.3, WebGPU; küme seçimi /
+culling compute'ta, `IndirectStorageBufferAttribute` + `setIndirect`, mesh başına
+tek çizim, node materyalleri; ters derinlikte yalnız occlusion culling kapanır) ve
+r187 meshlet hattının ters derinliğe uyarlanmış **kendi kopyamız** (`src/render`,
+three çekirdeğine dokunmaz, K5 korunur). **three-nanite elendi:** WebGL2
+`WEBGL_multi_draw` için yazılmış, WebGPU'da küme aralığı başına bir `drawIndexed`
+(raporunda 17.000 / kare); asset başına tek materyal, sabit örnek matrisi. Ön
+işleyicisi (`clusterlod.h` portu) ve çatlak denetimi referanstır. Bütün adımlar C
+(Codex kotası bitti).
+
+| # | İş | Kapsam | Kapı |
+|---|---|---|---|
+| R1 | HLOD'a şekiller (kullanıcı kararı) | `forge.shape` (cube / sphere / cylinder / cone / plane) yerleşime girer; three'siz primitive üreticisi `render/resources/shapes.ts`'in boyut / topolojisiyle aynı (render testi three geometrisiyle eşitliği denetler); renk köşe rengine; `sourceHash` ve tazelik damgası primitive + renk içerir; `hlod.test.ts`'in şekil kuralı ters çevrilir, karar 5'e not | Odaklı test, `hlod.spec.ts`; Derekavak'ta OUT-001 proxy olur; sonra kullanıcı Derekavak kabulü (HLOD denetim listesi + şekiller) |
+| R2 | 5.2 kaskat görünümleri | Yukarıdaki adım 5 tasarımı: kaskat başına compute culling, `layers`, `maskShadowNode` fade | GPU = CPU referansı her kaskatta; gölge çekimi |
+| R3 | 5.3 bundle | Dolaylı mesh'ler tek `BundleGroup`'ta, kamera başına kayıt; yeniden kayıt politikası ve sayısı | Gönderim süresi bundle öncesi / sonrası, yeniden kayıt sayacı |
+| R4 | 5.4 foliage bu yolda | Halka (adım 6) ve boyanmış hücreler (adım 7) bu batch'leri kullanır; WebGL2 ikizi korunur | Smoke iki arka uçta |
+| R5 | Sahne maliyet raporu | Ajan komutu (öneri `npm run forge -- stats --project <yol> --level <klasör> [--json]`): aktör, benzersiz geometri / materyal, model başına materyal, saydam / çift yüzlü, kaynak üçgen; editör Stats: görünür draw call (dolaylı + bundle dahil) ve çizilen üçgen. `verify:assets` eşikleri sonra (yalnız rapor) | Derekavak ve sentetik level raporu; R6'nın ortak ölçü dili |
+| R6 | Üçgen spike'ı (kod commit'lenmez, port 5284+) | Derekavak P2 + yoğun mesh stres sahnesi: (a) three-virtual-geometry, (b) r187 meshlet hattının ters derinlik kopyası, (c) 5.1 yolu + meshoptimizer ayrık LOD zinciri. Ölçüt: çizilen üçgen, draw call, gönderim / ana iş parçacığı, GPU süresi, kaskat gölgesi, ters derinlik, MRT, R3 bundle'ı, WebGL2 ikizi, bellek / ön işleme süresi, three iç API bağımlılığı | Kayıt `render-refs/runs/`; sonuç ve öneri kullanıcıya, karar sonra |
+| R7 | Seçilen üçgen yolunun üretimi | Otomatik ön işleme (elle LOD yok), runtime bağı; küçük nesnede önce üçgen düşer, sonra detay culling (aynı geçiş) | Karar sonrası tasarım |
+| R8 | HLOD katmanları (draw call) | Hiyerarşik HLOD (öneri: ikinci katman 4 × 4 hücre, uzak menzilde), siluet / landmark işareti (view distance ötesinde uzak katman), proxy'ler GPU yoluna / bundle'a. Materyal birleştirme R5 raporuyla ayrı karar | Draw call ve gönderim öncesi / sonrası |
+| R9 | 5.5 statiklerin geçişi | R6 kararıyla 5.1 yolu ya da sanal geometri; picking, detay fade, transform hızlı yolu, HLOD hazır olma, `compileAsync` korunur | Editör / render smoke'ları iki arka uçta |
+| R10 | 5.6 G6 ölçümü | Derekavak P2 60 Hz, R5 raporuyla; sonra 5c adım 6–11 eski sırayla | G6 sınırları |
+
+Öneriyle ilerleyen kararlar (kullanıcı itiraz ederse değişir): foliage 5.1 yolunda
+kalır, sanal geometri yalnız statik mesh adayıdır; ön işleme çıktısı commit'lenmez,
+`.forge-cache/` ve build'de üretilir (asset türevi, deterministik); şekil üreticisi
+three'siz tek kaynak, render'ın three geometrisi değişmez, eşitlik testle korunur.
+
 5c ile paralel yürürse ortak dosyalar: `render/sync/instanceBatches.ts` (adım 8; foliage
 kendi batch'ini kurar), kalite profilleri, `?debug` satırları. Çakışmada adım 8 5c'nin
 GPU güdümlü yolunu bekler.
@@ -1326,3 +1360,4 @@ silinebilir.
 | 2026-11-17 | v1.43 | Faz 5c adım 4 kalanı: içe aktarıcı foliage çeviricileri (`cbad9d5`): `forge.foliageType` asset'leri (modelini getirir), terrain'de `forge.landscapeFoliage`, boyanmış gruplar (bölünmüş hücreler dahil) `foliage.json` + `.bin`; kayıt servisi `forge.levelFoliage/1`. Odaklı Vitest 78 + içe aktarıcı 11, tip / katman / dosya bütçesi / `verify:assets` geçti; geçici kopyada `--dry-run` Derekavak 7 kural / 6 tür. Referans projesi yeniden alınmadı. Sıradaki: adım 5.1 |
 | 2026-11-17 | v1.44 | Faz 5c adım 5.1 (`9deff0c`): GPU güdümlü çizimin temeli `render/gpu/` (örnek storage buffer'ı ve kararlı tutamaçlar, reset / cull / args compute, LOD × parça × materyal grubu başına `drawIndexedIndirect`, `overrideNodes` ile örnek matrisi, dither fade), host ana görünümü kareden önce ayıklar, `?debug` dolaylı çizimleri sayar; CPU referansı `engine/world/instanceCulling.ts` + Node testi. Gerçek WebGPU smoke'u: Derekavak P2 foliage 370 hücre / 1.640 örnek, P2 / P1 / gökyüzü 177 / 32 / 0 görünür, GPU = CPU birebir, +9 draw. Açık soru: WebGL2 test arka ucu geri dönüşü (5.5 öncesi). Sıradaki: 5.2 kaskat görünümleri |
 | 2026-11-17 | v1.45 | Faz 5c adım 5: WebGL2 test arka ucu için GPU güdümlü batch'in CPU ikizi (kullanıcı kararı, `2544bdb`): CPU referansı ayıklar, örnekli mesh çizer, aynı arayüz; sayaç saydam çift yüzlü materyalin iki geçişini sayar (P2 15 çizim). Smoke iki arka uçta geçti; mimari v1.45. 5.2 başka oturumda planlanıyor, bu oturumda başlanmadı |
+| 2026-11-17 | v1.46 | Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; draw call ve üçgen ayrı. R1 HLOD'a `forge.shape` (kullanıcı kararı), R2–R4 = 5.2 kaskatlar / 5.3 bundle / 5.4 foliage, R5 sahne maliyet raporu (ajan komutu + editör Stats), R6 üçgen spike'ı (three-virtual-geometry, r187 meshlet hattının ters derinlik kopyası, 5.1 + ayrık LOD; kod commit'lenmez), R7 seçilen yolun üretimi, R8 hiyerarşik HLOD + siluet katmanı, R9 = 5.5, R10 = 5.6. three-nanite elendi. Kod yok; mimari v1.46 |

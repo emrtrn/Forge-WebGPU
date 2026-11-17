@@ -1,8 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.45 · 2026-11-17 — §4.4 5c: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı). Plan v1.45.
+**Güncelleme:** v1.46 · 2026-11-17 — §4.4 5c: üçgen / draw call ayrımı, sanal geometri adayları ve spike'ı 5.5 öncesi, HLOD'a şekiller (karar 5'in static mesh kuralı kalkar), three-nanite elendi. Plan v1.46.
 
-**Önceki güncelleme:** v1.44 · 2026-11-17 — §4.4 HLOD: editörde otomatik üretim (dev server iş kuyruğu, ayrı Node worker, `.forge-cache/hlod` tazelik önbelleği, kilitli yayımlama / geri alma, canlı proxy yenileme). Plan v1.42.
+**Önceki güncelleme:** v1.45 · 2026-11-17 — §4.4 5c: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı). Plan v1.45.
 
 **Sürüm:** v1.37 · 2026-11-16 (v1.36’dan fark: World Settings sahne gölge anahtarı, `forge.shadowSettings@1`, nesne tercihlerini koruyan render kapısı ve tek Undo ile toplu nesne gölgesi işlemleri; Island içeriği değiştirilmez). v1.36 · 2026-11-16: §4.9 Island takip gölgesi — ters derinlikte eksik alt Z sınırı, `BoundedShadowNode`, CSM / takip haritası kaynak geçişi ve gerçek GPU regresyonu. v1.35 · 2026-11-16: §4.9 öksüz terrain parça denetimi, §4.10 terrain performans ölçümü ve görsel kabul adayları (Faz 5a adım 8).
 
@@ -801,6 +801,13 @@ features/height-fog/
     referansıyla (aynı düzlemler, sınırlar, uzaklık ve LOD kuralları) yazılır, LOD'un
     parçaları örnekli mesh'le aynı dither solmasıyla çizilir; arayüz aynı, sahibi
     hangi yolu aldığını bilmez. WebGPU kabulü sayılmaz.
+  - *Üçgen ve draw call ayrımı (kullanıcı, 2026-11-17; sıra plan 5c "yeni sıra"):*
+    üçgen azaltma meshlet / sanal geometriyle (otomatik, elle LOD yok); r187'nin
+    `MeshletDrawingPipeline`'ı ters derinlikte kapandığı için aday three-virtual-geometry
+    ya da hattın ters derinlik kopyası, seçim spike ölçümüyle (5.5'ten önce). Foliage
+    5.1 yolunda kalır. Draw call: HLOD'a `forge.shape` girer (kullanıcı kararı; karar
+    5'in "yalnız static mesh" kuralı kalkar), hiyerarşik HLOD + uzak siluet katmanı
+    ve sahne maliyet raporu. three-nanite elendi (WebGPU'da küme başına çizim).
   - *Uygulama başı (2026-11-17):* `engine/world/foliageRing` (8 A, A 990 /
     1.021) ve `engine/foliage/{foliageTypeParams,foliageRoll,proceduralFoliage}`
     Forge algoritmalarıyla taşındı; boya / silme fırçası 5d'de.
