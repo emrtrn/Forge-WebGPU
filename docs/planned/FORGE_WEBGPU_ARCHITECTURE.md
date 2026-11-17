@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.40 · 2026-11-16 — §4.4 Faz 5b uygulaması HEAD `63815f9`'a kadar: saf modüller, menzil ayarları, runtime hücre akışı, kaynak atma, HLOD build / runtime çizimi ve streaming ölçüm düzeneği; §4.9 önbellek atma notu güncel. Editör akışı / HLOD gösterimi, panel, TSL detay culling ve ölçüm / faz kabulü açık (plan v1.37). v1.39: §4.4 Faz 5b kararları (kullanıcı): menziller level ayarında, hücre akışı runtime + editör, HLOD level klasöründe ve `forge hlod` komutuyla, mesafe LOD 5b dışında (plan v1.36). v1.38: Faz 5a kullanıcı görsel kabulü onaylandı (§4.10, plan v1.35); mimari sözleşme değişmedi.
+**Güncelleme:** v1.41 · 2026-11-17 — §4.4 / §4.7 kısmi editör akışı, World Partition paneli, ortak tutulan bölgeler ve editör HLOD; TSL detay fade, RenderReadinessKey ve compileAsync batch hazırlığı. Hücre batch bölmesi kullanıcı kararıyla 5c öncesi spike konusuna bırakıldı (plan v1.38).
 
 **Sürüm:** v1.37 · 2026-11-16 (v1.36’dan fark: World Settings sahne gölge anahtarı, `forge.shadowSettings@1`, nesne tercihlerini koruyan render kapısı ve tek Undo ile toplu nesne gölgesi işlemleri; Island içeriği değiştirilmez). v1.36 · 2026-11-16: §4.9 Island takip gölgesi — ters derinlikte eksik alt Z sınırı, `BoundedShadowNode`, CSM / takip haritası kaynak geçişi ve gerçek GPU regresyonu. v1.35 · 2026-11-16: §4.9 öksüz terrain parça denetimi, §4.10 terrain performans ölçümü ve görsel kabul adayları (Faz 5a adım 8).
 
@@ -698,6 +698,33 @@ features/height-fog/
     (6), panel / harita (7), TSL detay fade / hücre batch'leri / draw call
     ölçümü (8) ve toplu kapı / görsel kabul (11) bekler. 5b kutusu açık;
     bu belge işinde test, tam kapı veya yeni ölçüm çalıştırılmadı.
+- **5b editör / fade / ön ısıtma uygulaması (2026-11-17):** editör kısmi
+  oturuma bağlıdır (`editor/session/cellStreaming`); yüklü aktörleri gösterir,
+  kirli kaynak / hedef hücreyi tutar, yüklenmemiş hedefte edit / undo / redo
+  atomik reddedilir. `worldPartitionPanel` kamera / menzil, hücre / terrain
+  durumları, tıkla odak, sürükle tut, Load / Unload / Release ve HLOD bayatlık
+  durumunu sunar. `KeptRegionsKey` dikdörtgenleri level ve terrain akışında
+  ortaktır. Editör HLOD kaynağının `revision`'ı proxy dosyaları yenilenince
+  çizimi yeniden kurar; kaynak hash'i yalnız okunmuş hücrelerde doğrulanır,
+  okunmamış / proxy'siz hücreler kontrol edilmemiş olarak gösterilir.
+  `detailFade` yerleşim kökeni / ölçeğiyle TSL maskelerini geometri ve gölgeye
+  uygular; template'in kendi ölçeği bu hesapta yoktur. CPU bütün batch uzaktaysa
+  onu atlar. **Karar 6 geri dönüşü uygulandı:** hücre bölmesi Derekavak P2'de
+  draw call'u 398'den 713'e çıkardı; kullanıcı bölmeyi 5c öncesi G6 / meshlet
+  spike'ına bıraktı. Ortak batch'ler 5b'de korunur; bu uncapped karşılaştırma
+    G6'nın 60 Hz kabulü sayılmaz.
+    Async derleme sonrasında ve her görünür kare başında render target / MRT
+    durumu yeniden kurulur; hazırlanan batch'in GPU nesneleri iptal edilse de
+    derleme tamamlanana kadar bırakılmaz. Teknik doğrulama ve ölçüm sınırları
+    planın 5b ilerleme kaydındadır; kullanıcı görsel kabulü ayrıdır.
+  Host, batch parçalarını görünür sahnenin dışında `compileAsync` ile hazırlar;
+  gerçek sahnenin ışıkları ve çizim pass'inin MRT / depth / sample biçimleri
+  kullanılır. `RenderReadinessKey` runtime ve editörün HLOD geçişini derleme
+  tamamlanana kadar bekletir. Kuyruk seri ilerler; iptal edilen batch dönmez,
+  derleme sürerken GPU nesneleri silinmez, derleme sonrasında bırakılır.
+  Editör yerleştirmesi hazırlanan CPU geometrisini ölçebilir; özel asset
+  önizlemesinin kendi çizim döngüsü ön ısıtmayı kullanmaz. Kapı / ölçüm sonuçları
+  plan §11'de kaydedilir; kullanıcı görsel kabulü ayrıca gerekir.
 - **Ölçek ölçümü (2a, 2026-11-10):** 50.000 aktörlük level R1'de eşik içinde
   (bütün level yükleme ~0,9 s, hücre yükleme p95 ~1,5 ms, tek aktör kaydı
   ~40 ms, tam kayıt ~2,2 s, heap ~58 MB; [Faz 2a arşivi](../archive/PHASE_2A.md)). Aşağıdaki çarelere
@@ -1110,7 +1137,14 @@ düşen alan uyarı değil, **hatadır**.
     World Settings level ayarlarını (Cell Size salt okunur) ve tekil ortam aktörlerini
     listeler (seç / ekle); ortamın değerleri bileşenlerdedir. Outliner sanallaştırılmıştır
     (`npm run bench:outliner`, 50.000 aktör).
-  - *Hücreler:* 5b'deki editör akışına kadar editör bütün hücreleri yükler.
+  - *Hücreler (5b):* `editor/session/cellStreaming` yalnız kamera / tutulan
+    bölgelerdeki hücreleri kısmi oturuma alır; kirli hücreler kayda kadar kalır.
+    Hücre yaşamı `stream` olayıdır, dirty / undo değildir. Yüklenmemiş hücreyi
+    gerektiren edit / undo / redo atomik reddedilir (Load sonrası tekrarlanır).
+    Compare / Reload tutulan aktörlerin parçalarını okur; bir ajanın eski
+    `level.json` aktörlerini hücrelere taşıması da buna dahildir. Outliner'ın
+    World Partition sekmesi `worldMapView` üzerinden haritayı, hücre / terrain
+    durumlarını, Load / Unload ve tutulan alanları gösterir (`KeptRegionsKey`).
   - *Play (A6'nın yolu):* dev server'da geçici oturum katmanı `.forge-session/<id>/`;
     editör yalnız kirli dosyaları oraya yazar, oyun sekmesi `?play=<id>` ile level'ı
     diskten bu katmanla okur. Play proje dosyalarına yazmaz; sekme yeniden yüklenince

@@ -513,6 +513,16 @@ taşınır.
 İşlem: taşındı / uyarlandı / yeniden yazıldı. Testler: taşınan / yeniden yazılan
 / düşen sayısı (2b test sınıflamasına göre).
 
+**5b devamı (2026-11-17):**
+
+| Hedef | Kaynak / uygulama | Doğrulama yüzeyi |
+|---|---|---|
+| `core/edit/levelSession`, `editor/session/{cellStreaming,editorSession,liveRefresh}` | A11 kısmi oturum; hücre `stream` olayı dirty / undo değildir; kirli kaynak / hedef tutulur; yüklenmemiş hücrede atomik ret; eski `level.json` aktörleri ajanla hücrelere taşınınca Compare izler | çekirdek ve editör oturum regresyonları; `tests/editor/{streaming,agent,conflict}.spec.ts` |
+| `editor/world/worldPartition{Panel,Style}`, Outliner sekmesi / rozeti, `engine/world/keptRegions` | Codex'in panel diff'i üst oturumda incelendi; saf `worldMapView`, hücre / terrain haritası, odak, tutulan dikdörtgen, Load / Unload / Release; terrain akışında ortak tutma | `streaming.spec.ts`; gerçek WebGPU seti; boşaltma / iptal Node testleri |
+| editör `HlodSourceKey`, `render/sync/{renderWorld,hlodProxies}` | editör proxy geçişi ve canlı HLOD yenileme; kamera far'ındaki kalite ölçeği; okunmamış kaynaklar taze diye etiketlenmez | editör HLOD smoke'u; etkin kamera menzili Node testi |
+| `render/materials/detailFade`, `render/sync/instanceBatches`, static mesh bağlaması | Forge'un yarıçap × 200 / 1.000 m / %80–100 kuralı TSL maskesine, gölge dahil; bütün uzak batch'i atlama. Hücre bölmesi 398 → 713 draw call nedeniyle geri alındı; kullanıcı 5c öncesi spike'a bıraktı | Node ölçek / materyal sahipliği; `detailFade.smoke.ts` gerçek GPU geometri + gölge; eşlenik Derekavak P2 kayıtları planda |
+| `render/host/renderHost`, `pipeline/renderPipeline`, `engine/world/renderReadiness` | kullanıcı onaylı `compileAsync` hazırlığı; görünürlükten önce gerçek pass biçimleri / sahne ışıkları; HLOD derlemeyi bekler; iptal edilen derlemenin GPU nesneleri tamamlanınca bırakılır. Editör yerleştirme CPU geometrisini kullanır; özel asset önizlemesi kendi döngüsünde | batch hazırlık / iptal regresyonu; tam kapı, GPU editör / render ve `measure:streaming` sonuçları plan §11'de |
+
 **Taşıma kalıbı (ses ile kuruldu, 2026-11-11):** kod `src/engine/<alt sistem>/`
 (DOM'suz, düz Node'da yüklenir; `tsconfig.tools.json` ve `verify:node-load`
 zorlar), tarayıcı API'si gereken kısım `src/runtime/<alt sistem>/`. Forge
