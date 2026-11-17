@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.51 · 2026-11-17 — Faz 5c R5: sahne maliyet raporu (`forge stats`) + Stats üçgeni. v1.50 — Faz 5c R4 (5.4): foliage türü batch katmanı. v1.49 — Faz 5c R3 (5.3): bundle ölçüldü, kazanç yok, varsayılan kapalı. v1.48 — Faz 5c R2 (5.2): GPU güdümlü batch'ler gölge kaskatlarında. v1.47 — Faz 5c R1: HLOD'a `forge.shape` (three'siz primitive üreticisi, eşitlik testi). Önceki v1.46 — Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; R1 HLOD'a şekiller → R2–R4 (5.2–5.4) → R5 sahne maliyet raporu → R6 üçgen spike'ı (three-virtual-geometry / ters derinlikli meshlet kopyası / 5.1 + ayrık LOD) → R7 üretim → R8 HLOD katmanları → R9 (5.5) → R10 (5.6). three-nanite elendi. Mimari v1.46.
+**Güncelleme:** v1.52 · 2026-11-17 — Kullanıcı 5b HLOD / detay fade ve R1 Derekavak görsel kabullerini onayladı; 5b kapandı, R6 başladı. Önceki v1.51 · 2026-11-17 — Faz 5c R5: sahne maliyet raporu (`forge stats`) + Stats üçgeni. v1.50 — Faz 5c R4 (5.4): foliage türü batch katmanı. v1.49 — Faz 5c R3 (5.3): bundle ölçüldü, kazanç yok, varsayılan kapalı. v1.48 — Faz 5c R2 (5.2): GPU güdümlü batch'ler gölge kaskatlarında. v1.47 — Faz 5c R1: HLOD'a `forge.shape` (three'siz primitive üreticisi, eşitlik testi). Önceki v1.46 — Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; R1 HLOD'a şekiller → R2–R4 (5.2–5.4) → R5 sahne maliyet raporu → R6 üçgen spike'ı (three-virtual-geometry / ters derinlikli meshlet kopyası / 5.1 + ayrık LOD) → R7 üretim → R8 HLOD katmanları → R9 (5.5) → R10 (5.6). three-nanite elendi. Mimari v1.46.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — Faz 5c adım 5: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı, `2544bdb`); çizim sayacı iki geçişli saydam materyalleri sayar. Mimari v1.45.
 
@@ -769,6 +769,8 @@ doğrulanır. Önceki kayıt tam performans, sızıntı veya faz kabulü değild
 [`2026-11-16T17-21-20-544Z-streaming.json`](../../../Games/ForgeReference/render-refs/runs/2026-11-16T17-21-20-544Z-streaming.json),
 [`2026-11-16T17-34-06-960Z-streaming.json`](../../../Games/ForgeReference/render-refs/runs/2026-11-16T17-34-06-960Z-streaming.json).
 
+**5b nihai görsel kabul (2026-11-17):** kullanıcı “görsel kabulleri onaylıyorum, R6 ile devam et” diyerek HLOD / detay fade, editörde otomatik HLOD ve R1 Derekavak şekil proxy kabulünü onayladı. Mevcut teknik kapı ve streaming ölçümüyle 5b tamamlandı. Faz 5 bütünü açık olduğundan arşivlenmedi; referans görüntüler yenilenmedi, yeni gate çalıştırılmadı.
+
 **5c başlangıç dökümü (2026-11-17).** INV-D29 (foliage hücreleri, kompakt dizi),
 D30 (prosedürel halka, ground cover), E21 (Foliage Type), G16 (instancing, fade,
 impostor / billboard, rüzgâr). Ertelenen **8 A** (`foliageRing`). Eski modelden
@@ -1037,8 +1039,7 @@ iki yüzüyle pişirilir. Bayatlık (`verify:assets`, editör) şekli de sayar. 
 kopyada `forge hlod`: Derekavak **22 hücre / 21.360 üçgen**, 83 şekil / 25 mesh,
 OUT-001'in hücresi `-1_-2` proxy'de. Doğrulama: odaklı Vitest 64 / 64, typecheck,
 katman, dosya bütçesi, `verify:assets`; `hlod.spec.ts` + `streaming.spec.ts` başsız
-**5 / 5** ve gerçek WebGPU **5 / 5**. Kalan: kullanıcının Derekavak kabulü (HLOD
-denetim listesi + şekiller).
+**5 / 5** ve gerçek WebGPU **5 / 5**. Kullanıcı Derekavak kabulünü (HLOD denetim listesi + şekiller) 2026-11-17 tarihinde onayladı.
 
 **R2 (5.2) uygulandı (2026-11-17, C).** Batch görünüm başına sayaç, görünür liste,
 indirect argümanları, compute düğümleri ve mesh'ler tutar: görünüm 0 ana kamera,
@@ -1155,7 +1156,7 @@ GPU güdümlü yolunu bekler.
       eşleşiyor; WES örtüsü bağımsız önizleniyor ve kayda sızmıyor, saat
       atlaması birikim süresi sayılmıyor; ertelenen 4 A yeşil (su birikintisi 3,
       öksüz tile 1). Bitki kataloğu bu terrain diliminin önkoşulu değildir.
-- [ ] **5b Akış + HLOD:** World Partition hücre akışı (A11 modeli; editör de
+- [x] **5b Akış + HLOD:** World Partition hücre akışı (A11 modeli; editör de
       akışla çalışır), HLOD, view distance (Faz 3'ün "Işık ve gölge" kutusundan
       taşındı, kullanıcı kararı 2026-11-13), küçük nesne culling. *Kapı:* hücre
       yükle / boşalt döngüsünde sızıntı yok (bellek ve GPU kaynağı ölçümü);
@@ -1166,7 +1167,7 @@ GPU güdümlü yolunu bekler.
       (5b karar 9); HLOD `forge hlod` ile üretilip editörde ve oyunda geçiş yapıyor.
       Mesafe LOD 5b'de yok (karar 10, meshlet hattı tartışması).
       **2026-11-17:** teknik kapı ve streaming ölçümü geçti; kullanıcı HLOD /
-      detay fade görsel kabulü bekliyor. Hücre batch bölmesi kullanıcı onayıyla
+      detay fade görsel kabulünü onayladı. Hücre batch bölmesi kullanıcı onayıyla
       5c öncesi G6 / meshlet spike'ına bırakıldı.
 - [ ] **5c Foliage:** instancing + compute culling + indirect draw; impostor /
       billboard, rüzgâr, fade; foliage hücreleri; PG0–PG3 ile ortak bitki
@@ -1487,3 +1488,5 @@ silinebilir.
 | 2026-11-17 | v1.49 | Faz 5c R3 (5.3): isteğe bağlı bundle (`bundle: true`, kamera başına kayıt, yeniden kayıt yalnız mesh / görünüm değişince, saydamlar dışarıda) + `npm run measure:gpu-driven`. Kazanç yok (foliage 1,54 → 1,49 ms, 1.200 draw'lık stres 20,2 → 21,7 ms): three r187 düğüm materyalli render nesnelerini her karede tam yeniler; varsayılan kapalı, kullanıcı kararı bekliyor. Sıradaki R4 |
 | 2026-11-17 | v1.50 | Faz 5c R4 (5.4): `render/foliage/foliageBatches.ts`: foliage türü başına GPU güdümlü batch (LOD zinciri, kalite ölçekli solma, ekran boyundan LOD, gölge), sahip anahtarlı örnek API'si (halka adım 6, boyanmış hücreler adım 7 buna bağlanır); smoke iki arka uçta bu katmandan. Sıradaki R5 |
 | 2026-11-17 | v1.51 | Faz 5c R5: `npm run forge -- stats` sahne maliyet raporu (aktör, model / materyal birleşimi, kaynak üçgen, saydam / çift yüzlü, batch ve görünüm / kaskat başına draw, foliage, HLOD); editör Stats üçgenine GPU güdümlü batch'ler (eşzamansız geri okuma). Derekavak 118 draw / görünüm, 21.360 üçgen; sentetik 182 draw, 40,4 M üçgen. Sıradaki R6 |
+
+| 2026-11-17 | v1.52 | Kullanıcı görsel kabulleri onayladı: 5b HLOD / detay fade + otomatik HLOD, 5c R1 Derekavak şekil proxy. 5b kutusu kapandı; Faz 5 bütünü açık, arşiv yok. Referanslar yenilenmedi, yeni test / gate yok. R6 başladı; R7 karar bekler. |

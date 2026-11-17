@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.51 · 2026-11-17 — §4.4 5c sahne maliyet raporu (R5). v1.50 — §4.4 5c foliage batch'leri (5.4). v1.49 — §4.4 5c render bundle (5.3) ölçümü. v1.48 — §4.4 5c gölge görünümleri (5.2). v1.47 — §4.4 5b HLOD: şekiller pişirilir (5c R1). Önceki v1.46 — §4.4 5c: üçgen / draw call ayrımı, sanal geometri adayları ve spike'ı 5.5 öncesi, HLOD'a şekiller (karar 5'in static mesh kuralı kalkar), three-nanite elendi. Plan v1.46.
+**Güncelleme:** v1.52 · 2026-11-17 — §4.4 5b ve R1 görsel kabulleri kullanıcı tarafından onaylandı. Önceki v1.51 · 2026-11-17 — §4.4 5c sahne maliyet raporu (R5). v1.50 — §4.4 5c foliage batch'leri (5.4). v1.49 — §4.4 5c render bundle (5.3) ölçümü. v1.48 — §4.4 5c gölge görünümleri (5.2). v1.47 — §4.4 5b HLOD: şekiller pişirilir (5c R1). Önceki v1.46 — §4.4 5c: üçgen / draw call ayrımı, sanal geometri adayları ve spike'ı 5.5 öncesi, HLOD'a şekiller (karar 5'in static mesh kuralı kalkar), three-nanite elendi. Plan v1.46.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — §4.4 5c: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı). Plan v1.45.
 
@@ -751,7 +751,8 @@ features/height-fog/
   kararlı GPU geometri / doku 216 / 30. Adım 10 ölçütleri geçti. Kaynak atma
   sayacı 0 olduğundan genel atılma / sızıntısızlık iddiası yok. Teknik kapı
   ve yöntem planın 5b ilerleme kaydı / §11'inde; kullanıcı HLOD geçişi ve
-  detay fade görsel kabulü ayrıca gerekir, 5b kutusu açık kalır.
+  detay fade görsel kabulünü 2026-11-17 tarihinde onayladı; otomatik HLOD ve
+  R1 Derekavak şekil proxy kabulü de onaylandı. 5b kutusu kapandı.
 - **5c kararları (kullanıcı, 2026-11-17; "hepsi öneri gibi"; ayrıntı plan Faz 5c):**
   - *Önce spike:* 5b'den bırakılan hücreye bölünmüş batch ve meshlet sorusu
     üretim yolundan önce Derekavak P2'de 60 Hz G6 ölçümüyle karşılaştırılır
