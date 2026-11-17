@@ -1,8 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.43 · 2026-11-17 — Faz 5c adım 4 tamam: içe aktarıcı foliage çeviricileri (`cbad9d5`): foliage type → `forge.foliageType`, landscape kuralları → terrain'de `forge.landscapeFoliage`, boyanmış gruplar → `foliage.json` + `foliage/<x>_<z>.bin`; kayıt servisi `forge.levelFoliage/1`'i kabul eder. Referans projesi yeniden alınmadı. Mimari v1.44.
+**Güncelleme:** v1.44 · 2026-11-17 — Faz 5c adım 5.1 (`9deff0c`): GPU güdümlü çizimin temeli `render/gpu/` (örnek storage buffer'ı, compute culling + indirect, ana görünüm), CPU referansı `engine/world/instanceCulling.ts`; render smoke'unda Derekavak P2 foliage'ı (370 hücre / 1.640 örnek) GPU sayısı CPU referansıyla birebir. WebGL2 test arka ucu için açık soru. Mimari v1.44.
 
-**Önceki güncelleme:** v1.42 · 2026-11-17 — Faz 5b: editörde otomatik HLOD üretimi (`0c16852`): WP panelinde Auto Generate HLOD ve Generate / Rebuild, dev server kuyruğu + ayrı Node worker, kilitli atomik yayımlama, canlı proxy yenileme. Başsız editör 78 / 78, gerçek WebGPU alt küme 11 / 11; kullanıcı Derekavak kabulü açık. Mimari v1.44.
+**Önceki güncelleme:** v1.43 · 2026-11-17 — Faz 5c adım 4 tamam: içe aktarıcı foliage çeviricileri (`cbad9d5`): foliage type → `forge.foliageType`, landscape kuralları → terrain'de `forge.landscapeFoliage`, boyanmış gruplar → `foliage.json` + `foliage/<x>_<z>.bin`; kayıt servisi `forge.levelFoliage/1`'i kabul eder. Referans projesi yeniden alınmadı. Mimari v1.44.
 
 **Sürüm:** v1.34 · 2026-11-16 (v1.33’ten fark: World Settings genel gölge anahtarı ve tek Undo ile toplu nesne gölgeleri; Island sahne verisi korunur; mimari v1.37). v1.33 · 2026-11-16: Derekavak canlı kabulü; Island'da kamerayı izleyen koyu dörtgenin düzeltilmesi — ters derinlikte takip gölgesinin alt Z sınırı, kaynak geçişi ve GPU regresyonu; mimari v1.36. v1.32 · 2026-11-16: Faz 5a adım 8 teknik kapısı, A 957 / 1.021 ve görsel kabul adayları (mimari v1.35).
 
@@ -933,6 +933,39 @@ call'unun 260'ı foliage; foliage çizimleri toplanınca gönderim 3,9 → 2,2 m
    (`instanceBatches`) geçişi: picking etiketleri, detay fade, editörün transform
    hızlı yolu, HLOD hazır olma ve `compileAsync` ön ısıtması korunur; 5.6 G6
    ölçümü (`measure:foliage` taslağı).
+   **5.1 uygulandı (2026-11-17, `9deff0c`, C):** `render/gpu/gpuInstances.ts`
+   (batch başına mat4 + extras vec4 storage buffer'ı: x örneğin kendi solması, y seed
+   u32 bitleri; kararlı tutamaçlar, silmede son slot boşluğa taşınır, `flush` yalnız
+   değişen aralığı yükler, büyüme ikiye katlar ve `generation` artar);
+   `gpuDrivenBatch.ts` (görünüm başına üç dispatch: LOD sayaçlarını sıfırla, örnek
+   başına cull: şablon küresi altı düzleme, ölçülen uzaklık cull ucuna (köken ya da
+   ölçek bölünmüş, Forge'un iki kipi), LOD uzaklıkla, `atomicAdd` ile LOD'un görünür
+   listesine; çizim başına `instanceCount` yaz. (LOD, parça, materyal grubu) başına
+   bir `drawIndexedIndirect` mesh'i, geometri parçanın buffer'larını paylaşır; vertex
+   `visible[lod × kapasite + instance_index]` örneğinin matrisi × parça matrisi
+   `overrideNodes` ile `modelWorldMatrix` / normal / pozisyon / önceki matris yerine
+   geçer, materyalin kendi düğümleri model uzayında çalışır; fade 5b'nin dither'ı ×
+   örnek solması, `maskShadowNode`'da da). `gpuDriven.ts` host'un karesinde
+   `pipeline.render`'dan önce ana kamerayı ayıklar (tek compute geçişi, gönderim
+   süresine dahil); three dolaylı çizimi `renderer.info`'ya hiç saymadığı için
+   `lastDraws` `?debug` ve perf tanığına eklenir. CPU referansı
+   `engine/world/instanceCulling.ts` (düzlemler WebGPU kırpma derinliğinden, ters /
+   sonsuz uzak dahil; f32 / f64 için kesin–olası aralığı; Forge'un `foliageFadeWindow`'u)
+   + Node testi. `modelParts` `render/resources/modelParts.ts`'e taşındı (static-mesh
+   aynı API'yi yeniden dışa aktarır). Smoke `gpuCulling.smoke.ts`: Derekavak P2
+   foliage'ı Node'da (`gpuFoliageScene.ts`) kurallar Forge kaynağından içe aktarıcının
+   çeviricileriyle, terrain referans projesinden, Forge'un yerleşik tile kuralıyla:
+   **370 hücre / 1.640 örnek** (S4 sayımı). Gerçek WebGPU'da (NVIDIA Ampere, 1080p
+   `high`): P2 / P1 / gökyüzü görünümlerinde 177 / 32 / 0 görünür örnek, altı batch'in
+   her LOD'unda GPU sayısı CPU'nun kesin sayısına **birebir**; `?debug` 398 → 407
+   (tam 9 dolaylı çizim); kayıt `render-refs/runs/2026-11-17T10-13-13-396Z-gpu-culling.json`,
+   çekim `candidates/derekavak-p2-gpu-foliage.png` (ağaçlar arazide doğru yerde).
+   Odaklı Vitest 24, tip / katman / dosya bütçesi, detay fade smoke'u geçti.
+   5.1'de bilerek yok: gölge (mesh'ler gölge düşürmez, 5.2), bundle (5.3), ilk-görüş
+   pipeline ön ısıtması, foliage binding'i (5.4). **Açık soru (kullanıcıya):** WebGL2
+   test arka ucunda compute atomikleri ve dolaylı çizim yok; `gpuDriven` orada batch
+   kurmuyor. Statikler 5.5'te bu yola geçince CI'ın `forceWebGL` editör smoke'u için
+   bir geri dönüş gerekir (ör. CPU referansıyla aynı listeyi yazıp örnekli çizim).
 6. Prosedürel halka + worker + uzak billboard — C (worker mesajlaşması X).
 7. Boyanmış hücreler ↔ WP akışı, residency, `?debug` satırları — C.
 8. PG0 sözleşmeleri + PG1 kaya — X saf çekirdek ve üretici / C materyal.
@@ -1287,3 +1320,4 @@ silinebilir.
 | 2026-11-17 | v1.41 | Faz 5c adım 4: `forge.foliageType@1`, `forge.landscapeFoliage@1`, eşleyici (şema varsayılanı = Forge varsayılan türü), boyanmış foliage level parçası `foliage.json` + `FFOL` v1 hücre dosyaları ve asset dizini denetimleri (`3706bc4`); 518 core + 5 feature testi, tip / katman / `verify:assets` geçti, SDK değişmedi. Kalan: içe aktarıcı çeviricileri (Codex kotası bitti, Claude yapacak). Adım 5 tasarımı: görünüm başına compute culling, kaskatlar `layers` ile ayrı dolaylı mesh, tek `BundleGroup`, kendi draw call sayacı; alt adımlar 5.1–5.6. Mimari v1.43 |
 | 2026-11-17 | v1.42 | Faz 5b: editörde otomatik HLOD üretimi (`0c16852`): WP panelinde Auto Generate HLOD + Generate / Rebuild / Save and Generate, beş durum ve son rapor; dev server'da proje başına kuyruk (`/__forge/hlod`), ayrı Node worker, `.forge-cache/hlod` tazelik önbelleği, kilitli atomik yayımlama / geri alma, canlı proxy yenileme. Claude incelemesinde foliage parçaları izlemeden çıkarıldı, durum mesajları İngilizce, okunmuş yayımlama proxy'leri yeniden düşürmez. Odaklı Vitest 96 / 96, başsız editör 78 / 78, gerçek WebGPU alt küme 11 / 11; tam gate yok. Kullanıcı Derekavak kabulü ve 5b görsel kabulü açık. Mimari v1.44 |
 | 2026-11-17 | v1.43 | Faz 5c adım 4 kalanı: içe aktarıcı foliage çeviricileri (`cbad9d5`): `forge.foliageType` asset'leri (modelini getirir), terrain'de `forge.landscapeFoliage`, boyanmış gruplar (bölünmüş hücreler dahil) `foliage.json` + `.bin`; kayıt servisi `forge.levelFoliage/1`. Odaklı Vitest 78 + içe aktarıcı 11, tip / katman / dosya bütçesi / `verify:assets` geçti; geçici kopyada `--dry-run` Derekavak 7 kural / 6 tür. Referans projesi yeniden alınmadı. Sıradaki: adım 5.1 |
+| 2026-11-17 | v1.44 | Faz 5c adım 5.1 (`9deff0c`): GPU güdümlü çizimin temeli `render/gpu/` (örnek storage buffer'ı ve kararlı tutamaçlar, reset / cull / args compute, LOD × parça × materyal grubu başına `drawIndexedIndirect`, `overrideNodes` ile örnek matrisi, dither fade), host ana görünümü kareden önce ayıklar, `?debug` dolaylı çizimleri sayar; CPU referansı `engine/world/instanceCulling.ts` + Node testi. Gerçek WebGPU smoke'u: Derekavak P2 foliage 370 hücre / 1.640 örnek, P2 / P1 / gökyüzü 177 / 32 / 0 görünür, GPU = CPU birebir, +9 draw. Açık soru: WebGL2 test arka ucu geri dönüşü (5.5 öncesi). Sıradaki: 5.2 kaskat görünümleri |

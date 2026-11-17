@@ -104,6 +104,12 @@ override uyumsuzluğunu kayıtta reddeder (rapor §4.11).
   editör dev server'ın `/__forge/hlod` kuyruğuyla ayrı Node worker'da kendiliğinden
   üretir, `editor/world/hlodController.ts`), runtime ve editör proxy çizimi
   `render/sync/hlodProxies.ts`'de (rapor §4.4).
+- GPU güdümlü çizim (5c): `render/gpu/` batch başına örnek storage buffer'ı
+  (`gpuInstances`), görünüm başına compute culling + `drawIndexedIndirect`
+  (`gpuDrivenBatch`); host ana görünümü kareden önce ayıklar (`gpuDriven`),
+  dolaylı çizimler `?debug` sayımına eklenir. CPU referansı
+  `engine/world/instanceCulling.ts`. Painted foliage level parçası
+  (`foliage.json` + `foliage/<x>_<z>.bin`) `core/level/foliage*.ts`'de (rapor §4.4).
 - Kayıt oyunu `forge.saveGame/1` (`src/core/save/`): her şey GUID'le, bileşen
   alanının `persist` bayrağı, bileşenin `state` bölümü, `defineSaveState`;
   yüklenmemiş hücrelerin durumu `SaveLedger`'da. Slot deposu
