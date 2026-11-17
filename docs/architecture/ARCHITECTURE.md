@@ -100,8 +100,10 @@ override uyumsuzluğunu kayıtta reddeder (rapor §4.11).
   Outliner sekmesinde; `KeptRegionsKey` tutulan hücre / terrain alanlarını,
   `RenderReadinessKey` derleme bitene kadar HLOD hazır olmasını bağlar. Menziller
   (`viewDistance`, `loadRange`) level ayarında; HLOD level klasöründe
-  (`hlod.json` + `hlod/<x>_<z>.glb`, `tools/world` içindeki `forge hlod` üretir),
-  runtime ve editör proxy çizimi `render/sync/hlodProxies.ts`'de (rapor §4.4).
+  (`hlod.json` + `hlod/<x>_<z>.glb`, `tools/world` içindeki `forge hlod` üretir;
+  editör dev server'ın `/__forge/hlod` kuyruğuyla ayrı Node worker'da kendiliğinden
+  üretir, `editor/world/hlodController.ts`), runtime ve editör proxy çizimi
+  `render/sync/hlodProxies.ts`'de (rapor §4.4).
 - Kayıt oyunu `forge.saveGame/1` (`src/core/save/`): her şey GUID'le, bileşen
   alanının `persist` bayrağı, bileşenin `state` bölümü, `defineSaveState`;
   yüklenmemiş hücrelerin durumu `SaveLedger`'da. Slot deposu

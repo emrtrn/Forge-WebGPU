@@ -1,8 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.43 · 2026-11-17 — §4.4 Faz 5c kararları (kullanıcı, "hepsi öneri gibi"): önce G6 / meshlet spike'ı, `forge.foliageType` asset'i, terrain aktöründe `forge.landscapeFoliage`, boyanmış foliage level parçası (`foliage/<x>_<z>.bin`), bütün türlerde GPU güdümlü çizim, önce çalışma anı billboard'u, bitki ailesi + bileşen, `measure:foliage`; foliage halkası ve prosedürel üretim taşındı (A 990 / 1.021). Plan v1.40.
+**Güncelleme:** v1.44 · 2026-11-17 — §4.4 HLOD: editörde otomatik üretim (dev server iş kuyruğu, ayrı Node worker, `.forge-cache/hlod` tazelik önbelleği, kilitli yayımlama / geri alma, canlı proxy yenileme). Plan v1.42.
 
-**Önceki güncelleme:** v1.42 · 2026-11-17 — §4.4 / §4.7 kısmi editör akışı, WP paneli, ortak tutulan bölgeler ve editör HLOD; TSL detay fade ve compileAsync hazırlığı. Teknik kontroller ve temiz a6f3521 streaming ölçümü geçti; kullanıcı görsel kabulü bekliyor (plan v1.39). Hücre batch bölmesi kullanıcı kararıyla 5c öncesi G6 / meshlet spike'ında.
+**Önceki güncelleme:** v1.43 · 2026-11-17 — §4.4 Faz 5c kararları (kullanıcı, "hepsi öneri gibi"): önce G6 / meshlet spike'ı, `forge.foliageType` asset'i, terrain aktöründe `forge.landscapeFoliage`, boyanmış foliage level parçası (`foliage/<x>_<z>.bin`), bütün türlerde GPU güdümlü çizim, önce çalışma anı billboard'u, bitki ailesi + bileşen, `measure:foliage`; foliage halkası ve prosedürel üretim taşındı (A 990 / 1.021). Plan v1.40.
 
 **Sürüm:** v1.37 · 2026-11-16 (v1.36’dan fark: World Settings sahne gölge anahtarı, `forge.shadowSettings@1`, nesne tercihlerini koruyan render kapısı ve tek Undo ile toplu nesne gölgesi işlemleri; Island içeriği değiştirilmez). v1.36 · 2026-11-16: §4.9 Island takip gölgesi — ters derinlikte eksik alt Z sınırı, `BoundedShadowNode`, CSM / takip haritası kaynak geçişi ve gerçek GPU regresyonu. v1.35 · 2026-11-16: §4.9 öksüz terrain parça denetimi, §4.10 terrain performans ölçümü ve görsel kabul adayları (Faz 5a adım 8).
 
@@ -650,6 +650,22 @@ features/height-fog/
     commit'lenir. `forge hlod` Node komutu üretir; bayat `sourceHash` uyarıdır
     (editör, `verify:assets`, build). Proxy rengi köşe niteliğinden `colorNode`
     ile okunur (`vertexColors` bayrağı yok; three'nin meshlet hattıyla uyum).
+    *Editör üretimi (2026-11-17, `0c16852`):* dev server proje başına tek
+    `hlodJobs` kuyruğu tutar (`GET` / `POST /__forge/hlod`; yalnız yazılabilir
+    proje level'ı, motor / paket level'ı reddedilir); iş `tools/world/hlodWorker.ts`
+    ile ayrı Node sürecinde `runHlodJob`'ı çalıştırır, aynı level'a gelen
+    istekler birleşir. Tazelik damgası etkin yerleşimler, `cellSize` /
+    `loadRange`, GUID çözümü ve üreticinin okuduğu dosya baytlarıdır; damga,
+    girdi / çıktı revizyonları ve son rapor `.forge-cache/hlod/<hash>.json`'da
+    (commit'lenmez). Üretim kilitsiz, yayımlama proje kaydı kilidinde: kaynak
+    ya da çıktı değiştiyse sonuç atılır ve iş yeniden sıraya girer; yazım
+    hatası önceki proxy setini geri yükler (`hlodPublish.ts`). `forge hlod`
+    aynı servisi kullanır. Editörde `hlodController` (taşıma bağımsız) açılışta
+    ve başarılı kayıt / bağımlılık dosyası değişiminde tazelik ister, Auto
+    açıksa üretir; kirli düzenlemeyi kendiliğinden kaydetmez, kendi çıktılarını
+    ve boyanmış foliage'ı izlemez. Yeni yayımlama `HlodSource` revizyonunu
+    artırarak sayfa yenilenmeden çizilir; editörün zaten okuduğu yayımlama
+    proxy'leri yeniden düşürmez.
   - *Mesafe LOD:* 5b'de yok; three'nin meshlet hattı ayrıca konuşulacak (§4.9'un
     Faz 9 notu).
 - **Önceki 5b uygulama notu (2026-11-16, HEAD `63815f9`; tarihsel durum):**

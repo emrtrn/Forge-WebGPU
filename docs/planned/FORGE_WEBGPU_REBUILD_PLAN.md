@@ -1,8 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.41 · 2026-11-17 — Faz 5c adım 4 (şemalar, boyanmış foliage level parçası, `3706bc4`) ve adım 5 tasarımı; içe aktarıcı çeviricileri kaldı. v1.40: Faz 5c başladı: döküm, kullanıcı kararları 1–9 ("hepsi öneri gibi") ve 11 adımlık sıra; adım 3'ün saf taşıması uygulandı (foliage halkası 8 A, A 990 / 1.021). 5b görsel kabulü açık. Mimari v1.43.
+**Güncelleme:** v1.42 · 2026-11-17 — Faz 5b: editörde otomatik HLOD üretimi (`0c16852`): WP panelinde Auto Generate HLOD ve Generate / Rebuild, dev server kuyruğu + ayrı Node worker, kilitli atomik yayımlama, canlı proxy yenileme. Başsız editör 78 / 78, gerçek WebGPU alt küme 11 / 11; kullanıcı Derekavak kabulü açık. Mimari v1.44.
 
-**Önceki güncelleme:** v1.39 · 2026-11-17 — Faz 5b teknik kontroller ve streaming ölçümü geçti: temiz a6f3521, ilk uçuş p99 / max 13,3 / 35,1 ms, heap %0,34. Editör akışı / WP paneli / HLOD / TSL fade ve compileAsync hazırlığı uygulandı; hücre bölmesi kullanıcı onayıyla 5c öncesi G6 / meshlet spike'ında. Kullanıcı HLOD / fade görsel kabulü bekliyor; 5b açık. Mimari v1.42.
+**Önceki güncelleme:** v1.41 · 2026-11-17 — Faz 5c adım 4 (şemalar, boyanmış foliage level parçası, `3706bc4`) ve adım 5 tasarımı; içe aktarıcı çeviricileri kaldı. v1.40: Faz 5c başladı: döküm, kullanıcı kararları 1–9 ("hepsi öneri gibi") ve 11 adımlık sıra; adım 3'ün saf taşıması uygulandı (foliage halkası 8 A, A 990 / 1.021). 5b görsel kabulü açık. Mimari v1.43.
 
 **Sürüm:** v1.34 · 2026-11-16 (v1.33’ten fark: World Settings genel gölge anahtarı ve tek Undo ile toplu nesne gölgeleri; Island sahne verisi korunur; mimari v1.37). v1.33 · 2026-11-16: Derekavak canlı kabulü; Island'da kamerayı izleyen koyu dörtgenin düzeltilmesi — ters derinlikte takip gölgesinin alt Z sınırı, kaynak geçişi ve GPU regresyonu; mimari v1.36. v1.32 · 2026-11-16: Faz 5a adım 8 teknik kapısı, A 957 / 1.021 ve görsel kabul adayları (mimari v1.35).
 
@@ -661,6 +661,28 @@ sıfırlanır / geri yüklenir; aksi halde çıktı sabit kalabiliyordu. İlk ö
 denemesi kaynak yenilemesiyle kesildi ve kabul kanıtı sayılmadı. Son streaming
 ölçümü aşağıda geçti; kullanıcı görsel kabulü gelmeden 5b kutusu kapatılmaz.
 
+**5b editörde otomatik HLOD üretimi (2026-11-17, `0c16852`; kullanıcı onaylı
+plan, Codex başlattı, Claude bitirdi).** World Partition panelinde Auto Generate
+HLOD (level başına, varsayılan açık) ve Generate / Rebuild / Save and Generate
+HLOD; durumlar Not generated / Current / Update required / Generating / Failed,
+son üretimin hücre / üçgen / süre / uyarıları. Yazılabilir sahne açılınca ve
+başarılı kayıttan ya da bağımlılık dosyası değişince (model / materyal / doku,
+aynı GUID'de bayt değişimi dahil; `cellSize`, `loadRange`) tazelik denetlenir,
+Auto açıksa bayat / eksik HLOD üretilir. Kirli düzenleme kendiliğinden
+kaydedilmez; kamera ve hücre yükle / boşalt tetiklemez; kendi çıktıları ve
+boyanmış foliage (`foliage.json`, `foliage/`) izlenmez. Dev server'da proje
+başına tek kuyruk (`GET` / `POST /__forge/hlod`), iş ayrı Node sürecinde
+(`tools/world/hlodWorker.ts`); ardışık istekler birleşir. Tazelik damgası
+etkin yerleşimler + GUID çözümü + okunan dosya baytlarıdır, önbellek
+`.forge-cache/hlod/`. Yayımlama proje kilidinde; kaynak / çıktı değiştiyse
+sonuç atılır ve iş yeniden sıraya girer, hata önceki proxy setini geri
+yükler ve panelde görünür. Editör yeni yayımlamayı sayfa yenilemeden okur
+(seçim, kamera, kirli düzenleme, Undo korunur); zaten okunmuş yayımlama
+proxy'leri tekrar düşürmez. `forge hlod` aynı servisi kullanır. Doğrulama:
+odaklı Vitest 96 / 96, typecheck / katman / dosya bütçesi, başsız editör
+**78 / 78** (`hlod.spec.ts` dahil), gerçek WebGPU hlod / streaming / world
+**11 / 11**. Tam gate çalıştırılmadı; kullanıcı Derekavak kabulü açık.
+
 **Teknik doğrulama (2026-11-17):** tam gate koşusunda **299 dosya / 2.215
 Vitest testi**, **76 / 76 başsız editör**, tip / katman / dosya bütçesi / Node
 yükleme / asset / SDK / proje denetimleri, build ve `verify:dist --strict`
@@ -1244,3 +1266,4 @@ silinebilir.
 | 2026-11-17 | v1.39 | Faz 5b adım 10 ölçümü geçti: temiz a6f3521 (kod 1e1c987), 50.000 aktör / 1.024 hücre, gerçek WebGPU 1080p high DPR 1 uncapped. 2026-11-17T07-06-57-259Z-streaming.json: ilk uçuş p99 / max 13,3 / 35,1 ms, dönüş 13,8 / 36 ms; 10 döngü ve 32 sn bekleyiş sonrası aktör / önbellek 2.583 / 63, kararlı GPU 216 / 30, heap artışı %0,34 (sınır %5). API derleme sayaçları kaydedildi; saf derleyici / nedensel kanıt değil. Kaynak atma sayacı 0 sınırı korunur. Teknik kontroller ve ölçüm geçti; kullanıcı HLOD / detay fade görsel kabulü bekliyor, 5b kutusu açık ve arşiv yok. Hücre bölmesi 5c öncesi G6 / meshlet spike'ında; push yapılmadı. Mimari v1.42 |
 | 2026-11-17 | v1.40 | Faz 5c dökümü ve kararları (kullanıcı, "hepsi öneri gibi"): önce G6 / meshlet spike'ı (kod commit'lenmez), `forge.foliageType` asset'i, terrain aktöründe `forge.landscapeFoliage`, boyanmış foliage level parçası `foliage/<x>_<z>.bin`, bütün türlerde ve kaskatlarda compute culling + indirect, önce çalışma anı billboard'u, `forge.plantFamily` + `forge.plant`, içe aktarıcı çeviricileri, `measure:foliage`. 11 adım, Codex adımları işaretli. Adım 3 (Codex, Claude inceledi): `foliageRing` 8 A → **A 990 / 1.021**, prosedürel üretim saf modülleri, 25 odaklı test geçti; tam gate yok. Adım 2 spike'ı (kod commit'lenmedi): G6 gönderim sınırı foliage'sız statiklerle aşılıyor (2,9–3,1 ms); meshlet r187'de ters derinlikle devreye girmiyor; statikler + foliage `BundleGroup`'ta 1,81 ms gönderim / 2,31 ms ana iş parçacığı. Karar (kullanıcı): GPU culling + indirect + render bundle, statiklere de; meshlet ve hücre bölmesi reddedildi. Adım 3 ve 8'in kodu `c03f40d`. Adım 8'in saf çekirdeği ve kaya üreticisi (Codex) 24 testle. Mimari v1.43 |
 | 2026-11-17 | v1.41 | Faz 5c adım 4: `forge.foliageType@1`, `forge.landscapeFoliage@1`, eşleyici (şema varsayılanı = Forge varsayılan türü), boyanmış foliage level parçası `foliage.json` + `FFOL` v1 hücre dosyaları ve asset dizini denetimleri (`3706bc4`); 518 core + 5 feature testi, tip / katman / `verify:assets` geçti, SDK değişmedi. Kalan: içe aktarıcı çeviricileri (Codex kotası bitti, Claude yapacak). Adım 5 tasarımı: görünüm başına compute culling, kaskatlar `layers` ile ayrı dolaylı mesh, tek `BundleGroup`, kendi draw call sayacı; alt adımlar 5.1–5.6. Mimari v1.43 |
+| 2026-11-17 | v1.42 | Faz 5b: editörde otomatik HLOD üretimi (`0c16852`): WP panelinde Auto Generate HLOD + Generate / Rebuild / Save and Generate, beş durum ve son rapor; dev server'da proje başına kuyruk (`/__forge/hlod`), ayrı Node worker, `.forge-cache/hlod` tazelik önbelleği, kilitli atomik yayımlama / geri alma, canlı proxy yenileme. Claude incelemesinde foliage parçaları izlemeden çıkarıldı, durum mesajları İngilizce, okunmuş yayımlama proxy'leri yeniden düşürmez. Odaklı Vitest 96 / 96, başsız editör 78 / 78, gerçek WebGPU alt küme 11 / 11; tam gate yok. Kullanıcı Derekavak kabulü ve 5b görsel kabulü açık. Mimari v1.44 |
