@@ -112,7 +112,9 @@ export async function runHlodJob(request: HlodJobRequest, control?: { readonly c
   const builtAt = performance.now();
   const report: HlodBuildReport = { cells: result.index.cells.length,
     triangles: result.index.cells.reduce((sum, cell) => sum + cell.triangles, 0), skippedPlacements: result.skippedPlacements,
-    warnings: result.warnings, buildMs: Math.round(builtAt - started), totalMs: Math.round(builtAt - started) };
+    warnings: result.warnings, buildMs: Math.round(builtAt - started), totalMs: Math.round(builtAt - started),
+    clusters: result.index.clusters.length, clusterTriangles: result.index.clusters.reduce((sum, cluster) => sum + cluster.triangles, 0),
+    landmarkTriangles: result.index.landmarks?.triangles ?? 0 };
   if (request.dryRun) return { state, built: false, ...previous, report, message: "Dry run; no HLOD outputs or cache written" };
   if (control?.cancelled()) throw new Error("HLOD generation cancelled before publication");
   const inputs = { ...fingerprint.revisions, ...tracked.revisions };

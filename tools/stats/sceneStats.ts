@@ -19,7 +19,8 @@
 //   one view's draws (one per model slot after slot merging, ×2 for transparent
 //   double-sided), how many batches cast shadows (each draws again per
 //   shadow cascade).
-// - Foliage: landscape rules, painted instances; HLOD: cells and triangles.
+// - Foliage: landscape rules, painted instances; HLOD: cells, 4 × 4 clusters and
+//   landmarks with their triangles (plan 5c R8.5).
 
 import { getBounds, type Document, type Material as GltfMaterial } from "@gltf-transform/core";
 import { isId, type AssetId } from "../../src/core/id.ts";
@@ -63,7 +64,7 @@ export interface SceneStats {
   readonly draws: { readonly staticBatches: number; readonly shapeBatches: number; readonly drawsPerView: number; readonly shadowCastingBatches: number; readonly shadowDrawsPerCascade: number };
   readonly triangles: { readonly source: number };
   readonly foliage: { readonly landscapeRules: number; readonly paintedInstances: number; readonly paintedTypes: number };
-  readonly hlod: { readonly cells: number; readonly triangles: number } | null;
+  readonly hlod: { readonly cells: number; readonly triangles: number; readonly clusters: number; readonly clusterTriangles: number; readonly landmarkTriangles: number } | null;
   readonly models: readonly ModelStats[];
   readonly warnings: readonly string[];
 }
@@ -131,7 +132,11 @@ export interface SceneStatsInput {
   readonly input: Pick<HlodInput, "index">;
   readonly model: (id: string) => Promise<ModelInfo>;
   readonly foliageIndex: { readonly types: readonly unknown[]; readonly cells: readonly { readonly counts: readonly number[] }[] } | null;
-  readonly hlodIndex: { readonly cells: readonly { readonly triangles: number }[] } | null;
+  readonly hlodIndex: {
+    readonly cells: readonly { readonly triangles: number }[];
+    readonly clusters?: readonly { readonly triangles: number }[];
+    readonly landmarks?: { readonly triangles: number };
+  } | null;
 }
 
 export async function sceneStats(source: SceneStatsInput): Promise<SceneStats> {
@@ -252,7 +257,11 @@ export async function sceneStats(source: SceneStatsInput): Promise<SceneStats> {
     },
     triangles: { source: sourceTriangles + shapeTris },
     foliage: { landscapeRules, paintedInstances: painted, paintedTypes: source.foliageIndex?.types.length ?? 0 },
-    hlod: source.hlodIndex ? { cells: source.hlodIndex.cells.length, triangles: source.hlodIndex.cells.reduce((sum, cell) => sum + cell.triangles, 0) } : null,
+    hlod: source.hlodIndex ? {
+      cells: source.hlodIndex.cells.length, triangles: source.hlodIndex.cells.reduce((sum, cell) => sum + cell.triangles, 0),
+      clusters: source.hlodIndex.clusters?.length ?? 0, clusterTriangles: (source.hlodIndex.clusters ?? []).reduce((sum, cluster) => sum + cluster.triangles, 0),
+      landmarkTriangles: source.hlodIndex.landmarks?.triangles ?? 0,
+    } : null,
     models: modelStats,
     warnings: [...new Set(warnings)],
   };
@@ -269,7 +278,7 @@ export function formatSceneStats(stats: SceneStats, top = 10): string {
     `draws ${n(stats.draws.drawsPerView)} per view (${stats.draws.staticBatches} static + ${stats.draws.shapeBatches} shape batches); ${stats.draws.shadowCastingBatches} batches cast, ${n(stats.draws.shadowDrawsPerCascade)} draws per shadow cascade`,
     `triangles ${n(stats.triangles.source)} source (every placement at full detail)`,
     `foliage ${stats.foliage.landscapeRules} landscape rules, ${n(stats.foliage.paintedInstances)} painted instances of ${stats.foliage.paintedTypes} types`,
-    `hlod ${stats.hlod ? `${stats.hlod.cells} cells, ${n(stats.hlod.triangles)} triangles` : "none"}`,
+    `hlod ${stats.hlod ? `${stats.hlod.cells} cells, ${n(stats.hlod.triangles)} triangles; ${stats.hlod.clusters} clusters, ${n(stats.hlod.clusterTriangles)} triangles; landmarks ${n(stats.hlod.landmarkTriangles)} triangles` : "none"}`,
     `top models by placed triangles:`,
     ...stats.models.slice(0, top).map((model) => `  ${model.path ?? model.id}: ${n(model.placements)} × ${n(model.triangles)} = ${n(model.placedTriangles)} tris, ${model.primitives} primitives, ${model.slots} slots (${model.transparentSlots} transparent, ${model.doubleSidedSlots} double-sided), r ${model.radius} m`),
     ...stats.warnings.map((warning) => `warning ${warning}`),

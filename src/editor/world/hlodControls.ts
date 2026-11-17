@@ -30,7 +30,7 @@ export function createHlodControls(doc: Document, controller: HlodController) {
     state.textContent = view.writable ? `${LABEL[view.status.state]}${view.status.queued ? " · queued" : ""}${view.dirty ? " · unsaved changes" : ""}` : "Read-only level";
     const report = view.status.report;
     detail.textContent = [view.status.message,
-      report ? `${report.cells} proxy cells · ${report.triangles.toLocaleString("en-US")} triangles · ${(report.totalMs / 1000).toFixed(1)} s` : "",
+      report ? `${report.cells} proxy cells · ${report.triangles.toLocaleString("en-US")} triangles${report.clusters !== undefined ? ` · ${report.clusters} clusters (${(report.clusterTriangles ?? 0).toLocaleString("en-US")} triangles)` : ""}${report.landmarkTriangles ? ` · landmarks ${report.landmarkTriangles.toLocaleString("en-US")} triangles` : ""} · ${(report.totalMs / 1000).toFixed(1)} s` : "",
       report?.warnings.length ? `${report.warnings.length} warnings: ${report.warnings.slice(0, 3).join("; ")}${report.warnings.length > 3 ? "; …" : ""}` : "",
     ].filter(Boolean).join(" · ");
   };

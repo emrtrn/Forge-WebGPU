@@ -8,6 +8,11 @@ export interface HlodBuildReport {
   readonly warnings: readonly string[];
   readonly buildMs: number;
   readonly totalMs: number;
+  /** Layer 1 clusters and their triangles (plan 5c R8.5); absent in reports cached before. */
+  readonly clusters?: number;
+  readonly clusterTriangles?: number;
+  /** The landmark proxy's triangles; 0 without landmarks. */
+  readonly landmarkTriangles?: number;
 }
 
 export interface HlodBuildStatus {
