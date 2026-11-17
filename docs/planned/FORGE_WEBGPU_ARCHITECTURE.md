@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.59 · 2026-11-17 — §4.4 R9 kararı: statik batch'ler varsayılan instanced (GPU yolu ölçümde kazandırmadı); ikincil kamera görünümleri R9a'nın ilk adımı.
+**Güncelleme:** v1.60 · 2026-11-17 — §4.4 R9a adım 1 uygulandı: kamera görünümleri, görünüm rolü / katmanı, yansıma aynalanmış görünüm.
+
+**Önceki güncelleme:** v1.59 · 2026-11-17 — §4.4 R9 kararı: statik batch'ler varsayılan instanced (GPU yolu ölçümde kazandırmadı); ikincil kamera görünümleri R9a'nın ilk adımı.
 
 **Önceki güncelleme:** v1.58 · 2026-11-17 — §4.4 R8.0–R8.3 uygulandı: normalsiz proxy, çalışma anı slot birleştirme, `forge.levelHlod/2` küme katmanı.
 
@@ -878,7 +880,10 @@ features/height-fog/
     diğerleri) ana görünümün görünür listesini çizer ve `?debug` o geçişin dolaylı
     çizimlerini saymaz. Her kamera kendi görünümü olarak kaydedilir (kaskatlardaki gibi
     kendi katmanı, dispatch'i ve listesi), sayaca eklenir. Occlusion bunun üstüne kurulur:
-    ana kameranın occlusion sonucu ne gölgeye ne yansımaya uygulanır.
+    ana kameranın occlusion sonucu ne gölgeye ne yansımaya uygulanır. *Uygulandı
+    (2026-11-17, `ef12079`):* `gpuDriven.add(CameraViewSource)`; görünüm rol + katman taşır
+    (gölge 1–8, ana 9, kamera 10–13); düzlemsel yansıma ana görünümün aynası (`mirrorCullView`,
+    mesafe aynalanmış gözden, eğik yakın düzlem yok sayılır). WebGL2 ikizi aynı.
   - *Occlusion (yeni plan işi R9a, uygulanmadı):* meshlet'ten bağımsız nesne /
     instance düzeyinde konservatif GPU Hi-Z adayı; R8 ve R9'dan sonra, R10'dan
     önce tasarım + A/B ölçüm, yararlıysa üretim. Frustum / mesafe culling veya
