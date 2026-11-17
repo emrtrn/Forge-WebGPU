@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.57 · 2026-11-17 — R8 kararları ve uygulama planı (R8.0–R8.6): bundle kapalı, proxy'ler GPU yoluna girmez, slot düzeyinde kayıpsız materyal birleştirme, 4 × 4 ikinci HLOD katmanı, landmark katmanı ve far genişlemesi. Kod yok.
+**Güncelleme:** v1.58 · 2026-11-17 — R8.0–R8.3 uygulandı: HLOD sadeleştirmesi düzeldi (Derekavak 21.360 → 5.366 üçgen), slot birleştirme (118 → 15 draw / görünüm, P2 gönderim 0,711 → 0,53 ms), `forge.levelHlod/2` 4 × 4 küme katmanı ve çalışma anı geçişi. R8.4–R8.6 açık.
+
+**Önceki güncelleme:** v1.57 · 2026-11-17 — R8 kararları ve uygulama planı (R8.0–R8.6): bundle kapalı, proxy'ler GPU yoluna girmez, slot düzeyinde kayıpsız materyal birleştirme, 4 × 4 ikinci HLOD katmanı, landmark katmanı ve far genişlemesi. Kod yok.
 
 **Önceki güncelleme:** v1.56 · 2026-11-17 — R7 seçilebilir otomatik LOD altyapısı uygulandı ve iki arka uçta doğrulandı. Meshlet'e özel üretim kodu kaldırıldı; R6 araştırması korundu. v1.55'in R9a occlusion kararı değişmedi; R8 / R9 / R9a / R10 açık.
 
@@ -1171,6 +1173,34 @@ görüş 2000 m, hücre 128 m, 22 hücre. 4 × 4 katmanın etkisi StreamingBench
 | R8.5 | `forge stats`, `?debug`, World Partition panelinde katman / proxy / birleşmiş draw | Rapor iki level'da |
 | R8.6 | R8.0 ölçümünün tekrarı, öncesi / sonrası | Draw ve gönderim düşer; kullanıcı görsel kabulü (geçişte titreme yok, landmark) |
 
+**R8 ilerleme kaydı (2026-11-17; v1.58):**
+- [x] **R8.0** (`af30c37`): teşhis: proxy'deki yüz başına normaller `weld`'in hiçbir köşeyi
+  birleştirmesine izin vermiyordu, sadeleştirici yalnız kenar görüp her üçgeni tutuyordu.
+  Proxy artık yalnız konum + renk taşır, ortak materyal `flatShading`; çift yüzlü parçalar
+  ayrı sadeleşir, arka yüzleri sonra eklenir. Derekavak HLOD **21.360 → 5.366** üçgen.
+  Temel ölçüm `2026-11-17T15-10-01-535Z-gpu-driven.json`.
+- [x] **R8.1** (`018c559`): slot birleştirme çalışma anında, şablon başına bir kez
+  (`render/resources/modelParts.ts`); aynı slot + aynı köşe nitelikleri tek geometri,
+  matris pişer (aynalıda sarım çevrilir), çok materyalli mesh grup grup bölünür, morph /
+  skinned birleşmez. Planlanan cache / build türevi gerekmedi: birleştirme yalnız
+  birleştirme (O(n) kopya), dosya okumaktan ucuz; geometriler şablonun, model cache
+  girdisiyle atılır. `forge stats` Derekavak **118 → 15 draw / görünüm**, gölge kaskadı
+  başına da 15. Render smoke gerçek WebGPU **29 / 29** (referans çekimleri dahil; görüntü
+  değişmedi). Derekavak P2 (`2026-11-17T15-16-42-577Z-gpu-driven.json`): gönderim
+  0,711 → **0,53 ms**, kare CPU 1,12 → 0,98, foliage ile 1,343 → 0,89 ms; GPU aynı (1,97).
+  O koşudaki `sceneDraws` geçersiz (three'nin RAF'ı sayacı sıfırlıyordu; ölçüm
+  `82c0150`'de düzeltildi); önceki değer R6'nın P2 kaydı 398 draw.
+- [x] **R8.2 / R8.3** (`82c0150`): `forge.levelHlod/2` + `clusters`, dosyalar aynı klasörde
+  `hlod/l1_<x>_<z>.glb` (planlanan alt klasör yerine; yayımlama / tarama değişmeden kalır).
+  Küme, hücre proxy'lerinin sadeleşmiş çıktısını bir kez daha sadeleştirir; hash hücre
+  kayıtlarını kapsar, bayatlık denetimi kümeyi de görür. `HlodSource.load(file)` göreli
+  dosya alır. Çalışma anı: geçişin ötesinde, hücresi etkin olmayan küme çizilir, altındaki
+  hücreler okunmaz; yaklaşınca küme görünür hücrelerin okuması bitene kadar kalır (%10
+  histerezis), etkin hücre kümeyi hemen gizler. Kalite çarpanı host'tan gelir. Derekavak:
+  22 hücre / 5.366 üçgen → 4 küme / 1.372 üçgen. Odaklı Vitest 421; editör HLOD + akış
+  testleri gerçek WebGPU'da 5 / 5.
+- [ ] R8.4 landmark, R8.5 rapor / panel, R8.6 son ölçüm + kullanıcı görsel kabulü.
+
 **R7 önceki uygulama taslağı (v1.54, tarihsel; yukarıdaki güncel kapsam geçerli):**
 1. r187 hattını sürümü ve MIT kaynağı belgelenmiş render kopyasında tut;
    ters derinlikte yalnız occlusion kapalı yolu aç. Uygunluğu gerekçeleriyle
@@ -1742,3 +1772,4 @@ silinebilir.
 | 2026-11-17 | v1.55 | Kullanıcı meshlet'i şimdilik üretimden çıkardı; v1.54 hibrit seçimi tarihsel kaldı. Devam eden R7 otomatik LOD / cache / build / runtime kapsamına daraltıldı; meshlet'e özel kod ayrımı geliştiren oturumun işi, bu belge değişikliği kod temizliği yapmadı. R6 kanıtları korundu. Bağımsız konservatif GPU occlusion culling R9a olarak R9 sonrası / R10 öncesi tasarım + ölçüm / yararlıysa üretim işi şeklinde eklendi. Occlusion uygulanmadı; yanlış gizleme, gölge, ters derinlik ve net maliyet kapıları yazıldı. |
 | 2026-11-17 | v1.56 | R7 otomatik LOD üretim altyapısı tamamlandı: deterministik Node cache / build, tarayıcı worker, ekran hatasıyla seçim, seçilebilir 5.1 GPU / WebGL2 CPU bağı; genel statikler R9'a kadar değişmedi. Meshlet'e özel üretim dosyaları ve pipeline bağı kaldırıldı; R6 dört kaynak hash'i kayıtla eşit. Küçük / kazançsız LOD, materyal grupları, CPU picking, fade / yerel transform, kaynak ömrü, iptal / compileAsync / HLOD hazır olma korundu. 21 odaklı test, typecheck, katman; ilgili render alt kümesi 7 / 7. Odaklı production build ve ayrı worker paketi geçti; dist tarayıcı smoke'u çalıştırılmadı. Dar P2 ek nesne ölçümünde native = Stats 438 draw, 40 dolaylı; bundle 16 replay / 0 yeniden kayıt; render / compute ayrı. G6 açık, son R6 3,03 ms. v1.55'in R9a kararı korundu; R8 / R9 / R9a / R10 başlamadı. Kod 134b2aa; docs ayrı commit, push ve tam gate yok. |
 | 2026-11-17 | v1.57 | R8 kararları (kullanıcı): bundle kapalı kalır, R10 öncesi yeniden ölçülür; HLOD proxy'leri GPU güdümlü yola girmez (tek örnekli, indirect kazanç yok); slot düzeyinde kayıpsız primitive birleştirme (atlas sonra); 4 × 4 ikinci katman, geçiş `max(2 × loadRange, 6 × hücre)`; bileşen landmark işareti ve far genişlemesi. Uygulama sırası R8.0–R8.6. Kod yok |
+| 2026-11-17 | v1.58 | R8.0 (`af30c37`): proxy normalleri `weld`'i engelliyordu; konum + renk, düz gölgeleme, çift yüzlüler ayrı; Derekavak HLOD 21.360 → 5.366 üçgen. R8.1 (`018c559`): şablon başına slot birleştirme (çalışma anında; cache / build türevi gerekmedi), Derekavak 118 → 15 draw / görünüm, P2 gönderim 0,711 → 0,53 ms, render smoke 29 / 29. R8.2 / R8.3 (`82c0150`): `forge.levelHlod/2` küme katmanı (`hlod/l1_<x>_<z>.glb`), çalışma anı geçişi + histerezis; Derekavak 4 küme / 1.372 üçgen; editör HLOD / akış 5 / 5 gerçek WebGPU. R8.4–R8.6 açık |

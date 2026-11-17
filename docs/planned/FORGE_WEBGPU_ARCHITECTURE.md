@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.57 · 2026-11-17 — §4.4 R8 draw call kararları: bundle kapalı, proxy'ler düz mesh, slot düzeyinde primitive birleştirme, `forge.levelHlod/2` 4 × 4 katman, landmark ve far genişlemesi. Kod yok.
+**Güncelleme:** v1.58 · 2026-11-17 — §4.4 R8.0–R8.3 uygulandı: normalsiz proxy, çalışma anı slot birleştirme, `forge.levelHlod/2` küme katmanı.
+
+**Önceki güncelleme:** v1.57 · 2026-11-17 — §4.4 R8 draw call kararları.
 
 **Önceki güncelleme:** v1.56 · 2026-11-17 — §4.4 R7 seçilebilir otomatik LOD / worker / cache / build bağı uygulandı. Meshlet'e özel üretim kodu kaldırıldı, R6 araştırması korundu. v1.55 R9a occlusion kararı değişmedi; uygulanmadı.
 
@@ -897,6 +899,11 @@ features/height-fog/
     üretilir. Bileşen landmark işareti tek level proxy'sine pişer, görüş ötesinde
     çizilir; kamera far'ı landmark menziline genişler, diğer içerik görüş
     mesafesinde culling'le kalır.
+    *Uygulama (v1.58):* slot birleştirme çalışma anında, model şablonu başına bir kez
+    (`render/resources/modelParts.ts`; cache / build türevi gerekmedi, geometriler
+    şablonun). Proxy'ler normalsiz (konum + renk), ortak materyal düz gölgeler.
+    Küme proxy'leri `hlod/l1_<x>_<z>.glb` (hücrelerle aynı klasör); `HlodSource.load`
+    level'a göreli dosya alır.
   - *Uygulama başı (2026-11-17):* `engine/world/foliageRing` (8 A, A 990 /
     1.021) ve `engine/foliage/{foliageTypeParams,foliageRoll,proceduralFoliage}`
     Forge algoritmalarıyla taşındı; boya / silme fırçası 5d'de.
