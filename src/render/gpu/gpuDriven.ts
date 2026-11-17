@@ -3,29 +3,31 @@
 // all their dispatches in one compute pass.
 //
 // Draw counting: three counts no indirect draw in `renderer.info` (and no
-// draw inside a render bundle, 5.3); `lastDraws` is the indirect draws the
-// last culled frame issues for the main view, which the `?debug` readout and
-// the perf witness add to three's count.
+// draw inside a render bundle, 5.3); `lastDraws` is the draws of the last
+// culled frame three did not count, which the `?debug` readout and the perf
+// witness add to three's count.
 //
-// WebGPU only (compute atomics, indirect draws): on the WebGL2 test backend
-// `supported` is false and `createBatch` returns null; the owner draws
-// nothing GPU-driven there (an open question for 5.4 / 5.5, plan 5c step 5).
+// The GPU path needs WebGPU (compute atomics, indirect draws). On the WebGL2
+// test backend `supported` is false and `createBatch` builds the CPU twin
+// (`cpuDrivenBatch.ts`: the CPU reference culls, instanced meshes draw; user
+// decision 2026-11-17), behind the same interface.
 
 import { Matrix4, Vector3, WebGPUCoordinateSystem, type Camera, type ComputeNode, type Object3D, type WebGPURenderer } from "three/webgpu";
 import { frustumPlanesOf, type InstanceCullView } from "../../engine/world/instanceCulling.ts";
+import { createCpuDrivenBatch } from "./cpuDrivenBatch.ts";
 import { createGpuDrivenBatch, type GpuDrivenBatch, type GpuDrivenBatchOptions } from "./gpuDrivenBatch.ts";
 
 export interface GpuDrivenStats {
   readonly batches: number;
   readonly instances: number;
-  /** Indirect draws of the main view in the last culled frame. */
+  /** Draws of the main view in the last culled frame (counted by three or not). */
   readonly draws: number;
 }
 
 export interface GpuDrivenDrawing {
+  /** The GPU path (WebGPU); false: batches are the CPU twin (WebGL2). */
   readonly supported: boolean;
-  /** Null where the backend cannot draw GPU-driven (WebGL2). */
-  createBatch(options: GpuDrivenBatchOptions): GpuDrivenBatch | null;
+  createBatch(options: GpuDrivenBatchOptions): GpuDrivenBatch;
   /** Disposes the batch and stops culling it. */
   removeBatch(batch: GpuDrivenBatch): void;
   /** Culls the batches drawn in `scene` for `camera`; before the frame's render. */
@@ -34,6 +36,7 @@ export interface GpuDrivenDrawing {
   readonly lastView: InstanceCullView | null;
   /** The batches the last cull dispatched. */
   readonly lastBatches: readonly GpuDrivenBatch[];
+  /** Draws of the last culled frame `renderer.info` did not count. */
   readonly lastDraws: number;
   stats(): GpuDrivenStats;
   dispose(): void;
@@ -52,12 +55,12 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
   let lastView: InstanceCullView | null = null;
   let lastBatches: GpuDrivenBatch[] = [];
   let lastDraws = 0;
+  let draws = 0;
 
   return {
     supported,
     createBatch(options) {
-      if (!supported) return null;
-      const batch = createGpuDrivenBatch(renderer, options);
+      const batch = supported ? createGpuDrivenBatch(renderer, options) : createCpuDrivenBatch(renderer, options);
       batches.set(batch, options.parent);
       return batch;
     },
@@ -69,20 +72,24 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
     cull(scene, camera) {
       lastBatches = [];
       lastDraws = 0;
+      draws = 0;
       if (batches.size === 0) return;
-      // Before the first frame the camera may still hold a WebGL-style projection.
-      if ((camera as { coordinateSystem?: number }).coordinateSystem !== WebGPUCoordinateSystem) return;
+      // Before the first WebGPU frame the camera may still hold a WebGL-style projection.
+      const webgpuClip = (camera as { coordinateSystem?: number }).coordinateSystem === WebGPUCoordinateSystem;
+      if (supported && !webgpuClip) return;
       camera.updateMatrixWorld();
       viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
       camera.getWorldPosition(position);
-      const view: InstanceCullView = { planes: frustumPlanesOf(viewProjection.elements), origin: [position.x, position.y, position.z] };
+      const planes = frustumPlanesOf(viewProjection.elements, webgpuClip ? "zeroToOne" : "minusOneToOne");
+      const view: InstanceCullView = { planes, origin: [position.x, position.y, position.z] };
       const dispatches: ComputeNode[] = [];
       for (const [batch, parent] of batches) {
         // An empty batch still dispatches: its arguments go back to zero instances.
         if (!inScene(parent, scene)) continue;
         dispatches.push(...batch.prepare(view));
         lastBatches.push(batch);
-        lastDraws += batch.draws;
+        lastDraws += batch.uncountedDraws;
+        draws += batch.draws;
       }
       lastView = view;
       if (dispatches.length > 0) renderer.compute(dispatches);
@@ -93,7 +100,7 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
     stats() {
       let instances = 0;
       for (const batch of batches.keys()) instances += batch.instances.count;
-      return { batches: batches.size, instances, draws: lastDraws };
+      return { batches: batches.size, instances, draws };
     },
     dispose() {
       for (const batch of batches.keys()) batch.dispose();

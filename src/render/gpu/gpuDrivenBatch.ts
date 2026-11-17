@@ -23,11 +23,12 @@
 //   meshes: what changes per frame is uniforms and GPU buffers.
 // - The instance buffers growing replaces the compute nodes, materials and
 //   meshes (`GpuInstances.generation`); nothing else does.
-// - WebGPU only: the WebGL2 fallback has no compute atomics or indirect
-//   draws; `gpuDriven.ts` does not build batches there.
+// - WebGPU only: the WebGL2 test backend has no compute atomics or indirect
+//   draws; there `gpuDriven.ts` builds the CPU twin (`cpuDrivenBatch.ts`).
 
 import {
   BufferGeometry,
+  DoubleSide,
   IndirectStorageBufferAttribute,
   Matrix4,
   Mesh,
@@ -121,11 +122,15 @@ export interface GpuBatchDistances {
 
 export interface GpuDrivenBatch {
   readonly name: string;
+  /** `gpu`: compute culling and indirect draws; `cpu`: the WebGL2 twin (CPU culling, instanced draws). */
+  readonly path: "gpu" | "cpu";
+  /** Draws a view issues that `renderer.info` does not count (all of the GPU path's, none of the CPU path's). */
+  readonly uncountedDraws: number;
   readonly instances: GpuInstances;
   /** One per indirect draw of the main view, under `parent`. */
   readonly meshes: readonly Mesh[];
   readonly lodCount: number;
-  /** Indirect draws a view issues (the meshes): renderer.info does not see them inside a bundle. */
+  /** Draws a view issues: one per mesh and material pass (a transparent double-sided material draws twice). */
   readonly draws: number;
   setDistances(distances: GpuBatchDistances): void;
   /** The CPU reference's view of this batch (bounds, distances) as the GPU culls it. */
@@ -171,11 +176,31 @@ function indirectGeometry(source: BufferGeometry): BufferGeometry {
   return geometry;
 }
 
+/** Passes three draws a material in: two for a transparent double-sided one (back faces, then front faces). */
+export function drawPasses(material: Material): number {
+  return material.transparent && material.side === DoubleSide && !material.forceSinglePass ? 2 : 1;
+}
+
+/** A node-material copy of `source` (a plain material through the renderer's node library). */
+export function cloneNodeMaterial(renderer: WebGPURenderer, source: Material, batch: string): NodeMaterial {
+  const node = (source as NodeMaterial).isNodeMaterial ? source : renderer.library.fromMaterial(source);
+  if (!node) throw new Error(`gpu batch ${batch}: no node material for ${source.type}`);
+  return node.clone() as NodeMaterial;
+}
+
+/** The dither mask of a fade: kept where the screen-door threshold is below `shown` (and the material's own mask). */
+export function maskWithFade(material: NodeMaterial, shown: Node<"float">): void {
+  const keeps = detailFadeDither.lessThan(shown);
+  material.maskNode = material.maskNode ? bool(material.maskNode as Node<"bool">).and(keeps) : keeps;
+  material.maskShadowNode = material.maskShadowNode ? bool(material.maskShadowNode as Node<"bool">).and(keeps) : keeps;
+}
+
 export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrivenBatchOptions): GpuDrivenBatch {
   const lodCount = options.lods.length;
   if (lodCount < 1 || lodCount > MAX_INSTANCE_LODS) throw new Error(`gpu batch ${options.name}: 1 to ${MAX_INSTANCE_LODS} LODs`);
   const instances = createGpuInstances(options.capacity);
   const draws = options.lods.flatMap((parts, lod) => parts.flatMap((part) => partDraws(lod, part)));
+  const drawCount = draws.reduce((sum, draw) => sum + drawPasses(draw.material), 0);
   const argsArray = new Uint32Array(draws.length * ARGS);
   draws.forEach((draw, index) => { argsArray[index * ARGS] = draw.count; argsArray[index * ARGS + 2] = draw.start; });
   const argsBuffer = new IndirectStorageBufferAttribute(argsArray, 1);
@@ -199,11 +224,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
   let meshes: Mesh[] = [];
   let materials: Material[] = [];
 
-  const nodeMaterialOf = (source: Material): NodeMaterial => {
-    const node = (source as NodeMaterial).isNodeMaterial ? source : renderer.library.fromMaterial(source);
-    if (!node) throw new Error(`gpu batch ${options.name}: no node material for ${source.type}`);
-    return node.clone() as NodeMaterial;
-  };
+  const nodeMaterialOf = (source: Material): NodeMaterial => cloneNodeMaterial(renderer, source, options.name);
 
   const release = (): void => {
     for (const mesh of meshes) { mesh.removeFromParent(); mesh.geometry.dispose(); }
@@ -290,9 +311,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         ]);
         const { measured } = measure(instanceMatrix);
         const shown = varying(float(1).sub(smoothstep(fade.x, fade.y, measured)).mul(extraRead.element(slot).x), "vForgeGpuFade");
-        const keeps = detailFadeDither.lessThan(shown);
-        material.maskNode = material.maskNode ? bool(material.maskNode as Node<"bool">).and(keeps) : keeps;
-        material.maskShadowNode = material.maskShadowNode ? bool(material.maskShadowNode as Node<"bool">).and(keeps) : keeps;
+        maskWithFade(material, shown);
         sources.set(key, material);
         materials.push(material);
       }
@@ -314,10 +333,12 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
 
   const batch: GpuDrivenBatch = {
     name: options.name,
+    path: "gpu",
+    uncountedDraws: drawCount,
     instances,
     get meshes() { return meshes; },
     lodCount,
-    draws: draws.length,
+    draws: drawCount,
     setDistances(next) {
       if (next.lodStarts.length !== lodCount - 1) throw new Error(`gpu batch ${options.name}: ${lodCount - 1} LOD starts`);
       distances = next;

@@ -52,10 +52,12 @@ export interface InstanceCullView {
 
 /**
  * The six planes of a view-projection matrix (column-major) whose clip depth
- * is 0..w (WebGPU; reversed depth too: only near and far swap). A plane whose
- * normal vanishes (an infinite far plane) becomes (0, 0, 0, 1): always inside.
+ * is 0..w (WebGPU; reversed depth too: only near and far swap), or -w..w
+ * (`minusOneToOne`: WebGL, the CPU twin on the WebGL2 test backend). A plane
+ * whose normal vanishes (an infinite far plane) becomes (0, 0, 0, 1): always
+ * inside.
  */
-export function frustumPlanesOf(viewProjection: ArrayLike<number>): Float32Array {
+export function frustumPlanesOf(viewProjection: ArrayLike<number>, clipDepth: "zeroToOne" | "minusOneToOne" = "zeroToOne"): Float32Array {
   const m = (row: number, column: number): number => viewProjection[column * 4 + row]!;
   const row = (index: number): [number, number, number, number] => [m(index, 0), m(index, 1), m(index, 2), m(index, 3)];
   const [r0, r1, r2, r3] = [row(0), row(1), row(2), row(3)];
@@ -64,7 +66,7 @@ export function frustumPlanesOf(viewProjection: ArrayLike<number>): Float32Array
     r3.map((value, i) => value - r0[i]!),
     r3.map((value, i) => value + r1[i]!),
     r3.map((value, i) => value - r1[i]!),
-    r2,
+    clipDepth === "zeroToOne" ? r2 : r3.map((value, i) => value + r2[i]!),
     r3.map((value, i) => value - r2[i]!),
   ];
   const out = new Float32Array(24);
@@ -80,6 +82,23 @@ export function frustumPlanesOf(viewProjection: ArrayLike<number>): Float32Array
 export function maxAxisScale(matrices: ArrayLike<number>, at: number): number {
   const column = (c: number): number => Math.hypot(matrices[at + c * 4]!, matrices[at + c * 4 + 1]!, matrices[at + c * 4 + 2]!);
   return Math.max(column(0), column(1), column(2));
+}
+
+/** The instance's measured distance from `origin` (the matrix at `at`): to its origin, ÷ its largest axis scale when `scaled`. */
+export function measuredDistance(matrices: ArrayLike<number>, at: number, mode: InstanceDistanceMode, origin: Readonly<Vec3>): number {
+  const raw = Math.hypot(matrices[at + 12]! - origin[0], matrices[at + 13]! - origin[1], matrices[at + 14]! - origin[2]);
+  return mode === "scaled" ? raw / Math.max(maxAxisScale(matrices, at), 1e-6) : raw;
+}
+
+/**
+ * How much of an instance the fade band shows at a measured distance: 1 before
+ * `fadeStart`, 0 from `cullEnd`, smoothstep between (the dither threshold
+ * compares with it, as the GPU path's material does).
+ */
+export function fadeShown(distance: number, fadeStart: number, cullEnd: number): number {
+  if (!(cullEnd > fadeStart)) return distance < cullEnd ? 1 : 0;
+  const t = Math.min(1, Math.max(0, (distance - fadeStart) / (cullEnd - fadeStart)));
+  return 1 - t * t * (3 - 2 * t);
 }
 
 /** -1 certainly below `limit`, 1 certainly at or above it, 0 within the margin. */
@@ -113,7 +132,6 @@ export function cullInstanceCounts(
   const possible = new Array<number>(lods).fill(0);
   const visible: number[][] = Array.from({ length: lods }, () => []);
   const [cx, cy, cz] = batch.center;
-  const [ox, oy, oz] = view.origin;
   for (let index = 0; index < count; index += 1) {
     const at = index * 16;
     const e = (i: number): number => matrices[at + i]!;
@@ -130,8 +148,7 @@ export function cullInstanceCounts(
       const s = side(n[p]! * wx + n[p + 1]! * wy + n[p + 2]! * wz + n[p + 3]!, -radius);
       if (s < inside) inside = s;
     }
-    const raw = Math.hypot(e(12) - ox, e(13) - oy, e(14) - oz);
-    const distance = batch.distanceMode === "scaled" ? raw / Math.max(scale, 1e-6) : raw;
+    const distance = measuredDistance(matrices, at, batch.distanceMode, view.origin);
     // Near: below the cull end (strictly, as the shader's `lessThan`).
     const far = side(distance, batch.cullEnd);
     const near: -1 | 0 | 1 = far === 1 ? -1 : far === -1 ? 1 : 0;

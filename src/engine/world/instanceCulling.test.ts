@@ -1,9 +1,11 @@
 import { describe, expect, test } from "vitest";
 import {
   cullInstanceCounts,
+  fadeShown,
   frustumPlanesOf,
   lodStartsOfScreenSizes,
   maxAxisScale,
+  measuredDistance,
   NO_CULL_DISTANCE,
   type InstanceCullBatch,
 } from "./instanceCulling.ts";
@@ -52,6 +54,21 @@ describe("instance culling reference", () => {
     expect(Array.from(frustumPlanesOf(multiply(perspective(60, 1, 0.1, Infinity, true), view([0, 0, 0]))).slice(16, 20))).toEqual([0, 0, 0, 1]);
   });
 
+  test("planes of a WebGL projection (clip depth -w..w, the WebGL2 twin)", () => {
+    const f = 1 / Math.tan(Math.PI / 6);
+    const [near, far] = [0.1, 1000];
+    const gl = [f, 0, 0, 0, 0, f, 0, 0, 0, 0, -(far + near) / (far - near), -1, 0, 0, (-2 * far * near) / (far - near), 0];
+    const planes = frustumPlanesOf(multiply(gl, view([0, 0, 0])), "minusOneToOne");
+    const inside = (z: number): boolean => {
+      for (let p = 0; p < 24; p += 4) if (planes[p + 2]! * z + planes[p + 3]! < 0) return false;
+      return true;
+    };
+    expect([inside(-0.05), inside(-0.2), inside(-500), inside(-1500)]).toEqual([false, true, true, false]);
+    // Read as 0..w, the same matrix would cut at its middle depth.
+    const wrong = frustumPlanesOf(multiply(gl, view([0, 0, 0])));
+    expect(wrong[18]! * -0.15 + wrong[19]!).toBeLessThan(0);
+  });
+
   test("an instance is drawn when its sphere touches the view and it is nearer than the cull end", () => {
     const planes = frustumPlanesOf(multiply(perspective(60, 1, 0.1, 1000, true), view([0, 0, 0])));
     const list = matrices(
@@ -83,6 +100,14 @@ describe("instance culling reference", () => {
     expect(result.certain).toEqual([1, 1, 1]);
     expect(result.possible).toEqual([1, 2, 2]);
     expect(() => cullInstanceCounts(list, 4, { ...BATCH, lodStarts: [1, 2, 3, 4] }, { planes, origin: [0, 0, 0] })).toThrow(/at most 4/);
+  });
+
+  test("measured distance and how much the fade band shows", () => {
+    const list = matrices(translation(3, 4, 0, 2));
+    expect(measuredDistance(list, 0, "origin", [0, 0, 0])).toBe(5);
+    expect(measuredDistance(list, 0, "scaled", [0, 0, 0])).toBe(2.5);
+    expect([fadeShown(10, 20, 40), fadeShown(30, 20, 40), fadeShown(40, 20, 40)]).toEqual([1, 0.5, 0]);
+    expect([fadeShown(39, 40, 40), fadeShown(40, 40, 40)]).toEqual([1, 0]);
   });
 
   test("scale and LOD starts of screen sizes", () => {

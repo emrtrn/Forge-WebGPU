@@ -23,6 +23,8 @@ export interface DevGpuType {
 }
 
 export interface DevGpuInstall {
+  /** `gpu` (WebGPU) or `cpu` (the WebGL2 twin). */
+  readonly path: "gpu" | "cpu";
   readonly batches: number;
   readonly instances: number;
   readonly parts: number;
@@ -63,7 +65,6 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
       const current = host();
       const scene = current?.world?.scene;
       if (!current || !scene) throw new Error("no world is drawn");
-      if (!current.gpuDriven.supported) throw new Error("GPU-driven drawing needs the WebGPU backend");
       group = new Group();
       group.name = "gpuDrivenDev";
       scene.add(group);
@@ -84,14 +85,14 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
           name: `foliage/${type.name}`, parent: group, lods: [templateParts], source: "foliage",
           bounds: { center: [sphere.center.x, sphere.center.y, sphere.center.z], radius: sphere.radius }, distanceMode: "origin",
           capacity: type.matrices.length / 16,
-        })!;
+        });
         const window = foliageFadeWindow(type.cullStart, type.cullEnd, cullScale);
         batch.setDistances({ fadeStart: window?.[0] ?? NO_CULL_DISTANCE, cullEnd: window?.[1] ?? NO_CULL_DISTANCE, lodStarts: [] });
         batch.instances.addMany(type.matrices, type.matrices.length / 16);
         batches.push(batch);
         parts += templateParts.length; instances += batch.instances.count; draws += batch.draws;
       }
-      return { batches: batches.length, instances, parts, draws };
+      return { path: current.gpuDriven.supported ? "gpu" : "cpu", batches: batches.length, instances, parts, draws };
     },
     async check() {
       const current = host();

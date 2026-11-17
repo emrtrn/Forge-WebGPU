@@ -9,6 +9,9 @@
 // - the `?debug` draw count grows by exactly the indirect draws (three counts
 //   none of them) and the image changes where the foliage draws;
 // - no page or GPU error.
+// The same on the WebGL2 test backend (`?forceWebGL`; never a WebGPU
+// acceptance): the batches are the CPU twin (the reference culls, instanced
+// meshes draw; three counts those draws itself).
 // A shot goes to render-refs/candidates/ for the eye and the counts to
 // render-refs/runs/; nothing is compared with a reference image.
 
@@ -26,7 +29,7 @@ interface Dev {
   step(ms: number): Promise<{ ran: boolean }>;
   moveCamera(x: number, y: number, z: number, look?: readonly [number, number, number]): void;
   gpuDriven: {
-    install(types: FoliageSceneType[], cullScale: number): Promise<{ batches: number; instances: number; parts: number; draws: number }>;
+    install(types: FoliageSceneType[], cullScale: number): Promise<{ path: "gpu" | "cpu"; batches: number; instances: number; parts: number; draws: number }>;
     check(): Promise<Check[]>;
     stats(): { batches: number; instances: number; draws: number } | null;
     remove(): Promise<void>;
@@ -59,7 +62,8 @@ async function readoutDraws(page: Page): Promise<number> {
 
 test.use({ viewport: SMOKE_VIEWPORT });
 
-test("gpu culling: Derekavak's foliage culls on the GPU as the CPU reference does", async ({ page }, testInfo) => {
+for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend}): Derekavak's foliage culls as the CPU reference does`, async ({ page }, testInfo) => {
+  const webgl = backend === "webgl";
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error" && !isOptionalHlodMiss(message)) errors.push(message.text()); });
@@ -69,8 +73,8 @@ test("gpu culling: Derekavak's foliage culls on the GPU as the CPU reference doe
   const foliage = derekavakFoliage([p2.position![0], p2.position![2]]);
   expect({ cells: foliage.cells, instances: foliage.instances }).toEqual({ cells: 370, instances: 1640 });
 
-  await openSmokeLevel(page, scene.level, p2, "&debug");
-  await expect(page.locator("canvas[data-forge-backend='webgpu']")).toBeVisible();
+  await openSmokeLevel(page, scene.level, p2, webgl ? "&debug&forceWebGL" : "&debug");
+  await expect(page.locator(`canvas[data-forge-backend='${webgl ? "webgl2" : "webgpu"}']`)).toBeVisible();
   // The readout reads three's count between frames: the frame loop runs for it.
   await expect.poll(() => readoutDraws(page), { timeout: 20_000 }).toBeGreaterThan(0);
   await page.waitForTimeout(1500);
@@ -80,7 +84,7 @@ test("gpu culling: Derekavak's foliage culls on the GPU as the CPU reference doe
   const plain = await page.getByTestId("forge-canvas").screenshot();
 
   const installed = await dev(page).install(foliage.types, foliage.cullScale);
-  expect(installed).toMatchObject({ batches: foliage.types.length, instances: 1640 });
+  expect(installed).toMatchObject({ path: webgl ? "cpu" : "gpu", batches: foliage.types.length, instances: 1640 });
   await steps(page, 6);
 
   const views: Array<{ id: string; checks: Check[] }> = [];
@@ -106,7 +110,7 @@ test("gpu culling: Derekavak's foliage culls on the GPU as the CPU reference doe
   const changed = await difference(page, plain, drawn);
   expect(changed, "the foliage changes the image").toBeGreaterThan(0.5);
   await dev(page).resume();
-  await expect.poll(() => readoutDraws(page), { timeout: 20_000, message: "the readout adds the indirect draws three does not count" })
+  await expect.poll(() => readoutDraws(page), { timeout: 20_000, message: "the readout counts every draw of the batches, indirect or not" })
     .toBe(drawsBefore + installed.draws);
   const drawsAfter = await readoutDraws(page);
   const stats = await dev(page).stats();
@@ -130,6 +134,7 @@ test("gpu culling: Derekavak's foliage culls on the GPU as the CPU reference doe
   const record = {
     schema: 1,
     kind: "phase 5c step 5.1 GPU-driven culling smoke",
+    backend,
     date: new Date().toISOString(),
     commit: git(["rev-parse", "HEAD"]),
     dirty: git(["status", "--porcelain"]) !== "",
@@ -143,8 +148,9 @@ test("gpu culling: Derekavak's foliage culls on the GPU as the CPU reference doe
   const stamp = record.date.replace(/[:.]/g, "-");
   mkdirSync(join(RENDER_REFS, "runs"), { recursive: true });
   mkdirSync(join(RENDER_REFS, "candidates"), { recursive: true });
-  writeFileSync(join(RENDER_REFS, "runs", `${stamp}-gpu-culling.json`), `${JSON.stringify(record, null, 2)}\n`);
-  writeFileSync(join(RENDER_REFS, "candidates", "derekavak-p2-gpu-foliage.png"), drawn);
-  await testInfo.attach("derekavak-p2-gpu-foliage", { body: drawn, contentType: "image/png" });
-  console.log(`gpu culling: ${JSON.stringify(record.views.map((view) => [view.id, view.visible]))}, draws ${installed.draws}`);
+  const suffix = webgl ? "-webgl" : "";
+  writeFileSync(join(RENDER_REFS, "runs", `${stamp}-gpu-culling${suffix}.json`), `${JSON.stringify(record, null, 2)}\n`);
+  writeFileSync(join(RENDER_REFS, "candidates", `derekavak-p2-gpu-foliage${suffix}.png`), drawn);
+  await testInfo.attach(`derekavak-p2-gpu-foliage${suffix}`, { body: drawn, contentType: "image/png" });
+  console.log(`gpu culling (${backend}): ${JSON.stringify(record.views.map((view) => [view.id, view.visible]))}, draws ${installed.draws}`);
 });
