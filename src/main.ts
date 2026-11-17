@@ -313,6 +313,7 @@ async function start(): Promise<void> {
         stats: () => viewer.host?.gpuDriven.stats() ?? null,
         bundleRecords: async () => (await devGpuDriven()).bundleRecords(),
         remove: async () => (await devGpuDriven()).remove(),
+        mirror: async (plane: Parameters<DevGpuDriven["mirror"]>[0]) => (await devGpuDriven()).mirror(plane),
       },
     };
   }

@@ -22,6 +22,7 @@ import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { COMPONENT_NAME_PATTERN, SchemaDefinitionError, type ActorId, type ComponentEntry, type Services, type WorldActor, type WorldActorChange } from "../../core/index.ts";
 import type { FrameOutput } from "../pipeline/output.ts";
 import type { WorldResources } from "../resources/worldResources.ts";
+import type { CameraViews } from "../gpu/gpuDriven.ts";
 import type { StaticPath } from "../triangles/staticPath.ts";
 import type { TriangleDrawing } from "../triangles/triangleDrawing.ts";
 
@@ -85,6 +86,8 @@ export interface RenderBindingContext {
   readonly triangles?: TriangleDrawing;
   /** Which static batches take it (`render/triangles/staticPath.ts`). */
   readonly staticPath?: () => StaticPath;
+  /** Where a camera that draws the scene (a reflection) registers its GPU-driven view (R9a step 1). */
+  readonly cameraViews?: CameraViews;
   readonly world: RenderWorldView;
   /** This world's scene: singletons set fog, background and environment here. */
   readonly scene: Scene;

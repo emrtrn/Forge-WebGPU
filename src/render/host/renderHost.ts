@@ -392,6 +392,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
         terrains,
         textures,
         bindings: options.bindings,
+        cameraViews: gpuDriven,
         features,
         name,
         camera: () => camera,

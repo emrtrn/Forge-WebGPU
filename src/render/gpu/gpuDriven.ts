@@ -11,6 +11,12 @@
 // shadow camera gets its view's layer (`shadowViewLayer`), which three's
 // shadow pass keeps. Spot and point light shadows are not shadow views.
 //
+// Camera views (R9a step 1): a camera that draws the scene besides the main
+// one registers a `CameraViewSource` (`add`); a planar reflection's view is
+// the main view mirrored through its plane (`mirrorCullView`: distances from
+// the mirrored eye). Each gets its own layer; every registered camera loses
+// the other views' layers, so it never draws the main camera's lists.
+//
 // Render bundles (5.3): with `bundle: true` a GPU batch's opaque draws are a
 // `BundleGroup` three records per camera (gpuDrivenBatch.ts; off by default,
 // no measured gain).
@@ -38,9 +44,34 @@ import {
   type Scene,
   type WebGPURenderer,
 } from "three/webgpu";
-import { frustumPlanesOf, type InstanceCullView } from "../../engine/world/instanceCulling.ts";
+import { frustumPlanesOf, mirrorCullView, type InstanceCullView } from "../../engine/world/instanceCulling.ts";
 import { createCpuDrivenBatch } from "./cpuDrivenBatch.ts";
-import { createGpuDrivenBatch, MAX_SHADOW_VIEWS, shadowViewLayer, type GpuDrivenBatch, type GpuDrivenBatchOptions } from "./gpuDrivenBatch.ts";
+import {
+  cameraViewLayer, createGpuDrivenBatch, MAIN_VIEW_LAYER, MAX_CAMERA_VIEWS, MAX_SHADOW_VIEWS, shadowViewLayer,
+  type GpuCullView, type GpuDrivenBatch, type GpuDrivenBatchOptions,
+} from "./gpuDrivenBatch.ts";
+
+/**
+ * A camera that draws the scene besides the main one (R9a step 1), asked
+ * every frame before the cull. `camera` is the camera that will draw;
+ * `mirror` (unit normal, offset: n·p + c = 0) makes the view the main view
+ * reflected through it (a planar reflection: its camera is placed during the
+ * render, after the cull); without it the camera's own matrices are culled.
+ * `active` false: it will not draw this frame (no view; it still loses the
+ * main view's layer).
+ */
+export interface CameraViewSource {
+  view(main: Camera): { readonly camera: Camera; readonly mirror?: readonly [number, number, number, number]; readonly active: boolean } | null;
+}
+
+/** Every layer a GPU-driven view owns: shadow views, the main view, camera views (layer 0 is no view's). */
+const VIEW_LAYER_BITS = ((1 << (cameraViewLayer(MAX_CAMERA_VIEWS - 1) + 1)) - 1) & ~1;
+
+/** Where cameras that draw the scene register (`RenderBindingContext.cameraViews`). */
+export interface CameraViews {
+  /** Registers a camera view; the returned function removes it. */
+  add(source: CameraViewSource): () => void;
+}
 
 export interface GpuDrivenStats {
   readonly batches: number;
@@ -53,7 +84,7 @@ export interface GpuDrivenStats {
   readonly bundleUpdates: number;
 }
 
-export interface GpuDrivenDrawing {
+export interface GpuDrivenDrawing extends CameraViews {
   /** The GPU path (WebGPU); false: batches are the CPU twin (WebGL2). */
   readonly supported: boolean;
   createBatch(options: GpuDrivenBatchOptions): GpuDrivenBatch;
@@ -63,8 +94,8 @@ export interface GpuDrivenDrawing {
   cull(scene: Object3D, camera: Camera): void;
   /** The main view of the last cull (the CPU reference's input), null before one. */
   readonly lastView: InstanceCullView | null;
-  /** Every view of the last cull, the main view first. */
-  readonly lastViews: readonly InstanceCullView[];
+  /** Every view of the last cull, the main view first, then shadow views, then camera views. */
+  readonly lastViews: readonly GpuCullView[];
   /** The batches the last cull dispatched. */
   readonly lastBatches: readonly GpuDrivenBatch[];
   /** Draws of the last culled frame `renderer.info` did not count. */
@@ -118,9 +149,10 @@ export function shadowCamerasOf(lights: readonly Light[]): Camera[] {
 export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
   const supported = (renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend === true;
   const batches = new Map<GpuDrivenBatch, Object3D>();
+  const cameraSources = new Set<CameraViewSource>();
   const viewProjection = new Matrix4();
   const position = new Vector3();
-  let lastViews: InstanceCullView[] = [];
+  let lastViews: GpuCullView[] = [];
   let lastBatches: GpuDrivenBatch[] = [];
   let lastDraws = 0;
   let draws = 0;
@@ -161,27 +193,56 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
       batch.dispose();
       lastBatches = lastBatches.filter((entry) => entry !== batch);
     },
+    add(source) {
+      cameraSources.add(source);
+      return () => { cameraSources.delete(source); };
+    },
     cull(scene, camera) {
       lastBatches = [];
       lastViews = [];
       lastDraws = 0;
       draws = 0;
+      // The main view's meshes are drawn by the main camera only (R9a step 1).
+      camera.layers.enable(MAIN_VIEW_LAYER);
+      const viewBits = VIEW_LAYER_BITS;
+      // Every other camera that draws the scene loses the main view's layer, with or without a view.
+      const sources = [...cameraSources].map((source) => source.view(camera));
+      for (const entry of sources) if (entry) entry.camera.layers.mask = camera.layers.mask & ~viewBits;
       if (batches.size === 0) return;
       const planes = planesOf(camera);
       if (!planes) return;
       camera.getWorldPosition(position);
       const origin: [number, number, number] = [position.x, position.y, position.z];
-      const views: InstanceCullView[] = [{ planes, origin }];
+      const main: GpuCullView = { planes, origin, role: "main", layer: MAIN_VIEW_LAYER };
+      const views: GpuCullView[] = [main];
       if (renderer.shadowMap.enabled) {
         const lights = renderer.lighting.getNode(scene as Scene).getLights() as Light[];
+        let shadows = 0;
         for (const shadowCamera of shadowCamerasOf(lights)) {
-          const shadowPlanes = views.length > MAX_SHADOW_VIEWS ? null : planesOf(shadowCamera);
+          const shadowPlanes = shadows >= MAX_SHADOW_VIEWS ? null : planesOf(shadowCamera);
           // A camera without a view this frame must not keep a layer another view now owns.
-          if (!shadowPlanes) { shadowCamera.layers.mask = camera.layers.mask; continue; }
+          const base = camera.layers.mask & ~viewBits;
+          if (!shadowPlanes) { shadowCamera.layers.mask = base; continue; }
+          shadows += 1;
           // Distances stay the main camera's: what it culls or fades, its shadow does too.
-          shadowCamera.layers.mask = camera.layers.mask | (1 << shadowViewLayer(views.length));
-          views.push({ planes: shadowPlanes, origin });
+          const layer = shadowViewLayer(shadows);
+          shadowCamera.layers.mask = base | (1 << layer);
+          views.push({ planes: shadowPlanes, origin, role: "shadow", layer });
         }
+      }
+      let cameras = 0;
+      for (const entry of sources) {
+        if (!entry?.active || cameras >= MAX_CAMERA_VIEWS) continue;
+        const own = entry.mirror ? mirrorCullView(main, entry.mirror) : (() => {
+          const cameraPlanes = planesOf(entry.camera);
+          if (!cameraPlanes) return null;
+          entry.camera.getWorldPosition(position);
+          return { planes: cameraPlanes, origin: [position.x, position.y, position.z] as [number, number, number] };
+        })();
+        if (!own) continue;
+        const layer = cameraViewLayer(cameras++);
+        entry.camera.layers.enable(layer);
+        views.push({ ...own, role: "camera", layer });
       }
       const dispatches: ComputeNode[] = [];
       for (const [batch, parent] of batches) {
@@ -217,6 +278,7 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
     dispose() {
       for (const batch of batches.keys()) batch.dispose();
       batches.clear();
+      cameraSources.clear();
       lastBatches = [];
       lastViews = [];
     },

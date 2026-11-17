@@ -78,6 +78,27 @@ export function frustumPlanesOf(viewProjection: ArrayLike<number>, clipDepth: "z
   return out;
 }
 
+/**
+ * The view a planar mirror sees of `view` (plan 5c R9a, step 1): a point is
+ * in the mirrored frustum when its reflection is in `view`'s, so each plane
+ * and the origin reflect through `mirror` (unit normal m, offset c: m·p + c =
+ * 0). The mirror camera's oblique near plane (only what is in front of the
+ * mirror) is left out: the result is a superset, never a false cull.
+ */
+export function mirrorCullView(view: InstanceCullView, mirror: readonly [number, number, number, number]): InstanceCullView {
+  const [mx, my, mz, c] = mirror;
+  const planes = new Float32Array(24);
+  for (let at = 0; at < 24; at += 4) {
+    const nx = view.planes[at]!, ny = view.planes[at + 1]!, nz = view.planes[at + 2]!, d = view.planes[at + 3]!;
+    const along = nx * mx + ny * my + nz * mz;
+    planes[at] = nx - 2 * along * mx; planes[at + 1] = ny - 2 * along * my; planes[at + 2] = nz - 2 * along * mz;
+    planes[at + 3] = d - 2 * c * along;
+  }
+  const [ox, oy, oz] = view.origin;
+  const side = mx * ox + my * oy + mz * oz + c;
+  return { planes, origin: [ox - 2 * side * mx, oy - 2 * side * my, oz - 2 * side * mz] };
+}
+
 /** The largest axis scale of the matrix at `at` (the length of its longest basis column). */
 export function maxAxisScale(matrices: ArrayLike<number>, at: number): number {
   const column = (c: number): number => Math.hypot(matrices[at + c * 4]!, matrices[at + c * 4 + 1]!, matrices[at + c * 4 + 2]!);

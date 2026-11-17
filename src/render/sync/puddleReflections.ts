@@ -13,9 +13,13 @@
 //   once a frame (`bounces: false`), hiding the material that draws it.
 // Forge's fixed 256 / 512 px targets become a share of the drawing buffer
 // (medium 1/4, high 1/2); its footprint keeps Forge's texel size.
+// Each capture's virtual camera is a GPU-driven camera view (plan 5c R9a
+// step 1, `render/gpu/gpuDriven.ts`): the GPU-driven batches it draws are
+// culled for the reflection itself.
 
 import * as THREE from "three/webgpu";
 import * as TSLTyped from "three/tsl";
+import type { CameraViews } from "../gpu/gpuDriven.ts";
 import type { PuddleMaterial, PuddleReflection } from "../materials/puddle.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -73,16 +77,37 @@ export function puddleScreenCoverage(bounds: THREE.Box3, viewProjection: THREE.M
   return (width * height) / 4;
 }
 
-/** A capture of the plane y = `level`: the reflector node and its target, added under `root`. */
-export type PuddleSourceFactory = (level: number, quality: PuddleReflectionQuality, root: THREE.Object3D) => Source & { dispose(): void };
+/**
+ * A capture of the plane y = `level`: the reflector node and its target, added under `root`. With
+ * `views` its virtual camera is a GPU-driven camera view (R9a step 1): it culls the GPU-driven
+ * batches as the main view mirrored through the water and never draws the main camera's lists.
+ */
+export type PuddleSourceFactory = (level: number, quality: PuddleReflectionQuality, root: THREE.Object3D, views?: CameraViews) => Source & { dispose(): void };
 
-export const createPuddleReflectionSource: PuddleSourceFactory = (level, quality, root) => {
+const eye = new THREE.Vector3();
+const point = new THREE.Vector3();
+const normal = new THREE.Vector3();
+const rotation = new THREE.Matrix4();
+
+export const createPuddleReflectionSource: PuddleSourceFactory = (level, quality, root, views) => {
   const node = TSL.reflector({ resolutionScale: SCALE[quality], bounces: false });
   const target = node.target as THREE.Object3D;
   target.position.set(0, level, 0);
   // The reflector's plane faces its target's +Z: turned to +Y.
   target.rotation.x = -Math.PI / 2;
   root.add(target);
+  const unregister = views?.add({
+    view(main) {
+      const camera = node.reflector.getVirtualCamera(main) as THREE.Camera;
+      target.updateMatrixWorld();
+      point.setFromMatrixPosition(target.matrixWorld);
+      normal.set(0, 0, 1).applyMatrix4(rotation.extractRotation(target.matrixWorld)).normalize();
+      main.getWorldPosition(eye);
+      // three's reflector skips the render when the plane faces away from the eye.
+      const active = point.clone().sub(eye).dot(normal) <= 0;
+      return { camera, mirror: [normal.x, normal.y, normal.z, -normal.dot(point)], active };
+    },
+  });
   const projection = TSL.uniform(new THREE.Matrix4()).onRenderUpdate(({ camera }: { camera: THREE.Camera }) => {
     const reflected = node.reflector.getVirtualCamera(camera) as THREE.Camera;
     return projection.value.multiplyMatrices(reflected.projectionMatrix, reflected.matrixWorldInverse);
@@ -91,6 +116,7 @@ export const createPuddleReflectionSource: PuddleSourceFactory = (level, quality
     reflection: { node, texel: TEXEL[quality], projection },
     target,
     dispose() {
+      unregister?.();
       target.removeFromParent();
       node.dispose?.();
     },
@@ -108,10 +134,12 @@ export class PuddleReflections {
   private readonly viewProjection = new THREE.Matrix4();
   private readonly root: THREE.Object3D;
   private readonly create: PuddleSourceFactory;
+  private readonly views: CameraViews | undefined;
 
-  constructor(root: THREE.Object3D, create: PuddleSourceFactory = createPuddleReflectionSource) {
+  constructor(root: THREE.Object3D, create: PuddleSourceFactory = createPuddleReflectionSource, views?: CameraViews) {
     this.root = root;
     this.create = create;
+    this.views = views;
   }
 
   /** The captures held now (for tests and the debug readout). */
@@ -214,7 +242,7 @@ export class PuddleReflections {
       this.sources.delete(key);
     }
     for (const [key, group] of visible) {
-      if (!this.sources.has(key)) this.sources.set(key, this.create(group.level, group.quality, this.root));
+      if (!this.sources.has(key)) this.sources.set(key, this.create(group.level, group.quality, this.root, this.views));
     }
     this.assign(wanted);
   }

@@ -7,7 +7,7 @@
 // (`engine/world/instanceCulling.ts`, as Phase 1 G7 compared culling). The
 // reference project is not changed.
 
-import { Group, type PerspectiveCamera } from "three/webgpu";
+import { Group, PerspectiveCamera } from "three/webgpu";
 import { cullInstanceCounts, type InstanceCullResult } from "../../engine/world/instanceCulling.ts";
 import { createFoliageBatches, type FoliageBatches } from "../foliage/foliageBatches.ts";
 import type { RenderHost } from "../host/renderHost.ts";
@@ -42,6 +42,8 @@ export interface DevGpuCheck extends DevGpuViewCheck {
   readonly instances: number;
   /** The shadow views (5.2), cascades in order. */
   readonly shadows: readonly DevGpuViewCheck[];
+  /** The camera views (R9a step 1), in registration order. */
+  readonly cameras: readonly DevGpuViewCheck[];
 }
 
 export interface DevGpuDriven {
@@ -50,6 +52,11 @@ export interface DevGpuDriven {
   check(): Promise<DevGpuCheck[]>;
   /** Render bundles three recorded (`backend.beginBundle` calls) since the first call (5.3 measurement). */
   bundleRecords(): number;
+  /**
+   * Registers a camera view mirrored through `plane` (unit normal, offset; R9a step 1) with a camera
+   * that never draws, or removes it (null): the cull's mirrored lists, checked against the CPU reference.
+   */
+  mirror(plane: readonly [number, number, number, number] | null): void;
   remove(): void;
 }
 
@@ -58,6 +65,8 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
   let foliage: FoliageBatches | null = null;
   let records = 0;
   let counting = false;
+  let unmirror: (() => void) | null = null;
+  const mirrorCamera = new PerspectiveCamera();
 
   const remove = (): void => {
     foliage?.dispose();
@@ -100,9 +109,10 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
         return { gpu: await batch.readCounts(current.renderer, index), cpu: { counts: cpu.counts, certain: cpu.certain, possible: cpu.possible } };
       };
       return Promise.all((foliage?.batches ?? []).map(async (batch) => {
-        const shadows: DevGpuViewCheck[] = [];
-        for (let index = 1; index < batch.views; index += 1) shadows.push(await viewCheck(batch, index));
-        return { name: batch.name, instances: batch.instances.count, ...(await viewCheck(batch, 0)), shadows };
+        // The dev batches cast shadows, so their view slots are the cull's views in order.
+        const shadows: DevGpuViewCheck[] = [], cameras: DevGpuViewCheck[] = [];
+        for (let index = 1; index < batch.views; index += 1) (views[index]!.role === "camera" ? cameras : shadows).push(await viewCheck(batch, index));
+        return { name: batch.name, instances: batch.instances.count, ...(await viewCheck(batch, 0)), shadows, cameras };
       }));
     },
     bundleRecords() {
@@ -114,6 +124,15 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
       }
       return records;
     },
-    remove,
+    mirror(plane) {
+      unmirror?.(); unmirror = null;
+      const current = host();
+      if (!plane || !current) return;
+      unmirror = current.gpuDriven.add({ view: () => ({ camera: mirrorCamera, mirror: plane, active: true }) });
+    },
+    remove() {
+      unmirror?.(); unmirror = null;
+      remove();
+    },
   };
 }

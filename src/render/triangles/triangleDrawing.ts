@@ -5,7 +5,7 @@ import { projectedLodStarts, TRIANGLE_VERSION, type TriangleData, type TriangleI
 import { detailCullDistance, detailCullWindow } from "../../engine/world/detailCulling.ts";
 import { NO_CULL_DISTANCE } from "../../engine/world/instanceCulling.ts";
 import type { GpuDrivenDrawing } from "../gpu/gpuDriven.ts";
-import type { GpuDrivenBatch } from "../gpu/gpuDrivenBatch.ts";
+import { MAIN_VIEW_LAYER, shadowViewLayer, type GpuDrivenBatch } from "../gpu/gpuDrivenBatch.ts";
 import { triangleInput } from "./triangleSource.ts";
 
 /**
@@ -112,7 +112,10 @@ export function createTriangleDrawing(renderer: WebGPURenderer, gpu: GpuDrivenDr
       batch.setDistances({ fadeStart: cullDistance === null ? NO_CULL_DISTANCE : end * .8, cullEnd: end, lodStarts: data.lods.slice(1).map(() => NO_CULL_DISTANCE) });
       const planes = new Float32Array(24); for (let i = 3; i < 24; i += 4) planes[i] = 1;
       // Main view and the three shadow cascades exist before readiness.
-      batch.prepare(Array.from({ length: source.castShadow ? 4 : 1 }, () => ({ planes, origin: [0, 0, 0] as const })));
+      batch.prepare(Array.from({ length: source.castShadow ? 4 : 1 }, (_, index) => ({
+        planes, origin: [0, 0, 0] as const,
+        ...(index === 0 ? { role: "main" as const, layer: MAIN_VIEW_LAYER } : { role: "shadow" as const, layer: shadowViewLayer(index) }),
+      })));
       // compileAsync stages and detaches these objects. Preserve their actual
       // draw parents (including the optional bundle) for atomic activation.
       const preparedParents = new Map(batch.allMeshes.map((mesh) => [mesh, mesh.parent]));

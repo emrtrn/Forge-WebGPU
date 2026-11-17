@@ -6,6 +6,7 @@ import {
   lodStartsOfScreenSizes,
   maxAxisScale,
   measuredDistance,
+  mirrorCullView,
   NO_CULL_DISTANCE,
   type InstanceCullBatch,
 } from "./instanceCulling.ts";
@@ -115,5 +116,36 @@ describe("instance culling reference", () => {
     const [start] = lodStartsOfScreenSizes(2, [0.25], 90);
     expect(start).toBeCloseTo(8, 10);
     expect(lodStartsOfScreenSizes(2, [0], 90)).toEqual([NO_CULL_DISTANCE]);
+  });
+});
+
+describe("mirrorCullView (R9a step 1)", () => {
+  const inside = (planes: ArrayLike<number>, p: readonly number[]): boolean => {
+    for (let at = 0; at < 24; at += 4) if (planes[at]! * p[0]! + planes[at + 1]! * p[1]! + planes[at + 2]! * p[2]! + planes[at + 3]! < -1e-5) return false;
+    return true;
+  };
+  // A box x, z in -1..1, y in 1..3; an infinite plane (0, 0, 0, 1) stays always inside.
+  const box = { planes: Float32Array.from([1, 0, 0, 1, -1, 0, 0, 1, 0, 1, 0, -1, 0, -1, 0, 3, 0, 0, 1, 1, 0, 0, 0, 1]), origin: [0, 5, 10] as const };
+
+  test("a horizontal mirror reflects the planes and the origin through the water level", () => {
+    const mirrored = mirrorCullView(box, [0, 1, 0, 0]);
+    expect(mirrored.origin).toEqual([0, -5, 10]);
+    expect(inside(mirrored.planes, [0, -2, 0])).toBe(true);
+    expect(inside(mirrored.planes, [0, 2, 0])).toBe(false);
+    expect(Array.from(mirrored.planes).slice(20, 24)).toEqual([0, 0, 0, 1]);
+  });
+
+  test("any mirror: a point is in the mirrored view exactly when its reflection is in the view", () => {
+    const length = Math.hypot(0.3, 0.9, -0.2);
+    const m = [0.3 / length, 0.9 / length, -0.2 / length] as const, c = 0.7;
+    const mirrored = mirrorCullView(box, [m[0], m[1], m[2], c]);
+    let seed = 7;
+    const random = (): number => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648 * 8 - 4; };
+    for (let i = 0; i < 500; i += 1) {
+      const p = [random(), random(), random()];
+      const side = m[0] * p[0]! + m[1] * p[1]! + m[2] * p[2]! + c;
+      const reflected = p.map((value, axis) => value - 2 * side * m[axis]!);
+      expect(inside(mirrored.planes, p)).toBe(inside(box.planes, reflected));
+    }
   });
 });

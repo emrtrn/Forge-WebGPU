@@ -88,7 +88,7 @@ export default defineRenderBinding({
   create(ctx) {
     let simulationSeconds = 0;
     const placed = new Map<string, Placed>();
-    const reflections = new PuddleReflections(ctx.root);
+    const reflections = new PuddleReflections(ctx.root, undefined, ctx.cameraViews);
     ctx.world.services.provide(PuddleStatusKey, {
       result: (actor: ActorId, key: string) => placed.get(`${actor}/${key}`)?.result,
     });

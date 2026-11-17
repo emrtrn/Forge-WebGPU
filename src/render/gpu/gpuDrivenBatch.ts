@@ -30,6 +30,13 @@
 //   distances from the main camera, so what the main view culls casts no
 //   shadow and what it fades casts a fading one. The main view's meshes cast
 //   none. Point and spot light shadows do not see GPU-driven batches.
+// - Camera views (R9a step 1): a camera that draws the scene besides the
+//   main one (a planar reflection's virtual camera) is a view of its own,
+//   lit like the main view, with its own lists and layer
+//   (`cameraViewLayer`). The main view's meshes live on `MAIN_VIEW_LAYER`,
+//   not layer 0, so such a camera never draws the main camera's lists.
+//   Views carry their role and layer (`GpuCullView`); a slot whose role
+//   changes (a shadow view count change shifts the camera views) rebuilds.
 // - Render bundle (5.3, `bundle: true`; off by default): every view's opaque
 //   meshes sit in the batch's own `BundleGroup`; three records it once per
 //   camera (the main camera and each shadow camera) and replays it every
@@ -123,6 +130,26 @@ import { createGpuInstances, type GpuInstances } from "./gpuInstances.ts";
 export const MAX_SHADOW_VIEWS = 8;
 /** The layer of shadow view `view` (1-based; layer 0 stays every camera's default). */
 export const shadowViewLayer = (view: number): number => view;
+/**
+ * The main view's layer (R9a step 1): off layer 0, so a camera that draws the
+ * scene for another view (a reflection) does not draw the main camera's
+ * visible lists. `gpuDriven.ts` enables it on the main camera.
+ */
+export const MAIN_VIEW_LAYER = MAX_SHADOW_VIEWS + 1;
+/** Most camera views (cameras that draw the scene besides the main one, e.g. reflections). */
+export const MAX_CAMERA_VIEWS = 4;
+/** The layer of camera view `index` (0-based). */
+export const cameraViewLayer = (index: number): number => MAIN_VIEW_LAYER + 1 + index;
+
+/**
+ * A view as a batch draws it: `main` the main camera, `shadow` a shadow map
+ * (three's shadow material, casts only), `camera` another camera that draws
+ * the scene lit (a reflection). Each view's meshes live on `layer` only.
+ */
+export interface GpuCullView extends InstanceCullView {
+  readonly role: "main" | "shadow" | "camera";
+  readonly layer: number;
+}
 
 /** u32 arguments of one `drawIndexedIndirect`: index count, instance count, first index, base vertex, first instance. */
 const ARGS = 5;
@@ -179,7 +206,7 @@ export interface GpuDrivenBatch {
   readonly draws: number;
   /** Triangles one instance draws at each LOD (every pass counted, as three counts them). */
   readonly lodTriangles: readonly number[];
-  /** Views the last prepare culled (1 + its shadow views). */
+  /** Views the last prepare culled (the main view, its shadow views, camera views). */
   readonly views: number;
   /** Draws of the last prepare, every view (the CPU twin: only meshes with instances, as three skips empty ones). */
   readonly lastDraws: number;
@@ -190,11 +217,11 @@ export interface GpuDrivenBatch {
   readonly cullBatch: InstanceCullBatch;
   /**
    * Uploads instance changes and each view's uniforms; returns the dispatches,
-   * in order. `views[0]` is the main camera, the rest shadow views; past
-   * {@link MAX_SHADOW_VIEWS} (or all of them, without `castShadow`) they are
-   * ignored, and the meshes of views not prepared do not draw.
+   * in order. `views[0]` is the main camera; shadow views are skipped without
+   * `castShadow`; past the view limit they are ignored, and the meshes of
+   * views not prepared do not draw. A slot whose role or layer changed rebuilds.
    */
-  prepare(views: readonly InstanceCullView[]): readonly ComputeNode[];
+  prepare(views: readonly GpuCullView[]): readonly ComputeNode[];
   /** View `view`'s visible count per LOD in the last cull, read back (tests, measurements). */
   readCounts(renderer: WebGPURenderer, view?: number): Promise<number[]>;
   dispose(): void;
@@ -255,6 +282,8 @@ export function maskWithFade(material: NodeMaterial, shown: Node<"float">): void
 
 interface View {
   readonly index: number;
+  role: GpuCullView["role"];
+  layer: number;
   readonly counters: StorageBufferAttribute;
   readonly args: IndirectStorageBufferAttribute;
   readonly planes: Vector4[];
@@ -277,7 +306,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
   const lodTriangles = options.lods.map((_, lod) => draws.filter((draw) => draw.lod === lod)
     .reduce((sum, draw) => sum + Math.floor(draw.count / 3) * drawPasses(draw.material), 0));
   const drawLodBuffer = new StorageBufferAttribute(Uint32Array.from(draws.map((draw) => draw.lod)), 1);
-  const maxViews = 1 + (options.castShadow === false ? 0 : MAX_SHADOW_VIEWS);
+  const maxViews = 1 + MAX_SHADOW_VIEWS + MAX_CAMERA_VIEWS;
   const colorBuffer = options.instanceColors ? new StorageBufferAttribute(new Float32Array(options.instanceColors.count * 4), 4) : null;
   let colorVersion = -1;
 
@@ -306,7 +335,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     const planes = Array.from({ length: 6 }, () => new Vector4(0, 0, 0, 1));
     const origin = new Vector3();
     return {
-      index,
+      index, role: "main", layer: MAIN_VIEW_LAYER,
       counters: new StorageBufferAttribute(new Uint32Array(lodCount), 1),
       args: new IndirectStorageBufferAttribute(argsArray, 1),
       planes, planesNode: uniformArray(planes, "vec4"),
@@ -327,7 +356,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
   /** (Re)binds everything of one view that reads the instance buffers. */
   const buildView = (view: View): void => {
     releaseView(view);
-    const shadow = view.index > 0;
+    const shadow = view.role === "shadow";
     const capacity = instances.capacity;
     const visibleBuffer = new StorageBufferAttribute(new Uint32Array(capacity * lodCount), 1);
     view.visible = visibleBuffer;
@@ -342,7 +371,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       const raw = distance(at, origin);
       return { origin: at, scale, measured: scaled ? raw.div(max(scale, 1e-6)) : raw };
     };
-    const label = shadow ? `${options.name} shadow${view.index}` : options.name;
+    const label = view.role === "main" ? options.name : `${options.name} ${view.role}${view.index}`;
 
     const counters = storage(view.counters, "uint", lodCount).toAtomic();
     const reset = Fn(() => {
@@ -429,7 +458,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       mesh.castShadow = shadow;
       mesh.receiveShadow = !shadow;
       mesh.matrixAutoUpdate = false;
-      if (shadow) mesh.layers.set(shadowViewLayer(view.index));
+      mesh.layers.set(view.layer);
       if (options.source !== undefined) mesh.userData[SCENE_SOURCE_KEY] = options.source;
       (bundle && !material.transparent ? bundle : options.parent).add(mesh);
       view.meshes.push(mesh);
@@ -469,14 +498,18 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       }
       instances.flush();
       count.value = instances.count;
-      const next = Math.min(list.length, maxViews);
+      const accepted = list.filter((view) => view.role !== "shadow" || options.castShadow !== false).slice(0, maxViews);
+      const next = accepted.length;
       if (next !== prepared) bundleDirty = true;
       prepared = next;
       const dispatches: ComputeNode[] = [];
       for (let index = 0; index < prepared; index += 1) {
         const view = views[index] ?? (views[index] = createView(index));
-        if (view.built !== instances.generation) buildView(view);
-        const source = list[index]!;
+        const source = accepted[index]!;
+        if (view.built !== instances.generation || view.role !== source.role || view.layer !== source.layer) {
+          view.role = source.role; view.layer = source.layer;
+          buildView(view);
+        }
         for (let plane = 0; plane < 6; plane += 1) {
           view.planes[plane]!.set(source.planes[plane * 4]!, source.planes[plane * 4 + 1]!, source.planes[plane * 4 + 2]!, source.planes[plane * 4 + 3]!);
         }

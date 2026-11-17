@@ -24,6 +24,7 @@ import type { SurfaceMaterials } from "../resources/surfaceMaterials.ts";
 import type { TerrainSource } from "../resources/terrains.ts";
 import type { TextureSource } from "../resources/textures.ts";
 import { createWorldResources, type ModelSource, type WorldResources } from "../resources/worldResources.ts";
+import type { CameraViews } from "../gpu/gpuDriven.ts";
 import type { StaticPath } from "../triangles/staticPath.ts";
 import type { TriangleDrawing } from "../triangles/triangleDrawing.ts";
 import { createDefaultLighting } from "./defaultLighting.ts";
@@ -56,6 +57,8 @@ export interface RenderFeatureOptions {
   /** The GPU-driven automatic LOD drawing static batches may take (R9.4). */
   readonly triangles?: TriangleDrawing;
   readonly staticPath?: () => StaticPath;
+  /** Cameras that draw the scene register their GPU-driven views here (R9a step 1). */
+  readonly cameraViews?: CameraViews;
   readonly cache: ResourceCache;
   readonly models: ModelSource;
   /** `forge.material` assets; absent in tests that draw none. */
@@ -113,6 +116,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           ...(options.prepare ? { prepare: (objects: readonly Object3D[], signal?: AbortSignal) => resources.track(options.prepare!(objects, scene, signal)) } : {}),
           ...(options.triangles ? { triangles: options.triangles } : {}),
           ...(options.staticPath ? { staticPath: options.staticPath } : {}),
+          ...(options.cameraViews ? { cameraViews: options.cameraViews } : {}),
         }),
       );
       ctx.services.provide(RenderReadinessKey, { isActorReady: (id) => instances.every((instance) => instance.isActorReady?.(id) ?? true) });

@@ -100,8 +100,7 @@ test("puddle: a basin ahead of the camera fills, draws and reflects the scene", 
   const basin = await findBasin(page, [camera.position[0] + forward.x * 20, camera.position[2] + forward.z * 20]);
   // Opened again looking at the basin from 16 m away and 9 m up, the way it came.
   const eye: [number, number, number] = [basin.x - forward.x * 16, basin.y + 9, basin.z - forward.z * 16];
-  // Static batches instanced: `?debug` counts no indirect draw a second pass (the reflection) issues (R9.4, open).
-  await openSmokeLevel(page, scene.level, { id: "basin", position: eye, target: [basin.x, basin.y, basin.z] }, "&debug&staticPath=instanced");
+  await openSmokeLevel(page, scene.level, { id: "basin", position: eye, target: [basin.x, basin.y, basin.z] }, "&debug");
 
   const viewport = page.viewportSize()!;
   const shot = () => page.screenshot({ clip: { x: 0, y: 0, width: viewport.width, height: viewport.height } });

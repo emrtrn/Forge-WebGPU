@@ -23,7 +23,7 @@ import { RENDER_REFS, SMOKE_SCENES, SMOKE_VIEWPORT } from "./renderScenes.ts";
 import { difference, git, isOptionalHlodMiss, openSmokeLevel } from "./smokePage.ts";
 
 interface ViewCheck { gpu: number[]; cpu: { counts: number[]; certain: number[]; possible: number[] } }
-interface Check extends ViewCheck { name: string; instances: number; shadows: ViewCheck[] }
+interface Check extends ViewCheck { name: string; instances: number; shadows: ViewCheck[]; cameras: ViewCheck[] }
 interface Dev {
   pause(): void;
   resume(): void;
@@ -34,6 +34,7 @@ interface Dev {
     check(): Promise<Check[]>;
     stats(): { batches: number; instances: number; draws: number; views: number } | null;
     remove(): Promise<void>;
+    mirror(plane: readonly [number, number, number, number] | null): Promise<void>;
   };
 }
 
@@ -51,6 +52,8 @@ const dev = (page: Page) => ({
   check: () => page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.check()),
   stats: () => page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.stats()),
   remove: () => page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.remove()),
+  mirror: (plane: readonly [number, number, number, number] | null) =>
+    page.evaluate((value) => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.mirror(value), plane),
 });
 
 async function steps(page: Page, count: number): Promise<void> {
@@ -112,6 +115,8 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
       within(`${id} ${check.name}`, check);
       // Every shadow view (5.2: each cascade) against the reference for its own planes.
       check.shadows.forEach((shadow, index) => within(`${id} ${check.name} shadow ${index + 1}`, shadow));
+      // Every camera view (R9a step 1: a reflection) against the reference for its mirrored planes and eye.
+      check.cameras.forEach((camera, index) => within(`${id} ${check.name} camera ${index + 1}`, camera));
     }
     views.push({ id, checks });
     return checks;
@@ -165,6 +170,15 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
   console.log(`bundle difference ${bundleDifference.toFixed(3)}, direct reinstall ${noise.toFixed(3)}`);
   // WebGL2 has no bundles (the twin ignores the option); its frames also vary more between shots.
   if (!webgl) expect(bundleDifference, "the bundled batches draw what the direct ones do").toBeLessThan(noise + 0.05);
+
+  // A reflection (R9a step 1): water 5 m under the eye. Its own view, mirrored, checked against the CPU reference.
+  await dev(page).mirror([0, 1, 0, -(p2.position![1] - 5)]);
+  await steps(page, 3);
+  const mirrored = await checkView("p2-mirror");
+  expect(mirrored.every((check) => check.cameras.length === 1), "every batch culls the reflection's view").toBe(true);
+  console.log(`mirror view: ${total(mirrored.map((check) => ({ ...check, gpu: check.cameras[0]!.gpu })))} visible (main ${total(mirrored)})`);
+  await dev(page).mirror(null);
+  await steps(page, 3);
 
   await dev(page).move(p1.position!, p1.target!);
   await steps(page, 3);

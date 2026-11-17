@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { BoxGeometry, Group, Matrix4, Mesh, MeshBasicNodeMaterial, type WebGPURenderer } from "three/webgpu";
 import { createCpuDrivenBatch } from "../gpu/cpuDrivenBatch.ts";
-import type { GpuDrivenBatch } from "../gpu/gpuDrivenBatch.ts";
+import { MAIN_VIEW_LAYER, type GpuDrivenBatch } from "../gpu/gpuDrivenBatch.ts";
 import type { ModelTemplate, WorldResources } from "../resources/worldResources.ts";
 import { createFoliageBatches, type FoliageTypeDraw } from "./foliageBatches.ts";
 
@@ -79,7 +79,7 @@ describe("foliage on the GPU-driven path (5c R4)", () => {
     const [batch] = foliage.batches;
     expect(batch!.lodCount).toBe(2);
     expect(batch!.instances.count).toBe(3);
-    batch!.prepare([{ planes: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]), origin: [0, 0, 0] }, { planes: new Float32Array(24).fill(0).map((_, i) => (i % 4 === 3 ? 1 : 0)), origin: [0, 0, 0] }]);
+    batch!.prepare([{ planes: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]), origin: [0, 0, 0], role: "main", layer: MAIN_VIEW_LAYER }, { planes: new Float32Array(24).fill(0).map((_, i) => (i % 4 === 3 ? 1 : 0)), origin: [0, 0, 0], role: "shadow", layer: 1 }]);
     expect(batch!.views, "castShadow false: no shadow view").toBe(1);
     foliage.dispose();
     expect(released).toEqual(expect.arrayContaining(["model:model-grass", "model:model-grass-lod1"]));

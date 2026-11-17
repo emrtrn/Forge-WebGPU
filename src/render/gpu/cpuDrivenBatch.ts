@@ -13,10 +13,10 @@
 //   instance matrix × the part's matrix, and how much the fade band shows it
 //   (× its own fade) for the material's dither (5b's threshold, as the GPU
 //   path's material).
-// - Views as on the GPU path (5.2): view 0 the main camera (meshes cast no
-//   shadow), views 1.. shadow views whose meshes cast and live on their
-//   view's layer only; the instancing itself carries the instance transform
-//   into three's shadow material.
+// - Views as on the GPU path (5.2, R9a step 1): the main camera (meshes cast
+//   no shadow), shadow views whose meshes cast, camera views drawn lit; each
+//   view's meshes live on its layer only; the instancing itself carries the
+//   instance transform into three's shadow material.
 // - three counts these draws itself (`uncountedDraws` 0).
 
 import { Color, InstancedBufferAttribute, InstancedMesh, Matrix4, type Material, type Mesh, type WebGPURenderer } from "three/webgpu";
@@ -31,8 +31,8 @@ import {
 } from "../../engine/world/instanceCulling.ts";
 import { EXTRA_FLOATS, MATRIX_FLOATS, createGpuInstances } from "./gpuInstances.ts";
 import {
-  cloneNodeMaterial, drawPasses, maskWithFade, MAX_SHADOW_VIEWS, shadowViewLayer,
-  type GpuBatchDistances, type GpuDrivenBatch, type GpuDrivenBatchOptions,
+  cloneNodeMaterial, drawPasses, maskWithFade, MAIN_VIEW_LAYER, MAX_CAMERA_VIEWS, MAX_SHADOW_VIEWS,
+  type GpuBatchDistances, type GpuCullView, type GpuDrivenBatch, type GpuDrivenBatchOptions,
 } from "./gpuDrivenBatch.ts";
 
 /** `userData` key of a mesh's fade attribute (how much of each drawn instance the band shows). */
@@ -48,6 +48,8 @@ interface LodMesh {
 }
 
 interface View {
+  role: GpuCullView["role"];
+  layer: number;
   meshes: LodMesh[];
   materials: Material[];
   built: number;
@@ -58,7 +60,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
   const lodCount = options.lods.length;
   if (lodCount < 1 || lodCount > MAX_INSTANCE_LODS) throw new Error(`gpu batch ${options.name}: 1 to ${MAX_INSTANCE_LODS} LODs`);
   const instances = createGpuInstances(options.capacity);
-  const maxViews = 1 + (options.castShadow === false ? 0 : MAX_SHADOW_VIEWS);
+  const maxViews = 1 + MAX_SHADOW_VIEWS + MAX_CAMERA_VIEWS;
   // The draws three issues: one per material group of each part, two for a two-pass material.
   const partPasses = (part: GpuDrivenBatchOptions["lods"][number][number]): number => {
     const materials = Array.isArray(part.material) ? part.material : [part.material];
@@ -83,7 +85,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
 
   const buildView = (view: View, index: number): void => {
     releaseView(view);
-    const shadow = index > 0;
+    const shadow = view.role === "shadow";
     const capacity = instances.capacity;
     options.lods.forEach((parts, lod) => {
       for (const part of parts) {
@@ -98,13 +100,13 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         };
         const material = Array.isArray(part.material) ? part.material.map(clone) : clone(part.material);
         const mesh = new InstancedMesh(part.geometry, material, capacity);
-        mesh.name = `${options.name}${shadow ? ` shadow${index}` : ""}/lod${lod}/${part.name}`;
+        mesh.name = `${options.name}${view.role === "main" ? "" : ` ${view.role}${index}`}/lod${lod}/${part.name}`;
         mesh.count = 0;
         mesh.frustumCulled = false;
         mesh.castShadow = shadow;
         mesh.receiveShadow = !shadow;
         mesh.matrixAutoUpdate = false;
-        if (shadow) mesh.layers.set(shadowViewLayer(index));
+        mesh.layers.set(view.layer);
         if (options.source !== undefined) mesh.userData[SCENE_SOURCE_KEY] = options.source;
         mesh.userData[CPU_FADE_KEY] = shown;
         options.parent.add(mesh);
@@ -142,12 +144,16 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       const extras = instances.extraBuffer.array as Float32Array;
       const cull = batch.cullBatch;
       const fadeStart = Math.min(distances.fadeStart, cull.cullEnd);
-      prepared = Math.min(list.length, maxViews);
+      const accepted = list.filter((view) => view.role !== "shadow" || options.castShadow !== false).slice(0, maxViews);
+      prepared = accepted.length;
       lastDraws = 0;
       for (let index = 0; index < prepared; index += 1) {
-        const view = views[index] ?? (views[index] = { meshes: [], materials: [], built: -1, counts: new Array<number>(lodCount).fill(0) });
-        if (view.built !== instances.generation) buildView(view, index);
-        const source = list[index]!;
+        const view = views[index] ?? (views[index] = { role: "main", layer: MAIN_VIEW_LAYER, meshes: [], materials: [], built: -1, counts: new Array<number>(lodCount).fill(0) });
+        const source = accepted[index]!;
+        if (view.built !== instances.generation || view.role !== source.role || view.layer !== source.layer) {
+          view.role = source.role; view.layer = source.layer;
+          buildView(view, index);
+        }
         const result = cullInstanceCounts(matrices, instances.count, cull, source);
         for (const { lod, mesh, local, shown, passes } of view.meshes) {
           const visible = result.visible[lod]!;
