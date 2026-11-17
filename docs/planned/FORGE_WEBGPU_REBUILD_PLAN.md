@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.58 · 2026-11-17 — R8.0–R8.3 uygulandı: HLOD sadeleştirmesi düzeldi (Derekavak 21.360 → 5.366 üçgen), slot birleştirme (118 → 15 draw / görünüm, P2 gönderim 0,711 → 0,53 ms), `forge.levelHlod/2` 4 × 4 küme katmanı ve çalışma anı geçişi. R8.4–R8.6 açık.
+**Güncelleme:** v1.59 · 2026-11-17 — R8 uygulandı (R8.0–R8.6 ölçümü): Derekavak P2 sahne draw 398 → 68, gönderim 0,711 → 0,455 ms; StreamingBench HLOD 3,37 M → 1,64 M üçgen; landmark katmanı far değiştirmeden. Kullanıcı görsel kabulü bekliyor.
+
+**Önceki güncelleme:** v1.58 · 2026-11-17 — R8.0–R8.3 uygulandı.
 
 **Önceki güncelleme:** v1.57 · 2026-11-17 — R8 kararları ve uygulama planı (R8.0–R8.6): bundle kapalı, proxy'ler GPU yoluna girmez, slot düzeyinde kayıpsız materyal birleştirme, 4 × 4 ikinci HLOD katmanı, landmark katmanı ve far genişlemesi. Kod yok.
 
@@ -1199,7 +1201,29 @@ görüş 2000 m, hücre 128 m, 22 hücre. 4 × 4 katmanın etkisi StreamingBench
   histerezis), etkin hücre kümeyi hemen gizler. Kalite çarpanı host'tan gelir. Derekavak:
   22 hücre / 5.366 üçgen → 4 küme / 1.372 üçgen. Odaklı Vitest 421; editör HLOD + akış
   testleri gerçek WebGPU'da 5 / 5.
-- [ ] R8.4 landmark, R8.5 rapor / panel, R8.6 son ölçüm + kullanıcı görsel kabulü.
+- [x] **R8.4** (landmark, kullanıcı: `landmarkDistance` level ayarı, 0 = 3 × görüş):
+  `forge.staticMesh` / `forge.shape` `landmark` alanı (varsayılan kapalı). İşaretli bütün
+  yerleşimler (kalıcı ve küçükler dahil) `hlod/landmarks.glb`'ye pişer; köşeler yerleşim
+  kökenini (`_CENTER`) taşır, dizin ve bayatlık denetimi landmark hash'ini tutar. **Far
+  genişlemesi yerine** (gölge kaskatlarının bölünmesini ve diğer culling'i değiştirirdi):
+  tek mesh; kökeni görüş mesafesi içinde ya da landmark menzili dışında olan landmark
+  noktaya çöker, kalanı kamera ışını boyunca far'ın hemen içine çekilir (aynı pikseller,
+  yakın derinlik). Not: sis çekilmiş derinliği görür; görüş sonu tam sisliyse landmark da
+  sislenir (görsel ayar kullanıcıda). Kanonik biçim yeni alanları (`landmark: false`,
+  `landmarkDistance: 0`) belge kaydedildiğinde yazar. Editör smoke `landmark.spec.ts`
+  (kırpılan küpü proxy çizer) gerçek WebGPU ve WebGL2'de; tam Vitest 2.388, editör smoke
+  79 / 79 (ilk koşuda bir test bir kez kırıldı, tekrarda geçti).
+- [x] **R8.5**: `forge stats` ve editörün HLOD satırı küme / landmark sayısı ve üçgenini
+  yazar. `?debug`'a ayrı satır eklenmedi (draw'lar zaten sayılıyor).
+- [x] **R8.6 ölçüm** (gerçek WebGPU): Derekavak P2 (`2026-11-17T16-07-20-940Z-gpu-driven.json`)
+  sahne draw'ı (bütün görünümler) **398 → 68**, gönderim 0,711 → **0,455 ms**, kare CPU
+  1,12 → 0,874 ms, GPU 1,97 → 1,88 ms. StreamingBench akışı
+  (`2026-11-17T16-13-55-689Z-streaming.json`): HLOD 3.366.912 → **1.643.744** üçgen;
+  ilk uçuş p99 / max 13,3 / 35,1 → **8,5 / 43,6 ms** (eşik 20 / 50; max yükseldi, sınırda
+  değil), ilk döngü GPU geometri 216 → 120, heap artışı yok. Foliage senaryosunun
+  `sceneDraws`'u (61) beklenenden düşük; o senaryoda sayaç güvenilir değil, değerlendirmeye
+  alınmadı. **Açık:** kullanıcı görsel kabulü (düz gölgeli proxy, küme geçişinde titreme,
+  landmark); bundle R10 öncesi yeniden ölçülür.
 
 **R7 önceki uygulama taslağı (v1.54, tarihsel; yukarıdaki güncel kapsam geçerli):**
 1. r187 hattını sürümü ve MIT kaynağı belgelenmiş render kopyasında tut;
@@ -1773,3 +1797,4 @@ silinebilir.
 | 2026-11-17 | v1.56 | R7 otomatik LOD üretim altyapısı tamamlandı: deterministik Node cache / build, tarayıcı worker, ekran hatasıyla seçim, seçilebilir 5.1 GPU / WebGL2 CPU bağı; genel statikler R9'a kadar değişmedi. Meshlet'e özel üretim dosyaları ve pipeline bağı kaldırıldı; R6 dört kaynak hash'i kayıtla eşit. Küçük / kazançsız LOD, materyal grupları, CPU picking, fade / yerel transform, kaynak ömrü, iptal / compileAsync / HLOD hazır olma korundu. 21 odaklı test, typecheck, katman; ilgili render alt kümesi 7 / 7. Odaklı production build ve ayrı worker paketi geçti; dist tarayıcı smoke'u çalıştırılmadı. Dar P2 ek nesne ölçümünde native = Stats 438 draw, 40 dolaylı; bundle 16 replay / 0 yeniden kayıt; render / compute ayrı. G6 açık, son R6 3,03 ms. v1.55'in R9a kararı korundu; R8 / R9 / R9a / R10 başlamadı. Kod 134b2aa; docs ayrı commit, push ve tam gate yok. |
 | 2026-11-17 | v1.57 | R8 kararları (kullanıcı): bundle kapalı kalır, R10 öncesi yeniden ölçülür; HLOD proxy'leri GPU güdümlü yola girmez (tek örnekli, indirect kazanç yok); slot düzeyinde kayıpsız primitive birleştirme (atlas sonra); 4 × 4 ikinci katman, geçiş `max(2 × loadRange, 6 × hücre)`; bileşen landmark işareti ve far genişlemesi. Uygulama sırası R8.0–R8.6. Kod yok |
 | 2026-11-17 | v1.58 | R8.0 (`af30c37`): proxy normalleri `weld`'i engelliyordu; konum + renk, düz gölgeleme, çift yüzlüler ayrı; Derekavak HLOD 21.360 → 5.366 üçgen. R8.1 (`018c559`): şablon başına slot birleştirme (çalışma anında; cache / build türevi gerekmedi), Derekavak 118 → 15 draw / görünüm, P2 gönderim 0,711 → 0,53 ms, render smoke 29 / 29. R8.2 / R8.3 (`82c0150`): `forge.levelHlod/2` küme katmanı (`hlod/l1_<x>_<z>.glb`), çalışma anı geçişi + histerezis; Derekavak 4 küme / 1.372 üçgen; editör HLOD / akış 5 / 5 gerçek WebGPU. R8.4–R8.6 açık |
+| 2026-11-17 | v1.59 | R8.4 landmark (`landmark` bileşen alanı, `landmarkDistance` level ayarı; far genişlemesi yerine köşeler far'ın içine çekilir, kaskat / culling değişmez), R8.5 rapor (`forge stats`, editör HLOD satırı), R8.6 ölçüm: Derekavak P2 sahne draw 398 → 68, gönderim 0,711 → 0,455 ms; StreamingBench HLOD 3,37 M → 1,64 M üçgen, uçuş p99 / max 8,5 / 43,6 ms. Kullanıcı görsel kabulü açık; R9 sırada |
