@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.60 · 2026-11-17 — §4.4 R9a adım 1 uygulandı: kamera görünümleri, görünüm rolü / katmanı, yansıma aynalanmış görünüm.
+**Güncelleme:** v1.61 · 2026-11-17 — §4.4 R9a occlusion çalışması: CPU Hi-Z referansı ve üst sınır ölçümü; kazanç düşük, üretim önerilmiyor.
+
+**Önceki güncelleme:** v1.60 · 2026-11-17 — §4.4 R9a adım 1 uygulandı: kamera görünümleri, görünüm rolü / katmanı, yansıma aynalanmış görünüm.
 
 **Önceki güncelleme:** v1.59 · 2026-11-17 — §4.4 R9 kararı: statik batch'ler varsayılan instanced (GPU yolu ölçümde kazandırmadı); ikincil kamera görünümleri R9a'nın ilk adımı.
 
@@ -892,6 +894,9 @@ features/height-fog/
     doğrulanmalı; ana kameranın occlusion sonucu gölge caster'larını kesmemeli.
     Yanlış gizleme kabul edilmez; maliyeti kazancı aşarsa varsayılan kapalıdır.
     WebGL2 mevcut culling / LOD ile devam eder. Ayrıntılı kapı plan R9a'dadır.
+    *Çalışma (2026-11-17):* `engine/world/hiZ.ts` CPU Hi-Z referansı (konservatif küre testi) ve
+    dev `occlusionStudy` (katman 0 derinliği, üst sınır); Derekavak'ta GPU foliage üçgeninin en
+    çok %0–21'i örtülü. Üretim yolu kurulmadı (plan R9a; kullanıcı kararı).
   - *R6 ölçümü ve ilk seçim (kullanıcı, 2026-11-17; tarihsel v1.54):* gerçek WebGPU P2 / yoğun küre stresi,
     üç aday ve bundle; ayrıntı plan R6, kayıt `2026-11-17-r6-triangles.json`.
     Ayrı tarayıcı karesi beklenmeyen ilk ölçümler PassNode cache'i nedeniyle

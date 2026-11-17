@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.63 · 2026-11-17 — R9a adım 1 uygulandı: ikincil kamera görünümleri (yansıma kendi aynalanmış culling listesi, kendi katmanı, sayaca girer); iki arka uçta CPU referansıyla eşit. Sırada R9a occlusion tasarımı.
+**Güncelleme:** v1.64 · 2026-11-17 — R9a occlusion çalışması (üst sınır): Derekavak'ta GPU foliage üçgeninin en çok %0–21'i örtülü; öneri: üretime alınmaz, R10'a geçilir (kullanıcı kararı bekliyor).
+
+**Önceki güncelleme:** v1.63 · 2026-11-17 — R9a adım 1 uygulandı: ikincil kamera görünümleri (yansıma kendi aynalanmış culling listesi, kendi katmanı, sayaca girer); iki arka uçta CPU referansıyla eşit. Sırada R9a occlusion tasarımı.
 
 **Önceki güncelleme:** v1.62 · 2026-11-17 — R9 kapandı (kullanıcı kararı): statikler instanced, GPU yolu foliage'da; ikincil kamera görünümleri R9a'nın ilk adımı.
 
@@ -1148,6 +1150,26 @@ occlusion eklenmedi. Tam gate ve push çalıştırılmadı.
   500 rastgele nokta, CPU ikizi kamera görünümü), tip / katman; render smoke **29 / 29**:
   `gpuCulling` P2'de 5 m alttaki su düzleminin görünümü her batch'te CPU kesin–olası aralığında
   (iki arka uçta 49 görünür, ana 177), `puddle.smoke.ts` override'sız (draw 60 → 103).
+- **Occlusion çalışması (2026-11-17, `5058c7b`; üst sınır, gizleme yok):** `engine/world/hiZ.ts`
+  (Codex `gpt-6.1-sol` high, Claude inceledi: en uzak değerle küçülen piramit, kutu köşelerinden
+  konservatif küre testi, 18 test, 1.000 durumda kaba kuvvetle konservatiflik) +
+  `render/gpu/occlusionStudy.ts` (yalnız dev `__forgeDev.occlusionStudy`: ana kameradan katman 0
+  sahnesinin derinliği, compute ile okunur, CPU Hi-Z; ana görünümün tuttuğu her GPU güdümlü örnek
+  test edilir) + `npm run measure:occlusion` (kayıt `2026-11-17T20-14-12-758Z-occlusion.json`).
+  Derekavak, 1.640 foliage örneği, 1080p; örtülü örnek (üçgen) payı:
+
+  | Poz | Görünür | Statikler engelleyici | Yalnız arazi (statikler GPU'da) |
+  |---|---|---|---|
+  | P1 | 32 | %18,8 (%20,0) | %0 |
+  | P2 | 177 | %0 | %0 |
+  | P3 | 2 | %0 | %0 |
+  | Yer K / D / G / B | 238 / 355 / 324 / 285 | %3,4 / %1,7 / %13,9 / %20,0 (%2,8 / %0,4 / %15,0 / %21,2) | %0,4 / %0 / %13,9 / %20,0 |
+
+  Bu, bu karenin tam çözünürlüklü derinliğiyle iyimser sınır; gerçek bir geçiş derinlik kaynağının
+  (engelleyici ön geçişi ya da iki aşamalı çizim) ve Hi-Z kurmanın maliyetini öder, daha azını
+  gizler. P2'de GPU süresi zaten 1,8 ms. **Öneri (kullanıcı kararı bekliyor):** R9a üretime
+  alınmaz; Hi-Z referansı ve çalışma ölçümü kalır, yoğun / örtülü içerik (kent, iç mekân) gelince
+  `measure:occlusion` yeniden koşulur. Sırada R10 (G6).
 - Mevcut frustum / mesafe culling ve ambient occlusion, nesne occlusion culling
   değildir. Mevcut meshlet taslağında `occlusionCulling: false`; bağımsız üretim
   occlusion sistemi doğrulanmadı. R7'ye eklenmez; önce R8 ve R9 tamamlanır.
@@ -1907,3 +1929,4 @@ silinebilir.
 | 2026-11-17 | v1.61 | R9.1 / R9.2 (`7724d18`; `mergeTriangleLods` Codex), R9.3 / R9.4 (batch başına yol, uygun olmayan parça instanced, LOD kökü çerçevelemenin dışında), R9.0 ölçümü (`measure:static-path`): GPU yolu dört level'da da kazandırmadı (Derekavak gönderim 0,41 → 1,21 ms), LOD önbelleği 117 / 1. Host varsayılanı `instanced`; yol kararı ve ikincil kamera culling'i açık |
 | 2026-11-17 | v1.62 | R9 kapandı (kullanıcı): statikler `instanced`, GPU güdümlü yol foliage'da; yeniden ölçüm ağır / çok örnekli içerikte, dispatch birleştirme ayrı karar; R9.5 düştü. İkincil kamera görünümleri (yansıma kendi culling listesi + sayaç) R9a'nın ilk adımı. Mimari v1.59 |
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
+| 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
