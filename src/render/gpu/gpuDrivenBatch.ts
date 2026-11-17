@@ -17,10 +17,22 @@
 //   in model space, as for an ordinary mesh).
 // - The fade band dithers in the material (5b's screen-door threshold,
 //   `detailFade.ts`), times the instance's own fade (extras.x).
-// - Main view only (5.1): the meshes do not cast shadows. The cascades get
-//   their own views and meshes on their own layers (5.2); the draws go into
-//   a `BundleGroup` (5.3). Nothing here records per-frame CPU state into the
-//   meshes: what changes per frame is uniforms and GPU buffers.
+// - Views (5.2): view 0 is the main camera; views 1.. are shadow views (each
+//   cascade of a cascaded sun, each other directional shadow map; gpuDriven.ts
+//   finds them). Every view has its own counters, visible list, arguments,
+//   compute nodes and meshes. A shadow view's meshes live on layer k only
+//   (`shadowViewLayer`); gpuDriven adds that layer to the shadow camera, so
+//   only that shadow pass draws them and no other camera sees them. The
+//   shadow pass draws with three's shared shadow material
+//   (`scene.overrideMaterial`), which keeps a material's
+//   `castShadowPositionNode` and `maskShadowNode` but not its context: the
+//   instance transform is the position node there. A shadow view measures
+//   distances from the main camera, so what the main view culls casts no
+//   shadow and what it fades casts a fading one. The main view's meshes cast
+//   none. Point and spot light shadows do not see GPU-driven batches.
+// - The draws go into a `BundleGroup` (5.3). Nothing here records per-frame
+//   CPU state into the meshes: what changes per frame is uniforms and GPU
+//   buffers, and which shadow views draw.
 // - The instance buffers growing replaces the compute nodes, materials and
 //   meshes (`GpuInstances.generation`); nothing else does.
 // - WebGPU only: the WebGL2 test backend has no compute atomics or indirect
@@ -65,6 +77,7 @@ import {
   modelWorldMatrix,
   modelWorldMatrixInverse,
   overrideNodes,
+  positionLocal,
   select,
   smoothstep,
   storage,
@@ -86,6 +99,11 @@ import {
 } from "../../engine/world/instanceCulling.ts";
 import { detailFadeDither } from "../materials/detailFade.ts";
 import { createGpuInstances, type GpuInstances } from "./gpuInstances.ts";
+
+/** Most shadow views a batch draws into (cascades and other directional maps together). */
+export const MAX_SHADOW_VIEWS = 8;
+/** The layer of shadow view `view` (1-based; layer 0 stays every camera's default). */
+export const shadowViewLayer = (view: number): number => view;
 
 /** u32 arguments of one `drawIndexedIndirect`: index count, instance count, first index, base vertex, first instance. */
 const ARGS = 5;
@@ -109,6 +127,8 @@ export interface GpuDrivenBatchOptions {
   readonly distanceMode: InstanceDistanceMode;
   /** The `?debug` scene-cost bucket (`SCENE_SOURCE_KEY`). */
   readonly source?: string;
+  /** Draws into the shadow views (default true). */
+  readonly castShadow?: boolean;
   readonly capacity?: number;
 }
 
@@ -124,21 +144,32 @@ export interface GpuDrivenBatch {
   readonly name: string;
   /** `gpu`: compute culling and indirect draws; `cpu`: the WebGL2 twin (CPU culling, instanced draws). */
   readonly path: "gpu" | "cpu";
-  /** Draws a view issues that `renderer.info` does not count (all of the GPU path's, none of the CPU path's). */
+  /** Draws of the last prepare (every view) that `renderer.info` does not count (all of the GPU path's, none of the CPU path's). */
   readonly uncountedDraws: number;
   readonly instances: GpuInstances;
-  /** One per indirect draw of the main view, under `parent`. */
+  /** The main view's meshes (one per indirect draw on the GPU path), under `parent`. */
   readonly meshes: readonly Mesh[];
+  /** Every view's meshes, the main view's first. */
+  readonly allMeshes: readonly Mesh[];
   readonly lodCount: number;
-  /** Draws a view issues: one per mesh and material pass (a transparent double-sided material draws twice). */
+  /** Draws one view issues: one per mesh and material pass (a transparent double-sided material draws twice). */
   readonly draws: number;
+  /** Views the last prepare culled (1 + its shadow views). */
+  readonly views: number;
+  /** Draws of the last prepare, every view (the CPU twin: only meshes with instances, as three skips empty ones). */
+  readonly lastDraws: number;
   setDistances(distances: GpuBatchDistances): void;
   /** The CPU reference's view of this batch (bounds, distances) as the GPU culls it. */
   readonly cullBatch: InstanceCullBatch;
-  /** Uploads instance changes and this view's uniforms; returns the dispatches, in order. */
-  prepare(view: InstanceCullView): readonly ComputeNode[];
-  /** The last cull's visible count per LOD, read back (tests, measurements). */
-  readCounts(renderer: WebGPURenderer): Promise<number[]>;
+  /**
+   * Uploads instance changes and each view's uniforms; returns the dispatches,
+   * in order. `views[0]` is the main camera, the rest shadow views; past
+   * {@link MAX_SHADOW_VIEWS} (or all of them, without `castShadow`) they are
+   * ignored, and the meshes of views not prepared do not draw.
+   */
+  prepare(views: readonly InstanceCullView[]): readonly ComputeNode[];
+  /** View `view`'s visible count per LOD in the last cull, read back (tests, measurements). */
+  readCounts(renderer: WebGPURenderer, view?: number): Promise<number[]>;
   dispose(): void;
 }
 
@@ -195,22 +226,32 @@ export function maskWithFade(material: NodeMaterial, shown: Node<"float">): void
   material.maskShadowNode = material.maskShadowNode ? bool(material.maskShadowNode as Node<"bool">).and(keeps) : keeps;
 }
 
+interface View {
+  readonly index: number;
+  readonly counters: StorageBufferAttribute;
+  readonly args: IndirectStorageBufferAttribute;
+  readonly planes: Vector4[];
+  readonly planesNode: Node;
+  readonly origin: Vector3;
+  readonly originNode: Node<"vec3">;
+  visible: StorageBufferAttribute | null;
+  dispatches: ComputeNode[];
+  meshes: Mesh[];
+  materials: Material[];
+  built: number;
+}
+
 export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrivenBatchOptions): GpuDrivenBatch {
   const lodCount = options.lods.length;
   if (lodCount < 1 || lodCount > MAX_INSTANCE_LODS) throw new Error(`gpu batch ${options.name}: 1 to ${MAX_INSTANCE_LODS} LODs`);
   const instances = createGpuInstances(options.capacity);
   const draws = options.lods.flatMap((parts, lod) => parts.flatMap((part) => partDraws(lod, part)));
   const drawCount = draws.reduce((sum, draw) => sum + drawPasses(draw.material), 0);
-  const argsArray = new Uint32Array(draws.length * ARGS);
-  draws.forEach((draw, index) => { argsArray[index * ARGS] = draw.count; argsArray[index * ARGS + 2] = draw.start; });
-  const argsBuffer = new IndirectStorageBufferAttribute(argsArray, 1);
   const drawLodBuffer = new StorageBufferAttribute(Uint32Array.from(draws.map((draw) => draw.lod)), 1);
-  const counterBuffer = new StorageBufferAttribute(new Uint32Array(lodCount), 1);
+  const maxViews = 1 + (options.castShadow === false ? 0 : MAX_SHADOW_VIEWS);
 
-  // Per-view uniforms, shared by the compute pass and the materials.
+  // Uniforms every view shares (the compute passes and the materials).
   const count = uniform(0, "uint");
-  const planes = uniformArray(Array.from({ length: 6 }, () => new Vector4(0, 0, 0, 1)), "vec4");
-  const origin = uniform(new Vector3());
   const cullEnd = uniform(NO_CULL_DISTANCE);
   const lodStarts = uniform(new Vector4(NO_CULL_DISTANCE, NO_CULL_DISTANCE, NO_CULL_DISTANCE, NO_CULL_DISTANCE));
   const bounds = uniform(new Vector4(...options.bounds.center, options.bounds.radius));
@@ -218,27 +259,41 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
   const scaled = options.distanceMode === "scaled";
   let distances: GpuBatchDistances = { fadeStart: NO_CULL_DISTANCE, cullEnd: NO_CULL_DISTANCE, lodStarts: [] };
 
-  let built = -1;
-  let visibleBuffer: StorageBufferAttribute | null = null;
-  let dispatches: ComputeNode[] = [];
-  let meshes: Mesh[] = [];
-  let materials: Material[] = [];
+  const views: View[] = [];
+  let prepared = 0;
 
-  const nodeMaterialOf = (source: Material): NodeMaterial => cloneNodeMaterial(renderer, source, options.name);
-
-  const release = (): void => {
-    for (const mesh of meshes) { mesh.removeFromParent(); mesh.geometry.dispose(); }
-    for (const material of materials) material.dispose();
-    for (const node of dispatches) node.dispose();
-    visibleBuffer?.dispose();
-    meshes = []; materials = []; dispatches = []; visibleBuffer = null;
+  const createView = (index: number): View => {
+    const argsArray = new Uint32Array(draws.length * ARGS);
+    draws.forEach((draw, at) => { argsArray[at * ARGS] = draw.count; argsArray[at * ARGS + 2] = draw.start; });
+    const planes = Array.from({ length: 6 }, () => new Vector4(0, 0, 0, 1));
+    const origin = new Vector3();
+    return {
+      index,
+      counters: new StorageBufferAttribute(new Uint32Array(lodCount), 1),
+      args: new IndirectStorageBufferAttribute(argsArray, 1),
+      planes, planesNode: uniformArray(planes, "vec4"),
+      origin, originNode: uniform(origin),
+      visible: null, dispatches: [], meshes: [], materials: [], built: -1,
+    };
   };
 
-  /** (Re)binds everything that reads the instance buffers. */
-  const build = (): void => {
-    release();
+  const releaseView = (view: View): void => {
+    for (const mesh of view.meshes) { mesh.removeFromParent(); mesh.geometry.dispose(); }
+    for (const material of view.materials) material.dispose();
+    for (const node of view.dispatches) node.dispose();
+    view.visible?.dispose();
+    view.meshes = []; view.materials = []; view.dispatches = []; view.visible = null; view.built = -1;
+  };
+
+  /** (Re)binds everything of one view that reads the instance buffers. */
+  const buildView = (view: View): void => {
+    releaseView(view);
+    const shadow = view.index > 0;
     const capacity = instances.capacity;
-    visibleBuffer = new StorageBufferAttribute(new Uint32Array(capacity * lodCount), 1);
+    const visibleBuffer = new StorageBufferAttribute(new Uint32Array(capacity * lodCount), 1);
+    view.visible = visibleBuffer;
+    const planes = view.planesNode as unknown as { element(index: number): Node<"vec4"> };
+    const origin = view.originNode;
     const matrixRead = storage(instances.matrixBuffer, "mat4", capacity).toReadOnly();
     const extraRead = storage(instances.extraBuffer, "vec4", capacity).toReadOnly();
     const visibleRead = storage(visibleBuffer, "uint", capacity * lodCount).toReadOnly();
@@ -248,12 +303,13 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       const raw = distance(at, origin);
       return { origin: at, scale, measured: scaled ? raw.div(max(scale, 1e-6)) : raw };
     };
+    const label = shadow ? `${options.name} shadow${view.index}` : options.name;
 
-    const counters = storage(counterBuffer, "uint", lodCount).toAtomic();
+    const counters = storage(view.counters, "uint", lodCount).toAtomic();
     const reset = Fn(() => {
       If(instanceIndex.lessThan(uint(lodCount)), () => { atomicStore(counters.element(instanceIndex), uint(0)); });
     })().compute(lodCount, [WORKGROUP]);
-    reset.name = `${options.name} reset`;
+    reset.name = `${label} reset`;
 
     const visibleWrite = storage(visibleBuffer, "uint", capacity * lodCount);
     const matrixCull = storage(instances.matrixBuffer, "mat4", capacity).toReadOnly();
@@ -266,7 +322,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       const reach = bounds.w.mul(scale).negate().toVar();
       let inside: Node<"bool"> = bool(true);
       for (let plane = 0; plane < 6; plane += 1) {
-        const p = planes.element(plane) as unknown as Node<"vec4">;
+        const p = planes.element(plane);
         inside = inside.and(dot(p.xyz, center).add(p.w).greaterThanEqual(reach));
       }
       If(inside.and(distanceVar.lessThan(cullEnd)), () => {
@@ -277,68 +333,78 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         visibleWrite.element(lodVar.mul(uint(capacity)).add(slot)).assign(instanceIndex);
       });
     })().compute(capacity, [WORKGROUP]);
-    cull.name = `${options.name} cull`;
+    cull.name = `${label} cull`;
 
-    const countersRead = storage(counterBuffer, "uint", lodCount).toReadOnly();
+    const countersRead = storage(view.counters, "uint", lodCount).toReadOnly();
     const drawLod = storage(drawLodBuffer, "uint", draws.length).toReadOnly();
-    const args = storage(argsBuffer, "uint", draws.length * ARGS);
+    const args = storage(view.args, "uint", draws.length * ARGS);
     const writeArgs = Fn(() => {
       If(instanceIndex.lessThan(uint(draws.length)), () => {
         args.element(instanceIndex.mul(uint(ARGS)).add(uint(1))).assign(countersRead.element(drawLod.element(instanceIndex)));
       });
     })().compute(draws.length, [WORKGROUP]);
-    writeArgs.name = `${options.name} args`;
-    dispatches = [reset, cull, writeArgs];
+    writeArgs.name = `${label} args`;
+    view.dispatches = [reset, cull, writeArgs];
 
     const sources = new Map<string, NodeMaterial>();
     draws.forEach((draw, index) => {
       const key = `${draw.lod}/${options.lods[draw.lod]!.indexOf(draw.part)}/${draw.material.uuid}`;
       let material = sources.get(key);
       if (!material) {
-        material = nodeMaterialOf(draw.material);
+        material = cloneNodeMaterial(renderer, draw.material, options.name);
         // The vertex's instance: its LOD's visible list at instance_index; the fragment reads it flat.
         const slot = varying(visibleRead.element(uint(draw.lod * capacity).add(instanceIndex)), "vForgeGpuInstance");
         const instanceMatrix = matrixRead.element(slot);
         const world = instanceMatrix.mul(uniform(draw.part.local.clone()));
-        const worldPosition = world.mul(vec4(0, 0, 0, 1)).xyz;
-        material.contextNode = overrideNodes([
-          [modelWorldMatrix, world],
-          [modelWorldMatrixInverse, world.inverse()],
-          [modelNormalMatrix, mat3(world).inverse().transpose()],
-          [modelPosition, worldPosition],
-          [modelViewPosition, cameraViewMatrix.mul(vec4(worldPosition, 1)).xyz],
-          [velocity.previousModelWorldMatrix, world],
-        ]);
+        if (shadow) {
+          // The shadow material keeps only the position: the instance's world position, back in the mesh's own space.
+          const local = (material.positionNode as Node<"vec3"> | null) ?? positionLocal;
+          material.castShadowPositionNode = modelWorldMatrixInverse.mul(world.mul(vec4(local, 1))).xyz;
+        } else {
+          const worldPosition = world.mul(vec4(0, 0, 0, 1)).xyz;
+          material.contextNode = overrideNodes([
+            [modelWorldMatrix, world],
+            [modelWorldMatrixInverse, world.inverse()],
+            [modelNormalMatrix, mat3(world).inverse().transpose()],
+            [modelPosition, worldPosition],
+            [modelViewPosition, cameraViewMatrix.mul(vec4(worldPosition, 1)).xyz],
+            [velocity.previousModelWorldMatrix, world],
+          ]);
+        }
         const { measured } = measure(instanceMatrix);
         const shown = varying(float(1).sub(smoothstep(fade.x, fade.y, measured)).mul(extraRead.element(slot).x), "vForgeGpuFade");
         maskWithFade(material, shown);
         sources.set(key, material);
-        materials.push(material);
+        view.materials.push(material);
       }
       // One geometry object per draw (the indirect offset is the geometry's), sharing the part's buffers.
       const geometry = indirectGeometry(draw.part.geometry);
-      geometry.setIndirect(argsBuffer, index * ARGS * 4);
+      geometry.setIndirect(view.args, index * ARGS * 4);
       const mesh = new Mesh(geometry, material);
-      mesh.name = `${options.name}/lod${draw.lod}/${draw.part.name}`;
+      mesh.name = `${label}/lod${draw.lod}/${draw.part.name}`;
       mesh.frustumCulled = false;
-      mesh.castShadow = false;
-      mesh.receiveShadow = true;
+      mesh.castShadow = shadow;
+      mesh.receiveShadow = !shadow;
       mesh.matrixAutoUpdate = false;
+      if (shadow) mesh.layers.set(shadowViewLayer(view.index));
       if (options.source !== undefined) mesh.userData[SCENE_SOURCE_KEY] = options.source;
       options.parent.add(mesh);
-      meshes.push(mesh);
+      view.meshes.push(mesh);
     });
-    built = instances.generation;
+    view.built = instances.generation;
   };
 
   const batch: GpuDrivenBatch = {
     name: options.name,
     path: "gpu",
-    uncountedDraws: drawCount,
+    get uncountedDraws() { return drawCount * prepared; },
     instances,
-    get meshes() { return meshes; },
+    get meshes() { return views[0]?.meshes ?? []; },
+    get allMeshes() { return views.flatMap((view) => view.meshes); },
     lodCount,
     draws: drawCount,
+    get views() { return prepared; },
+    get lastDraws() { return drawCount * prepared; },
     setDistances(next) {
       if (next.lodStarts.length !== lodCount - 1) throw new Error(`gpu batch ${options.name}: ${lodCount - 1} LOD starts`);
       distances = next;
@@ -351,24 +417,36 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     get cullBatch() {
       return { center: options.bounds.center, radius: options.bounds.radius, distanceMode: options.distanceMode, cullEnd: Math.min(distances.cullEnd, NO_CULL_DISTANCE), lodStarts: distances.lodStarts };
     },
-    prepare(view) {
-      if (built !== instances.generation) build();
+    prepare(list) {
       instances.flush();
       count.value = instances.count;
-      for (let plane = 0; plane < 6; plane += 1) {
-        (planes.array[plane] as Vector4).set(view.planes[plane * 4]!, view.planes[plane * 4 + 1]!, view.planes[plane * 4 + 2]!, view.planes[plane * 4 + 3]!);
+      prepared = Math.min(list.length, maxViews);
+      const dispatches: ComputeNode[] = [];
+      for (let index = 0; index < prepared; index += 1) {
+        const view = views[index] ?? (views[index] = createView(index));
+        if (view.built !== instances.generation) buildView(view);
+        const source = list[index]!;
+        for (let plane = 0; plane < 6; plane += 1) {
+          view.planes[plane]!.set(source.planes[plane * 4]!, source.planes[plane * 4 + 1]!, source.planes[plane * 4 + 2]!, source.planes[plane * 4 + 3]!);
+        }
+        view.origin.set(...source.origin);
+        for (const mesh of view.meshes) mesh.visible = true;
+        dispatches.push(...view.dispatches);
       }
-      origin.value.set(...view.origin);
+      for (let index = prepared; index < views.length; index += 1) for (const mesh of views[index]!.meshes) mesh.visible = false;
       return dispatches;
     },
-    async readCounts(target) {
-      const buffer = await target.getArrayBufferAsync(counterBuffer);
+    async readCounts(target, view = 0) {
+      const source = views[view];
+      if (!source) return new Array<number>(lodCount).fill(0);
+      const buffer = await target.getArrayBufferAsync(source.counters);
       return Array.from(new Uint32Array(buffer).slice(0, lodCount));
     },
     dispose() {
-      release();
+      for (const view of views) { releaseView(view); view.args.dispose(); view.counters.dispose(); }
+      views.length = 0;
       instances.dispose();
-      argsBuffer.dispose(); drawLodBuffer.dispose(); counterBuffer.dispose();
+      drawLodBuffer.dispose();
     },
   };
   return batch;

@@ -22,7 +22,7 @@ describe("cpu-driven batch (the WebGL2 twin)", () => {
     batch.setDistances({ fadeStart: 40, cullEnd: 60, lodStarts: [20] });
     const handles = batch.instances.addMany([...at(0, 0, -10), ...at(0, 0, 10), ...at(0, 0, -30), ...at(0, 0, -50), ...at(0, 0, -100)], 5);
     batch.instances.setFade(handles[0]!, 0.5);
-    expect(batch.prepare(VIEW)).toEqual([]);
+    expect(batch.prepare([VIEW])).toEqual([]);
 
     const [near, far] = batch.meshes as InstancedMesh[];
     expect(parent.children).toEqual([near, far]);
@@ -43,10 +43,39 @@ describe("cpu-driven batch (the WebGL2 twin)", () => {
 
     // Moving out of view and the instance's own changes reach the next frame.
     batch.instances.move(handles[0]!, at(0, 0, 10));
-    batch.prepare(VIEW);
+    batch.prepare([VIEW]);
     expect([near!.count, far!.count]).toEqual([0, 2]);
     batch.dispose();
     expect(parent.children).toEqual([]);
+  });
+
+  test("shadow views (5.2): own meshes on their layer, culled by their planes, distances from the main camera", () => {
+    const parent = new Group();
+    const batch = createCpuDrivenBatch({} as WebGPURenderer, {
+      name: "test", parent, distanceMode: "origin", bounds: { center: [0, 0, 0], radius: 1 },
+      lods: [[{ geometry: new BoxGeometry(), material: new MeshBasicNodeMaterial(), local: new Matrix4(), name: "part" }]],
+    });
+    batch.setDistances({ fadeStart: 80, cullEnd: 100, lodStarts: [] });
+    batch.instances.addMany([...at(0, 0, -10), ...at(0, 0, 10), ...at(0, 0, -150)], 3);
+    // A shadow view looking the other way (+Z), measuring from the main camera.
+    const behind = { planes: frustumPlanesOf(new Matrix4().fromArray(projection).multiply(new Matrix4().makeRotationY(Math.PI)).elements, "minusOneToOne"), origin: VIEW.origin };
+    batch.prepare([VIEW, behind]);
+    expect(batch.views).toBe(2);
+    const [main, shadow] = batch.allMeshes as InstancedMesh[];
+    expect([main!.count, shadow!.count]).toEqual([1, 1]);
+    expect([main!.castShadow, shadow!.castShadow]).toEqual([false, true]);
+    expect([main!.layers.mask, shadow!.layers.mask]).toEqual([1, 2]);
+    expect(batch.lastDraws).toBe(2);
+    // Fewer views next frame: the shadow view's meshes stop drawing.
+    batch.prepare([VIEW]);
+    expect([main!.visible, shadow!.visible]).toEqual([true, false]);
+    const noShadow = createCpuDrivenBatch({} as WebGPURenderer, {
+      name: "flat", parent, distanceMode: "origin", bounds: { center: [0, 0, 0], radius: 1 }, castShadow: false,
+      lods: [[{ geometry: new BoxGeometry(), material: new MeshBasicNodeMaterial(), local: new Matrix4(), name: "part" }]],
+    });
+    noShadow.prepare([VIEW, behind]);
+    expect(noShadow.views).toBe(1);
+    batch.dispose(); noShadow.dispose();
   });
 });
 

@@ -31,15 +31,20 @@ export interface DevGpuInstall {
   readonly draws: number;
 }
 
-export interface DevGpuCheck {
-  readonly name: string;
-  readonly instances: number;
+export interface DevGpuViewCheck {
   readonly gpu: readonly number[];
   readonly cpu: Pick<InstanceCullResult, "counts" | "certain" | "possible">;
 }
 
+export interface DevGpuCheck extends DevGpuViewCheck {
+  readonly name: string;
+  readonly instances: number;
+  /** The shadow views (5.2), cascades in order. */
+  readonly shadows: readonly DevGpuViewCheck[];
+}
+
 export interface DevGpuDriven {
-  install(types: readonly DevGpuType[], cullScale: number): Promise<DevGpuInstall>;
+  install(types: readonly DevGpuType[], cullScale: number, castShadow?: boolean): Promise<DevGpuInstall>;
   /** The last frame's GPU counts beside the CPU reference of the same view. */
   check(): Promise<DevGpuCheck[]>;
   remove(): void;
@@ -60,7 +65,7 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
   };
 
   return {
-    async install(types, cullScale) {
+    async install(types, cullScale, castShadow = true) {
       remove();
       const current = host();
       const scene = current?.world?.scene;
@@ -84,7 +89,7 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
         const batch = current.gpuDriven.createBatch({
           name: `foliage/${type.name}`, parent: group, lods: [templateParts], source: "foliage",
           bounds: { center: [sphere.center.x, sphere.center.y, sphere.center.z], radius: sphere.radius }, distanceMode: "origin",
-          capacity: type.matrices.length / 16,
+          capacity: type.matrices.length / 16, castShadow,
         });
         const window = foliageFadeWindow(type.cullStart, type.cullEnd, cullScale);
         batch.setDistances({ fadeStart: window?.[0] ?? NO_CULL_DISTANCE, cullEnd: window?.[1] ?? NO_CULL_DISTANCE, lodStarts: [] });
@@ -96,14 +101,16 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
     },
     async check() {
       const current = host();
-      const view = current?.gpuDriven.lastView;
-      if (!current || !view) throw new Error("no culled frame yet");
+      const views = current?.gpuDriven.lastViews ?? [];
+      if (!current || views.length === 0) throw new Error("no culled frame yet");
+      const viewCheck = async (batch: GpuDrivenBatch, index: number): Promise<DevGpuViewCheck> => {
+        const cpu = cullInstanceCounts(batch.instances.matrices(), batch.instances.count, batch.cullBatch, views[index]!);
+        return { gpu: await batch.readCounts(current.renderer, index), cpu: { counts: cpu.counts, certain: cpu.certain, possible: cpu.possible } };
+      };
       return Promise.all(batches.map(async (batch) => {
-        const cpu = cullInstanceCounts(batch.instances.matrices(), batch.instances.count, batch.cullBatch, view);
-        return {
-          name: batch.name, instances: batch.instances.count, gpu: await batch.readCounts(current.renderer),
-          cpu: { counts: cpu.counts, certain: cpu.certain, possible: cpu.possible },
-        };
+        const shadows: DevGpuViewCheck[] = [];
+        for (let index = 1; index < batch.views; index += 1) shadows.push(await viewCheck(batch, index));
+        return { name: batch.name, instances: batch.instances.count, ...(await viewCheck(batch, 0)), shadows };
       }));
     },
     remove,

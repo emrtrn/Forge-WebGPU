@@ -22,16 +22,17 @@ import { derekavakFoliage, type FoliageSceneType } from "./gpuFoliageScene.ts";
 import { RENDER_REFS, SMOKE_SCENES, SMOKE_VIEWPORT } from "./renderScenes.ts";
 import { difference, git, isOptionalHlodMiss, openSmokeLevel } from "./smokePage.ts";
 
-interface Check { name: string; instances: number; gpu: number[]; cpu: { counts: number[]; certain: number[]; possible: number[] } }
+interface ViewCheck { gpu: number[]; cpu: { counts: number[]; certain: number[]; possible: number[] } }
+interface Check extends ViewCheck { name: string; instances: number; shadows: ViewCheck[] }
 interface Dev {
   pause(): void;
   resume(): void;
   step(ms: number): Promise<{ ran: boolean }>;
   moveCamera(x: number, y: number, z: number, look?: readonly [number, number, number]): void;
   gpuDriven: {
-    install(types: FoliageSceneType[], cullScale: number): Promise<{ path: "gpu" | "cpu"; batches: number; instances: number; parts: number; draws: number }>;
+    install(types: FoliageSceneType[], cullScale: number, castShadow?: boolean): Promise<{ path: "gpu" | "cpu"; batches: number; instances: number; parts: number; draws: number }>;
     check(): Promise<Check[]>;
-    stats(): { batches: number; instances: number; draws: number } | null;
+    stats(): { batches: number; instances: number; draws: number; views: number } | null;
     remove(): Promise<void>;
   };
 }
@@ -42,8 +43,8 @@ const dev = (page: Page) => ({
   step: () => page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.step(1000 / 60)),
   move: (position: readonly [number, number, number], look: readonly [number, number, number]) =>
     page.evaluate(([p, t]) => (window as unknown as { __forgeDev: Dev }).__forgeDev.moveCamera(p[0], p[1], p[2], t), [position, look] as const),
-  install: (types: FoliageSceneType[], scale: number) =>
-    page.evaluate(([list, value]) => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.install(list, value), [types, scale] as const),
+  install: (types: FoliageSceneType[], scale: number, castShadow = true) =>
+    page.evaluate(([list, value, cast]) => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.install(list, value, cast), [types, scale, castShadow] as const),
   check: () => page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.check()),
   stats: () => page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.stats()),
   remove: () => page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.remove()),
@@ -90,12 +91,15 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
   const views: Array<{ id: string; checks: Check[] }> = [];
   const checkView = async (id: string): Promise<Check[]> => {
     const checks = await dev(page).check();
+    const within = (label: string, view: ViewCheck): void => view.gpu.forEach((gpu, lod) => {
+      expect(gpu, `${label} LOD ${lod}: GPU ${gpu}, CPU ${view.cpu.counts[lod]} (certain ${view.cpu.certain[lod]}, possible ${view.cpu.possible[lod]})`)
+        .toBeGreaterThanOrEqual(view.cpu.certain[lod]!);
+      expect(gpu).toBeLessThanOrEqual(view.cpu.possible[lod]!);
+    });
     for (const check of checks) {
-      check.gpu.forEach((gpu, lod) => {
-        expect(gpu, `${id} ${check.name} LOD ${lod}: GPU ${gpu}, CPU ${check.cpu.counts[lod]} (certain ${check.cpu.certain[lod]}, possible ${check.cpu.possible[lod]})`)
-          .toBeGreaterThanOrEqual(check.cpu.certain[lod]!);
-        expect(gpu).toBeLessThanOrEqual(check.cpu.possible[lod]!);
-      });
+      within(`${id} ${check.name}`, check);
+      // Every shadow view (5.2: each cascade) against the reference for its own planes.
+      check.shadows.forEach((shadow, index) => within(`${id} ${check.name} shadow ${index + 1}`, shadow));
     }
     views.push({ id, checks });
     return checks;
@@ -110,12 +114,28 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
   const changed = await difference(page, plain, drawn);
   expect(changed, "the foliage changes the image").toBeGreaterThan(0.5);
   await dev(page).resume();
-  await expect.poll(() => readoutDraws(page), { timeout: 20_000, message: "the readout counts every draw of the batches, indirect or not" })
-    .toBe(drawsBefore + installed.draws);
-  const drawsAfter = await readoutDraws(page);
   const stats = await dev(page).stats();
-  expect(stats?.draws).toBe(installed.draws);
+  // Derekavak's sun casts cascades at `high`: every cascade is a shadow view (5.2).
+  expect(stats?.views ?? 0, "the cascades are shadow views").toBeGreaterThan(1);
+  // The GPU path issues every indirect draw; three skips the CPU twin's empty instanced meshes.
+  if (webgl) expect(stats!.draws).toBeLessThanOrEqual(installed.draws * stats!.views);
+  else expect(stats?.draws).toBe(installed.draws * stats!.views);
+  await expect.poll(() => readoutDraws(page), { timeout: 20_000, message: "the readout counts every draw of the batches in every view, indirect or not" })
+    .toBe(drawsBefore + stats!.draws);
+  const drawsAfter = await readoutDraws(page);
   await dev(page).pause();
+
+  // The same batches without shadow views: the shadows they cast change the image.
+  await dev(page).install(foliage.types, foliage.cullScale, false);
+  await steps(page, 6);
+  const shadowless = await page.getByTestId("forge-canvas").screenshot();
+  const shadowDifference = await difference(page, shadowless, drawn);
+  expect(shadowDifference, "the foliage casts shadows").toBeGreaterThan(0.05);
+  const unshadowedDraws = (await dev(page).stats())!.draws;
+  if (webgl) expect(unshadowedDraws).toBeLessThanOrEqual(installed.draws);
+  else expect(unshadowedDraws, "without castShadow only the main view draws").toBe(installed.draws);
+  await dev(page).install(foliage.types, foliage.cullScale);
+  await steps(page, 6);
 
   await dev(page).move(p1.position!, p1.target!);
   await steps(page, 3);
@@ -133,7 +153,7 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
 
   const record = {
     schema: 1,
-    kind: "phase 5c step 5.1 GPU-driven culling smoke",
+    kind: "phase 5c steps 5.1 / 5.2 GPU-driven culling smoke (main view and shadow cascades)",
     backend,
     date: new Date().toISOString(),
     commit: git(["rev-parse", "HEAD"]),
@@ -142,7 +162,9 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
     foliage: { cells: foliage.cells, instances: foliage.instances, types: foliage.types.map((type) => ({ name: type.name, instances: type.matrices.length / 16 })) },
     installed,
     readoutDraws: { before: drawsBefore, after: drawsAfter },
+    shadowViews: stats!.views - 1,
     imageDifference: changed,
+    shadowImageDifference: shadowDifference,
     views: views.map(({ id, checks }) => ({ id, visible: total(checks), checks })),
   };
   const stamp = record.date.replace(/[:.]/g, "-");
@@ -151,6 +173,7 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
   const suffix = webgl ? "-webgl" : "";
   writeFileSync(join(RENDER_REFS, "runs", `${stamp}-gpu-culling${suffix}.json`), `${JSON.stringify(record, null, 2)}\n`);
   writeFileSync(join(RENDER_REFS, "candidates", `derekavak-p2-gpu-foliage${suffix}.png`), drawn);
+  writeFileSync(join(RENDER_REFS, "candidates", `derekavak-p2-gpu-foliage-shadowless${suffix}.png`), shadowless);
   await testInfo.attach(`derekavak-p2-gpu-foliage${suffix}`, { body: drawn, contentType: "image/png" });
   console.log(`gpu culling (${backend}): ${JSON.stringify(record.views.map((view) => [view.id, view.visible]))}, draws ${installed.draws}`);
 });
