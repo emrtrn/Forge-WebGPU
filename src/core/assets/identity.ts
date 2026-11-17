@@ -134,7 +134,8 @@ export function identifyAssets(files: readonly ContentFile[], options: AssetInde
     const label = fileLabel(file.root, file.path);
     const ctx = createContext(options);
     const assetPath = assetPathOfMeta(file.path);
-    if (/(^|\/)hlod\.json$/.test(file.path) || /(^|\/)hlod\/[^/]+\.glb$/i.test(file.path)) {
+    if (/(^|\/)hlod\.json$/.test(file.path) || /(^|\/)hlod\/[^/]+\.glb$/i.test(file.path)
+      || /(^|\/)foliage\.json$/.test(file.path) || /(^|\/)foliage\/(0|-?[1-9][0-9]*)_(0|-?[1-9][0-9]*)\.bin$/.test(file.path)) {
       result.levelParts.push(file);
     } else if (assetPath !== null) {
       identifyMeta(file, assetPath, present, ctx, options, result, claim);

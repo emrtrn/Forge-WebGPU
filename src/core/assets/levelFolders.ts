@@ -29,6 +29,7 @@ import {
   normalizeLevelCellIndex,
 } from "../level/cellDocs.ts";
 import { compareCellKeys } from "../level/cells.ts";
+import { FOLIAGE_DIR, FOLIAGE_INDEX_FILE, foliageCellFileOf, normalizeLevelFoliageIndex } from "../level/foliage.ts";
 import { HLOD_INDEX_FILE, HLOD_DIR, hlodCellFileOf, normalizeHlodIndex } from "../level/hlod.ts";
 import { mergeLevelParts } from "../level/levelParts.ts";
 import type { LevelCellDoc, LevelCellIndexDoc } from "../level/model.ts";
@@ -60,8 +61,8 @@ export function partFolderOf(path: string): string | null {
   const slash = path.lastIndexOf("/");
   const name = path.slice(slash + 1);
   const parent = slash < 0 ? "" : path.slice(0, slash);
-  if (name === CELL_INDEX_FILE || name === HLOD_INDEX_FILE) return parent;
-  for (const dir of [CELLS_DIR, HLOD_DIR]) {
+  if (name === CELL_INDEX_FILE || name === HLOD_INDEX_FILE || name === FOLIAGE_INDEX_FILE) return parent;
+  for (const dir of [CELLS_DIR, HLOD_DIR, FOLIAGE_DIR]) {
     if (parent === dir) return "";
     if (parent.endsWith(`/${dir}`)) return parent.slice(0, -dir.length - 1);
   }
@@ -166,6 +167,29 @@ export function indexLevelFolder(
       reportLoss(ctx, "orphan-part", "", "The HLOD proxy is not listed in hlod.json."));
   }
 
+  // Painted foliage (phase 5c decision 4): index, cell files and the types they name.
+  const foliagePath = inFolder(folder, FOLIAGE_INDEX_FILE);
+  const foliageFile = parts.find((file) => file.path === foliagePath);
+  const foliage = foliageFile ? normalizeLevelFoliageIndex(foliageFile.json, options) : null;
+  if (foliageFile?.parseError) report(FOLIAGE_INDEX_FILE, (ctx) =>
+    reportLoss(ctx, "invalid-document", "", `Not valid JSON: ${foliageFile.parseError}`));
+  if (foliage) withFile(label(FOLIAGE_INDEX_FILE), foliage.issues, issues);
+  if (foliage?.value && foliage.value.level !== persistent.id) report(FOLIAGE_INDEX_FILE, (ctx) =>
+    reportLoss(ctx, "invalid-value", "level", `The foliage index belongs to level ${foliage.value!.level}.`));
+  if (foliage?.value && foliage.value.cellSize !== persistent.settings.cellSize) report(FOLIAGE_INDEX_FILE, (ctx) =>
+    reportLoss(ctx, "invalid-value", "cellSize", "Foliage cellSize differs from the level's cellSize; re-save the foliage."));
+  if (foliage?.value) add(label(FOLIAGE_INDEX_FILE), foliage.value.types.map((target, index) => ({
+    path: `types[${index}]`, target, assetType: "forge.foliageType", via: "field" as const,
+  })));
+  const foliageCellPaths = new Set((foliage?.value?.cells ?? []).map((cell) => inFolder(folder, foliageCellFileOf(cell.key))));
+  for (const path of foliageCellPaths) if (!partPaths.has(path)) report(FOLIAGE_INDEX_FILE, (ctx) =>
+    reportLoss(ctx, "dangling-reference", "cells", `The foliage cell ${path} is missing.`));
+  for (const file of parts) {
+    if (!file.path.startsWith(inFolder(folder, `${FOLIAGE_DIR}/`))) continue;
+    if (!foliageCellPaths.has(file.path)) report(file.path.slice(folder ? folder.length + 1 : 0), (ctx) =>
+      reportLoss(ctx, "orphan-part", "", "The foliage cell is not listed in foliage.json."));
+  }
+
   // The index.
   let index: LevelCellIndexDoc | null = null;
   const indexPath = inFolder(folder, CELL_INDEX_FILE);
@@ -200,6 +224,7 @@ export function indexLevelFolder(
   const present = new Set<string>();
   for (const file of parts) {
     if (file.path === indexPath || file.path === hlodPath || file.path.startsWith(inFolder(folder, `${HLOD_DIR}/`))) continue;
+    if (file.path === foliagePath || file.path.startsWith(inFolder(folder, `${FOLIAGE_DIR}/`))) continue;
     const relative = folder === "" ? file.path : file.path.slice(folder.length + 1);
     const key = cellKeyOfFile(relative);
     if (key === null) {
