@@ -138,6 +138,8 @@ export function mirrorIntoWorld(world: World, changes: readonly AppliedChange[])
 }
 
 export interface EditorSessionOptions {
+  /** Successful saved/clean completion; authoring jobs may check the saved scene. */
+  readonly onSaved?: () => void;
   readonly level: LevelSession;
   /** The world the level was assembled into; hidden actors leave it. */
   readonly world: World;
@@ -284,11 +286,12 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
       saved = new Promise<void>((resolve) => (done = resolve));
       try {
         const outcome = await saveLevelSession(level, client);
-        if (outcome.status === "clean") return { ok: true, message: "Nothing to save" };
+        if (outcome.status === "clean") { options.onSaved?.(); return { ok: true, message: "Nothing to save" }; }
         if (outcome.status === "needs-load") return { ok: false, message: `Load cells ${outcome.cells.join(", ")} before saving` };
         const response = outcome.response;
         if (response.status === "saved") {
           const files = response.files.length;
+          options.onSaved?.();
           return { ok: true, message: `Saved ${files} file${files === 1 ? "" : "s"}` };
         }
         if (response.status === "conflict") {

@@ -8,6 +8,12 @@ const LEVEL = "content/levels/StreamingSmoke";
 const LEVEL_ID = `lvl_${"e".repeat(32)}`;
 const NEAR = `act_${"a".repeat(32)}`, FAR = `act_${"b".repeat(32)}`;
 
+// These fixtures test streaming and deliberately stale hand-written proxies.
+// Production generation has its own end-to-end acceptance in hlod.spec.ts.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript((level) => localStorage.setItem(`forge.editor.hlod.auto:Starter/${level}`, "false"), LEVEL);
+});
+
 test.beforeAll(() => {
   const folder = projectPath(LEVEL); mkdirSync(join(folder, "cells"), { recursive: true });
   writeFileSync(join(folder, "level.json"), JSON.stringify({ schema: "forge.level/1", id: LEVEL_ID, settings: { cellSize: 128, loadRange: 128, viewDistance: 3000 }, actors: [] }));

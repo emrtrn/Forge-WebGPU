@@ -79,6 +79,9 @@ import { HlodSourceKey, hlodPlacementsOf, hlodCellSourceHash } from "../engine/w
 import { createWorldPartitionPanel } from "./world/worldPartitionPanel.ts";
 import { KeptRegionsKey } from "../engine/world/keptRegions.ts";
 import { RenderReadinessKey } from "../engine/world/renderReadiness.ts";
+import { createHlodClient } from "./world/hlodClient.ts";
+import { createHlodController } from "./world/hlodController.ts";
+import { createHlodControls } from "./world/hlodControls.ts";
 import { createShell } from "./shell/shell.ts";
 import type { ChangedFile } from "./session/liveRefresh.ts";
 import { createTransformTools, type TransformTools } from "./transformTools.ts";
@@ -241,7 +244,8 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     world.beginPlay();
     const levelKey = `${options.projectName}/${options.level}`;
     const storage = pageStorage(doc);
-    const session = createEditorSession({ level: opened.session, world, client: options.client, read: { strict: true, registry, resolveClass }, hidden: readHidden(storage, levelKey) });
+    let afterSaved = (): void => {};
+    const session = createEditorSession({ level: opened.session, world, client: options.client, read: { strict: true, registry, resolveClass }, hidden: readHidden(storage, levelKey), onSaved: () => afterSaved() });
     editor = session;
     const streaming = createEditorCellStreaming({
       level: session.level, client: options.client, read: { strict: true, registry, resolveClass },
@@ -253,11 +257,17 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     streaming.onChange(publishCells); publishCells();
     let hlodIndex: HlodIndex | null = null;
     let hlodRevision = 0;
-    const refreshHlod = async (): Promise<void> => {
+    // A revision bump drops every drawn proxy, so it happens only for a different index or a forced
+    // publication reload (same index bytes can still carry new proxy GLBs, e.g. a recoloured model).
+    let hlodText: string | null | undefined, hlodReadAt = 0;
+    const refreshHlod = async (force = false): Promise<void> => {
+      const readAt = Date.now();
       const file = await options.client.read(`${options.level}/hlod.json`);
-      const checked = file ? normalizeHlodIndex(JSON.parse(file.text)) : null;
+      const text = file?.text ?? null;
+      if (!force && text === hlodText) return;
+      const checked = text !== null ? normalizeHlodIndex(JSON.parse(text)) : null;
       hlodIndex = checked?.ok && checked.value?.level === session.level.level.id ? checked.value : null;
-      hlodRevision += 1;
+      hlodText = text; hlodReadAt = readAt; hlodRevision += 1;
     };
     await refreshHlod();
     if (options.client.readBinary) world.services.provide(HlodSourceKey, {
@@ -339,6 +349,24 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       hlodStatus = { present: hlodIndex !== null, stale, unchecked };
     };
     updateHlodStatus(); session.level.onApplied(updateHlodStatus);
+    let editorDisposed = false;
+    const hlodClient = createHlodClient(options.level);
+    const hlodWritable = (levelFolder?.writable ?? !options.readOnly) && !options.level.startsWith("engine:");
+    const hlodBuild = createHlodController({
+      level: options.level, writable: hlodWritable,
+      preferenceKey: `forge.editor.hlod.auto:${levelKey}`, storage,
+      dirty: () => session.dirty() > 0, save: () => session.save(),
+      request: hlodWritable ? hlodClient.request : async () => ({ level: options.level, state: "missing", queued: false, publication: null, message: "Read-only level" }), poll: hlodClient.poll,
+      // Skip publications the editor already read: the one it opened with, or one the disk event delivered.
+      reload: async (status) => {
+        if (editorDisposed || (status.completedAt !== undefined && hlodReadAt >= Date.parse(status.completedAt))) return;
+        await refreshHlod(true); if (!editorDisposed) updateHlodStatus();
+      },
+      status: (message, tone) => shell.status(message, tone),
+    });
+    afterSaved = () => hlodBuild.saved();
+    const stopHlodEdits = session.onChange(() => hlodBuild.edited());
+    const hlodControls = createHlodControls(doc, hlodBuild);
     const partition = createWorldPartitionPanel({
       document: doc, streaming, settings: () => ({ ...session.level.level.settings, loadRange: session.level.level.settings.loadRange * (viewport.host?.quality.extensions?.viewDistanceMultiplier ?? 1) }),
       camera: () => viewport.playPose().position, focus: (x, z) => viewport.focusWorld(x, z),
@@ -351,8 +379,11 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         return [{ key: `${index}:${x}_${z}`, state, bounds: { minX, minZ, maxX: minX + grid.tileSize, maxZ: minZ + grid.tileSize } }];
       })),
     });
+    partition.element.prepend(hlodControls.element);
     shell.attachWorldPartition(partition.element);
-    doc.defaultView?.addEventListener("pagehide", () => { partition.dispose(); streaming.dispose(); }, { once: true });
+    doc.defaultView?.addEventListener("pagehide", () => {
+      editorDisposed = true; afterSaved = () => {}; stopHlodEdits(); hlodBuild.dispose(); hlodControls.dispose(); partition.dispose(); streaming.dispose();
+    }, { once: true });
     const editCommands = commands;
     tools = createTransformTools({ editor: session, viewport, storage: pageStorage(doc), status: (message, tone) => shell.status(message, tone), duplicate: (coalesce) => editCommands.duplicateForDrag(coalesce) });
     shell.attachTools(tools, () => viewport.camera.navigating);
@@ -492,7 +523,9 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     // The open level follows the disk in the shell (liveRefresh.ts); the rest of the project here: the listing, the
     // renderer's file table, the classes, the assets the scene uses, the asset window.
     followDisk = async (files) => {
-      if (files.some((file) => file.path === `${options.level}/hlod.json` || file.path.startsWith(`${options.level}/hlod/`))) {
+      hlodBuild.diskChanged(files.map((file) => file.path));
+      // The index is the publication marker; intermediate proxy writes are not a new scene.
+      if (files.some((file) => file.path === `${options.level}/hlod.json`)) {
         await refreshHlod(); updateHlodStatus();
       }
       const others = files.filter((file) => !file.path.startsWith(`${options.level}/`));
@@ -561,6 +594,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     );
     const warnings = opened.issues.filter((issue) => issue.severity === "warning");
     if (warnings.length > 0) shell.status(`Level read with ${warnings.length} warning(s): ${warnings[0]!.message}`, "warning");
+    hlodBuild.start();
 
     const view = doc.defaultView!;
     let last: number | null = null;

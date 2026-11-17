@@ -52,7 +52,8 @@ import { randomBytes } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
 import { DATA_DOCUMENT_TYPES, type AssetIndex, type JsonObject } from "../../src/core/index.ts";
@@ -65,7 +66,8 @@ import { engineContentResult } from "./engineContentMode.ts";
 import { openAuthoring, READ_ONLY_MESSAGE, resolveReadOnlyPath, STATUS_OF, type Authoring, type AuthoringOptions } from "./authoring.ts";
 import { createPlaySessions, PLAY_ID, PlaySessionMissing } from "./playSessions.ts";
 import { MANIFEST_FILE, type SaveRequest, type SaveResult } from "../save/transaction.ts";
-import { ProjectPathError, type WritePolicy } from "./projectPaths.ts";
+import { normalizeProjectPath, ProjectPathError, resolveWritablePath, type WritePolicy } from "./projectPaths.ts";
+import { createHlodJobs, type HlodJobs } from "./hlodJobs.ts";
 
 export const STAGING_DIR = ".forge-staging";
 export const THUMBNAIL_DIR = ".forge-cache/thumbnails";
@@ -147,10 +149,14 @@ async function readBody(req: IncomingMessage, max: number): Promise<Buffer> {
 export { STATUS_OF };
 
 export interface ForgeServerOptions extends AuthoringOptions {
+  /** Repository root owning tools/world/hlodWorker.ts; Vite passes its config root. */
+  readonly engineRoot?: string;
   /** Body size limit; default MAX_BODY_BYTES. */
   readonly maxBodyBytes?: number;
   /** What `/__forge/identity` answers. */
   readonly identity?: unknown;
+  /** Tests may inject a worker adapter; production owns one queue per server/project. */
+  readonly hlodJobs?: HlodJobs;
 }
 
 /** An asset's file as `GET /__forge/asset-files` lists it; `file` is what `/__forge/read?path=` takes. */
@@ -189,6 +195,7 @@ export interface ForgeServer {
   readonly policy: WritePolicy;
   /** What the endpoints read and write through (authoring.ts): the save services, the index, the class store. */
   readonly authoring: Authoring;
+  dispose(): void;
 }
 
 const STAGE_ID = /^[0-9a-f]{32}$/;
@@ -201,8 +208,36 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
   const { policy, readOnlyRoots, engine, engineMode, classes, check, saves, engineSaves, rootOfLabel, absoluteOf, writableLabel, current } = authoring;
   const maxBody = options.maxBodyBytes ?? MAX_BODY_BYTES;
   const stagingDir = join(policy.root, STAGING_DIR);
+  const hlodJobs = options.hlodJobs ?? createHlodJobs({
+    engineRoot: options.engineRoot ?? resolve(dirname(fileURLToPath(import.meta.url)), "../.."), project: policy.root,
+  });
   // Uploads do not outlive the server: a save names them within one session.
   await rm(stagingDir, { recursive: true, force: true });
+
+  const hlod = async (req: IncomingMessage, url: URL, res: ServerResponse): Promise<void> => {
+    if (options.readOnly) {
+      req.resume();
+      send(res, 403, { message: "HLOD generation requires a writable project level" });
+      return;
+    }
+    try {
+      const raw = req.method === "POST" ? JSON.parse((await readBody(req, 4096)).toString("utf8")) as unknown : { level: url.searchParams.get("level") };
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Expected an HLOD request");
+      const value = raw as { level?: unknown; build?: unknown; force?: unknown };
+      if (typeof value.level !== "string" || value.level.length > 1024) throw new Error("Expected a project level folder");
+      const level = normalizeProjectPath(value.level);
+      resolveWritablePath(policy, `${level}/level.json`);
+      if (req.method === "POST") {
+        if (typeof value.build !== "boolean" || (value.force !== undefined && typeof value.force !== "boolean")) throw new Error("Expected build/force booleans");
+        if (value.force === true && !value.build) throw new Error("Force requires build");
+        send(res, 202, hlodJobs.request({ level, build: value.build, force: value.force === true }));
+      } else send(res, 200, hlodJobs.status(level));
+    } catch (error) {
+      send(res, error instanceof ProjectPathError ? 403 : error instanceof BodyTooLarge ? 413 : 400, {
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
 
   const save = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     if (options.readOnly && !engineMode) {
@@ -500,6 +535,8 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
     const route = `${req.method ?? "GET"} ${url.pathname}`;
     const routes: Readonly<Record<string, () => Promise<void>>> = {
       "POST /__forge/save": () => save(req, res),
+      "POST /__forge/hlod": () => hlod(req, url, res),
+      "GET /__forge/hlod": () => hlod(req, url, res),
       "POST /__forge/stage-binary": () => stage(req, res),
       "GET /__forge/read": () => read(url, res),
       "GET /__forge/identity": async () => send(res, 200, options.identity ?? {}),
@@ -526,5 +563,5 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
     });
   };
 
-  return { middleware, policy, authoring };
+  return { middleware, policy, authoring, dispose: () => hlodJobs.dispose() };
 }

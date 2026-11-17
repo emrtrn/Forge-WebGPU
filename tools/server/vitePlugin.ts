@@ -108,6 +108,7 @@ export function forgeServerPlugin(options: ForgeServerPluginOptions = {}): Plugi
       const engineContent = options.engineContent ?? (process.env.FORGE_ENGINE_CONTENT === "1" ? { root: server.config.root } : undefined);
       // The same options `npm run forge -- edit` opens the project with (projectAuthoring.ts).
       const forge = await createForgeServer({
+        engineRoot: server.config.root,
         ...(await projectAuthoringOptions(server.config.root, current, registry, engineContent)),
         identity: identityOf({ ...current, problems }),
       });
@@ -122,6 +123,7 @@ export function forgeServerPlugin(options: ForgeServerPluginOptions = {}): Plugi
       });
       const unwatch = watchContentRoots(forge.authoring.contentRoots, events, (message) => server.config.logger.warn(`forge: ${message}`));
       server.httpServer?.once("close", () => {
+        forge.dispose();
         unwatch();
         events.dispose();
       });
