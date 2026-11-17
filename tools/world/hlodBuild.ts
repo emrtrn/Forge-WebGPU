@@ -1,10 +1,12 @@
 // Forge's world-space bake -> weld -> meshoptimizer simplify, with level-folder inputs.
+// Layer 1 (plan 5c R8.2): each 4 × 4 cluster of cells bakes its cells' simplified
+// proxies once more, coarser, into one proxy drawn far away instead of up to 16.
 import { Document, Logger, Verbosity } from "@gltf-transform/core";
 import { simplify, weld } from "@gltf-transform/functions";
 import { MeshoptSimplifier } from "meshoptimizer";
-import { stringifyDocument, type Vec3 } from "../../src/core/index.ts";
+import { compareCellKeys, parseCellKey, stringifyDocument, type Vec3 } from "../../src/core/index.ts";
 import {
-  HLOD_SCHEMA, HLOD_INDEX_FILE, hlodCellFileOf, hlodCellSourceHash, hlodIncludesPlacement, isHlodShapePlacement, maxAxisScale,
+  HLOD_SCHEMA, HLOD_INDEX_FILE, hlodCellFileOf, hlodCellSourceHash, hlodClusterFileOf, hlodClusterOf, hlodClusterSourceHash, hlodIncludesPlacement, isHlodShapePlacement, maxAxisScale,
   type HlodIndex,
 } from "../../src/engine/world/hlod.ts";
 import { multiplyMat4, transformPoint, type Mat4 } from "../../src/engine/math/affine.ts";
@@ -42,6 +44,29 @@ async function simplifyBuckets(buckets: readonly Bucket[], ratio: number, error:
   }));
 }
 
+/** Back to a triangle soup, so a cluster welds its cells' outputs together. */
+function soup(source: Simplified): Bucket {
+  const out: Bucket = { positions: [], colors: [] };
+  for (const corner of source.indices) {
+    out.positions.push(source.positions[corner * 3]!, source.positions[corner * 3 + 1]!, source.positions[corner * 3 + 2]!);
+    out.colors.push(source.colors[corner * 3]!, source.colors[corner * 3 + 1]!, source.colors[corner * 3 + 2]!);
+  }
+  return out;
+}
+
+const concat = (buckets: readonly Bucket[]): Bucket =>
+  ({ positions: buckets.flatMap((bucket) => bucket.positions), colors: buckets.flatMap((bucket) => bucket.colors) });
+
+/** One proxy from simplified [single-sided, double-sided] buckets: the double-sided ones gain their back faces. */
+function proxyOf([one, two]: readonly Simplified[]): { doc: Document; triangles: number } | null {
+  const base = one!.positions.length / 3;
+  const back = two!.indices.map((_, i) => two!.indices[i - 2 * (i % 3) + 2]!);
+  const indices = [...one!.indices, ...two!.indices.map((corner) => corner + base), ...back.map((corner) => corner + base)];
+  if (!indices.length) return null;
+  return { doc: proxyDocument(concat([one!, two!]), indices), triangles: indices.length / 3 };
+}
+
+/** Layer 1 keeps the cell ratio and error, applied again to the cells' outputs. */
 export interface HlodBuildOptions { readonly ratio?: number; readonly error?: number }
 export interface HlodBuildResult {
   readonly index: HlodIndex;
@@ -68,6 +93,7 @@ export async function buildLevelHlod(folder: string, input: HlodInput, options: 
   await MeshoptSimplifier.ready;
   const files = new Map<string, Uint8Array>();
   const entries: HlodIndex["cells"][number][] = [];
+  const clusterInputs = new Map<string, { cells: HlodIndex["cells"][number][]; parts: Simplified[][] }>();
   let skippedPlacements = 0;
   for (const [key, placements] of hlodCellsOf(level, input)) {
     // No normals (plan R8.0): per-face normals kept weld from joining any corner, so the
@@ -122,17 +148,29 @@ export async function buildLevelHlod(folder: string, input: HlodInput, options: 
     }
     if (!one.positions.length && !two.positions.length) continue;
     const source = await simplifyBuckets([one, two], ratio, error);
-    const merged = { positions: [...source[0]!.positions, ...source[1]!.positions], colors: [...source[0]!.colors, ...source[1]!.colors] };
-    const base = source[0]!.positions.length / 3;
-    const back = source[1]!.indices.map((_, i) => source[1]!.indices[i - 2 * (i % 3) + 2]!);
-    const indices = [...source[0]!.indices, ...source[1]!.indices.map((corner) => corner + base), ...back.map((corner) => corner + base)];
-    if (!indices.length) continue;
-    const doc = proxyDocument(merged, indices);
-    doc.getRoot().setExtras({ hlodSourceTriangles: (one.positions.length + 2 * two.positions.length) / 9 });
-    files.set(hlodCellFileOf(key), await assets.nodeIO.writeBinary(doc));
-    entries.push({ key, triangles: indices.length / 3, sourceHash: hlodCellSourceHash(placements) });
+    const proxy = proxyOf(source);
+    if (!proxy) continue;
+    proxy.doc.getRoot().setExtras({ hlodSourceTriangles: (one.positions.length + 2 * two.positions.length) / 9 });
+    files.set(hlodCellFileOf(key), await assets.nodeIO.writeBinary(proxy.doc));
+    const entry = { key, triangles: proxy.triangles, sourceHash: hlodCellSourceHash(placements) };
+    entries.push(entry);
+    const coord = parseCellKey(key)!;
+    const cluster = hlodClusterOf(coord.x, coord.z);
+    const inputs = clusterInputs.get(cluster) ?? { cells: [], parts: [] };
+    inputs.cells.push(entry); inputs.parts.push(source);
+    clusterInputs.set(cluster, inputs);
   }
-  const index: HlodIndex = { schema: HLOD_SCHEMA, level: level.id, cellSize: level.settings.cellSize, cells: entries };
+  const clusters: HlodIndex["clusters"][number][] = [];
+  for (const [key, inputs] of clusterInputs) {
+    const source = await simplifyBuckets([0, 1].map((side) => concat(inputs.parts.map((part) => soup(part[side]!)))), ratio, error);
+    const proxy = proxyOf(source);
+    if (!proxy) continue;
+    proxy.doc.getRoot().setExtras({ hlodSourceTriangles: inputs.cells.reduce((sum, cell) => sum + cell.triangles, 0) });
+    files.set(hlodClusterFileOf(key), await assets.nodeIO.writeBinary(proxy.doc));
+    clusters.push({ key, triangles: proxy.triangles, sourceHash: hlodClusterSourceHash(inputs.cells) });
+  }
+  clusters.sort((a, b) => compareCellKeys(a.key, b.key));
+  const index: HlodIndex = { schema: HLOD_SCHEMA, level: level.id, cellSize: level.settings.cellSize, cells: entries, clusters };
   files.set(HLOD_INDEX_FILE, new TextEncoder().encode(stringifyDocument(index)));
   return { index, files, warnings, skippedPlacements };
 }

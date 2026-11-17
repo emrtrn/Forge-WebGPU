@@ -30,7 +30,7 @@ import {
 } from "../level/cellDocs.ts";
 import { compareCellKeys } from "../level/cells.ts";
 import { FOLIAGE_DIR, FOLIAGE_INDEX_FILE, foliageCellFileOf, normalizeLevelFoliageIndex } from "../level/foliage.ts";
-import { HLOD_INDEX_FILE, HLOD_DIR, hlodCellFileOf, normalizeHlodIndex } from "../level/hlod.ts";
+import { HLOD_INDEX_FILE, HLOD_DIR, hlodCellFileOf, hlodClusterFileOf, normalizeHlodIndex } from "../level/hlod.ts";
 import { mergeLevelParts } from "../level/levelParts.ts";
 import type { LevelCellDoc, LevelCellIndexDoc } from "../level/model.ts";
 import { normalizeLevel } from "../level/normalizeLevel.ts";
@@ -157,7 +157,10 @@ export function indexLevelFolder(
     reportLoss(ctx, "invalid-value", "level", `The HLOD index belongs to level ${hlod.value!.level}.`));
   if (hlod?.value && hlod.value.cellSize !== persistent.settings.cellSize) report(HLOD_INDEX_FILE, (ctx) =>
     reportLoss(ctx, "invalid-value", "cellSize", "HLOD cellSize differs from the level's cellSize; rebuild HLOD."));
-  const proxyPaths = new Set((hlod?.value?.cells ?? []).map((cell) => inFolder(folder, hlodCellFileOf(cell.key))));
+  const proxyPaths = new Set([
+    ...(hlod?.value?.cells ?? []).map((cell) => inFolder(folder, hlodCellFileOf(cell.key))),
+    ...(hlod?.value?.clusters ?? []).map((cluster) => inFolder(folder, hlodClusterFileOf(cluster.key))),
+  ]);
   const partPaths = new Set(parts.map((file) => file.path));
   for (const path of proxyPaths) if (!partPaths.has(path)) report(HLOD_INDEX_FILE, (ctx) =>
     reportLoss(ctx, "dangling-reference", "cells", `The HLOD proxy ${path} is missing.`));

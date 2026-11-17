@@ -14,7 +14,7 @@ const MODEL = assetId("1");
 const MATERIAL = assetId("2");
 const LEVEL = levelId("3");
 const cell = (key: string) => ({ key, triangles: 12, sourceHash: "0123abcd" });
-const indexDoc = () => ({ schema: HLOD_SCHEMA, level: LEVEL, cellSize: 128, cells: [cell("0_0")] });
+const indexDoc = () => ({ schema: HLOD_SCHEMA, level: LEVEL, cellSize: 128, cells: [cell("0_0")], clusters: [] as ReturnType<typeof cell>[] });
 const mesh = () => ({ type: "forge.staticMesh@2" as const, mesh: MODEL, materials: [MATERIAL, null], color: "#808080" });
 const actor = (seed: string, components: ComponentMap = {}): PlainActor => ({
   id: actorId(seed), name: "HLOD fixture", parent: null, class: null, spatiallyLoaded: true,
@@ -57,11 +57,12 @@ test("HLOD index normalisation detaches valid data and orders cells by z then x"
 test("HLOD index unreadable document fields are fatal even outside strict mode", () => {
   const invalid: Array<[unknown, string]> = [
     [null, ""], [[], ""], [42, ""],
-    [{ ...indexDoc(), schema: 1 }, "schema"], [{ ...indexDoc(), schema: "forge.levelHlod/2" }, "schema"],
+    [{ ...indexDoc(), schema: 1 }, "schema"], [{ ...indexDoc(), schema: "forge.levelHlod/1" }, "schema"],
     [{ ...indexDoc(), level: MODEL }, "level"], [{ ...indexDoc(), level: "bad" }, "level"],
     [{ ...indexDoc(), level: null }, "level"],
     ...[0, -1, Infinity, -Infinity, NaN, "128", null, undefined].map((cellSize): [unknown, string] => [{ ...indexDoc(), cellSize }, "cellSize"]),
     ...[{}, null, "cells", undefined].map((cells): [unknown, string] => [{ ...indexDoc(), cells }, "cells"]),
+    ...[{}, null, undefined].map((clusters): [unknown, string] => [{ ...indexDoc(), clusters }, "clusters"]),
   ];
   for (const [value, path] of invalid) {
     const result = normalizeHlodIndex(value, { strict: false });

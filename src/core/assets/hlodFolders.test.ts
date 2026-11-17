@@ -2,8 +2,8 @@ import { expect, test } from "vitest";
 import { partFolderOf } from "./levelFolders.ts";
 import { build, doc, levelFolder, levelId } from "./testKit.ts";
 
-const index = (extra = {}) => ({ schema: "forge.levelHlod/1", level: levelId("1"), cellSize: 100,
-  cells: [{ key: "0_0", triangles: 12, sourceHash: "01234567" }], ...extra });
+const index = (extra = {}) => ({ schema: "forge.levelHlod/2", level: levelId("1"), cellSize: 100,
+  cells: [{ key: "0_0", triangles: 12, sourceHash: "01234567" }], clusters: [], ...extra });
 const proxy = { root: "content", path: "levels/main/hlod/0_0.glb" };
 const base = () => levelFolder("levels/main", "1", []);
 
@@ -27,6 +27,9 @@ test("orphan proxies, missing proxies, wrong level ids and wrong cell sizes are 
     { files: [...base(), doc("levels/main/hlod.json", index({ level: levelId("2") })), proxy], code: "invalid-value", path: "level" },
     { files: [...base(), doc("levels/main/hlod.json", index({ cellSize: 128 })), proxy], code: "invalid-value", path: "cellSize" },
     { files: [proxy], code: "orphan-part", path: "" },
+    // Layer 1 (plan 5c R8.2): a listed cluster needs its proxy, an unlisted one is an orphan.
+    { files: [...base(), doc("levels/main/hlod.json", index({ clusters: [{ key: "0_0", triangles: 3, sourceHash: "89abcdef" }] })), proxy], code: "dangling-reference", path: "cells" },
+    { files: [...base(), doc("levels/main/hlod.json", index()), proxy, { root: "content", path: "levels/main/hlod/l1_0_0.glb" }], code: "orphan-part", path: "" },
   ];
   for (const { files, code, path } of cases) {
     const result = build(files);

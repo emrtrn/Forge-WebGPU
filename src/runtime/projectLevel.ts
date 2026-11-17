@@ -8,7 +8,6 @@
 import {
   cellFileOf,
   HLOD_INDEX_FILE,
-  hlodCellFileOf,
   normalizeHlodIndex,
   normalizeActorClass,
   normalizeLevelCell,
@@ -57,7 +56,7 @@ async function levelHlod(client: ContentClient, folder: string, issues: Issue[])
   issues.push(...index.issues.map((found) => ({ ...found, path: `${HLOD_INDEX_FILE} ${found.path}`.trim() })));
   if (!index.value) return null;
   const readBinary = client.readBinary.bind(client);
-  return { index: index.value, load: (key) => readBinary(`${folder}/${hlodCellFileOf(key)}`) };
+  return { index: index.value, load: (file) => readBinary(`${folder}/${file}`) };
 }
 
 /** The cells of a level folder read one by one through a content client. */

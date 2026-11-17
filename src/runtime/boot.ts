@@ -85,7 +85,7 @@ export interface LoadedLevel {
    */
   readonly cells?: CellSource;
   /** The level's HLOD proxies (phase 5b), drawn for streamed cells that are not active. */
-  readonly hlod?: { readonly index: HlodIndex; load(key: string): Promise<ArrayBuffer | null> };
+  readonly hlod?: { readonly index: HlodIndex; load(file: string): Promise<ArrayBuffer | null> };
 }
 
 export interface BootOptions {

@@ -16,7 +16,7 @@ import type { HlodIndex as HlodIndexDoc } from "../../core/level/hlod.ts";
 /**
  * A level's HLOD proxies as the world sees them (phase 5b decision 5): the
  * index, whether a cell's real actors are in the world, and a proxy's GLB
- * bytes. The run time (or the editor) provides it; the renderer draws the
+ * bytes by its level-relative file (`hlodCellFileOf` / `hlodClusterFileOf`). The run time (or the editor) provides it; the renderer draws the
  * proxies of cells within the view distance whose actors are not active.
  */
 export interface HlodSource {
@@ -24,12 +24,15 @@ export interface HlodSource {
   /** The editor bumps this after rebuilding / replacing the level's proxy files. */
   readonly revision?: number;
   isCellActive(key: string): boolean;
-  load(key: string): Promise<ArrayBuffer | null>;
+  load(file: string): Promise<ArrayBuffer | null>;
 }
 
 export const HlodSourceKey = createServiceKey<HlodSource>("forge.hlodSource");
 
-export { HLOD_SCHEMA, HLOD_INDEX_FILE, HLOD_DIR, hlodCellFileOf, normalizeHlodIndex, type HlodCellEntry, type HlodIndex } from '../../core/level/hlod.ts';
+export {
+  HLOD_SCHEMA, HLOD_INDEX_FILE, HLOD_DIR, HLOD_CLUSTER_CELLS, hlodCellFileOf, hlodClusterFileOf, hlodClusterOf, normalizeHlodIndex,
+  type HlodCellEntry, type HlodIndex,
+} from '../../core/level/hlod.ts';
 
 export interface HlodModelPlacement {
   model: AssetId;
@@ -103,6 +106,19 @@ export function hlodPlacementsOf(
   return placements;
 }
 
+/** A cluster's hash covers its cells' index entries (key and sourceHash), in any order. */
+export function hlodClusterSourceHash(cells: readonly { readonly key: string; readonly sourceHash: string }[]): string {
+  return fnv1a(JSON.stringify(cells.map((cell) => `${cell.key}:${cell.sourceHash}`).sort()));
+}
+
+function fnv1a(source: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < source.length; index += 1) {
+    hash = Math.imul(hash ^ source.charCodeAt(index), 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
 /** Order-independent FNV-1a; asset bytes and editor visibility are not document inputs. */
 export function hlodCellSourceHash(placements: readonly HlodPlacement[]): string {
   const rounded = (values: readonly number[]) => values.map((value) => Math.round(value * 1e4) / 1e4);
@@ -110,12 +126,7 @@ export function hlodCellSourceHash(placements: readonly HlodPlacement[]): string
   const canonical = placements.map((placement) => JSON.stringify(isHlodShapePlacement(placement)
     ? [`shape:${placement.shape}`, placement.color, rounded(placement.matrix)]
     : [placement.model, placement.materials, placement.color, rounded(placement.matrix)])).sort();
-  const source = JSON.stringify(canonical);
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < source.length; index += 1) {
-    hash = Math.imul(hash ^ source.charCodeAt(index), 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
+  return fnv1a(JSON.stringify(canonical));
 }
 
 /** Largest absolute axis scale, including mirrored and non-uniform transforms. */

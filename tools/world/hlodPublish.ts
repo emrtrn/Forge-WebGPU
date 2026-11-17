@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { copyFile, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname } from "node:path";
-import { HLOD_DIR, HLOD_INDEX_FILE, hlodCellFileOf, normalizeHlodIndex } from "../../src/core/level/hlod.ts";
+import { HLOD_DIR, HLOD_INDEX_FILE, hlodCellFileOf, hlodClusterFileOf, normalizeHlodIndex } from "../../src/core/level/hlod.ts";
 import { fileRevision } from "../assets/revision.ts";
 import { resolveProjectPath, resolveWritablePath, type WritePolicy } from "../server/projectPaths.ts";
 import type { HlodBuildResult } from "./hlodBuild.ts";
@@ -26,7 +26,8 @@ export async function outputRevisions(policy: WritePolicy, folder: string): Prom
 export async function writeHlodResult(policy: WritePolicy, folder: string, result: HlodBuildResult,
   expected?: Revisions): Promise<void> {
   const normalized = normalizeHlodIndex(result.index, { strict: true });
-  const required = new Set([HLOD_INDEX_FILE, ...result.index.cells.map((cell) => hlodCellFileOf(cell.key))]);
+  const required = new Set([HLOD_INDEX_FILE, ...result.index.cells.map((cell) => hlodCellFileOf(cell.key)),
+    ...result.index.clusters.map((cluster) => hlodClusterFileOf(cluster.key))]);
   if (!normalized.ok || !normalized.value || result.files.size !== required.size ||
     [...required].some((path) => !result.files.has(path))) throw new Error("Invalid HLOD publication file set");
   const encoded = result.files.get(HLOD_INDEX_FILE)!;

@@ -67,6 +67,8 @@ export interface RenderFeatureOptions {
   readonly camera: () => Camera | null;
   /** The effective quality settings now. */
   readonly quality: () => QualitySettings;
+  /** The quality profile's view distance multiplier now (HLOD layer switch, plan 5c R8.3); 1 when absent. */
+  readonly viewDistanceMultiplier?: () => number;
   /** The Sky Light capture; absent where there is no GPU (tests). */
   readonly capture?: EnvironmentCapture;
   /** The world's scene exists (the host presents it). */
@@ -152,7 +154,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
             if (source) hlod = createHlodProxies(source, hlodRoot, (work) => resources.track(work));
             hlodRevision = source?.revision;
           }
-          hlod?.sync(frame.camera, ctx.services.get(LevelSettingsKey)?.current);
+          hlod?.sync(frame.camera, ctx.services.get(LevelSettingsKey)?.current, options.viewDistanceMultiplier?.() ?? 1);
         },
         dispose() {
           hlod?.dispose();

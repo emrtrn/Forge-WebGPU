@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 import { NodeIO } from "@gltf-transform/core";
 import sharp from "sharp";
 import { splitLevel, stringifyDocument } from "../../src/core/index.ts";
-import { normalizeHlodIndex } from "../../src/engine/world/hlod.ts";
+import { hlodClusterSourceHash, normalizeHlodIndex } from "../../src/engine/world/hlod.ts";
 import { cross, dot, normalize, sub } from "../../src/engine/math/affine.ts";
 import { buildLevelHlod } from "./hlodBuild.ts";
 import { loadHlodLevel, type HlodInput } from "./hlodInput.ts";
@@ -16,7 +16,12 @@ test("Forge: in-memory build produces two world-space red proxies and a canonica
   const result = await buildLevelHlod(FOLDER, await inputOf(source, reads));
   expect(result.index.cells.map((cell) => cell.key)).toEqual(["0_0", "2_0"]);
   expect(result.index).toMatchObject({ level: LEVEL, cellSize: 128 });
-  expect(result.files.size).toBe(3);
+  // Two cell proxies, their 4 × 4 cluster (plan 5c R8.2) and the index.
+  expect(result.files.size).toBe(4);
+  expect(result.index.clusters.map((cluster) => cluster.key)).toEqual(["0_0"]);
+  expect(result.index.clusters[0]!.sourceHash).toBe(hlodClusterSourceHash(result.index.cells));
+  expect(result.index.clusters[0]!.triangles).toBeGreaterThan(0);
+  expect(result.files.has("hlod/l1_0_0.glb")).toBe(true);
   expect(reads.get("content/cube.glb")).toBe(1);
   expect(result.warnings).toEqual([]);
   expect(result.skippedPlacements).toBe(0);

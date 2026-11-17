@@ -33,7 +33,7 @@ interface Stats { batches: number; instances: number; draws: number; views: numb
 interface Dev {
   pause(): void;
   step(ms: number): Promise<Step>;
-  host(): { renderer: { info: { render: { drawCalls: number } } }; gpuDriven: { lastDraws: number } } | null;
+  host(): { renderer: { info: { autoReset: boolean; reset(): void; render: { drawCalls: number } } }; gpuDriven: { lastDraws: number } } | null;
   gpuDriven: {
     install(types: FoliageSceneType[], cullScale: number, castShadow?: boolean, bundle?: boolean): Promise<unknown>;
     stats(): Stats | null;
@@ -118,11 +118,21 @@ test("gpu-driven drawing: submission with and without render bundles", async ({ 
     const steps = await measureWindow();
     const after = await dev(page, (d) => d.gpuDriven.stats());
     const recorded = (await dev(page, (d) => d.gpuDriven.bundleRecords())) - recordsBefore;
-    // The last frame's draws as `?debug` counts them: the renderer's calls plus indirect batches (plan 5c R8).
-    const sceneDraws = await dev(page, (d) => {
+    // One more frame's draws as `?debug` counts them: the renderer's calls (every view) plus indirect
+    // batches (plan 5c R8). three's own animation loop resets the counter each RAF, so it is held for the step.
+    const sceneDraws = await dev(page, async (d, ms) => {
       const host = d.host();
-      return host ? host.renderer.info.render.drawCalls + host.gpuDriven.lastDraws : null;
-    });
+      if (!host) return null;
+      const info = host.renderer.info;
+      info.autoReset = false;
+      info.reset();
+      try {
+        await d.step(ms as number);
+        return info.render.drawCalls + host.gpuDriven.lastDraws;
+      } finally {
+        info.autoReset = true;
+      }
+    }, FRAME_MS);
     const submit = steps.map((step) => step.submitMs ?? NaN).filter(Number.isFinite);
     const cpu = steps.map((step) => step.cpuMs);
     const gpu = steps.map((step) => step.gpuMs ?? NaN).filter(Number.isFinite);

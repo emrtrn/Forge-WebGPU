@@ -1,6 +1,7 @@
 import {
-  HLOD_INDEX_FILE, hlodCellSourceHash, hlodIncludesPlacement, isHlodShapePlacement, maxAxisScale, normalizeHlodIndex,
+  HLOD_INDEX_FILE, hlodCellSourceHash, hlodClusterOf, hlodClusterSourceHash, hlodIncludesPlacement, isHlodShapePlacement, maxAxisScale, normalizeHlodIndex,
 } from "../../src/engine/world/hlod.ts";
+import { parseCellKey } from "../../src/core/index.ts";
 import { shapeBoundingRadius } from "../../src/engine/procgen/shapePrimitives.ts";
 import { createHlodAssets } from "./hlodAssets.ts";
 import { contentPath, hlodCellsOf, loadHlodLevel, type HlodInput } from "./hlodInput.ts";
@@ -53,6 +54,21 @@ export async function hlodStaleness(input: HlodInput): Promise<HlodStaleWarning[
       }
       if (stale) warnings.push({ severity: "warning", code: "hlod-stale", file: `${folder.root}/${folder.folder}/${HLOD_INDEX_FILE}`,
         cell: key, message: `Cell ${key} has changed or has no proxy; rebuild with forge hlod.` });
+    }
+    // Layer 1 (plan 5c R8.2): every cluster's entry must cover exactly its cells' current entries.
+    const expected = new Map<string, { key: string; sourceHash: string }[]>();
+    for (const cell of index?.cells ?? []) {
+      const coord = parseCellKey(cell.key);
+      if (!coord) continue;
+      const key = hlodClusterOf(coord.x, coord.z);
+      expected.set(key, [...(expected.get(key) ?? []), cell]);
+    }
+    const clusters = new Map((index?.clusters ?? []).map((cluster) => [cluster.key, cluster]));
+    for (const key of new Set([...expected.keys(), ...clusters.keys()])) {
+      const cells = expected.get(key);
+      if (cells && clusters.get(key)?.sourceHash === hlodClusterSourceHash(cells)) continue;
+      warnings.push({ severity: "warning", code: "hlod-stale", file: `${folder.root}/${folder.folder}/${HLOD_INDEX_FILE}`,
+        cell: `l1_${key}`, message: `Cluster ${key} does not match its cells; rebuild with forge hlod.` });
     }
   }
   return warnings;

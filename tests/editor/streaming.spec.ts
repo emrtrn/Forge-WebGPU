@@ -77,7 +77,7 @@ test("editor HLOD: an unloaded cell draws its proxy, Load hides it and reports a
   gltf.createScene().addChild(gltf.createNode().setMesh(gltf.createMesh().addPrimitive(primitive)));
   mkdirSync(projectPath(`${LEVEL}/hlod`), { recursive: true });
   writeFileSync(projectPath(`${LEVEL}/hlod/10_0.glb`), await new NodeIO().writeBinary(gltf));
-  writeFileSync(projectPath(`${LEVEL}/hlod.json`), JSON.stringify({ schema: "forge.levelHlod/1", level: LEVEL_ID, cellSize: 128, cells: [{ key: "10_0", triangles: 1, sourceHash: "deadbeef" }] }));
+  writeFileSync(projectPath(`${LEVEL}/hlod.json`), JSON.stringify({ schema: "forge.levelHlod/2", level: LEVEL_ID, cellSize: 128, cells: [{ key: "10_0", triangles: 1, sourceHash: "deadbeef" }], clusters: [] }));
   const errors = await openEditor(page, { level: LEVEL, drawn: true });
   const canvas = page.getByTestId("forge-canvas");
   await expect(canvas).toHaveAttribute("data-forge-hlod", /"visible":1/);

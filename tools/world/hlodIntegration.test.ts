@@ -52,14 +52,15 @@ test("asset verification prints hlod-stale without failing; production copies in
   for (const [path, bytes] of source) { await mkdir(dirname(join(project, path)), { recursive: true }); await writeFile(join(project, path), bytes); }
   const verified = await verifyAssets(project, { roots: ["content"], registry: input.registry });
   expect(verified.ok, verified.lines.join("\n")).toBe(true);
-  expect(verified.lines.filter((line) => line.startsWith("warning hlod-stale"))).toHaveLength(2);
+  // Two cells and their cluster, whose hash covers the cells' entries (plan 5c R8.2).
+  expect(verified.lines.filter((line) => line.startsWith("warning hlod-stale"))).toHaveLength(3);
   await cp(join(process.cwd(), "samples/starter"), project, { recursive: true });
   const out = await temp(), warn = vi.spyOn(console, "warn").mockImplementation(() => {});
   try {
     await buildContent({ projectRoot: project, engineRoot: process.cwd(), outDir: out });
-    expect(warn.mock.calls.filter(([line]) => String(line).startsWith("warning hlod-stale"))).toHaveLength(2);
+    expect(warn.mock.calls.filter(([line]) => String(line).startsWith("warning hlod-stale"))).toHaveLength(3);
   } finally { warn.mockRestore(); }
-  for (const relative of ["hlod.json", "hlod/0_0.glb", "hlod/2_0.glb"]) {
+  for (const relative of ["hlod.json", "hlod/0_0.glb", "hlod/2_0.glb", "hlod/l1_0_0.glb"]) {
     expect(await readFile(join(out, "forge/files/project/content/levels/test", relative))).toEqual(Buffer.from(source.get(`${FOLDER}/${relative}`)!));
   }
   expect(scanDist(out)).toEqual([]);
@@ -72,7 +73,7 @@ test("writer replaces proxies, removes obsolete GLBs only, and respects project 
   await mkdir(folder, { recursive: true });
   await writeFile(join(folder, "9_9.glb"), "old"); await writeFile(join(folder, "keep.txt"), "keep");
   await writeHlodResult(policy, "content/levels/test", result);
-  expect((await readdir(folder)).sort()).toEqual(["0_0.glb", "2_0.glb", "keep.txt"]);
+  expect((await readdir(folder)).sort()).toEqual(["0_0.glb", "2_0.glb", "keep.txt", "l1_0_0.glb"]);
   expect(await readFile(join(project, "content/levels/test/hlod.json"), "utf8")).toBe(stringifyDocument(result.index));
   await expect(writeHlodResult(policy, "../outside", result)).rejects.toThrow();
   await expect(writeHlodResult(policy, "engine:content/levels/test", result)).rejects.toThrow();
@@ -99,12 +100,12 @@ test("HLOD under a content-root level is checked for staleness", async () => {
   const source = await fixture();
   source.set("content/level.json", source.get(`${FOLDER}/level.json`)!); source.delete(`${FOLDER}/level.json`);
   const doc = JSON.parse(new TextDecoder().decode(source.get("content/level.json")!)) as { id: string; settings: { cellSize: number } };
-  const stale = { schema: "forge.levelHlod/1", level: doc.id, cellSize: doc.settings.cellSize, cells: [{ key: "0_0", triangles: 1, sourceHash: "00000000" }, { key: "3_0", triangles: 1, sourceHash: "00000000" }] };
+  const stale = { schema: "forge.levelHlod/2", level: doc.id, cellSize: doc.settings.cellSize, clusters: [], cells: [{ key: "0_0", triangles: 1, sourceHash: "00000000" }, { key: "3_0", triangles: 1, sourceHash: "00000000" }] };
   source.set("content/hlod.json", encode(stale));
   const input = await inputOf(source);
   expect(buildAssetIndex(input.files, { strict: true, registry: input.registry }).levels.size).toBe(1);
-  // 0_0 and 3_0 changed since their (fake) bake; 2_0 has placements to bake but no entry.
-  expect((await hlodStaleness(input)).map((warning) => warning.cell).sort()).toEqual(["0_0", "2_0", "3_0"]);
+  // 0_0 and 3_0 changed since their (fake) bake; 2_0 has placements to bake but no entry; their cluster 0_0 has no entry.
+  expect((await hlodStaleness(input)).map((warning) => warning.cell).sort()).toEqual(["0_0", "2_0", "3_0", "l1_0_0"]);
 });
 
 test("the HLOD schema loader reads a cold project without generating .forge files", async () => {

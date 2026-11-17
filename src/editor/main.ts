@@ -33,7 +33,7 @@ import {
   FILE_EVENT,
   openLevelFromServer,
   normalizeHlodIndex,
-  hlodCellFileOf,
+  HLOD_SCHEMA,
   assignCells,
   type HlodIndex,
   type ActorClassDoc,
@@ -271,10 +271,10 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     };
     await refreshHlod();
     if (options.client.readBinary) world.services.provide(HlodSourceKey, {
-        get index() { return hlodIndex ?? { schema: "forge.levelHlod/1", level: session.level.level.id, cellSize: session.level.level.settings.cellSize, cells: [] }; },
+        get index() { return hlodIndex ?? { schema: HLOD_SCHEMA, level: session.level.level.id, cellSize: session.level.level.settings.cellSize, cells: [], clusters: [] }; },
         get revision() { return hlodRevision; },
         isCellActive: (key) => session.level.isLoaded(key) && (renderCells.get(key) ?? []).every((id) => world!.services.get(RenderReadinessKey)?.isActorReady(id) ?? true),
-        load: (key) => options.client.readBinary!(`${options.level}/${hlodCellFileOf(key)}`),
+        load: (file) => options.client.readBinary!(`${options.level}/${file}`),
       });
     let hiddenKey = JSON.stringify(session.visibility.ids());
     session.onChange(() => {

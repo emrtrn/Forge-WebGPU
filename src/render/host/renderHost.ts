@@ -390,6 +390,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
         camera: () => camera,
         ...(featureOptions?.prepare === false ? {} : { prepare }),
         quality: () => quality.settings,
+        viewDistanceMultiplier: () => quality.extensions?.viewDistanceMultiplier ?? 1,
         capture,
         attach: (attached) => {
           world = attached;
