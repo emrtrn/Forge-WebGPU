@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.49 · 2026-11-17 — Faz 5c R3 (5.3): bundle ölçüldü, kazanç yok, varsayılan kapalı. v1.48 — Faz 5c R2 (5.2): GPU güdümlü batch'ler gölge kaskatlarında. v1.47 — Faz 5c R1: HLOD'a `forge.shape` (three'siz primitive üreticisi, eşitlik testi). Önceki v1.46 — Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; R1 HLOD'a şekiller → R2–R4 (5.2–5.4) → R5 sahne maliyet raporu → R6 üçgen spike'ı (three-virtual-geometry / ters derinlikli meshlet kopyası / 5.1 + ayrık LOD) → R7 üretim → R8 HLOD katmanları → R9 (5.5) → R10 (5.6). three-nanite elendi. Mimari v1.46.
+**Güncelleme:** v1.50 · 2026-11-17 — Faz 5c R4 (5.4): foliage türü batch katmanı. v1.49 — Faz 5c R3 (5.3): bundle ölçüldü, kazanç yok, varsayılan kapalı. v1.48 — Faz 5c R2 (5.2): GPU güdümlü batch'ler gölge kaskatlarında. v1.47 — Faz 5c R1: HLOD'a `forge.shape` (three'siz primitive üreticisi, eşitlik testi). Önceki v1.46 — Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; R1 HLOD'a şekiller → R2–R4 (5.2–5.4) → R5 sahne maliyet raporu → R6 üçgen spike'ı (three-virtual-geometry / ters derinlikli meshlet kopyası / 5.1 + ayrık LOD) → R7 üretim → R8 HLOD katmanları → R9 (5.5) → R10 (5.6). three-nanite elendi. Mimari v1.46.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — Faz 5c adım 5: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı, `2544bdb`); çizim sayacı iki geçişli saydam materyalleri sayar. Mimari v1.45.
 
@@ -1095,6 +1095,21 @@ sayısı ve nesne başına bağlama: tek compute geçişinde bütün batch'ler, 
 arası paylaşılan materyal / bağlama, gölge görünümünde ayrı küçük materyal; bundle
 ancak bunlardan sonra yeniden ölçülür.
 
+**R4 (5.4) uygulandı (2026-11-17, C).** Adım 6 (halka) ve 7 (boyanmış hücreler) R10'dan
+sonra geldiği için R4 onların bağlanacağı katmandır: `render/foliage/foliageBatches.ts`,
+`forge.foliageType` başına bir GPU güdümlü batch: LOD 0 modeli + `lods` modelleri
+(slot materyalleriyle), LOD 0'ın sınır küresi, Forge'un köken uzaklıklı solması
+(`cullStart` → `cullEnd` × kalitenin `foliageCullDistanceScale`'i), LOD başlangıçları
+`screenSize`'lardan şablonun kendi boyunda, `castShadow`. Örnekler sahip anahtarıyla
+gelir (boyanmış hücre, halka karosu): `set` değiştirir, boş liste ya da `remove` siler;
+model yüklenirken gelenler batch kurulunca eklenir; tür değişirse (model, LOD, gölge,
+bant) yeni batch kurulur ve sahipler taşınır; kalite değişimi yalnız mesafeleri
+ayarlar. WebGL2 ikizi batch'le birlikte gelir. Dev kancası ve smoke foliage'ı bu
+katmandan kurar: `gpuCulling.smoke.ts` iki arka uçta geçti (P2 / P1 / gökyüzü 177 /
+32 / 0, her kaskatta GPU = CPU). Birim testi 2 (sahip değiştir / sil, yüklenirken
+gelen, tür değişimi, kalite, `castShadow: false`). Halkanın ve hücrelerin bu API'ye
+bağlanması adım 6 / 7'de.
+
 5c ile paralel yürürse ortak dosyalar: `render/sync/instanceBatches.ts` (adım 8; foliage
 kendi batch'ini kurar), kalite profilleri, `?debug` satırları. Çakışmada adım 8 5c'nin
 GPU güdümlü yolunu bekler.
@@ -1439,3 +1454,4 @@ silinebilir.
 | 2026-11-17 | v1.47 | Faz 5c R1: HLOD'a `forge.shape`: three'siz primitive üreticisi `engine/procgen/shapePrimitives.ts` + three geometrisiyle eşitlik testi, yerleşim / `sourceHash` / tazelik damgası primitive + renk içerir, düzlem iki yüzlü; Derekavak 22 hücre, OUT-001 proxy'de. Odaklı Vitest 64, hlod + streaming smoke başsız ve gerçek WebGPU 5 / 5. Kullanıcı Derekavak kabulü açık; sıradaki R2 |
 | 2026-11-17 | v1.48 | Faz 5c R2 (5.2): GPU güdümlü batch'ler gölge kaskatlarına çizer: görünüm başına kaynak, gölge görünümü kendi katmanında, örnek dönüşümü `castShadowPositionNode`, solma `maskShadowNode`, mesafe ana kameradan; WebGL2 ikizi aynı. Smoke iki arka uçta: her kaskatta GPU = CPU, `?debug` +60 (15 × 4 görünüm), gölge görüntüyü değiştirir. Sıradaki R3 bundle |
 | 2026-11-17 | v1.49 | Faz 5c R3 (5.3): isteğe bağlı bundle (`bundle: true`, kamera başına kayıt, yeniden kayıt yalnız mesh / görünüm değişince, saydamlar dışarıda) + `npm run measure:gpu-driven`. Kazanç yok (foliage 1,54 → 1,49 ms, 1.200 draw'lık stres 20,2 → 21,7 ms): three r187 düğüm materyalli render nesnelerini her karede tam yeniler; varsayılan kapalı, kullanıcı kararı bekliyor. Sıradaki R4 |
+| 2026-11-17 | v1.50 | Faz 5c R4 (5.4): `render/foliage/foliageBatches.ts`: foliage türü başına GPU güdümlü batch (LOD zinciri, kalite ölçekli solma, ekran boyundan LOD, gölge), sahip anahtarlı örnek API'si (halka adım 6, boyanmış hücreler adım 7 buna bağlanır); smoke iki arka uçta bu katmandan. Sıradaki R5 |
