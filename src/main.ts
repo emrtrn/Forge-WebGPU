@@ -215,6 +215,7 @@ async function start(): Promise<void> {
   if (import.meta.env.DEV && booted) {
     const environment = () => booted.world.services.get(WorldEnvironmentKey)?.controller ?? null;
     let devGpu: Promise<DevGpuDriven> | null = null;
+    let devHeavy: import("./render/gpu/heavyPropsDev.ts").DevHeavyProps | null = null;
     const devGpuDriven = () => (devGpu ??= import("./render/gpu/gpuDrivenDev.ts").then(({ createDevGpuDriven }) => createDevGpuDriven(() => viewer.host)));
     const transitions: { reached: boolean | null }[] = [];
     (window as unknown as { __forgeDev?: unknown }).__forgeDev = {
@@ -322,6 +323,15 @@ async function start(): Promise<void> {
         remove: async () => (await devGpuDriven()).remove(),
         mirror: async (plane: Parameters<DevGpuDriven["mirror"]>[0]) => (await devGpuDriven()).mirror(plane),
         occlusionCheck: async () => (await devGpuDriven()).occlusionCheck(),
+      },
+      /** Plan 5c R9a O5: high-poly props through the engine's static batch (`render/gpu/heavyPropsDev.ts`). */
+      heavyProps: {
+        install: async (matrices: number[], segments: number, path: "instanced" | "gpu" | "auto") => {
+          const { createDevHeavyProps } = await import("./render/gpu/heavyPropsDev.ts");
+          devHeavy ??= createDevHeavyProps(() => viewer.host);
+          return devHeavy.install(matrices, segments, path);
+        },
+        remove: () => devHeavy?.remove(),
       },
       /** Plan 5c R9a: how much of the GPU-driven batches the current frame's occluders could hide (nothing is hidden). */
       async occlusionStudy() {

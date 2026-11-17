@@ -265,3 +265,75 @@ test("gpu occlusion: indoor correctness and A/B", async ({ page }) => {
   mkdirSync(join(RENDER_REFS, "runs"), { recursive: true });
   writeFileSync(join(RENDER_REFS, "runs", `${record.date.replace(/[:.]/g, "-")}-gpu-occlusion.json`), `${JSON.stringify(record, null, 2)}\n`);
 });
+
+/** Column-major matrix of position p, quaternion q, scale s. */
+function compose(p: readonly number[], q: readonly number[], s: readonly number[]): number[] {
+  const [x, y, z, w] = q as [number, number, number, number];
+  const [sx, sy, sz] = s as [number, number, number];
+  return [
+    (1 - 2 * (y * y + z * z)) * sx, 2 * (x * y + z * w) * sx, 2 * (x * z - y * w) * sx, 0,
+    2 * (x * y - z * w) * sy, (1 - 2 * (x * x + z * z)) * sy, 2 * (y * z + x * w) * sy, 0,
+    2 * (x * z + y * w) * sz, 2 * (y * z - x * w) * sz, (1 - 2 * (x * x + y * y)) * sz, 0,
+    p[0]!, p[1]!, p[2]!, 1,
+  ];
+}
+
+// Plan 5c R9a O5 (user, 2026-11-18): the interior's walls as shapes (the occluders), its 768 props replaced by
+// high-poly spheres (`FORGE_HEAVY_SEGMENTS`, default 192: about 37 k triangles each) drawn by the engine's static
+// batch (`__forgeDev.heavyProps`). Three modes, each in a fresh page: today's instanced statics; GPU-driven with
+// automatic LOD; the same with the level's occlusion culling. 120 stepped frames per pose.
+test("heavy props: instanced vs GPU-driven vs occlusion", async ({ page }) => {
+  test.setTimeout(1_800_000);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => { if (message.type() === "error" && !isOptionalHlodMiss(message)) errors.push(message.text()); });
+  const scene = SMOKE_SCENES.find((entry) => entry.id === "l03")!;
+  const segments = Number(process.env.FORGE_HEAVY_SEGMENTS ?? 192);
+  const shell = indoorScene({ origin: [300, 0, 300], propsPerRoom: 0 });
+  const furnished = indoorScene({ origin: [300, 0, 300] });
+  const props = (furnished.actors as unknown as Array<{ name: string; transform: { p: number[]; r: number[]; s: number[] } }>).filter((actor) => actor.name.startsWith("Prop"));
+  const matrices = props.flatMap((actor) => compose(actor.transform.p, actor.transform.r, actor.transform.s));
+  const mean = (values: number[]): number => Math.round(1000 * values.reduce((a, b) => a + b, 0) / Math.max(1, values.length)) / 1000;
+  const modes = [
+    { id: "instanced", path: "instanced", occlusion: false },
+    { id: "gpu", path: "gpu", occlusion: false },
+    { id: "gpu + occlusion", path: "gpu", occlusion: true },
+  ] as const;
+  const results = [];
+  for (const mode of modes) {
+    await openSmokeLevel(page, scene.level, scene.poses[0]!, "");
+    await expect(page.locator("canvas[data-forge-backend='webgpu']")).toBeVisible();
+    await page.waitForTimeout(800);
+    await forge(page, "(d) => d.pause()");
+    if (mode.occlusion) await forge(page, "(d) => d.levelSettings({ occlusionCulling: true })");
+    await forge(page, "(d, a) => d.spawn(a)", shell.actors);
+    await forge(page, "(d, a) => { window.__heavy = null; d.heavyProps.install(a[0], a[1], a[2]).then((r) => { window.__heavy = r; }, (e) => { window.__heavy = { error: String(e) }; }); }", [matrices, segments, mode.path]);
+    let installed: { triangles?: number; instances?: number; error?: string } | null = null;
+    for (let i = 0; i < 2400 && !installed; i += 1) {
+      await steps(page, 5);
+      installed = await page.evaluate(() => (window as unknown as { __heavy: { triangles?: number; error?: string } | null }).__heavy);
+    }
+    expect(installed?.error, `${mode.id}: heavy props install`).toBeUndefined();
+    expect(installed?.instances).toBe(props.length);
+    for (const pose of furnished.poses) {
+      await forge(page, "(d, a) => d.moveCamera(a[0][0], a[0][1], a[0][2], a[1])", [pose.position, pose.target]);
+      await steps(page, 20);
+      const frames: Array<{ cpuMs: number; gpuMs: number | null; submitMs: number | null }> = [];
+      for (let i = 0; i < 120; i += 1) frames.push(await forge(page, "(d) => d.step(1000 / 60)"));
+      const row = {
+        mode: mode.id, pose: pose.id, trianglesPerProp: installed?.triangles, props: props.length,
+        submitMs: mean(frames.map((frame) => frame.submitMs ?? NaN).filter(Number.isFinite)),
+        cpuMs: mean(frames.map((frame) => frame.cpuMs)), gpuMs: mean(frames.map((frame) => frame.gpuMs ?? NaN).filter(Number.isFinite)),
+      };
+      results.push(row);
+      console.log(`heavy ${row.mode} ${row.pose}: submit ${row.submitMs} ms, cpu ${row.cpuMs} ms, gpu ${row.gpuMs} ms (${props.length} props × ${installed?.triangles} tris)`);
+    }
+  }
+  expect(errors).toEqual([]);
+  const record = {
+    schema: 1, kind: "phase 5c R9a O5: heavy props, instanced vs GPU-driven vs occlusion", date: new Date().toISOString(),
+    commit: git(["rev-parse", "HEAD"]), dirty: git(["status", "--porcelain"]) !== "", viewport: SMOKE_VIEWPORT, segments, results,
+  };
+  mkdirSync(join(RENDER_REFS, "runs"), { recursive: true });
+  writeFileSync(join(RENDER_REFS, "runs", `${record.date.replace(/[:.]/g, "-")}-heavy-occlusion.json`), `${JSON.stringify(record, null, 2)}\n`);
+});
