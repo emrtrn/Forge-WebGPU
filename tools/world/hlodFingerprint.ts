@@ -3,6 +3,10 @@ import { CELL_INDEX_FILE, LEVEL_FILE, cellFileOf } from "../../src/core/index.ts
 import { fileRevision } from "../assets/revision.ts";
 import { contentPath, hlodCellsOf, loadHlodLevel, type HlodInput } from "./hlodInput.ts";
 import { validateHlodOptions, type HlodBuildOptions } from "./hlodBuild.ts";
+import { isHlodShapePlacement } from "../../src/engine/world/hlod.ts";
+
+/** Bump when the shape generator's output changes: every stamp with it goes stale. */
+export const HLOD_SHAPE_GENERATOR = 1;
 
 export type Revisions = Record<string, string | null>;
 export const digest = (value: unknown): string => createHash("sha256").update(canonical(value)).digest("hex");
@@ -49,6 +53,7 @@ export async function fingerprintHlod(folder: string, input: HlodInput, options:
   for (const key of Object.keys(cellIndex?.cells ?? {})) dependencies.add(`${folder}/${cellFileOf(key)}`);
   const ids = new Set<string>();
   for (const [, placements] of cells) for (const placement of placements) {
+    if (isHlodShapePlacement(placement)) continue; // Primitive and colour are in `cells`, so in the stamp.
     ids.add(placement.model);
     for (const material of placement.materials) if (material) ids.add(material);
   }
@@ -79,5 +84,5 @@ export async function fingerprintHlod(folder: string, input: HlodInput, options:
     }
   }
   return { stamp: digest({ level: level.id, cellSize: level.settings.cellSize, loadRange: level.settings.loadRange,
-    cells, resolutions, options: validateHlodOptions(options) }), revisions };
+    cells, resolutions, options: validateHlodOptions(options), shapes: HLOD_SHAPE_GENERATOR }), revisions };
 }

@@ -7,6 +7,7 @@ import type { ActorDoc, ComponentMap, ComponentRecord } from "../../core/level/m
 import { parseComponentTypeTag } from "../../core/schema/component.ts";
 import { worldMatrixOf } from "../edit/hierarchy.ts";
 import { composeMat4, multiplyMat4, type Mat4 } from "../math/affine.ts";
+import type { ShapePrimitiveName } from "../procgen/shapePrimitives.ts";
 import { detailCullDistance } from "./detailCulling.ts";
 
 import { createServiceKey } from "../../core/world/services.ts";
@@ -30,13 +31,26 @@ export const HlodSourceKey = createServiceKey<HlodSource>("forge.hlodSource");
 
 export { HLOD_SCHEMA, HLOD_INDEX_FILE, HLOD_DIR, hlodCellFileOf, normalizeHlodIndex, type HlodCellEntry, type HlodIndex } from '../../core/level/hlod.ts';
 
-export interface HlodPlacement {
+export interface HlodModelPlacement {
   model: AssetId;
   materials: readonly (AssetId | null)[];
   color: string | null;
   /** Component world matrix, column-major. */
   matrix: Mat4;
 }
+
+/** A `forge.shape` (plan 5c R1): its procedural primitive and colour, baked like a mesh. */
+export interface HlodShapePlacement {
+  shape: ShapePrimitiveName;
+  color: string;
+  matrix: Mat4;
+}
+
+export type HlodPlacement = HlodModelPlacement | HlodShapePlacement;
+
+export const isHlodShapePlacement = (placement: HlodPlacement): placement is HlodShapePlacement => "shape" in placement;
+
+const SHAPE_NAMES: ReadonlySet<string> = new Set<ShapePrimitiveName>(["cube", "sphere", "cylinder", "cone", "plane"]);
 
 /** The component's local chain, applied from the actor root down; cycle-safe like render/sync/transforms. */
 function placementMatrix(actorMatrix: Mat4, components: ComponentMap, key: string): Mat4 {
@@ -58,7 +72,7 @@ function placementMatrix(actorMatrix: Mat4, components: ComponentMap, key: strin
   return matrix;
 }
 
-/** One placement per effective static mesh component. Shapes are deliberately not baked. */
+/** One placement per effective static mesh or shape component. */
 export function hlodPlacementsOf(
   actors: readonly ActorDoc[],
   lookup: (id: ActorId) => ActorDoc | undefined,
@@ -69,8 +83,15 @@ export function hlodPlacementsOf(
     const components = effectiveComponents(actor, actor.class ? resolveClass(actor.class) : undefined);
     const actorMatrix = worldMatrixOf(lookup, actor);
     for (const [key, component] of Object.entries(components)) {
-      if (parseComponentTypeTag(component.type)?.name !== "forge.staticMesh" || !isId(component.mesh, "asset")) continue;
+      const name = parseComponentTypeTag(component.type)?.name;
       // ActorDoc inputs are already schema-normalised. Keep feature imports out of engine.
+      if (name === "forge.shape") {
+        const primitive = component.primitive ?? "cube", color = component.color ?? "#c8c8c8";
+        if (typeof primitive !== "string" || !SHAPE_NAMES.has(primitive) || typeof color !== "string") continue;
+        placements.push({ shape: primitive as ShapePrimitiveName, color, matrix: placementMatrix(actorMatrix, components, key) });
+        continue;
+      }
+      if (name !== "forge.staticMesh" || !isId(component.mesh, "asset")) continue;
       placements.push({
         model: component.mesh,
         materials: (component.materials ?? []) as readonly (AssetId | null)[],
@@ -85,9 +106,10 @@ export function hlodPlacementsOf(
 /** Order-independent FNV-1a; asset bytes and editor visibility are not document inputs. */
 export function hlodCellSourceHash(placements: readonly HlodPlacement[]): string {
   const rounded = (values: readonly number[]) => values.map((value) => Math.round(value * 1e4) / 1e4);
-  const canonical = placements.map((placement) => JSON.stringify([
-    placement.model, placement.materials, placement.color, rounded(placement.matrix),
-  ])).sort();
+  // Model entries keep their pre-R1 form, so levels without shapes keep their hashes.
+  const canonical = placements.map((placement) => JSON.stringify(isHlodShapePlacement(placement)
+    ? [`shape:${placement.shape}`, placement.color, rounded(placement.matrix)]
+    : [placement.model, placement.materials, placement.color, rounded(placement.matrix)])).sort();
   const source = JSON.stringify(canonical);
   let hash = 0x811c9dc5;
   for (let index = 0; index < source.length; index += 1) {

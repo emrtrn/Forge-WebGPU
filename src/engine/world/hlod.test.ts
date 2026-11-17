@@ -7,7 +7,7 @@ import { composeMat4, IDENTITY_MAT4, quatFromAxisAngle, type Mat4 } from "../mat
 import {
   HLOD_DIR, HLOD_INDEX_FILE, HLOD_SCHEMA, averageLinearColor, hlodCellFileOf,
   hlodCellSourceHash, hlodIncludesPlacement, hlodPlacementsOf, maxAxisScale,
-  normalizeHlodIndex, type HlodPlacement,
+  normalizeHlodIndex, type HlodModelPlacement,
 } from "./hlod.ts";
 
 const MODEL = assetId("1");
@@ -25,7 +25,7 @@ const lookupOf = (actors: readonly ActorDoc[]) => {
   return (id: ActorDoc["id"]) => byId.get(id);
 };
 const noClass = () => undefined;
-const placement = (matrix: Mat4 = IDENTITY_MAT4): HlodPlacement => ({
+const placement = (matrix: Mat4 = IDENTITY_MAT4): HlodModelPlacement => ({
   model: MODEL, materials: [MATERIAL, null], color: "#808080", matrix,
 });
 const closeMatrix = (actual: Mat4, expected: Mat4) => {
@@ -140,7 +140,7 @@ test("HLOD child actor inherits rotated and non-uniformly scaled ancestors outsi
 
 test("HLOD applies component local transforms from root down and emits every mesh", () => {
   const doc = actor("a", {
-    pivot: { type: "forge.shape@1", local: { p: [1, 0, 0], r: quatFromAxisAngle([0, 1, 0], Math.PI / 2), s: [2, 1, 3] } },
+    pivot: { type: "game.pivot@1", local: { p: [1, 0, 0], r: quatFromAxisAngle([0, 1, 0], Math.PI / 2), s: [2, 1, 3] } },
     model: { ...mesh(), parent: "pivot", local: { ...IDENTITY_TRANSFORM, p: [0, 0, 2] } },
     other: { ...mesh(), parent: null, mesh: assetId("6"), materials: [], color: null },
   });
@@ -152,19 +152,39 @@ test("HLOD applies component local transforms from root down and emits every mes
     matrix: composeMat4([10, 0, 0], [0, 0, 0, 1], [1, 1, 1]) });
 });
 
-test("HLOD ignores shapes, null meshes, unrelated tags and actors without meshes", () => {
+test("HLOD ignores null meshes, unrelated tags and actors without meshes", () => {
   const docs = [actor("a"), actor("b", {
-    shape: { ...mesh(), type: "forge.shape@1" }, empty: { ...mesh(), mesh: null },
-    unrelated: { ...mesh(), type: "game.staticMesh@2" },
+    empty: { ...mesh(), mesh: null }, unrelated: { ...mesh(), type: "game.staticMesh@2" },
   })];
   assert.deepEqual(hlodPlacementsOf(docs, lookupOf(docs), noClass), []);
+});
+
+test("HLOD bakes shapes (plan 5c R1): primitive, colour and component world matrix; unknown primitives are skipped", () => {
+  const doc = actor("a", {
+    box: { type: "forge.shape@2", parent: null, local: { ...IDENTITY_TRANSFORM, p: [0, 1, 0] }, primitive: "cone", color: "#ff0000" },
+    odd: { type: "forge.shape@2", parent: null, primitive: "torus", color: "#ff0000" },
+  });
+  doc.transform.p = [5, 0, 0];
+  assert.deepEqual(hlodPlacementsOf([doc], lookupOf([doc]), noClass), [
+    { shape: "cone", color: "#ff0000", matrix: composeMat4([5, 1, 0], [0, 0, 0, 1], [1, 1, 1]) },
+  ]);
+});
+
+test("HLOD hash covers shape primitive and colour, and keeps model-only hashes unchanged", () => {
+  const shape = { shape: "cube" as const, color: "#ff0000", matrix: IDENTITY_MAT4 };
+  const base = hlodCellSourceHash([placement(), shape]);
+  assert.notEqual(base, hlodCellSourceHash([placement()]));
+  assert.notEqual(base, hlodCellSourceHash([placement(), { ...shape, shape: "sphere" }]));
+  assert.notEqual(base, hlodCellSourceHash([placement(), { ...shape, color: "#00ff00" }]));
+  assert.notEqual(base, hlodCellSourceHash([placement(), { ...shape, matrix: composeMat4([1, 0, 0], [0, 0, 0, 1], [1, 1, 1]) }]));
+  assert.equal(base, hlodCellSourceHash([shape, placement()]));
 });
 
 test("HLOD component parent cycles and missing parents terminate with each reachable local applied once", () => {
   for (const parent of ["pivot", "missing"]) {
     const doc = actor("a", {
       model: { ...mesh(), parent, local: { ...IDENTITY_TRANSFORM, p: [1, 0, 0] } },
-      pivot: { type: "forge.shape@1", parent: "model", local: { ...IDENTITY_TRANSFORM, p: [0, 2, 0] } },
+      pivot: { type: "game.pivot@1", parent: "model", local: { ...IDENTITY_TRANSFORM, p: [0, 2, 0] } },
     });
     closeMatrix(hlodPlacementsOf([doc], lookupOf([doc]), noClass)[0]!.matrix,
       composeMat4([1, parent === "pivot" ? 2 : 0, 0], [0, 0, 0, 1], [1, 1, 1]));

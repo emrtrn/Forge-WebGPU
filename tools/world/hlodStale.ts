@@ -1,4 +1,7 @@
-import { HLOD_INDEX_FILE, hlodCellSourceHash, hlodIncludesPlacement, maxAxisScale, normalizeHlodIndex } from "../../src/engine/world/hlod.ts";
+import {
+  HLOD_INDEX_FILE, hlodCellSourceHash, hlodIncludesPlacement, isHlodShapePlacement, maxAxisScale, normalizeHlodIndex,
+} from "../../src/engine/world/hlod.ts";
+import { shapeBoundingRadius } from "../../src/engine/procgen/shapePrimitives.ts";
 import { createHlodAssets } from "./hlodAssets.ts";
 import { contentPath, hlodCellsOf, loadHlodLevel, type HlodInput } from "./hlodInput.ts";
 
@@ -36,6 +39,12 @@ export async function hlodStaleness(input: HlodInput): Promise<HlodStaleWarning[
       if (!entry && placements.length) {
         assets ??= await createHlodAssets(input, () => undefined);
         for (const placement of placements) {
+          if (isHlodShapePlacement(placement)) {
+            if (hlodIncludesPlacement(shapeBoundingRadius(placement.shape), maxAxisScale(placement.matrix), level.settings.loadRange)) {
+              stale = true; break;
+            }
+            continue;
+          }
           const asset = await assets.loadAsset(placement.model);
           if (asset?.parts.length && hlodIncludesPlacement(asset.radius, maxAxisScale(placement.matrix), level.settings.loadRange)) {
             stale = true; break;

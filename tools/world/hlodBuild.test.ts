@@ -160,7 +160,29 @@ test("small placements and shapes/markers/editor helpers leave an empty index; b
   ])));
   const result = await buildLevelHlod(FOLDER, await inputOf(source));
   expect(result.index.cells).toEqual([]); expect(result.files.size).toBe(1);
-  expect(result.skippedPlacements).toBe(3); expect(result.warnings).toHaveLength(1); expect(result.warnings[0]).toContain(missing);
+  expect(result.skippedPlacements).toBe(4); expect(result.warnings).toHaveLength(1); expect(result.warnings[0]).toContain(missing);
+});
+
+test("large shapes bake in their colour (plan 5c R1); a plane bakes both sides", async () => {
+  const source = await fixture();
+  const shape = (index: number, x: number, primitive: string, color: string) =>
+    ({ id: actorId(index), transform: { p: [x, 0, 10], s: [20, 20, 20] },
+      components: { shape: { type: "forge.shape@2", parent: null, primitive, color } } });
+  source.set(`${FOLDER}/level.json`, encode(level([shape(1, 10, "cube", "#ff0000"), shape(2, 266, "plane", "#00ff00")])));
+  const result = await buildLevelHlod(FOLDER, await inputOf(source));
+  expect(result.warnings).toEqual([]);
+  expect(result.index.cells.map((cell) => cell.key)).toEqual(["0_0", "2_0"]);
+  const cube = await proxy(result.files, "0_0");
+  const colors = cube.getAttribute("COLOR_0")!;
+  for (let index = 0; index < colors.getCount(); index += 1) expect(colors.getElement(index, [])).toEqual([1, 0, 0]);
+  const xs = cube.getAttribute("POSITION")!;
+  const values = Array.from({ length: xs.getCount() }, (_, index) => xs.getElement(index, [])[0]!);
+  expect(Math.min(...values)).toBeCloseTo(5); expect(Math.max(...values)).toBeCloseTo(15);
+  expect(result.index.cells[1]!.triangles).toBe(4);
+  const plane = await proxy(result.files, "2_0");
+  const normals = plane.getAttribute("NORMAL")!;
+  const ys = new Set(Array.from({ length: normals.getCount() }, (_, index) => Math.sign(normals.getElement(index, [])[1]!)));
+  expect(ys).toEqual(new Set([1, -1]));
 });
 
 test("level loadRange determines inclusion; persistent meshes are excluded", async () => {
