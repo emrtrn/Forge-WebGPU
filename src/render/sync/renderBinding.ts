@@ -86,6 +86,8 @@ export interface RenderBindingContext {
   readonly triangles?: TriangleDrawing;
   /** Which static batches take it (`render/triangles/staticPath.ts`). */
   readonly staticPath?: () => StaticPath;
+  /** Static batches split by world cell of this size (m; 0 off; plan 5c R9a, `batchCells.ts`). Read when a placement is added. */
+  readonly staticCellSize?: () => number;
   /** Where a camera that draws the scene (a reflection) registers its GPU-driven view (R9a step 1). */
   readonly cameraViews?: CameraViews;
   readonly world: RenderWorldView;

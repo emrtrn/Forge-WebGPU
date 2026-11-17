@@ -5,7 +5,7 @@ import type { WorldResources } from "../../render/resources/worldResources.ts";
 import type { RenderBindingContext } from "../../render/sync/renderBinding.ts";
 import binding, { SHAPE_BASE_COLOR } from "./render.ts";
 
-function harness(shapes: Record<string, unknown>[]) {
+function harness(shapes: Record<string, unknown>[], cellSize = 0) {
   const actors = shapes.map((data, index) => ({
     id: `act_0000000000000000000000000000000${index + 1}`,
     name: `Shape ${index + 1}`,
@@ -31,6 +31,7 @@ function harness(shapes: Record<string, unknown>[]) {
     scene: new Scene(),
     root,
     resources,
+    staticCellSize: () => cellSize,
   } as unknown as RenderBindingContext;
   const instance = binding.create(ctx);
   instance.actorsAdded?.(actors);
@@ -88,5 +89,28 @@ describe("shape binding (instanced)", () => {
     frame();
     expect((root.children as InstancedMesh[]).map((child) => child.name)).toEqual(["shape/sphere/sphere"]);
     expect(released.sort()).toEqual(["shape:cube", `shapeMaterial:${SHAPE_BASE_COLOR}:single`]);
+  });
+
+  test("cells (R9a): a batch holds one cell's shapes; a move within its cell stays, into another cell changes batch", async () => {
+    // Shapes at x = 0, 1, 2 with 2 m cells: cells 0, 0, 1.
+    const { instance, actors, root, frame } = harness([{}, {}, {}], 2);
+    await settle();
+    frame();
+    const counts = (): number[] => (root.children as InstancedMesh[]).map((mesh) => mesh.count).sort();
+    expect(counts()).toEqual([1, 2]);
+    const second = actors[1]!;
+    second.transform = { p: [1.5, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] };
+    instance.actorsChanged?.([{ actor: second, previous: second, transformOnly: true }]);
+    frame();
+    expect(counts()).toEqual([1, 2]);
+    second.transform = { p: [3, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] };
+    instance.actorsChanged?.([{ actor: second, previous: second, transformOnly: true }]);
+    await settle();
+    frame();
+    expect(counts()).toEqual([1, 2]);
+    const out = new Matrix4();
+    const moved = (root.children as InstancedMesh[]).find((mesh) => mesh.count === 2)!;
+    moved.getMatrixAt(1, out);
+    expect([out.elements[12]]).toEqual([3]);
   });
 });

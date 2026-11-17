@@ -152,6 +152,7 @@ async function start(): Promise<void> {
     forceWebGL: params.has("forceWebGL"),
     // Development measurement (plan 5c R9.0): force the static batches' path.
     ...(import.meta.env.DEV && params.has("staticPath") ? { staticPath: parseStaticPath(params.get("staticPath")) } : {}),
+    ...(import.meta.env.DEV && params.has("staticCell") ? { staticCellSize: Math.max(0, Number(params.get("staticCell")) || 0) } : {}),
     bindings,
     assetUrls: urls,
     materialType: materialType && isJsonAssetType(materialType) ? materialType : null,

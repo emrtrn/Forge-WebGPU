@@ -95,6 +95,8 @@ export interface RenderHostOptions {
   readonly forceWebGL?: boolean;
   /** Which static batches take the GPU-driven automatic LOD path (R9.4; `?staticPath=` measures); default `instanced` (R9.0). */
   readonly staticPath?: StaticPath;
+  /** Static batches split by world cell of this size in metres (plan 5c R9a); default 0, off. */
+  readonly staticCellSize?: number;
   readonly bindings: readonly RenderBindingDef[];
   readonly assetUrls: AssetUrls;
   /** The `forge.material` asset type, to read material assets (render cannot import the feature). */
@@ -312,6 +314,8 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   const triangles = createTriangleDrawing(renderer, gpuDriven, triangleSource);
   // R9.0 (2026-11-17): no measured level gained from the GPU path; statics stay instanced until decided.
   const staticPath: StaticPath = options.staticPath ?? "instanced";
+  // Plan 5c R9a step a: off until the occlusion queries use it (`?staticCell=` measures).
+  const staticCellSize = options.staticCellSize ?? 0;
   // The Sky Light capture (Forge's captureSkyEnvironment): the scene seen from
   // its origin, prefiltered into a PMREM. A render target never gets the
   // output's tone mapping, so the map stays linear.
@@ -393,6 +397,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
         textures,
         bindings: options.bindings,
         cameraViews: gpuDriven,
+        staticCellSize: () => staticCellSize,
         features,
         name,
         camera: () => camera,

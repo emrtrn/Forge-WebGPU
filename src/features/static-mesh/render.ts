@@ -25,6 +25,10 @@
 // eligible parts may draw GPU-driven with LODs (`render/triangles/staticPath.ts`
 // decides per batch); picking keeps the instanced source.
 //
+// Cells (plan 5c R9a): with `staticCellSize` above 0 a batch holds the
+// placements of one world cell only (`render/sync/batchCells.ts`); a move into
+// another cell changes batch.
+//
 // Edits (plan phase 4 decision 3): a transform-only change moves the actor's
 // placements in their batches (`changeInstances`); any other is removed and
 // added again.
@@ -35,6 +39,7 @@ import { modelParts } from "../../render/resources/modelParts.ts";
 import { assignSlotMaterials, slotMaterialIds } from "../../render/resources/modelSlots.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
 import type { ModelTemplate } from "../../render/resources/worldResources.ts";
+import { cellSuffix } from "../../render/sync/batchCells.ts";
 import { changeInstances, createInstanceBatch, type InstanceBatch } from "../../render/sync/instanceBatches.ts";
 import { defineRenderBinding, type RenderBindingContext } from "../../render/sync/renderBinding.ts";
 import { componentWorldMatrix } from "../../render/sync/transforms.ts";
@@ -118,12 +123,13 @@ export default defineRenderBinding({
       batch.keys.length = 0;
     };
 
+    const cellSize = (): number => ctx.staticCellSize?.() ?? 0;
     const add = (actor: WorldActor, key: string, data: StaticMeshData): void => {
       if (data.mesh === null) return;
       const id = `${actor.id}/${key}`;
-      const batchKey = staticMeshBatchKey(data);
-      placed.set(id, batchKey);
       componentWorldMatrix(ctx.world, actor, key, matrix);
+      const batchKey = staticMeshBatchKey(data) + cellSuffix(matrix, cellSize());
+      placed.set(id, batchKey);
       batchFor(batchKey, data.mesh, data).instances.set(id, matrix, data.color, actor.id);
     };
 
@@ -146,11 +152,15 @@ export default defineRenderBinding({
       for (const actor of actors) for (const [key] of meshesOf(actor)) remove(`${actor.id}/${key}`);
     };
     const move = (actor: WorldActor): void => {
-      for (const [key] of meshesOf(actor)) {
+      for (const [key, component] of meshesOf(actor)) {
         const id = `${actor.id}/${key}`;
         const batchKey = placed.get(id);
         if (batchKey === undefined) continue;
-        batches.get(batchKey)?.instances.move(id, componentWorldMatrix(ctx.world, actor, key, matrix));
+        const data = component as unknown as StaticMeshData;
+        componentWorldMatrix(ctx.world, actor, key, matrix);
+        // Into another cell: another batch (R9a cells); within one, in place.
+        if (staticMeshBatchKey(data) + cellSuffix(matrix, cellSize()) !== batchKey) { remove(id); add(actor, key, data); continue; }
+        batches.get(batchKey)?.instances.move(id, matrix);
       }
     };
 

@@ -57,6 +57,7 @@ export interface RenderFeatureOptions {
   /** The GPU-driven automatic LOD drawing static batches may take (R9.4). */
   readonly triangles?: TriangleDrawing;
   readonly staticPath?: () => StaticPath;
+  readonly staticCellSize?: () => number;
   /** Cameras that draw the scene register their GPU-driven views here (R9a step 1). */
   readonly cameraViews?: CameraViews;
   readonly cache: ResourceCache;
@@ -117,6 +118,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           ...(options.triangles ? { triangles: options.triangles } : {}),
           ...(options.staticPath ? { staticPath: options.staticPath } : {}),
           ...(options.cameraViews ? { cameraViews: options.cameraViews } : {}),
+          ...(options.staticCellSize ? { staticCellSize: options.staticCellSize } : {}),
         }),
       );
       ctx.services.provide(RenderReadinessKey, { isActorReady: (id) => instances.every((instance) => instance.isActorReady?.(id) ?? true) });

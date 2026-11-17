@@ -132,3 +132,56 @@ test("occlusion study: an indoor level", async ({ page }) => {
   writeFileSync(join(RENDER_REFS, "runs", `${record.date.replace(/[:.]/g, "-")}-occlusion-indoor.json`), `${JSON.stringify(record, null, 2)}
 `);
 });
+
+// Step a (plan 5c R9a): static batches split by world cell (`?staticCell=`, development only). Per scene and cell
+// size: frame timing (120 stepped frames) and the study's static draws in view (today's draws, and how many of them
+// an occlusion query could hide).
+test("cells: draws and timing of static batches split by world cell", async ({ page }) => {
+  test.setTimeout(1_500_000);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => { if (message.type() === "error" && !isOptionalHlodMiss(message)) errors.push(message.text()); });
+  const indoor = indoorScene({ origin: [300, 0, 300] });
+  const room = indoor.poses.find((pose) => pose.id === "diagonal")!;
+  const scenes = [
+    { id: "derekavak", pose: "p2", indoor: false }, { id: "wb-pilot", pose: "p1", indoor: false },
+    { id: "island", pose: "p1", indoor: false }, { id: "l03", pose: "p1", indoor: true },
+  ];
+  const mean = (values: number[]): number => Math.round(1000 * values.reduce((a, b) => a + b, 0) / Math.max(1, values.length)) / 1000;
+  const results = [];
+  for (const entry of scenes) {
+    const scene = SMOKE_SCENES.find((candidate) => candidate.id === entry.id)!;
+    const pose = scene.poses.find((candidate) => candidate.id === entry.pose) ?? scene.poses[0]!;
+    for (const cell of [0, 16, 32]) {
+      await openSmokeLevel(page, scene.level, pose, `&staticPath=instanced&staticCell=${cell}`);
+      await expect(page.locator("canvas[data-forge-backend='webgpu']")).toBeVisible();
+      await page.waitForTimeout(1000);
+      await forge(page, "(d) => d.pause()");
+      if (entry.indoor) {
+        await forge(page, "(d, a) => d.spawn(a)", indoor.actors);
+        await forge(page, "(d, a) => d.moveCamera(a[0][0], a[0][1], a[0][2], a[1])", [room.position, room.target]);
+      }
+      await steps(page, 60);
+      const frames: Array<{ cpuMs: number; gpuMs: number | null; submitMs: number | null }> = [];
+      for (let i = 0; i < 120; i += 1) frames.push(await forge(page, "(d) => d.step(1000 / 60)"));
+      const study = (await forge<Study | null>(page, "(d) => d.occlusionStudy()"))!;
+      const row = {
+        scene: entry.indoor ? "indoor" : entry.id, pose: entry.indoor ? room.id : pose.id, cell,
+        submitMs: mean(frames.map((frame) => frame.submitMs ?? NaN).filter(Number.isFinite)),
+        cpuMs: mean(frames.map((frame) => frame.cpuMs)),
+        gpuMs: mean(frames.map((frame) => frame.gpuMs ?? NaN).filter(Number.isFinite)),
+        staticDraws: study.statics.batches, occludedDraws: study.statics.batchesOccluded,
+        objects: study.statics.objects, objectsOccluded: study.statics.objectsOccluded,
+      };
+      results.push(row);
+      console.log(`cells ${row.scene}/${row.pose} cell ${cell}: submit ${row.submitMs} ms, cpu ${row.cpuMs} ms, gpu ${row.gpuMs} ms, static draws ${row.staticDraws} (occludable ${row.occludedDraws}, ${percent(row.occludedDraws, row.staticDraws)} %)`);
+    }
+  }
+  expect(errors).toEqual([]);
+  const record = {
+    schema: 1, kind: "phase 5c R9a step a: static batches split by world cell", date: new Date().toISOString(),
+    commit: git(["rev-parse", "HEAD"]), dirty: git(["status", "--porcelain"]) !== "", viewport: SMOKE_VIEWPORT, results,
+  };
+  mkdirSync(join(RENDER_REFS, "runs"), { recursive: true });
+  writeFileSync(join(RENDER_REFS, "runs", `${record.date.replace(/[:.]/g, "-")}-static-cells.json`), `${JSON.stringify(record, null, 2)}\n`);
+});

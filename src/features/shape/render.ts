@@ -7,13 +7,15 @@
 // rule). It casts a shadow when `castShadow` says so (phase 3 step 4); every
 // shape receives shadows. Edits (plan phase 4 decision 3): a transform-only
 // change moves the actor's instances in their batches (`changeInstances`);
-// any other is removed and added again.
+// any other is removed and added again. Cells (plan 5c R9a): with
+// `staticCellSize` above 0 a batch holds one world cell's shapes only.
 
 import { Matrix4 } from "three/webgpu";
 import { parseComponentTypeTag, type WorldActor } from "../../core/index.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
 import type { ShapePrimitive } from "../../render/resources/shapes.ts";
 import { shapeMaterialKey } from "../../render/resources/worldResources.ts";
+import { cellSuffix } from "../../render/sync/batchCells.ts";
 import { changeInstances, createInstanceBatch, type InstanceBatch } from "../../render/sync/instanceBatches.ts";
 import { defineRenderBinding } from "../../render/sync/renderBinding.ts";
 import { componentWorldMatrix } from "../../render/sync/transforms.ts";
@@ -71,11 +73,12 @@ export default defineRenderBinding({
       for (const resource of batch.keys) ctx.resources.release(resource);
     };
 
+    const cellSize = (): number => ctx.staticCellSize?.() ?? 0;
     const add = (actor: WorldActor, key: string, data: ShapeData): void => {
       const id = `${actor.id}/${key}`;
-      const batchKey = shapeBatchKey(data);
-      placed.set(id, batchKey);
       componentWorldMatrix(ctx.world, actor, key, matrix);
+      const batchKey = shapeBatchKey(data) + cellSuffix(matrix, cellSize());
+      placed.set(id, batchKey);
       batchFor(batchKey, data).instances.set(id, matrix, data.color, actor.id);
     };
 
@@ -98,11 +101,15 @@ export default defineRenderBinding({
       for (const actor of actors) for (const [key] of shapesOf(actor)) remove(`${actor.id}/${key}`);
     };
     const move = (actor: WorldActor): void => {
-      for (const [key] of shapesOf(actor)) {
+      for (const [key, component] of shapesOf(actor)) {
         const id = `${actor.id}/${key}`;
         const batchKey = placed.get(id);
         if (batchKey === undefined) continue;
-        batches.get(batchKey)?.instances.move(id, componentWorldMatrix(ctx.world, actor, key, matrix));
+        const data = component as unknown as ShapeData;
+        componentWorldMatrix(ctx.world, actor, key, matrix);
+        // Into another cell: another batch (R9a cells); within one, in place.
+        if (shapeBatchKey(data) + cellSuffix(matrix, cellSize()) !== batchKey) { remove(id); add(actor, key, data); continue; }
+        batches.get(batchKey)?.instances.move(id, matrix);
       }
     };
 
