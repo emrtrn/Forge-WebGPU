@@ -253,6 +253,7 @@ async function start(): Promise<void> {
           ran,
           cpuMs,
           gpuMs,
+          submitMs: viewer.host?.renderSubmitMs ?? null,
           captures: after.count - counted.count,
           captureCpuMs: after.cpuMs - counted.cpuMs,
           hour: environment()?.current()?.hour ?? null,
@@ -302,9 +303,10 @@ async function start(): Promise<void> {
       },
       /** Phase 5c step 5.1: GPU-driven foliage batches from given instances, their GPU counts against the CPU reference. */
       gpuDriven: {
-        install: async (types: Parameters<DevGpuDriven["install"]>[0], cullScale: number, castShadow?: boolean) => (await devGpuDriven()).install(types, cullScale, castShadow),
+        install: async (types: Parameters<DevGpuDriven["install"]>[0], cullScale: number, castShadow?: boolean, bundle?: boolean) => (await devGpuDriven()).install(types, cullScale, castShadow, bundle),
         check: async () => (await devGpuDriven()).check(),
         stats: () => viewer.host?.gpuDriven.stats() ?? null,
+        bundleRecords: async () => (await devGpuDriven()).bundleRecords(),
         remove: async () => (await devGpuDriven()).remove(),
       },
     };

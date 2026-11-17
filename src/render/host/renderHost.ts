@@ -131,6 +131,8 @@ export interface RenderHost {
   readonly perf: PerfSampler;
   /** GPU-driven batches (phase 5c step 5): culled for the camera before each frame renders. */
   readonly gpuDriven: GpuDrivenDrawing;
+  /** CPU wall time of the last frame's cull, render and overlay submission, ms (never GPU time). */
+  readonly renderSubmitMs: number;
   /** Sky Light (PMREM) captures since the host started. */
   readonly captures: CaptureStats;
   /** The host's PMREM capture (the bindings get it as `ctx.capture`). */
@@ -429,6 +431,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     },
     perf,
     gpuDriven,
+    get renderSubmitMs() { return renderSubmitMs; },
     captures,
     capture,
     async gpuTime() {

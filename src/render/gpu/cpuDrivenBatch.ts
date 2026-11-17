@@ -125,6 +125,8 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     draws,
     get views() { return prepared; },
     get lastDraws() { return lastDraws; },
+    // WebGL2 has no render bundles.
+    bundleUpdates: 0,
     setDistances(next) {
       if (next.lodStarts.length !== lodCount - 1) throw new Error(`gpu batch ${options.name}: ${lodCount - 1} LOD starts`);
       distances = next;

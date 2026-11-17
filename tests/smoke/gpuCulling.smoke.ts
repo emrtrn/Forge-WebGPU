@@ -30,7 +30,7 @@ interface Dev {
   step(ms: number): Promise<{ ran: boolean }>;
   moveCamera(x: number, y: number, z: number, look?: readonly [number, number, number]): void;
   gpuDriven: {
-    install(types: FoliageSceneType[], cullScale: number, castShadow?: boolean): Promise<{ path: "gpu" | "cpu"; batches: number; instances: number; parts: number; draws: number }>;
+    install(types: FoliageSceneType[], cullScale: number, castShadow?: boolean, bundle?: boolean): Promise<{ path: "gpu" | "cpu"; batches: number; instances: number; parts: number; draws: number }>;
     check(): Promise<Check[]>;
     stats(): { batches: number; instances: number; draws: number; views: number } | null;
     remove(): Promise<void>;
@@ -43,8 +43,8 @@ const dev = (page: Page) => ({
   step: () => page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.step(1000 / 60)),
   move: (position: readonly [number, number, number], look: readonly [number, number, number]) =>
     page.evaluate(([p, t]) => (window as unknown as { __forgeDev: Dev }).__forgeDev.moveCamera(p[0], p[1], p[2], t), [position, look] as const),
-  install: (types: FoliageSceneType[], scale: number, castShadow = true) =>
-    page.evaluate(([list, value, cast]) => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.install(list, value, cast), [types, scale, castShadow] as const),
+  install: (types: FoliageSceneType[], scale: number, castShadow = true, bundle = false) =>
+    page.evaluate(([list, value, cast, bundled]) => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.install(list, value, cast, bundled), [types, scale, castShadow, bundle] as const),
   check: () => page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.check()),
   stats: () => page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.stats()),
   remove: () => page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.remove()),
@@ -134,8 +134,22 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
   const unshadowedDraws = (await dev(page).stats())!.draws;
   if (webgl) expect(unshadowedDraws).toBeLessThanOrEqual(installed.draws);
   else expect(unshadowedDraws, "without castShadow only the main view draws").toBe(installed.draws);
+  // In a render bundle (5.3, on WebGPU; WebGL2 has none): the same image.
+  // Reinstalls load their models again: 20 frames let them settle.
+  await dev(page).install(foliage.types, foliage.cullScale, true, true);
+  await steps(page, 20);
+  const bundled = await page.getByTestId("forge-canvas").screenshot();
   await dev(page).install(foliage.types, foliage.cullScale);
+  await steps(page, 20);
+  // Shots 6 frames apart differ a little anyway: the bundle is compared with the next direct shot,
+  // and allowed what two direct shots 6 frames apart differ by.
+  const direct = await page.getByTestId("forge-canvas").screenshot();
+  const bundleDifference = await difference(page, bundled, direct);
   await steps(page, 6);
+  const noise = await difference(page, direct, await page.getByTestId("forge-canvas").screenshot());
+  console.log(`bundle difference ${bundleDifference.toFixed(3)}, direct reinstall ${noise.toFixed(3)}`);
+  // WebGL2 has no bundles (the twin ignores the option); its frames also vary more between shots.
+  if (!webgl) expect(bundleDifference, "the bundled batches draw what the direct ones do").toBeLessThan(noise + 0.05);
 
   await dev(page).move(p1.position!, p1.target!);
   await steps(page, 3);
@@ -165,6 +179,8 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
     shadowViews: stats!.views - 1,
     imageDifference: changed,
     shadowImageDifference: shadowDifference,
+    bundleImageDifference: bundleDifference,
+    reinstallImageDifference: noise,
     views: views.map(({ id, checks }) => ({ id, visible: total(checks), checks })),
   };
   const stamp = record.date.replace(/[:.]/g, "-");

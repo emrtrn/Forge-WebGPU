@@ -30,9 +30,23 @@
 //   distances from the main camera, so what the main view culls casts no
 //   shadow and what it fades casts a fading one. The main view's meshes cast
 //   none. Point and spot light shadows do not see GPU-driven batches.
-// - The draws go into a `BundleGroup` (5.3). Nothing here records per-frame
-//   CPU state into the meshes: what changes per frame is uniforms and GPU
-//   buffers, and which shadow views draw.
+// - Render bundle (5.3, `bundle: true`; off by default): every view's opaque
+//   meshes sit in the batch's own `BundleGroup`; three records it once per
+//   camera (the main camera and each shadow camera) and replays it every
+//   frame. The instance counts live in the indirect arguments, so culling
+//   never re-records. Measured (R3, `npm run measure:gpu-driven`): no gain
+//   within noise, because three r187 refreshes every render object of a
+//   material with node properties in full each frame, bundled or not
+//   (`NodeMaterialObserver.needsRefresh`); the bundle saves only the
+//   encoding, about a tenth of the per-draw cost. The bundle is recorded again
+//   (`bundleUpdates`) only when its meshes change: a view built or rebuilt
+//   (first use, instance buffers grown) or the number of views changed.
+//   Transparent materials stay out of it: three executes bundles at the end
+//   of the pass, after the transparent objects it draws directly, so bundled
+//   transparency would draw out of order. Opaque bundled draws after a
+//   non-bundled transparent surface in front of them are the known cost.
+//   Nothing here records per-frame CPU state into the meshes: what changes
+//   per frame is uniforms and GPU buffers.
 // - The instance buffers growing replaces the compute nodes, materials and
 //   meshes (`GpuInstances.generation`); nothing else does.
 // - WebGPU only: the WebGL2 test backend has no compute atomics or indirect
@@ -40,6 +54,7 @@
 
 import {
   BufferGeometry,
+  BundleGroup,
   DoubleSide,
   IndirectStorageBufferAttribute,
   Matrix4,
@@ -129,6 +144,8 @@ export interface GpuDrivenBatchOptions {
   readonly source?: string;
   /** Draws into the shadow views (default true). */
   readonly castShadow?: boolean;
+  /** Records the opaque draws in a render bundle (5.3; default false, see the header). */
+  readonly bundle?: boolean;
   readonly capacity?: number;
 }
 
@@ -158,6 +175,8 @@ export interface GpuDrivenBatch {
   readonly views: number;
   /** Draws of the last prepare, every view (the CPU twin: only meshes with instances, as three skips empty ones). */
   readonly lastDraws: number;
+  /** Times the render bundle was marked for recording again (each camera then records it once). */
+  readonly bundleUpdates: number;
   setDistances(distances: GpuBatchDistances): void;
   /** The CPU reference's view of this batch (bounds, distances) as the GPU culls it. */
   readonly cullBatch: InstanceCullBatch;
@@ -261,6 +280,13 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
 
   const views: View[] = [];
   let prepared = 0;
+  let bundleUpdates = 0;
+  let bundleDirty = false;
+  const bundle = options.bundle === true ? new BundleGroup() : null;
+  if (bundle) {
+    bundle.name = `${options.name} bundle`;
+    options.parent.add(bundle);
+  }
 
   const createView = (index: number): View => {
     const argsArray = new Uint32Array(draws.length * ARGS);
@@ -283,6 +309,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     for (const node of view.dispatches) node.dispose();
     view.visible?.dispose();
     view.meshes = []; view.materials = []; view.dispatches = []; view.visible = null; view.built = -1;
+    bundleDirty = true;
   };
 
   /** (Re)binds everything of one view that reads the instance buffers. */
@@ -388,7 +415,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       mesh.matrixAutoUpdate = false;
       if (shadow) mesh.layers.set(shadowViewLayer(view.index));
       if (options.source !== undefined) mesh.userData[SCENE_SOURCE_KEY] = options.source;
-      options.parent.add(mesh);
+      (bundle && !material.transparent ? bundle : options.parent).add(mesh);
       view.meshes.push(mesh);
     });
     view.built = instances.generation;
@@ -405,6 +432,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     draws: drawCount,
     get views() { return prepared; },
     get lastDraws() { return drawCount * prepared; },
+    get bundleUpdates() { return bundleUpdates; },
     setDistances(next) {
       if (next.lodStarts.length !== lodCount - 1) throw new Error(`gpu batch ${options.name}: ${lodCount - 1} LOD starts`);
       distances = next;
@@ -420,7 +448,9 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     prepare(list) {
       instances.flush();
       count.value = instances.count;
-      prepared = Math.min(list.length, maxViews);
+      const next = Math.min(list.length, maxViews);
+      if (next !== prepared) bundleDirty = true;
+      prepared = next;
       const dispatches: ComputeNode[] = [];
       for (let index = 0; index < prepared; index += 1) {
         const view = views[index] ?? (views[index] = createView(index));
@@ -434,6 +464,8 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         dispatches.push(...view.dispatches);
       }
       for (let index = prepared; index < views.length; index += 1) for (const mesh of views[index]!.meshes) mesh.visible = false;
+      if (bundle && bundleDirty) { bundle.needsUpdate = true; bundleUpdates += 1; }
+      bundleDirty = false;
       return dispatches;
     },
     async readCounts(target, view = 0) {
@@ -445,6 +477,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     dispose() {
       for (const view of views) { releaseView(view); view.args.dispose(); view.counters.dispose(); }
       views.length = 0;
+      bundle?.removeFromParent();
       instances.dispose();
       drawLodBuffer.dispose();
     },

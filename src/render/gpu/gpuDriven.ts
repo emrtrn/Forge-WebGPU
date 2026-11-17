@@ -11,8 +11,12 @@
 // shadow camera gets its view's layer (`shadowViewLayer`), which three's
 // shadow pass keeps. Spot and point light shadows are not shadow views.
 //
+// Render bundles (5.3): with `bundle: true` a GPU batch's opaque draws are a
+// `BundleGroup` three records per camera (gpuDrivenBatch.ts; off by default,
+// no measured gain).
+//
 // Draw counting: three counts no indirect draw in `renderer.info` (and no
-// draw inside a render bundle, 5.3); `lastDraws` is the draws of the last
+// draw inside a render bundle); `lastDraws` is the draws of the last
 // culled frame three did not count, which the `?debug` readout and the perf
 // witness add to three's count.
 //
@@ -45,6 +49,8 @@ export interface GpuDrivenStats {
   readonly draws: number;
   /** Views of the last culled frame: the main camera and its shadow views. */
   readonly views: number;
+  /** Render bundle re-record marks so far, every batch (5.3; each camera records once per mark). */
+  readonly bundleUpdates: number;
 }
 
 export interface GpuDrivenDrawing {
@@ -111,6 +117,7 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
   let lastBatches: GpuDrivenBatch[] = [];
   let lastDraws = 0;
   let draws = 0;
+  let removedUpdates = 0;
 
   const planesOf = (camera: Camera): Float32Array | null => {
     // Before its first WebGPU render a camera may still hold a WebGL-style projection.
@@ -130,6 +137,7 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
     },
     removeBatch(batch) {
       if (!batches.delete(batch)) return;
+      removedUpdates += batch.bundleUpdates;
       batch.dispose();
       lastBatches = lastBatches.filter((entry) => entry !== batch);
     },
@@ -172,9 +180,9 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
     get lastBatches() { return lastBatches; },
     get lastDraws() { return lastDraws; },
     stats() {
-      let instances = 0;
-      for (const batch of batches.keys()) instances += batch.instances.count;
-      return { batches: batches.size, instances, draws, views: lastViews.length };
+      let instances = 0, bundleUpdates = removedUpdates;
+      for (const batch of batches.keys()) { instances += batch.instances.count; bundleUpdates += batch.bundleUpdates; }
+      return { batches: batches.size, instances, draws, views: lastViews.length, bundleUpdates };
     },
     dispose() {
       for (const batch of batches.keys()) batch.dispose();

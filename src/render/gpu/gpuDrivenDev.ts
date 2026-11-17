@@ -44,9 +44,11 @@ export interface DevGpuCheck extends DevGpuViewCheck {
 }
 
 export interface DevGpuDriven {
-  install(types: readonly DevGpuType[], cullScale: number, castShadow?: boolean): Promise<DevGpuInstall>;
+  install(types: readonly DevGpuType[], cullScale: number, castShadow?: boolean, bundle?: boolean): Promise<DevGpuInstall>;
   /** The last frame's GPU counts beside the CPU reference of the same view. */
   check(): Promise<DevGpuCheck[]>;
+  /** Render bundles three recorded (`backend.beginBundle` calls) since the first call (5.3 measurement). */
+  bundleRecords(): number;
   remove(): void;
 }
 
@@ -55,6 +57,8 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
   let batches: GpuDrivenBatch[] = [];
   let keys: string[] = [];
   const resources = () => host()!.resources("gpuDrivenDev");
+  let records = 0;
+  let counting = false;
 
   const remove = (): void => {
     const current = host();
@@ -65,7 +69,7 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
   };
 
   return {
-    async install(types, cullScale, castShadow = true) {
+    async install(types, cullScale, castShadow = true, bundle = false) {
       remove();
       const current = host();
       const scene = current?.world?.scene;
@@ -89,7 +93,7 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
         const batch = current.gpuDriven.createBatch({
           name: `foliage/${type.name}`, parent: group, lods: [templateParts], source: "foliage",
           bounds: { center: [sphere.center.x, sphere.center.y, sphere.center.z], radius: sphere.radius }, distanceMode: "origin",
-          capacity: type.matrices.length / 16, castShadow,
+          capacity: type.matrices.length / 16, castShadow, bundle,
         });
         const window = foliageFadeWindow(type.cullStart, type.cullEnd, cullScale);
         batch.setDistances({ fadeStart: window?.[0] ?? NO_CULL_DISTANCE, cullEnd: window?.[1] ?? NO_CULL_DISTANCE, lodStarts: [] });
@@ -112,6 +116,15 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
         for (let index = 1; index < batch.views; index += 1) shadows.push(await viewCheck(batch, index));
         return { name: batch.name, instances: batch.instances.count, ...(await viewCheck(batch, 0)), shadows };
       }));
+    },
+    bundleRecords() {
+      const backend = host()?.renderer.backend as { beginBundle?: (...args: unknown[]) => unknown } | undefined;
+      if (!counting && backend?.beginBundle) {
+        const original = backend.beginBundle.bind(backend);
+        backend.beginBundle = (...args: unknown[]) => { records += 1; return original(...args); };
+        counting = true;
+      }
+      return records;
     },
     remove,
   };
