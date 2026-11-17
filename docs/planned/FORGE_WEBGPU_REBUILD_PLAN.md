@@ -1269,7 +1269,7 @@ Bağı açmadan önce üç eksik:
   ham parçalarını taşır (`LodPiece`), LOD zinciri parça zincirlerinden
   (`engine/geometry/mergeTriangleLods.ts`, Codex `gpt-6.1-sol` high, 31 test, Claude inceledi);
   geometri başına bellek önbelleği.
-- [x] **R9.3 / R9.4** (bu commit): `render/triangles/staticPath.ts` parça uygunluğu (morph, kısmi
+- [x] **R9.3 / R9.4** (`b5bc837`): `render/triangles/staticPath.ts` parça uygunluğu (morph, kısmi
   çizim aralığı, > 4 bileşenli nitelik, saydam → `InstancedMesh`) ve batch başına yol (`auto`:
   ≥ 16 yerleşim ya da > 500 üçgenli parça; `gpu` / `instanced` zorlar). LOD hazırlığı başarısız
   parça aynı batch'te instanced kalır. `ctx.triangles` / `ctx.staticPath` host'tan;
