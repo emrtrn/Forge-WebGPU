@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.66 · 2026-11-18 — R9a üretim kararı (kullanıcı): örnek başına GPU occlusion (engelleyici ön geçişi + GPU Hi-Z + GPU yolunda örnek ayıklama), level ayarıyla; hücre + query yolu bırakıldı (instancing'de draw artırıyor). Adımlar O1–O5.
+**Güncelleme:** v1.67 · 2026-11-18 — R9a O1–O4 uygulandı (level ayarı, otomatik engelleyiciler, GPU Hi-Z, ana görünüm örnek ayıklaması): doğru (GPU piramidi = CPU, yanlış gizleme yok), iç mekânda örneklerin %50–90'ı gizleniyor; sentetik sahnede GPU süresi değişmedi. Varsayılan kapalı; sonraki adım kullanıcı kararında.
+
+**Önceki güncelleme:** v1.66 · 2026-11-18 — R9a üretim kararı (kullanıcı): örnek başına GPU occlusion (engelleyici ön geçişi + GPU Hi-Z + GPU yolunda örnek ayıklama), level ayarıyla; hücre + query yolu bırakıldı (instancing'de draw artırıyor). Adımlar O1–O5.
 
 **Önceki güncelleme:** v1.65 · 2026-11-17 — R9a iç mekân çalışması: FPS benzeri sentetik iç mekânda görüş alanındaki nesnelerin %63–69'u, üçgenlerin %88–94'ü örtülü; bugünkü model başına batch'lerle draw kazancı 0, 16 m hücreli batch'lerle %45–64. Açık dünya önerisi geri çekildi; üretim tasarımı kullanıcı kararı bekliyor.
 
@@ -1205,6 +1207,28 @@ occlusion eklenmedi. Tam gate ve push çalıştırılmadı.
   | O3 | GPU Hi-Z (compute, paketli storage buffer, en uzak küçültme); CPU ikizi `engine/world/hiZ.ts` + paket düzeni (Codex `gpt-6.2-sol`) | GPU piramidi CPU'nunkiyle eşit |
   | O4 | GPU yolunun ana görünüm cull'ü örnek küresini Hi-Z'ye karşı da test eder (yalnız `main` rol; gölge / yansıma etkilenmez); WebGL2 ikizi occlusion'sız | GPU görünür sayısı CPU referansı aralığında (yanlış gizleme yok); render / editör smoke iki arka uçta |
   | O5 | İç mekân ve açık dünya A/B: gönderim, GPU, görünür örnek, üçgen, ön geçiş maliyeti | Kayıt `render-refs/runs/`; net kazanç yoksa ayar kapalı kalır |
+
+  **İlerleme (2026-11-18):**
+  - [x] **O1** (`5f1ab63`): `occlusionCulling` level ayarı (varsayılan kapalı); açıkken level'ın
+    statikleri GPU yolunda. İçe aktarıcı / dünya kurucu alanı yazar; SDK yüzeyi değişmedi.
+  - [x] **O2–O4** (`6510965`): `render/sync/occluders.ts` (yarıçap ≥ 2 m opak örneklerin derinlik
+    ikizleri, ışıksız ayrı engelleyici sahnesinde: ön geçiş gölge / yansıma güncellemez),
+    `render/gpu/occlusionPass.ts` (çizim tamponu boyutunda derinlik + compute ile paketli Hi-Z;
+    düzen `engine/world/hiZ.ts` `hiZLayout` / `packHiZ` / `sphereOccludedPacked`, Codex
+    `gpt-6.2-sol` high), `render/gpu/hiZTest.ts` (paketli testin TSL'i), GPU batch'in yalnız `main`
+    rol cull'ü kullanır; WebGL2 ikizi yok sayar. Dev `__forgeDev.levelSettings(patch)`,
+    `gpuDriven.occlusionCheck()`.
+  - [x] **Doğrulama** (`measure:occlusion` "gpu occlusion", gerçek WebGPU, 1080p): GPU piramidi
+    CPU'nun aynı 0. seviyeden kurduğuyla bit bit eşit (12 seviye, 0 fark); her batch'in görünür
+    sayısı CPU referansının aralığında (yanlış gizleme yok); odada / koridorda / çaprazda
+    örneklerin %50 / %68 / %65'i (oda başına 120 eşyada %75 / %87 / %90) gizli, üstten %0.
+    Odaklı Vitest 570, render smoke alt kümesi 6 / 6 (varsayılan kapalı yol değişmedi).
+  - [x] **O5 A/B (çapraz poz):** 12 eşya: GPU 0,70 (instanced) / 0,86 (GPU yolu) / 0,96 ms
+    (occlusion); gönderim 0,36 / 0,66 / 0,85 ms. 120 eşya: GPU 1,27 / 1,28 / 1,25 ms. Örtülü
+    örnekler gölge kaskatlarına yine çizilir (ana görünüm sonucu gölgeye uygulanmaz), örtülü
+    pikseller zaten derinlikle elenir, kazanç köşe işinde; şekiller ucuz. **Açık (kullanıcı
+    kararı):** gerçekçi ağır mesh'le ölçüm, sabit maliyetin düşürülmesi (dispatch birleştirme,
+    yarım çözünürlüklü Hi-Z), gölge kaskatları için ayrı occlusion.
 - Mevcut frustum / mesafe culling ve ambient occlusion, nesne occlusion culling
   değildir. Mevcut meshlet taslağında `occlusionCulling: false`; bağımsız üretim
   occlusion sistemi doğrulanmadı. R7'ye eklenmez; önce R8 ve R9 tamamlanır.
@@ -1966,4 +1990,5 @@ silinebilir.
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
+| 2026-11-18 | v1.67 | R9a O1 (`5f1ab63`) ve O2–O4 (`6510965`): occlusion level ayarı, otomatik engelleyici ön geçişi, GPU Hi-Z (Codex `gpt-6.2-sol` paket düzeni), ana görünüm örnek ayıklaması; doğru (piramit 0 fark, yanlış gizleme yok), iç mekânda %50–90 örnek gizli; sentetik sahnede GPU süresi değişmedi, gönderim arttı. Varsayılan kapalı |
 | 2026-11-18 | v1.66 | R9a hücre batch'i ölçümü (`fab7066`, kapalı): iç mekân draw 4 → 63; query yolu bırakıldı. Üretim kararı (kullanıcı): örnek başına GPU occlusion O1–O5 (level ayarı, otomatik engelleyici ön geçişi, GPU Hi-Z, ana görünüm örnek ayıklaması, A/B) |
