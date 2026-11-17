@@ -54,6 +54,9 @@ test("scene shadows toggle independently, undo and redo, and reach unsaved Play"
 });
 
 test("bulk enable and disable are each one undo step and leave the scene gate unchanged", async ({ page }) => {
+  // Every shadow flip rebuilds a shape batch and compiles its pipelines; with software WebGL
+  // (CI has no GPU) this test's ten round trips take ~2.6 min, over the 2 min default.
+  test.slow();
   const errors = await openEditor(page, { level: levels[1]!, drawn: true });
   await settings(page);
   await page.getByTestId("world-settings-object-shadows-on").click();

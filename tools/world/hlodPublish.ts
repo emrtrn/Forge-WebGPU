@@ -26,12 +26,14 @@ export async function outputRevisions(policy: WritePolicy, folder: string): Prom
 export async function writeHlodResult(policy: WritePolicy, folder: string, result: HlodBuildResult,
   expected?: Revisions): Promise<void> {
   const normalized = normalizeHlodIndex(result.index, { strict: true });
-  const required = new Set([HLOD_INDEX_FILE, ...result.index.cells.map((cell) => hlodCellFileOf(cell.key)),
+  // An empty result publishes no files at all: the previous outputs go, no index is written.
+  const empty = !result.index.cells.length && !result.index.clusters.length && !result.index.landmarks;
+  const required = new Set(empty ? [] : [HLOD_INDEX_FILE, ...result.index.cells.map((cell) => hlodCellFileOf(cell.key)),
     ...result.index.clusters.map((cluster) => hlodClusterFileOf(cluster.key)), ...(result.index.landmarks ? [HLOD_LANDMARK_FILE] : [])]);
   if (!normalized.ok || !normalized.value || result.files.size !== required.size ||
     [...required].some((path) => !result.files.has(path))) throw new Error("Invalid HLOD publication file set");
-  const encoded = result.files.get(HLOD_INDEX_FILE)!;
-  if (digest(JSON.parse(new TextDecoder().decode(encoded))) !== digest(result.index)) throw new Error("HLOD index bytes disagree with result");
+  const encoded = result.files.get(HLOD_INDEX_FILE);
+  if (encoded && digest(JSON.parse(new TextDecoder().decode(encoded))) !== digest(result.index)) throw new Error("HLOD index bytes disagree with result");
   const before = await outputRevisions(policy, folder);
   if (expected && !sameRevisions(before, expected)) throw new HlodOutputsChanged("HLOD outputs changed during computation; retry");
   const token = randomUUID();
@@ -41,7 +43,8 @@ export async function writeHlodResult(policy: WritePolicy, folder: string, resul
     return resolveProjectPath(policy.root, `${folder}/${path.slice(0, path.lastIndexOf("/") + 1)}.${basename(absolute)}.${token}.${suffix}`);
   };
   const paths = new Set([...Object.keys(before).filter((path) => before[path] !== null), ...required]);
-  const entries = [...paths].filter((path) => path !== HLOD_INDEX_FILE).sort().concat(HLOD_INDEX_FILE)
+  // The index goes last; an empty publication with no previous index has none to touch.
+  const entries = [...paths].filter((path) => path !== HLOD_INDEX_FILE).sort().concat(paths.has(HLOD_INDEX_FILE) ? [HLOD_INDEX_FILE] : [])
     .map((path) => ({ path, target: target(path), temp: helper(path, "tmp"), backup: helper(path, "bak"),
       existed: before[path] != null, touched: false }));
   let rollbackFailed = false;

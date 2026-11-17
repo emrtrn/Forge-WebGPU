@@ -165,7 +165,7 @@ test("small placements and shapes/markers/editor helpers leave an empty index; b
     { id: actorId(5), components: {} },
   ])));
   const result = await buildLevelHlod(FOLDER, await inputOf(source));
-  expect(result.index.cells).toEqual([]); expect(result.files.size).toBe(1);
+  expect(result.index.cells).toEqual([]); expect(result.files.size).toBe(0); // nothing to bake: not even an index
   expect(result.skippedPlacements).toBe(4); expect(result.warnings).toHaveLength(1); expect(result.warnings[0]).toContain(missing);
 });
 

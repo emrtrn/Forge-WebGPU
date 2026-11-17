@@ -84,7 +84,7 @@ function proxyOf([one, two]: readonly Simplified[]): { doc: Document; triangles:
 export interface HlodBuildOptions { readonly ratio?: number; readonly error?: number }
 export interface HlodBuildResult {
   readonly index: HlodIndex;
-  /** Level-relative files, index included. */
+  /** Level-relative files, index included; empty when there is nothing to bake (no index is written). */
   readonly files: Map<string, Uint8Array>;
   readonly warnings: string[];
   readonly skippedPlacements: number;
@@ -199,7 +199,8 @@ export async function buildLevelHlod(folder: string, input: HlodInput, options: 
     }
   }
   const index: HlodIndex = { schema: HLOD_SCHEMA, level: level.id, cellSize: level.settings.cellSize, cells: entries, clusters, ...(landmarks ? { landmarks } : {}) };
-  files.set(HLOD_INDEX_FILE, new TextEncoder().encode(stringifyDocument(index)));
+  // Nothing to bake: no index either, so opening or playing a level never writes one.
+  if (entries.length || clusters.length || landmarks) files.set(HLOD_INDEX_FILE, new TextEncoder().encode(stringifyDocument(index)));
   return { index, files, warnings, skippedPlacements };
 }
 

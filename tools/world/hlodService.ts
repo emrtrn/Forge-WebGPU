@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { lstat, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, relative, resolve, sep } from "node:path";
-import { buildAssetIndex } from "../../src/core/index.ts";
+import { buildAssetIndex, HLOD_INDEX_FILE } from "../../src/core/index.ts";
 import type { HlodBuildReport } from "../../src/core/level/hlodBuild.ts";
 import { projectIndexRoots } from "../assets/engineContent.ts";
 import { loadEngineRegistry } from "../assets/engineRegistry.ts";
@@ -104,7 +104,8 @@ export async function runHlodJob(request: HlodJobRequest, control?: { readonly c
     } catch { current = false; } // Unusable optimization, never grant freshness on it.
   }
   const previous = cache ? { publication: cache.publication, completedAt: cache.completedAt, report: cache.report } : { publication: null };
-  const state = current ? "current" : Object.values(before).some((revision) => revision !== null) ? "stale" : "missing";
+  // A level published before, an empty publication (no files) included, is stale rather than missing.
+  const state = current ? "current" : cache || Object.values(before).some((revision) => revision !== null) ? "stale" : "missing";
   if (!request.build || current && !request.force && !request.dryRun) return { state, built: false, ...previous };
   if (control?.cancelled()) throw new Error("HLOD generation cancelled before publication");
   if (process.connected && process.send) process.send({ phase: "building" });
@@ -152,7 +153,9 @@ export async function runHlodJob(request: HlodJobRequest, control?: { readonly c
     }
     const finalReport = { ...report, totalMs: Math.round(performance.now() - started) };
     const entry: Cache = { version: 1, stamp: fingerprint.stamp, inputs,
-      outputs: Object.fromEntries([...result.files].map(([path, bytes]) => [path, fileRevision(bytes)])), publication, completedAt, report: finalReport };
+      // A missing index reads as null in outputRevisions; an empty publication matches that.
+      outputs: { [HLOD_INDEX_FILE]: null, ...Object.fromEntries([...result.files].map(([path, bytes]) => [path, fileRevision(bytes)])) },
+      publication, completedAt, report: finalReport };
     const tempRelative = `${source.cacheRelative}.${publication}.tmp`;
     let message: string | undefined;
     try {
