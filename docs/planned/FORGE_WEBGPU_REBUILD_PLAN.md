@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.69 · 2026-11-18 — Kullanıcı kararı: occlusion culling iptal (kod Z0'da kaldırılır), PVS yok. Yerine R9b bölge sistemi: otomatik kurulur, editörde Blocking Volume gibi sürükle-bırak ve gizmo ile elle düzeltilir; çalışma anında portal üzerinden görünür bölgeler. Plan Z0–Z7; kod yok.
+**Güncelleme:** v1.70 · 2026-11-18 — R9b açık soruları kapandı (kullanıcı, önerilerle): gizli bölge gölge düşürmez (bölge başına seçenek), ilk aşama yalnız görünürlük, statiklerin varsayılan yolu `auto` (eşik ölçümle; adım S1). Uygulama yeni oturumda.
+
+**Önceki güncelleme:** v1.69 · 2026-11-18 — Kullanıcı kararı: occlusion culling iptal (kod Z0'da kaldırılır), PVS yok. Yerine R9b bölge sistemi: otomatik kurulur, editörde Blocking Volume gibi sürükle-bırak ve gizmo ile elle düzeltilir; çalışma anında portal üzerinden görünür bölgeler. Plan Z0–Z7; kod yok.
 
 **Önceki güncelleme:** v1.68 · 2026-11-18 — R9a O5 ağır mesh testi: 768 × 36,5 bin üçgenlik eşyada instanced GPU 19–20,5 ms, GPU yolu + otomatik LOD 1,75–2,1 ms, + occlusion 1,73–1,85 ms (LOD'a göre fark gürültü içinde). R9.0'ın "statikler instanced" kararı ağır içerik için yeniden açılmalı; bölge / PVS değerlendirmesi kullanıcıda.
 
@@ -1308,6 +1310,18 @@ Tasarım:
 | Z6 | Ölçüm: ağır eşyalı sentetik iç mekânda bölgesiz / bölgeli draw, gölge, GPU, gönderim; açık dünyada fark yok | Kayıt `render-refs/runs/`; kullanıcı görsel kabulü |
 | Z7 | Belgeler: mimari rapor, harita, CLAUDE.md komut satırı | — |
 
+**Kararlar (kullanıcı, 2026-11-18; v1.70, önerilerle):**
+1. Görünmeyen bölgenin içeriği gölge düşürmez; bölge başına "gölgesi hep düşsün" seçeneği (pencere
+   / avlu gibi durumlar için).
+2. İlk aşama yalnız görünürlük; bölgeye göre bellekten boşaltma sonra ayrı karar.
+3. **S1, statiklerin varsayılan yolu `auto`:** R9a O5 ağır mesh ölçümünde GPU yolu + otomatik LOD
+   instanced'a göre ~10 kat hızlı (19–20,5 → 1,75–2,1 ms); R9.0'da hafif içerikte GPU yolu
+   kaybettirmişti. `staticPath.ts`'in `auto` kuralı parça üçgen eşiği yükseltilerek (öneri
+   ~5.000, ölçümle) host varsayılanı olur: hafif batch'ler (Derekavak'ın 824 üçgenlik evi,
+   şekiller) instanced kalır, ağır modeller GPU yoluna gider. Kapı: `measure:static-path` (hafif
+   referans level'lar gerilemez) + `measure:occlusion` "heavy props" (ağır eşyada kazanç korunur);
+   render / editör smoke iki arka uçta. Sıra: S1, sonra Z0–Z7.
+
 **R8 kararları ve uygulama planı (kullanıcı, 2026-11-17; v1.57):**
 Bulgular: HLOD proxy'leri zaten tek ortak materyalli (renk köşe renginde, gölge
 yok), hücre başına bir draw. Derekavak'ta draw'ın kaynağı gerçek binalar: iki
@@ -2046,6 +2060,7 @@ silinebilir.
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
+| 2026-11-18 | v1.70 | R9b kararları (önerilerle): gizli bölge gölgesiz + bölge başına seçenek, önce yalnız görünürlük, S1 statiklerin varsayılan yolu `auto` (eşik ölçümle). Kod yok |
 | 2026-11-18 | v1.69 | Kullanıcı: occlusion iptal, PVS yok; R9b bölge sistemi (otomatik + elle düzenlenen hacimler, portal görünürlüğü, bölgeye göre batch ve gölge); Z0 occlusion kodunun kaldırılması, Z1–Z7. Kod yok |
 | 2026-11-18 | v1.68 | R9a O5 ağır mesh (`994c3b1`): instanced 19–20,5 ms → GPU yolu + otomatik LOD 1,75–2,1 ms → + occlusion 1,73–1,85 ms; kazanç LOD'dan, occlusion farkı gürültüde. Statik yol varsayılanı ve bölge / PVS kararı açık |
 | 2026-11-18 | v1.67 | R9a O1 (`5f1ab63`) ve O2–O4 (`6510965`): occlusion level ayarı, otomatik engelleyici ön geçişi, GPU Hi-Z (Codex `gpt-6.2-sol` paket düzeni), ana görünüm örnek ayıklaması; doğru (piramit 0 fark, yanlış gizleme yok), iç mekânda %50–90 örnek gizli; sentetik sahnede GPU süresi değişmedi, gönderim arttı. Varsayılan kapalı |
