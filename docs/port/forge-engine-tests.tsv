@@ -279,14 +279,14 @@ tests/engine/foliageFade.test.ts	79	check	R			engine/render-three	three-via:engi
 tests/engine/foliageFade.test.ts	95	check	R			engine/render-three	three-via:engine/render-three,three:three		foliage fade: a fading clone keeps the source defines and runs its patch first	
 tests/engine/foliageFade.test.ts	118	check	R			engine/render-three,engine/scene	three-via:engine/render-three,three:three		foliage fade: culled groups render through fading clones that follow the camera and quality scale	
 tests/engine/foliageFade.test.ts	147	check	R			engine/render-three,engine/scene	three-via:engine/render-three,three:three		foliage fade: a type that never culls keeps its original material	
-tests/engine/foliageRing.test.ts	24	check	A			engine/world			foliage far blocks: only blocks with ground between the near and far radius, nearest first	5c
-tests/engine/foliageRing.test.ts	47	check	A			engine/world			foliage ring: cell size grows with the cull distance, capped by candidates per cell	5c
-tests/engine/foliageRing.test.ts	59	check	A			engine/world			foliage ring: radius follows the cull distance, or covers a small surface for a type that never culls	5c
-tests/engine/foliageRing.test.ts	66	check	A			engine/world			foliage ring: cells in range build nearest first with banded keep fractions	5c
-tests/engine/foliageRing.test.ts	84	check	A			engine/world			foliage ring: built cells stay until 1.25x the radius and a replan builds nothing new	5c
-tests/engine/foliageRing.test.ts	97	check	A			engine/world			foliage ring: a camera on a band edge does not rebuild the cell each frame	5c
-tests/engine/foliageRing.test.ts	113	check	A			engine/world			foliage ring: density changes rebuild every cell, zero density unloads all	5c
-tests/engine/foliageRing.test.ts	125	check	A			engine/world			foliage ring: the plan stays on the surface and an unbounded radius covers it at full density	5c
+tests/engine/foliageRing.test.ts	24	check	A			engine/world		src/engine/world/foliageRing.test.ts	foliage far blocks: only blocks with ground between the near and far radius, nearest first	
+tests/engine/foliageRing.test.ts	47	check	A			engine/world		src/engine/world/foliageRing.test.ts	foliage ring: cell size grows with the cull distance, capped by candidates per cell	
+tests/engine/foliageRing.test.ts	59	check	A			engine/world		src/engine/world/foliageRing.test.ts	foliage ring: radius follows the cull distance, or covers a small surface for a type that never culls	
+tests/engine/foliageRing.test.ts	66	check	A			engine/world		src/engine/world/foliageRing.test.ts	foliage ring: cells in range build nearest first with banded keep fractions	
+tests/engine/foliageRing.test.ts	84	check	A			engine/world		src/engine/world/foliageRing.test.ts	foliage ring: built cells stay until 1.25x the radius and a replan builds nothing new	
+tests/engine/foliageRing.test.ts	97	check	A			engine/world		src/engine/world/foliageRing.test.ts	foliage ring: a camera on a band edge does not rebuild the cell each frame	
+tests/engine/foliageRing.test.ts	113	check	A			engine/world		src/engine/world/foliageRing.test.ts	foliage ring: density changes rebuild every cell, zero density unloads all	
+tests/engine/foliageRing.test.ts	125	check	A			engine/world		src/engine/world/foliageRing.test.ts	foliage ring: the plan stays on the surface and an unbounded radius covers it at full density	
 tests/engine/followShadow.test.ts	50	check	A		yes	engine/world		src/engine/world/followShadow.test.ts	`follow shadow: orthonormal basis for direction ${lightDirection.join(", ")}`	
 tests/engine/followShadow.test.ts	58	check	R		yes	engine/world	three:three		`follow shadow: basis matches three lookAt for direction ${lightDirection.join(", ")}`	
 tests/engine/followShadow.test.ts	82	check	A		yes	engine/world		src/engine/world/followShadow.test.ts	`follow shadow: target snaps laterally and preserves depth for direction ${lightDirection.join(", ")}`	
@@ -603,22 +603,22 @@ tests/engine/placementIdentity.test.ts	31	check	M			engine/scene	model:engine/sc
 tests/engine/placementIdentity.test.ts	44	check	M			tools/droppedFields,tools/saveValidator	model:tools/droppedFields,model:tools/saveValidator		placement identity: save keeps id and role first and leaves plain placements unchanged	
 tests/engine/placementIdentity.test.ts	58	check	M			engine/scene,tools/droppedFields,tools/saveValidator	model:engine/scene,model:tools/droppedFields,model:tools/saveValidator		placement identity: a layout rejects the same id twice, across asset groups	
 tests/engine/placementIdentity.test.ts	74	check	M			editor,engine/scene	model:editor,model:engine/scene		placement identity: undo snapshots keep id and role; duplicates get a fresh id and keep the role	
-tests/engine/proceduralFoliage.test.ts	35	check	M			engine/scene	model:engine/scene		procedural foliage: deterministic matrices and nested density subsets keep exact translations	
+tests/engine/proceduralFoliage.test.ts	35	check	M			engine/scene	model:engine/scene	src/engine/foliage/proceduralFoliage.test.ts	procedural foliage: deterministic matrices and nested density subsets keep exact translations	
 tests/engine/proceduralFoliage.test.ts	51	check	R			engine/scene	three:three		procedural foliage: packed compose matches three for tilt, local yaw, antiparallel and zero normals	
-tests/engine/proceduralFoliage.test.ts	88	check	M			engine/scene	model:engine/scene		procedural foliage: layer, slope, height and unavailable surface filters reject candidates	
-tests/engine/proceduralFoliage.test.ts	110	check	M			engine/scene	model:engine/scene		procedural foliage: caps and disabled requests return exactly sized buffers	
-tests/engine/proceduralFoliage.test.ts	127	check	M			engine/scene	model:engine/scene		procedural foliage: cell seeds are unsigned, distinct nearby and support negative layouts	
-tests/engine/proceduralFoliage.test.ts	149	check	M			engine/scene,engine/terrain	model:engine/scene		procedural foliage: world surface uses exact resident tile heights, seam normals and layer ids	
-tests/engine/proceduralFoliage.test.ts	190	check	M			engine/scene	model:engine/scene		procedural foliage rule bands: Height Min/Max cut hard, an open side and the type limits still apply	
-tests/engine/proceduralFoliage.test.ts	203	check	M			engine/scene	model:engine/scene		procedural foliage rule bands: falloff thins the edge as a nested subset, never moves a plant	
-tests/engine/proceduralFoliage.test.ts	216	check	M			engine/scene	model:engine/scene		procedural foliage rule bands: Edge Scale shrinks plants in the falloff only	
+tests/engine/proceduralFoliage.test.ts	88	check	M			engine/scene	model:engine/scene	src/engine/foliage/proceduralFoliage.test.ts	procedural foliage: layer, slope, height and unavailable surface filters reject candidates	
+tests/engine/proceduralFoliage.test.ts	110	check	M			engine/scene	model:engine/scene	src/engine/foliage/proceduralFoliage.test.ts	procedural foliage: caps and disabled requests return exactly sized buffers	
+tests/engine/proceduralFoliage.test.ts	127	check	M			engine/scene	model:engine/scene	src/engine/foliage/proceduralFoliage.test.ts	procedural foliage: cell seeds are unsigned, distinct nearby and support negative layouts	
+tests/engine/proceduralFoliage.test.ts	149	check	M			engine/scene,engine/terrain	model:engine/scene	src/engine/foliage/proceduralFoliage.test.ts	procedural foliage: world surface uses exact resident tile heights, seam normals and layer ids	
+tests/engine/proceduralFoliage.test.ts	190	check	M			engine/scene	model:engine/scene	src/engine/foliage/proceduralFoliage.test.ts	procedural foliage rule bands: Height Min/Max cut hard, an open side and the type limits still apply	
+tests/engine/proceduralFoliage.test.ts	203	check	M			engine/scene	model:engine/scene	src/engine/foliage/proceduralFoliage.test.ts	procedural foliage rule bands: falloff thins the edge as a nested subset, never moves a plant	
+tests/engine/proceduralFoliage.test.ts	216	check	M			engine/scene	model:engine/scene	src/engine/foliage/proceduralFoliage.test.ts	procedural foliage rule bands: Edge Scale shrinks plants in the falloff only	
 tests/engine/proceduralFoliage.test.ts	230	check	R			engine/scene	three:three		procedural foliage rule bands: slope band and noise thin deterministically	
-tests/engine/proceduralFoliage.test.ts	245	check	M			engine/scene	model:engine/scene		procedural foliage rule bands: a band that covers everything matches an unbanded rule bit for bit	
+tests/engine/proceduralFoliage.test.ts	245	check	M			engine/scene	model:engine/scene	src/engine/foliage/proceduralFoliage.test.ts	procedural foliage rule bands: a band that covers everything matches an unbanded rule bit for bit	
 tests/engine/proceduralFoliage.test.ts	252	check	M			engine/scene	model:engine/scene		landscape foliage rule normalizer: bands round-trip, clamp, and defaults stay out of the file	
-tests/engine/proceduralFoliage.test.ts	264	check	M			engine/scene,engine/terrain	model:engine/scene		far foliage surface: exact tiles where resident, the global map elsewhere	
-tests/engine/proceduralFoliage.test.ts	293	check	M			engine/scene	model:engine/scene		far foliage block: the ring cells of a block, packed, at the same positions	
+tests/engine/proceduralFoliage.test.ts	264	check	M			engine/scene,engine/terrain	model:engine/scene	src/engine/foliage/proceduralFoliage.test.ts	far foliage surface: exact tiles where resident, the global map elsewhere	
+tests/engine/proceduralFoliage.test.ts	293	check	M			engine/scene	model:engine/scene	src/engine/foliage/proceduralFoliage.test.ts	far foliage block: the ring cells of a block, packed, at the same positions	
 tests/engine/proceduralFoliage.test.ts	301	check	M			engine/scene	model:engine/scene		foliage type far fields: round-trip, clamp, and stay out of the file when off	
-tests/engine/proceduralFoliage.test.ts	313	check	M			engine/scene	model:engine/scene		far foliage tint: coverage where the rule grows, nothing elsewhere, and the plants' colour	
+tests/engine/proceduralFoliage.test.ts	313	check	M			engine/scene	model:engine/scene	src/engine/foliage/proceduralFoliage.test.ts	far foliage tint: coverage where the rule grows, nothing elsewhere, and the plants' colour	
 tests/engine/proceduralFoliageRing.test.ts	58	checkAsync	R			engine/render-three,engine/scene,engine/terrain,engine/world,src	three-via:engine/render-three,three-via:src,three:three		procedural foliage ring: prepare builds exactly the planned cells around the camera	
 tests/engine/proceduralFoliageRing.test.ts	70	checkAsync	R			engine/render-three,engine/scene,engine/terrain,engine/world,src	three-via:engine/render-three,three-via:src,three:three		procedural foliage ring: frames follow the camera and density	
 tests/engine/proceduralFoliageRing.test.ts	82	checkAsync	R			engine/render-three,engine/scene,engine/terrain,engine/world,src	three-via:engine/render-three,three-via:src,three:three		procedural foliage ring: an edited terrain regrows on the new surface, keeping old batches until then	
