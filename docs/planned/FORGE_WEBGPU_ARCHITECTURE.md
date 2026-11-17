@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.48 · 2026-11-17 — §4.4 5c gölge görünümleri (5.2). v1.47 — §4.4 5b HLOD: şekiller pişirilir (5c R1). Önceki v1.46 — §4.4 5c: üçgen / draw call ayrımı, sanal geometri adayları ve spike'ı 5.5 öncesi, HLOD'a şekiller (karar 5'in static mesh kuralı kalkar), three-nanite elendi. Plan v1.46.
+**Güncelleme:** v1.49 · 2026-11-17 — §4.4 5c render bundle (5.3) ölçümü. v1.48 — §4.4 5c gölge görünümleri (5.2). v1.47 — §4.4 5b HLOD: şekiller pişirilir (5c R1). Önceki v1.46 — §4.4 5c: üçgen / draw call ayrımı, sanal geometri adayları ve spike'ı 5.5 öncesi, HLOD'a şekiller (karar 5'in static mesh kuralı kalkar), three-nanite elendi. Plan v1.46.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — §4.4 5c: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı). Plan v1.45.
 
@@ -813,6 +813,12 @@ features/height-fog/
     dönüşümü `castShadowPositionNode`, solma `maskShadowNode`; mesafe ana kameradan.
     Spot / nokta gölgeleri GPU güdümlü batch'i görmez. WebGL2 ikizi aynı görünümleri
     örnekli mesh'le kurar.
+  - *Render bundle (5.3, 2026-11-17):* isteğe bağlı (`bundle: true`, varsayılan
+    kapalı): opak mesh'ler batch'in `BundleGroup`'unda, kamera başına kayıt, yeniden
+    kayıt yalnız mesh kümesi / görünüm sayısı değişince; saydamlar dışarıda (three
+    bundle'ları geçiş sonunda yürütür). Ölçümde kazanç yok: three r187 düğüm
+    materyalli render nesnelerini her karede tam yeniler; çizim başına CPU'nun
+    kaynağı nesne başına bağlama güncellemesi (plan 5c R3).
   - *Üçgen ve draw call ayrımı (kullanıcı, 2026-11-17; sıra plan 5c "yeni sıra"):*
     üçgen azaltma meshlet / sanal geometriyle (otomatik, elle LOD yok); r187'nin
     `MeshletDrawingPipeline`'ı ters derinlikte kapandığı için aday three-virtual-geometry

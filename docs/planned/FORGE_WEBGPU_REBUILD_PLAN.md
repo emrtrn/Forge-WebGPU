@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.48 · 2026-11-17 — Faz 5c R2 (5.2): GPU güdümlü batch'ler gölge kaskatlarında. v1.47 — Faz 5c R1: HLOD'a `forge.shape` (three'siz primitive üreticisi, eşitlik testi). Önceki v1.46 — Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; R1 HLOD'a şekiller → R2–R4 (5.2–5.4) → R5 sahne maliyet raporu → R6 üçgen spike'ı (three-virtual-geometry / ters derinlikli meshlet kopyası / 5.1 + ayrık LOD) → R7 üretim → R8 HLOD katmanları → R9 (5.5) → R10 (5.6). three-nanite elendi. Mimari v1.46.
+**Güncelleme:** v1.49 · 2026-11-17 — Faz 5c R3 (5.3): bundle ölçüldü, kazanç yok, varsayılan kapalı. v1.48 — Faz 5c R2 (5.2): GPU güdümlü batch'ler gölge kaskatlarında. v1.47 — Faz 5c R1: HLOD'a `forge.shape` (three'siz primitive üreticisi, eşitlik testi). Önceki v1.46 — Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; R1 HLOD'a şekiller → R2–R4 (5.2–5.4) → R5 sahne maliyet raporu → R6 üçgen spike'ı (three-virtual-geometry / ters derinlikli meshlet kopyası / 5.1 + ayrık LOD) → R7 üretim → R8 HLOD katmanları → R9 (5.5) → R10 (5.6). three-nanite elendi. Mimari v1.46.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — Faz 5c adım 5: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı, `2544bdb`); çizim sayacı iki geçişli saydam materyalleri sayar. Mimari v1.45.
 
@@ -1061,6 +1061,40 @@ gölgeli / gölgesiz görüntü farkı 0,21 (0–255). Kayıt
 `candidates/derekavak-p2-gpu-foliage{,-shadowless}.png` (göz için). Odaklı Vitest,
 typecheck, katman. Bundle 5.3'te; gölge görünümleri de aynı bundle'a girer.
 
+**R3 (5.3) ölçüldü (2026-11-17, C): bundle kazanç vermiyor, varsayılan kapalı
+(kullanıcı kararı bekliyor).** `bundle: true` batch'i bütün görünümlerin opak
+mesh'lerini kendi `BundleGroup`'una koyar; three kamera başına (ana + her gölge
+kamerası) kaydeder. Yeniden kayıt yalnız mesh kümesi (görünüm kurma / büyüme) ya da
+görünüm sayısı değişince işaretlenir (`bundleUpdates`); örnek sayısı indirect
+argümanında olduğundan culling yeniden kaydettirmez. Saydam materyaller bundle'a
+girmez: three bundle'ları geçişin **sonunda** (`finishRender`) yürütür, doğrudan
+çizilen saydamlardan sonra. `npm run measure:gpu-driven` (yeni; Derekavak P2, 1080p
+`high`, DPR 1, gerçek WebGPU, 60 Hz adımlı, 60 ısınma + 300 kare; kayıt
+`render-refs/runs/2026-11-17T11-43-06-711Z-gpu-driven.json`, üç koşu tutarlı):
+
+| Senaryo | Draw (4 görünüm) | Gönderim ort. / p95 | Kare CPU | GPU |
+|---|---|---|---|---|
+| Batch yok | 0 | 0,94 / 3,7 ms | 1,38 | 2,39 |
+| Foliage, doğrudan | 60 | 1,54 / 4,7 | 1,96 | 2,75 |
+| Foliage, bundle | 60 | 1,49 / 4,7 | 1,89 | 2,62 |
+| Stres ×20 (120 batch), doğrudan | 1.200 | 20,2 / 23,5 | 20,7 | 11,1 |
+| Stres ×20, bundle | 1.200 | 21,7 / 26,7 | 22,3 | 11,1 |
+
+Sabit pencerede yeniden kayıt 0 (`backend.beginBundle` sayacı). **Neden:** three
+r187 düğüm özelliği taşıyan her materyalin render nesnesini her karede tam yeniler
+(`NodeMaterialObserver.needsRefresh`: `hasNode` → FULL; bundle replay'i de aynı
+güncellemeyi yapar). CPU profili (stres, 60 kare): `Bindings._update` %10,7,
+`UniformsGroup.update` %9,1, `updateForRender` / `needsRenderUpdate` / öznitelik
+denetimleri; kodlama (`setPipeline` / `setBindGroup` / `setVertexBuffer` / `draw*`)
+yaklaşık %10, bundle'ın kurtarabileceği pay bu. Dolaylı çizim başına ~17 µs; sahnenin
+olağan nesneleri ~2,7 µs. Ayrıca 120 batch × 4 görünüm × 3 = 1.440 compute dispatch'i.
+Faz 1 spike'ındaki statik bundle kazancı (2,9 → 1,98 ms) bu yolda tekrarlanmadı.
+Smoke: bundle'lı kurulum doğrudanla aynı görüntüyü verir (WebGPU, fark ≤ gürültü +
+0,05). **Öneri (R10 öncesi):** çizim başına CPU'yu düşürmek için render nesnesi
+sayısı ve nesne başına bağlama: tek compute geçişinde bütün batch'ler, görünümler
+arası paylaşılan materyal / bağlama, gölge görünümünde ayrı küçük materyal; bundle
+ancak bunlardan sonra yeniden ölçülür.
+
 5c ile paralel yürürse ortak dosyalar: `render/sync/instanceBatches.ts` (adım 8; foliage
 kendi batch'ini kurar), kalite profilleri, `?debug` satırları. Çakışmada adım 8 5c'nin
 GPU güdümlü yolunu bekler.
@@ -1404,3 +1438,4 @@ silinebilir.
 | 2026-11-17 | v1.46 | Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; draw call ve üçgen ayrı. R1 HLOD'a `forge.shape` (kullanıcı kararı), R2–R4 = 5.2 kaskatlar / 5.3 bundle / 5.4 foliage, R5 sahne maliyet raporu (ajan komutu + editör Stats), R6 üçgen spike'ı (three-virtual-geometry, r187 meshlet hattının ters derinlik kopyası, 5.1 + ayrık LOD; kod commit'lenmez), R7 seçilen yolun üretimi, R8 hiyerarşik HLOD + siluet katmanı, R9 = 5.5, R10 = 5.6. three-nanite elendi. Kod yok; mimari v1.46 |
 | 2026-11-17 | v1.47 | Faz 5c R1: HLOD'a `forge.shape`: three'siz primitive üreticisi `engine/procgen/shapePrimitives.ts` + three geometrisiyle eşitlik testi, yerleşim / `sourceHash` / tazelik damgası primitive + renk içerir, düzlem iki yüzlü; Derekavak 22 hücre, OUT-001 proxy'de. Odaklı Vitest 64, hlod + streaming smoke başsız ve gerçek WebGPU 5 / 5. Kullanıcı Derekavak kabulü açık; sıradaki R2 |
 | 2026-11-17 | v1.48 | Faz 5c R2 (5.2): GPU güdümlü batch'ler gölge kaskatlarına çizer: görünüm başına kaynak, gölge görünümü kendi katmanında, örnek dönüşümü `castShadowPositionNode`, solma `maskShadowNode`, mesafe ana kameradan; WebGL2 ikizi aynı. Smoke iki arka uçta: her kaskatta GPU = CPU, `?debug` +60 (15 × 4 görünüm), gölge görüntüyü değiştirir. Sıradaki R3 bundle |
+| 2026-11-17 | v1.49 | Faz 5c R3 (5.3): isteğe bağlı bundle (`bundle: true`, kamera başına kayıt, yeniden kayıt yalnız mesh / görünüm değişince, saydamlar dışarıda) + `npm run measure:gpu-driven`. Kazanç yok (foliage 1,54 → 1,49 ms, 1.200 draw'lık stres 20,2 → 21,7 ms): three r187 düğüm materyalli render nesnelerini her karede tam yeniler; varsayılan kapalı, kullanıcı kararı bekliyor. Sıradaki R4 |
