@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.56 · 2026-11-17 — §4.4 R7 seçilebilir otomatik LOD / worker / cache / build bağı uygulandı. Meshlet'e özel üretim kodu kaldırıldı, R6 araştırması korundu. v1.55 R9a occlusion kararı değişmedi; uygulanmadı.
+**Güncelleme:** v1.57 · 2026-11-17 — §4.4 R8 draw call kararları: bundle kapalı, proxy'ler düz mesh, slot düzeyinde primitive birleştirme, `forge.levelHlod/2` 4 × 4 katman, landmark ve far genişlemesi. Kod yok.
+
+**Önceki güncelleme:** v1.56 · 2026-11-17 — §4.4 R7 seçilebilir otomatik LOD / worker / cache / build bağı uygulandı. Meshlet'e özel üretim kodu kaldırıldı, R6 araştırması korundu. v1.55 R9a occlusion kararı değişmedi; uygulanmadı.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — §4.4 5c: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı). Plan v1.45.
 
@@ -886,6 +888,15 @@ features/height-fog/
     5.1 yolunda kalır. Draw call: HLOD'a `forge.shape` girer (kullanıcı kararı; karar
     5'in "yalnız static mesh" kuralı kalkar), hiyerarşik HLOD + uzak siluet katmanı
     ve sahne maliyet raporu. three-nanite elendi (WebGPU'da küme başına çizim).
+  - *R8 draw call kararları (kullanıcı, 2026-11-17; plan v1.57):* bundle varsayılan
+    kapalı kalır. HLOD proxy'leri düz mesh kalır (tek örnekli; GPU güdümlü yol ve
+    indirect draw düşürmez). Modelin aynı materyal slotundaki primitive'ler
+    türetilmiş veride tek geometriye birleşir (kayıpsız; R7 hattı gibi cache / build,
+    commit'lenmez); doku atlası ayrı karar. `forge.levelHlod/2` katmanlı: katman 0
+    hücre, katman 1 4 × 4 küme, geçiş `max(2 × loadRange, 6 × hücre)`; v1 yeniden
+    üretilir. Bileşen landmark işareti tek level proxy'sine pişer, görüş ötesinde
+    çizilir; kamera far'ı landmark menziline genişler, diğer içerik görüş
+    mesafesinde culling'le kalır.
   - *Uygulama başı (2026-11-17):* `engine/world/foliageRing` (8 A, A 990 /
     1.021) ve `engine/foliage/{foliageTypeParams,foliageRoll,proceduralFoliage}`
     Forge algoritmalarıyla taşındı; boya / silme fırçası 5d'de.

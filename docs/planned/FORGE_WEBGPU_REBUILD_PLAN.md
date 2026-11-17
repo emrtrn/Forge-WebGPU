@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.56 · 2026-11-17 — R7 seçilebilir otomatik LOD altyapısı uygulandı ve iki arka uçta doğrulandı. Meshlet'e özel üretim kodu kaldırıldı; R6 araştırması korundu. v1.55'in R9a occlusion kararı değişmedi; R8 / R9 / R9a / R10 açık.
+**Güncelleme:** v1.57 · 2026-11-17 — R8 kararları ve uygulama planı (R8.0–R8.6): bundle kapalı, proxy'ler GPU yoluna girmez, slot düzeyinde kayıpsız materyal birleştirme, 4 × 4 ikinci HLOD katmanı, landmark katmanı ve far genişlemesi. Kod yok.
+
+**Önceki güncelleme:** v1.56 · 2026-11-17 — R7 seçilebilir otomatik LOD altyapısı uygulandı ve iki arka uçta doğrulandı. Meshlet'e özel üretim kodu kaldırıldı; R6 araştırması korundu. v1.55'in R9a occlusion kararı değişmedi; R8 / R9 / R9a / R10 açık.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — Faz 5c adım 5: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı, `2544bdb`); çizim sayacı iki geçişli saydam materyalleri sayar. Mimari v1.45.
 
@@ -1015,7 +1017,7 @@ işleyicisi (`clusterlod.h` portu) ve çatlak denetimi referanstır. Bütün ad�
 | R5 | Sahne maliyet raporu | Ajan komutu (öneri `npm run forge -- stats --project <yol> --level <klasör> [--json]`): aktör, benzersiz geometri / materyal, model başına materyal, saydam / çift yüzlü, kaynak üçgen; editör Stats: görünür draw call (dolaylı + bundle dahil) ve çizilen üçgen. `verify:assets` eşikleri sonra (yalnız rapor) | Derekavak ve sentetik level raporu; R6'nın ortak ölçü dili |
 | R6 | Üçgen spike'ı (tamamlandı; kod commit'lenmez, port 5284+) | Derekavak P2 + yoğun mesh stres sahnesi: (a) three-virtual-geometry, (b) r187 meshlet hattının ters derinlik kopyası, (c) 5.1 yolu + meshoptimizer ayrık LOD zinciri. Ölçüt: çizilen üçgen, draw call, gönderim / ana iş parçacığı, GPU süresi, kaskat gölgesi, ters derinlik, MRT, R3 bundle'ı, WebGL2 ikizi, bellek / ön işleme süresi, three iç API bağımlılığı | Kayıt `render-refs/runs/`; kullanıcı seçimi aşağıda (2026-11-17) |
 | R7 | Otomatik LOD üretimi (tamamlandı) | Meshoptimizer ile otomatik ayrık LOD, deterministik ön işleme / cache / build ve seçilebilir runtime bağı; WebGPU + WebGL2. Meshlet üretim kapsamı dışında; foliage mevcut 5.1 yolunda. Küçük nesnede önce üçgen düşer, sonra detay culling | 21 odaklı test, typecheck, katman, gerçek WebGPU + WebGL2 smoke; uygulama kaydı aşağıda. R8 / R9 / R9a / R10 ayrı |
-| R8 | HLOD katmanları (draw call) | Hiyerarşik HLOD (öneri: ikinci katman 4 × 4 hücre, uzak menzilde), siluet / landmark işareti (view distance ötesinde uzak katman), proxy'ler GPU yoluna / bundle'a. Materyal birleştirme R5 raporuyla ayrı karar | Draw call ve gönderim öncesi / sonrası |
+| R8 | HLOD katmanları (draw call) | Hiyerarşik HLOD (öneri: ikinci katman 4 × 4 hücre, uzak menzilde), siluet / landmark işareti (view distance ötesinde uzak katman), slot düzeyinde materyal birleştirme; proxy'ler düz mesh, bundle kapalı (v1.57 kararları ve R8.0–R8.6 aşağıda) | Draw call ve gönderim öncesi / sonrası |
 | R9 | 5.5 statiklerin geçişi | 5.1 yolu + otomatik LOD; picking, detay fade, transform hızlı yolu, HLOD hazır olma, `compileAsync` korunur | Editör / render smoke'ları iki arka uçta |
 | R9a | GPU occlusion culling (yeni, açık) | R9 sonrasında, R10 öncesinde meshlet'ten bağımsız nesne / instance düzeyinde konservatif Hi-Z adayı: önce tasarım + açık alan / örtülü alan A/B ölçümü, sonra yararlıysa üretim. Ters derinlik, MRT, MSAA, kamera hareketi ve gölge doğruluğu | Yanlış gizleme yok; culling kapalı referansla doğruluk; CPU / GPU render + compute / bellek / görünür nesne / üçgen karşılaştırması; WebGL2 mevcut culling ile çalışır |
 | R10 | 5.6 G6 ölçümü | Derekavak P2 60 Hz, R5 raporuyla; sonra 5c adım 6–11 eski sırayla | G6 sınırları |
@@ -1135,6 +1137,39 @@ occlusion eklenmedi. Tam gate ve push çalıştırılmadı.
 - Kaynak araştırması: [r187 HZB](https://github.com/mrdoob/three.js/blob/r187/examples/jsm/pipelines/MeshletDrawingPipeline.js)
   ve [Niagara](https://github.com/zeux/niagara) (Vulkan, algoritma referansı;
   doğrudan three/WebGPU eklentisi değil). Yeni bağımlılık kararı verilmedi.
+
+**R8 kararları ve uygulama planı (kullanıcı, 2026-11-17; v1.57):**
+Bulgular: HLOD proxy'leri zaten tek ortak materyalli (renk köşe renginde, gölge
+yok), hücre başına bir draw. Derekavak'ta draw'ın kaynağı gerçek binalar: iki
+modelde 117 primitive, görünüm ve kaskat başına 118 draw; `loadRange` 400 m,
+görüş 2000 m, hücre 128 m, 22 hücre. 4 × 4 katmanın etkisi StreamingBench'te
+(1.024 hücre, 3,37 M HLOD üçgeni) ölçülür. Kararlar:
+- *Bundle kapalı kalır* (R3 varsayılanı); materyal / draw azaltmasından sonra
+  R10 öncesinde yeniden ölçülür.
+- *Proxy'ler GPU güdümlü yola girmez:* her proxy tek örnekli, kendine özgü
+  geometri; indirect çizim draw düşürmez, r187'de multi-draw-indirect yok.
+  Proxy'ler düz mesh kalır, azalmayı katmanlar sağlar. R8 satırındaki "GPU yoluna /
+  bundle'a" maddesi bu kararla düşer.
+- *Materyal birleştirme şimdi, kayıpsız:* bir modelin aynı materyal slotundaki
+  primitive'leri düğüm dönüşümleri pişirilerek tek geometride birleşir; draw
+  primitive sayısından slot sayısına iner. R7 hattı gibi türetilmiş veri. Farklı
+  materyalleri doku atlasıyla birleştirme (kayıplı) ayrı karar, sonra.
+- *İkinci katman 4 × 4 hücre;* geçiş mesafesi `max(2 × loadRange, 6 × hücre)`,
+  kalite çarpanıyla.
+- *Landmark:* `forge.staticMesh` / `forge.shape` bileşeninde işaret; işaretliler
+  level başına tek proxy'ye pişer, görüş mesafesi ötesinde landmark menzilinde
+  çizilir. Kamera far'ı landmark menziline genişler; diğer içerik kendi mesafe
+  culling'iyle görüş mesafesinde, sis görüş mesafesine bağlı kalır.
+
+| # | İş | Kapı |
+|---|---|---|
+| R8.0 | Ölçüm (Derekavak P2, StreamingBench uzak poz: draw / görünüm, gönderim, CPU, GPU) + HLOD sadeleştirmesinin üçgen düşürmemesinin teşhisi ve düzeltmesi (`tools/world/hlodBuild.ts`) | Kayıt `render-refs/runs/`; proxy üçgeni kaynaktan düşük |
+| R8.1 | Slot düzeyinde primitive birleştirme (deterministik, `.forge-cache/` + build, worker yedeği; R7 LOD birleşmiş geometride); picking, slot override, detay fade, gölge korunur | Odaklı test; Derekavak draw / görünüm 118 → slot sayısı |
+| R8.2 | `forge.levelHlod/2`: `layers` (katman 0 hücre, katman 1 `hlod/l1/<x>_<z>.glb`); katman 1 katman 0 çıktısından daha kaba; hash çocuklardan; v1 bayat, yeniden üretilir; `hlodJobs` / Auto kapsar | Odaklı test; üretim iki level'da |
+| R8.3 | Çalışma anı katman seçimi (`render/sync/hlodProxies.ts`): 16 hücresi etkin olmayan uzak küme katman 1; yüklenmeden öbürü bırakılmaz, histerezis; hazır olma korunur | Odaklı test; `hlod` / streaming smoke iki arka uçta |
+| R8.4 | Landmark işareti, `hlod/landmarks.glb`, far genişlemesi; SDK yüzeyi değişirse snapshot + changelog aynı commit'te | Odaklı test; smoke |
+| R8.5 | `forge stats`, `?debug`, World Partition panelinde katman / proxy / birleşmiş draw | Rapor iki level'da |
+| R8.6 | R8.0 ölçümünün tekrarı, öncesi / sonrası | Draw ve gönderim düşer; kullanıcı görsel kabulü (geçişte titreme yok, landmark) |
 
 **R7 önceki uygulama taslağı (v1.54, tarihsel; yukarıdaki güncel kapsam geçerli):**
 1. r187 hattını sürümü ve MIT kaynağı belgelenmiş render kopyasında tut;
@@ -1706,3 +1741,4 @@ silinebilir.
 | 2026-11-17 | v1.54 | Kullanıcı R6 önerisini onayladı: yoğun uygun tek yüzlü statiklerde ters derinliğe uyarlanmış r187 meshlet; diğer materyallerde / WebGL2’de otomatik ayrık LOD; foliage mevcut 5.1 yolunda. Terrain meshlet dışında, occlusion ilk sürümde kapalı. Önceki genel meshlet reddi bu kapsamda geçersiz; R7 yeni oturumda başlayacak, üretim kodu yok. |
 | 2026-11-17 | v1.55 | Kullanıcı meshlet'i şimdilik üretimden çıkardı; v1.54 hibrit seçimi tarihsel kaldı. Devam eden R7 otomatik LOD / cache / build / runtime kapsamına daraltıldı; meshlet'e özel kod ayrımı geliştiren oturumun işi, bu belge değişikliği kod temizliği yapmadı. R6 kanıtları korundu. Bağımsız konservatif GPU occlusion culling R9a olarak R9 sonrası / R10 öncesi tasarım + ölçüm / yararlıysa üretim işi şeklinde eklendi. Occlusion uygulanmadı; yanlış gizleme, gölge, ters derinlik ve net maliyet kapıları yazıldı. |
 | 2026-11-17 | v1.56 | R7 otomatik LOD üretim altyapısı tamamlandı: deterministik Node cache / build, tarayıcı worker, ekran hatasıyla seçim, seçilebilir 5.1 GPU / WebGL2 CPU bağı; genel statikler R9'a kadar değişmedi. Meshlet'e özel üretim dosyaları ve pipeline bağı kaldırıldı; R6 dört kaynak hash'i kayıtla eşit. Küçük / kazançsız LOD, materyal grupları, CPU picking, fade / yerel transform, kaynak ömrü, iptal / compileAsync / HLOD hazır olma korundu. 21 odaklı test, typecheck, katman; ilgili render alt kümesi 7 / 7. Odaklı production build ve ayrı worker paketi geçti; dist tarayıcı smoke'u çalıştırılmadı. Dar P2 ek nesne ölçümünde native = Stats 438 draw, 40 dolaylı; bundle 16 replay / 0 yeniden kayıt; render / compute ayrı. G6 açık, son R6 3,03 ms. v1.55'in R9a kararı korundu; R8 / R9 / R9a / R10 başlamadı. Kod 134b2aa; docs ayrı commit, push ve tam gate yok. |
+| 2026-11-17 | v1.57 | R8 kararları (kullanıcı): bundle kapalı kalır, R10 öncesi yeniden ölçülür; HLOD proxy'leri GPU güdümlü yola girmez (tek örnekli, indirect kazanç yok); slot düzeyinde kayıpsız primitive birleştirme (atlas sonra); 4 × 4 ikinci katman, geçiş `max(2 × loadRange, 6 × hücre)`; bileşen landmark işareti ve far genişlemesi. Uygulama sırası R8.0–R8.6. Kod yok |
