@@ -118,8 +118,9 @@ export function hostTerrainStreaming(host: RenderHost): TerrainStreamingSnapshot
 export function debugReadout(host: RenderHost, environment: Readonly<WorldEnvironmentState> | null, terrain: TerrainStreamingSnapshot | null = null): string {
   const metrics = host.perf.metrics();
   const fps = metrics.averageFrameTimeMs > 0 ? 1000 / metrics.averageFrameTimeMs : 0;
-  const { triangles } = host.renderer.info.render;
-  // three counts no indirect draw (phase 5c step 5): the GPU-driven batches' are added.
+  // three counts no indirect draw (phase 5c step 5): the GPU-driven batches' draws and
+  // (read back from the GPU, at most twice a second) their triangles are added.
+  const triangles = host.renderer.info.render.triangles + host.gpuDriven.uncountedTriangles();
   const drawCalls = host.renderer.info.render.drawCalls + host.gpuDriven.lastDraws;
   const memory = host.renderer.info.memory as { geometries: number; textures: number; programs?: number };
   const extras = perfExtras(host.canvas);

@@ -3,6 +3,7 @@
 //   npm run forge -- check --project <path>
 //   npm run forge -- dev --project <path> [--port <port>]
 //   npm run forge -- edit --project <path> --level <folder> [--json] <command …> | -
+//   npm run forge -- stats --project <path> --level <folder> [--json] [--top <n>]
 //
 // `check`: manifest, SDK version, generated .forge/tsconfig.json, compile,
 // import boundary (tools/project/check.ts).
@@ -11,6 +12,7 @@
 // changelog entries in between are shown.
 // `edit`: the agent's edit commands on a level (A12, tools/edit/): no dev
 // server needed; an editor that has the level open refreshes by itself.
+// `stats`: the level's scene cost report (plan 5c R5, tools/stats/).
 
 import { readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -20,6 +22,7 @@ import { parseSdkVersion, SDK_VERSION } from "../src/core/index.ts";
 import { checkProject, formatProblem, loadProject, writeProjectTsconfig } from "./project/check.ts";
 import { editMain } from "./edit/cli.ts";
 import { hlodMain } from "./world/hlodCli.ts";
+import { statsMain } from "./stats/statsCli.ts";
 
 const engineRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -48,13 +51,17 @@ async function main(): Promise<void> {
     process.exitCode = await hlodMain(args, engineRoot);
     return;
   }
+  if (command === "stats") {
+    process.exitCode = await statsMain(args, engineRoot);
+    return;
+  }
   if (command === "edit") {
     process.exitCode = await editMain(args, engineRoot);
     return;
   }
   const project = option(args, "project");
   if ((command !== "check" && command !== "dev") || project === undefined) {
-    console.error("Usage: npm run forge -- <check|dev|edit|hlod> --project <path> [--port <port>]");
+    console.error("Usage: npm run forge -- <check|dev|edit|hlod|stats> --project <path> [--port <port>]");
     process.exitCode = 1;
     return;
   }

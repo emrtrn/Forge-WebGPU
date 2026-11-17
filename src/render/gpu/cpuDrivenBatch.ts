@@ -123,6 +123,8 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     get allMeshes(): Mesh[] { return views.flatMap((view) => view.meshes.map((entry) => entry.mesh)); },
     lodCount,
     draws,
+    // three counts the twin's triangles itself; the field keeps the interface.
+    lodTriangles: options.lods.map(() => 0),
     get views() { return prepared; },
     get lastDraws() { return lastDraws; },
     // WebGL2 has no render bundles.

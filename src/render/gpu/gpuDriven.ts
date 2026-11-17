@@ -69,6 +69,13 @@ export interface GpuDrivenDrawing {
   readonly lastBatches: readonly GpuDrivenBatch[];
   /** Draws of the last culled frame `renderer.info` did not count. */
   readonly lastDraws: number;
+  /**
+   * Triangles the GPU path drew that `renderer.info` did not count, every
+   * view: the last known value. Asking refreshes it in the background (an
+   * asynchronous read of the visible counts, at most twice a second); 0 on
+   * the WebGL2 twin, whose triangles three counts.
+   */
+  uncountedTriangles(): number;
   stats(): GpuDrivenStats;
   dispose(): void;
 }
@@ -118,6 +125,19 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
   let lastDraws = 0;
   let draws = 0;
   let removedUpdates = 0;
+  let triangles = 0;
+  let reading = false;
+  let askedAt = -Infinity;
+  const readTriangles = async (): Promise<void> => {
+    let sum = 0;
+    for (const batch of lastBatches) {
+      for (let view = 0; view < batch.views; view += 1) {
+        const counts = await batch.readCounts(renderer, view);
+        counts.forEach((count, lod) => { sum += count * (batch.lodTriangles[lod] ?? 0); });
+      }
+    }
+    triangles = sum;
+  };
 
   const planesOf = (camera: Camera): Float32Array | null => {
     // Before its first WebGPU render a camera may still hold a WebGL-style projection.
@@ -179,6 +199,16 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
     get lastViews() { return lastViews; },
     get lastBatches() { return lastBatches; },
     get lastDraws() { return lastDraws; },
+    uncountedTriangles() {
+      if (!supported) return 0;
+      const now = performance.now();
+      if (!reading && now - askedAt > 500) {
+        askedAt = now;
+        reading = true;
+        void readTriangles().catch(() => undefined).finally(() => { reading = false; });
+      }
+      return lastBatches.length > 0 ? triangles : 0;
+    },
     stats() {
       let instances = 0, bundleUpdates = removedUpdates;
       for (const batch of batches.keys()) { instances += batch.instances.count; bundleUpdates += batch.bundleUpdates; }

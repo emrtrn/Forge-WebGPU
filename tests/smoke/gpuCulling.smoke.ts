@@ -61,6 +61,13 @@ async function readoutDraws(page: Page): Promise<number> {
   return match ? Number(match[1]!.replace(/[^\d]/g, "")) : NaN;
 }
 
+/** Triangles in the `?debug` readout. */
+async function readoutTriangles(page: Page): Promise<number> {
+  const text = (await page.locator("#debug-stats-readout").textContent()) ?? "";
+  const match = /([\d,.\s]+) tris/.exec(text);
+  return match ? Number(match[1]!.replace(/[^\d]/g, "")) : NaN;
+}
+
 test.use({ viewport: SMOKE_VIEWPORT });
 
 for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend}): Derekavak's foliage culls as the CPU reference does`, async ({ page }, testInfo) => {
@@ -80,6 +87,7 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
   await expect.poll(() => readoutDraws(page), { timeout: 20_000 }).toBeGreaterThan(0);
   await page.waitForTimeout(1500);
   const drawsBefore = await readoutDraws(page);
+  const trianglesBefore = await readoutTriangles(page);
   await dev(page).pause();
   await steps(page, 4);
   const plain = await page.getByTestId("forge-canvas").screenshot();
@@ -123,6 +131,9 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
   await expect.poll(() => readoutDraws(page), { timeout: 20_000, message: "the readout counts every draw of the batches in every view, indirect or not" })
     .toBe(drawsBefore + stats!.draws);
   const drawsAfter = await readoutDraws(page);
+  // The drawn triangles count the batches too (5c R5: read back from the GPU on WebGPU, three's own count on WebGL2).
+  await expect.poll(() => readoutTriangles(page), { timeout: 20_000, message: "the readout counts the batches' triangles" }).toBeGreaterThan(trianglesBefore);
+  const trianglesAfter = await readoutTriangles(page);
   await dev(page).pause();
 
   // The same batches without shadow views: the shadows they cast change the image.
@@ -176,6 +187,7 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
     foliage: { cells: foliage.cells, instances: foliage.instances, types: foliage.types.map((type) => ({ name: type.name, instances: type.matrices.length / 16 })) },
     installed,
     readoutDraws: { before: drawsBefore, after: drawsAfter },
+    readoutTriangles: { before: trianglesBefore, after: trianglesAfter },
     shadowViews: stats!.views - 1,
     imageDifference: changed,
     shadowImageDifference: shadowDifference,

@@ -171,6 +171,8 @@ export interface GpuDrivenBatch {
   readonly lodCount: number;
   /** Draws one view issues: one per mesh and material pass (a transparent double-sided material draws twice). */
   readonly draws: number;
+  /** Triangles one instance draws at each LOD (every pass counted, as three counts them). */
+  readonly lodTriangles: readonly number[];
   /** Views the last prepare culled (1 + its shadow views). */
   readonly views: number;
   /** Draws of the last prepare, every view (the CPU twin: only meshes with instances, as three skips empty ones). */
@@ -266,6 +268,8 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
   const instances = createGpuInstances(options.capacity);
   const draws = options.lods.flatMap((parts, lod) => parts.flatMap((part) => partDraws(lod, part)));
   const drawCount = draws.reduce((sum, draw) => sum + drawPasses(draw.material), 0);
+  const lodTriangles = options.lods.map((_, lod) => draws.filter((draw) => draw.lod === lod)
+    .reduce((sum, draw) => sum + Math.floor(draw.count / 3) * drawPasses(draw.material), 0));
   const drawLodBuffer = new StorageBufferAttribute(Uint32Array.from(draws.map((draw) => draw.lod)), 1);
   const maxViews = 1 + (options.castShadow === false ? 0 : MAX_SHADOW_VIEWS);
 
@@ -430,6 +434,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     get allMeshes() { return views.flatMap((view) => view.meshes); },
     lodCount,
     draws: drawCount,
+    lodTriangles,
     get views() { return prepared; },
     get lastDraws() { return drawCount * prepared; },
     get bundleUpdates() { return bundleUpdates; },
