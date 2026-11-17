@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.46 · 2026-11-17 — Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; R1 HLOD'a şekiller → R2–R4 (5.2–5.4) → R5 sahne maliyet raporu → R6 üçgen spike'ı (three-virtual-geometry / ters derinlikli meshlet kopyası / 5.1 + ayrık LOD) → R7 üretim → R8 HLOD katmanları → R9 (5.5) → R10 (5.6). three-nanite elendi. Mimari v1.46.
+**Güncelleme:** v1.47 · 2026-11-17 — Faz 5c R1: HLOD'a `forge.shape` (three'siz primitive üreticisi, eşitlik testi). Önceki v1.46 — Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; R1 HLOD'a şekiller → R2–R4 (5.2–5.4) → R5 sahne maliyet raporu → R6 üçgen spike'ı (three-virtual-geometry / ters derinlikli meshlet kopyası / 5.1 + ayrık LOD) → R7 üretim → R8 HLOD katmanları → R9 (5.5) → R10 (5.6). three-nanite elendi. Mimari v1.46.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — Faz 5c adım 5: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı, `2544bdb`); çizim sayacı iki geçişli saydam materyalleri sayar. Mimari v1.45.
 
@@ -542,6 +542,8 @@ Referans level'lar küçük (en çok 46 hücre, WbPilotValley); `cellSize` hepsi
    Editör de aynı proxy'leri çizer (akışlı editörde boş görünen uzak hücreler için).
    Renk `vertexColors` bayrağıyla değil `colorNode` ile köşe niteliğinden okunur:
    three'nin meshlet hattı `vertexColors`'lı materyali reddeder (karar 10).
+   **5c R1 notu (2026-11-17):** `forge.shape` da pişirilir (yukarıdaki "yalnız static
+   mesh" kuralı kalktı); ayrıntı 5c yeni sıra altında.
 6. *Detay culling:* Forge'un `detailCulling` kuralı (yarıçap × 200 × ölçek, 1.000 m
    üstü hiç; %80–100 arası dither fade, gölge dahil; kalite ölçeği) TSL'de yeniden
    yazılır. Batch atlaması anlamlı olsun diye otomatik instancing batch'leri hücreye
@@ -1020,6 +1022,24 @@ kalır, sanal geometri yalnız statik mesh adayıdır; ön işleme çıktısı c
 `.forge-cache/` ve build'de üretilir (asset türevi, deterministik); şekil üreticisi
 three'siz tek kaynak, render'ın three geometrisi değişmez, eşitlik testle korunur.
 
+**R1 uygulandı (2026-11-17, C).** `engine/procgen/shapePrimitives.ts`: three'siz
+cube / sphere / cylinder / cone / plane (three r187 üreticilerinin köşe sırası,
+normal ve indeksleri; 0,5 m katı, 1 m düzlem, 32 radyal / 16 yükseklik parçası);
+`render/resources/shapes.test.ts` beş primitive'de konum / normal (≤ 1e-6) ve
+indeksin three geometrisiyle aynı olduğunu denetler. `hlodPlacementsOf` şekli
+`{ shape, color, matrix }` yerleşimi olarak verir; `sourceHash` girdisi
+`shape:<primitive>` + renk + matris (model girdileri eski biçimde, şekilsiz level'ların
+hash'i değişmedi); tazelik damgası yerleşimleri zaten içerir, ayrıca
+`HLOD_SHAPE_GENERATOR` sürümü (üretici değişince damga bayatlar). Üretici şekli
+köşe rengine (sRGB → doğrusal, render'ın örnek rengiyle aynı) pişirir, detay
+culling dahil etme kuralı şeklin sınır yarıçapıyla; düzlem çift yüzlü çizildiği için
+iki yüzüyle pişirilir. Bayatlık (`verify:assets`, editör) şekli de sayar. Geçici
+kopyada `forge hlod`: Derekavak **22 hücre / 21.360 üçgen**, 83 şekil / 25 mesh,
+OUT-001'in hücresi `-1_-2` proxy'de. Doğrulama: odaklı Vitest 64 / 64, typecheck,
+katman, dosya bütçesi, `verify:assets`; `hlod.spec.ts` + `streaming.spec.ts` başsız
+**5 / 5** ve gerçek WebGPU **5 / 5**. Kalan: kullanıcının Derekavak kabulü (HLOD
+denetim listesi + şekiller).
+
 5c ile paralel yürürse ortak dosyalar: `render/sync/instanceBatches.ts` (adım 8; foliage
 kendi batch'ini kurar), kalite profilleri, `?debug` satırları. Çakışmada adım 8 5c'nin
 GPU güdümlü yolunu bekler.
@@ -1361,3 +1381,4 @@ silinebilir.
 | 2026-11-17 | v1.44 | Faz 5c adım 5.1 (`9deff0c`): GPU güdümlü çizimin temeli `render/gpu/` (örnek storage buffer'ı ve kararlı tutamaçlar, reset / cull / args compute, LOD × parça × materyal grubu başına `drawIndexedIndirect`, `overrideNodes` ile örnek matrisi, dither fade), host ana görünümü kareden önce ayıklar, `?debug` dolaylı çizimleri sayar; CPU referansı `engine/world/instanceCulling.ts` + Node testi. Gerçek WebGPU smoke'u: Derekavak P2 foliage 370 hücre / 1.640 örnek, P2 / P1 / gökyüzü 177 / 32 / 0 görünür, GPU = CPU birebir, +9 draw. Açık soru: WebGL2 test arka ucu geri dönüşü (5.5 öncesi). Sıradaki: 5.2 kaskat görünümleri |
 | 2026-11-17 | v1.45 | Faz 5c adım 5: WebGL2 test arka ucu için GPU güdümlü batch'in CPU ikizi (kullanıcı kararı, `2544bdb`): CPU referansı ayıklar, örnekli mesh çizer, aynı arayüz; sayaç saydam çift yüzlü materyalin iki geçişini sayar (P2 15 çizim). Smoke iki arka uçta geçti; mimari v1.45. 5.2 başka oturumda planlanıyor, bu oturumda başlanmadı |
 | 2026-11-17 | v1.46 | Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; draw call ve üçgen ayrı. R1 HLOD'a `forge.shape` (kullanıcı kararı), R2–R4 = 5.2 kaskatlar / 5.3 bundle / 5.4 foliage, R5 sahne maliyet raporu (ajan komutu + editör Stats), R6 üçgen spike'ı (three-virtual-geometry, r187 meshlet hattının ters derinlik kopyası, 5.1 + ayrık LOD; kod commit'lenmez), R7 seçilen yolun üretimi, R8 hiyerarşik HLOD + siluet katmanı, R9 = 5.5, R10 = 5.6. three-nanite elendi. Kod yok; mimari v1.46 |
+| 2026-11-17 | v1.47 | Faz 5c R1: HLOD'a `forge.shape`: three'siz primitive üreticisi `engine/procgen/shapePrimitives.ts` + three geometrisiyle eşitlik testi, yerleşim / `sourceHash` / tazelik damgası primitive + renk içerir, düzlem iki yüzlü; Derekavak 22 hücre, OUT-001 proxy'de. Odaklı Vitest 64, hlod + streaming smoke başsız ve gerçek WebGPU 5 / 5. Kullanıcı Derekavak kabulü açık; sıradaki R2 |

@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.46 · 2026-11-17 — §4.4 5c: üçgen / draw call ayrımı, sanal geometri adayları ve spike'ı 5.5 öncesi, HLOD'a şekiller (karar 5'in static mesh kuralı kalkar), three-nanite elendi. Plan v1.46.
+**Güncelleme:** v1.47 · 2026-11-17 — §4.4 5b HLOD: şekiller pişirilir (5c R1). Önceki v1.46 — §4.4 5c: üçgen / draw call ayrımı, sanal geometri adayları ve spike'ı 5.5 öncesi, HLOD'a şekiller (karar 5'in static mesh kuralı kalkar), three-nanite elendi. Plan v1.46.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — §4.4 5c: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı). Plan v1.45.
 
@@ -650,6 +650,10 @@ features/height-fog/
     commit'lenir. `forge hlod` Node komutu üretir; bayat `sourceHash` uyarıdır
     (editör, `verify:assets`, build). Proxy rengi köşe niteliğinden `colorNode`
     ile okunur (`vertexColors` bayrağı yok; three'nin meshlet hattıyla uyum).
+    *Şekiller (5c R1, 2026-11-17):* `forge.shape` da pişirilir; geometri three'siz
+    `engine/procgen/shapePrimitives.ts`'ten (render'ın three geometrisiyle eşitlik
+    testi), renk köşe rengine; `sourceHash` ve tazelik damgası primitive + rengi
+    içerir, düzlem iki yüzlü pişer.
     *Editör üretimi (2026-11-17, `0c16852`):* dev server proje başına tek
     `hlodJobs` kuyruğu tutar (`GET` / `POST /__forge/hlod`; yalnız yazılabilir
     proje level'ı, motor / paket level'ı reddedilir); iş `tools/world/hlodWorker.ts`
