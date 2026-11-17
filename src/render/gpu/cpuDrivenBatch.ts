@@ -131,6 +131,8 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     get lastDraws() { return lastDraws; },
     // WebGL2 has no render bundles.
     bundleUpdates: 0,
+    // WebGL2 has no Hi-Z (plan 5c R9a): the twin culls by frustum, distance and LOD only.
+    setOcclusion() {},
     setDistances(next) {
       if (next.lodStarts.length !== lodCount - 1) throw new Error(`gpu batch ${options.name}: ${lodCount - 1} LOD starts`);
       distances = next;

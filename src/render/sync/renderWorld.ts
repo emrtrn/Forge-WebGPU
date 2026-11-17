@@ -28,6 +28,7 @@ import type { CameraViews } from "../gpu/gpuDriven.ts";
 import type { StaticPath } from "../triangles/staticPath.ts";
 import type { TriangleDrawing } from "../triangles/triangleDrawing.ts";
 import { createDefaultLighting } from "./defaultLighting.ts";
+import { OCCLUDER_MIN_RADIUS } from "./occluders.ts";
 import { createHlodProxies, type HlodProxies } from "./hlodProxies.ts";
 import { HlodSourceKey } from "../../engine/world/hlod.ts";
 import { RenderReadinessKey } from "../../engine/world/renderReadiness.ts";
@@ -50,6 +51,8 @@ export interface RenderWorld {
   readonly shadowsEnabled?: boolean;
   /** The level's settings now (view distance, load range); absent before a level is assembled. */
   readonly levelSettings?: () => LevelSettings | undefined;
+  /** The occluders' depth twins (plan 5c R9a O2): drawn by the occluder pre-pass only; empty when the level's occlusion culling is off. */
+  readonly occluderScene?: Scene;
 }
 
 export interface RenderFeatureOptions {
@@ -96,6 +99,9 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
     inEditor: true,
     create(ctx: SubsystemContext) {
       const scene = new Scene();
+      const occluderScene = new Scene();
+      occluderScene.name = "occluders";
+      const occluderRadius = (): number => (ctx.services.get(LevelSettingsKey)?.current.occlusionCulling ? OCCLUDER_MIN_RADIUS : 0);
       const root = new Group();
       root.name = "actors";
       scene.add(root);
@@ -119,6 +125,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           // A level with occlusion culling draws its statics GPU-driven (plan 5c R9a O1).
           ...(options.staticPath ? { staticPath: () => (ctx.services.get(LevelSettingsKey)?.current.occlusionCulling ? "gpu" : options.staticPath!()) } : {}),
           ...(options.cameraViews ? { cameraViews: options.cameraViews } : {}),
+          occluders: { parent: occluderScene, radius: occluderRadius },
           ...(options.staticCellSize ? { staticCellSize: options.staticCellSize } : {}),
         }),
       );
@@ -127,6 +134,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
         name: options.name, scene, root, resources, output,
         get shadowsEnabled() { return sceneShadowsEnabled(view); },
         levelSettings: () => ctx.services.get(LevelSettingsKey)?.current,
+        occluderScene,
       };
       options.attach?.(world);
       // HLOD proxies (phase 5b): the level's source is provided once the world is assembled.

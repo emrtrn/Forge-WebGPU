@@ -7,8 +7,9 @@
 // (`engine/world/instanceCulling.ts`, as Phase 1 G7 compared culling). The
 // reference project is not changed.
 
-import { Group, PerspectiveCamera } from "three/webgpu";
-import { cullInstanceCounts, type InstanceCullResult } from "../../engine/world/instanceCulling.ts";
+import { Group, Matrix4, PerspectiveCamera, Vector3 } from "three/webgpu";
+import { buildHiZ, packHiZ, sphereOccludedPacked } from "../../engine/world/hiZ.ts";
+import { cullInstanceCounts, maxAxisScale, type InstanceCullResult } from "../../engine/world/instanceCulling.ts";
 import { createFoliageBatches, type FoliageBatches } from "../foliage/foliageBatches.ts";
 import type { RenderHost } from "../host/renderHost.ts";
 import type { GpuDrivenBatch } from "./gpuDrivenBatch.ts";
@@ -46,6 +47,15 @@ export interface DevGpuCheck extends DevGpuViewCheck {
   readonly cameras: readonly DevGpuViewCheck[];
 }
 
+export interface DevOcclusionCheck {
+  readonly width: number;
+  readonly height: number;
+  readonly levels: number;
+  /** Hi-Z texels where GPU and CPU differ (expect 0). */
+  readonly pyramidMismatches: number;
+  readonly batches: ReadonlyArray<{ name: string; instances: number; gpu: number; frustumCertain: number; frustumPossible: number; occludedLow: number; occludedHigh: number }>;
+}
+
 export interface DevGpuDriven {
   install(types: readonly DevGpuType[], cullScale: number, castShadow?: boolean, bundle?: boolean): Promise<DevGpuInstall>;
   /** The last frame's GPU counts beside the CPU reference of the same view. */
@@ -57,6 +67,12 @@ export interface DevGpuDriven {
    * that never draws, or removes it (null): the cull's mirrored lists, checked against the CPU reference.
    */
   mirror(plane: readonly [number, number, number, number] | null): void;
+  /**
+   * Plan 5c R9a O3 / O4: the GPU Hi-Z against the CPU pyramid built from its level 0 (texels that differ), and every
+   * GPU-driven batch's main-view visible count against the CPU reference (frustum lists minus the spheres the packed
+   * Hi-Z test hides, with a margin each way: `low` hides only clear cases, `high` also borderline ones).
+   */
+  occlusionCheck(): Promise<DevOcclusionCheck | null>;
   remove(): void;
 }
 
@@ -133,6 +149,42 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
     remove() {
       unmirror?.(); unmirror = null;
       remove();
+    },
+    async occlusionCheck() {
+      const current = host();
+      const occlusion = current?.gpuDriven.lastOcclusion ?? null;
+      const view = current?.gpuDriven.lastView ?? null;
+      if (!current || !occlusion || !view) return null;
+      const packed = new Float32Array(await current.renderer.getArrayBufferAsync(occlusion.buffer));
+      const { layout } = occlusion;
+      const base = layout.levels[0]!;
+      const cpu = packHiZ(buildHiZ(packed.subarray(0, base.width * base.height), base.width, base.height, true));
+      let pyramidMismatches = 0;
+      for (let i = 0; i < layout.total; i += 1) if (cpu[i] !== packed[i]) pyramidMismatches += 1;
+      const vp = occlusion.viewProjection.elements;
+      const center = new Vector3(), matrix = new Matrix4();
+      const batches = [];
+      for (const batch of current.gpuDriven.lastBatches) {
+        const matrices = batch.instances.matrices();
+        const cull = batch.cullBatch;
+        const reference = cullInstanceCounts(matrices, batch.instances.count, cull, view);
+        let occludedLow = 0, occludedHigh = 0;
+        for (const list of reference.visible) for (const at of list) {
+          matrix.fromArray(matrices, at * 16);
+          center.set(...cull.center).applyMatrix4(matrix);
+          const radius = cull.radius * maxAxisScale(matrices, at * 16);
+          const sphere: [number, number, number] = [center.x, center.y, center.z];
+          if (sphereOccludedPacked(packed, layout, true, vp, sphere, radius, 1e-4)) occludedLow += 1;
+          if (sphereOccludedPacked(packed, layout, true, vp, sphere, radius, -1e-4)) occludedHigh += 1;
+        }
+        const gpu = (await batch.readCounts(current.renderer, 0)).reduce((a, b) => a + b, 0);
+        batches.push({
+          name: batch.name, instances: batch.instances.count, gpu,
+          frustumCertain: reference.certain.reduce((a, b) => a + b, 0), frustumPossible: reference.possible.reduce((a, b) => a + b, 0),
+          occludedLow, occludedHigh,
+        });
+      }
+      return { width: base.width, height: base.height, levels: layout.levels.length, pyramidMismatches, batches };
     },
   };
 }

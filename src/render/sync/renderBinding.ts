@@ -88,6 +88,8 @@ export interface RenderBindingContext {
   readonly staticPath?: () => StaticPath;
   /** Static batches split by world cell of this size (m; 0 off; plan 5c R9a, `batchCells.ts`). Read when a placement is added. */
   readonly staticCellSize?: () => number;
+  /** Occluder depth twins of static batches (plan 5c R9a O2): the world's occluder scene and the smallest radius now (0: off). */
+  readonly occluders?: { readonly parent: Object3D; readonly radius: () => number };
   /** Where a camera that draws the scene (a reflection) registers its GPU-driven view (R9a step 1). */
   readonly cameraViews?: CameraViews;
   readonly world: RenderWorldView;

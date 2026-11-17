@@ -29,7 +29,7 @@
 import type { CameraPose } from "./render/viewer/cameraPose.ts";
 import type { DevGpuDriven } from "./render/gpu/gpuDrivenDev.ts";
 import type { FeatureDef } from "./core/index.ts";
-import { createSaveClient, createStaticContentClient, isJsonAssetType, STATIC_CONTENT_DIR, staticContentFile, type ContentClient } from "./core/index.ts";
+import { createSaveClient, createStaticContentClient, isJsonAssetType, LevelSettingsKey, STATIC_CONTENT_DIR, staticContentFile, type ContentClient, type LevelSettings } from "./core/index.ts";
 import { loadDevAssetUrls, assetUrlsFromIndex, type AssetUrls } from "./render/resources/assetUrls.ts";
 import type { RenderBindingDef } from "./render/sync/renderBinding.ts";
 import { benchmarkSkyCapture } from "./render/host/captureBench.ts";
@@ -288,6 +288,12 @@ async function start(): Promise<void> {
       captureBench: (count: number) => (viewer.host ? benchmarkSkyCapture(viewer.host, count) : Promise.resolve(null)),
       /** Spawns actors from raw documents (normalised as an edit's); their ids. */
       spawn: (raw: unknown[]) => booted.world.context.spawnActors(raw).map((actor) => actor.id),
+      /** Plan 5c R9a: overrides level settings for this session (e.g. `{ occlusionCulling: true }` before spawning a test interior). */
+      levelSettings: (patch: Partial<LevelSettings>) => {
+        const holder = booted.world.services.get(LevelSettingsKey);
+        if (holder) holder.current = { ...holder.current, ...patch };
+        return holder?.current ?? null;
+      },
       /** World heights of the first drawn terrain at X / Z points (its live tiles); null off it or where no tile is loaded. */
       async terrainHeights(points: readonly (readonly [number, number])[]) {
         const scene = viewer.host?.world?.scene;
@@ -315,6 +321,7 @@ async function start(): Promise<void> {
         bundleRecords: async () => (await devGpuDriven()).bundleRecords(),
         remove: async () => (await devGpuDriven()).remove(),
         mirror: async (plane: Parameters<DevGpuDriven["mirror"]>[0]) => (await devGpuDriven()).mirror(plane),
+        occlusionCheck: async () => (await devGpuDriven()).occlusionCheck(),
       },
       /** Plan 5c R9a: how much of the GPU-driven batches the current frame's occluders could hide (nothing is hidden). */
       async occlusionStudy() {

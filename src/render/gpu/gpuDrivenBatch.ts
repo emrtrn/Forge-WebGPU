@@ -124,6 +124,8 @@ import {
   type InstanceDistanceMode,
 } from "../../engine/world/instanceCulling.ts";
 import { detailFadeDither } from "../materials/detailFade.ts";
+import { sphereOccludedNode, type HiZTestInputs } from "./hiZTest.ts";
+import { MAX_HIZ_LEVELS, type GpuOcclusion } from "./occlusionPass.ts";
 import { createGpuInstances, type GpuInstances } from "./gpuInstances.ts";
 
 /** Most shadow views a batch draws into (cascades and other directional maps together). */
@@ -213,6 +215,12 @@ export interface GpuDrivenBatch {
   /** Times the render bundle was marked for recording again (each camera then records it once). */
   readonly bundleUpdates: number;
   setDistances(distances: GpuBatchDistances): void;
+  /**
+   * This frame's Hi-Z (plan 5c R9a O4): the main view also culls instances
+   * certainly behind it; null: no occlusion test. Shadow and camera views never
+   * use it. The CPU twin ignores it (WebGL2 has no Hi-Z).
+   */
+  setOcclusion(occlusion: GpuOcclusion | null): void;
   /** The CPU reference's view of this batch (bounds, distances) as the GPU culls it. */
   readonly cullBatch: InstanceCullBatch;
   /**
@@ -284,6 +292,8 @@ interface View {
   readonly index: number;
   role: GpuCullView["role"];
   layer: number;
+  /** The Hi-Z generation its cull reads; -1 none. */
+  occlusion: number;
   readonly counters: StorageBufferAttribute;
   readonly args: IndirectStorageBufferAttribute;
   readonly planes: Vector4[];
@@ -312,6 +322,13 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
 
   // Uniforms every view shares (the compute passes and the materials).
   const count = uniform(0, "uint");
+  // The occlusion test's inputs (R9a O4), refreshed every frame by setOcclusion.
+  let occlusion: GpuOcclusion | null = null;
+  const occlusionOn = uniform(0, "uint");
+  const occlusionViewProjection = uniform(new Matrix4());
+  const occlusionLevels = Array.from({ length: MAX_HIZ_LEVELS }, () => new Vector4(1, 1, 0, 0));
+  const occlusionLevelsNode = uniformArray(occlusionLevels, "vec4");
+  const occlusionLevelCount = uniform(1, "int");
   const cullEnd = uniform(NO_CULL_DISTANCE);
   const lodStarts = uniform(new Vector4(NO_CULL_DISTANCE, NO_CULL_DISTANCE, NO_CULL_DISTANCE, NO_CULL_DISTANCE));
   const bounds = uniform(new Vector4(...options.bounds.center, options.bounds.radius));
@@ -335,7 +352,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     const planes = Array.from({ length: 6 }, () => new Vector4(0, 0, 0, 1));
     const origin = new Vector3();
     return {
-      index, role: "main", layer: MAIN_VIEW_LAYER,
+      index, role: "main", layer: MAIN_VIEW_LAYER, occlusion: -1,
       counters: new StorageBufferAttribute(new Uint32Array(lodCount), 1),
       args: new IndirectStorageBufferAttribute(argsArray, 1),
       planes, planesNode: uniformArray(planes, "vec4"),
@@ -393,7 +410,18 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         const p = planes.element(plane);
         inside = inside.and(dot(p.xyz, center).add(p.w).greaterThanEqual(reach));
       }
-      If(inside.and(distanceVar.lessThan(cullEnd)), () => {
+      let keep: Node<"bool"> = inside.and(distanceVar.lessThan(cullEnd));
+      if (view.role === "main" && occlusion) {
+        // R9a O4: only the main view; an instance certainly behind the occluders is not listed.
+        const hidden = sphereOccludedNode({
+          hiz: storage(occlusion.buffer, "float", occlusion.layout.total).toReadOnly() as unknown as HiZTestInputs["hiz"],
+          levels: occlusionLevelsNode as unknown as HiZTestInputs["levels"],
+          levelCount: occlusionLevelCount as unknown as Node<"int">,
+          viewProjection: occlusionViewProjection as unknown as Node<"mat4">,
+        }, center, bounds.w.mul(scale));
+        keep = keep.and(occlusionOn.equal(uint(0)).or(hidden.not()));
+      }
+      If(keep, () => {
         let lod: Node<"uint"> = uint(0);
         for (let k = 0; k < lodCount - 1; k += 1) lod = lod.add(select(distanceVar.greaterThanEqual([lodStarts.x, lodStarts.y, lodStarts.z][k]!), uint(1), uint(0)));
         const lodVar = lod.toVar();
@@ -413,6 +441,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     })().compute(draws.length, [WORKGROUP]);
     writeArgs.name = `${label} args`;
     view.dispatches = [reset, cull, writeArgs];
+    view.occlusion = view.role === "main" && occlusion ? occlusion.generation : -1;
 
     const sources = new Map<string, NodeMaterial>();
     draws.forEach((draw, index) => {
@@ -479,6 +508,14 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     get views() { return prepared; },
     get lastDraws() { return drawCount * prepared; },
     get bundleUpdates() { return bundleUpdates; },
+    setOcclusion(next) {
+      occlusion = next;
+      occlusionOn.value = next ? 1 : 0;
+      if (!next) return;
+      occlusionViewProjection.value.copy(next.viewProjection);
+      next.levels.forEach((level, index) => occlusionLevels[index]!.copy(level));
+      occlusionLevelCount.value = next.layout.levels.length;
+    },
     setDistances(next) {
       if (next.lodStarts.length !== lodCount - 1) throw new Error(`gpu batch ${options.name}: ${lodCount - 1} LOD starts`);
       distances = next;
@@ -506,7 +543,8 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       for (let index = 0; index < prepared; index += 1) {
         const view = views[index] ?? (views[index] = createView(index));
         const source = accepted[index]!;
-        if (view.built !== instances.generation || view.role !== source.role || view.layer !== source.layer) {
+        const occlusionStale = source.role === "main" && occlusion !== null && view.occlusion !== occlusion.generation;
+        if (view.built !== instances.generation || view.role !== source.role || view.layer !== source.layer || occlusionStale) {
           view.role = source.role; view.layer = source.layer;
           buildView(view);
         }

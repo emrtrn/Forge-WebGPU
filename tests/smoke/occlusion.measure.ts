@@ -185,3 +185,83 @@ test("cells: draws and timing of static batches split by world cell", async ({ p
   mkdirSync(join(RENDER_REFS, "runs"), { recursive: true });
   writeFileSync(join(RENDER_REFS, "runs", `${record.date.replace(/[:.]/g, "-")}-static-cells.json`), `${JSON.stringify(record, null, 2)}\n`);
 });
+
+interface OcclusionCheck {
+  width: number; height: number; levels: number; pyramidMismatches: number;
+  batches: Array<{ name: string; instances: number; gpu: number; frustumCertain: number; frustumPossible: number; occludedLow: number; occludedHigh: number }>;
+}
+
+// Plan 5c R9a O3 / O4: the level's occlusion culling on the indoor scene. Correctness first (the GPU Hi-Z equals the
+// CPU pyramid of its level 0; every GPU-driven batch's visible count lies in the CPU reference's range: no false
+// hide), then 120 stepped frames each: occlusion on, off (statics still GPU-driven), and today's instanced statics.
+// `FORGE_INDOOR_PROPS=<n>` sets the props per room (default 12; a heavier interior shows what hiding costs and saves).
+test("gpu occlusion: indoor correctness and A/B", async ({ page }) => {
+  test.setTimeout(1_200_000);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => { if (message.type() === "error" && !isOptionalHlodMiss(message)) errors.push(message.text()); });
+  const scene = SMOKE_SCENES.find((entry) => entry.id === "l03")!;
+  const propsPerRoom = Number(process.env.FORGE_INDOOR_PROPS ?? 12);
+  const indoor = indoorScene({ origin: [300, 0, 300], propsPerRoom });
+  const mean = (values: number[]): number => Math.round(1000 * values.reduce((a, b) => a + b, 0) / Math.max(1, values.length)) / 1000;
+  const timing = async (): Promise<{ submitMs: number; cpuMs: number; gpuMs: number }> => {
+    const frames: Array<{ cpuMs: number; gpuMs: number | null; submitMs: number | null }> = [];
+    for (let i = 0; i < 120; i += 1) frames.push(await forge(page, "(d) => d.step(1000 / 60)"));
+    return {
+      submitMs: mean(frames.map((frame) => frame.submitMs ?? NaN).filter(Number.isFinite)),
+      cpuMs: mean(frames.map((frame) => frame.cpuMs)), gpuMs: mean(frames.map((frame) => frame.gpuMs ?? NaN).filter(Number.isFinite)),
+    };
+  };
+  const open = async (occlusion: boolean): Promise<void> => {
+    await openSmokeLevel(page, scene.level, scene.poses[0]!, "");
+    await expect(page.locator("canvas[data-forge-backend='webgpu']")).toBeVisible();
+    await page.waitForTimeout(800);
+    await forge(page, "(d) => d.pause()");
+    if (occlusion) await forge(page, "(d) => d.levelSettings({ occlusionCulling: true })");
+    await forge(page, "(d, a) => d.spawn(a)", indoor.actors);
+    if (occlusion) {
+      // The GPU-driven batches prepare (automatic LOD data, compileAsync) before they draw.
+      await expect.poll(async () => { await steps(page, 10); return (await forge<{ batches: number } | null>(page, "(d) => d.gpuDriven.stats()"))?.batches ?? 0; },
+        { timeout: 120_000 }).toBeGreaterThanOrEqual(4);
+    }
+    await steps(page, 30);
+  };
+
+  await open(true);
+  const checks = [];
+  const runs = [];
+  for (const pose of indoor.poses) {
+    await forge(page, "(d, a) => d.moveCamera(a[0][0], a[0][1], a[0][2], a[1])", [pose.position, pose.target]);
+    await steps(page, 10);
+    const check = (await forge<OcclusionCheck | null>(page, "(d) => d.gpuDriven.occlusionCheck()"))!;
+    expect(check, `${pose.id}: a Hi-Z was built`).not.toBeNull();
+    expect(check.pyramidMismatches, `${pose.id}: GPU Hi-Z = CPU pyramid`).toBe(0);
+    for (const batch of check.batches) {
+      expect(batch.gpu, `${pose.id} ${batch.name}: GPU ${batch.gpu} >= ${batch.frustumCertain} - ${batch.occludedHigh} (no false hide)`).toBeGreaterThanOrEqual(batch.frustumCertain - batch.occludedHigh);
+      expect(batch.gpu, `${pose.id} ${batch.name}: GPU ${batch.gpu} <= ${batch.frustumPossible} - ${batch.occludedLow}`).toBeLessThanOrEqual(batch.frustumPossible - batch.occludedLow);
+    }
+    const visible = check.batches.reduce((sum, batch) => sum + batch.gpu, 0);
+    const inFrustum = check.batches.reduce((sum, batch) => sum + batch.frustumPossible, 0);
+    checks.push({ pose: pose.id, visible, inFrustum, check });
+    console.log(`occlusion ${pose.id}: GPU visible ${visible} of ${inFrustum} in the frustum (${percent(inFrustum - visible, inFrustum)} % hidden), Hi-Z ${check.width} x ${check.height}, ${check.levels} levels, mismatches ${check.pyramidMismatches}`);
+  }
+  const diagonal = indoor.poses.find((pose) => pose.id === "diagonal")!;
+  await forge(page, "(d, a) => d.moveCamera(a[0][0], a[0][1], a[0][2], a[1])", [diagonal.position, diagonal.target]);
+  await steps(page, 20);
+  runs.push({ mode: "gpu + occlusion", ...(await timing()) });
+  await forge(page, "(d) => d.levelSettings({ occlusionCulling: false })");
+  await steps(page, 20);
+  runs.push({ mode: "gpu, no occlusion", ...(await timing()) });
+  await open(false);
+  await forge(page, "(d, a) => d.moveCamera(a[0][0], a[0][1], a[0][2], a[1])", [diagonal.position, diagonal.target]);
+  await steps(page, 20);
+  runs.push({ mode: "instanced (today)", ...(await timing()) });
+  for (const run of runs) console.log(`occlusion A/B diagonal ${run.mode}: submit ${run.submitMs} ms, cpu ${run.cpuMs} ms, gpu ${run.gpuMs} ms`);
+  expect(errors).toEqual([]);
+  const record = {
+    schema: 1, kind: "phase 5c R9a O3 / O4: GPU occlusion, indoor correctness and A/B", date: new Date().toISOString(),
+    commit: git(["rev-parse", "HEAD"]), dirty: git(["status", "--porcelain"]) !== "", viewport: SMOKE_VIEWPORT, propsPerRoom, checks, runs,
+  };
+  mkdirSync(join(RENDER_REFS, "runs"), { recursive: true });
+  writeFileSync(join(RENDER_REFS, "runs", `${record.date.replace(/[:.]/g, "-")}-gpu-occlusion.json`), `${JSON.stringify(record, null, 2)}\n`);
+});

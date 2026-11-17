@@ -1,6 +1,6 @@
 /** Hi-Z reduction, projection edge cases, and a deterministic level-0 oracle. */
 import { describe, expect, test } from "vitest";
-import { buildHiZ, sphereOccluded, type HiZ } from "./hiZ.ts";
+import { buildHiZ, hiZLayout, packHiZ, sphereOccluded, sphereOccludedPacked, type HiZ } from "./hiZ.ts";
 
 /** Column-major WebGPU perspective, looking down -Z. */
 function perspective(reversed: boolean, far = 100): number[] {
@@ -86,6 +86,100 @@ describe("buildHiZ", () => {
       expect(() => buildHiZ([], 1, dimension, false)).toThrow(/^hiz: /);
     }
     for (const depth of [[], [0], [0, 0, 0]]) expect(() => buildHiZ(depth, 2, 1, true)).toThrow(/^hiz: /);
+  });
+});
+
+describe("hiZLayout", () => {
+  test.each([
+    { width: 1, height: 1, sizes: [[1, 1]], total: 1 },
+    { width: 7, height: 5, sizes: [[7, 5], [4, 3], [2, 2], [1, 1]], total: 52 },
+    {
+      width: 1920, height: 1080,
+      sizes: [[1920, 1080], [960, 540], [480, 270], [240, 135], [120, 68], [60, 34],
+        [30, 17], [15, 9], [8, 5], [4, 3], [2, 2], [1, 1]],
+      total: 2764902,
+    },
+  ])("$width × $height has the expected sizes and cumulative offsets", ({ width, height, sizes, total }) => {
+    const layout = hiZLayout(width, height);
+    expect([layout.width, layout.height]).toEqual([width, height]);
+    expect(layout.levels.map(level => [level.width, level.height])).toEqual(sizes);
+    let offset = 0;
+    for (const level of layout.levels) {
+      expect(level.offset).toBe(offset);
+      offset += level.width * level.height;
+    }
+    expect(layout.total).toBe(offset);
+    expect(layout.total).toBe(total);
+  });
+
+  test("rejects invalid dimensions", () => {
+    for (const dimension of [0, -1, 1.5, NaN, Infinity]) {
+      expect(() => hiZLayout(dimension, 1)).toThrow(/^hiz: /);
+      expect(() => hiZLayout(1, dimension)).toThrow(/^hiz: /);
+    }
+  });
+});
+
+describe("packHiZ", () => {
+  test.each([true, false])("concatenates the exact data of each level (reversed=%s)", reversed => {
+    const depth = Float32Array.from({ length: 35 }, (_, i) => (i + 1) / 64);
+    const hiz = buildHiZ(depth, 7, 5, reversed);
+    const layout = hiZLayout(7, 5);
+    const data = packHiZ(hiz);
+    expect(data).toBeInstanceOf(Float32Array);
+    expect(data).toHaveLength(layout.total);
+    layout.levels.forEach(({ offset, width, height }, i) => {
+      expect(data.slice(offset, offset + width * height)).toEqual(hiz.levels[i]!.data);
+    });
+  });
+
+  test("rejects missing levels, extra levels, and mismatched sizes", () => {
+    const hiz = buildHiZ(new Float32Array(35), 7, 5, false);
+    const level = hiz.levels[1]!;
+    for (const levels of [
+      [],
+      hiz.levels.slice(0, -1),
+      [...hiz.levels, hiz.levels.at(-1)!],
+      [hiz.levels[0]!, { ...level, width: level.height, height: level.width }, ...hiz.levels.slice(2)],
+      [hiz.levels[0]!, { ...level, data: level.data.slice(1) }, ...hiz.levels.slice(2)],
+    ]) {
+      expect(() => packHiZ({ reversed: hiz.reversed, levels })).toThrow(/^hiz: /);
+    }
+  });
+});
+
+describe("sphereOccludedPacked", () => {
+  test.each([true, false])("matches the reference across randomized pyramids and spheres (reversed=%s)", reversed => {
+    let seed = 0x5b213;
+    const random = (): number => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      return seed / 4294967296;
+    };
+    const projection = perspective(reversed);
+    let hidden = 0;
+    let visible = 0;
+    for (const [width, height] of [[1, 1], [7, 5], [32, 24], [31, 23], [1, 17]] as const) {
+      const layout = hiZLayout(width, height);
+      for (let image = 0; image < 4; image += 1) {
+        const depth = Float32Array.from({ length: width * height }, random);
+        const hiz = buildHiZ(depth, width, height, reversed);
+        const data = packHiZ(hiz);
+        for (let i = 0; i < 30; i += 1) {
+          const z = i % 6 === 0 ? random() * 5 : -(0.15 + random() * 30);
+          const spread = (i % 5 === 0 ? 2 : 0.9) * Math.abs(z);
+          const center = [(random() * 2 - 1) * spread, (random() * 2 - 1) * spread, z] as const;
+          const radius = i % 7 === 0 ? 0 : random() * Math.abs(z) * 0.55;
+          const epsilon = i % 3 === 0 ? random() * 0.01 : undefined;
+          const expected = sphereOccluded(hiz, projection, center, radius, epsilon);
+          expect(sphereOccludedPacked(data, layout, reversed, projection, center, radius, epsilon),
+            `${width} × ${height}, image ${image}, sphere ${i}`).toBe(expected);
+          if (expected) hidden += 1;
+          else visible += 1;
+        }
+      }
+    }
+    expect(hidden).toBeGreaterThan(20);
+    expect(visible).toBeGreaterThan(20);
   });
 });
 
