@@ -8,6 +8,7 @@ import { triangleInput } from "./triangleSource.ts";
 import { createTriangleDrawing } from "./triangleDrawing.ts";
 import { createInstanceBatch } from "../sync/instanceBatches.ts";
 import { disposeMergedParts, modelParts } from "../resources/modelParts.ts";
+import { lodParts } from "./staticPath.ts";
 
 test("deterministic derivatives keep source indices valid, preserve seams and skip small primitives", async () => {
   const small = await prepareTriangles(triangleInput(new BoxGeometry()));
@@ -132,6 +133,29 @@ test("R9.2: a merged slot's LOD comes from its raw primitives' cached chains, ne
   expect(asked).toEqual([triangleKey(triangleInput(raw))]);
   expect(binding.batch.lodCount).toBeGreaterThan(1);
   binding.dispose(); triangles.dispose(); gpu.dispose(); disposeMergedParts(scene);
+});
+
+test("R9.3 / R9.4: auto keeps small low-poly batches instanced; a transparent part stays instanced beside LOD parts", async () => {
+  const renderer = { backend: { isWebGPUBackend: false }, shadowMap: { enabled: false } } as unknown as WebGPURenderer;
+  const gpu = createGpuDriven(renderer), triangles = createTriangleDrawing(renderer, gpu, prepareTriangles);
+  const box = new BoxGeometry(), sphere = new SphereGeometry(1, 48, 24);
+  const opaque = new MeshStandardNodeMaterial(), glass = new MeshStandardNodeMaterial({ transparent: true });
+  expect(lodParts("auto", [{ geometry: box, material: opaque }], 15)).toEqual([false]);
+  expect(lodParts("auto", [{ geometry: box, material: opaque }], 16)).toEqual([true]);
+  expect(lodParts("auto", [{ geometry: sphere, material: opaque }], 1)).toEqual([true]);
+  expect(lodParts("instanced", [{ geometry: sphere, material: opaque }], 64)).toEqual([false]);
+  expect(lodParts("gpu", [{ geometry: box, material: glass }, { geometry: box, material: opaque }], 1)).toEqual([false, true]);
+  const parent = new Group();
+  const batch = createInstanceBatch({ name: "r9-mixed", parent, castShadow: true, triangles, staticPath: () => "auto", prepare: () => Promise.resolve() });
+  batch.setParts([{ geometry: sphere, material: opaque, local: new Matrix4(), name: "body" }, { geometry: box, material: glass, local: new Matrix4(), name: "glass" }], 1);
+  batch.set("a", new Matrix4(), null, "act_r9"); batch.flush();
+  await vi.waitFor(() => expect(batch.ready).toBe(true));
+  const [body, pane] = batch.meshes;
+  expect(gpu.stats().batches).toBe(1);
+  expect(pane!.material).not.toBe(glass); // faded (instanced) clone of the glass
+  expect((body!.material as MeshStandardNodeMaterial).visible).toBe(false); // the LOD source only picks
+  expect(pane!.parent).toBe(parent); expect(body!.parent).toBe(parent);
+  batch.dispose(); triangles.dispose(); gpu.dispose();
 });
 
 test("projected error follows resolution, projection and instance scale, without fixed distance cutoffs", () => {

@@ -22,6 +22,8 @@ export function createTriangleSource(dev: boolean) {
   const headers: Record<string, string> = dev ? { "X-Forge-Request": "1" } : {};
   let index: Promise<Set<string>> | null = null;
   let worker: Worker | null = null, ticket = 0, disposed = false;
+  /** Loads served from the derived cache / produced by the worker (R9.0 measures the hit rate). */
+  const stats = { hits: 0, generated: 0 };
   const pending = new Map<number, { resolve(data: TriangleData): void; reject(error: Error): void }>();
   const prepare = (input: TriangleInput): Promise<TriangleData> => {
     if (disposed) return Promise.reject(new Error("triangles: source disposed"));
@@ -44,13 +46,14 @@ export function createTriangleSource(dev: boolean) {
         const response = await fetch(`${base}${key}.json`, { headers });
         if (response.ok) {
           const artifact = await response.json() as { signature: string; data: TriangleData };
-          if (artifact.signature === signature && artifact.data.version === TRIANGLE_VERSION && artifact.data.key === key) return artifact.data;
+          if (artifact.signature === signature && artifact.data.version === TRIANGLE_VERSION && artifact.data.key === key) { stats.hits += 1; return artifact.data; }
         }
       } catch { /* Offline / stale derived data is regenerated. */ }
     }
+    stats.generated += 1;
     return prepare(input);
   };
-  return Object.assign(load, { dispose() {
+  return Object.assign(load, { stats: () => ({ ...stats }), dispose() {
     disposed = true; worker?.terminate(); worker = null;
     for (const work of pending.values()) work.reject(new Error("triangles: source disposed")); pending.clear();
   } });

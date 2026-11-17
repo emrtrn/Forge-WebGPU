@@ -24,6 +24,8 @@ import type { SurfaceMaterials } from "../resources/surfaceMaterials.ts";
 import type { TerrainSource } from "../resources/terrains.ts";
 import type { TextureSource } from "../resources/textures.ts";
 import { createWorldResources, type ModelSource, type WorldResources } from "../resources/worldResources.ts";
+import type { StaticPath } from "../triangles/staticPath.ts";
+import type { TriangleDrawing } from "../triangles/triangleDrawing.ts";
 import { createDefaultLighting } from "./defaultLighting.ts";
 import { createHlodProxies, type HlodProxies } from "./hlodProxies.ts";
 import { HlodSourceKey } from "../../engine/world/hlod.ts";
@@ -51,6 +53,9 @@ export interface RenderWorld {
 
 export interface RenderFeatureOptions {
   readonly prepare?: (objects: readonly Object3D[], scene: Scene, signal?: AbortSignal) => Promise<void>;
+  /** The GPU-driven automatic LOD drawing static batches may take (R9.4). */
+  readonly triangles?: TriangleDrawing;
+  readonly staticPath?: () => StaticPath;
   readonly cache: ResourceCache;
   readonly models: ModelSource;
   /** `forge.material` assets; absent in tests that draw none. */
@@ -106,6 +111,8 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           world: view, scene, root, resources, lighting, environment: environment.environment, output,
           capture: options.capture ?? null, quality: effectiveQuality,
           ...(options.prepare ? { prepare: (objects: readonly Object3D[], signal?: AbortSignal) => resources.track(options.prepare!(objects, scene, signal)) } : {}),
+          ...(options.triangles ? { triangles: options.triangles } : {}),
+          ...(options.staticPath ? { staticPath: options.staticPath } : {}),
         }),
       );
       ctx.services.provide(RenderReadinessKey, { isActorReady: (id) => instances.every((instance) => instance.isActorReady?.(id) ?? true) });

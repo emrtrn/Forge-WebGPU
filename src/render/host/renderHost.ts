@@ -48,6 +48,7 @@ import { createPerfSampler, type PerfQuality, type PerfSampler } from "./perfSam
 import { createGpuDriven, type GpuDrivenDrawing } from "../gpu/gpuDriven.ts";
 import { createTriangleDrawing, type TriangleDrawing } from "../triangles/triangleDrawing.ts";
 import { createTriangleSource } from "../triangles/triangleSource.ts";
+import type { StaticPath } from "../triangles/staticPath.ts";
 
 /** The effective quality the renderer draws with. */
 export interface RenderQuality extends PerfQuality {
@@ -92,6 +93,8 @@ export interface RenderHostOptions {
   readonly dev: boolean;
   /** The labelled WebGL2 test mode (§4.10); never counts as a WebGPU run. */
   readonly forceWebGL?: boolean;
+  /** Which static batches take the GPU-driven automatic LOD path (R9.4; `?staticPath=` measures); default `instanced` (R9.0). */
+  readonly staticPath?: StaticPath;
   readonly bindings: readonly RenderBindingDef[];
   readonly assetUrls: AssetUrls;
   /** The `forge.material` asset type, to read material assets (render cannot import the feature). */
@@ -137,6 +140,8 @@ export interface RenderHost {
   readonly gpuDriven: GpuDrivenDrawing;
   /** R7 selectable infrastructure; existing static bindings opt in at R9. */
   readonly triangles: TriangleDrawing;
+  /** Automatic LOD loads served from the derived cache / produced by the worker so far (R9.0). */
+  triangleCache(): { readonly hits: number; readonly generated: number };
   /** CPU wall time of the last frame's cull, render and overlay submission, ms (never GPU time). */
   readonly renderSubmitMs: number;
   /** Sky Light (PMREM) captures since the host started. */
@@ -305,6 +310,8 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   const gpuDriven = createGpuDriven(renderer);
   const triangleSource = createTriangleSource(options.dev);
   const triangles = createTriangleDrawing(renderer, gpuDriven, triangleSource);
+  // R9.0 (2026-11-17): no measured level gained from the GPU path; statics stay instanced until decided.
+  const staticPath: StaticPath = options.staticPath ?? "instanced";
   // The Sky Light capture (Forge's captureSkyEnvironment): the scene seen from
   // its origin, prefiltered into a PMREM. A render target never gets the
   // output's tone mapping, so the map stays linear.
@@ -388,7 +395,8 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
         features,
         name,
         camera: () => camera,
-        ...(featureOptions?.prepare === false ? {} : { prepare }),
+        // The LOD path's readiness waits on compileAsync: only worlds that prepare take it.
+        ...(featureOptions?.prepare === false ? {} : { prepare, triangles, staticPath: () => staticPath }),
         quality: () => quality.settings,
         viewDistanceMultiplier: () => quality.extensions?.viewDistanceMultiplier ?? 1,
         capture,
@@ -443,6 +451,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     perf,
     gpuDriven,
     triangles,
+    triangleCache: () => triangleSource.stats(),
     get renderSubmitMs() { return renderSubmitMs; },
     captures,
     capture,

@@ -38,6 +38,7 @@ import { tagInstanceActors, tagPartSlots } from "./pickTags.ts";
 import { detailBatchCulled, detailCullDistance } from "../../engine/world/detailCulling.ts";
 import { createDetailFade } from "../materials/detailFade.ts";
 import type { LodPiece, TriangleBinding, TriangleDrawing } from "../triangles/triangleDrawing.ts";
+import { lodParts, type StaticPath } from "../triangles/staticPath.ts";
 
 export interface InstancePart {
   readonly geometry: BufferGeometry;
@@ -70,8 +71,10 @@ export interface InstanceBatch {
 
 export interface InstanceBatchOptions {
   readonly prepare?: (meshes: readonly Object3D[], signal?: AbortSignal) => Promise<void>;
-  /** R7 opt-in. General static bindings are deliberately unchanged until R9. */
+  /** The GPU-driven automatic LOD path (R7); which parts take it is `staticPath`'s (R9.3 / R9.4). */
   readonly triangles?: TriangleDrawing;
+  /** The path rule now (`staticPath.ts`); with `triangles` and no rule every eligible part takes it. */
+  readonly staticPath?: () => StaticPath;
   readonly name: string;
   /** The `?debug` scene-cost bucket its meshes count in (`SCENE_SOURCE_KEY`), e.g. `staticMesh`. */
   readonly source?: string;
@@ -117,6 +120,8 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
   let fade: ReturnType<typeof createDetailFade> | null = null;
   let fadePlacements: InstancedBufferAttribute | null = null;
   let triangleBindings: TriangleBinding[] = [];
+  /** Per mesh of the current set: drawn by the automatic LOD path (its source stays for picking). */
+  let lodOf: boolean[] = [];
   let detailRadius: number | undefined;
   let maxScale = 0;
   const cameraPosition = new Vector3(), sphere = new Sphere();
@@ -222,12 +227,14 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         removeMeshes(true);
         capacity = capacityFor(count);
         colored = needsColor;
-        if (cullDistance !== null && !options.triangles) {
+        // R9.3 / R9.4: decided per set; the LOD path fades and culls on the GPU itself.
+        lodOf = options.triangles ? lodParts(options.staticPath?.() ?? "gpu", parts, count) : parts.map(() => false);
+        if (cullDistance !== null && lodOf.some((lod) => !lod)) {
           fadePlacements = new InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
           fade = createDetailFade(cullDistance, fadePlacements);
         }
-        meshes = parts.map((part) => {
-          const material = fade ? (Array.isArray(part.material) ? part.material.map((one) => fade!.material(one)) : fade.material(part.material)) : part.material;
+        meshes = parts.map((part, partIndex) => {
+          const material = fade && !lodOf[partIndex] ? (Array.isArray(part.material) ? part.material.map((one) => fade!.material(one)) : fade.material(part.material)) : part.material;
           const mesh = new InstancedMesh(part.geometry, material, capacity);
           mesh.name = `${options.name}/${part.name}`;
           mesh.castShadow = options.castShadow;
@@ -235,7 +242,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
           mesh.matrixAutoUpdate = false;
           if (options.source !== undefined) mesh.userData[SCENE_SOURCE_KEY] = options.source;
           if (part.slots) tagPartSlots(mesh, part.slots);
-          if (!options.prepare && !options.triangles) options.parent.add(mesh);
+          if (!options.prepare && !lodOf.includes(true)) options.parent.add(mesh);
           return mesh;
         });
       }
@@ -263,17 +270,28 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         mesh.computeBoundingSphere();
         mesh.computeBoundingBox();
       });
-      if (!options.prepare && !options.triangles) prepared = true;
+      const anyLod = lodOf.includes(true);
+      if (!options.prepare && !anyLod) { prepared = true; releaseRetired(); }
       else if (!prepared && !preparing && meshes.length > 0) {
         preparing = true;
         preparation = new AbortController();
-        const ticket = generation, pending = [...meshes];
+        const ticket = generation, pending = [...meshes], lods = lodOf;
         const pendingBindings = triangleBindings, signal = preparation.signal;
         const locals = parts!.map((part) => part.local.clone()), pieces = parts!.map((part) => part.lodPieces);
-        preparationWork = options.triangles ? (async () => {
-          for (let i = 0; i < pending.length; i += 1) pendingBindings.push(await options.triangles!.prepare(pending[i]!, detailRadius, false, locals[i], pieces[i]));
+        preparationWork = anyLod ? (async () => {
+          for (let i = 0; i < pending.length; i += 1) {
+            if (!lods[i]) continue;
+            try {
+              pendingBindings.push(await options.triangles!.prepare(pending[i]!, detailRadius, false, locals[i], pieces[i]));
+            } catch (error) {
+              // R9.3: a part the LOD path cannot take draws instanced (unfaded) in the same batch.
+              if (signal.aborted) return;
+              lods[i] = false;
+              console.warn(`forge render: ${pending[i]!.name} stays instanced`, error);
+            }
+          }
           if (signal.aborted) return;
-          await options.prepare?.(pendingBindings.flatMap((binding) => binding.objects), signal);
+          await options.prepare?.([...pendingBindings.flatMap((binding) => binding.objects), ...pending.filter((_, i) => !lods[i])], signal);
         })() : options.prepare!(pending, signal);
         preparationWork.then(() => {
           if (ticket !== generation) return;
@@ -292,8 +310,9 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
     updateCulling(camera, qualityScale) {
       if (!camera || cullDistance === null || !fade) return;
       camera.getWorldPosition(cameraPosition); fade.update(cameraPosition, qualityScale);
-      for (const mesh of meshes) {
-        if (!mesh.boundingSphere) continue;
+      for (const [index, mesh] of meshes.entries()) {
+        // A LOD source's visibility is its draw's (triangleDrawing); the GPU culls and fades it.
+        if (lodOf[index] || !mesh.boundingSphere) continue;
         sphere.copy(mesh.boundingSphere).applyMatrix4(mesh.matrixWorld);
         mesh.visible = !detailBatchCulled(sphere.center.distanceTo(cameraPosition), sphere.radius, cullDistance, maxScale, qualityScale);
       }

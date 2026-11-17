@@ -83,6 +83,9 @@ export function createTriangleDrawing(renderer: WebGPURenderer, gpu: GpuDrivenDr
       const data = pieces && pieces.length > 0 ? await mergedData(pieces) : await dataOf(source.geometry);
       if (disposed) throw new Error("triangles: drawing disposed during preprocessing");
       const root = new Group(); root.name = `automaticLOD/${source.name}`; root.matrixAutoUpdate = false;
+      // Its draws sit in template space (the instances transform them on the GPU): the
+      // level's framing (`NOT_FRAMED`, levelViewer.ts) takes the source's bounds instead.
+      root.userData.framing = false;
       let active = false, released = false;
       const derived: BufferGeometry[] = [], hidden: Material[] = [];
       const authored = source.material;

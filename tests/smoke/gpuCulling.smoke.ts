@@ -84,7 +84,8 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
   const foliage = derekavakFoliage([p2.position![0], p2.position![2]]);
   expect({ cells: foliage.cells, instances: foliage.instances }).toEqual({ cells: 370, instances: 1640 });
 
-  await openSmokeLevel(page, scene.level, p2, webgl ? "&debug&forceWebGL" : "&debug");
+  // Foliage only: the static batches stay instanced so the GPU-driven counts are the foliage's (R9.4).
+  await openSmokeLevel(page, scene.level, p2, webgl ? "&debug&forceWebGL&staticPath=instanced" : "&debug&staticPath=instanced");
   await expect(page.locator(`canvas[data-forge-backend='${webgl ? "webgl2" : "webgpu"}']`)).toBeVisible();
   // The readout reads three's count between frames: the frame loop runs for it.
   await expect.poll(() => readoutDraws(page), { timeout: 20_000 }).toBeGreaterThan(0);

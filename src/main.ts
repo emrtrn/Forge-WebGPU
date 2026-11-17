@@ -34,6 +34,7 @@ import { loadDevAssetUrls, assetUrlsFromIndex, type AssetUrls } from "./render/r
 import type { RenderBindingDef } from "./render/sync/renderBinding.ts";
 import { benchmarkSkyCapture } from "./render/host/captureBench.ts";
 import { createLevelViewer } from "./render/viewer/levelViewer.ts";
+import { parseStaticPath } from "./render/triangles/staticPath.ts";
 import { UserSettingsStore } from "./engine/persistence/userSettingsStore.ts";
 import type { HardwareHintInputs } from "./engine/perf/hardwareHints.ts";
 import { WorldEnvironmentKey } from "./engine/environment/worldEnvironmentRuntime.ts";
@@ -149,6 +150,8 @@ async function start(): Promise<void> {
     container: viewport,
     dev: import.meta.env.DEV,
     forceWebGL: params.has("forceWebGL"),
+    // Development measurement (plan 5c R9.0): force the static batches' path.
+    ...(import.meta.env.DEV && params.has("staticPath") ? { staticPath: parseStaticPath(params.get("staticPath")) } : {}),
     bindings,
     assetUrls: urls,
     materialType: materialType && isJsonAssetType(materialType) ? materialType : null,

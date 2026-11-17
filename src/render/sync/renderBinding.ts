@@ -22,6 +22,8 @@ import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { COMPONENT_NAME_PATTERN, SchemaDefinitionError, type ActorId, type ComponentEntry, type Services, type WorldActor, type WorldActorChange } from "../../core/index.ts";
 import type { FrameOutput } from "../pipeline/output.ts";
 import type { WorldResources } from "../resources/worldResources.ts";
+import type { StaticPath } from "../triangles/staticPath.ts";
+import type { TriangleDrawing } from "../triangles/triangleDrawing.ts";
 
 /** What a binding sees of its world: read only. */
 export interface RenderWorldView {
@@ -79,6 +81,10 @@ export interface EnvironmentCapture {
 export interface RenderBindingContext {
   /** Prepares detached batch parts against this world's actual scene / pass. */
   readonly prepare?: (objects: readonly Object3D[], signal?: AbortSignal) => Promise<void>;
+  /** The host's GPU-driven automatic LOD drawing (R9.4); absent where batches stay instanced. */
+  readonly triangles?: TriangleDrawing;
+  /** Which static batches take it (`render/triangles/staticPath.ts`). */
+  readonly staticPath?: () => StaticPath;
   readonly world: RenderWorldView;
   /** This world's scene: singletons set fog, background and environment here. */
   readonly scene: Scene;

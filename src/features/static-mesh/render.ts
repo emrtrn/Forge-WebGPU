@@ -21,6 +21,10 @@
 // material that fails leaves its slot on the GLB's own material. Failures are
 // counted by the cache and reported by the host.
 //
+// Path (plan 5c R9.4): with the host's automatic LOD drawing, a batch's
+// eligible parts may draw GPU-driven with LODs (`render/triangles/staticPath.ts`
+// decides per batch); picking keeps the instanced source.
+//
 // Edits (plan phase 4 decision 3): a transform-only change moves the actor's
 // placements in their batches (`changeInstances`); any other is removed and
 // added again.
@@ -81,7 +85,11 @@ export default defineRenderBinding({
       const existing = batches.get(key);
       if (existing) return existing;
       const batch: Batch = {
-        instances: createInstanceBatch({ name: `staticMesh/${model}`, source: "staticMesh", parent: ctx.root, castShadow: data.castShadow, ...(ctx.prepare ? { prepare: ctx.prepare } : {}) }),
+        instances: createInstanceBatch({
+          name: `staticMesh/${model}`, source: "staticMesh", parent: ctx.root, castShadow: data.castShadow,
+          ...(ctx.prepare ? { prepare: ctx.prepare } : {}),
+          ...(ctx.triangles ? { triangles: ctx.triangles, ...(ctx.staticPath ? { staticPath: ctx.staticPath } : {}) } : {}),
+        }),
         keys: [resourceKey.model(model)],
         disposed: false,
       };
