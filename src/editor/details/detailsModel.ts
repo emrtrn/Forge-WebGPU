@@ -2,7 +2,7 @@
 // step 5b; architecture §4.4, §4.5): DOM-free and three-free, Node tests
 // drive it. Forge's hand-written Details sections (specialActorDetails.ts,
 // 2.397 lines @ forge-webgl-final) give way to the schema: every component
-// shows the form its definition gives (`formOf`).
+// shows the form its definition gives (`formOf`), except background metadata.
 //
 // - Selection: one actor or many. Many show the components they share (same
 //   local id, same type); a value that differs between them is "mixed". An
@@ -86,7 +86,12 @@ export function mixedPaths(values: readonly unknown[], prefix: FormPath = []): S
   return mixed;
 }
 
-/** The components every target shares (same id, same type name), in the primary's order. */
+/** World Builder metadata stays on the actor, outside the Details editing UI. */
+export function visibleInDetails(def: ComponentDef): boolean {
+  return def.name !== "forge.worldRole";
+}
+
+/** The visible components every target shares (same id, same type name), in the primary's order. */
 export function componentSections(targets: readonly DetailsTarget[], registry: SchemaRegistry): ComponentSection[] {
   const primary = targets[0];
   if (!primary) return [];
@@ -94,7 +99,7 @@ export function componentSections(targets: readonly DetailsTarget[], registry: S
   for (const [id, component] of Object.entries(primary.components)) {
     const name = parseComponentTypeTag(component.type)?.name;
     const def = name === undefined ? undefined : registry.getComponent(name);
-    if (!def) continue;
+    if (!def || !visibleInDetails(def)) continue;
     const all = targets.map((target) => target.components[id]);
     if (!all.every((one) => one !== undefined && parseComponentTypeTag(one.type)?.name === name)) continue;
     const values = all.map((one) => formValue(one!, def));

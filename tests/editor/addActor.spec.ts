@@ -1,17 +1,25 @@
 // The Add Actor menu (plan phase 4 step 5d; INV-A11, Forge's `add-actor-menu`
 // smoke): a click places at the middle of the viewport (a cube's base on the
 // ground), search + Enter, a one-per-level entry selecting the one the level
-// has, a class from the project (the starter pack's fog), and a drag into
+// has, a class from the project (one this run writes: the starter pack's fog
+// is offered only under Visual Effects), and a drag into
 // the viewport placing on the drop, each one undo step. The level is written
 // into this run's temporary project copy (D14).
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { named, openEditor, writeLevel } from "./support.ts";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { named, openEditor, projectPath, shape, writeLevel } from "./support.ts";
 
 const LEVEL = "content/levels/add-actor-smoke";
+const CRATE = "ast_0000000000000000000000000000c7a7";
+const FOG_CLASS = "ast_d01ad35f291add6b77e6eb9737e62b69";
 
 test.beforeAll(() => {
   writeLevel(LEVEL, "lvl_0000000000000000000000000000f001", []);
+  mkdirSync(projectPath("content/add-actor-smoke"), { recursive: true });
+  writeFileSync(projectPath("content/add-actor-smoke/crate.actor.json"), JSON.stringify({
+    schema: "forge.actorClass/1", id: CRATE, name: "Smoke Crate", components: { shape: shape() },
+  }));
 });
 
 async function open(page: Page): Promise<string[]> {
@@ -74,9 +82,11 @@ test("one per level: a second click selects the one there is; a class from the p
   await expect(page.getByTestId("outliner-summary")).toHaveText("1 actors (1 selected)");
 
   await category(page, "Classes");
-  await page.locator('[data-add-key="class:ast_d01ad35f291add6b77e6eb9737e62b69"]').click();
-  await expect(named(page, "Exponential Height Fog")).toHaveClass(/active/);
-  await expect(page.getByTestId("detail-class")).toHaveText("Exponential Height Fog");
+  // The fog's class is offered only under Visual Effects.
+  await expect(page.locator(`[data-add-key="class:${FOG_CLASS}"]`)).toHaveCount(0);
+  await page.locator(`[data-add-key="class:${CRATE}"]`).click();
+  await expect(named(page, "Smoke Crate")).toHaveClass(/active/);
+  await expect(page.getByTestId("detail-class")).toHaveText("Smoke Crate");
   expect(errors).toEqual([]);
 });
 

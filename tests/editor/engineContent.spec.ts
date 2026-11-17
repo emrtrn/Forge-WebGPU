@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { createServer, type ViteDevServer } from "vite";
 import { expect, test } from "@playwright/test";
 import { forgeServerPlugin } from "../../tools/server/vitePlugin.ts";
-import { openEditor } from "./support.ts";
+import { named, openEditor } from "./support.ts";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const ENGINE = "engine:content/engine";
@@ -84,7 +84,8 @@ test("engine level: edit, save, reopen; Content Browser writes and refreshes cla
 test("opening the sample itself still leaves Save disabled after an edit", async ({ page }) => {
   // A minimal sample level is already committed; no test writes its bytes.
   await openEditor(page, { base });
-  await page.getByTestId("outliner-row").first().click();
+  // The sample's fog is a scene-wide singleton: Details shows no Transform for it. Edit Player Start.
+  await named(page, "Player Start").click();
   const x = page.getByTestId("detail-transform.p[0]");
   await x.fill("13");
   await x.press("Tab");

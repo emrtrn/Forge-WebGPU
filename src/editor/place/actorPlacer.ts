@@ -129,6 +129,8 @@ export function createActorPlacer(options: ActorPlacerOptions): ActorPlacer {
     }
     list.push({ ...EMPTY_ACTOR, singleton: false });
     for (const cls of [...options.classes()].sort((a, b) => a.name.localeCompare(b.name))) {
+      // Height Fog is offered only through Visual Effects, including when a pack provides a class for it.
+      if (Object.values(cls.components).some((component) => parseComponentTypeTag(component.type)?.name === "forge.heightFog")) continue;
       const look = options.catalog.present(cls.components, false);
       list.push({ key: `class:${cls.id}`, label: cls.name, category: CLASSES_CATEGORY, icon: look.icon, components: {}, classId: cls.id, singleton: singletonIn(cls.components) !== null });
     }

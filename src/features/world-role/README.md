@@ -2,6 +2,9 @@
 
 Nesnenin anlamsal rolü ve onu üreten World Builder aşaması.
 
+Arka plan verisidir; Detaylar panelinde ve bileşen ekleme listesinde gösterilmez.
+Nesnede saklanmaya ve araçlar tarafından kullanılmaya devam eder.
+
 - `schema.ts`: `forge.worldRole@1` bileşeni. Uzamsal değil. Alanlar: `role`
   (`building.residential.detached`, `prop.rock`), `stage` (`roads`,
   `buildings`; elle konan nesnede boş).

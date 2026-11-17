@@ -22,7 +22,8 @@
 // - Rotation is shown in XYZ degrees and stored as the quaternion.
 // - Text is set with `textContent`; the only markup is the kit's own icons.
 
-import type { FormField, NumberFormField, Transform } from "../../core/index.ts";
+import type { FormField, NumberFormField, Transform, Vec3 } from "../../core/index.ts";
+import { linkedScaleAxis } from "../../engine/math/scale.ts";
 import { eulerDegreesToQuaternion, quaternionToEulerDegrees } from "../../engine/math/euler.ts";
 import { getAtPath, pathKey, setAtPath, type FormPath } from "../../engine/edit/formPath.ts";
 import { UI_ICONS } from "./icons.ts";
@@ -37,6 +38,14 @@ export interface FormChange {
   readonly phase: "input" | "commit";
   /** A rotation axis typed in degrees: `value` is the quaternion the form shows; this is what was typed. */
   readonly rotation?: { readonly axis: 0 | 1 | 2; readonly degrees: number };
+  /** Linked scaling is recalculated from each target's own proportions by Details. */
+  readonly scale?: { readonly axis: 0 | 1 | 2; readonly value: number };
+}
+
+/** Panel-local preferences, retained across selection changes and form rebuilds; never saved in a level. */
+export interface FormUiState {
+  readonly collapsed: Map<string, boolean>;
+  readonly linkedScales: Set<string>;
 }
 
 export interface FormViewOptions {
@@ -66,6 +75,8 @@ export interface FormViewOptions {
   /** Top-level field keys that differ from a default the caller knows (a class's): highlighted, with a reset arrow. */
   readonly overridden?: ReadonlySet<string>;
   readonly onReset?: (key: string) => void;
+  /** Details' compact transform controls and persistent section / scale-link preferences. */
+  readonly uiState?: FormUiState;
 }
 
 /** What a mixed field shows (Unreal's wording). */
@@ -96,9 +107,9 @@ export function createFormView(options: FormViewOptions): FormView {
     return node;
   };
 
-  const emit = (path: FormPath, value: unknown, phase: FormChange["phase"], rotation?: FormChange["rotation"]): void => {
+  const emit = (path: FormPath, value: unknown, phase: FormChange["phase"], rotation?: FormChange["rotation"], scale?: FormChange["scale"]): void => {
     current = setAtPath(current, path, value);
-    options.onChange({ path, value, next: current, phase, ...(rotation ? { rotation } : {}) });
+    options.onChange({ path, value, next: current, phase, ...(rotation ? { rotation } : {}), ...(scale ? { scale } : {}) });
   };
   const isMixed = (path: FormPath): boolean => options.mixed?.has(pathKey(path)) ?? false;
   /** A mixed control shows nothing of its own (the primary's value would read as everyone's). */
@@ -143,7 +154,10 @@ export function createFormView(options: FormViewOptions): FormView {
   };
 
   const sectionOf = (title: string, hint: string | null, path: FormPath): { section: HTMLElement; body: HTMLElement; heading: HTMLElement } => {
-    const parts = createSection(doc, title, { testId: `${prefix}-section-${pathKey(path)}` });
+    const key = `${prefix}-section-${pathKey(path)}`;
+    const collapsed = options.uiState?.collapsed.get(key) ?? (options.uiState !== undefined && path.at(-1) === "local");
+    const parts = createSection(doc, title, { testId: key, collapsed });
+    parts.toggle.addEventListener("click", () => options.uiState?.collapsed.set(key, parts.section.classList.contains("collapsed")));
     if (hint) parts.toggle.title = hint;
     return parts;
   };
@@ -242,7 +256,7 @@ export function createFormView(options: FormViewOptions): FormView {
     pick: (() => Promise<string | null>) | undefined,
     assetType: string | null = null,
   ): HTMLElement {
-    const row = el("div", "detail-row");
+    const row = el("div", "detail-row detail-reference");
     row.append(labelSpan(label, hint));
     const control = el("span", "ref-control");
     const id = typeof value === "string" ? value : null;
@@ -253,6 +267,10 @@ export function createFormView(options: FormViewOptions): FormView {
     if (pick) {
       const browse = el("button", "detail-inline-button", "Browse");
       browse.type = "button";
+      if (options.uiState) {
+        browse.innerHTML = UI_ICONS.folder;
+        browse.setAttribute("aria-label", "Select asset");
+      }
       browse.title = "Seç";
       browse.disabled = options.disabled ?? false;
       browse.addEventListener("click", () => {
@@ -473,13 +491,49 @@ export function createFormView(options: FormViewOptions): FormView {
   }
 
   function transformRows(path: FormPath, value: Transform, label: string, hint: string | null): HTMLElement {
-    const { section, body } = sectionOf(label, hint, path);
+    const { section, body, heading } = sectionOf(label, hint, path);
+    section.classList.add("detail-transform");
+    if (options.uiState && path.at(-1) === "local") {
+      const identity = value.p.every((n) => n === 0) && value.s.every((n) => n === 1) && value.r.slice(0, 3).every((n) => n === 0) && Math.abs(value.r[3]) === 1;
+      heading.append(el("span", "detail-transform-summary", identity ? "Identity" : "Modified"));
+    }
     const open = { min: null, max: null };
     const degrees = quaternionToEulerDegrees(value.r).map((angle) => Number(angle.toFixed(3))) as [number, number, number];
     // A quaternion's components are not Euler axes: any mixed component mixes all three.
     const rotationMixed = [0, 1, 2, 3].some((index) => isMixed([...path, "r", index]));
+    const scalePath = [...path, "s"];
+    const scaleKey = testId(scalePath);
+    const scaleRow = vectorRow(scalePath, value.s, "Scale", "Ölçek", { range: open, step: 0.1 }, (index, next) => {
+      if (options.uiState?.linkedScales.has(scaleKey)) {
+        const axis = index as 0 | 1 | 2;
+        const before = getAtPath(current, scalePath) as Vec3;
+        emit(scalePath, linkedScaleAxis(before, axis, next), "commit", undefined, { axis, value: next });
+        render();
+      } else emit([...scalePath, index], next, "commit");
+    });
+    if (options.uiState) {
+      const lock = el("button", "detail-scale-lock");
+      lock.type = "button";
+      lock.dataset.testid = `${scaleKey}-link`;
+      lock.disabled = options.disabled ?? false;
+      const updateLock = () => {
+        const linked = options.uiState!.linkedScales.has(scaleKey);
+        lock.innerHTML = linked ? UI_ICONS.lock : UI_ICONS.unlock;
+        lock.setAttribute("aria-pressed", String(linked));
+        lock.setAttribute("aria-label", "Link scale axes");
+        lock.title = linked ? "Orantılı ölçek açık. Bir eksen değişince diğerleri aynı oranda değişir. Başlangıç ekseni sıfırsa yalnız o eksen değişir." : "Orantılı ölçeği aç";
+      };
+      lock.addEventListener("click", () => {
+        const linked = options.uiState!.linkedScales;
+        if (linked.has(scaleKey)) linked.delete(scaleKey);
+        else linked.add(scaleKey);
+        updateLock();
+      });
+      updateLock();
+      scaleRow.querySelector(".detail-vector-label")!.append(lock);
+    }
     body.append(
-      vectorRow([...path, "p"], value.p, "Location", "Konum (m)", { range: open, step: 0.1 }, (index, next) => emit([...path, "p", index], next, "commit")),
+      vectorRow([...path, "p"], value.p, "Position", "Konum (m, ebeveyne göre)", { range: open, step: 0.1 }, (index, next) => emit([...path, "p", index], next, "commit")),
       vectorRow(
         [...path, "r"],
         degrees,
@@ -492,7 +546,7 @@ export function createFormView(options: FormViewOptions): FormView {
         },
         () => rotationMixed,
       ),
-      vectorRow([...path, "s"], value.s, "Scale", "Ölçek", { range: open, step: 0.1 }, (index, next) => emit([...path, "s", index], next, "commit")),
+      scaleRow,
     );
     return section;
   }

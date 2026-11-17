@@ -105,10 +105,10 @@ test("rename, drag-and-drop parenting and Lock Movement are undo steps", async (
   await expect(page.getByTestId("editor-toast")).toHaveText("An actor cannot go under itself or its own child.");
 
   await row(page, CRATE).getByTestId("outliner-lock").click();
-  await expect(page.getByTestId("detail-locked")).toBeChecked();
+  await expect(page.getByTestId("detail-locked")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("detail-transform.p[0]")).toBeDisabled();
   await expect(page.getByTestId("snap-floor")).toBeDisabled();
-  await page.getByTestId("detail-locked").uncheck();
+  await page.getByTestId("detail-locked").click();
   await expect(page.getByTestId("detail-transform.p[0]")).toBeEnabled();
   await page.getByTestId("editor-undo").click();
   await expect(row(page, CRATE).getByTestId("outliner-lock")).toHaveClass(/on/);

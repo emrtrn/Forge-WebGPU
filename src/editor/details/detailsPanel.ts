@@ -23,6 +23,7 @@ import {
   ActorPivotField,
   ActorStreamingFields,
   formFields,
+  parseComponentTypeTag,
   transform,
   type ActorDoc,
   type ActorId,
@@ -37,6 +38,8 @@ import type { EditorSession } from "../session/editorSession.ts";
 import type { PivotPreset, TransformTools } from "../transformTools.ts";
 import { getAtPath, pathKey, type FormPath } from "../../engine/edit/formPath.ts";
 import { createFormView, createSection, MIXED_TEXT, type FormChange } from "../ui/formView.ts";
+import { linkedScaleAxis } from "../../engine/math/scale.ts";
+import { ACTOR_TYPE_ICONS, UI_ICONS } from "../ui/icons.ts";
 import {
   addComponent,
   cannotAdd,
@@ -48,17 +51,17 @@ import {
   withRotationAxis,
   type DetailsTarget,
 } from "../../engine/edit/actorFields.ts";
-import { componentSections, mixedPaths } from "./detailsModel.ts";
+import { componentSections, mixedPaths, visibleInDetails } from "./detailsModel.ts";
 import { openPicker } from "./pickerPopover.ts";
 
 const ACTOR_FIELDS = formFields({
   transform: transform({ label: "Transform", hint: "Aktörün konumu, dönüşü ve ölçeği (ebeveynine göre)." }),
-  pivot: ActorPivotField,
 });
+const PIVOT_FIELDS = formFields({ pivot: ActorPivotField });
 const GENERAL_FIELDS: readonly FormField[] = formFields(ActorStreamingFields);
 /** Forge's pivot presets (Details' Pivot row). */
 const PIVOT_PRESETS: readonly (readonly [PivotPreset, string, string])[] = [
-  ["reset", "Reset Pivot", "Pivot model orijininde"],
+  ["reset", "Reset to Origin", "Pivot model orijininde"],
   ["center", "Center Pivot", "Pivot sınır kutusunun merkezinde"],
   ["base", "Use Base", "Pivot alt merkezde (ör. zemine oturan bir menteşe)"],
 ];
@@ -104,6 +107,13 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
   /** True while the panel's own `input` edit runs: it must not redraw the control under the pointer. */
   let editing = false;
   let actorView: ReturnType<typeof createFormView> | null = null;
+  let pivotView: ReturnType<typeof createFormView> | null = null;
+  const uiState = { collapsed: new Map<string, boolean>(), linkedScales: new Set<string>() };
+  const panelSection = (title: string, key: string, collapsed = true) => {
+    const parts = createSection(doc, title, { testId: key, collapsed: uiState.collapsed.get(key) ?? collapsed });
+    parts.toggle.addEventListener("click", () => uiState.collapsed.set(key, parts.section.classList.contains("collapsed")));
+    return parts;
+  };
   /** What the drawn extensions leave to clean up (their frame listeners, their own dispose). */
   let disposers: (() => void)[] = [];
 
@@ -139,6 +149,10 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
 
   /** A change's path and value for one actor: a rotation axis keeps that actor's other two axes. */
   const leafFor = (root: unknown, change: FormChange): { path: FormPath; value: unknown } => {
+    if (change.scale) {
+      const before = getAtPath(root, change.path) as Vec3;
+      return { path: change.path, value: linkedScaleAxis(before, change.scale.axis, change.scale.value) };
+    }
     if (!change.rotation) return { path: change.path, value: change.value };
     const at = change.path.slice(0, -1);
     const current = getAtPath(root, at) as Parameters<typeof withRotationAxis>[0];
@@ -148,7 +162,12 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
   const what = (now: readonly DetailsTarget[]): string => (now.length === 1 ? now[0]!.doc.name || now[0]!.doc.id : `${now.length} actors`);
 
   // --- Pivot and Placement (Forge's instanceDetails.ts) -----------------------
-  const actions = el("div", "detail-actions");
+  const actions = el("div", "details-placement-toolbar");
+  actions.dataset.testid = "detail-placement-toolbar";
+  actions.setAttribute("role", "group");
+  actions.setAttribute("aria-label", "Pivot, snapping and movement");
+  const pivotHost = el("div");
+  const pivotSummary = el("span", "detail-transform-summary");
   const actionButton = (text: string, hint: string, testId: string, run: () => void): HTMLButtonElement => {
     const button = el("button", "detail-action-button", text);
     button.type = "button";
@@ -157,24 +176,84 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
     button.addEventListener("click", run);
     return button;
   };
-  const pivotDrag = actionButton("Drag in viewport", "Pivotu ayarlamak için viewport'taki gizmoyu sürükleyin", "pivot-drag", () => tools?.setPivotEdit(!tools.pivotEdit));
-  const pivotRow = el("div", "detail-actions-row");
-  pivotRow.append(pivotDrag);
-  const presetRow = el("div", "detail-actions-row");
-  for (const [preset, text, hint] of PIVOT_PRESETS) presetRow.append(actionButton(text, hint, `pivot-${preset}`, () => tools?.setPivotPreset(preset)));
-  const placementRow = el("div", "detail-actions-row");
-  const snapFloor = actionButton("Snap to Floor", "Alttaki yüzeye bırak (End)", "snap-floor", () => tools?.snapToFloor());
-  const snapWall = actionButton("Snap to Wall", "En yakın duvara yasla", "snap-wall", () => tools?.snapToWall());
-  placementRow.append(snapFloor, snapWall);
-  // Forge's Lock Movement toggle (Placement): the actors' `locked`, one undo step.
-  const lockToggle = el("label", "detail-toggle");
-  const lockBox = el("input");
-  lockBox.type = "checkbox";
-  lockBox.dataset.testid = "detail-locked";
-  lockBox.title = "Açıkken aktör editörde taşınmaz, döndürülmez, ölçeklenmez.";
-  lockToggle.append(lockBox, el("span", "", "Lock Movement"));
-  lockBox.addEventListener("change", () => {
-    const locked = lockBox.checked;
+  // Native auto popovers provide outside-click / Escape dismissal, focus return,
+  // and mutual exclusion, and escape the inspector's scrolling container.
+  const popover = (key: string, label: string): HTMLElement => {
+    const popup = el("div", "details-action-popover");
+    popup.id = `forge-details-${key}`;
+    popup.dataset.testid = `detail-${key}`;
+    popup.setAttribute("popover", "auto");
+    popup.setAttribute("role", "dialog");
+    popup.setAttribute("aria-label", label);
+    return popup;
+  };
+  const pivotPopup = popover("pivot-options", "Pivot options");
+  const snapPopup = popover("snap-options", "Snap options");
+  const closePopup = (popup: HTMLElement): void => {
+    if (popup.matches(":popover-open")) popup.hidePopover();
+  };
+  const closePopups = (): void => { closePopup(pivotPopup); closePopup(snapPopup); };
+  const attachPopup = (button: HTMLButtonElement, popup: HTMLElement, width: number): void => {
+    button.popoverTargetElement = popup;
+    button.setAttribute("aria-haspopup", "dialog");
+    button.setAttribute("aria-controls", popup.id);
+    button.setAttribute("aria-expanded", "false");
+    const position = (): void => {
+      const rect = button.getBoundingClientRect();
+      const available = doc.documentElement.clientWidth;
+      const actualWidth = Math.min(width, available - 16);
+      popup.style.width = `${actualWidth}px`;
+      const left = button.closest(".details-pivot-split")?.getBoundingClientRect().left ?? rect.left;
+      popup.style.left = `${Math.max(8, Math.min(left, available - actualWidth - 8))}px`;
+      popup.style.top = `${Math.max(8, Math.min(rect.bottom + 6, doc.documentElement.clientHeight - popup.offsetHeight - 8))}px`;
+    };
+    popup.addEventListener("beforetoggle", (event) => {
+      if ((event as ToggleEvent).newState === "open") position();
+    });
+    popup.addEventListener("toggle", () => {
+      const open = popup.matches(":popover-open");
+      button.setAttribute("aria-expanded", String(open));
+      if (open) position();
+    });
+    popup.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") event.stopPropagation();
+    });
+  };
+  doc.defaultView?.addEventListener("resize", closePopups);
+  doc.addEventListener("scroll", (event) => {
+    if (event.target instanceof Node && (pivotPopup.contains(event.target) || snapPopup.contains(event.target))) return;
+    closePopups();
+  }, true);
+
+  const pivotDrag = actionButton("Edit Pivot", "Viewport'ta pivot düzenlemeyi aç / kapat", "pivot-drag", () => {
+    closePopups();
+    tools?.setPivotEdit(!tools.pivotEdit);
+  });
+  const pivotOptions = actionButton("", "Pivot hazır konumları ve sayısal ayarlar", "pivot-options-toggle", () => {});
+  pivotOptions.innerHTML = UI_ICONS.chevronDown;
+  pivotOptions.setAttribute("aria-label", "Pivot options");
+  attachPopup(pivotOptions, pivotPopup, 340);
+  const pivotSplit = el("div", "details-pivot-split");
+  pivotSplit.append(pivotDrag, pivotOptions);
+  const presetRow = el("div", "details-action-list");
+  for (const [preset, text, hint] of PIVOT_PRESETS) presetRow.append(actionButton(text, hint, `pivot-${preset}`, () => {
+    closePopup(pivotPopup);
+    tools?.setPivotPreset(preset);
+  }));
+  const pivotHeading = el("div", "details-popover-heading", "Pivot");
+  pivotHeading.append(pivotSummary);
+  pivotPopup.append(pivotHeading, presetRow, pivotHost);
+  const snapToggle = actionButton("Snap", "Yüzeye hizalama seçenekleri", "snap-options-toggle", () => {});
+  const snapChevron = el("span");
+  snapChevron.innerHTML = UI_ICONS.chevronDown;
+  snapToggle.append(snapChevron);
+  attachPopup(snapToggle, snapPopup, 215);
+  const snapFloor = actionButton("Snap to Floor", "Alttaki yüzeye bırak (End)", "snap-floor", () => { closePopup(snapPopup); tools?.snapToFloor(); });
+  snapFloor.append(el("kbd", "", "End"));
+  const snapWall = actionButton("Snap to Wall", "En yakın duvara yasla", "snap-wall", () => { closePopup(snapPopup); tools?.snapToWall(); });
+  snapPopup.append(snapFloor, snapWall);
+  const lockButton = actionButton("", "Aktörün taşınmasını, döndürülmesini ve ölçeklenmesini kilitle", "detail-locked", () => {
+    const locked = !targets().every((target) => target.doc.locked === true);
     apply(`${locked ? "Lock" : "Unlock"} ${what(targets())}`, "commit", "locked", ({ doc: actor }) => {
       if ((actor.locked === true) === locked) return actor;
       const next: ActorDoc = { ...actor };
@@ -183,18 +262,48 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
       return next;
     });
   });
-  actions.append(el("div", "detail-actions-title", "Pivot"), pivotRow, presetRow, el("div", "detail-actions-title", "Placement"), placementRow, lockToggle);
+  lockButton.setAttribute("aria-label", "Lock Movement");
+  actions.append(pivotSplit, snapToggle, lockButton, pivotPopup, snapPopup);
+  // The editor's global Escape clears selection. Consume it first when an action popup is open,
+  // including when focus is still on its trigger rather than inside the popup.
+  doc.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const popup = [pivotPopup, snapPopup].find((candidate) => candidate.matches(":popover-open"));
+    if (!popup) return;
+    event.preventDefault();
+    event.stopPropagation();
+    closePopup(popup);
+    (popup === pivotPopup ? pivotOptions : snapToggle).focus();
+  }, true);
   const pivotButtons = [pivotDrag, ...presetRow.querySelectorAll("button")];
+  let actionSelection = "";
   const renderActions = (now: readonly DetailsTarget[]): void => {
     actions.hidden = tools === null;
     const on = tools?.pivotEdit === true;
     pivotDrag.classList.toggle("on", on);
     pivotDrag.setAttribute("aria-pressed", String(on));
-    pivotDrag.textContent = on ? "● Dragging pivot" : "Drag in viewport";
+    pivotDrag.textContent = on ? "Editing Pivot" : "Edit Pivot";
     const locked = now.map((target) => target.doc.locked === true);
-    lockBox.checked = locked.every(Boolean);
-    lockBox.indeterminate = locked.some(Boolean) && !locked.every(Boolean);
+    const pivots = now.map((target) => ({ pivot: target.doc.pivot ?? [0, 0, 0] }));
+    pivotSummary.textContent = pivots.every((value) => value.pivot.every((axis) => axis === 0)) ? "Pivot: Origin" : "Pivot: Custom";
+    pivotView = createFormView({
+      document: doc,
+      fields: PIVOT_FIELDS,
+      value: pivots[0]!,
+      testIdPrefix: "detail",
+      mixed: mixedPaths(pivots),
+      disabled: locked.some(Boolean),
+      onChange: (change) => apply(`Edit pivot of ${what(now)}`, change.phase, pathKey(change.path), ({ doc: actor }) => editActor({ ...actor, pivot: actor.pivot ?? [0, 0, 0] }, change.path, change.value)),
+    });
+    pivotHost.replaceChildren(pivotView.element);
+    const allLocked = locked.every(Boolean);
+    lockButton.setAttribute("aria-pressed", locked.some(Boolean) && !allLocked ? "mixed" : String(allLocked));
+    lockButton.classList.toggle("on", locked.some(Boolean));
+    lockButton.innerHTML = allLocked ? UI_ICONS.lock : UI_ICONS.unlock;
+    lockButton.append(el("span", "", "Movement"));
+    lockButton.title = locked.some(Boolean) && !allLocked ? "Seçimde kilitli ve kilitsiz aktörler var; tümünü kilitle" : allLocked ? "Hareket kilidini aç" : "Aktörün taşınmasını, döndürülmesini ve ölçeklenmesini kilitle";
     for (const button of [...pivotButtons, snapFloor, snapWall]) button.disabled = locked.some(Boolean);
+    snapToggle.disabled = locked.some(Boolean);
   };
 
   // --- The panel -------------------------------------------------------------------
@@ -205,6 +314,10 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
 
   const header = (now: readonly DetailsTarget[]): HTMLElement => {
     const box = el("div", "details-header");
+    const icon = el("div", "details-actor-icon");
+    const look = options.catalog.present(now[0]!.components, false);
+    icon.innerHTML = ACTOR_TYPE_ICONS[look.icon];
+    box.append(icon);
     const nameRow = el("label", "detail-row");
     nameRow.append(el("span", "", "Name"));
     const name = el("input");
@@ -237,6 +350,7 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
       info.append(el("span", "", "Selection"), el("output", "detail-value", `${now.length} actors`));
     }
     box.append(info);
+    box.append(el("div", "details-actor-kind", now.length === 1 ? look.kind : `${now.length} actors selected`));
     return box;
   };
 
@@ -254,7 +368,7 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
           resetAll.addEventListener("click", () => apply(`Reset ${section.def.label}`, "commit", `${section.id}:reset`, ({ doc: actor }) => resetOverride(actor, section.id, null)));
           heading.append(resetAll);
         }
-      } else {
+      } else if (!section.def.singleton || section.def.spatial) {
         const remove = el("button", "detail-inline-button", "Remove");
         remove.type = "button";
         remove.title = "Bileşeni aktörden kaldır";
@@ -264,6 +378,7 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
       }
       const view = createFormView({
         document: doc,
+        uiState,
         fields: section.fields,
         value: section.value,
         testIdPrefix: `detail-${section.id}`,
@@ -348,6 +463,7 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
         title: "Add Component",
         testId: "component-picker",
         items: [...registry.components()]
+          .filter(visibleInDetails)
           .sort((a, b) => a.label.localeCompare(b.label))
           .map((def) => ({ id: def.name, label: def.label, note: def.name, disabled: cannotAdd(target.doc, def, level, resolveClass) })),
       }).then((picked) => {
@@ -363,17 +479,32 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
     if (editing) return;
     for (const dispose of disposers.splice(0)) dispose();
     const now = targets();
+    const selectionKey = now.map((target) => target.doc.id).join(",");
+    const openPopup = selectionKey === actionSelection ? [pivotPopup, snapPopup].find((popup) => popup.matches(":popover-open")) : undefined;
+    actionSelection = selectionKey;
     const focused = doc.activeElement instanceof HTMLElement && element.contains(doc.activeElement) ? doc.activeElement.dataset.testid : undefined;
     if (now.length === 0) {
       actorView = null;
+      pivotView = null;
       const empty = el("div", "empty-details");
       empty.append(el("strong", "", "Nothing selected"), el("span", "", "Ayrıntıları görmek için Outliner'dan bir aktör seçin."));
       element.replaceChildren(empty);
       return;
     }
     const values = now.map(actorValue);
-    actorView = createFormView({
+    // Scene-wide singleton actors have no meaningful placement or streaming controls.
+    // Use effective components so class instances follow the same rule as plain actors.
+    const showSpatialControls = now.every((target) => {
+      const components = Object.values(target.components);
+      return components.length === 0 || !components.every((component) => {
+        const name = parseComponentTypeTag(component.type)?.name;
+        const def = name === undefined ? undefined : registry.getComponent(name);
+        return def?.singleton === true && !def.spatial;
+      });
+    });
+    actorView = showSpatialControls ? createFormView({
       document: doc,
+      uiState,
       fields: ACTOR_FIELDS,
       value: values[0]!,
       testIdPrefix: "detail",
@@ -388,19 +519,28 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
           return editActor(root, leaf.path, leaf.value);
         });
       },
-    });
-    const general = createFormView({
+    }) : null;
+    const general = showSpatialControls ? createFormView({
       document: doc,
       fields: GENERAL_FIELDS,
       value: { spatiallyLoaded: now[0]!.doc.spatiallyLoaded },
       testIdPrefix: "detail",
       mixed: mixedPaths(now.map((target) => ({ spatiallyLoaded: target.doc.spatiallyLoaded }))),
       onChange: (change) => apply(`Edit ${pathKey(change.path)} of ${what(now)}`, change.phase, pathKey(change.path), ({ doc: actor }) => editActor(actor, change.path, change.value)),
-    });
+    }) : null;
     renderActions(now);
-    const parts: HTMLElement[] = [header(now), actorView.element, actions, general.element, ...componentBlock(now)];
-    if (now.length === 1 && now[0]!.doc.class === null) parts.push(addComponentButton(now[0]!));
+    const parts: HTMLElement[] = [header(now)];
+    if (actorView && general) parts.push(actorView.element, actions);
+    parts.push(...componentBlock(now));
+    if (general) {
+      const advanced = panelSection("Advanced", "detail-advanced");
+      advanced.body.append(general.element);
+      parts.push(advanced.section);
+    }
+    if (showSpatialControls && now.length === 1 && now[0]!.doc.class === null) parts.push(addComponentButton(now[0]!));
     element.replaceChildren(...parts);
+    // A numeric edit redraws Details. Keep its popup open, but never carry it to another selection.
+    if (openPopup && showSpatialControls && tools) openPopup.showPopover();
     if (focused) element.querySelector<HTMLElement>(`[data-testid="${CSS.escape(focused)}"]`)?.focus();
   }
 
@@ -416,6 +556,7 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
       next.onPreview(() => {
         const primary = targets()[0];
         if (primary && actorView) actorView.update(actorValue(primary));
+        if (primary && pivotView) pivotView.update(actorValue(primary));
       });
       render();
     },
