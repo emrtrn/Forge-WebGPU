@@ -138,13 +138,14 @@ describe("opening and editing", () => {
     ]);
   });
 
-  test("a cell that would be rewritten but is not loaded stops the plan until it is", () => {
+  test("a cell that would be rewritten but is not loaded rejects the edit until it is", () => {
     const session = open();
-    move(session, "a", 250, 50);
-    expect(session.planSave()).toEqual({ status: "needs-load", cells: ["2_0"] });
+    expect(move(session, "a", 250, 50).ok).toBe(false);
+    expect(session.planSave()).toEqual({ status: "clean" });
     const all = open(true);
     const cell = splitLevel({ ...all.level, actors: all.level.actors.filter((entry) => entry.name === "d") }, OPTIONS).cells[0]!;
     expect(session.loadCells([{ doc: cell, revision: rev(4) }])).toEqual([]);
+    expect(move(session, "a", 250, 50).ok).toBe(true);
     const plan = ready(session.planSave());
     const twoZero = plan.request.writes.find((write) => write.path.endsWith("2_0.json"))!;
     expect(twoZero.base).toBe(rev(4));

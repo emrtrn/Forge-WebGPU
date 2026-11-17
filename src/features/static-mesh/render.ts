@@ -25,7 +25,7 @@
 // placements in their batches (`changeInstances`); any other is removed and
 // added again.
 
-import { Matrix4, Mesh, type Material } from "three/webgpu";
+import { Box3, Matrix4, Mesh, Sphere, type Material } from "three/webgpu";
 import { parseComponentTypeTag, type WorldActor } from "../../core/index.ts";
 import { assignSlotMaterials, slotMaterialIds, slotResolver } from "../../render/resources/modelSlots.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
@@ -98,7 +98,7 @@ export default defineRenderBinding({
       const existing = batches.get(key);
       if (existing) return existing;
       const batch: Batch = {
-        instances: createInstanceBatch({ name: `staticMesh/${model}`, source: "staticMesh", parent: ctx.root, castShadow: data.castShadow }),
+        instances: createInstanceBatch({ name: `staticMesh/${model}`, source: "staticMesh", parent: ctx.root, castShadow: data.castShadow, ...(ctx.prepare ? { prepare: ctx.prepare } : {}) }),
         keys: [resourceKey.model(model)],
         disposed: false,
       };
@@ -108,7 +108,8 @@ export default defineRenderBinding({
           if (batch.disposed) return;
           const materials = await materialsFor(ctx, batch, template, data.materials);
           if (batch.disposed) return;
-          batch.instances.setParts(modelParts(template, materials));
+          const radius = new Box3().setFromObject(template.scene).getBoundingSphere(new Sphere()).radius;
+          batch.instances.setParts(modelParts(template, materials), radius);
         },
         () => {
           // Counted by the cache and reported by the host; the batch stays empty.
@@ -163,13 +164,20 @@ export default defineRenderBinding({
     };
 
     return {
+      isActorReady(id) {
+        const actor = ctx.world.actor(id);
+        return !actor || meshesOf(actor).every(([key]) => batches.get(placed.get(`${id}/${key}`) ?? "")?.instances.ready ?? true);
+      },
       actorsAdded: added,
       actorsRemoved: removed,
       actorsChanged(changes) {
         changeInstances(changes, { move, removed, added });
       },
-      sync() {
-        for (const batch of batches.values()) batch.instances.flush();
+      sync(frame) {
+        for (const batch of batches.values()) {
+          batch.instances.flush();
+          batch.instances.updateCulling(frame.camera, ctx.quality().foliageCullDistanceScale);
+        }
       },
       dispose() {
         for (const [key, batch] of [...batches]) disposeBatch(key, batch);

@@ -7,6 +7,7 @@
 // collapse chevron in front of its icon.
 
 export const OUTLINER_CSS = `
+.outliner-pane[hidden] { display: none; }
 .outliner-pane {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;

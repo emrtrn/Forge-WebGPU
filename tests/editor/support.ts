@@ -69,6 +69,7 @@ export function writeLevel(level: string, levelId: string, actors: readonly unkn
  */
 export const EXPECTED_MISSES: readonly RegExp[] = [
   /^404 GET \/__forge\/read\?path=[^&]*%2Fcells\.json$/,
+  /^404 GET \/__forge\/read\?path=[^&]*%2Fhlod\.json(?:&play=[^&]+)?$/,
   /^404 GET \/__forge\/thumbnail\?/,
 ];
 

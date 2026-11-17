@@ -20,6 +20,8 @@ import type { HlodIndex as HlodIndexDoc } from "../../core/level/hlod.ts";
  */
 export interface HlodSource {
   readonly index: HlodIndexDoc;
+  /** The editor bumps this after rebuilding / replacing the level's proxy files. */
+  readonly revision?: number;
   isCellActive(key: string): boolean;
   load(key: string): Promise<ArrayBuffer | null>;
 }

@@ -62,6 +62,21 @@ function terrainDefinition(layerCount = 5): WorldTerrainDef {
   };
 }
 
+test("explicit kept cells activate outside the camera range and unload once released", async () => {
+  const f = fixture({ memoryBudgetBytes: 0 });
+  f.world.update([], 4, ["3_0", "invalid", "1000_0"]);
+  assert.deepEqual(f.requests.map((request) => request.key), ["3_0"]);
+  await f.resolve(0);
+  f.world.update([], 4, ["3_0"]);
+  assert.ok(f.events.includes("activate:3_0:3_0"));
+  f.world.update([], 4, ["3_0"]);
+  assert.ok(!f.events.includes("deactivate:3_0:3_0"));
+  f.world.update([]);
+  assert.ok(f.events.includes("deactivate:3_0:3_0"));
+  assert.ok(f.events.includes("dispose:3_0:3_0"));
+  f.world.dispose();
+});
+
 export async function registerWorldStreamingTests(check: Check, checkAsync: CheckAsync): Promise<void> {
   await checkAsync("world streaming: lifecycle, stats and deactivate before unload", async () => {
     const f = fixture({ memoryBudgetBytes: 0 });

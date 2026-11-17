@@ -16,7 +16,7 @@
 // A headless boot (Node, check:projects) installs no such subsystem, so the
 // world runs without render.
 
-import { Group, Scene, type Camera } from "three/webgpu";
+import { Group, Scene, type Camera, type Object3D } from "three/webgpu";
 import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { defineFeature, defineSubsystem, LevelSettingsKey, type FeatureDef, type LevelSettings, type SubsystemContext } from "../../core/index.ts";
 import type { ResourceCache } from "../resources/resourceCache.ts";
@@ -27,6 +27,7 @@ import { createWorldResources, type ModelSource, type WorldResources } from "../
 import { createDefaultLighting } from "./defaultLighting.ts";
 import { createHlodProxies, type HlodProxies } from "./hlodProxies.ts";
 import { HlodSourceKey } from "../../engine/world/hlod.ts";
+import { RenderReadinessKey } from "../../engine/world/renderReadiness.ts";
 import { createEnvironmentOverride } from "./environment.ts";
 import { createOutputState } from "./output.ts";
 import { sceneShadowQuality, sceneShadowsEnabled } from "./sceneShadows.ts";
@@ -49,6 +50,7 @@ export interface RenderWorld {
 }
 
 export interface RenderFeatureOptions {
+  readonly prepare?: (objects: readonly Object3D[], scene: Scene, signal?: AbortSignal) => Promise<void>;
   readonly cache: ResourceCache;
   readonly models: ModelSource;
   /** `forge.material` assets; absent in tests that draw none. */
@@ -101,8 +103,10 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
         binding.create({
           world: view, scene, root, resources, lighting, environment: environment.environment, output,
           capture: options.capture ?? null, quality: effectiveQuality,
+          ...(options.prepare ? { prepare: (objects: readonly Object3D[], signal?: AbortSignal) => resources.track(options.prepare!(objects, scene, signal)) } : {}),
         }),
       );
+      ctx.services.provide(RenderReadinessKey, { isActorReady: (id) => instances.every((instance) => instance.isActorReady?.(id) ?? true) });
       const world: RenderWorld = {
         name: options.name, scene, root, resources, output,
         get shadowsEnabled() { return sceneShadowsEnabled(view); },
@@ -111,6 +115,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       options.attach?.(world);
       // HLOD proxies (phase 5b): the level's source is provided once the world is assembled.
       let hlod: HlodProxies | null = null;
+      let hlodRevision: number | undefined;
       const hlodRoot = new Group();
       hlodRoot.name = "hlod";
       scene.add(hlodRoot);
@@ -141,9 +146,11 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           lighting.sync(frame.camera, effectiveQuality(), environment.environment.override);
           outputState.update(environment.environment.override, options.quality());
           for (const instance of instances) instance.sync?.(frame);
+          const source = ctx.services.get(HlodSourceKey);
+          if (hlod !== null && source?.revision !== hlodRevision) { hlod.dispose(); hlod = null; }
           if (hlod === null) {
-            const source = ctx.services.get(HlodSourceKey);
             if (source) hlod = createHlodProxies(source, hlodRoot, (work) => resources.track(work));
+            hlodRevision = source?.revision;
           }
           hlod?.sync(frame.camera, ctx.services.get(LevelSettingsKey)?.current);
         },

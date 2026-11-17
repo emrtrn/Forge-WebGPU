@@ -18,7 +18,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { RENDER_REFS, SMOKE_VIEWPORT } from "./renderScenes.ts";
+import { RENDER_REFS, SMOKE_QUALITY, SMOKE_VIEWPORT } from "./renderScenes.ts";
+import { installLoadTiming, loadTiming } from "./measurementPage.ts";
 import { git, openSmokeLevel } from "./smokePage.ts";
 import { STREAMING_LEVEL } from "./streamingScene.ts";
 
@@ -80,9 +81,11 @@ async function settleAt(page: Page, at: readonly [number, number]): Promise<numb
 
 test("streaming: flight and load / unload cycles on the synthetic level", async ({ page, browser }) => {
   await page.setViewportSize(SMOKE_VIEWPORT);
+  await installLoadTiming(page);
   const [from] = FLIGHT;
   await openSmokeLevel(page, STREAMING_LEVEL, { id: "start", position: [from[0], HEIGHT, from[1]], target: [from[0] + 50, 0, from[1] + 50] });
   await settleAt(page, from);
+  const beforeFlight = await loadTiming(page);
 
   // Flight: moved every frame in the page.
   interface Spike { t: number; ms: number; x: number; z: number; streamingMs: number | null; active: number | null; actors: number | null; pending: number | null }
@@ -115,9 +118,12 @@ test("streaming: flight and load / unload cycles on the synthetic level", async 
   }), [route[0], route[1], FLIGHT_SPEED, HEIGHT] as const);
   const flight = await fly(FLIGHT);
   const flightMs = summary(flight.intervals.slice(60)); // the first second is the jump into the route
+  const afterFirstFlight = await loadTiming(page);
+  console.log(`first flight ${JSON.stringify(flightMs)}`);
   // The same route back: what was drawn once is compiled now (separates pipeline compiles from streaming work).
   const back = await fly([FLIGHT[1], FLIGHT[0]]);
   const backMs = summary(back.intervals.slice(60));
+  const afterBackFlight = await loadTiming(page);
   const afterFlight = await snapshot(page);
 
   // Cycles.
@@ -136,6 +142,9 @@ test("streaming: flight and load / unload cycles on the synthetic level", async 
   const record = {
     schema: 1, date: new Date().toISOString(), commit: git(["rev-parse", "HEAD"]), dirty: git(["status", "--porcelain"]) !== "",
     browser: `chrome ${browser.version()}`, viewport: SMOKE_VIEWPORT, uncapped: true,
+    profile: SMOKE_QUALITY, devicePixelRatio: await page.evaluate(() => devicePixelRatio),
+    backend: JSON.parse((await page.locator("canvas[data-forge-ready='1']").getAttribute("data-forge-backend-proof")) ?? "null"),
+    compilation: { method: "WebGPU API wall latency; async calls may overlap", beforeFlight, afterFirstFlight, afterBackFlight },
     flight: { from: FLIGHT[0], to: FLIGHT[1], speed: FLIGHT_SPEED, height: HEIGHT, durationMs: flight.durationMs, frameMs: flightMs, spikes: flight.spikes },
     flightBack: { durationMs: back.durationMs, frameMs: backMs, spikes: back.spikes },
     afterFlight, first, cycles, evicted, settleMs: summary(settleMs),

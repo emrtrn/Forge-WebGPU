@@ -101,13 +101,13 @@ export class TerrainRuntimeStreaming {
     });
   }
 
-  update(sources: readonly StreamingSource[], viewDistanceMultiplier = 1): void {
+  update(sources: readonly StreamingSource[], viewDistanceMultiplier = 1, keptTiles: readonly string[] = []): void {
     const started = this.hooks.clock();
     this.activations = 0;
     this.sources = sources;
     // Physics is never scaled below its safety ring by a graphics preference.
     this.settings.viewDistanceMultiplier = Math.max(0.5, viewDistanceMultiplier);
-    this.world.update(sources);
+    this.world.update(sources, 4, keptTiles);
     const wanted = this.physicsTargets();
     const removed = [...this.colliders.keys()].filter((key) => !wanted.has(key));
     if (removed.length) {

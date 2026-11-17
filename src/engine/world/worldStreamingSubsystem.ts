@@ -1,7 +1,7 @@
 // Ported from Forge WebGL engine/world/worldStreamingSubsystem.ts @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
 import { ContentLoadError } from "../assets/contentValidation.ts";
 import { computeStreamingTargets, type GridStreamingSettings, type StreamingSource } from "./streamingPolicy.ts";
-import type { WorldCellBounds } from "../../core/grid/worldGrid.ts";
+import { parseWorldCellKey, worldCellBounds, type WorldCellBounds } from "../../core/grid/worldGrid.ts";
 
 export type WorldCellState = "Unloaded" | "Fetching" | "Loaded" | "Activated" | "Deactivating";
 
@@ -93,7 +93,7 @@ export class WorldStreamingSubsystem<T> {
       * (Math.ceil((maxZ - origin[1]) / cellSize) - Math.floor((minZ - origin[1]) / cellSize));
   }
 
-  update(sources: readonly StreamingSource[], frameBudgetMs = this.activationBudgetMs): void {
+  update(sources: readonly StreamingSource[], frameBudgetMs = this.activationBudgetMs, keptKeys: readonly string[] = []): void {
     if (this.disposed) throw new Error("World streaming subsystem is disposed");
     nonnegative(frameBudgetMs, "frameBudgetMs");
     const { settings, bounds, loader, clock } = this.options;
@@ -108,6 +108,18 @@ export class WorldStreamingSubsystem<T> {
     // Pending and failed cells use the same retention envelope as completed data.
     const retained = computeStreamingTargets({ loaded: new Set(this.cells.keys()), active }, sources, settings, bounds);
     const needed = computeStreamingTargets({ loaded: new Set(), active: new Set() }, sources, settings, bounds).toLoad;
+    const kept = new Set(keptKeys.filter((key) => {
+      const coord = parseWorldCellKey(key); if (!coord) return false;
+      const rect = worldCellBounds(settings, coord.x, coord.z);
+      return rect.minX < bounds.maxX && rect.maxX > bounds.minX && rect.minZ < bounds.maxZ && rect.maxZ > bounds.minZ;
+    }));
+    for (const key of kept) {
+      if (!needed.includes(key)) needed.push(key);
+      if (!loaded.has(key) && !targets.toLoad.includes(key)) targets.toLoad.push(key);
+      if (loaded.has(key) && !active.has(key) && !targets.toActivate.includes(key)) targets.toActivate.push(key);
+    }
+    targets.toDeactivate = targets.toDeactivate.filter((key) => !kept.has(key));
+    retained.toUnload = retained.toUnload.filter((key) => !kept.has(key));
     this.frame += 1;
     for (const key of needed) {
       const cell = this.cells.get(key);

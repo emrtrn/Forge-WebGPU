@@ -27,7 +27,7 @@
 //   witness's `skyCaptures`); `gpuTime()` resolves the last frame's GPU time,
 //   so a stepped measurement can pair the two (plan phase 3 step 7).
 
-import { PerspectiveCamera, PMREMGenerator, TimestampQuery, WebGPURenderer, type Camera, type Scene, type Texture } from "three/webgpu";
+import { Group, PerspectiveCamera, PMREMGenerator, TimestampQuery, WebGPURenderer, type Camera, type Object3D, type Scene, type Texture } from "three/webgpu";
 import type { FeatureDef, JsonAssetTypeDef } from "../../core/index.ts";
 import { effectiveDevicePixelRatio, resolveQualitySettings, type QualityExtensions, type QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { probeMrtBudget, type MrtProbeResult, type ProbeDevice } from "../pipeline/mrtProbe.ts";
@@ -115,7 +115,9 @@ export interface RenderHost {
   /** The world being drawn, once one attached. */
   readonly world: RenderWorld | null;
   /** The `forge.render` feature for a world that installs `features`. */
-  feature(features: readonly FeatureDef[], name: string): FeatureDef;
+  feature(features: readonly FeatureDef[], name: string, options?: { readonly prepare?: boolean }): FeatureDef;
+  /** CPU geometry queries may inspect batches while their GPU pipelines prepare. */
+  preparingObjects(): readonly Object3D[];
   setCamera(camera: Camera): void;
   readonly camera: Camera;
   /** Draws after every frame; null removes it. */
@@ -226,6 +228,39 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   let width = 0;
   let height = 0;
   let lost = false;
+  const warmups: { objects: readonly Object3D[]; scene: Scene; signal?: AbortSignal; resolve(): void; reject(error: unknown): void }[] = [];
+  let compiling = false;
+  const preparing = new Map<Object3D, { scene: Scene; signal?: AbortSignal }>();
+  const prepare = (objects: readonly Object3D[], scene: Scene, signal?: AbortSignal): Promise<void> => new Promise((resolve, reject) => {
+    const entry = { scene, ...(signal ? { signal } : {}) };
+    for (const object of objects) preparing.set(object, entry);
+    const clear = (): void => { for (const object of objects) preparing.delete(object); };
+    warmups.push({ objects, scene, ...(signal ? { signal } : {}), resolve: () => { clear(); resolve(); }, reject: (error) => { clear(); reject(error); } });
+  });
+  const pumpWarmups = (): void => {
+    if (compiling || lost) return;
+    let work = warmups.shift();
+    while (work?.signal?.aborted) { work.resolve(); work = warmups.shift(); }
+    if (!work) return;
+    const current = work;
+    compiling = true;
+    const staging = new Group(); staging.add(...work.objects); staging.updateMatrixWorld(true);
+    const culling = work.objects.map((object) => object.frustumCulled);
+    for (const object of work.objects) object.frustumCulled = false;
+    // The batch is detached from the visible scene; the target scene supplies
+    // its lights/environment and the frame pipeline supplies the pass formats.
+    const compiled = previewDraw ? renderer.compileAsync(staging, camera, work.scene) : pipeline.compile(staging, work.scene, camera);
+    work.objects.forEach((object, index) => { object.frustumCulled = culling[index]!; });
+    void compiled.then(() => {
+      staging.clear();
+      current.resolve();
+    }, (error: unknown) => {
+      staging.clear();
+      if (current.signal?.aborted) {
+        current.resolve();
+      } else current.reject(error);
+    }).finally(() => { compiling = false; });
+  };
   const lostListeners: ((message: string) => void)[] = [];
 
   const applySize = (): void => {
@@ -278,6 +313,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       };
     },
   };
+  let renderSubmitMs = 0;
   const perf = createPerfSampler(renderer, proof, () => quality, (json) => {
     canvas.dataset.forgePerf = json;
   }, () => ({
@@ -291,6 +327,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     mrtProbeLimit: mrtProbe?.limit ?? null,
     mrtProbeOk: mrtProbe?.ok ?? null,
     skyCaptures: captures.count,
+    renderSubmitMs,
   }));
 
   return {
@@ -324,7 +361,8 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     get world() {
       return world;
     },
-    feature: (features, name) =>
+    preparingObjects: () => [...preparing].filter(([, entry]) => entry.scene === world?.scene && !entry.signal?.aborted).map(([object]) => object),
+    feature: (features, name, featureOptions) =>
       createRenderFeature({
         cache,
         models,
@@ -335,6 +373,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
         features,
         name,
         camera: () => camera,
+        ...(featureOptions?.prepare === false ? {} : { prepare }),
         quality: () => quality.settings,
         capture,
         attach: (attached) => {
@@ -366,15 +405,22 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     },
     frame(now) {
       if (lost) return;
-      if (previewDraw) { applySize(); previewDraw(renderer, width, height); return; }
+      // compileAsync resumes between frames with its captured pass state.
+      // The presented frame always starts at the canvas, outside an MRT pass.
+      renderer.setRenderTarget(null); renderer.setMRT(null);
+      if (previewDraw) { applySize(); previewDraw(renderer, width, height); pumpWarmups(); return; }
       if (world === null) return;
       applySize();
       cache.update();
       applyShadowSwitch();
       if (options.dev) canvas.dataset.forgeShadows = String(renderer.shadowMap.enabled);
+      const submitted = performance.now();
       pipeline.render(world.scene, camera, world.output, quality.settings);
       overlay?.render({ renderer, scene: world.scene, camera, sceneDepth: pipeline.sceneDepth });
+      // CPU wall time for render traversal / encoding / submission; never GPU execution time.
+      renderSubmitMs = performance.now() - submitted;
       perf.frame(now);
+      pumpWarmups();
     },
     perf,
     captures,
@@ -391,6 +437,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       return lost;
     },
     dispose() {
+      for (const work of warmups.splice(0)) work.reject(new Error("Render host disposed during warmup"));
       observer.disconnect();
       badge?.remove();
       gltf.dispose();

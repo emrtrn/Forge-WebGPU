@@ -32,6 +32,10 @@ import {
   effectiveComponents,
   FILE_EVENT,
   openLevelFromServer,
+  normalizeHlodIndex,
+  hlodCellFileOf,
+  assignCells,
+  type HlodIndex,
   type ActorClassDoc,
   type ActorId,
   type AssetId,
@@ -70,6 +74,11 @@ import { installContextMenuStyle } from "./ui/contextMenu.ts";
 import { installWorldSettingsStyle } from "./world/worldSettingsPanel.ts";
 import { createEditorPlay } from "./play/play.ts";
 import { createEditorSession, type EditorSession } from "./session/editorSession.ts";
+import { createEditorCellStreaming } from "./session/cellStreaming.ts";
+import { HlodSourceKey, hlodPlacementsOf, hlodCellSourceHash } from "../engine/world/hlod.ts";
+import { createWorldPartitionPanel } from "./world/worldPartitionPanel.ts";
+import { KeptRegionsKey } from "../engine/world/keptRegions.ts";
+import { RenderReadinessKey } from "../engine/world/renderReadiness.ts";
 import { createShell } from "./shell/shell.ts";
 import type { ChangedFile } from "./session/liveRefresh.ts";
 import { createTransformTools, type TransformTools } from "./transformTools.ts";
@@ -176,7 +185,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     };
     await refreshClasses();
     const resolveClass: ClassResolver = (id) => classes.get(id);
-    const opened = await openLevelFromServer(options.client, options.level, { strict: true, registry, resolveClass });
+    const opened = await openLevelFromServer(options.client, options.level, { strict: true, registry, resolveClass }, () => []);
     const errors = opened.issues.filter((issue) => issue.severity === "error");
     if (errors.length > 0) {
       shell.status(`The level has errors: ${errors.map((issue) => `${issue.file} ${issue.path}: ${issue.message}`).join("; ")}`, "error");
@@ -234,6 +243,29 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     const storage = pageStorage(doc);
     const session = createEditorSession({ level: opened.session, world, client: options.client, read: { strict: true, registry, resolveClass }, hidden: readHidden(storage, levelKey) });
     editor = session;
+    const streaming = createEditorCellStreaming({
+      level: session.level, client: options.client, read: { strict: true, registry, resolveClass },
+      busy: () => viewport.host!.cache.busy(), status: (message, tone) => shell.status(message, tone),
+    });
+    session.streaming = streaming;
+    world.services.provide(KeptRegionsKey, streaming);
+    const publishCells = (): void => { shell.root.dataset.forgeCells = JSON.stringify(streaming.cells()); };
+    streaming.onChange(publishCells); publishCells();
+    let hlodIndex: HlodIndex | null = null;
+    let hlodRevision = 0;
+    const refreshHlod = async (): Promise<void> => {
+      const file = await options.client.read(`${options.level}/hlod.json`);
+      const checked = file ? normalizeHlodIndex(JSON.parse(file.text)) : null;
+      hlodIndex = checked?.ok && checked.value?.level === session.level.level.id ? checked.value : null;
+      hlodRevision += 1;
+    };
+    await refreshHlod();
+    if (options.client.readBinary) world.services.provide(HlodSourceKey, {
+        get index() { return hlodIndex ?? { schema: "forge.levelHlod/1", level: session.level.level.id, cellSize: session.level.level.settings.cellSize, cells: [] }; },
+        get revision() { return hlodRevision; },
+        isCellActive: (key) => session.level.isLoaded(key) && (renderCells.get(key) ?? []).every((id) => world!.services.get(RenderReadinessKey)?.isActorReady(id) ?? true),
+        load: (key) => options.client.readBinary!(`${options.level}/${hlodCellFileOf(key)}`),
+      });
     let hiddenKey = JSON.stringify(session.visibility.ids());
     session.onChange(() => {
       const ids = session.visibility.ids();
@@ -290,6 +322,37 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         return () => frameListeners.delete(listener);
       },
     });
+    const renderCells = new Map<string, ActorId[]>();
+    let hlodStatus = { present: hlodIndex !== null, stale: [] as string[], unchecked: 0 };
+    const updateHlodStatus = (): void => {
+      const assignment = assignCells(session.level.level.actors, session.level.level.settings, { strict: false, registry, resolveClass }).value;
+      renderCells.clear();
+      for (const [id, cell] of assignment) if (cell !== null) { const ids = renderCells.get(cell) ?? []; ids.push(id); renderCells.set(cell, ids); }
+      const stale: string[] = [];
+      const indexed = new Set(hlodIndex?.cells.map((entry) => entry.key) ?? []);
+      let unchecked = session.level.cellKeys().filter((key) => !indexed.has(key)).length;
+      for (const entry of hlodIndex?.cells ?? []) {
+        if (!session.level.isLoaded(entry.key)) { unchecked += 1; continue; }
+        const actors = session.level.level.actors.filter((actor) => assignment.get(actor.id) === entry.key);
+        if (hlodIndex?.cellSize !== session.level.level.settings.cellSize || hlodCellSourceHash(hlodPlacementsOf(actors, (id) => session.level.actor(id), resolveClass)) !== entry.sourceHash) stale.push(entry.key);
+      }
+      hlodStatus = { present: hlodIndex !== null, stale, unchecked };
+    };
+    updateHlodStatus(); session.level.onApplied(updateHlodStatus);
+    const partition = createWorldPartitionPanel({
+      document: doc, streaming, settings: () => ({ ...session.level.level.settings, loadRange: session.level.level.settings.loadRange * (viewport.host?.quality.extensions?.viewDistanceMultiplier ?? 1) }),
+      camera: () => viewport.playPose().position, focus: (x, z) => viewport.focusWorld(x, z),
+      status: (message, tone) => shell.status(message, tone), hlod: () => hlodStatus,
+      onFrame: (listener) => { frameListeners.add(listener); return () => frameListeners.delete(listener); },
+      terrain: () => viewport.terrainGrids().flatMap((grid, index) => grid.cells.flatMap((state, at) => {
+        if (state === "undeclared") return [];
+        const x = at % grid.tilesX, z = Math.floor(at / grid.tilesX);
+        const minX = grid.origin[0] + x * grid.tileSize, minZ = grid.origin[1] + z * grid.tileSize;
+        return [{ key: `${index}:${x}_${z}`, state, bounds: { minX, minZ, maxX: minX + grid.tileSize, maxZ: minZ + grid.tileSize } }];
+      })),
+    });
+    shell.attachWorldPartition(partition.element);
+    doc.defaultView?.addEventListener("pagehide", () => { partition.dispose(); streaming.dispose(); }, { once: true });
     const editCommands = commands;
     tools = createTransformTools({ editor: session, viewport, storage: pageStorage(doc), status: (message, tone) => shell.status(message, tone), duplicate: (coalesce) => editCommands.duplicateForDrag(coalesce) });
     shell.attachTools(tools, () => viewport.camera.navigating);
@@ -384,7 +447,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
             if (!result.ok || !result.value) throw new Error("Invalid actor class draft.");
             const cls = result.value;
             const resolver: ClassResolver = (id) => id === cls.id ? cls : resolveClass(id);
-            const previewWorld = createWorld({ strict: true, registry, resolveClass: resolver, features: [...options.features, host.feature(options.features, "asset-class-preview")], mode: "editor" });
+            const previewWorld = createWorld({ strict: true, registry, resolveClass: resolver, features: [...options.features, host.feature(options.features, "asset-class-preview", { prepare: false })], mode: "editor" });
             try {
               previewWorld.init();
               const actor = normalizeActorDoc({ id: `act_${"f".repeat(32)}`, class: cls.id, name: cls.name, spatiallyLoaded: false }, { strict: true, registry, resolveClass: resolver });
@@ -429,9 +492,13 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     // The open level follows the disk in the shell (liveRefresh.ts); the rest of the project here: the listing, the
     // renderer's file table, the classes, the assets the scene uses, the asset window.
     followDisk = async (files) => {
+      if (files.some((file) => file.path === `${options.level}/hlod.json` || file.path.startsWith(`${options.level}/hlod/`))) {
+        await refreshHlod(); updateHlodStatus();
+      }
       const others = files.filter((file) => !file.path.startsWith(`${options.level}/`));
       if (others.length === 0) return;
       await content.refresh(true); await refreshAssetUrls(); await refreshClasses();
+      updateHlodStatus();
       const changed = new Map<string, string>();
       for (const file of others) {
         const item = content.index().byFile(file.path) ?? content.index().byFile(file.path.replace(/\.meta\.json$/, ""));
@@ -503,6 +570,8 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       try {
         if (assetEditor.isOpen()) { viewport.host?.frame(now); view.requestAnimationFrame(frame); return; }
         for (const listener of [...frameListeners]) listener(dt);
+        const pose = viewport.playPose();
+        streaming.update([pose.position[0], pose.position[2]], viewport.host?.quality.extensions?.viewDistanceMultiplier ?? 1);
         world!.tick(dt);
         viewport.frame(now);
         // A thumbnail draws between the viewport's frames, one at a time (step 6b).

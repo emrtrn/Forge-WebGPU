@@ -28,12 +28,17 @@
 //   technical view (Top / Left / Front) switches to Wireframe and Perspective
 //   back to Lit; the menu still picks either afterwards.
 
-import { Box3, Group, Matrix4, Raycaster, Vector2, Vector3, type Material, type Mesh } from "three/webgpu";
+import { Box3, Group, Matrix4, Raycaster, Vector2, Vector3, type InstancedMesh, type Material, type Mesh } from "three/webgpu";
 import type { ActorId, FeatureDef, Vec3, WorldActor } from "../../core/index.ts";
 import type { GizmoHandle } from "../../engine/gizmo/axes.ts";
 import type { Box } from "../../engine/gizmo/surfaceSnap.ts";
 import type { Ray } from "../../engine/gizmo/transformDrag.ts";
+import { effectiveViewDistance } from "../../engine/world/viewDistance.ts";
+import { worldMapFocusPosition } from "../../engine/world/worldMapView.ts";
+import { terrainStreamingProbes } from "../sync/debugTags.ts";
+import type { TerrainStreamingDebugGrid } from "../../engine/terrain/terrainRuntimeStreaming.ts";
 import { actorWorldMatrix } from "../sync/transforms.ts";
+import { instanceActorsOf } from "../sync/pickTags.ts";
 import { createRenderHost, type RenderHost, type RenderHostOptions, type RenderQuality } from "../host/renderHost.ts";
 import { CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR, frameBounds, READY_FRAMES, sceneRoomBounds } from "../viewer/levelViewer.ts";
 import { createEditorCameraPoseStore, readEditorCameraPose, type PoseStorage } from "./cameraPoseStore.ts";
@@ -113,6 +118,8 @@ export interface EditorViewport {
    * the primary actor's position; false when nothing is selected.
    */
   focusSelection(): boolean;
+  focusWorld(x: number, z: number): void;
+  terrainGrids(): readonly TerrainStreamingDebugGrid[];
   /** The perspective camera's pose (Forge's getPlayCameraPose): where Play's camera starts. */
   playPose(): { readonly position: [number, number, number]; readonly quaternion: [number, number, number, number] };
   readonly gridVisible: boolean;
@@ -335,6 +342,10 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
         camera.syncAngles();
       }
       if (pending === 0 || camera.touched) framed = true;
+      const far = effectiveViewDistance(host.world.levelSettings?.()?.viewDistance, quality?.extensions?.viewDistanceMultiplier) ?? CAMERA_FAR;
+      for (const lens of [camera.perspective, camera.active()]) {
+        if (lens.far !== far) { lens.far = far; lens.updateProjectionMatrix(); }
+      }
       const active = camera.active();
       if (drawn !== active) {
         host.setCamera(active);
@@ -346,6 +357,9 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       gizmo?.update(options.gizmo?.() ?? null, active, rect.height);
       publishGizmo(host.canvas, active);
       host.frame(now);
+      const proxies = host.world.scene.getObjectByName("hlod")?.children ?? [];
+      host.canvas.dataset.forgeHlod = JSON.stringify({ loaded: proxies.length, visible: proxies.filter((proxy) => proxy.visible).length });
+      host.canvas.dataset.forgePending = String(host.cache.stats().pending);
       if (camera.view === "perspective" && camera.touched) poses.maybeSave(camera.perspective, now);
       if (ready) return;
       settledFrames = pending === 0 ? settledFrames + 1 : 0;
@@ -413,6 +427,21 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
         if (!geometry.boundingBox) geometry.computeBoundingBox();
         box.union(part.copy(geometry.boundingBox!).applyMatrix4(matrix.multiplyMatrices(inverse, world)));
       });
+      // Placement uses geometry, not first visibility. A newly added probe
+      // already has its CPU matrices while compileAsync keeps it off screen.
+      const placement = new Matrix4();
+      for (const object of host?.preparingObjects() ?? []) {
+        const mesh = object as InstancedMesh;
+        if (!mesh.isInstancedMesh) continue;
+        const actors = instanceActorsOf(mesh); if (!actors) continue;
+        if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+        object.updateWorldMatrix(true, false);
+        for (let at = 0; at < mesh.count; at++) if (actors[at] === id) {
+          mesh.getMatrixAt(at, placement);
+          matrix.multiplyMatrices(mesh.matrixWorld, placement).premultiply(inverse);
+          box.union(part.copy(mesh.geometry.boundingBox!).applyMatrix4(matrix));
+        }
+      }
       return plainBox(box);
     },
     bounds(actors) {
@@ -420,6 +449,19 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
     },
     focus(box, fallback) {
       camera.focus(box, fallback);
+    },
+    focusWorld(x, z) {
+      const lens = camera.perspective;
+      const hit = picker.raycast(new Vector3(x, 10000, z), new Vector3(0, -1, 0), 20000, new Set());
+      const target: [number, number, number] = [x, hit?.point.y ?? 0, z];
+      const next = worldMapFocusPosition(lens.position.toArray(), lens.getWorldDirection(new Vector3()).toArray(), target);
+      camera.setView("perspective");
+      for (const listener of viewListeners) listener("perspective");
+      changeViewMode("lit");
+      lens.position.set(...next); lens.lookAt(...target); camera.markTouched(); camera.syncAngles();
+    },
+    terrainGrids() {
+      return host?.world ? terrainStreamingProbes(host.world.scene).map((probe) => probe.stream.debugGrid()) : [];
     },
     playPose() {
       const { position, quaternion } = readEditorCameraPose(camera.perspective);

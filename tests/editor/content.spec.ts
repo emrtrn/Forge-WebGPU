@@ -438,7 +438,7 @@ test("drag into the viewport: a model card places a static mesh (one undo step);
   await folderRow(page, MATERIALS).click();
   const ground = card(page, `${MATERIALS}/Ground.material.json`);
   const groundId = (await ground.getAttribute("data-asset-id"))!;
-  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+  await expect(page.getByTestId("forge-canvas")).toHaveAttribute("data-forge-pending", "0");
   await drag(ground);
   await expect(page.getByTestId("editor-status")).toHaveText("Ground on cube (slot 0)");
   await expect(page.getByTestId("outliner-summary")).toHaveText("1 actors (1 selected)");

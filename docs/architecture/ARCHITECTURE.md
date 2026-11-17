@@ -95,11 +95,13 @@ override uyumsuzluğunu kayıtta reddeder (rapor §4.11).
   orijin), terrain tile'ları ve akış politikası onu kullanır; hücre yerleşim
   planlayıcısı ve saf residency / culling / harita hesapları `src/engine/world`'de;
   runtime hücre akışı `src/runtime/streaming/cellStreaming.ts`'de, durum belleği
-  `SaveLedger`'da. Editör akışı 5b adım 6'da bekler. Menziller
+  `SaveLedger`'da. Editörün `session/cellStreaming`'i kısmi level oturumuna
+  bağlanır; `stream` bildirimi dirty / undo değildir. `worldPartitionPanel`
+  Outliner sekmesinde; `KeptRegionsKey` tutulan hücre / terrain alanlarını,
+  `RenderReadinessKey` derleme bitene kadar HLOD hazır olmasını bağlar. Menziller
   (`viewDistance`, `loadRange`) level ayarında; HLOD level klasöründe
   (`hlod.json` + `hlod/<x>_<z>.glb`, `tools/world` içindeki `forge hlod` üretir),
-  runtime proxy çizimi `render/sync/hlodProxies.ts`'de; editörde gösterim
-  bekler (rapor §4.4, 5b uygulama notu).
+  runtime ve editör proxy çizimi `render/sync/hlodProxies.ts`'de (rapor §4.4).
 - Kayıt oyunu `forge.saveGame/1` (`src/core/save/`): her şey GUID'le, bileşen
   alanının `persist` bayrağı, bileşenin `state` bölümü, `defineSaveState`;
   yüklenmemiş hücrelerin durumu `SaveLedger`'da. Slot deposu
@@ -174,6 +176,13 @@ spike S2'nin TSL CDLOD'uyla salt çizilir; çok tile'lı terrain kamera çevresi
 akar (Forge'un akış çekirdeği, worker'da çözme, global haritadan uzak alan, görüş
 ve gölge frustum'u kesimi; görsel yükseklik collider'la G8 testleriyle eşleşir; su birikintisi `forge.puddle`, `reflector()` yansımasıyla; rapor §4.9 Faz 5a); görüntüleyicinin varsayılan kamerası
 ve `?debug` paneli (dinamik import; akan terrain'in tile haritası) var (rapor §4.9).
+
+Statik detayın `detailFade` TSL maskesi yerleşim ölçeğini ve kaliteyi izler,
+gölgeyi de aynı pencerede çözer. Hücre başına batch bölmesi ölçümde draw call'u
+artırdığı için kullanıcı kararıyla 5c öncesi G6 / meshlet spike'ına bırakıldı.
+Host'un seri `compileAsync` kuyruğu yeni batch'leri görünür sahnenin dışında
+hazırlar; `RenderReadinessKey` HLOD'u bu sırada korur. İptal, görünümden hemen
+çıkarır; GPU nesneleri devam eden derleme tamamlandıktan sonra bırakılır.
 
 ## Oyun projesi sözleşmesi
 

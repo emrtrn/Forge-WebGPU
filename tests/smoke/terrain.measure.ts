@@ -76,7 +76,7 @@ for (const scene of SMOKE_SCENES.filter((entry) => ["derekavak", "open-world", "
           browser: `chrome ${browser.version()}`, backend: proof, gpu: proof?.adapter ?? null,
           resolution, devicePixelRatio: await page.evaluate(() => devicePixelRatio), profile: SMOKE_QUALITY,
           cold, warm, compilationAfterWarmup: before.pipelines, compilationAfterMeasurement: after.pipelines,
-          frameMs, gpuRollingMs, drawCalls: summary(numbers("drawCalls")), triangles: summary(numbers("triangles")),
+          frameMs, gpuRollingMs, drawCalls: summary(numbers("drawCalls")), renderSubmitMs: summary(numbers("renderSubmitMs")), triangles: summary(numbers("triangles")),
           geometries: summary(numbers("geometries")), textures: summary(numbers("textures")), jsHeapBytes: summary(numbers("jsHeapBytes")),
           limit, withinTerrainBudget, errors, ...window };
         records.push(record); save();

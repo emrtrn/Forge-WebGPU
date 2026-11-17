@@ -83,12 +83,15 @@ export function createStaticContentClient(options: { readonly fetch: Fetch; read
       const response = await options.fetch(`${base}/${staticContentFile(path).split("/").map(encodeURIComponent).join("/")}`);
       if (response.status === 404) return null;
       if (response.status !== 200) throw new SaveClientError(response.status, `Reading ${path} failed: ${response.status}`);
+      // Static SPA hosts may answer an absent optional level part with index.html.
+      if (response.headers.get("content-type")?.toLowerCase().includes("text/html")) return null;
       return { text: await response.text(), revision: STATIC_REVISION };
     },
     async readBinary(path) {
       const response = await options.fetch(`${base}/${staticContentFile(path).split("/").map(encodeURIComponent).join("/")}`);
       if (response.status === 404) return null;
       if (response.status !== 200) throw new SaveClientError(response.status, `Reading ${path} failed: ${response.status}`);
+      if (response.headers.get("content-type")?.toLowerCase().includes("text/html")) return null;
       if (!response.arrayBuffer) throw new SaveClientError(response.status, `Reading ${path}: no binary body.`);
       return response.arrayBuffer();
     },

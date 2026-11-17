@@ -29,7 +29,7 @@
 // actors that changed with the cause "reload".
 
 import type { ActorId } from "../id.ts";
-import { cellFileOf, cellKeyOfFile, CELL_INDEX_FILE, LEVEL_FILE } from "../level/cellDocs.ts";
+import { cellFileOf, cellKeyOfFile, CELL_INDEX_FILE, LEVEL_FILE, normalizeLevelCell } from "../level/cellDocs.ts";
 import { assignCells, type CellAssignment, type CellAssignOptions } from "../level/cells.ts";
 import { mergeLevelParts, partsToWrite, planLevelFiles, type LevelPartIssue, type PartKey } from "../level/levelParts.ts";
 import type { ActorDoc, LevelCellDoc, LevelCellIndexDoc, LevelDoc } from "../level/model.ts";
@@ -67,11 +67,11 @@ export interface EditTx {
 
 export interface EditResult {
   readonly ok: boolean;
-  /** Issue paths start with the actor id. */
+  /** Issue paths start with the actor id, `settings`, or `cells.<key>`. */
   readonly issues: readonly Issue[];
 }
 
-/** One actor as an edit, undo or redo left it: `before` and `after` in the direction it was applied. */
+/** One actor change, including streamed additions/removals, in the direction applied. */
 export interface AppliedChange {
   readonly id: ActorId;
   readonly before: ActorDoc | null;
@@ -101,8 +101,8 @@ export type RebaseMode =
   | { readonly mode: "reload" }
   | { readonly mode: "merge"; readonly pick?: (key: MergeKey) => MergeSide };
 
-/** Why an edit, undo, redo or rebase changed the level. */
-export type ApplyCause = "edit" | "undo" | "redo" | "reload";
+/** Why an edit, undo, redo, rebase or streaming changed the loaded level. */
+export type ApplyCause = "edit" | "undo" | "redo" | "reload" | "stream";
 
 export interface LevelSession {
   readonly folder: string;
@@ -111,6 +111,12 @@ export interface LevelSession {
   readonly history: History;
   actor(id: ActorId): ActorDoc | undefined;
   isLoaded(cell: string): boolean;
+  /** Cells listed on disk, held in memory or newly occupied by unsaved edits. */
+  cellKeys(): readonly string[];
+  /** Source and destination cells of unsaved actors (without the persistent layer). */
+  dirtyCells(): readonly string[];
+  /** Refreshes the disk's listed keys without replacing loaded actors or their save bases. */
+  updateCellIndex(index: LevelCellIndexDoc | null): void;
   /** Cells on disk that are not loaded; scene-wide authoring must not silently skip them. */
   unloadedCells(): readonly string[];
   edit(label: string, build: (tx: EditTx) => void, options?: { readonly coalesce?: string }): EditResult;
@@ -119,13 +125,13 @@ export interface LevelSession {
   dirtyActors(): ActorId[];
   /** True while the level's settings have unsaved changes. */
   settingsDirty(): boolean;
-  /** Adds cells read from disk. Issues are about those cells only. */
+  /** Adds cells read from disk; any error refuses the fresh batch. Issues are about those cells only. */
   loadCells(cells: readonly LoadedCell[]): LevelPartIssue[];
   /** Drops a loaded cell's actors; refused while the cell has unsaved changes. */
   unloadCell(cell: string): { readonly ok: boolean; readonly reason?: string };
   planSave(): SavePlan;
   /**
-   * Hears every change the session applies (an edit, an undo, a redo), in the
+   * Hears every change the session applies (including streaming), in the
    * order applied; the editor mirrors them into its world. A change of only the
    * settings is heard with no actor changes. Returns the unsubscribe.
    */
@@ -168,6 +174,20 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
   for (const cell of open.cells ?? []) revisions.set(cell.doc.cell, cell.revision);
 
   const history = createHistory(open.historyLimit);
+  // Original files still matter after saving a transaction in another cell.
+  // Weak keys let evicted/coalesced history steps release this metadata.
+  const historyParts = new WeakMap<Transaction, ReadonlySet<PartKey>>();
+  // Keep only a file key, never actor data, for history actors streamed out
+  // since their last save. Their current source may differ from either snapshot.
+  const unloadedHistoryActors = new Map<ActorId, string>();
+  const historyActorIds = (): Set<ActorId> => new Set(
+    [...history.undoStack, ...history.redoStack].flatMap((tx) => tx.changes.map((change) => change.id)),
+  );
+  const pruneUnloadedHistory = (): void => {
+    if (unloadedHistoryActors.size === 0) return;
+    const held = historyActorIds();
+    for (const id of unloadedHistoryActors.keys()) if (!held.has(id)) unloadedHistoryActors.delete(id);
+  };
   const versions = new Map<ActorId, number>();
   const saved = new Map<ActorId, number>();
   let clock = 0;
@@ -221,12 +241,46 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
 
   const isLoaded = (cell: string): boolean => loaded.has(cell) || !onDisk.has(cell);
 
+  /** Check the complete proposed level, including children that follow a changed root. */
+  const proposedParts = (
+    changes: readonly ActorChange[],
+    direction: "forward" | "back",
+    affected: Iterable<ActorId> = changes.map((change) => change.id),
+  ): Set<PartKey> => {
+    const proposed = new Map(byId);
+    for (const change of changes) {
+      const actor = direction === "forward" ? change.after : change.before;
+      if (actor === null) proposed.delete(change.id);
+      else proposed.set(change.id, actor);
+    }
+    const assignment = assignCells([...proposed.values()], level.settings, options).value;
+    const ids = [...affected];
+    const parts = partsToWrite(fileOf, assignment, ids);
+    for (const id of ids) {
+      const unloaded = unloadedHistoryActors.get(id);
+      if (unloaded !== undefined) parts.add(unloaded);
+    }
+    return parts;
+  };
+  const missingParts = (parts: Iterable<PartKey>): string[] =>
+    [...parts].filter((key): key is string => key !== null && !isLoaded(key));
+  const canApplyHistory = (transaction: Transaction, direction: "forward" | "back"): boolean =>
+    missingParts(new Set([...proposedParts(transaction.changes, direction), ...(historyParts.get(transaction) ?? [])])).length === 0;
+
   const session: LevelSession = {
     folder,
     level,
     history,
     actor: (id) => byId.get(id),
     isLoaded,
+    cellKeys: () => [...new Set([...onDisk, ...loaded, ...session.dirtyCells()])],
+    dirtyCells: () => [...partsToWrite(fileOf, assignCells(level.actors, level.settings, options).value, session.dirtyActors())]
+      .filter((key): key is string => key !== null),
+    updateCellIndex(index) {
+      if (index !== null && index.level !== level.id) throw new Error(`The index belongs to level ${index.level}, not ${level.id}.`);
+      onDisk.clear();
+      for (const key of Object.keys(index?.cells ?? {})) onDisk.add(key);
+    },
     unloadedCells: () => [...onDisk].filter((cell) => !isLoaded(cell)),
     fileRevision(path) {
       if (!path.startsWith(`${folder}/`)) return undefined;
@@ -326,23 +380,40 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
         if (before === null && after === null) continue;
         changes.push({ id, before, beforeIndex: beforeIndex >= 0 ? beforeIndex : level.actors.length, after });
       }
+      const parts = proposedParts(changes, "forward", staged.keys());
+      for (const key of missingParts(parts)) issues.push({
+        code: "invalid-value",
+        severity: "error",
+        path: `cells.${key}`,
+        message: `Load cell ${key} before editing`,
+      });
+      if (issues.some((found) => found.severity === "error")) return { ok: false, issues };
       const applied = applyChanges(changes, "forward", settingsChange);
       const transaction: Transaction = { label, coalesce: editOptions.coalesce ?? null, changes, ...(settingsChange ? { settings: settingsChange } : {}) };
+      const previous = history.undoStack.at(-1);
       history.push(transaction);
+      const recorded = history.undoStack.at(-1);
+      if (recorded) historyParts.set(recorded, new Set([
+        ...parts,
+        ...(recorded !== transaction && previous ? (historyParts.get(previous) ?? []) : []),
+      ]));
+      pruneUnloadedHistory();
       announce(applied, "edit");
       return { ok: true, issues };
     },
 
     undo() {
-      const transaction = history.takeUndo();
-      if (!transaction) return false;
+      const transaction = history.undoStack.at(-1);
+      if (!transaction || !canApplyHistory(transaction, "back")) return false;
+      history.takeUndo();
       announce(applyChanges(transaction.changes, "back", transaction.settings), "undo");
       return true;
     },
 
     redo() {
-      const transaction = history.takeRedo();
-      if (!transaction) return false;
+      const transaction = history.redoStack.at(-1);
+      if (!transaction || !canApplyHistory(transaction, "forward")) return false;
+      history.takeRedo();
       announce(applyChanges(transaction.changes, "forward", transaction.settings), "redo");
       return true;
     },
@@ -354,10 +425,18 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
     settingsDirty: () => settingsVersion !== savedSettingsVersion,
 
     loadCells(cells) {
-      const fresh = cells.filter((cell) => !loaded.has(cell.doc.cell));
-      const result = mergeLevelParts({ ...level, actors: [] }, fresh.map((cell) => cell.doc), options);
+      const fresh = cells.filter((cell) => !loaded.has(cell.doc?.cell));
       const issues: LevelPartIssue[] = [];
-      const known = new Set(level.actors.map((actor) => actor.id));
+      const checked: LoadedCell[] = [];
+      for (const cell of fresh) {
+        const result = normalizeLevelCell(cell.doc, options);
+        for (const issue of result.issues) issues.push({ ...issue, file: cellFileOf(cell.doc?.cell ?? "") });
+        if (result.value) checked.push({ doc: result.value, revision: cell.revision });
+      }
+      const result = mergeLevelParts({ ...level, actors: [] }, checked.map((cell) => cell.doc), options);
+      issues.push(...result.issues);
+      const known = new Set([...byId.keys(), ...session.dirtyActors()]);
+      const additions: ActorDoc[] = [];
       for (const actor of result.value.level.actors) {
         if (known.has(actor.id)) {
           issues.push({
@@ -369,31 +448,39 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
           });
           continue;
         }
+        known.add(actor.id);
+        additions.push(actor);
+      }
+      if (issues.some((issue) => issue.severity === "error")) return issues;
+      const applied: AppliedChange[] = [];
+      for (const actor of additions) {
         level.actors.push(actor);
         byId.set(actor.id, actor);
         base.set(actor.id, actor);
         fileOf.set(actor.id, result.value.fileOf.get(actor.id) ?? null);
+        applied.push({ id: actor.id, before: null, after: actor });
       }
-      for (const cell of fresh) {
-        if (!result.value.cells.includes(cell.doc.cell)) continue;
+      for (const cell of checked) {
+        if (loaded.has(cell.doc.cell) || !result.value.cells.includes(cell.doc.cell)) continue;
         loaded.add(cell.doc.cell);
         revisions.set(cell.doc.cell, cell.revision);
       }
-      issues.unshift(...result.issues);
+      for (const [id, cell] of unloadedHistoryActors) if (loaded.has(cell)) unloadedHistoryActors.delete(id);
+      if (applied.length > 0) announce(applied, "stream");
       return issues;
     },
 
     unloadCell(cell) {
+      if (session.dirtyCells().includes(cell)) return { ok: false, reason: `Cell ${cell} has unsaved changes.` };
       if (!loaded.has(cell)) return { ok: true };
-      const assignment = assignCells(level.actors, level.settings, options).value;
-      for (const id of session.dirtyActors()) {
-        if (fileOf.get(id) === cell || assignment.get(id) === cell) {
-          return { ok: false, reason: `Cell ${cell} has unsaved changes.` };
-        }
-      }
+      pruneUnloadedHistory();
+      const held = historyActorIds();
+      const applied: AppliedChange[] = [];
       for (let index = level.actors.length - 1; index >= 0; index -= 1) {
         const id = level.actors[index]!.id;
         if (fileOf.get(id) === cell) {
+          applied.push({ id, before: level.actors[index]!, after: null });
+          if (held.has(id)) unloadedHistoryActors.set(id, cell);
           level.actors.splice(index, 1);
           byId.delete(id);
           base.delete(id);
@@ -404,6 +491,7 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
       }
       loaded.delete(cell);
       revisions.delete(cell);
+      if (applied.length > 0) announce(applied.reverse(), "stream");
       return { ok: true };
     },
 
@@ -566,6 +654,7 @@ export function openLevelSession(open: OpenLevelOptions, options: CellAssignOpti
         versions.set(id, clock);
       }
       history.clear();
+      unloadedHistoryActors.clear();
       const applied: AppliedChange[] = [];
       for (const id of new Set([...before.keys(), ...byId.keys()])) {
         const was = before.get(id) ?? null;

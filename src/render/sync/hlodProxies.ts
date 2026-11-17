@@ -12,8 +12,8 @@
 //   not the `vertexColors` flag: three's meshlet pipeline refuses materials
 //   with that flag (decision 10 keeps that path open).
 //
-// The view distance is the level's (× nothing: the quality multiplier is the
-// camera's business); a level without one uses the camera's far plane.
+// The camera's far plane already includes the level's distance and the
+// quality multiplier. Read it so proxies and real geometry share the range.
 
 import { Mesh, MeshStandardNodeMaterial, type BufferGeometry, type Camera, type Group } from "three/webgpu";
 import { attribute } from "three/tsl";
@@ -116,8 +116,7 @@ export function createHlodProxies(source: HlodSource, parent: Group, track: <T>(
   return {
     sync(camera, settings) {
       if (disposed || camera === null) return;
-      const far = (camera as Camera & { far?: number }).far ?? 2000;
-      const view = effectiveViewDistance(settings?.viewDistance, 1) ?? far;
+      const view = (camera as Camera & { far?: number }).far ?? effectiveViewDistance(settings?.viewDistance, 1) ?? 2000;
       const { x, z } = camera.position;
       for (const cell of cells) {
         const distance = distanceToWorldCell(grid, cell.x, cell.z, x, z);

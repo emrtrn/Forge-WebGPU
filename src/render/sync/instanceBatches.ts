@@ -28,10 +28,12 @@
 // Geometry and materials are the batch owner's (cache uses); the batch owns
 // only its instanced meshes and their buffers.
 
-import { Color, InstancedMesh, Matrix4, type BufferGeometry, type Material, type Object3D } from "three/webgpu";
+import { Color, InstancedBufferAttribute, InstancedMesh, Matrix4, Sphere, Vector3, type BufferGeometry, type Camera, type Material, type Object3D } from "three/webgpu";
 import type { ActorId, WorldActor, WorldActorChange } from "../../core/index.ts";
 import { SCENE_SOURCE_KEY } from "../../engine/perf/sceneCost.ts";
 import { tagInstanceActors, tagPartSlots } from "./pickTags.ts";
+import { detailBatchCulled, detailCullDistance } from "../../engine/world/detailCulling.ts";
+import { createDetailFade } from "../materials/detailFade.ts";
 
 export interface InstancePart {
   readonly geometry: BufferGeometry;
@@ -44,6 +46,7 @@ export interface InstancePart {
 }
 
 export interface InstanceBatch {
+  readonly ready: boolean;
   /** Adds or moves a placement of `actor`; `color` is `#rrggbb` or null. */
   set(id: string, matrix: Matrix4, color: string | null, actor: ActorId): void;
   delete(id: string): void;
@@ -51,7 +54,8 @@ export interface InstanceBatch {
   move(id: string, matrix: Matrix4): boolean;
   readonly size: number;
   /** The parts to draw; until set, placements wait and nothing is drawn. */
-  setParts(parts: readonly InstancePart[]): void;
+  setParts(parts: readonly InstancePart[], detailRadius?: number): void;
+  updateCulling(camera: Camera | null, qualityScale: number): void;
   /** Rebuilds the instanced meshes if anything changed since the last flush. */
   flush(): void;
   readonly meshes: readonly InstancedMesh[];
@@ -59,6 +63,7 @@ export interface InstanceBatch {
 }
 
 export interface InstanceBatchOptions {
+  readonly prepare?: (meshes: readonly InstancedMesh[], signal?: AbortSignal) => Promise<void>;
   readonly name: string;
   /** The `?debug` scene-cost bucket its meshes count in (`SCENE_SOURCE_KEY`), e.g. `staticMesh`. */
   readonly source?: string;
@@ -97,6 +102,14 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
   let capacity = 0;
   let colored = false;
   let dirty = false;
+  let prepared = false, preparing = false, generation = 0;
+  let preparation: AbortController | null = null;
+  let preparationWork: Promise<void> | null = null;
+  let cullDistance: number | null = null;
+  let fade: ReturnType<typeof createDetailFade> | null = null;
+  let fadePlacements: InstancedBufferAttribute | null = null;
+  let maxScale = 0;
+  const cameraPosition = new Vector3(), sphere = new Sphere();
   /** Placements moved since the last flush (their matrices only). */
   const moved = new Set<string>();
   /** Placement -> its instance index, as the last full flush wrote it. */
@@ -106,15 +119,23 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
   const shown = new Color();
 
   const removeMeshes = (): void => {
-    for (const mesh of meshes) {
-      mesh.removeFromParent();
-      mesh.dispose();
-    }
+    preparation?.abort(); preparation = null;
+    generation += 1; prepared = false; preparing = false;
+    const oldMeshes = meshes, oldFade = fade;
+    for (const mesh of oldMeshes) mesh.removeFromParent();
+    const release = (): void => { for (const mesh of oldMeshes) mesh.dispose(); oldFade?.dispose(); };
+    // A renderer may still be linking these objects. Deleting their programs
+    // before compileAsync settles can strand a WebGL parallel-link poll.
+    if (preparationWork) void preparationWork.then(release, release);
+    else release();
+    preparationWork = null;
     meshes = [];
     capacity = 0;
+    fade = null; fadePlacements = null;
   };
 
   return {
+    get ready() { return placements.size === 0 || (meshes.length > 0 && prepared); },
     set(id, placement, placementColor, actor) {
       placements.set(id, { matrix: placement.clone(), color: placementColor, actor });
       dirty = true;
@@ -132,8 +153,9 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
     get size() {
       return placements.size;
     },
-    setParts(next) {
+    setParts(next, detailRadius) {
       parts = next;
+      cullDistance = detailRadius === undefined ? null : detailCullDistance(detailRadius);
       removeMeshes();
       dirty = true;
     },
@@ -145,13 +167,20 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
           const local = parts![partIndex]!.local;
           for (const id of moved) {
             const index = indexOf.get(id);
-            if (index !== undefined) mesh.setMatrixAt(index, matrix.multiplyMatrices(placements.get(id)!.matrix, local));
+            if (index !== undefined) {
+              const placement = placements.get(id)!.matrix;
+              mesh.setMatrixAt(index, matrix.multiplyMatrices(placement, local));
+              fadePlacements?.setXYZW(index, placement.elements[12]!, placement.elements[13]!, placement.elements[14]!, placement.getMaxScaleOnAxis());
+            }
           }
           mesh.instanceMatrix.needsUpdate = true;
           mesh.computeBoundingSphere();
           mesh.computeBoundingBox();
         });
         moved.clear();
+        maxScale = 0;
+        for (const entry of placements.values()) maxScale = Math.max(maxScale, entry.matrix.getMaxScaleOnAxis());
+        if (fadePlacements) fadePlacements.needsUpdate = true;
         return;
       }
       dirty = false;
@@ -169,19 +198,31 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         removeMeshes();
         capacity = capacityFor(count);
         colored = needsColor;
+        if (cullDistance !== null) {
+          fadePlacements = new InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
+          fade = createDetailFade(cullDistance, fadePlacements);
+        }
         meshes = parts.map((part) => {
-          const mesh = new InstancedMesh(part.geometry, part.material, capacity);
+          const material = fade ? (Array.isArray(part.material) ? part.material.map((one) => fade!.material(one)) : fade.material(part.material)) : part.material;
+          const mesh = new InstancedMesh(part.geometry, material, capacity);
           mesh.name = `${options.name}/${part.name}`;
           mesh.castShadow = options.castShadow;
           mesh.receiveShadow = true;
           mesh.matrixAutoUpdate = false;
           if (options.source !== undefined) mesh.userData[SCENE_SOURCE_KEY] = options.source;
           if (part.slots) tagPartSlots(mesh, part.slots);
-          options.parent.add(mesh);
+          if (!options.prepare) options.parent.add(mesh);
           return mesh;
         });
       }
       const actors = [...placements.values()].map((entry) => entry.actor);
+      maxScale = 0;
+      let placementIndex = 0;
+      for (const entry of placements.values()) {
+        const scale = entry.matrix.getMaxScaleOnAxis(); maxScale = Math.max(maxScale, scale);
+        fadePlacements?.setXYZW(placementIndex++, entry.matrix.elements[12]!, entry.matrix.elements[13]!, entry.matrix.elements[14]!, scale);
+      }
+      if (fadePlacements) fadePlacements.needsUpdate = true;
       meshes.forEach((mesh, partIndex) => {
         tagInstanceActors(mesh, actors);
         const part = parts![partIndex]!;
@@ -198,9 +239,32 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         mesh.computeBoundingSphere();
         mesh.computeBoundingBox();
       });
+      if (!options.prepare) prepared = true;
+      else if (!prepared && !preparing && meshes.length > 0) {
+        preparing = true;
+        preparation = new AbortController();
+        const ticket = generation, pending = [...meshes];
+        preparationWork = options.prepare(pending, preparation.signal);
+        preparationWork.then(() => {
+          if (ticket !== generation) return;
+          for (const mesh of pending) options.parent.add(mesh);
+          prepared = true; preparing = false; preparationWork = null;
+        }).catch((error: unknown) => {
+          if (ticket === generation) { preparing = false; console.warn(`forge render: batch warmup failed (${options.name})`, error); }
+        });
+      }
     },
     get meshes() {
       return meshes;
+    },
+    updateCulling(camera, qualityScale) {
+      if (!camera || cullDistance === null || !fade) return;
+      camera.getWorldPosition(cameraPosition); fade.update(cameraPosition, qualityScale);
+      for (const mesh of meshes) {
+        if (!mesh.boundingSphere) continue;
+        sphere.copy(mesh.boundingSphere).applyMatrix4(mesh.matrixWorld);
+        mesh.visible = !detailBatchCulled(sphere.center.distanceTo(cameraPosition), sphere.radius, cullDistance, maxScale, qualityScale);
+      }
     },
     dispose() {
       removeMeshes();

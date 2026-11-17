@@ -22,7 +22,7 @@
 //   (the row joins it first when it was not in it).
 // Text is set with textContent; the only markup is the kit's static icons.
 
-import { effectiveComponents, type ActorDoc, type ActorId, type ClassResolver, type ComponentMap } from "../../core/index.ts";
+import { assignCells, effectiveComponents, type ActorDoc, type ActorId, type ClassResolver, type ComponentMap, type SchemaRegistry } from "../../core/index.ts";
 import { reparentActors } from "../../engine/edit/hierarchy.ts";
 import type { EditCommands } from "../edit/editCommands.ts";
 import type { ActorPresentation, EditorCatalog } from "../host/editorCatalog.ts";
@@ -41,6 +41,7 @@ export interface OutlinerPanelOptions {
   readonly document: Document;
   readonly editor: EditorSession;
   readonly catalog: EditorCatalog;
+  readonly registry: SchemaRegistry;
   readonly resolveClass: ClassResolver;
   /** The row menu's actions (step 5c). */
   readonly commands: EditCommands;
@@ -255,6 +256,11 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
       drawn.name.textContent = actor.name || actor.id;
       drawn.name.title = actor.id;
       drawn.detail.textContent = `${look.kind} - ${position(actor)}`;
+      if (editor.streaming) {
+        const cell = cellAssignment.get(actor.id) ?? "Persistent";
+        row.dataset.cell = cell;
+        drawn.detail.textContent += ` · ${cell}`;
+      }
       drawn.expander.style.visibility = entry.hasChildren ? "visible" : "hidden";
       drawn.expander.setAttribute("aria-label", entry.expanded ? "Collapse" : "Expand");
       drawn.expander.setAttribute("aria-expanded", String(entry.expanded));
@@ -448,7 +454,9 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
   doc.defaultView?.addEventListener("resize", () => paint());
 
   // An edit, undo or redo changes the rows; a selection or visibility change only the drawn ones.
+  let cellAssignment = assignCells(editor.level.level.actors, editor.level.level.settings, { strict: false, registry: options.registry, resolveClass }).value;
   editor.level.onApplied(() => {
+    if (editor.streaming) cellAssignment = assignCells(editor.level.level.actors, editor.level.level.settings, { strict: false, registry: options.registry, resolveClass }).value;
     stale = true;
     paint();
   });

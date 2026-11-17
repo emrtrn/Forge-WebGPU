@@ -16,7 +16,7 @@
 // actor (pickTags.ts: an object's actor, an instanced batch's table, a pick
 // surface), so the editor can pick it and outline it.
 
-import type { Camera, Group, Scene, Texture, Vector3 } from "three/webgpu";
+import type { Camera, Group, Object3D, Scene, Texture, Vector3 } from "three/webgpu";
 import type { ResolvedEnvironment } from "../../engine/environment/environmentResolve.ts";
 import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { COMPONENT_NAME_PATTERN, SchemaDefinitionError, type ActorId, type ComponentEntry, type Services, type WorldActor, type WorldActorChange } from "../../core/index.ts";
@@ -77,6 +77,8 @@ export interface EnvironmentCapture {
 }
 
 export interface RenderBindingContext {
+  /** Prepares detached batch parts against this world's actual scene / pass. */
+  readonly prepare?: (objects: readonly Object3D[], signal?: AbortSignal) => Promise<void>;
   readonly world: RenderWorldView;
   /** This world's scene: singletons set fog, background and environment here. */
   readonly scene: Scene;
@@ -102,6 +104,7 @@ export interface RenderFrame {
 }
 
 export interface RenderBindingInstance {
+  isActorReady?(id: ActorId): boolean;
   actorsAdded?(actors: readonly WorldActor[]): void;
   actorsRemoved?(actors: readonly WorldActor[]): void;
   /** Edited actors (the editor); without this hook the binding gets `actorsRemoved(previous)` then `actorsAdded(actor)`. */

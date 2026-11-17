@@ -120,6 +120,7 @@ export interface EditorShell {
   attachTools(tools: TransformTools, navigating: () => boolean): void;
   /** Adds the Content Browser's drawer (step 6a). */
   attachContent(panel: ContentPanel): void;
+  attachWorldPartition(panel: HTMLElement): void;
   /** Adds Forge's Play button after the view menus, and its key P (step 8); `play` reports for the status line. */
   attachPlay(play: () => Promise<{ readonly ok: boolean; readonly message: string }>): void;
   /** Saves the level, as the Save button does (the drawer's Save All). */
@@ -248,6 +249,8 @@ export function createShell(options: ShellOptions): EditorShell {
   const outlinerHeading = el("div", "editor-panel-heading");
   outlinerHeading.append(el("span", "", "Outliner"));
   outliner.append(outlinerHeading);
+  const partitionHost = el("div", "outliner-pane");
+  partitionHost.hidden = true;
 
   const details = el("aside", "editor-panel editor-details");
   const detailsHeading = el("div", "editor-panel-heading");
@@ -288,6 +291,7 @@ export function createShell(options: ShellOptions): EditorShell {
     root,
     viewport,
     status,
+    attachWorldPartition(panel) { partitionHost.replaceChildren(panel); },
     attachViewport(menus) {
       const camera = topbarMenu("camera", TOOLBAR_ICONS.camera, "Camera view", menus.views, (id) => menus.setView(id));
       camera.show(menus.view());
@@ -373,9 +377,22 @@ export function createShell(options: ShellOptions): EditorShell {
       detailsPanel?.setTools(next);
     },
     attach(editor, context) {
-      outliner.append(
-        createOutlinerPanel({ document: doc, editor, catalog: context.catalog, resolveClass: context.resolveClass, commands: context.commands, focus: () => focusSelection(), status }).element,
-      );
+      const actors = createOutlinerPanel({ document: doc, editor, catalog: context.catalog, registry: context.registry, resolveClass: context.resolveClass, commands: context.commands, focus: () => focusSelection(), status }).element;
+      outliner.append(actors, partitionHost);
+      if (editor.streaming) {
+        const tabs = el("div", "forge-tab-list");
+        tabs.setAttribute("role", "tablist");
+        const actorTab = el("button", "forge-btn-ghost", "Actors");
+        const worldTab = el("button", "forge-btn-ghost", "World Partition");
+        actorTab.dataset.testid = "outliner-actors-tab"; worldTab.dataset.testid = "outliner-wp-tab";
+        for (const tab of [actorTab, worldTab]) { tab.type = "button"; tab.setAttribute("role", "tab"); }
+        const show = (partition: boolean): void => {
+          actors.hidden = partition; partitionHost.hidden = !partition;
+          actorTab.setAttribute("aria-selected", String(!partition)); worldTab.setAttribute("aria-selected", String(partition));
+        };
+        actorTab.onclick = () => show(false); worldTab.onclick = () => show(true);
+        tabs.append(actorTab, worldTab); outlinerHeading.replaceChildren(tabs); show(false);
+      }
       detailsPanel = createDetailsPanel({
         document: doc,
         editor,

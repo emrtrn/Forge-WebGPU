@@ -4,11 +4,20 @@
 // and the canvas reports ready (`data-forge-ready`) or the boot stops.
 
 import { execFileSync } from "node:child_process";
-import { expect, type Page } from "@playwright/test";
+import { expect, type ConsoleMessage, type Page } from "@playwright/test";
 import { Matrix4, Quaternion, Vector3 } from "three";
 import { REPO_ROOT, SMOKE_QUALITY, type SmokePose } from "./renderScenes.ts";
 
 export const READY_TIMEOUT_MS = 120_000;
+
+/** Legacy levels may have no HLOD bake; only that exact optional 404 is expected. */
+export function isOptionalHlodMiss(message: ConsoleMessage): boolean {
+  if (!message.text().startsWith("Failed to load resource:") || !message.text().includes("404 (Not Found)")) return false;
+  try {
+    const url = new URL(message.location().url);
+    return url.pathname === "/__forge/read" && /^content\/levels\/.+\/hlod\.json$/.test(url.searchParams.get("path") ?? "");
+  } catch { return false; }
+}
 
 export function quaternionOf(pose: Required<SmokePose>): [number, number, number, number] {
   const eye = new Vector3(...pose.position);

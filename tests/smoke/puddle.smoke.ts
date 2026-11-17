@@ -18,7 +18,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { Quaternion, Vector3 } from "three";
 import sharp from "sharp";
 import { RENDER_REFS, SMOKE_SCENES } from "./renderScenes.ts";
-import { difference, openSmokeLevel } from "./smokePage.ts";
+import { difference, isOptionalHlodMiss, openSmokeLevel } from "./smokePage.ts";
 
 interface Dev {
   pause(): void;
@@ -66,7 +66,7 @@ test("puddle: a basin ahead of the camera fills, draws and reflects the scene", 
   page.on("pageerror", (error) => pageErrors.push(error.message));
   page.on("console", (message) => { if (message.type() === "warning" && message.text().includes("puddle")) console.log(message.text()); });
   const gpuErrors: string[] = [];
-  page.on("console", (message) => { if (message.type() === "error") gpuErrors.push(message.text()); });
+  page.on("console", (message) => { if (message.type() === "error" && !isOptionalHlodMiss(message)) gpuErrors.push(`${message.text()} (${message.location().url})`); });
   // A test-only repeating normal: exercise the actual texture loader and
   // both TSL wind samples without adding assets to the reference project.
   const normalId = "ast_fffffffffffffffffffffffffffffff7";

@@ -46,7 +46,7 @@ export function levelChange(folder: string, files: readonly ChangedFile[], known
 }
 
 export interface LiveRefreshOptions {
-  readonly editor: Pick<EditorSession, "level" | "dirty" | "readDisk" | "rebase" | "idle">;
+  readonly editor: Pick<EditorSession, "level" | "dirty" | "readDisk" | "rebase" | "idle" | "streaming">;
   /** The 409 strip (conflictUi.ts). */
   readonly strip: { show(message: string): void };
   readonly status: (message: string, tone?: "info" | "warning" | "error") => void;
@@ -77,7 +77,19 @@ export function createLiveRefresh(options: LiveRefreshOptions): LiveRefresh {
   const level = async (files: readonly ChangedFile[]): Promise<void> => {
     await editor.idle();
     const folder = editor.level.folder;
-    const change = levelChange(folder, files, (path) => editor.level.fileRevision(path));
+    // Unloaded cells have no actor edits to compare. Refresh their listing,
+    // then read their current bytes only when they enter the camera's range.
+    const prefix = `${folder}/cells/`;
+    const heldFiles = editor.streaming ? files.filter((file) => {
+      if (!file.path.startsWith(prefix) || !file.path.endsWith(".json")) return file.path !== `${folder}/cells.json`;
+      const key = file.path.slice(prefix.length, -5);
+      return editor.level.isLoaded(key);
+    }) : files;
+    const change = levelChange(folder, heldFiles, (path) => editor.level.fileRevision(path));
+    if (editor.streaming && files.some((file) => file.path === `${folder}/cells.json` || file.path.startsWith(prefix))) {
+      try { await editor.streaming.refreshIndex(); }
+      catch (error) { status(`Reading the cell index failed: ${error instanceof Error ? error.message : String(error)}`, "error"); return; }
+    }
     if (change === "none") return;
     if (change === "removed") {
       status(`${folder}/level.json was removed on disk; saving writes it again`, "warning");

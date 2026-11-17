@@ -44,6 +44,7 @@ import { createServiceKey } from "../../core/world/services.ts";
 import type { StreamingSource } from "../../engine/world/streamingPolicy.ts";
 import { WorldStreamingSubsystem, type WorldCellState, type WorldStreamingStats } from "../../engine/world/worldStreamingSubsystem.ts";
 import { assembleActors } from "../assembler.ts";
+import { RenderReadinessKey } from "../../engine/world/renderReadiness.ts";
 import type { World } from "../world.ts";
 
 /** Cells are fetched this far beyond the load range, so they are in memory before they activate (Forge's prefetch factor). */
@@ -294,7 +295,7 @@ export function createCellStreaming(options: CellStreamingOptions): CellStreamin
         lastFrameMs: stats.lastFrameMs,
       };
     },
-    isCellActive: (key) => live.has(key) && !joining.has(key),
+    isCellActive: (key) => live.has(key) && !joining.has(key) && (live.get(key) ?? []).every((id) => world.services.get(RenderReadinessKey)?.isActorReady(id) ?? true),
     forEachCell: (visit) => subsystem.forEachCell(visit),
     waitForArea: (position, radius) => subsystem.waitForArea(position, radius),
     dispose() {

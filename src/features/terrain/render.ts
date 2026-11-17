@@ -39,7 +39,8 @@ import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRu
 import { tagSceneSource } from "../../engine/perf/sceneCost.ts";
 import { raycastTerrain } from "../../engine/terrain/terrainHeightQuery.ts";
 import { TerrainRuntimeStreaming } from "../../engine/terrain/terrainRuntimeStreaming.ts";
-import { parseTileKey, type TerrainTileData } from "../../engine/terrain/terrainTypes.ts";
+import { parseTileKey, terrainTileWorldSize, type TerrainTileData } from "../../engine/terrain/terrainTypes.ts";
+import { KeptRegionsKey } from "../../engine/world/keptRegions.ts";
 import type { StreamingSource } from "../../engine/world/streamingPolicy.ts";
 import { worldTerrainExtent } from "../../engine/terrain/worldTerrainActor.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
@@ -188,7 +189,14 @@ export default defineRenderBinding({
           view.setSurfaceCover(cover);
           if (stream) {
             entry.sources = [{ position: [camera.x, camera.z] }];
-            stream.update(entry.sources);
+            const regions = ctx.world.services.get(KeptRegionsKey)?.regions() ?? [];
+            const def = stream.document.def, size = terrainTileWorldSize(def);
+            const kept = regions.length ? def.tiles.filter((tile) => {
+              const coord = parseTileKey(tile.key)!;
+              const minX = def.origin[0] + coord.x * size, minZ = def.origin[2] + coord.z * size;
+              return regions.some((area) => minX < area.maxX && minX + size > area.minX && minZ < area.maxZ && minZ + size > area.minZ);
+            }).map((tile) => tile.key) : [];
+            stream.update(entry.sources, 1, kept);
           }
           casters ??= terrainShadowCasters(ctx.scene);
           view.update(frame.camera, casters);

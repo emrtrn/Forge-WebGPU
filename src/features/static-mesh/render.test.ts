@@ -82,7 +82,7 @@ function harness(placements: Record<string, unknown>[]) {
     root,
     resources,
     lighting: null,
-    quality: () => null,
+    quality: () => ({ foliageCullDistanceScale: 1 }),
   } as unknown as RenderBindingContext;
   const instance = binding.create(ctx);
   instance.actorsAdded?.(actors);
@@ -99,7 +99,11 @@ describe("static mesh binding (instanced)", () => {
     await settle();
     frame();
     const meshes = instanced(root);
-    expect(meshes.map((mesh) => mesh.material)).toEqual([body, materials.get(BRICK), body]);
+    expect(meshes[0]!.material).toBe(body);
+    expect((meshes[1]!.material as Material).name).toBe(materials.get(BRICK)!.name);
+    expect((meshes[1]!.material as MeshStandardNodeMaterial).maskNode).not.toBeNull();
+    expect(materials.get(BRICK)!.maskNode).toBeNull();
+    expect(meshes[2]!.material).toBe(body);
     for (const mesh of meshes) {
       expect([mesh.count, mesh.castShadow, mesh.receiveShadow]).toEqual([2, false, true]);
     }
@@ -125,7 +129,8 @@ describe("static mesh binding (instanced)", () => {
     frame();
     const [mesh] = instanced(root);
     const moss = materials.get(MOSS)!;
-    expect(mesh!.material).toBe(moss);
+    expect((mesh!.material as MeshStandardNodeMaterial).color).toEqual(moss.color);
+    expect((mesh!.material as MeshStandardNodeMaterial).maskShadowNode).not.toBeNull();
     expect(moss.color.getHexString()).toBe("b9c0c6");
     const shown = (index: number) => {
       const color = new Color();

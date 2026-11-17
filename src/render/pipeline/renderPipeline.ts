@@ -31,6 +31,7 @@ import {
   RGFormat,
   UnsignedByteType,
   type Camera,
+  type Object3D,
   type Node,
   type Scene,
   type Texture,
@@ -119,6 +120,7 @@ interface Uniforms {
 }
 
 interface Built {
+  readonly scenePass: ReturnType<typeof pass>;
   readonly key: string;
   readonly scene: Scene;
   readonly camera: Camera;
@@ -274,6 +276,7 @@ function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: Pip
     pipeline,
     plan,
     depth: scenePass.renderTarget.depthTexture,
+    scenePass,
     update(post) {
       u.aoIntensity.value = post.ao.intensity;
       if (gtao) gtao.radius.value = post.ao.radius * AO_RADIUS_SCALE;
@@ -303,6 +306,7 @@ function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: Pip
 }
 
 export interface FramePipeline {
+  compile(objects: Object3D, scene: Scene, camera: Camera): Promise<void>;
   /** Draws a frame: the plan from the gated Post Process and the quality; rebuilt only when it changes. */
   render(scene: Scene, camera: Camera, output: FrameOutput, quality: QualitySettings): void;
   /** The plan of the last frame. */
@@ -329,6 +333,17 @@ export function createFramePipeline(renderer: WebGPURenderer): FramePipeline {
     built = null;
   };
   return {
+    compile(objects, scene, camera) {
+      // Capture the actual scene pass's MRT/depth/sample formats. Restore
+      // renderer state immediately; compileAsync captures it before yielding.
+      const previousTarget = renderer.getRenderTarget(), previousMrt = renderer.getMRT();
+      try {
+        if (!direct && built) { renderer.setRenderTarget(built.scenePass.renderTarget); renderer.setMRT(built.scenePass.getMRT()); }
+        return renderer.compileAsync(objects, camera, scene).then(() => {}).finally(() => {
+          renderer.setRenderTarget(previousTarget); renderer.setMRT(previousMrt);
+        });
+      } finally { renderer.setRenderTarget(previousTarget); renderer.setMRT(previousMrt); }
+    },
     render(scene, camera, frame, quality) {
       plan = planPipeline(frame.postProcess, quality);
       const toneMapping = TONE_MAPPINGS[frame.toneMapping];

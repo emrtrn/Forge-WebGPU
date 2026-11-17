@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { RENDER_REFS, SMOKE_SCENES } from "./renderScenes.ts";
-import { difference, openSmokeLevel } from "./smokePage.ts";
+import { difference, isOptionalHlodMiss, openSmokeLevel } from "./smokePage.ts";
 
 interface Dev {
   spawn(raw: unknown[]): string[];
@@ -16,7 +16,7 @@ interface Dev {
 test("terrain: WES snow and wetness draw without rebuilding the surface; zero restores the base", async ({ page }, info) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
+  page.on("console", (message) => { if (message.type() === "error" && !isOptionalHlodMiss(message)) errors.push(`${message.text()} (${message.location().url})`); });
   const scene = SMOKE_SCENES.find((scene) => scene.id === "derekavak")!;
   await openSmokeLevel(page, scene.level, scene.poses[0]!);
   await expect(page.locator("canvas[data-forge-backend='webgpu']")).toBeVisible();

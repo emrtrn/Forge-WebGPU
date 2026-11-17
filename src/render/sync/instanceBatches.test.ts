@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { BoxGeometry, Color, Group, Matrix4, MeshStandardNodeMaterial } from "three/webgpu";
+import { BoxGeometry, Color, Group, Matrix4, MeshStandardNodeMaterial, PerspectiveCamera } from "three/webgpu";
 import { createInstanceBatch, instanceColorOver } from "./instanceBatches.ts";
 import { actorOfHit, instanceActorsOf } from "./pickTags.ts";
 
@@ -14,6 +14,36 @@ function batch() {
 }
 
 describe("instance batches", () => {
+  test("detached batches become ready only after preparation; a disposed pending batch never returns", async () => {
+    const parent = new Group(); let finish!: () => void, signal: AbortSignal | undefined;
+    const instances = createInstanceBatch({ name: "prepare", parent, castShadow: true, prepare: (_meshes, pendingSignal) => new Promise<void>((resolve) => { finish = resolve; signal = pendingSignal; }) });
+    const parts = [{ geometry: new BoxGeometry(), material: new MeshStandardNodeMaterial(), local: new Matrix4(), name: "box" }];
+    instances.setParts(parts); instances.set("a", at(0), null, "act_1"); instances.flush();
+    expect(instances.ready).toBe(false); expect(parent.children).toHaveLength(0);
+    finish(); await Promise.resolve();
+    expect(instances.ready).toBe(true); expect(parent.children).toHaveLength(1);
+    instances.setParts(parts); instances.flush();
+    expect(parent.children).toHaveLength(0);
+    let released = false; instances.meshes[0]!.addEventListener("dispose", () => { released = true; });
+    instances.dispose(); expect(signal?.aborted).toBe(true); expect(released).toBe(false);
+    finish(); await Promise.resolve(); expect(released).toBe(true);
+    expect(parent.children).toHaveLength(0);
+  });
+  test("detail fade owns its masks, scales per placement and releases cloned materials", () => {
+    const parent = new Group(), material = new MeshStandardNodeMaterial();
+    const instances = createInstanceBatch({ name: "detail", parent, castShadow: true });
+    instances.setParts([{ geometry: new BoxGeometry(), material, local: new Matrix4().makeScale(.01, .01, .01), name: "cm" }], 1);
+    instances.set("a", new Matrix4().makeScale(2, 2, 2), null, "act_1"); instances.flush();
+    const mesh = instances.meshes[0]!, faded = mesh.material as MeshStandardNodeMaterial;
+    expect(faded).not.toBe(material); expect(material.maskNode).toBeNull();
+    expect(faded.maskNode).not.toBeNull(); expect(faded.maskShadowNode).toBe(faded.maskNode);
+    const camera = new PerspectiveCamera(); camera.position.z = 300;
+    instances.updateCulling(camera, 1); expect(mesh.visible).toBe(true);
+    camera.position.z = 450; instances.updateCulling(camera, 1); expect(mesh.visible).toBe(false);
+    instances.updateCulling(camera, 2); expect(mesh.visible).toBe(true);
+    let disposed = false; faded.addEventListener("dispose", () => { disposed = true; });
+    instances.dispose(); expect(disposed).toBe(true);
+  });
   test("nothing is drawn before parts arrive; placements set before them draw once they do", () => {
     const parent = new Group();
     const instances = createInstanceBatch({ name: "late", parent, castShadow: false });

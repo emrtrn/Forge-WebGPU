@@ -45,6 +45,31 @@ const doc = (editor: ReturnType<typeof open>, seed: string): ActorDoc => structu
 const worldNames = (editor: ReturnType<typeof open>) => [...editor.world.context.actors()].map((entry) => `${entry.name}${entry.parent ? `<${entry.parent.slice(4, 5)}` : ""}`);
 
 describe("the editor session mirrors edits into its world", () => {
+  test("Show All clears hidden actors in unloaded cells before they stream back", () => {
+    const editor = open([], ["a"]);
+    const cell = splitLevel(editor.level.level, OPTIONS).cells[0]!;
+    expect(editor.level.unloadCell(cell.cell).ok).toBe(true);
+    expect(editor.visibility.ids()).toContain(actorId("a"));
+    editor.visibility.showAll(); expect(editor.visibility.ids()).toEqual([]);
+    expect(editor.level.loadCells([{ doc: cell, revision: "3333333333333333" }])).toEqual([]);
+    expect(editor.world.context.actor(actorId("a"))).toBeDefined(); expect(editor.dirty()).toBe(0);
+    editor.dispose(); editor.world.dispose();
+  });
+  test("Compare follows legacy held actors when an agent partitions them out of level.json", async () => {
+    const legacy = normalizeLevel({ schema: "forge.level/1", id: levelId("1"), actors: [actor("a", 10), actor("b", 20)] }, OPTIONS).value!;
+    const level = openLevelSession({ folder: FOLDER, persistent: legacy, persistentRevision: "1111111111111111", index: null }, OPTIONS);
+    const world = createWorld({ ...OPTIONS, features: [], mode: "editor" }); world.init(); assembleLevel(world, level.level, OPTIONS); world.beginPlay();
+    const disk = splitLevel({ ...legacy, actors: legacy.actors.map((doc) => doc.id === actorId("b") ? { ...doc, name: "disk" } : doc) }, OPTIONS);
+    const index = { schema: "forge.levelCells/1" as const, level: legacy.id, persistent: "2222222222222222", cells: { "0_0": "3333333333333333" } };
+    const files = new Map<string, unknown>([[`${FOLDER}/level.json`, disk.persistent], [`${FOLDER}/cells.json`, index], [`${FOLDER}/cells/0_0.json`, disk.cells[0]]]);
+    const client = { read: async (path: string) => files.has(path) ? { text: JSON.stringify(files.get(path)), revision: "3333333333333333" } : null } as SaveClient;
+    const editor = createEditorSession({ level, world, client, read: OPTIONS });
+    editor.edit("mine", (tx) => tx.setActor({ ...level.actor(actorId("a"))!, name: "mine" }));
+    level.updateCellIndex(index); expect(level.isLoaded("0_0")).toBe(false);
+    const read = await editor.readDisk(); const merge = level.compare(read.open).merge;
+    expect(merge.conflicts).toEqual([]); expect(merge.fromMine).toEqual([actorId("a")]); expect(merge.fromTheirs).toEqual([actorId("b")]);
+    editor.dispose(); world.dispose();
+  });
   test("move, add, remove and their undo / redo reach the world", () => {
     const editor = open();
     const moved = doc(editor, "a");

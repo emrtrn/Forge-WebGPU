@@ -17,6 +17,14 @@ function fakeFetch(files: Record<string, string>) {
 }
 
 describe("a production build's static content (plan phase 4 step 2b)", () => {
+  test("an absent JSON or GLB answered by an SPA's HTML fallback is still missing", async () => {
+    const client = createStaticContentClient({ baseUrl: "/demo/", fetch: async () => ({
+      status: 200, headers: { get: () => "text/html; charset=utf-8" },
+      text: async () => "<!doctype html><html></html>", json: async () => { throw new Error("must not parse fallback"); },
+    }) });
+    expect(await client.read("content/levels/main/hlod.json")).toBeNull();
+    expect(await client.readBinary!("content/levels/main/hlod/0_0.glb")).toBeNull();
+  });
   test("project paths and engine-labelled paths map to files under forge/files", () => {
     expect(staticContentFile("content/levels/main/level.json")).toBe("files/project/content/levels/main/level.json");
     expect(staticContentFile("engine:content/packs/starter/rock.glb")).toBe("files/engine/content/packs/starter/rock.glb");

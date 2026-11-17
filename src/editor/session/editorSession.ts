@@ -27,6 +27,7 @@
 
 import {
   readLevelFromServer,
+  assignCells,
   saveLevelSession,
   SaveClientError,
   LevelSettingsKey,
@@ -42,6 +43,7 @@ import {
   type SaveClient,
 } from "../../core/index.ts";
 import type { World } from "../../runtime/world.ts";
+import type { EditorCellStreaming } from "./cellStreaming.ts";
 
 export interface SaveReport {
   readonly ok: boolean;
@@ -52,6 +54,8 @@ export interface SaveReport {
 }
 
 export interface EditorSession {
+  /** Attached by the editor host after the session opens. */
+  streaming?: EditorCellStreaming;
   readonly level: LevelSession;
   readonly world: World;
   edit(label: string, build: (tx: EditTx) => void, options?: { readonly coalesce?: string }): EditResult;
@@ -154,7 +158,7 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
   let selected: ActorId[] = [];
   world.services.require(LevelSettingsKey).current = structuredClone(level.level.settings);
 
-  const hiddenSet = new Set<ActorId>((options.hidden ?? []).filter((id) => level.actor(id) !== undefined));
+  const hiddenSet = new Set<ActorId>(options.hidden ?? []);
   const isHidden = (id: ActorId): boolean => {
     if (hiddenSet.size === 0) return false;
     const seen = new Set<ActorId>();
@@ -221,9 +225,9 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
   const visibility: Visibility = {
     has: (id) => hiddenSet.has(id),
     hidden: isHidden,
-    ids: () => [...hiddenSet].filter((id) => level.actor(id) !== undefined),
+    ids: () => [...hiddenSet],
     set(ids, hidden) {
-      const touched = ids.filter((id) => level.actor(id) !== undefined && hiddenSet.has(id) !== hidden);
+      const touched = ids.filter((id) => (!hidden || level.actor(id) !== undefined) && hiddenSet.has(id) !== hidden);
       if (touched.length === 0) return;
       for (const id of touched) {
         if (hidden) hiddenSet.add(id);
@@ -303,7 +307,16 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
       }
     },
     idle: () => saved,
-    readDisk: () => readLevelFromServer(client, level.folder, options.read),
+    // Compare / Reload reads only the parts held by this partial session.
+    readDisk: () => {
+      // An agent may have partitioned legacy actors out of level.json. Those
+      // actors are still held here: include their source/destination cells.
+      const held = new Set<string | null>();
+      for (const actors of [level.level.actors, level.level.actors.map((actor) => level.baseActor(actor.id) ?? actor)]) {
+        for (const cell of assignCells(actors, level.level.settings, options.read).value.values()) held.add(cell);
+      }
+      return readLevelFromServer(client, level.folder, options.read, (keys) => keys.filter((key) => level.isLoaded(key) || held.has(key)));
+    },
     rebase(disk, how) {
       const result = level.rebase(disk.open, how);
       notify();
