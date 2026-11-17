@@ -7,7 +7,7 @@
 // base size is 0.5 m (Forge's SHAPE_PRIMITIVE_SIZE): the actor's scale sizes
 // it. Drawn from phase 3, collider from phase 6. Version 2 (phase 3 step 4)
 // adds `castShadow` (default on, user decision 2026-11-13); receiving shadows
-// is always on.
+// is always on. `landmark` (plan 5c R8.4) as Static Mesh's.
 
 import { bool, color, defineComponent, enumOf, type ComponentData } from "../../core/index.ts";
 
@@ -36,6 +36,10 @@ export const Shape = defineComponent(
     collision: bool({
       default: true,
       hint: "Oyunda çarpışır. Kapalıysa içinden geçilir.",
+    }),
+    landmark: bool({
+      default: false,
+      hint: "Görüş mesafesinin ötesinden de siluet olarak görünür (HLOD landmark katmanı; Landmark Distance'a kadar).",
     }),
   },
   {

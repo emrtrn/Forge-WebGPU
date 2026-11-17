@@ -30,7 +30,7 @@ export interface HlodSource {
 export const HlodSourceKey = createServiceKey<HlodSource>("forge.hlodSource");
 
 export {
-  HLOD_SCHEMA, HLOD_INDEX_FILE, HLOD_DIR, HLOD_CLUSTER_CELLS, hlodCellFileOf, hlodClusterFileOf, hlodClusterOf, normalizeHlodIndex,
+  HLOD_SCHEMA, HLOD_INDEX_FILE, HLOD_DIR, HLOD_CLUSTER_CELLS, HLOD_LANDMARK_FILE, hlodCellFileOf, hlodClusterFileOf, hlodClusterOf, normalizeHlodIndex,
   type HlodCellEntry, type HlodIndex,
 } from '../../core/level/hlod.ts';
 
@@ -40,6 +40,8 @@ export interface HlodModelPlacement {
   color: string | null;
   /** Component world matrix, column-major. */
   matrix: Mat4;
+  /** Plan 5c R8.4: also baked into the level's landmark proxy. Absent when off. */
+  landmark?: true;
 }
 
 /** A `forge.shape` (plan 5c R1): its procedural primitive and colour, baked like a mesh. */
@@ -47,6 +49,7 @@ export interface HlodShapePlacement {
   shape: ShapePrimitiveName;
   color: string;
   matrix: Mat4;
+  landmark?: true;
 }
 
 export type HlodPlacement = HlodModelPlacement | HlodShapePlacement;
@@ -91,7 +94,8 @@ export function hlodPlacementsOf(
       if (name === "forge.shape") {
         const primitive = component.primitive ?? "cube", color = component.color ?? "#c8c8c8";
         if (typeof primitive !== "string" || !SHAPE_NAMES.has(primitive) || typeof color !== "string") continue;
-        placements.push({ shape: primitive as ShapePrimitiveName, color, matrix: placementMatrix(actorMatrix, components, key) });
+        placements.push({ shape: primitive as ShapePrimitiveName, color, matrix: placementMatrix(actorMatrix, components, key),
+          ...(component.landmark === true ? { landmark: true as const } : {}) });
         continue;
       }
       if (name !== "forge.staticMesh" || !isId(component.mesh, "asset")) continue;
@@ -100,6 +104,7 @@ export function hlodPlacementsOf(
         materials: (component.materials ?? []) as readonly (AssetId | null)[],
         color: (component.color ?? null) as string | null,
         matrix: placementMatrix(actorMatrix, components, key),
+        ...(component.landmark === true ? { landmark: true as const } : {}),
       });
     }
   }
@@ -122,10 +127,11 @@ function fnv1a(source: string): string {
 /** Order-independent FNV-1a; asset bytes and editor visibility are not document inputs. */
 export function hlodCellSourceHash(placements: readonly HlodPlacement[]): string {
   const rounded = (values: readonly number[]) => values.map((value) => Math.round(value * 1e4) / 1e4);
-  // Model entries keep their pre-R1 form, so levels without shapes keep their hashes.
-  const canonical = placements.map((placement) => JSON.stringify(isHlodShapePlacement(placement)
+  // Model entries keep their pre-R1 form, so levels without shapes keep their hashes; a landmark
+  // (plan 5c R8.4) adds a marker only when on, so unmarked levels keep theirs too.
+  const canonical = placements.map((placement) => JSON.stringify([...(isHlodShapePlacement(placement)
     ? [`shape:${placement.shape}`, placement.color, rounded(placement.matrix)]
-    : [placement.model, placement.materials, placement.color, rounded(placement.matrix)])).sort();
+    : [placement.model, placement.materials, placement.color, rounded(placement.matrix)]), ...(placement.landmark ? ["landmark"] : [])])).sort();
   return fnv1a(JSON.stringify(canonical));
 }
 

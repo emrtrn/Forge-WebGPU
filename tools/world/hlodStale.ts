@@ -4,7 +4,7 @@ import {
 import { parseCellKey } from "../../src/core/index.ts";
 import { shapeBoundingRadius } from "../../src/engine/procgen/shapePrimitives.ts";
 import { createHlodAssets } from "./hlodAssets.ts";
-import { contentPath, hlodCellsOf, loadHlodLevel, type HlodInput } from "./hlodInput.ts";
+import { contentPath, hlodCellsOf, hlodLandmarksOf, loadHlodLevel, type HlodInput } from "./hlodInput.ts";
 
 export interface HlodStaleWarning {
   readonly severity: "warning";
@@ -69,6 +69,13 @@ export async function hlodStaleness(input: HlodInput): Promise<HlodStaleWarning[
       if (cells && clusters.get(key)?.sourceHash === hlodClusterSourceHash(cells)) continue;
       warnings.push({ severity: "warning", code: "hlod-stale", file: `${folder.root}/${folder.folder}/${HLOD_INDEX_FILE}`,
         cell: `l1_${key}`, message: `Cluster ${key} does not match its cells; rebuild with forge hlod.` });
+    }
+    // Landmarks (plan 5c R8.4): the proxy's hash covers every landmark placement.
+    const landmarks = hlodLandmarksOf(level, input);
+    const expectedHash = landmarks.length ? hlodCellSourceHash(landmarks) : null;
+    if ((index?.landmarks?.sourceHash ?? null) !== expectedHash) {
+      warnings.push({ severity: "warning", code: "hlod-stale", file: `${folder.root}/${folder.folder}/${HLOD_INDEX_FILE}`,
+        cell: "landmarks", message: "Landmarks have changed; rebuild with forge hlod." });
     }
   }
   return warnings;

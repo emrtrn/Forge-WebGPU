@@ -31,6 +31,7 @@ describe("World Builder output components", () => {
       color: "#c8c8c8",
       castShadow: true,
       collision: true,
+      landmark: false,
     });
     expect(normalizeComponent(StaticMesh, { type: "forge.staticMesh@1", collision: false }, { strict: true }).value).toMatchObject({
       type: "forge.staticMesh@2", mesh: null, materials: [], color: null, castShadow: true, collision: false,

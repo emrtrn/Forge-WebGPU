@@ -10,6 +10,8 @@
 // null keeps the material's colour, Forge's placement `color`); `castShadow`
 // (default on, user decision 2026-11-13: Forge's level-wide static shadow
 // switch became the component's). Receiving shadows is always on.
+// `landmark` (plan 5c R8.4, default off): baked into the level's HLOD
+// landmark proxy, drawn beyond the view distance up to the landmark distance.
 
 import { array, assetRef, bool, color, defineComponent, type ComponentData } from "../../core/index.ts";
 
@@ -35,6 +37,10 @@ export const StaticMesh = defineComponent(
     collision: bool({
       default: true,
       hint: "Oyunda çarpışır. Kapalıysa içinden geçilir.",
+    }),
+    landmark: bool({
+      default: false,
+      hint: "Görüş mesafesinin ötesinden de siluet olarak görünür (HLOD landmark katmanı; Landmark Distance'a kadar).",
     }),
   },
   {

@@ -19,22 +19,40 @@
 //   with that flag (decision 10 keeps that path open). Proxies carry no
 //   normals (plan R8.0: they blocked simplification) and shade flat.
 //
+// - Landmarks (plan 5c R8.4): the level's landmark proxy is read once and drawn
+//   as one mesh. Each vertex carries its placement's origin (`_center`); a
+//   landmark whose origin is within the view distance (real meshes or the
+//   proxies above draw it) or past the landmark distance collapses to a point.
+//   The rest is pulled along the camera ray to just inside the far plane: the
+//   same pixels, a nearer depth, so the camera's far plane, the shadow
+//   cascades and every other culling stay as they are.
+//
 // The camera's far plane already includes the level's distance and the
 // quality multiplier. Read it so proxies and real geometry share the range.
 
 import { Mesh, MeshStandardNodeMaterial, type BufferGeometry, type Camera, type Group } from "three/webgpu";
-import { attribute } from "three/tsl";
+import { attribute, cameraPosition, max, positionLocal, select, uniform } from "three/tsl";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { distanceToWorldCell } from "../../core/grid/worldGrid.ts";
 import { parseCellKey, type LevelSettings } from "../../core/index.ts";
 import { effectiveViewDistance } from "../../engine/world/viewDistance.ts";
-import { HLOD_CLUSTER_CELLS, hlodCellFileOf, hlodClusterFileOf, hlodClusterOf, type HlodSource } from "../../engine/world/hlod.ts";
+import { HLOD_CLUSTER_CELLS, HLOD_LANDMARK_FILE, hlodCellFileOf, hlodClusterFileOf, hlodClusterOf, type HlodSource } from "../../engine/world/hlod.ts";
 
 export const MAX_IN_FLIGHT = 4;
 export const RELEASE_FACTOR = 1.25;
 /** A drawn cluster gives way to its cells only this much nearer than the switch distance. */
 export const CLUSTER_HYSTERESIS = 0.9;
 const DEFAULT_LOAD_RANGE = 384;
+/** Landmark Distance 0: this many view distances. */
+export const DEFAULT_LANDMARK_FACTOR = 3;
+/** Landmarks are pulled to this fraction of the far plane. */
+const LANDMARK_DEPTH = 0.999;
+
+/** How far landmarks show (plan 5c R8.4): the level's Landmark Distance × the quality multiplier, else 3 view distances. */
+export function hlodLandmarkDistance(settings: LevelSettings | undefined, view: number, multiplier = 1): number {
+  const authored = settings?.landmarkDistance ?? 0;
+  return authored > 0 ? Math.max(view, authored * multiplier) : view * DEFAULT_LANDMARK_FACTOR;
+}
 
 /** Where layer 1 takes over (plan 5c R8): max(2 × load range, 6 cells), times the quality multiplier. */
 export function hlodSwitchDistance(settings: LevelSettings | undefined, cellSize: number, multiplier = 1): number {
@@ -63,7 +81,11 @@ export interface HlodProxies {
   /** Per frame; `multiplier` is the quality profile's view distance multiplier. */
   sync(camera: Camera | null, settings: LevelSettings | undefined, multiplier?: number): void;
   /** Proxies drawn now and held in memory, for `?debug` and the leak measurement; clusters counted apart. */
-  stats(): { readonly visible: number; readonly loaded: number; readonly cells: number; readonly clusters: { readonly visible: number; readonly loaded: number; readonly total: number } };
+  stats(): {
+    readonly visible: number; readonly loaded: number; readonly cells: number;
+    readonly clusters: { readonly visible: number; readonly loaded: number; readonly total: number };
+    readonly landmarks: boolean;
+  };
   dispose(): void;
 }
 
@@ -86,6 +108,17 @@ async function parseProxy(bytes: ArrayBuffer): Promise<BufferGeometry | null> {
 export function createHlodProxies(source: HlodSource, parent: Group, track: <T>(work: Promise<T>) => Promise<T> = (work) => work): HlodProxies {
   const material = new MeshStandardNodeMaterial({ roughness: 1, metalness: 0, flatShading: true });
   material.colorNode = attribute<"vec3">("color", "vec3");
+  // Landmarks: shown between the view distance and the landmark distance, pulled inside the far plane.
+  const landmarkMaterial = new MeshStandardNodeMaterial({ roughness: 1, metalness: 0, flatShading: true });
+  landmarkMaterial.colorNode = attribute<"vec3">("color", "vec3");
+  const landmarkFrom = uniform(0), landmarkTo = uniform(0), landmarkDepth = uniform(0);
+  const fromCamera = attribute<"vec3">("_center", "vec3").sub(cameraPosition).length();
+  const ray = positionLocal.sub(cameraPosition);
+  const pulled = cameraPosition.add(ray.mul(landmarkDepth.div(max(ray.length(), 1e-3)).min(1)));
+  landmarkMaterial.positionNode = select(fromCamera.greaterThan(landmarkFrom).and(fromCamera.lessThan(landmarkTo)), pulled, cameraPosition);
+  const landmark: Proxy | null = source.index.landmarks
+    ? { key: "landmarks", file: HLOD_LANDMARK_FILE, x: 0, z: 0, mesh: null, loading: false, failed: false }
+    : null;
   const cellSize = source.index.cellSize;
   const grid = { cellSize };
   const clusterGrid = { cellSize: cellSize * HLOD_CLUSTER_CELLS };
@@ -113,7 +146,7 @@ export function createHlodProxies(source: HlodSource, parent: Group, track: <T>(
     proxy.mesh = null;
   };
 
-  const start = (proxy: Proxy): void => {
+  const start = (proxy: Proxy, drawWith = material): void => {
     if (proxy.mesh || proxy.loading || proxy.failed || inFlight >= MAX_IN_FLIGHT) return;
     proxy.loading = true;
     inFlight += 1;
@@ -123,12 +156,14 @@ export function createHlodProxies(source: HlodSource, parent: Group, track: <T>(
           geometry?.dispose();
           return;
         }
-        if (!geometry || !geometry.getAttribute("color")) {
+        if (!geometry || !geometry.getAttribute("color") || (drawWith === landmarkMaterial && !geometry.getAttribute("_center"))) {
           geometry?.dispose();
           proxy.failed = true;
           return;
         }
-        const mesh = new Mesh(geometry, material);
+        const mesh = new Mesh(geometry, drawWith);
+        // The landmark mesh's bounds reach past the far plane; its vertices are pulled in.
+        if (drawWith === landmarkMaterial) mesh.frustumCulled = false;
         mesh.name = `HLOD ${proxy.file}`;
         mesh.castShadow = false;
         mesh.receiveShadow = true;
@@ -154,6 +189,13 @@ export function createHlodProxies(source: HlodSource, parent: Group, track: <T>(
       if (disposed || camera === null) return;
       const view = (camera as Camera & { far?: number }).far ?? effectiveViewDistance(settings?.viewDistance, 1) ?? 2000;
       const switchAt = hlodSwitchDistance(settings, cellSize, multiplier);
+      if (landmark) {
+        landmarkFrom.value = view;
+        landmarkTo.value = hlodLandmarkDistance(settings, view, multiplier);
+        landmarkDepth.value = view * LANDMARK_DEPTH;
+        if (landmark.mesh) landmark.mesh.visible = true;
+        else start(landmark, landmarkMaterial);
+      }
       const { x, z } = camera.position;
       roles.clear();
       for (const cluster of clusters) {
@@ -203,12 +245,13 @@ export function createHlodProxies(source: HlodSource, parent: Group, track: <T>(
         clustersLoaded += 1;
         if (cluster.mesh.visible) clustersVisible += 1;
       }
-      return { visible, loaded, cells: cells.length, clusters: { visible: clustersVisible, loaded: clustersLoaded, total: clusters.length } };
+      return { visible, loaded, cells: cells.length, clusters: { visible: clustersVisible, loaded: clustersLoaded, total: clusters.length }, landmarks: landmark?.mesh != null };
     },
     dispose() {
       disposed = true;
-      for (const proxy of [...cells, ...clusters]) release(proxy);
+      for (const proxy of [...cells, ...clusters, ...(landmark ? [landmark] : [])]) release(proxy);
       material.dispose();
+      landmarkMaterial.dispose();
     },
   };
 }

@@ -57,6 +57,16 @@ export const LevelSettingsFields = {
     label: "Load Range",
     hint: "Kameraya bu kadar metre yakın hücreler yüklenir; ötesi boşaltılır. Kalite ayarıyla ölçeklenir.",
   }),
+  // Plan 5c R8.4 (user, 2026-11-17): landmark components show past the view distance up to here.
+  landmarkDistance: num({
+    min: 0,
+    max: 100000,
+    step: 10,
+    slider: [0, 20000],
+    default: 0,
+    label: "Landmark Distance",
+    hint: "Landmark işaretli nesneler görüş mesafesinin ötesinde bu uzaklığa kadar siluet olarak görünür (metre); kalite ayarıyla ölçeklenir. 0 ise görüş mesafesinin 3 katı.",
+  }),
 };
 
 export type LevelSettings = FieldValues<typeof LevelSettingsFields>;

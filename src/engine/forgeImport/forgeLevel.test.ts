@@ -51,7 +51,7 @@ describe("importForgeLevel", () => {
   test("placements become shape / static mesh / Player Start actors after the terrain, the fog, the environment and the lights", () => {
     const { level, report } = importForgeLevel(fixture(), resolvers);
     expect(level.id).toBe(forgeLevelId(PATH));
-    expect(level.settings).toEqual({ cellSize: 64, wind: { directionDeg: 45, strength: .3, gust: .3 }, viewDistance: 0, loadRange: 256 });
+    expect(level.settings).toEqual({ cellSize: 64, wind: { directionDeg: 45, strength: .3, gust: .3 }, viewDistance: 0, loadRange: 256, landmarkDistance: 0 });
     expect(level.actors.map((actor) => actor.name)).toEqual([
       "WB Valley", "Fog", "Sky Light", "directional#0", "Player Start", "building.house", "rock#0", "rock#1",
     ]);
@@ -239,7 +239,7 @@ describe("importForgeLevel", () => {
     ]);
     const bare = importForgeLevel(fixture({ worldSettings: { partition: { enabled: false } }, lights: [] }), resolvers);
     expect(bare.report.notConverted.map((entry) => entry.field).filter((field) => field.startsWith("worldSettings"))).toEqual([]);
-    expect(bare.level.settings).toEqual({ cellSize: 128, wind: { directionDeg: 45, strength: .3, gust: .3 }, viewDistance: 0, loadRange: 384 });
+    expect(bare.level.settings).toEqual({ cellSize: 128, wind: { directionDeg: 45, strength: .3, gust: .3 }, viewDistance: 0, loadRange: 384, landmarkDistance: 0 });
   });
 
   test("the view distance and the main grid's load range become level settings (phase 5b)", () => {
@@ -247,7 +247,7 @@ describe("importForgeLevel", () => {
       fixture({ worldSettings: { partition: { enabled: true, grids: { main: { cellSize: 128, loadRange: 512 } } }, viewDistance: 2000 } }),
       resolvers,
     );
-    expect(level.settings).toMatchObject({ viewDistance: 2000, loadRange: 512 });
+    expect(level.settings).toMatchObject({ viewDistance: 2000, loadRange: 512, landmarkDistance: 0 });
     expect(report.notConverted.map((entry) => entry.field)).not.toContain("worldSettings.viewDistance");
   });
 

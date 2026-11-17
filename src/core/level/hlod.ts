@@ -18,6 +18,9 @@ export function hlodCellFileOf(key: string): string {
   return `${HLOD_DIR}/${key}.glb`;
 }
 
+/** The landmark proxy (plan 5c R8.4): every landmark placement of the level in one file. */
+export const HLOD_LANDMARK_FILE = `${HLOD_DIR}/landmarks.glb`;
+
 /** Layer 1 proxy path; same folder, so publication and scans treat it like a cell proxy. */
 export function hlodClusterFileOf(key: string): string {
   return `${HLOD_DIR}/l1_${key}.glb`;
@@ -42,6 +45,8 @@ export interface HlodIndex {
   readonly cells: readonly HlodCellEntry[];
   /** Layer 1: one entry per cluster with a proxy; its sourceHash covers its cells' entries. Sorted like cells. */
   readonly clusters: readonly HlodCellEntry[];
+  /** The landmark proxy, when the level has landmark placements; its hash covers them. */
+  readonly landmarks?: { readonly triangles: number; readonly sourceHash: string };
 }
 
 /** Valid, unique, sorted entries of one layer; invalid ones are dropped with loss issues. */
@@ -102,7 +107,18 @@ export function normalizeHlodIndex(
   }
   const cells = entriesOf(value.cells, "cells", ctx);
   const clusters = entriesOf(value.clusters, "clusters", ctx);
-  reportUnknownKeys(value, ["schema", "level", "cellSize", "cells", "clusters"], "", ctx, "Unknown HLOD index field; dropped.");
-  return finish(ctx, { schema: HLOD_SCHEMA, level: value.level, cellSize: value.cellSize, cells, clusters });
+  let landmarks: HlodIndex["landmarks"];
+  if (value.landmarks !== undefined) {
+    const entry = value.landmarks;
+    if (!isJsonObject(entry) || typeof entry.triangles !== "number" || !Number.isSafeInteger(entry.triangles) || entry.triangles < 0
+      || typeof entry.sourceHash !== "string" || !/^[0-9a-f]{8}$/.test(entry.sourceHash)) {
+      reportLoss(ctx, "invalid-value", "landmarks", "Expected a non-negative triangle count and 8 lowercase hex digits; dropped.");
+    } else {
+      landmarks = { triangles: entry.triangles, sourceHash: entry.sourceHash };
+      reportUnknownKeys(entry, ["triangles", "sourceHash"], "landmarks", ctx, "Unknown HLOD landmark field; dropped.");
+    }
+  }
+  reportUnknownKeys(value, ["schema", "level", "cellSize", "cells", "clusters", "landmarks"], "", ctx, "Unknown HLOD index field; dropped.");
+  return finish(ctx, { schema: HLOD_SCHEMA, level: value.level, cellSize: value.cellSize, cells, clusters, ...(landmarks ? { landmarks } : {}) });
 }
 

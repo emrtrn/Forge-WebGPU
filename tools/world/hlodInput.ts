@@ -83,3 +83,9 @@ export function hlodCellsOf(level: LevelDoc, input: Pick<HlodInput, "registry" |
   return new Map(split.cells.map((cell) => [cell.cell,
     hlodPlacementsOf(cell.actors, (id) => lookup.get(id), input.index.resolveClass)]));
 }
+
+/** Every landmark placement of the level, persistent actors included (plan 5c R8.4). */
+export function hlodLandmarksOf(level: LevelDoc, input: Pick<HlodInput, "index">): HlodPlacement[] {
+  const lookup = new Map(level.actors.map((actor) => [actor.id, actor]));
+  return hlodPlacementsOf(level.actors, (id) => lookup.get(id), input.index.resolveClass).filter((placement) => placement.landmark === true);
+}

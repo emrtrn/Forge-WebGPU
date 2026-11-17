@@ -6,7 +6,8 @@ import { hlodClusterSourceHash, normalizeHlodIndex } from "../../src/engine/worl
 import { cross, dot, normalize, sub } from "../../src/engine/math/affine.ts";
 import { buildLevelHlod } from "./hlodBuild.ts";
 import { loadHlodLevel, type HlodInput } from "./hlodInput.ts";
-import { actor, actorId, cube, encode, fixture, FOLDER, GREEN, GREY, inputOf, level, LEVEL, meta, MODEL } from "./hlodTestKit.ts";
+import { hlodStaleness } from "./hlodStale.ts";
+import { actor, actorId, addResult, cube, encode, fixture, FOLDER, GREEN, GREY, inputOf, level, LEVEL, meta, MODEL } from "./hlodTestKit.ts";
 
 const proxy = async (files: Map<string, Uint8Array>, key: string) =>
   (await new NodeIO().readBinary(files.get(`hlod/${key}.glb`)!)).getRoot().listMeshes()[0]!.listPrimitives()[0]!;
@@ -190,6 +191,30 @@ test("large shapes bake in their colour (plan 5c R1); a plane bakes both sides",
   const ys = new Set(Array.from({ length: indices.getCount() / 3 }, (_, t) =>
     Math.sign(cross(sub(corner(3 * t + 1), corner(3 * t)), sub(corner(3 * t + 2), corner(3 * t)))[1]!)));
   expect(ys).toEqual(new Set([1, -1]));
+});
+
+test("landmarks bake into one proxy, small and persistent ones too, each vertex carrying its placement origin (plan 5c R8.4)", async () => {
+  const source = await fixture();
+  const small = actor(1, 10, [1, 1, 1]);
+  Object.assign(small.components.mesh, { landmark: true });
+  const persistent = { ...actor(2, 300, [3, 3, 3]), spatiallyLoaded: false };
+  Object.assign(persistent.components.mesh, { landmark: true });
+  source.set(`${FOLDER}/level.json`, encode(level([small, persistent, actor(3, 266)])));
+  const result = await buildLevelHlod(FOLDER, await inputOf(source), { ratio: 1 });
+  expect(result.index.landmarks?.triangles).toBe(24);
+  const built = (await new NodeIO().readBinary(result.files.get("hlod/landmarks.glb")!)).getRoot().listMeshes()[0]!.listPrimitives()[0]!;
+  const centers = built.getAttribute("_CENTER")!, p = built.getAttribute("POSITION")!;
+  const origins = new Set(Array.from({ length: centers.getCount() }, (_, i) => JSON.stringify(centers.getElement(i, []))));
+  expect(origins).toEqual(new Set(["[10,0,10]", "[300,0,10]"]));
+  for (let i = 0; i < p.getCount(); i += 1) expect(Math.abs(p.getElement(i, [])[0]! - centers.getElement(i, [])[0]!)).toBeLessThan(2);
+  // The small one is too small for its cell proxy; only actor 3 bakes there.
+  expect(result.index.cells.map((cell) => cell.key)).toEqual(["2_0"]);
+  // Turning a landmark off changes the landmark hash: the staleness check sees it.
+  addResult(source, result.files);
+  expect(await hlodStaleness(await inputOf(source))).toEqual([]);
+  Object.assign(small.components.mesh, { landmark: false });
+  source.set(`${FOLDER}/level.json`, encode(level([small, persistent, actor(3, 266)])));
+  expect((await hlodStaleness(await inputOf(source))).map((warning) => warning.cell)).toEqual(["landmarks"]);
 });
 
 test("level loadRange determines inclusion; persistent meshes are excluded", async () => {

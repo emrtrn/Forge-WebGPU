@@ -30,7 +30,7 @@ import {
 } from "../level/cellDocs.ts";
 import { compareCellKeys } from "../level/cells.ts";
 import { FOLIAGE_DIR, FOLIAGE_INDEX_FILE, foliageCellFileOf, normalizeLevelFoliageIndex } from "../level/foliage.ts";
-import { HLOD_INDEX_FILE, HLOD_DIR, hlodCellFileOf, hlodClusterFileOf, normalizeHlodIndex } from "../level/hlod.ts";
+import { HLOD_INDEX_FILE, HLOD_DIR, HLOD_LANDMARK_FILE, hlodCellFileOf, hlodClusterFileOf, normalizeHlodIndex } from "../level/hlod.ts";
 import { mergeLevelParts } from "../level/levelParts.ts";
 import type { LevelCellDoc, LevelCellIndexDoc } from "../level/model.ts";
 import { normalizeLevel } from "../level/normalizeLevel.ts";
@@ -160,6 +160,7 @@ export function indexLevelFolder(
   const proxyPaths = new Set([
     ...(hlod?.value?.cells ?? []).map((cell) => inFolder(folder, hlodCellFileOf(cell.key))),
     ...(hlod?.value?.clusters ?? []).map((cluster) => inFolder(folder, hlodClusterFileOf(cluster.key))),
+    ...(hlod?.value?.landmarks ? [inFolder(folder, HLOD_LANDMARK_FILE)] : []),
   ]);
   const partPaths = new Set(parts.map((file) => file.path));
   for (const path of proxyPaths) if (!partPaths.has(path)) report(HLOD_INDEX_FILE, (ctx) =>

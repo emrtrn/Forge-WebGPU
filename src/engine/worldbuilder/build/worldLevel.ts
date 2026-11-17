@@ -95,6 +95,7 @@ export function worldLevel(build: WorldBuild, options: WorldLevelOptions): World
         wind: { directionDeg: 45, strength: .3, gust: .3 },
         viewDistance: LevelSettingsFields.viewDistance.default,
         loadRange: LevelSettingsFields.loadRange.default,
+        landmarkDistance: LevelSettingsFields.landmarkDistance.default,
       },
       actors,
     },
