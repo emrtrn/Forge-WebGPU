@@ -1,8 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.44 · 2026-11-17 — §4.4 HLOD: editörde otomatik üretim (dev server iş kuyruğu, ayrı Node worker, `.forge-cache/hlod` tazelik önbelleği, kilitli yayımlama / geri alma, canlı proxy yenileme). Plan v1.42.
+**Güncelleme:** v1.45 · 2026-11-17 — §4.4 5c: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı). Plan v1.45.
 
-**Önceki güncelleme:** v1.43 · 2026-11-17 — §4.4 Faz 5c kararları (kullanıcı, "hepsi öneri gibi"): önce G6 / meshlet spike'ı, `forge.foliageType` asset'i, terrain aktöründe `forge.landscapeFoliage`, boyanmış foliage level parçası (`foliage/<x>_<z>.bin`), bütün türlerde GPU güdümlü çizim, önce çalışma anı billboard'u, bitki ailesi + bileşen, `measure:foliage`; foliage halkası ve prosedürel üretim taşındı (A 990 / 1.021). Plan v1.40.
+**Önceki güncelleme:** v1.44 · 2026-11-17 — §4.4 HLOD: editörde otomatik üretim (dev server iş kuyruğu, ayrı Node worker, `.forge-cache/hlod` tazelik önbelleği, kilitli yayımlama / geri alma, canlı proxy yenileme). Plan v1.42.
 
 **Sürüm:** v1.37 · 2026-11-16 (v1.36’dan fark: World Settings sahne gölge anahtarı, `forge.shadowSettings@1`, nesne tercihlerini koruyan render kapısı ve tek Undo ile toplu nesne gölgesi işlemleri; Island içeriği değiştirilmez). v1.36 · 2026-11-16: §4.9 Island takip gölgesi — ters derinlikte eksik alt Z sınırı, `BoundedShadowNode`, CSM / takip haritası kaynak geçişi ve gerçek GPU regresyonu. v1.35 · 2026-11-16: §4.9 öksüz terrain parça denetimi, §4.10 terrain performans ölçümü ve görsel kabul adayları (Faz 5a adım 8).
 
@@ -796,6 +796,11 @@ features/height-fog/
     reddediyor. `BundleGroup` (render bundle) statik + foliage gönderimini
     1,81 ms'ye indiriyor; bundle içinde frustum culling yok, GPU culling +
     indirect onu tamamlar. `renderer.info` bundle çizimlerini saymaz.
+  - *WebGL2 test arka ucu (kullanıcı, 2026-11-17):* compute atomikleri ve dolaylı
+    çizim olmadığı için GPU güdümlü batch'in CPU ikizi kurulur: görünür liste CPU
+    referansıyla (aynı düzlemler, sınırlar, uzaklık ve LOD kuralları) yazılır, LOD'un
+    parçaları örnekli mesh'le aynı dither solmasıyla çizilir; arayüz aynı, sahibi
+    hangi yolu aldığını bilmez. WebGPU kabulü sayılmaz.
   - *Uygulama başı (2026-11-17):* `engine/world/foliageRing` (8 A, A 990 /
     1.021) ve `engine/foliage/{foliageTypeParams,foliageRoll,proceduralFoliage}`
     Forge algoritmalarıyla taşındı; boya / silme fırçası 5d'de.
