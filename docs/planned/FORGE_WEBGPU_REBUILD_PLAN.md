@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.67 · 2026-11-18 — R9a O1–O4 uygulandı (level ayarı, otomatik engelleyiciler, GPU Hi-Z, ana görünüm örnek ayıklaması): doğru (GPU piramidi = CPU, yanlış gizleme yok), iç mekânda örneklerin %50–90'ı gizleniyor; sentetik sahnede GPU süresi değişmedi. Varsayılan kapalı; sonraki adım kullanıcı kararında.
+**Güncelleme:** v1.68 · 2026-11-18 — R9a O5 ağır mesh testi: 768 × 36,5 bin üçgenlik eşyada instanced GPU 19–20,5 ms, GPU yolu + otomatik LOD 1,75–2,1 ms, + occlusion 1,73–1,85 ms (LOD'a göre fark gürültü içinde). R9.0'ın "statikler instanced" kararı ağır içerik için yeniden açılmalı; bölge / PVS değerlendirmesi kullanıcıda.
+
+**Önceki güncelleme:** v1.67 · 2026-11-18 — R9a O1–O4 uygulandı (level ayarı, otomatik engelleyiciler, GPU Hi-Z, ana görünüm örnek ayıklaması): doğru (GPU piramidi = CPU, yanlış gizleme yok), iç mekânda örneklerin %50–90'ı gizleniyor; sentetik sahnede GPU süresi değişmedi. Varsayılan kapalı; sonraki adım kullanıcı kararında.
 
 **Önceki güncelleme:** v1.66 · 2026-11-18 — R9a üretim kararı (kullanıcı): örnek başına GPU occlusion (engelleyici ön geçişi + GPU Hi-Z + GPU yolunda örnek ayıklama), level ayarıyla; hücre + query yolu bırakıldı (instancing'de draw artırıyor). Adımlar O1–O5.
 
@@ -1226,9 +1228,16 @@ occlusion eklenmedi. Tam gate ve push çalıştırılmadı.
   - [x] **O5 A/B (çapraz poz):** 12 eşya: GPU 0,70 (instanced) / 0,86 (GPU yolu) / 0,96 ms
     (occlusion); gönderim 0,36 / 0,66 / 0,85 ms. 120 eşya: GPU 1,27 / 1,28 / 1,25 ms. Örtülü
     örnekler gölge kaskatlarına yine çizilir (ana görünüm sonucu gölgeye uygulanmaz), örtülü
-    pikseller zaten derinlikle elenir, kazanç köşe işinde; şekiller ucuz. **Açık (kullanıcı
-    kararı):** gerçekçi ağır mesh'le ölçüm, sabit maliyetin düşürülmesi (dispatch birleştirme,
-    yarım çözünürlüklü Hi-Z), gölge kaskatları için ayrı occlusion.
+    pikseller zaten derinlikle elenir, kazanç köşe işinde; şekiller ucuz.
+  - [x] **O5 ağır mesh** (`994c3b1`, dev `__forgeDev.heavyProps`: motorun statik batch'iyle yüksek
+    çözünürlüklü küreler; kayıt `2026-11-17T21-36-37-404Z-heavy-occlusion.json`): iç mekânın 768
+    eşyası 36.480 üçgenlik küre (duvarlar şekil, engelleyici). GPU süresi (oda / koridor / çapraz /
+    üstten): instanced 18,9 / 20,5 / 20,5 / 19,5 ms; GPU yolu + otomatik LOD 1,75 / 1,80 / 1,93 /
+    2,08 ms; + occlusion 1,74 / 1,85 / 1,73 / 1,77 ms. Gönderim 0,9 / 0,6 / 0,7–0,8 ms. Kazancın
+    neredeyse tamamı otomatik LOD'dan; duvar arkasındakiler uzak ve zaten kaba LOD'da, occlusion
+    farkı gürültü içinde. **Sonuç:** R9.0'ın "statikler instanced" kararı yalnız hafif içerikle
+    ölçülmüştü; ağır içerikte GPU yolu 10 kat hızlı. Varsayılan yol (ör. `auto`, üçgen eşiği
+    yükseltilmiş) ve iç mekân için bölge / PVS sistemi kullanıcı kararında.
 - Mevcut frustum / mesafe culling ve ambient occlusion, nesne occlusion culling
   değildir. Mevcut meshlet taslağında `occlusionCulling: false`; bağımsız üretim
   occlusion sistemi doğrulanmadı. R7'ye eklenmez; önce R8 ve R9 tamamlanır.
@@ -1990,5 +1999,6 @@ silinebilir.
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
+| 2026-11-18 | v1.68 | R9a O5 ağır mesh (`994c3b1`): instanced 19–20,5 ms → GPU yolu + otomatik LOD 1,75–2,1 ms → + occlusion 1,73–1,85 ms; kazanç LOD'dan, occlusion farkı gürültüde. Statik yol varsayılanı ve bölge / PVS kararı açık |
 | 2026-11-18 | v1.67 | R9a O1 (`5f1ab63`) ve O2–O4 (`6510965`): occlusion level ayarı, otomatik engelleyici ön geçişi, GPU Hi-Z (Codex `gpt-6.2-sol` paket düzeni), ana görünüm örnek ayıklaması; doğru (piramit 0 fark, yanlış gizleme yok), iç mekânda %50–90 örnek gizli; sentetik sahnede GPU süresi değişmedi, gönderim arttı. Varsayılan kapalı |
 | 2026-11-18 | v1.66 | R9a hücre batch'i ölçümü (`fab7066`, kapalı): iç mekân draw 4 → 63; query yolu bırakıldı. Üretim kararı (kullanıcı): örnek başına GPU occlusion O1–O5 (level ayarı, otomatik engelleyici ön geçişi, GPU Hi-Z, ana görünüm örnek ayıklaması, A/B) |
