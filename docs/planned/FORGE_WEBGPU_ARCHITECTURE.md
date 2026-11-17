@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.47 · 2026-11-17 — §4.4 5b HLOD: şekiller pişirilir (5c R1). Önceki v1.46 — §4.4 5c: üçgen / draw call ayrımı, sanal geometri adayları ve spike'ı 5.5 öncesi, HLOD'a şekiller (karar 5'in static mesh kuralı kalkar), three-nanite elendi. Plan v1.46.
+**Güncelleme:** v1.48 · 2026-11-17 — §4.4 5c gölge görünümleri (5.2). v1.47 — §4.4 5b HLOD: şekiller pişirilir (5c R1). Önceki v1.46 — §4.4 5c: üçgen / draw call ayrımı, sanal geometri adayları ve spike'ı 5.5 öncesi, HLOD'a şekiller (karar 5'in static mesh kuralı kalkar), three-nanite elendi. Plan v1.46.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — §4.4 5c: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı). Plan v1.45.
 
@@ -805,6 +805,14 @@ features/height-fog/
     referansıyla (aynı düzlemler, sınırlar, uzaklık ve LOD kuralları) yazılır, LOD'un
     parçaları örnekli mesh'le aynı dither solmasıyla çizilir; arayüz aynı, sahibi
     hangi yolu aldığını bilmez. WebGPU kabulü sayılmaz.
+  - *Gölge görünümleri (5.2, 2026-11-17):* görünüm 0 ana kamera, 1.. her kaskat ve
+    öteki yönlü gölge haritaları (three'nin ışık düğümünden; CSM kaskatları render'dan
+    önce aynı kamerayla yerleştirilir). Her görünümün kendi culling tamponları ve
+    mesh'leri; gölge görünümü k'nın mesh'leri yalnız k katmanında, gölge kamerasına o
+    katman eklenir. Ortak gölge materyali `contextNode`'u taşımadığı için örnek
+    dönüşümü `castShadowPositionNode`, solma `maskShadowNode`; mesafe ana kameradan.
+    Spot / nokta gölgeleri GPU güdümlü batch'i görmez. WebGL2 ikizi aynı görünümleri
+    örnekli mesh'le kurar.
   - *Üçgen ve draw call ayrımı (kullanıcı, 2026-11-17; sıra plan 5c "yeni sıra"):*
     üçgen azaltma meshlet / sanal geometriyle (otomatik, elle LOD yok); r187'nin
     `MeshletDrawingPipeline`'ı ters derinlikte kapandığı için aday three-virtual-geometry

@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.47 · 2026-11-17 — Faz 5c R1: HLOD'a `forge.shape` (three'siz primitive üreticisi, eşitlik testi). Önceki v1.46 — Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; R1 HLOD'a şekiller → R2–R4 (5.2–5.4) → R5 sahne maliyet raporu → R6 üçgen spike'ı (three-virtual-geometry / ters derinlikli meshlet kopyası / 5.1 + ayrık LOD) → R7 üretim → R8 HLOD katmanları → R9 (5.5) → R10 (5.6). three-nanite elendi. Mimari v1.46.
+**Güncelleme:** v1.48 · 2026-11-17 — Faz 5c R2 (5.2): GPU güdümlü batch'ler gölge kaskatlarında. v1.47 — Faz 5c R1: HLOD'a `forge.shape` (three'siz primitive üreticisi, eşitlik testi). Önceki v1.46 — Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; R1 HLOD'a şekiller → R2–R4 (5.2–5.4) → R5 sahne maliyet raporu → R6 üçgen spike'ı (three-virtual-geometry / ters derinlikli meshlet kopyası / 5.1 + ayrık LOD) → R7 üretim → R8 HLOD katmanları → R9 (5.5) → R10 (5.6). three-nanite elendi. Mimari v1.46.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — Faz 5c adım 5: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı, `2544bdb`); çizim sayacı iki geçişli saydam materyalleri sayar. Mimari v1.45.
 
@@ -1040,6 +1040,27 @@ katman, dosya bütçesi, `verify:assets`; `hlod.spec.ts` + `streaming.spec.ts` b
 **5 / 5** ve gerçek WebGPU **5 / 5**. Kalan: kullanıcının Derekavak kabulü (HLOD
 denetim listesi + şekiller).
 
+**R2 (5.2) uygulandı (2026-11-17, C).** Batch görünüm başına sayaç, görünür liste,
+indirect argümanları, compute düğümleri ve mesh'ler tutar: görünüm 0 ana kamera,
+1.. gölge görünümleri (en çok 8). `gpuDriven` gölge görünümlerini three'nin son
+karedeki ışık düğümünden bulur: kaskatlı güneşin her kaskatı (CSM düğümü kaskatları
+render'dan önce aynı kamerayla yerleştirir; render aynı hesabı tekrarlar), diğer her
+yönlü gölge haritası bir görünüm; spot / nokta gölgeleri GPU güdümlü batch'i görmez.
+Gölge görünümü k'nın mesh'leri yalnız k katmanında; gölge kamerasına o katman
+eklenir (three'nin gölge geçişi korur), ana kamera ve öteki kameralar görmez.
+Gölge geçişi ortak `scene.overrideMaterial`'la çizdiği için `contextNode` taşınmaz:
+örnek dönüşümü `castShadowPositionNode`'da, solma `maskShadowNode`'da. Mesafe /
+LOD / solma ana kameradan ölçülür (ana görünümün ayıkladığı gölge düşürmez).
+`castShadow: false` batch'i gölge görünümü kurmaz. WebGL2 ikizi aynı görünümleri
+örnekli mesh'le kurar; three boş örnekli mesh'i çizmediği için sayaç yalnız örneği
+olanları sayar. Smoke `gpuCulling.smoke.ts` iki arka uçta: P2'de 3 kaskat, her
+kaskatta GPU sayısı CPU'nun kesin–olası aralığında (P2 / P1 / gökyüzü ana görünüm
+177 / 32 / 0 değişmedi); `?debug` 398 → **458** (15 çizim × 4 görünüm; WebGL2 454);
+gölgeli / gölgesiz görüntü farkı 0,21 (0–255). Kayıt
+`render-refs/runs/2026-11-17T11-23-41-036Z-gpu-culling.json` (+ `-webgl`), çekimler
+`candidates/derekavak-p2-gpu-foliage{,-shadowless}.png` (göz için). Odaklı Vitest,
+typecheck, katman. Bundle 5.3'te; gölge görünümleri de aynı bundle'a girer.
+
 5c ile paralel yürürse ortak dosyalar: `render/sync/instanceBatches.ts` (adım 8; foliage
 kendi batch'ini kurar), kalite profilleri, `?debug` satırları. Çakışmada adım 8 5c'nin
 GPU güdümlü yolunu bekler.
@@ -1382,3 +1403,4 @@ silinebilir.
 | 2026-11-17 | v1.45 | Faz 5c adım 5: WebGL2 test arka ucu için GPU güdümlü batch'in CPU ikizi (kullanıcı kararı, `2544bdb`): CPU referansı ayıklar, örnekli mesh çizer, aynı arayüz; sayaç saydam çift yüzlü materyalin iki geçişini sayar (P2 15 çizim). Smoke iki arka uçta geçti; mimari v1.45. 5.2 başka oturumda planlanıyor, bu oturumda başlanmadı |
 | 2026-11-17 | v1.46 | Faz 5c yeni sıra (kullanıcı): 5.2 durduruldu; draw call ve üçgen ayrı. R1 HLOD'a `forge.shape` (kullanıcı kararı), R2–R4 = 5.2 kaskatlar / 5.3 bundle / 5.4 foliage, R5 sahne maliyet raporu (ajan komutu + editör Stats), R6 üçgen spike'ı (three-virtual-geometry, r187 meshlet hattının ters derinlik kopyası, 5.1 + ayrık LOD; kod commit'lenmez), R7 seçilen yolun üretimi, R8 hiyerarşik HLOD + siluet katmanı, R9 = 5.5, R10 = 5.6. three-nanite elendi. Kod yok; mimari v1.46 |
 | 2026-11-17 | v1.47 | Faz 5c R1: HLOD'a `forge.shape`: three'siz primitive üreticisi `engine/procgen/shapePrimitives.ts` + three geometrisiyle eşitlik testi, yerleşim / `sourceHash` / tazelik damgası primitive + renk içerir, düzlem iki yüzlü; Derekavak 22 hücre, OUT-001 proxy'de. Odaklı Vitest 64, hlod + streaming smoke başsız ve gerçek WebGPU 5 / 5. Kullanıcı Derekavak kabulü açık; sıradaki R2 |
+| 2026-11-17 | v1.48 | Faz 5c R2 (5.2): GPU güdümlü batch'ler gölge kaskatlarına çizer: görünüm başına kaynak, gölge görünümü kendi katmanında, örnek dönüşümü `castShadowPositionNode`, solma `maskShadowNode`, mesafe ana kameradan; WebGL2 ikizi aynı. Smoke iki arka uçta: her kaskatta GPU = CPU, `?debug` +60 (15 × 4 görünüm), gölge görüntüyü değiştirir. Sıradaki R3 bundle |
