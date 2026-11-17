@@ -31,6 +31,11 @@ kendini de sınar (rapor §4.2, A3).
 `src/core` ve `features/*/schema.ts` düz Node'da yüklenir (`verify:node-load`);
 `src/**` Node modülü import etmez.
 
+R7 otomatik LOD: three'siz türev veri / üretici `engine/geometry`, Node cache ve
+build `tools/triangles`, seçilebilir GPU / WebGL2 bağı ve worker `render/triangles`.
+Kararlar ve kabul sınırları [rapor §4.4](../planned/FORGE_WEBGPU_ARCHITECTURE.md);
+genel statik geçiş R9, occlusion ayrı R9a işidir.
+
 ## Özellik klasörü
 
 Bir özellik tek klasördür: `src/features/<ad>/{schema,runtime,render,editor,feature}.ts`

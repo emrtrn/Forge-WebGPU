@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.54 · 2026-11-17 — Kullanıcı R6 seçimini onayladı: yoğun uygun FrontSide statiklerde r187 meshlet; diğer materyaller / WebGL2 için otomatik ayrık LOD; foliage 5.1 yolunda. R7 yeni oturumda başlayacak.
+**Güncelleme:** v1.56 · 2026-11-17 — R7 seçilebilir otomatik LOD altyapısı uygulandı ve iki arka uçta doğrulandı. Meshlet'e özel üretim kodu kaldırıldı; R6 araştırması korundu. v1.55'in R9a occlusion kararı değişmedi; R8 / R9 / R9a / R10 açık.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — Faz 5c adım 5: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı, `2544bdb`); çizim sayacı iki geçişli saydam materyalleri sayar. Mimari v1.45.
 
@@ -1014,15 +1014,142 @@ işleyicisi (`clusterlod.h` portu) ve çatlak denetimi referanstır. Bütün ad�
 | R4 | 5.4 foliage bu yolda | Halka (adım 6) ve boyanmış hücreler (adım 7) bu batch'leri kullanır; WebGL2 ikizi korunur | Smoke iki arka uçta |
 | R5 | Sahne maliyet raporu | Ajan komutu (öneri `npm run forge -- stats --project <yol> --level <klasör> [--json]`): aktör, benzersiz geometri / materyal, model başına materyal, saydam / çift yüzlü, kaynak üçgen; editör Stats: görünür draw call (dolaylı + bundle dahil) ve çizilen üçgen. `verify:assets` eşikleri sonra (yalnız rapor) | Derekavak ve sentetik level raporu; R6'nın ortak ölçü dili |
 | R6 | Üçgen spike'ı (tamamlandı; kod commit'lenmez, port 5284+) | Derekavak P2 + yoğun mesh stres sahnesi: (a) three-virtual-geometry, (b) r187 meshlet hattının ters derinlik kopyası, (c) 5.1 yolu + meshoptimizer ayrık LOD zinciri. Ölçüt: çizilen üçgen, draw call, gönderim / ana iş parçacığı, GPU süresi, kaskat gölgesi, ters derinlik, MRT, R3 bundle'ı, WebGL2 ikizi, bellek / ön işleme süresi, three iç API bağımlılığı | Kayıt `render-refs/runs/`; kullanıcı seçimi aşağıda (2026-11-17) |
-| R7 | Seçilen üçgen yolunun üretimi (sıradaki; yeni oturum) | Yoğun uygun FrontSide statiklerde r187 meshlet; diğer materyaller / WebGL2 için otomatik ayrık LOD. Foliage 5.1 yolunda. Otomatik ön işleme (elle LOD yok), runtime bağı; küçük nesnede önce üçgen düşer, sonra detay culling (aynı geçiş) | Onaylanan seçimle tasarım ve üretim; R8 / R9 / R10 ayrı |
+| R7 | Otomatik LOD üretimi (tamamlandı) | Meshoptimizer ile otomatik ayrık LOD, deterministik ön işleme / cache / build ve seçilebilir runtime bağı; WebGPU + WebGL2. Meshlet üretim kapsamı dışında; foliage mevcut 5.1 yolunda. Küçük nesnede önce üçgen düşer, sonra detay culling | 21 odaklı test, typecheck, katman, gerçek WebGPU + WebGL2 smoke; uygulama kaydı aşağıda. R8 / R9 / R9a / R10 ayrı |
 | R8 | HLOD katmanları (draw call) | Hiyerarşik HLOD (öneri: ikinci katman 4 × 4 hücre, uzak menzilde), siluet / landmark işareti (view distance ötesinde uzak katman), proxy'ler GPU yoluna / bundle'a. Materyal birleştirme R5 raporuyla ayrı karar | Draw call ve gönderim öncesi / sonrası |
-| R9 | 5.5 statiklerin geçişi | R6 kararıyla 5.1 yolu ya da sanal geometri; picking, detay fade, transform hızlı yolu, HLOD hazır olma, `compileAsync` korunur | Editör / render smoke'ları iki arka uçta |
+| R9 | 5.5 statiklerin geçişi | 5.1 yolu + otomatik LOD; picking, detay fade, transform hızlı yolu, HLOD hazır olma, `compileAsync` korunur | Editör / render smoke'ları iki arka uçta |
+| R9a | GPU occlusion culling (yeni, açık) | R9 sonrasında, R10 öncesinde meshlet'ten bağımsız nesne / instance düzeyinde konservatif Hi-Z adayı: önce tasarım + açık alan / örtülü alan A/B ölçümü, sonra yararlıysa üretim. Ters derinlik, MRT, MSAA, kamera hareketi ve gölge doğruluğu | Yanlış gizleme yok; culling kapalı referansla doğruluk; CPU / GPU render + compute / bellek / görünür nesne / üçgen karşılaştırması; WebGL2 mevcut culling ile çalışır |
 | R10 | 5.6 G6 ölçümü | Derekavak P2 60 Hz, R5 raporuyla; sonra 5c adım 6–11 eski sırayla | G6 sınırları |
 
 Öneriyle ilerleyen kararlar (kullanıcı itiraz ederse değişir): foliage 5.1 yolunda
 kalır, sanal geometri yalnız statik mesh adayıdır; ön işleme çıktısı commit'lenmez,
 `.forge-cache/` ve build'de üretilir (asset türevi, deterministik); şekil üreticisi
 three'siz tek kaynak, render'ın three geometrisi değişmez, eşitlik testle korunur.
+
+**Güncel karar ve R7 kapsam değişikliği (kullanıcı, 2026-11-17; v1.55):**
+Meshlet şimdilik üretimden çıkarılır; bu karar v1.54'teki hibrit seçimin yerini
+alır. R6 araştırması ve ölçüm kayıtları korunur. Diğer oturumdaki R7 kodu henüz
+commit edilmemiştir; otomatik LOD / cache / build / runtime işleri korunarak
+meshlet'e özel üretim bağları o oturum tarafından ayrılmalı ve kaldırılmalıdır.
+Bu belge güncellemesi kod temizliği yapmaz, R7'yi tamamlandı saymaz. Mevcut
+taslak silinmeden önce kapsamı gözden geçirilir; aktif üretimde kullanılmayan
+r187 kopyasını motorda kalıcı olarak tutmak hedef değildir.
+
+R7'nin yeni çıktısı: elle LOD gerektirmeyen sadeleştirme, faydasız seviyeleri
+atlama, deterministik türevler, arka planda hazırlık, kaynak değişince yenileme,
+build / runtime veri sözleşmesi ve WebGPU / WebGL2 bağıdır. Geçişlerde kaynak
+geometri, picking, fade, gölge ve HLOD hazır olma korunur. Ekrandaki hata temelli
+LOD seçimi tasarlanır; R6'nın sabit 40 / 90 m eşikleri üretim sözleşmesi değildir.
+Batch / compute maliyeti ayrıca ölçülür. Foliage ve terrain kendi yollarında;
+statiklerin toplu geçişi R9'dadır. Meshlet ancak bu hat optimize edildikten sonra
+gerçek içerikte geometri darboğazı kalırsa, eşit görsel hata / LOD verisiyle
+karşılaştırılan yeni bir kullanıcı kararıyla yeniden ele alınır; tarihi şimdiden
+belirlenmiş zorunlu bir meshlet adımı yoktur.
+
+**R7 uygulama / kabul kaydı (2026-11-17; v1.56):**
+- [x] `engine/geometry/{triangleData,prepareTriangles}`: three'siz deterministik
+  ayrık LOD; en çok 1 / 0,5 / 0,15 hedefleri. ≤500 üçgenli primitive tek seviyede
+  kalır; önceki seviyeden en az %15 kazanç yoksa yeni seviye yazılmaz. Materyal
+  grupları ayrı sadeleşir, slot aralıkları korunur; kaynak köşe indeksleri ve
+  seam sınırları korunur. LOD geometrileri köşe niteliklerini kaynakla paylaşır.
+- [x] `tools/triangles`: NodeIO ile model primitive'lerinden
+  `.forge-cache/triangles/<key>.json`; build aynı veriyi `forge/triangles/` altında
+  yayımlar. Sürüm + sıralanmış nitelikler + indeks / grup verisi kimliğe girer;
+  tam girdi imzası çakışma / bayatlık denetimidir. Dev okuması mevcut localhost /
+  header kuralıyla korunur. Cache kaçırması / prosedürel / değişmiş UVW girdisi
+  aynı üreticiyi tarayıcı worker'ında çalıştırır. Türevler commit'e girmez.
+- [x] `render/triangles`, `host.triangles`, `InstanceBatchOptions.triangles`:
+  **seçilebilir** 5.1 GPU batch / WebGL2 CPU ikizi. Mevcut statik çağrılar
+  açılmadı; foliage ve terrain bağları değişmedi. Yeni üretim meshlet kopyası,
+  seçicisi, küme verisi / referansı ve renderer pipeline bağlantısı kaldırıldı.
+  `.forge-cache/r6` dört kaynak hash'i R6 kaydıyla aynı; araştırma silinmedi.
+- [x] Ekran hatası: varsayılan 1 fiziksel piksel geometrik hata bütçesi;
+  kaydedilmiş mutlak sadeleştirme hatası × yerel ölçek × projeksiyon / çizim
+  yüksekliği. Perspektifte sınır küresinin en yakın noktasına konservatif
+  uzaklık, ortografikte batch'in en büyük örnek ölçeği kullanılır. Sabit
+  40 / 90 m eşikleri yoktur. LOD ve detay fade gölgelerde de ana kamerayı izler
+  (5.1 sözleşmesi); fade 0,8..1 bandı, kalite / yerleşim ölçeği ve uzak culling
+  korunur. Materyalin yüzü, context'i ve maskeleri sessizce değiştirilmez.
+- [x] Kaynak mesh / aktör / slot tablosu CPU picking için kalır. Hazır olma
+  türev üretimi + gerçek MRT / ışıklarla seri `compileAsync` kuyruğunu bekler;
+  hazırlık sahnesinden ayrılan çizimler etkinleştirmede kendi ebeveynlerine
+  döner. İptalde kaynaklar derleme bitince bırakılır. Olağan transform değişimi
+  tamponları günceller; yapısal değişim bağı yeniden kurar.
+  Geometri / materyal sahibinindir; türev, maskeler, worker ve batch yaşamları
+  ayrıdır. Picking, yerel transform / fade, iptal ve HLOD hazır olma regresyonları
+  odaklı testlerdedir.
+
+**Doğrulama:** 6 dosyada **21 / 21** odaklı Vitest; dört tsconfig ile typecheck;
+katman + 29 kasıtlı ihlal öz-testi. Render alt kümesi **7 / 7**: R7 iki backend,
+mevcut foliage culling iki backend, detay fade ve iki ters / düz derinlik gölge
+kontrolü. Yeni R7 yolu gerçek WebGPU MRT / ters derinlik / üç kaskat / bundle ve
+WebGL2'de çalıştı; her görünümün LOD sayacı CPU kesin–olası aralığında.
+Küçük küp tek LOD; yoğun küçük nesnede LOD sonra culling; taşınan batch'in görünür
+listeleri yenilenir. Native pass / indirect / bundle replay draw'ları Stats'la
+eşit; kararlı bundle penceresinde yeniden kayıt 0. Referans snapshot yenilenmedi.
+Kod commit'i `134b2aa`. Odaklı üretim build'i `.forge-cache/r7/dist` altında
+geçti: ayrı `triangleWorker` paketi ve statik `build-content` / türev dizini
+üretildi (Starter: 78 dosya, 43 asset). Node GLB testi cache ve build türevlerinin
+bayt eşitliğini de denetler. Üretim dist'inin tarayıcıda açılma smoke'u bu
+kapsamda çalıştırılmadı; dev backend smoke'undan ayrı kabul sınırıdır.
+
+**Dar R7 ölçümü (G6 kabulü değil):** Derekavak P2 + 48 yoğun küre, 6 küçük yoğun
+küre ve 6 küçük küp; 1920×1080 high DPR 1, gerçek NVIDIA Ampere WebGPU.
+40 ısınma + 30 örnek; **her elle adımdan önce ayrı RAF**. CPU, GPU bekleyişinden
+önce `dev.step`'in senkron kaydıdır; render / compute timestamp'leri ayrıdır.
+`renderer.info` elle sıfırlanır; sonraki RAF'ın sayacı silmesi engellenir.
+
+| WebGPU | Draw (dolaylı dahil) | Gönderim ms | CPU ms | GPU render ms | GPU compute ms |
+|---|---|---|---|---|---|
+| Doğrudan | 438 (40 dolaylı) | 5,64 | 6,43 | 5,47 | 0,13 |
+| Bundle | 438 (40 dolaylı; 16 replay) | 5,49 | 6,20 | 5,39 | 0,13 |
+
+WebGL2 CPU ikizi aynı ana LOD adetlerini verdi: büyük iki batch'te 3 / 18 / 0;
+küçük yoğun batch'te 0 / 1 / 2; küplerde 3. WebGL2 Stats 424 draw; WebGPU native
+timestamp / dolaylı sayacı bu arka uçta yoktur. Ham kayıt / çekimler
+`.forge-cache/r7/`, kalıcı ölçüm kaydı `render-refs/runs/2026-11-17-r7-lod.json`.
+Bu örnek R6 stresinin eşdeğeri veya draw / compute optimizasyon kabulü değildir.
+**G6 açık; son R6 gönderimi 3,03 ms.** Genel asset / hareketli kamera görsel
+kabulü ve toplu statik geçiş R9'dadır. R8, R9, R9a ve R10 başlatılmadı;
+occlusion eklenmedi. Tam gate ve push çalıştırılmadı.
+
+**R9a occlusion tasarım / kabul notları (yeni plan işi, uygulanmadı):**
+- Mevcut frustum / mesafe culling ve ambient occlusion, nesne occlusion culling
+  değildir. Mevcut meshlet taslağında `occlusionCulling: false`; bağımsız üretim
+  occlusion sistemi doğrulanmadı. R7'ye eklenmez; önce R8 ve R9 tamamlanır.
+- Aday Hi-Z, gerçek opak yüzey derinliğinden üretilir; bounding box'lar dolu
+  engelleyici gibi çizilmez. Saydam ve dither ile kaybolan yüzeyler ilk sürümde
+  engelleyici değildir; alpha-test ancak delikleri doğru yansıtan ayrı kabulle.
+  Ters derinlik için indirgeme / karşılaştırma, MSAA depth resolve ve MRT
+  yaşam döngüsü tasarımda açıkça doğrulanır. Hazır HZB kodu doğrudan kopyalanmaz.
+- Önceki kare derinliği kullanılacaksa kamera kesmesi / teleport, yeni açılan
+  alan, hareketli nesne, near-plane kesişimi, yeniden boyutlandırma ve akışla
+  gelen nesne için güvenli görünür kabulü / güncel kare doğrulaması gerekir.
+  Sırf eski karede örtülüydü diye görünür nesne gizlenmez.
+- Ana kameradan örtülü nesne gölge düşürebilir: ana görünüm sonucu gölge
+  kaskatlarının listesine uygulanmaz. Occlusion bir çizim kararıdır; aktör
+  simülasyonu, picking kaynakları veya hücre residency'sini kapatmaz.
+- Açık alan (düşük örtülme), bina / duvar arkası (yüksek örtülme), kamera
+  hareketi ve dinamik engelleyici senaryolarında kapalı / açık karşılaştırılır.
+  Hi-Z / depth pass maliyeti dahil net kazanç yoksa varsayılan kapalı kalır.
+  WebGL2'de bu GPU yolu zorunlu değildir; frustum / mesafe / LOD devam eder.
+- Kaynak araştırması: [r187 HZB](https://github.com/mrdoob/three.js/blob/r187/examples/jsm/pipelines/MeshletDrawingPipeline.js)
+  ve [Niagara](https://github.com/zeux/niagara) (Vulkan, algoritma referansı;
+  doğrudan three/WebGPU eklentisi değil). Yeni bağımlılık kararı verilmedi.
+
+**R7 önceki uygulama taslağı (v1.54, tarihsel; yukarıdaki güncel kapsam geçerli):**
+1. r187 hattını sürümü ve MIT kaynağı belgelenmiş render kopyasında tut;
+   ters derinlikte yalnız occlusion kapalı yolu aç. Uygunluğu gerekçeleriyle
+   açıkla: yoğun FrontSide statik, desteklenen geometri / materyal / dönüşüm.
+2. Three'siz deterministik meshlet + ayrık LOD türevi üret; Node önbelleği
+   `.forge-cache/triangles`, build çıktısı ve runtime aynı veri sözleşmesini
+   kullansın. Küçük primitive ve kazançsız sadeleştirme ek LOD oluşturmasın.
+3. Seçilebilir üretim bağını kur; mevcut statik / foliage / terrain bağlarını
+   topluca değiştirme (R9). CPU picking kaynağı, detay fade / culling sırası,
+   async hazırlık / iptal / kaynak ömrü ve HLOD hazır olma sözleşmesi korunsun.
+4. Odaklı regresyonlar, typecheck, gerçek WebGPU MRT / ters derinlik / üç
+   kaskat / bundle ve WebGL2 fallback smoke'u; sayaçlar CPU referansıyla.
+   Ölçümün her adımından önce ayrı RAF, render / compute süreleri ayrı.
+   Kod ve belgeler ayrı yol sınırlı commit; R8–R10 ve G6 kabulü açık kalır.
 
 **R1 uygulandı (2026-11-17, C).** `engine/procgen/shapePrimitives.ts`: three'siz
 cube / sphere / cylinder / cone / plane (three r187 üreticilerinin köşe sırası,
@@ -1142,7 +1269,7 @@ R6'nın ölçü dili: üçgen ağırlığı model başına, draw ağırlığı p
 üretimi Derekavak'ta 21.360 üçgen yazdı, kaynakla aynı (sadeleştirme bu modellerde
 üçgen düşürmüyor); R8'de bakılır.
 
-**R6 ölçüldü; seçim kullanıcı tarafından onaylandı (2026-11-17). R7 başlamadı.** Scratchpad
+**R6 ölçüm kaydı (2026-11-17): ilk seçim v1.54'te onaylandı; güncel v1.55 kararı meshlet'i erteler. R7 otomatik LOD ile devam eder.** Scratchpad
 `.forge-cache/r6/` (kod commit'lenmedi), ayrı Vite cache / dev kancası yalnız
 5284'te; 5183 / 5283'e dokunulmadı. Kayıt
 `ForgeReference/render-refs/runs/2026-11-17-r6-triangles.json`; yanında
@@ -1219,7 +1346,7 @@ geçişine bağlıdır. Kopya 5.500+ satırdır; sürüm yükseltme bakım yük�
 5.1 + meshoptimizer var olan batch / WebGL2 ikiziyle en dar sözleşmedir, fakat
 LOD × parça × görünüm draw ve yüzlerce compute dispatch CPU / GPU maliyetidir.
 
-**Karar (kullanıcı, 2026-11-17; öneriyi onayladı):** R7'de r187 meshlet kopyasını yalnız
+**İlk karar (kullanıcı, 2026-11-17; v1.54, v1.55 ile değişti):** R7'de r187 meshlet kopyasını yalnız
 uygun, yoğun, FrontSide statik geometri için üretimleştirmek; DoubleSide /
 saydam / özel düğümlü statikler ve WebGL2 için 5.1 + otomatik ayrık LOD
 fallback'i korumak. Foliage mevcut 5.1 yolunda kalır. Terrain meshlet'e girmez,
@@ -1577,3 +1704,5 @@ silinebilir.
 | 2026-11-17 | v1.52 | Kullanıcı görsel kabulleri onayladı: 5b HLOD / detay fade + otomatik HLOD, 5c R1 Derekavak şekil proxy. 5b kutusu kapandı; Faz 5 bütünü açık, arşiv yok. Referanslar yenilenmedi, yeni test / gate yok. R6 başladı; R7 karar bekler. |
 | 2026-11-17 | v1.53 | R6: gerçek WebGPU P2 ve 25,8 M üçgen stres; VG / ters derinlikli r187 meshlet / 5.1 + meshoptimizer LOD, bundle ve WebGL2 ikizi. Ayrı RAF ile PassNode ölçüm sorunu giderildi; geçersiz ilk koşular dışarıda. Yoğun FrontSide statik meshlet + diğerlerinde ayrık LOD fallback önerisi karar bekliyor. Spike kodu commit edilmedi; kayıt render-refs/runs/2026-11-17-r6-triangles.json. R7 başlamadı. |
 | 2026-11-17 | v1.54 | Kullanıcı R6 önerisini onayladı: yoğun uygun tek yüzlü statiklerde ters derinliğe uyarlanmış r187 meshlet; diğer materyallerde / WebGL2’de otomatik ayrık LOD; foliage mevcut 5.1 yolunda. Terrain meshlet dışında, occlusion ilk sürümde kapalı. Önceki genel meshlet reddi bu kapsamda geçersiz; R7 yeni oturumda başlayacak, üretim kodu yok. |
+| 2026-11-17 | v1.55 | Kullanıcı meshlet'i şimdilik üretimden çıkardı; v1.54 hibrit seçimi tarihsel kaldı. Devam eden R7 otomatik LOD / cache / build / runtime kapsamına daraltıldı; meshlet'e özel kod ayrımı geliştiren oturumun işi, bu belge değişikliği kod temizliği yapmadı. R6 kanıtları korundu. Bağımsız konservatif GPU occlusion culling R9a olarak R9 sonrası / R10 öncesi tasarım + ölçüm / yararlıysa üretim işi şeklinde eklendi. Occlusion uygulanmadı; yanlış gizleme, gölge, ters derinlik ve net maliyet kapıları yazıldı. |
+| 2026-11-17 | v1.56 | R7 otomatik LOD üretim altyapısı tamamlandı: deterministik Node cache / build, tarayıcı worker, ekran hatasıyla seçim, seçilebilir 5.1 GPU / WebGL2 CPU bağı; genel statikler R9'a kadar değişmedi. Meshlet'e özel üretim dosyaları ve pipeline bağı kaldırıldı; R6 dört kaynak hash'i kayıtla eşit. Küçük / kazançsız LOD, materyal grupları, CPU picking, fade / yerel transform, kaynak ömrü, iptal / compileAsync / HLOD hazır olma korundu. 21 odaklı test, typecheck, katman; ilgili render alt kümesi 7 / 7. Odaklı production build ve ayrı worker paketi geçti; dist tarayıcı smoke'u çalıştırılmadı. Dar P2 ek nesne ölçümünde native = Stats 438 draw, 40 dolaylı; bundle 16 replay / 0 yeniden kayıt; render / compute ayrı. G6 açık, son R6 3,03 ms. v1.55'in R9a kararı korundu; R8 / R9 / R9a / R10 başlamadı. Kod 134b2aa; docs ayrı commit, push ve tam gate yok. |

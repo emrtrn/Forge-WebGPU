@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.54 · 2026-11-17 — §4.4 kullanıcı R6 seçimini onayladı: uygun yoğun FrontSide statiklerde r187 meshlet, diğer materyaller / WebGL2 için otomatik ayrık LOD, foliage 5.1 yolunda. R7 yeni oturumda başlayacak.
+**Güncelleme:** v1.56 · 2026-11-17 — §4.4 R7 seçilebilir otomatik LOD / worker / cache / build bağı uygulandı. Meshlet'e özel üretim kodu kaldırıldı, R6 araştırması korundu. v1.55 R9a occlusion kararı değişmedi; uygulanmadı.
 
 **Önceki güncelleme:** v1.45 · 2026-11-17 — §4.4 5c: WebGL2 test arka ucunda GPU güdümlü batch'in CPU ikizi (kullanıcı kararı). Plan v1.45.
 
@@ -831,7 +831,40 @@ features/height-fog/
     görünüm ve gölge kaskadı başına draw, foliage, HLOD. Çalışma anı karşılığı editör
     Stats'ı: draw call ve üçgene GPU güdümlü batch'ler eklenir (üçgen, görünür
     sayaçların eşzamansız geri okumasıyla).
-  - *R6 ölçümü ve onaylanan seçim (kullanıcı, 2026-11-17):* gerçek WebGPU P2 / yoğun küre stresi,
+  - *Güncel seçim (kullanıcı, 2026-11-17; v1.55):* meshlet şimdilik üretim
+    kapsamından çıkarıldı; v1.54 hibrit seçimi tarihsel kaldı. R7 otomatik ayrık
+    LOD üretimi, deterministik cache / build ve WebGPU / WebGL2 runtime bağına
+    odaklanır. Foliage 5.1'de, terrain kendi hattında kalır. Devam eden R7'nin
+    ortak LOD altyapısı korunur; meshlet'e özel bağları geliştiren oturum ayırır.
+    R6 araştırması silinmez. Meshlet yeniden değerlendirmesi ancak optimize
+    otomatik LOD sonrası gerçek içerikte kalan geometri darboğazının, eşit
+    görsel hata ve aynı LOD verisiyle ölçülmesi ve yeni kullanıcı kararıyla olur.
+  - *R7 uygulaması (2026-11-17; v1.56):* `engine/geometry` deterministik ayrık
+    LOD verisini üretir; küçük (≤500 üçgen) ve kazançsız (%15'ten az azaltma)
+    seviyeler çoğaltılmaz, materyal grubu / slot / köşe niteliği korunur.
+    `tools/triangles` Node önbelleği ve build'in `forge/triangles` çıktısı;
+    aynı sürüm / girdi imzası, cache kaçırmasında tarayıcı worker'ı. `host.triangles`
+    ve `InstanceBatchOptions.triangles` seçilebilir 5.1 GPU / WebGL2 CPU bağıdır;
+    genel statik çağrılar R9'a kadar açılmadı. Foliage / terrain aynı yoldadır.
+    Kaydedilmiş mutlak hata, projeksiyon / fiziksel çizim yüksekliği ve örnek
+    ölçeğiyle varsayılan 1 piksel geometrik hata bütçesine dönüştürülür;
+    perspektifte sınır küresine konservatif uzaklık, ortografikte en büyük
+    örnek ölçeği. Gölge LOD'u / fade ana kamerayı izler (5.1); uzak detay culling
+    korunur. Kaynak mesh CPU picking / slot tablosunu taşır, türev çizimler seri
+    MRT `compileAsync` hazırlığından sonra etkinleşir; HLOD hazır olma bunu
+    bekler. İptal edilen GPU nesneleri derleme bitene kadar bırakılmaz.
+    Meshlet kopyası / seçicisi / küme ön işlemesi / pipeline bağlantısı yoktur;
+    R6 dosyaları değişmedi. Doğrulama ve dar ölçüm plan R7 / §11'de; G6 ve
+    genel asset görsel kabulü açık, occlusion R9a'da.
+  - *Occlusion (yeni plan işi R9a, uygulanmadı):* meshlet'ten bağımsız nesne /
+    instance düzeyinde konservatif GPU Hi-Z adayı; R8 ve R9'dan sonra, R10'dan
+    önce tasarım + A/B ölçüm, yararlıysa üretim. Frustum / mesafe culling veya
+    ambient occlusion bunun karşılığı değildir. Ters derinlik, MSAA / MRT depth
+    yolu, güvenilir opak engelleyiciler, kamera değişimi ve zamansal görünürlük
+    doğrulanmalı; ana kameranın occlusion sonucu gölge caster'larını kesmemeli.
+    Yanlış gizleme kabul edilmez; maliyeti kazancı aşarsa varsayılan kapalıdır.
+    WebGL2 mevcut culling / LOD ile devam eder. Ayrıntılı kapı plan R9a'dadır.
+  - *R6 ölçümü ve ilk seçim (kullanıcı, 2026-11-17; tarihsel v1.54):* gerçek WebGPU P2 / yoğun küre stresi,
     üç aday ve bundle; ayrıntı plan R6, kayıt `2026-11-17-r6-triangles.json`.
     Ayrı tarayıcı karesi beklenmeyen ilk ölçümler PassNode cache'i nedeniyle
     geçersiz sayıldı. r187 meshlet kopyası yalnız uygun FrontSide statiklerde,
