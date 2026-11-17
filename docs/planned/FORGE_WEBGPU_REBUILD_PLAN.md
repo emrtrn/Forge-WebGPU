@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.64 · 2026-11-17 — R9a occlusion çalışması (üst sınır): Derekavak'ta GPU foliage üçgeninin en çok %0–21'i örtülü; öneri: üretime alınmaz, R10'a geçilir (kullanıcı kararı bekliyor).
+**Güncelleme:** v1.65 · 2026-11-17 — R9a iç mekân çalışması: FPS benzeri sentetik iç mekânda görüş alanındaki nesnelerin %63–69'u, üçgenlerin %88–94'ü örtülü; bugünkü model başına batch'lerle draw kazancı 0, 16 m hücreli batch'lerle %45–64. Açık dünya önerisi geri çekildi; üretim tasarımı kullanıcı kararı bekliyor.
+
+**Önceki güncelleme:** v1.64 · 2026-11-17 — R9a occlusion çalışması (üst sınır): Derekavak'ta GPU foliage üçgeninin en çok %0–21'i örtülü.
 
 **Önceki güncelleme:** v1.63 · 2026-11-17 — R9a adım 1 uygulandı: ikincil kamera görünümleri (yansıma kendi aynalanmış culling listesi, kendi katmanı, sayaca girer); iki arka uçta CPU referansıyla eşit. Sırada R9a occlusion tasarımı.
 
@@ -1167,9 +1169,27 @@ occlusion eklenmedi. Tam gate ve push çalıştırılmadı.
 
   Bu, bu karenin tam çözünürlüklü derinliğiyle iyimser sınır; gerçek bir geçiş derinlik kaynağının
   (engelleyici ön geçişi ya da iki aşamalı çizim) ve Hi-Z kurmanın maliyetini öder, daha azını
-  gizler. P2'de GPU süresi zaten 1,8 ms. **Öneri (kullanıcı kararı bekliyor):** R9a üretime
-  alınmaz; Hi-Z referansı ve çalışma ölçümü kalır, yoğun / örtülü içerik (kent, iç mekân) gelince
-  `measure:occlusion` yeniden koşulur. Sırada R10 (G6).
+  gizler. P2'de GPU süresi zaten 1,8 ms. (Bu sonuca dayanan "üretime alınmaz" önerisi kullanıcı
+  itirazıyla geri çekildi: motor yalnız açık dünya için değil; iç mekân ölçüldü, aşağıda.)
+- **İç mekân çalışması (2026-11-17, `a017c66`; kullanıcı: FPS tarzı oyunda duvar arkası):**
+  `tools/scenes/indoorScene.ts` (Codex `gpt-6.1-sol` medium, Claude inceledi; 8 × 8 oda, 8 m, kapı
+  boşlukları, 768 eşya, şekiller) L03'e çalışma anında yerleştirilir; çalışma instanced statikleri
+  de sayar: nesne draw'ı (her parça ayrı), bugünkü batch (model başına; ancak görüşteki bütün
+  örnekleri örtülüyse gizlenir) ve 16 m hücreye bölünmüş batch. Kayıt
+  `2026-11-17T20-27-50-153Z-occlusion-indoor.json`:
+
+  | Poz | Görüşteki nesne | Örtülü nesne | Örtülü üçgen | Bugünkü batch | 16 m hücre batch'i |
+  |---|---|---|---|---|---|
+  | Oda | 487 | %63 | %89 | 4 / 0 | 47 / 22 (%47) |
+  | Koridor | 758 | %68 | %88 | 4 / 0 | 64 / 29 (%45) |
+  | Çapraz | 797 | %69 | %94 | 4 / 0 | 63 / 40 (%64) |
+  | Üstten | 291 | %0 | %0 | 4 / 0 | 26 / 0 |
+
+  Sonuç: iç mekânda occlusion büyük kazanç; ama draw call kazancı mekânsal gruplama ister (model
+  başına level çapında batch hiçbir draw'ı gizlemez). GPU Hi-Z yalnız GPU işini (üçgen / piksel)
+  azaltır; dolaylı draw örnek sayısı 0 olsa da gönderilir. **Üretim tasarımı kullanıcı kararı
+  bekliyor** (seçenekler sohbette: hücre başına batch + önceki kare occlusion query'leri, GPU Hi-Z,
+  portal / oda).
 - Mevcut frustum / mesafe culling ve ambient occlusion, nesne occlusion culling
   değildir. Mevcut meshlet taslağında `occlusionCulling: false`; bağımsız üretim
   occlusion sistemi doğrulanmadı. R7'ye eklenmez; önce R8 ve R9 tamamlanır.
@@ -1930,3 +1950,4 @@ silinebilir.
 | 2026-11-17 | v1.62 | R9 kapandı (kullanıcı): statikler `instanced`, GPU güdümlü yol foliage'da; yeniden ölçüm ağır / çok örnekli içerikte, dispatch birleştirme ayrı karar; R9.5 düştü. İkincil kamera görünümleri (yansıma kendi culling listesi + sayaç) R9a'nın ilk adımı. Mimari v1.59 |
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
+| 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
