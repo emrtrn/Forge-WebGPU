@@ -61,15 +61,24 @@ describe("project save lock", () => {
       `await withProjectLock(${JSON.stringify(project)}, async () => {`,
       `  process.stdout.write("held\\n");`,
       `  await new Promise((resolve) => setTimeout(resolve, 400));`,
+      `  process.stdout.write("releasing " + Date.now() + "\\n");`,
       `});`,
     ].join("\n");
     const child = spawn(process.execPath, ["--input-type=module", "-e", script], { stdio: ["ignore", "pipe", "inherit"] });
-    const exited = new Promise<number>((resolve) => child.on("exit", () => resolve(Date.now())));
+    let output = "";
+    // The child stamps the moment its work ends, just before it lets the lock go. Its exit event
+    // can lag far behind under load, so the release moment, not the exit, is the bound.
+    const releasing = new Promise<number>((resolve) => child.stdout.on("data", (data: Buffer) => {
+      output += data.toString();
+      const match = /releasing (\d+)/.exec(output);
+      if (match) resolve(Number(match[1]));
+    }));
     await new Promise<void>((resolve) => child.stdout.on("data", (data: Buffer) => data.toString().includes("held") && resolve()));
     const owner = JSON.parse(await readFile(lockPath(project), "utf8")) as { pid: number; host: string };
     expect(owner).toMatchObject({ pid: child.pid, host: hostname() });
     const acquired = await withProjectLock(project, async () => Date.now());
-    expect(acquired).toBeGreaterThanOrEqual((await exited) - 50);
+    expect(acquired).toBeGreaterThanOrEqual(await releasing);
+    if (child.exitCode === null) await new Promise((resolve) => child.once("exit", resolve));
   });
 
   test("the lock of a process that is gone is taken over", async () => {
