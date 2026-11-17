@@ -1,6 +1,6 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.38 · 2026-11-17 — Faz 5b adım 6–7 ve editör HLOD gösterimi, TSL detay fade ve kullanıcı onaylı compileAsync ön ısıtması uygulandı. Hücre batch bölmesi G6 riski nedeniyle geri alındı; kullanıcı 5c öncesi G6 / meshlet spike konusuna bıraktı. Son kapı / ölçüm kaydı aşağıda; kullanıcı görsel kabulü ayrı. Mimari v1.41.
+**Güncelleme:** v1.39 · 2026-11-17 — Faz 5b teknik kontroller ve streaming ölçümü geçti: temiz a6f3521, ilk uçuş p99 / max 13,3 / 35,1 ms, heap %0,34. Editör akışı / WP paneli / HLOD / TSL fade ve compileAsync hazırlığı uygulandı; hücre bölmesi kullanıcı onayıyla 5c öncesi G6 / meshlet spike'ında. Kullanıcı HLOD / fade görsel kabulü bekliyor; 5b açık. Mimari v1.42.
 
 **Sürüm:** v1.34 · 2026-11-16 (v1.33’ten fark: World Settings genel gölge anahtarı ve tek Undo ile toplu nesne gölgeleri; Island sahne verisi korunur; mimari v1.37). v1.33 · 2026-11-16: Derekavak canlı kabulü; Island'da kamerayı izleyen koyu dörtgenin düzeltilmesi — ters derinlikte takip gölgesinin alt Z sınırı, kaynak geçişi ve GPU regresyonu; mimari v1.36. v1.32 · 2026-11-16: Faz 5a adım 8 teknik kapısı, A 957 / 1.021 ve görsel kabul adayları (mimari v1.35).
 
@@ -546,6 +546,8 @@ Referans level'lar küçük (en çok 46 hücre, WbPilotValley); `cellSize` hepsi
    bölünür (anahtar + hücre; hücre boşalınca yalnız onun batch'i gider, frustum
    sınırı hücre kadar). Derekavak P2'de draw call ve render gönderimi öncesi / sonrası
    ölçülür; G6'yı (5c kapısı) tehdit ederse bölme geri alınır ve kullanıcıya getirilir.
+   **Geri dönüş kararı uygulandı:** 398 → 713 draw call sonrası kullanıcı bölmeyi
+   5c öncesi G6 / meshlet spike'ına bıraktı; 5b ortak batch'lerle devam eder.
 7. *Dünya haritası + World Partition paneli (INV-B11):* `worldMapView` (5 A) ve Forge'un
    paneli: terrain tile'ları ve durumları, dolu / yüklü / kirli hücreler, kamera ve
    menzil, tıklayınca odak, sürükleyince tutulan bölge, Load / Unload, HLOD bayatlığı.
@@ -612,7 +614,7 @@ mekanik taşıma; X'in diff'ini Claude inceler, kapıları çalıştırır, comm
 9. HLOD build: `forge hlod` komutu, `hlodBuild`'in Node'a taşınması (gltf-transform /
    meshoptimizer bağımlılıkları depoda), dosya düzeni, `verify:assets` bayatlık
    uyarısı, build kopyası — **X** (high), C inceler. HLOD proxy'lerinin render'ı ve
-   editörde gösterimi — C. **Kısmen tamam:** build, bayatlık uyarısı ve üretim
+   editörde gösterimi — C. **Tamam:** build, bayatlık uyarısı ve üretim
    kopyası `d8676b4`; runtime proxy çizimi `dddd81b`; geometriyi bırakırken
    Mesh `dispose` olayı `63815f9` (renderer'ın render nesnelerini de bırakması
    için). **Editörde gösterim de uygulandı:** yükle / boşalt proxy geçişi,
@@ -620,11 +622,12 @@ mekanik taşıma; X'in diff'ini Claude inceler, kapıları çalıştırır, comm
 10. Sentetik level üreticisi — **X** (medium; tohum, boyut, aktör dağılımı istemde);
     `measure:streaming` (Playwright, gerçek GPU) ve koşusu — C.
     **Düzenek tamam:** `f202569` (`bench:streaming-level`), `63815f9`
-    (`measure:streaming`). Mevcut koşular aşağıda; **ölçüm kabulü AÇIK.**
+    (`measure:streaming`). **Ölçüm geçti:** temiz `a6f3521` koşusu, ilk uçuş
+    p99 / max 13,3 / 35,1 ms; kayıt ve sınırlar aşağıda.
 11. Kapı: 25 A, editör / render / dist smoke'ları (dist'te hücreler statik içerikten),
     gerçek WebGPU editör seti, `measure:streaming`, belgeler; kullanıcı görsel kabulü
-    (HLOD geçişi, detay fade) — C. **Teknik kontroller geçti; ölçüm / görsel
-    kabul açık:** 25 A dahil Vitest, editör / render / dist sonuçları aşağıda.
+    (HLOD geçişi, detay fade) — C. **Teknik kontroller ve streaming ölçümü
+    geçti; kullanıcı görsel kabulü açık.** Sonuçlar aşağıda.
 
 **5b güncel uygulama notu (2026-11-17).** Adım 6–7 ve editör HLOD gösterimi
 uygulandı. `levelSession` hücre ekle / çıkarı `stream` olayıyla bildirir;
@@ -654,7 +657,7 @@ sırasındaki GPU nesneleri derleme tamamlanmadan bırakılmaz. Async derlemenin
 taşıdığı render target / MRT durumu görünür kare başında ve derleme sonunda
 sıfırlanır / geri yüklenir; aksi halde çıktı sabit kalabiliyordu. İlk ölçüm
 denemesi kaynak yenilemesiyle kesildi ve kabul kanıtı sayılmadı. Son streaming
-ölçümü bekliyor; kullanıcı görsel kabulü gelmeden 5b kutusu kapatılmaz.
+ölçümü aşağıda geçti; kullanıcı görsel kabulü gelmeden 5b kutusu kapatılmaz.
 
 **Teknik doğrulama (2026-11-17):** tam gate koşusunda **299 dosya / 2.215
 Vitest testi**, **76 / 76 başsız editör**, tip / katman / dosya bütçesi / Node
@@ -671,6 +674,34 @@ referans görüntüler değiştirilmedi. Detay fade GPU sondası: kırmızı pik
 4.186 → 2.092 → 0; gölge kararma toplamı 204.746 → 119.331 → 0.
 G8 tam çözünürlükte ≤ 2,93 mm; GPU–CPU ikizi ≤ 0,8 mm. SDK 0.1.12 ve
 **A 982 / 1.021** değişmedi; 5b'nin ertelenmiş 25 A'sı yeşil.
+
+**Son streaming ölçümü — GEÇTİ (2026-11-17).**
+[`2026-11-17T07-06-57-259Z-streaming.json`](../../../Games/ForgeReference/render-refs/runs/2026-11-17T07-06-57-259Z-streaming.json):
+temiz `a6f3521` (`dirty: false`, kod `1e1c987`). Aynı sentetik 50.000 aktör /
+1.024 hücre, 1920 × 1080, `high`, DPR 1, uncapped, başlıklı gerçek WebGPU
+(NVIDIA Ampere); 40 m/sn çapraz rota, sıcak dönüş, 10 A/B döngüsü ve 32 sn
+bekleyiş. Her uçuşun ilk 60 kare aralığı önceki düzenekle aynı biçimde dışarıda.
+
+| Ölçüt | Kayıt | Durum |
+|---|---|---|
+| İlk uçuş p99 / en uzun kare | **13,3 / 35,1 ms** (19.916 örnek) | ≤ 20 / 50 ms: geçti |
+| Dönüş p99 / en uzun kare | **13,8 / 36,0 ms** (18.796 örnek) | İki eşik içinde |
+| Hücre aktörü / önbellek girdisi | İlk varış, ilk döngü, 10. döngü, bekleyiş sonrası **2.583 / 63** | Kararlı |
+| GPU geometri / doku | İlk varış **218 / 30**; ilk tam döngü, 10. döngü ve bekleyiş sonrası **216 / 30** | Harness'ın kararlı durum karşılaştırması geçti |
+| GC sonrası heap | İlk döngü **37.738.256 B** → bekleyiş sonrası **37.866.888 B** | **%0,34** artış; ≤ %5: geçti |
+| Bekleyen / başarısız işler | Hücre fetching / queued / failures ve önbellek pending / failed / pendingEvict: **0** | Geçti; `evicted: 0` sınırlaması korunur |
+
+HLOD ilk varış 507 / 421 yüklü / görünür, ilk döngüden bekleyiş sonrasına
+530 / 421. Yüklü hücre önbelleği ilk döngü 414, son 406; aktif hücre 43.
+Kaynak atma sayacı yine 0: bu paylaşılan starter iş yükünde döngü kararlılığı
+kanıtıdır, tüm kaynak türlerinin atıldığını veya genel sızıntısızlığı kanıtlamaz.
+İlk uçuş öncesi / sonrası shader module sayısı 54 → 142, sync render pipeline
+18 → 43, async render pipeline 15 → 40; dönüşte artış yok. API duvar gecikmesi
+saf derleyici süresi değildir; async çağrılar örtüşebilir. Önceki 57,7 ms max
+35,1 ms'ye indi; p99 9,4 → 13,3 ms oldu, yine sınır içinde. Bu koşu bütün
+değişikliklerin birlikte sonucudur; tek başına ilk hipotezin nedensel kanıtı
+sayılmaz. **Adım 10 ölçütleri geçti; 5b'nin kalan kapısı kullanıcı HLOD geçişi /
+detay fade görsel kabulüdür.** Referans görüntüler yenilenmedi, faz arşivlenmedi.
 
 **Önceki 5b ilerleme notu (2026-11-16, HEAD `63815f9`).** Adım 1–5 tamam; adım 9'un
 build / runtime çizimi ve adım 10'un üretici / ölçüm düzeneği uygulandı. Adım
@@ -736,6 +767,9 @@ GPU güdümlü yolunu bekler.
       2 5a adım 2'de taşındı); sentetik büyük level'da `measure:streaming` ölçütleri
       (5b karar 9); HLOD `forge hlod` ile üretilip editörde ve oyunda geçiş yapıyor.
       Mesafe LOD 5b'de yok (karar 10, meshlet hattı tartışması).
+      **2026-11-17:** teknik kapı ve streaming ölçümü geçti; kullanıcı HLOD /
+      detay fade görsel kabulü bekliyor. Hücre batch bölmesi kullanıcı onayıyla
+      5c öncesi G6 / meshlet spike'ına bırakıldı.
 - [ ] **5c Foliage:** instancing + compute culling + indirect draw; impostor /
       billboard, rüzgâr, fade; foliage hücreleri; PG0–PG3 ile ortak bitki
       ailesi ve WES tepkisi: tekil aktör / foliage eşitliği, kademeli renk /
@@ -1041,5 +1075,5 @@ silinebilir.
 | 2026-11-16 | v1.35 | Kullanıcı Faz 5a görsel kabulünü onayladı; Island son canlı kabulü dahil bekleyiş kapandı ve 5a Terrain kutusu işaretlendi. Mevcut teknik kapı / ölçüm kayıtları korundu; yeni test koşusu veya referans görüntü yenilemesi yapılmadı. A 957 / 1.021, SDK 0.1.12 değişmedi; mimari v1.38. 5b–5d ve Faz 5 toplu kapısı açık; Faz 5 bölümü arşivlenmedi. Sıradaki: 5b / 5c dökümü ve kararları |
 | 2026-11-16 | v1.36 | Faz 5b dökümü ve kararları (kullanıcı): menziller level ayarında (`viewDistance`, `loadRange` 384 m), HLOD level klasöründe + `forge hlod` komutu, mesafe LOD 5b'den çıktı (meshlet hattı konuşulacak), kapı sentetik büyük level'da `measure:streaming`; runtime / editör hücre akışı, residency, detay culling (hücreye bölünmüş batch), World Partition paneli A11'in uygulaması. 11 adım, Codex adımları işaretli (2, 7, 9, 10 ve test dilimleri). Ertelenen 25 A; kod yok; mimari v1.39 |
 | 2026-11-16 | v1.37 | Faz 5b ilerlemesi HEAD `63815f9`'a kadar doğrulandı: adım 1 `65b5efd`; 2 saf modüller + HLOD `4cef956` (25 A, A 982 / 1.021); 3 ayarlar / UI / kamera / içe aktarıcı `89b6a87`, `de8654d`; 4 runtime hücre akışı `c7a5174`, 32 aktör / 3 ms / 16 MiB `63815f9`; 5 kaynakların 30 sn sonra atılması `045964c`; 9 HLOD build `d8676b4`, runtime çizimi `dddd81b`, Mesh dispose olayı `63815f9` (editör adım 6'yı bekler); 10 üretici `f202569`, ölçüm düzeneği `63815f9`. Mevcut son JSON: ilk uçuş p99 / max 9,4 / 57,7 ms (20 / 50 ms; max aşıyor), sıcak dönüş 10 / 31,1 ms; kararlı döngü sayaçları eşit, harness heap artışı %0,91. Ölçüm kabulü AÇIK; pipeline derlemesi hipotez, compileAsync ön ısıtma yalnız öneri. Adım 6, 7, 8, 11 ve 5b kutusu açık; arşiv yok. Yeni test / gate / ölçüm yok; mimari v1.40 |
-
 | 2026-11-17 | v1.38 | Faz 5b adım 6–7 ve editör HLOD uygulandı: kısmi oturum / atomik ret / kirli hücre tutma / canlı tazeleme, Outliner WP sekmesi ve harita; Codex çekirdek ve panel diff'leri incelendi. TSL detay fade geometri ve gölgede; hücre bölmesi 398 → 713 draw call nedeniyle kullanıcı onayıyla geri alındı ve 5c öncesi G6 / meshlet spike'ına bırakıldı. Kullanıcı onaylı compileAsync batch hazırlığı ve HLOD hazır olma bağı; async GPU nesne ömrü, render target / MRT geri yükleme, statik isteğe bağlı HLOD ve kısmi Compare regresyonları düzeltildi. Tam gate'in Vitest 2.215 / başsız editör 76 adımları geçti; dist düzeltme sonrası 1 / 1; son değişiklikler odaklı test / tip kontrolüyle. Gerçek WebGPU editör 76 / 76, render 23 + odaklı 2 / 2 (25 kontrol); referans görüntüler yenilenmedi. A 982 / 1.021, SDK 0.1.12 değişmedi. Nihai streaming ölçümü ve kullanıcı HLOD / fade görsel kabulü açık; 5b kapatılmadı, arşiv yok. Mimari v1.41 |
+| 2026-11-17 | v1.39 | Faz 5b adım 10 ölçümü geçti: temiz a6f3521 (kod 1e1c987), 50.000 aktör / 1.024 hücre, gerçek WebGPU 1080p high DPR 1 uncapped. 2026-11-17T07-06-57-259Z-streaming.json: ilk uçuş p99 / max 13,3 / 35,1 ms, dönüş 13,8 / 36 ms; 10 döngü ve 32 sn bekleyiş sonrası aktör / önbellek 2.583 / 63, kararlı GPU 216 / 30, heap artışı %0,34 (sınır %5). API derleme sayaçları kaydedildi; saf derleyici / nedensel kanıt değil. Kaynak atma sayacı 0 sınırı korunur. Teknik kontroller ve ölçüm geçti; kullanıcı HLOD / detay fade görsel kabulü bekliyor, 5b kutusu açık ve arşiv yok. Hücre bölmesi 5c öncesi G6 / meshlet spike'ında; push yapılmadı. Mimari v1.42 |

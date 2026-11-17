@@ -523,6 +523,16 @@ taşınır.
 | `render/materials/detailFade`, `render/sync/instanceBatches`, static mesh bağlaması | Forge'un yarıçap × 200 / 1.000 m / %80–100 kuralı TSL maskesine, gölge dahil; bütün uzak batch'i atlama. Hücre bölmesi 398 → 713 draw call nedeniyle geri alındı; kullanıcı 5c öncesi spike'a bıraktı | Node ölçek / materyal sahipliği; `detailFade.smoke.ts` gerçek GPU geometri + gölge; eşlenik Derekavak P2 kayıtları planda |
 | `render/host/renderHost`, `pipeline/renderPipeline`, `engine/world/renderReadiness` | kullanıcı onaylı `compileAsync` hazırlığı; görünürlükten önce gerçek pass biçimleri / sahne ışıkları; HLOD derlemeyi bekler; iptal edilen derlemenin GPU nesneleri tamamlanınca bırakılır. Editör yerleştirme CPU geometrisini kullanır; özel asset önizlemesi kendi döngüsünde | batch hazırlık / iptal regresyonu; tam kapı, GPU editör / render ve `measure:streaming` sonuçları plan §11'de |
 
+**5b son doğrulama:** uygulama `1e1c987`, teknik kayıt `a6f3521`; Vitest tam
+koşu 2.215 + son odaklı regresyonlar, başsız editör 76, dist düzeltme sonrası 1,
+gerçek WebGPU editör 76 / 76 ve render 23 + odaklı 2 / 2 (25 kontrol).
+Temiz `a6f3521` ölçümü: `render-refs/runs/2026-11-17T07-06-57-259Z-streaming.json`,
+ilk uçuş p99 / max **13,3 / 35,1 ms**, dönüş **13,8 / 36 ms**, heap **%0,34**;
+2.583 aktör / 63 önbellek girdisi, kararlı GPU 216 / 30. Adım 10 geçti;
+`evicted: 0` olduğundan bütün kaynak türlerinin atıldığını kanıtlamaz.
+5b kullanıcı HLOD / detay fade görsel kabulünü bekler. A 982 / 1.021 ve SDK
+0.1.12 değişmedi; faz arşivlenmedi, referans görüntüler yenilenmedi.
+
 **Taşıma kalıbı (ses ile kuruldu, 2026-11-11):** kod `src/engine/<alt sistem>/`
 (DOM'suz, düz Node'da yüklenir; `tsconfig.tools.json` ve `verify:node-load`
 zorlar), tarayıcı API'si gereken kısım `src/runtime/<alt sistem>/`. Forge

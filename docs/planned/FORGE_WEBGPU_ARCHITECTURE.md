@@ -1,6 +1,6 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.41 · 2026-11-17 — §4.4 / §4.7 kısmi editör akışı, World Partition paneli, ortak tutulan bölgeler ve editör HLOD; TSL detay fade, RenderReadinessKey ve compileAsync batch hazırlığı. Hücre batch bölmesi kullanıcı kararıyla 5c öncesi spike konusuna bırakıldı (plan v1.38).
+**Güncelleme:** v1.42 · 2026-11-17 — §4.4 / §4.7 kısmi editör akışı, WP paneli, ortak tutulan bölgeler ve editör HLOD; TSL detay fade ve compileAsync hazırlığı. Teknik kontroller ve temiz a6f3521 streaming ölçümü geçti; kullanıcı görsel kabulü bekliyor (plan v1.39). Hücre batch bölmesi kullanıcı kararıyla 5c öncesi G6 / meshlet spike'ında.
 
 **Sürüm:** v1.37 · 2026-11-16 (v1.36’dan fark: World Settings sahne gölge anahtarı, `forge.shadowSettings@1`, nesne tercihlerini koruyan render kapısı ve tek Undo ile toplu nesne gölgesi işlemleri; Island içeriği değiştirilmez). v1.36 · 2026-11-16: §4.9 Island takip gölgesi — ters derinlikte eksik alt Z sınırı, `BoundedShadowNode`, CSM / takip haritası kaynak geçişi ve gerçek GPU regresyonu. v1.35 · 2026-11-16: §4.9 öksüz terrain parça denetimi, §4.10 terrain performans ölçümü ve görsel kabul adayları (Faz 5a adım 8).
 
@@ -650,7 +650,7 @@ features/height-fog/
     ile okunur (`vertexColors` bayrağı yok; three'nin meshlet hattıyla uyum).
   - *Mesafe LOD:* 5b'de yok; three'nin meshlet hattı ayrıca konuşulacak (§4.9'un
     Faz 9 notu).
-- **5b uygulama notu (2026-11-16, HEAD `63815f9`; kararlar değişmedi):**
+- **Önceki 5b uygulama notu (2026-11-16, HEAD `63815f9`; tarihsel durum):**
   - *Saf kısım / ayarlar:* `engine/world/{assetResidency,detailCulling,worldMapView}`
     ve HLOD'un yeni modele uyarlanmış saf kısmı `4cef956` ile var; 25 A taşındı,
     **A 982 / 1.021**, 5b'ye ertelenmiş A kalmadı. `89b6a87`, `de8654d`:
@@ -723,8 +723,13 @@ features/height-fog/
   tamamlanana kadar bekletir. Kuyruk seri ilerler; iptal edilen batch dönmez,
   derleme sürerken GPU nesneleri silinmez, derleme sonrasında bırakılır.
   Editör yerleştirmesi hazırlanan CPU geometrisini ölçebilir; özel asset
-  önizlemesinin kendi çizim döngüsü ön ısıtmayı kullanmaz. Kapı / ölçüm sonuçları
-  plan §11'de kaydedilir; kullanıcı görsel kabulü ayrıca gerekir.
+  önizlemesinin kendi çizim döngüsü ön ısıtmayı kullanmaz. Temiz `a6f3521`
+  streaming koşusu (`2026-11-17T07-06-57-259Z-streaming.json`): ilk uçuş
+  p99 / max 13,3 / 35,1 ms, dönüş 13,8 / 36 ms; heap artışı %0,34,
+  kararlı GPU geometri / doku 216 / 30. Adım 10 ölçütleri geçti. Kaynak atma
+  sayacı 0 olduğundan genel atılma / sızıntısızlık iddiası yok. Teknik kapı
+  ve yöntem planın 5b ilerleme kaydı / §11'inde; kullanıcı HLOD geçişi ve
+  detay fade görsel kabulü ayrıca gerekir, 5b kutusu açık kalır.
 - **Ölçek ölçümü (2a, 2026-11-10):** 50.000 aktörlük level R1'de eşik içinde
   (bütün level yükleme ~0,9 s, hücre yükleme p95 ~1,5 ms, tek aktör kaydı
   ~40 ms, tam kayıt ~2,2 s, heap ~58 MB; [Faz 2a arşivi](../archive/PHASE_2A.md)). Aşağıdaki çarelere
