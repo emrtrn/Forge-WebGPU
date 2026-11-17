@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vitest";
-import { BoxGeometry, DoubleSide, Group, InstancedMesh, Matrix4, MeshStandardNodeMaterial, PerspectiveCamera, Raycaster, SphereGeometry, Vector3, type WebGPURenderer } from "three/webgpu";
+import { BoxGeometry, DoubleSide, Group, InstancedMesh, Matrix4, Mesh, MeshStandardNodeMaterial, PerspectiveCamera, Raycaster, SphereGeometry, Vector3, type WebGPURenderer } from "three/webgpu";
 import { prepareTriangles } from "../../engine/geometry/prepareTriangles.ts";
 import { projectedLodStarts, triangleKey } from "../../engine/geometry/triangleData.ts";
 import { createGpuDriven } from "../gpu/gpuDriven.ts";
@@ -7,6 +7,7 @@ import { actorOfHit, tagInstanceActors, tagPartSlots, slotOfHit } from "../sync/
 import { triangleInput } from "./triangleSource.ts";
 import { createTriangleDrawing } from "./triangleDrawing.ts";
 import { createInstanceBatch } from "../sync/instanceBatches.ts";
+import { disposeMergedParts, modelParts } from "../resources/modelParts.ts";
 
 test("deterministic derivatives keep source indices valid, preserve seams and skip small primitives", async () => {
   const small = await prepareTriangles(triangleInput(new BoxGeometry()));
@@ -75,6 +76,63 @@ test("R7 batch readiness includes derivative compilation; cancellation retains i
   triangles.dispose(); gpu.dispose(); geometry.dispose(); material.dispose();
 });
 
+
+test("R9.1: placements come and go on the drawn binding; a growing batch stays drawn until its next set is ready", async () => {
+  const renderer = { backend: { isWebGPUBackend: false }, shadowMap: { enabled: false } } as unknown as WebGPURenderer;
+  const gpu = createGpuDriven(renderer), triangles = createTriangleDrawing(renderer, gpu, prepareTriangles);
+  const parent = new Group(); let hold: Promise<void> | null = null;
+  const batch = createInstanceBatch({ name: "r9-edit", parent, castShadow: false, triangles, prepare: () => hold ?? Promise.resolve() });
+  const geometry = new SphereGeometry(1, 32, 16), material = new MeshStandardNodeMaterial(), camera = new PerspectiveCamera();
+  const at = (x: number) => new Matrix4().makeTranslation(x, 0, 0);
+  batch.setParts([{ geometry, material, local: new Matrix4(), name: "sphere" }]);
+  for (let i = 0; i < 3; i += 1) batch.set(`p${i}`, at(i), null, "act_r9");
+  batch.flush(); await vi.waitFor(() => expect(batch.ready).toBe(true));
+  triangles.update(camera, 1);
+  const drawn = gpu.stats(), source = batch.meshes[0]!;
+  expect(drawn.batches).toBe(1); expect(drawn.instances).toBe(3);
+  batch.delete("p1"); batch.set("p3", at(30), "#ff0000", "act_r9"); batch.flush();
+  // The colour buffer arriving is a new set; within it, edits keep the binding.
+  await vi.waitFor(() => expect(batch.ready).toBe(true));
+  triangles.update(camera, 1);
+  const coloured = batch.meshes[0]!;
+  batch.delete("p0"); batch.set("p4", at(40), null, "act_r9"); batch.set("p5", at(50), null, "act_r9"); batch.flush();
+  triangles.update(camera, 1);
+  expect(batch.meshes[0]).toBe(coloured); expect(batch.ready).toBe(true);
+  expect(gpu.stats()).toMatchObject({ batches: 1, instances: 4 });
+  expect(source).not.toBe(coloured);
+  // Growth past the capacity (16): the drawn set stays until the new one is prepared.
+  let finish!: () => void; hold = new Promise<void>((resolve) => { finish = resolve; });
+  for (let i = 6; i < 20; i += 1) batch.set(`p${i}`, at(i * 10), null, "act_r9");
+  batch.flush();
+  expect(batch.ready).toBe(false); expect(coloured.parent).toBe(parent);
+  await vi.waitFor(() => expect(gpu.stats().batches).toBe(2));
+  expect(coloured.parent).toBe(parent);
+  finish(); await vi.waitFor(() => expect(batch.ready).toBe(true));
+  expect(coloured.parent).toBeNull(); expect(gpu.stats().batches).toBe(1);
+  triangles.update(camera, 1); expect(gpu.stats().instances).toBe(18);
+  batch.dispose(); triangles.dispose(); gpu.dispose(); geometry.dispose(); material.dispose();
+});
+
+test("R9.2: a merged slot's LOD comes from its raw primitives' cached chains, never the merged geometry's key", async () => {
+  const renderer = { backend: { isWebGPUBackend: false }, shadowMap: { enabled: false } } as unknown as WebGPURenderer;
+  const gpu = createGpuDriven(renderer);
+  const asked: string[] = [];
+  const load = (input: Parameters<typeof prepareTriangles>[0]) => { asked.push(triangleKey(input)); return prepareTriangles(input); };
+  const triangles = createTriangleDrawing(renderer, gpu, load);
+  const raw = new SphereGeometry(1, 48, 24), material = new MeshStandardNodeMaterial(), scene = new Group();
+  const left = new Mesh(raw, material), right = new Mesh(raw, material);
+  left.position.x = -3; right.position.x = 3; right.scale.x = -2; scene.add(left, right);
+  const parts = modelParts({ scene, slots: [material], slotMaterials: [null] }, [material]);
+  expect(parts).toHaveLength(1);
+  const part = parts[0]!;
+  expect(part.lodPieces?.map((piece) => [piece.vertexOffset, piece.flip, piece.scale])).toEqual([[0, false, 1], [raw.attributes.position!.count, true, 2]]);
+  const source = new InstancedMesh(part.geometry, material, 1); source.setMatrixAt(0, new Matrix4());
+  const binding = await triangles.prepare(source, undefined, false, part.local, part.lodPieces);
+  // The shared raw sphere is read once; the merged geometry is never simplified.
+  expect(asked).toEqual([triangleKey(triangleInput(raw))]);
+  expect(binding.batch.lodCount).toBeGreaterThan(1);
+  binding.dispose(); triangles.dispose(); gpu.dispose(); disposeMergedParts(scene);
+});
 
 test("projected error follows resolution, projection and instance scale, without fixed distance cutoffs", () => {
   const errors = [0, .01, .05];

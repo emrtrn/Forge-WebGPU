@@ -15,7 +15,10 @@
 // - Placements come and go between frames; `flush()` (once per frame, from
 //   the binding's sync) rebuilds what changed. Meshes are rebuilt only when
 //   the capacity grows or the colour buffer appears / goes; otherwise the
-//   instance buffers are rewritten in place.
+//   instance buffers are rewritten in place (on the automatic LOD path too:
+//   its binding follows the source's count, R9.1). A rebuilt set that must
+//   prepare (compileAsync, LOD data) does not blank the batch: the drawn set
+//   stays until the new one shows.
 // - An edit that only moves an actor (`actorsChanged` with `transformOnly`,
 //   plan phase 4 decision 3) moves its placements with `move`: the next flush
 //   rewrites only their matrices, in place (no colours, no instance table, no
@@ -34,7 +37,7 @@ import { SCENE_SOURCE_KEY } from "../../engine/perf/sceneCost.ts";
 import { tagInstanceActors, tagPartSlots } from "./pickTags.ts";
 import { detailBatchCulled, detailCullDistance } from "../../engine/world/detailCulling.ts";
 import { createDetailFade } from "../materials/detailFade.ts";
-import type { TriangleBinding, TriangleDrawing } from "../triangles/triangleDrawing.ts";
+import type { LodPiece, TriangleBinding, TriangleDrawing } from "../triangles/triangleDrawing.ts";
 
 export interface InstancePart {
   readonly geometry: BufferGeometry;
@@ -44,6 +47,8 @@ export interface InstancePart {
   readonly name: string;
   /** The model slot each of its materials draws (picking: a dropped material's slot). */
   readonly slots?: readonly number[];
+  /** A baked / merged geometry's raw pieces: its automatic LOD comes from theirs (R9.2). */
+  readonly lodPieces?: readonly LodPiece[];
 }
 
 export interface InstanceBatch {
@@ -123,17 +128,29 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
   const color = new Color();
   const shown = new Color();
 
-  const removeMeshes = (): void => {
+  /** A drawn set kept on screen while its replacement prepares (R9.1); released when that one shows. */
+  let retired: (() => void) | null = null;
+  const releaseRetired = (): void => { const release = retired; retired = null; release?.(); };
+
+  /** `keep`: a prepared set stays drawn until the next set is prepared (capacity growth, colour buffer). */
+  const removeMeshes = (keep = false): void => {
     preparation?.abort(); preparation = null;
+    const wasPrepared = prepared;
     generation += 1; prepared = false; preparing = false;
     const oldMeshes = meshes, oldFade = fade, oldTriangles = triangleBindings;
     triangleBindings = [];
-    for (const mesh of oldMeshes) mesh.removeFromParent();
     const release = (): void => { for (const binding of oldTriangles) binding.dispose(); for (const mesh of oldMeshes) { mesh.removeFromParent(); mesh.dispose(); } oldFade?.dispose(); };
-    // A renderer may still be linking these objects. Deleting their programs
-    // before compileAsync settles can strand a WebGL parallel-link poll.
-    if (preparationWork) void preparationWork.then(release, release);
-    else release();
+    if (keep && wasPrepared && oldMeshes.length > 0 && (options.prepare || options.triangles)) {
+      releaseRetired();
+      retired = release;
+    } else {
+      if (!keep) releaseRetired();
+      for (const mesh of oldMeshes) mesh.removeFromParent();
+      // A renderer may still be linking these objects. Deleting their programs
+      // before compileAsync settles can strand a WebGL parallel-link poll.
+      if (preparationWork) void preparationWork.then(release, release);
+      else release();
+    }
     preparationWork = null;
     meshes = [];
     capacity = 0;
@@ -191,7 +208,6 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         return;
       }
       dirty = false;
-      if (options.triangles && meshes.length > 0) removeMeshes();
       moved.clear();
       indexOf.clear();
       let at = 0;
@@ -203,7 +219,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         return;
       }
       if (count > capacity || needsColor !== colored || meshes.length === 0) {
-        removeMeshes();
+        removeMeshes(true);
         capacity = capacityFor(count);
         colored = needsColor;
         if (cullDistance !== null && !options.triangles) {
@@ -253,9 +269,9 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         preparation = new AbortController();
         const ticket = generation, pending = [...meshes];
         const pendingBindings = triangleBindings, signal = preparation.signal;
-        const locals = parts!.map((part) => part.local.clone());
+        const locals = parts!.map((part) => part.local.clone()), pieces = parts!.map((part) => part.lodPieces);
         preparationWork = options.triangles ? (async () => {
-          for (let i = 0; i < pending.length; i += 1) pendingBindings.push(await options.triangles!.prepare(pending[i]!, detailRadius, false, locals[i]));
+          for (let i = 0; i < pending.length; i += 1) pendingBindings.push(await options.triangles!.prepare(pending[i]!, detailRadius, false, locals[i], pieces[i]));
           if (signal.aborted) return;
           await options.prepare?.(pendingBindings.flatMap((binding) => binding.objects), signal);
         })() : options.prepare!(pending, signal);
@@ -263,6 +279,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
           if (ticket !== generation) return;
           for (const mesh of pending) options.parent.add(mesh);
           for (const binding of pendingBindings) binding.activate();
+          releaseRetired();
           prepared = true; preparing = false; preparationWork = null;
         }).catch((error: unknown) => {
           if (ticket === generation) { preparing = false; console.warn(`forge render: batch warmup failed (${options.name})`, error); }

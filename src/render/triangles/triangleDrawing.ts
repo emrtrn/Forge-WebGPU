@@ -1,11 +1,31 @@
 // R7 opt-in automatic LOD infrastructure. General static migration is R9.
 import { BufferAttribute, BufferGeometry, Group, Matrix4, Vector2, type Camera, type InstancedMesh, type Material, type Object3D, type WebGPURenderer } from "three/webgpu";
-import { projectedLodStarts, type TriangleData, type TriangleInput } from "../../engine/geometry/triangleData.ts";
+import { mergeTriangleLods } from "../../engine/geometry/mergeTriangleLods.ts";
+import { projectedLodStarts, TRIANGLE_VERSION, type TriangleData, type TriangleInput } from "../../engine/geometry/triangleData.ts";
 import { detailCullDistance, detailCullWindow } from "../../engine/world/detailCulling.ts";
 import { NO_CULL_DISTANCE } from "../../engine/world/instanceCulling.ts";
 import type { GpuDrivenDrawing } from "../gpu/gpuDriven.ts";
 import type { GpuDrivenBatch } from "../gpu/gpuDrivenBatch.ts";
 import { triangleInput } from "./triangleSource.ts";
+
+/**
+ * Where a baked / merged geometry's triangles came from (R9.2): each raw
+ * primitive in vertex order. Its automatic LOD chain, cached per raw
+ * primitive, is offset into the merged geometry instead of simplifying the
+ * merged geometry anew (whose key no cache holds).
+ */
+export interface LodPiece {
+  /** The raw primitive (its LOD cache key). */
+  readonly geometry: BufferGeometry;
+  readonly vertexOffset: number;
+  readonly vertexCount: number;
+  /** Mirrored bake: the winding was flipped. */
+  readonly flip: boolean;
+  /** Largest axis scale of the baked matrix. */
+  readonly scale: number;
+  /** The piece's index range of the raw primitive (a material group); null for all of it. */
+  readonly range: { readonly start: number; readonly count: number } | null;
+}
 
 export interface TriangleBinding {
   readonly path: "gpu" | "cpu";
@@ -17,11 +37,13 @@ export interface TriangleBinding {
 }
 export interface TriangleDrawing {
   /** Detached sources retain their CPU geometry / picking tags. Await this
-   * preprocessing and the owner's compileAsync before activating. Structural
-   * changes replace the binding; transform-only edits update existing buffers.
+   * preprocessing and the owner's compileAsync before activating. A source
+   * whose count changes within its capacity, or whose matrices / colours are
+   * rewritten, keeps its binding (R9.1); only a new source (capacity, colour
+   * buffer, parts) replaces it.
    * The owner retains sources through compilation, including cancelled work.
    */
-  prepare(source: InstancedMesh, detailRadius?: number, bundle?: boolean, local?: Matrix4): Promise<TriangleBinding>;
+  prepare(source: InstancedMesh, detailRadius?: number, bundle?: boolean, local?: Matrix4, pieces?: readonly LodPiece[]): Promise<TriangleBinding>;
   update(camera: Camera, qualityScale: number): void;
   dispose(): void;
 }
@@ -30,12 +52,35 @@ export function createTriangleDrawing(renderer: WebGPURenderer, gpu: GpuDrivenDr
   const bindings = new Set<{ update(qualityScale: number, pixelScale: number, perspective: boolean): void; dispose(): void }>();
   const viewport = new Vector2();
   let disposed = false;
+  /** LOD data per geometry object (templates' geometries are immutable and shared across rebuilds). */
+  const memo = new WeakMap<BufferGeometry, Promise<TriangleData>>();
+  const dataOf = (geometry: BufferGeometry): Promise<TriangleData> => {
+    let pending = memo.get(geometry);
+    if (!pending) {
+      pending = Promise.resolve().then(() => load(triangleInput(geometry)));
+      pending.catch(() => { if (memo.get(geometry) === pending) memo.delete(geometry); });
+      memo.set(geometry, pending);
+    }
+    return pending;
+  };
+  /** A merged / baked part's LOD chain from its raw pieces' cached chains (R9.2). */
+  const mergedData = async (pieces: readonly LodPiece[]): Promise<TriangleData> => {
+    const chains = await Promise.all(pieces.map(async (piece): Promise<TriangleData> => {
+      if (piece.range === null) return dataOf(piece.geometry);
+      // A material group of a raw primitive: its own triangles, one level.
+      const index = piece.geometry.index, all = index ? index.count : piece.vertexCount;
+      const indices: number[] = [];
+      for (let i = piece.range.start; i < Math.min(all, piece.range.start + piece.range.count); i += 1) indices.push(index ? index.getX(i) : i);
+      return { version: TRIANGLE_VERSION, key: "", lods: [{ indices, error: 0 }] };
+    }));
+    return mergeTriangleLods(pieces.map((piece, i) => ({ data: chains[i]!, vertexOffset: piece.vertexOffset, vertexCount: piece.vertexCount, flip: piece.flip, scale: piece.scale })), `merged:${chains.map((chain) => chain.key).join("+")}`);
+  };
   return {
-    async prepare(source, detailRadius, bundle = false, local = new Matrix4()) {
+    async prepare(source, detailRadius, bundle = false, local = new Matrix4(), pieces) {
       if (disposed) throw new Error("triangles: drawing disposed");
       if (source.geometry.drawRange.start !== 0 || source.geometry.drawRange.count !== Infinity || Object.keys(source.geometry.morphAttributes).length) throw new Error("triangles: source must be a complete, static triangle primitive");
       const cullDistance = detailRadius === undefined ? null : detailCullDistance(detailRadius);
-      const data = await load(triangleInput(source.geometry));
+      const data = pieces && pieces.length > 0 ? await mergedData(pieces) : await dataOf(source.geometry);
       if (disposed) throw new Error("triangles: drawing disposed during preprocessing");
       const root = new Group(); root.name = `automaticLOD/${source.name}`; root.matrixAutoUpdate = false;
       let active = false, released = false;
@@ -44,7 +89,7 @@ export function createTriangleDrawing(renderer: WebGPURenderer, gpu: GpuDrivenDr
       source.geometry.computeBoundingSphere();
       const sphere = source.geometry.boundingSphere!.clone().applyMatrix4(local);
       const localScale = local.getMaxScaleOnAxis();
-      const batch = gpu.createBatch({ name: root.name, parent: root, capacity: source.count, bounds: { center: [sphere.center.x, sphere.center.y, sphere.center.z], radius: sphere.radius }, distanceMode: "scaled", castShadow: source.castShadow, bundle,
+      const batch = gpu.createBatch({ name: root.name, parent: root, capacity: source.instanceMatrix.count, bounds: { center: [sphere.center.x, sphere.center.y, sphere.center.z], radius: sphere.radius }, distanceMode: "scaled", castShadow: source.castShadow, bundle,
         ...(source.instanceColor ? { instanceColors: source.instanceColor } : {}),
         lods: data.lods.map((lod, i) => {
           let geometry = source.geometry;
@@ -79,7 +124,14 @@ export function createTriangleDrawing(renderer: WebGPURenderer, gpu: GpuDrivenDr
           // Instances are world matrices, including on the CPU twin. The draw
           // root cancels its parent's transform instead of applying it twice.
           root.matrix.copy(source.parent?.matrixWorld ?? new Matrix4()).invert(); root.updateMatrixWorld(true);
-          if (source.count !== handles.length) throw new Error("triangles: count changed without rebuilding binding");
+          // R9.1: the source's count follows its placements within its capacity.
+          // Handles come and go at the end only, so slot i stays source instance i
+          // (the colour buffer and the CPU twin read colours by slot).
+          if (source.count !== handles.length) {
+            while (handles.length < source.count) handles.push(batch.instances.add(source.instanceMatrix.array, handles.length * 16));
+            while (handles.length > source.count) batch.instances.remove(handles.pop()!);
+            version = -1;
+          }
           if (source.instanceMatrix.version !== version || !source.matrixWorld.equals(matrix)) {
             const placement = new Matrix4(); maxScale = 0;
             for (let i = 0; i < source.count; i += 1) {

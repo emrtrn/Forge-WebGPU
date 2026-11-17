@@ -10,10 +10,13 @@
 // piece keeps its own geometry and matrix. Morph targets and skinned meshes are
 // not merged. The merge runs once per template; the geometries it makes are the
 // template's and go with it (`disposeMergedParts`, from disposeResource).
+// A baked or merged part names its raw pieces (`lodPieces`, R9.2) so its
+// automatic LOD comes from the per-primitive LOD cache.
 
 import { BufferAttribute, BufferGeometry, Matrix4, Mesh, type Material, type Object3D } from "three/webgpu";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { InstancePart } from "../sync/instanceBatches.ts";
+import type { LodPiece } from "../triangles/triangleDrawing.ts";
 import type { ModelTemplate } from "./worldResources.ts";
 
 /** One drawable piece under the template root: a slot's geometry and its own material. */
@@ -30,7 +33,17 @@ interface Piece extends SlotPiece {
   readonly range: { start: number; count: number } | null;
 }
 
-interface Merged { readonly pieces: SlotPiece[]; readonly owned: BufferGeometry[] }
+interface Merged { readonly pieces: (SlotPiece & { lodPieces?: LodPiece[] })[]; readonly owned: BufferGeometry[] }
+
+function lodPiecesOf(list: readonly Piece[]): LodPiece[] {
+  let vertexOffset = 0;
+  return list.map((piece) => {
+    const vertexCount = piece.geometry.attributes.position!.count;
+    const entry = { geometry: piece.geometry, vertexOffset, vertexCount, flip: piece.local.determinant() < 0, scale: piece.local.getMaxScaleOnAxis(), range: piece.range };
+    vertexOffset += vertexCount;
+    return entry;
+  });
+}
 
 const mergedByScene = new WeakMap<Object3D, Merged>();
 
@@ -95,12 +108,12 @@ function slotPieces(model: ModelTemplate): Merged {
       }
     }
   });
-  const pieces: SlotPiece[] = [];
+  const pieces: Merged["pieces"] = [];
   const owned: BufferGeometry[] = [];
-  const bakedPiece = (piece: Piece): SlotPiece => {
+  const bakedPiece = (piece: Piece): SlotPiece & { lodPieces: LodPiece[] } => {
     const geometry = baked(piece);
     owned.push(geometry);
-    return { ...piece, geometry, local: new Matrix4() };
+    return { ...piece, geometry, local: new Matrix4(), lodPieces: lodPiecesOf([piece]) };
   };
   for (const list of order) {
     const first = list[0]!;
@@ -117,7 +130,7 @@ function slotPieces(model: ModelTemplate): Merged {
     }
     geometry.name = `slot ${first.slot}`;
     owned.push(geometry);
-    pieces.push({ geometry, local: new Matrix4(), slot: first.slot, own: first.own, name: geometry.name });
+    pieces.push({ geometry, local: new Matrix4(), slot: first.slot, own: first.own, name: geometry.name, lodPieces: lodPiecesOf(list) });
   }
   const result = { pieces, owned };
   mergedByScene.set(model.scene, result);
@@ -140,5 +153,6 @@ export function modelParts(model: ModelTemplate, chosen: readonly Material[]): I
     local: piece.local.clone(),
     name: piece.name,
     slots: [piece.slot],
+    ...(piece.lodPieces ? { lodPieces: piece.lodPieces } : {}),
   }));
 }
