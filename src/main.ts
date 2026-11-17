@@ -315,6 +315,13 @@ async function start(): Promise<void> {
         remove: async () => (await devGpuDriven()).remove(),
         mirror: async (plane: Parameters<DevGpuDriven["mirror"]>[0]) => (await devGpuDriven()).mirror(plane),
       },
+      /** Plan 5c R9a: how much of the GPU-driven batches the current frame's occluders could hide (nothing is hidden). */
+      async occlusionStudy() {
+        const host = viewer.host;
+        if (!host) return null;
+        const { occlusionStudy } = await import("./render/gpu/occlusionStudy.ts");
+        return occlusionStudy(host);
+      },
     };
   }
 }
