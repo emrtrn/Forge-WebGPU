@@ -23,9 +23,11 @@
 // Development only: `window.__forgeDev` pauses the frame loop and steps it at
 // a fixed rate, pairing each frame with its GPU time and Sky Light captures,
 // and starts World Environment transitions (the capture measurement, plan
-// phase 3 step 7: `npm run measure:sky-capture`).
+// phase 3 step 7: `npm run measure:sky-capture`), and installs GPU-driven
+// foliage batches for the render smoke (phase 5c step 5.1).
 
 import type { CameraPose } from "./render/viewer/cameraPose.ts";
+import type { DevGpuDriven } from "./render/gpu/gpuDrivenDev.ts";
 import type { FeatureDef } from "./core/index.ts";
 import { createSaveClient, createStaticContentClient, isJsonAssetType, STATIC_CONTENT_DIR, staticContentFile, type ContentClient } from "./core/index.ts";
 import { loadDevAssetUrls, assetUrlsFromIndex, type AssetUrls } from "./render/resources/assetUrls.ts";
@@ -208,6 +210,8 @@ async function start(): Promise<void> {
   }
   if (import.meta.env.DEV && booted) {
     const environment = () => booted.world.services.get(WorldEnvironmentKey)?.controller ?? null;
+    let devGpu: Promise<DevGpuDriven> | null = null;
+    const devGpuDriven = () => (devGpu ??= import("./render/gpu/gpuDrivenDev.ts").then(({ createDevGpuDriven }) => createDevGpuDriven(() => viewer.host)));
     const transitions: { reached: boolean | null }[] = [];
     (window as unknown as { __forgeDev?: unknown }).__forgeDev = {
       pause: () => scheduler.pause(),
@@ -295,6 +299,13 @@ async function start(): Promise<void> {
         if (!host) return null;
         const { measureTerrainColliderMatch } = await import("./render/viewer/debug/terrainColliderMatch.ts");
         return measureTerrainColliderMatch(host, options);
+      },
+      /** Phase 5c step 5.1: GPU-driven foliage batches from given instances, their GPU counts against the CPU reference. */
+      gpuDriven: {
+        install: async (types: Parameters<DevGpuDriven["install"]>[0], cullScale: number) => (await devGpuDriven()).install(types, cullScale),
+        check: async () => (await devGpuDriven()).check(),
+        stats: () => viewer.host?.gpuDriven.stats() ?? null,
+        remove: async () => (await devGpuDriven()).remove(),
       },
     };
   }

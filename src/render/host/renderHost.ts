@@ -45,6 +45,7 @@ import { createRenderFeature, type RenderWorld } from "../sync/renderWorld.ts";
 import { mountBadge } from "./badge.ts";
 import { readBackendProof, type BackendProof } from "./backendProof.ts";
 import { createPerfSampler, type PerfQuality, type PerfSampler } from "./perfSampler.ts";
+import { createGpuDriven, type GpuDrivenDrawing } from "../gpu/gpuDriven.ts";
 
 /** The effective quality the renderer draws with. */
 export interface RenderQuality extends PerfQuality {
@@ -128,6 +129,8 @@ export interface RenderHost {
   /** Draws the presented world; `now` in ms. Does nothing once the device is lost. */
   frame(now: number): void;
   readonly perf: PerfSampler;
+  /** GPU-driven batches (phase 5c step 5): culled for the camera before each frame renders. */
+  readonly gpuDriven: GpuDrivenDrawing;
   /** Sky Light (PMREM) captures since the host started. */
   readonly captures: CaptureStats;
   /** The host's PMREM capture (the bindings get it as `ctx.capture`). */
@@ -291,6 +294,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   };
 
   const pipeline = createFramePipeline(renderer);
+  const gpuDriven = createGpuDriven(renderer);
   // The Sky Light capture (Forge's captureSkyEnvironment): the scene seen from
   // its origin, prefiltered into a PMREM. A render target never gets the
   // output's tone mapping, so the map stays linear.
@@ -328,7 +332,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     mrtProbeOk: mrtProbe?.ok ?? null,
     skyCaptures: captures.count,
     renderSubmitMs,
-  }));
+  }), () => gpuDriven.lastDraws);
 
   return {
     preview(surface, draw) {
@@ -415,6 +419,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       applyShadowSwitch();
       if (options.dev) canvas.dataset.forgeShadows = String(renderer.shadowMap.enabled);
       const submitted = performance.now();
+      gpuDriven.cull(world.scene, camera);
       pipeline.render(world.scene, camera, world.output, quality.settings);
       overlay?.render({ renderer, scene: world.scene, camera, sceneDepth: pipeline.sceneDepth });
       // CPU wall time for render traversal / encoding / submission; never GPU execution time.
@@ -423,6 +428,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       pumpWarmups();
     },
     perf,
+    gpuDriven,
     captures,
     capture,
     async gpuTime() {
@@ -443,6 +449,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       gltf.dispose();
       pmrem.dispose();
       pipeline.dispose();
+      gpuDriven.dispose();
       renderer.dispose();
       canvas.remove();
     },

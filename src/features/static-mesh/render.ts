@@ -25,12 +25,13 @@
 // placements in their batches (`changeInstances`); any other is removed and
 // added again.
 
-import { Box3, Matrix4, Mesh, Sphere, type Material } from "three/webgpu";
+import { Box3, Matrix4, Sphere, type Material } from "three/webgpu";
 import { parseComponentTypeTag, type WorldActor } from "../../core/index.ts";
-import { assignSlotMaterials, slotMaterialIds, slotResolver } from "../../render/resources/modelSlots.ts";
+import { modelParts } from "../../render/resources/modelParts.ts";
+import { assignSlotMaterials, slotMaterialIds } from "../../render/resources/modelSlots.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
 import type { ModelTemplate } from "../../render/resources/worldResources.ts";
-import { changeInstances, createInstanceBatch, type InstanceBatch, type InstancePart } from "../../render/sync/instanceBatches.ts";
+import { changeInstances, createInstanceBatch, type InstanceBatch } from "../../render/sync/instanceBatches.ts";
 import { defineRenderBinding, type RenderBindingContext } from "../../render/sync/renderBinding.ts";
 import { componentWorldMatrix } from "../../render/sync/transforms.ts";
 import { StaticMesh, type StaticMeshData } from "./schema.ts";
@@ -42,28 +43,10 @@ interface Batch {
   disposed: boolean;
 }
 
-// The slot rules live in render/resources/modelSlots.ts (the editor's thumbnails use them too).
-export { assignSlotMaterials, slotMaterialIds };
+// The slot rules live in render/resources/modelSlots.ts (the editor's thumbnails use them too), the
+// template's parts in render/resources/modelParts.ts (the GPU-driven batches use them too).
+export { assignSlotMaterials, modelParts, slotMaterialIds };
 
-/** The template's renderable parts with their slot materials and their matrices under the template root. */
-export function modelParts(model: ModelTemplate, chosen: readonly Material[]): InstancePart[] {
-  const resolve = slotResolver(model.slots, chosen);
-  const slotOf = new Map<Material, number>();
-  model.slots.forEach((material, index) => slotOf.set(material, index));
-  model.scene.updateMatrixWorld(true);
-  const parts: InstancePart[] = [];
-  model.scene.traverse((child) => {
-    if (!(child instanceof Mesh) || (child as Mesh & { isSkinnedMesh?: boolean }).isSkinnedMesh === true) return;
-    const mesh = child as Mesh;
-    const material = Array.isArray(mesh.material)
-      ? (mesh.material as Material[]).map((own, local) => resolve(own, local))
-      : resolve(mesh.material as Material, 0);
-    const own = Array.isArray(mesh.material) ? (mesh.material as Material[]) : [mesh.material as Material];
-    const slots = own.map((one, local) => slotOf.get(one) ?? local);
-    parts.push({ geometry: mesh.geometry, material, local: mesh.matrixWorld.clone(), name: mesh.name || "mesh", slots });
-  });
-  return parts;
-}
 
 async function materialsFor(ctx: RenderBindingContext, batch: Batch, model: ModelTemplate, overrides: readonly (string | null)[]): Promise<Material[]> {
   const ids = slotMaterialIds(model, overrides);

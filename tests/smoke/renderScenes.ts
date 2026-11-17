@@ -15,7 +15,8 @@ export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..
 export const REFERENCE_ROOT = process.env.FORGE_REFERENCE_ROOT ?? resolve(REPO_ROOT, "../Games/ForgeReference");
 export const REFERENCE_PROJECT = resolve(REFERENCE_ROOT, "webgpu-scenes");
 export const RENDER_REFS = resolve(REFERENCE_ROOT, "render-refs");
-export const SMOKE_PORT = 5283;
+/** 5283; `FORGE_SMOKE_PORT` when another session's server holds it. */
+export const SMOKE_PORT = Number(process.env.FORGE_SMOKE_PORT ?? 5283);
 /**
  * The profile every smoke run draws with: a manual pick, adaptive quality and
  * startup calibration off, so the image does not depend on the machine's

@@ -42,6 +42,8 @@ export function createPerfSampler(
   quality: () => PerfQuality,
   publish: (json: string) => void,
   extra: () => Readonly<Record<string, number | string | boolean | null>> = () => ({}),
+  /** Draws three does not count (indirect, bundled: `gpuDriven.lastDraws`). */
+  uncountedDraws: () => number = () => 0,
 ): PerfSampler {
   const monitor = new FrameMetricsMonitor();
   const gpu: number[] = [];
@@ -83,7 +85,7 @@ export function createPerfSampler(
         metrics: monitor.metrics(),
         spikes: monitor.spikeCounts(),
         gpu: gpu.length > 0 ? { lastMs: gpu[gpu.length - 1]!, averageMs: average, maxMs: Math.max(...gpu), samples: gpu.length } : null,
-        drawCalls: renderer.info.render.drawCalls,
+        drawCalls: renderer.info.render.drawCalls + uncountedDraws(),
         triangles: renderer.info.render.triangles,
         geometries: memory.geometries,
         textures: memory.textures,

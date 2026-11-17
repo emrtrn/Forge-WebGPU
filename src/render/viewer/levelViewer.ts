@@ -160,7 +160,7 @@ export function createLevelViewer(options: LevelViewerOptions): LevelViewer {
     signals() {
       if (!host) return null;
       const { render, memory } = host.renderer.info;
-      return { metrics: host.perf.metrics(), drawCalls: render.drawCalls, triangles: render.triangles, textures: memory.textures };
+      return { metrics: host.perf.metrics(), drawCalls: render.drawCalls + host.gpuDriven.lastDraws, triangles: render.triangles, textures: memory.textures };
     },
     gpuName() {
       const adapter = host?.proof.adapter;

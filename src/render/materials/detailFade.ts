@@ -4,14 +4,16 @@ import { Vector2, Vector3, type InstancedBufferAttribute, type Material, type No
 import { bool, distance, dot, float, fract, instancedDynamicBufferAttribute, max, screenCoordinate, smoothstep, uniform, varying, vec2 } from "three/tsl";
 import { detailCullWindow } from "../../engine/world/detailCulling.ts";
 
+/** The screen-door threshold of the dither fade (interleaved gradient noise); the GPU-driven batches share it. */
+export const detailFadeDither = fract(float(52.9829189).mul(fract(dot(screenCoordinate.xy, vec2(0.06711056, 0.00583715)))));
+
 export function createDetailFade(distanceAtScaleOne: number, placements: InstancedBufferAttribute) {
   const origin = uniform(new Vector3());
   const range = uniform(new Vector2(...detailCullWindow(distanceAtScaleOne, 1)));
   const placement = varying(instancedDynamicBufferAttribute<"vec4">(placements, "vec4"));
   const scaledDistance = distance(origin, placement.xyz).div(max(placement.w, 0.000001));
   const hidden = smoothstep(range.x, range.y, scaledDistance);
-  const dither = fract(float(52.9829189).mul(fract(dot(screenCoordinate.xy, vec2(0.06711056, 0.00583715)))));
-  const keeps = hidden.lessThanEqual(dither);
+  const keeps = hidden.lessThanEqual(detailFadeDither);
   const clones = new Map<Material, Material>();
   return {
     material(source: Material): Material {
