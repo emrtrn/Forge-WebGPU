@@ -96,6 +96,7 @@ export function worldLevel(build: WorldBuild, options: WorldLevelOptions): World
         viewDistance: LevelSettingsFields.viewDistance.default,
         loadRange: LevelSettingsFields.loadRange.default,
         landmarkDistance: LevelSettingsFields.landmarkDistance.default,
+        occlusionCulling: LevelSettingsFields.occlusionCulling.default,
       },
       actors,
     },

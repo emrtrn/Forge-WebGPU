@@ -116,7 +116,8 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           capture: options.capture ?? null, quality: effectiveQuality,
           ...(options.prepare ? { prepare: (objects: readonly Object3D[], signal?: AbortSignal) => resources.track(options.prepare!(objects, scene, signal)) } : {}),
           ...(options.triangles ? { triangles: options.triangles } : {}),
-          ...(options.staticPath ? { staticPath: options.staticPath } : {}),
+          // A level with occlusion culling draws its statics GPU-driven (plan 5c R9a O1).
+          ...(options.staticPath ? { staticPath: () => (ctx.services.get(LevelSettingsKey)?.current.occlusionCulling ? "gpu" : options.staticPath!()) } : {}),
           ...(options.cameraViews ? { cameraViews: options.cameraViews } : {}),
           ...(options.staticCellSize ? { staticCellSize: options.staticCellSize } : {}),
         }),
