@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.60 · 2026-11-17 — R8 kapandı (kullanıcı görsel kabulü). R9 bulguları, kararları ve uygulama sırası R9.0–R9.5; R9.2'nin saf çekirdeği Codex'te. Kod yok.
+**Güncelleme:** v1.61 · 2026-11-17 — R9.0–R9.4 uygulandı. Ölçümde GPU yolu hiçbir level'da kazandırmadı; statikler varsayılan olarak instanced kalır, yol kararı kullanıcıda.
+
+**Önceki güncelleme:** v1.60 · 2026-11-17 — R8 kapandı (kullanıcı görsel kabulü). R9 bulguları, kararları ve uygulama sırası R9.0–R9.5; R9.2'nin saf çekirdeği Codex'te. Kod yok.
 
 **Önceki güncelleme:** v1.59 · 2026-11-17 — R8 uygulandı (R8.0–R8.6 ölçümü): Derekavak P2 sahne draw 398 → 68, gönderim 0,711 → 0,455 ms; StreamingBench HLOD 3,37 M → 1,64 M üçgen; landmark katmanı far değiştirmeden.
 
@@ -1260,6 +1262,47 @@ Bağı açmadan önce üç eksik:
 | R9.4 | `ctx.triangles` bağı, `forge.staticMesh` / `forge.shape` batch başına yol seçimi | Editör / render smoke iki arka uçta |
 | R9.5 | R9.0 ölçümünün tekrarı, belgeler | Draw / gönderim / GPU önce–sonra |
 
+**R9 ilerleme kaydı (2026-11-17; v1.61):**
+- [x] **R9.1 / R9.2** (`7724d18`): kapasite içinde ekleme / silme LOD bağını yerinde günceller
+  (tutamaçlar sondan; slot = kaynak indeksi, renk tamponu ve CPU ikizi slotla okur); kapasite /
+  renk tamponu değişiminde eski çizim yenisi hazır olana kadar kalır. Birleşmiş / pişmiş parça
+  ham parçalarını taşır (`LodPiece`), LOD zinciri parça zincirlerinden
+  (`engine/geometry/mergeTriangleLods.ts`, Codex `gpt-6.1-sol` high, 31 test, Claude inceledi);
+  geometri başına bellek önbelleği.
+- [x] **R9.3 / R9.4** (bu commit): `render/triangles/staticPath.ts` parça uygunluğu (morph, kısmi
+  çizim aralığı, > 4 bileşenli nitelik, saydam → `InstancedMesh`) ve batch başına yol (`auto`:
+  ≥ 16 yerleşim ya da > 500 üçgenli parça; `gpu` / `instanced` zorlar). LOD hazırlığı başarısız
+  parça aynı batch'te instanced kalır. `ctx.triangles` / `ctx.staticPath` host'tan;
+  `?staticPath=` yalnız dev. LOD çizim kökü level çerçevelemesinin dışında (`framing: false`;
+  çizimleri şablon uzayında, çerçeveleme onları başlangıç noktasında görüp kamerayı yanlış
+  yere koyuyordu: spline-test-range / physics-interaction smoke'ları). Foliage culling ve
+  puddle smoke'ları statikleri instanced açar (sayaçları foliage'ın / yansımanın kalsın).
+  Doğrulama: odaklı Vitest 176, tip / katman / dosya bütçesi; `auto` ile render smoke 28 / 29,
+  editör smoke WebGL2 80 / 81 ve gerçek WebGPU 80 / 81; üç kırık tek başına geçti (gpuCulling
+  bundle çekim farkı, content.spec 404, assets.spec tıklama zaman aşımı; kararsız).
+- [x] **R9.0 ölçümü** (`npm run measure:static-path`,
+  `render-refs/runs/2026-11-17T19-36-13-561Z-static-path.json`, gerçek WebGPU, 1080p high):
+
+  | Level / poz | Yol | Gönderim ms | Kare CPU ms | GPU ms | GPU batch / örnek |
+  |---|---|---|---|---|---|
+  | Derekavak P2 | instanced | 0,41 | 0,81 | 1,80 | – |
+  | | gpu | 1,21 | 1,66 | 2,30 | 15 / 96 |
+  | | auto | 0,77 | 1,19 | 1,93 | 7 / 88 |
+  | WbPilotValley P1 | instanced | 0,45 | 0,85 | 3,52 | – |
+  | | gpu | 1,11 | 1,52 | 3,46 | 11 / 43 |
+  | Island P1 | instanced | 0,33 | 0,66 | 2,27 | – |
+  | | gpu / auto | 0,42 | 0,76 | 2,24–2,31 | 1 / 447 |
+  | OpenWorldTest P1 | hepsi | 0,29 | 0,58 | 1,35 | statik batch yok |
+
+  GPU yolu hiçbir level'da kazandırmadı: batch × görünüm başına üç dispatch, batch başına ~50 µs
+  gönderim; GPU süresi düşmedi (447 örnekli Island batch'inde bile). LOD önbelleği Derekavak'ta
+  117 isabet / 1 üretim (R9.2 kapısı). Kaydın draw sütunu güvenilmez (instanced'da 1–9; R8.6'daki
+  sayaç sorunu), değerlendirmeye alınmadı. **Host varsayılanı `instanced`** (R9 öncesiyle aynı
+  çizim); karar kullanıcıda.
+- [ ] **Açık:** (a) yol kararı / eşik; (b) ikincil kameralar (su birikintisi yansıması, ileride
+  diğerleri) GPU güdümlü batch'lerde ana görünümün culling listesini çizer, `?debug` o
+  geçişlerin dolaylı çizimlerini saymaz (foliage'da da aynı); (c) R9.5.
+
 **R7 önceki uygulama taslağı (v1.54, tarihsel; yukarıdaki güncel kapsam geçerli):**
 1. r187 hattını sürümü ve MIT kaynağı belgelenmiş render kopyasında tut;
    ters derinlikte yalnız occlusion kapalı yolu aç. Uygunluğu gerekçeleriyle
@@ -1834,3 +1877,4 @@ silinebilir.
 | 2026-11-17 | v1.58 | R8.0 (`af30c37`): proxy normalleri `weld`'i engelliyordu; konum + renk, düz gölgeleme, çift yüzlüler ayrı; Derekavak HLOD 21.360 → 5.366 üçgen. R8.1 (`018c559`): şablon başına slot birleştirme (çalışma anında; cache / build türevi gerekmedi), Derekavak 118 → 15 draw / görünüm, P2 gönderim 0,711 → 0,53 ms, render smoke 29 / 29. R8.2 / R8.3 (`82c0150`): `forge.levelHlod/2` küme katmanı (`hlod/l1_<x>_<z>.glb`), çalışma anı geçişi + histerezis; Derekavak 4 küme / 1.372 üçgen; editör HLOD / akış 5 / 5 gerçek WebGPU. R8.4–R8.6 açık |
 | 2026-11-17 | v1.59 | R8.4 landmark (`landmark` bileşen alanı, `landmarkDistance` level ayarı; far genişlemesi yerine köşeler far'ın içine çekilir, kaskat / culling değişmez), R8.5 rapor (`forge stats`, editör HLOD satırı), R8.6 ölçüm: Derekavak P2 sahne draw 398 → 68, gönderim 0,711 → 0,455 ms; StreamingBench HLOD 3,37 M → 1,64 M üçgen, uçuş p99 / max 8,5 / 43,6 ms. Kullanıcı görsel kabulü açık; R9 sırada |
 | 2026-11-17 | v1.60 | R8 kapandı (kullanıcı görsel kabulü). R9 bulguları (R7 bağı açılmamış; yapısal değişim batch'i yeniden kurar; birleşmiş slot LOD önbelleğini ıskalar; uygun olmayan parça hata verir), kararlar (batch başına yol seçimi, ölçümle eşik; birleşmiş slot LOD'u parça zincirlerinden) ve sıra R9.0–R9.5. Kod yok |
+| 2026-11-17 | v1.61 | R9.1 / R9.2 (`7724d18`; `mergeTriangleLods` Codex), R9.3 / R9.4 (batch başına yol, uygun olmayan parça instanced, LOD kökü çerçevelemenin dışında), R9.0 ölçümü (`measure:static-path`): GPU yolu dört level'da da kazandırmadı (Derekavak gönderim 0,41 → 1,21 ms), LOD önbelleği 117 / 1. Host varsayılanı `instanced`; yol kararı ve ikincil kamera culling'i açık |
