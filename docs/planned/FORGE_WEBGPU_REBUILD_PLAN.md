@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.61 · 2026-11-17 — R9.0–R9.4 uygulandı. Ölçümde GPU yolu hiçbir level'da kazandırmadı; statikler varsayılan olarak instanced kalır, yol kararı kullanıcıda.
+**Güncelleme:** v1.62 · 2026-11-17 — R9 kapandı (kullanıcı kararı): statikler instanced, GPU yolu foliage'da; ikincil kamera görünümleri R9a'nın ilk adımı. Sırada R9a.
+
+**Önceki güncelleme:** v1.61 · 2026-11-17 — R9.0–R9.4 uygulandı. Ölçümde GPU yolu hiçbir level'da kazandırmadı; statikler varsayılan olarak instanced kalır.
 
 **Önceki güncelleme:** v1.60 · 2026-11-17 — R8 kapandı (kullanıcı görsel kabulü). R9 bulguları, kararları ve uygulama sırası R9.0–R9.5; R9.2'nin saf çekirdeği Codex'te. Kod yok.
 
@@ -1026,8 +1028,8 @@ işleyicisi (`clusterlod.h` portu) ve çatlak denetimi referanstır. Bütün ad�
 | R6 | Üçgen spike'ı (tamamlandı; kod commit'lenmez, port 5284+) | Derekavak P2 + yoğun mesh stres sahnesi: (a) three-virtual-geometry, (b) r187 meshlet hattının ters derinlik kopyası, (c) 5.1 yolu + meshoptimizer ayrık LOD zinciri. Ölçüt: çizilen üçgen, draw call, gönderim / ana iş parçacığı, GPU süresi, kaskat gölgesi, ters derinlik, MRT, R3 bundle'ı, WebGL2 ikizi, bellek / ön işleme süresi, three iç API bağımlılığı | Kayıt `render-refs/runs/`; kullanıcı seçimi aşağıda (2026-11-17) |
 | R7 | Otomatik LOD üretimi (tamamlandı) | Meshoptimizer ile otomatik ayrık LOD, deterministik ön işleme / cache / build ve seçilebilir runtime bağı; WebGPU + WebGL2. Meshlet üretim kapsamı dışında; foliage mevcut 5.1 yolunda. Küçük nesnede önce üçgen düşer, sonra detay culling | 21 odaklı test, typecheck, katman, gerçek WebGPU + WebGL2 smoke; uygulama kaydı aşağıda. R8 / R9 / R9a / R10 ayrı |
 | R8 | HLOD katmanları (draw call; tamamlandı, kullanıcı kabulü 2026-11-17) | Hiyerarşik HLOD (öneri: ikinci katman 4 × 4 hücre, uzak menzilde), siluet / landmark işareti (view distance ötesinde uzak katman), slot düzeyinde materyal birleştirme; proxy'ler düz mesh, bundle kapalı (v1.57 kararları ve R8.0–R8.6 aşağıda) | Draw call ve gönderim öncesi / sonrası |
-| R9 | 5.5 statiklerin geçişi (sürüyor; R9.0–R9.5 aşağıda) | 5.1 yolu + otomatik LOD; picking, detay fade, transform hızlı yolu, HLOD hazır olma, `compileAsync` korunur | Editör / render smoke'ları iki arka uçta |
-| R9a | GPU occlusion culling (yeni, açık) | R9 sonrasında, R10 öncesinde meshlet'ten bağımsız nesne / instance düzeyinde konservatif Hi-Z adayı: önce tasarım + açık alan / örtülü alan A/B ölçümü, sonra yararlıysa üretim. Ters derinlik, MRT, MSAA, kamera hareketi ve gölge doğruluğu | Yanlış gizleme yok; culling kapalı referansla doğruluk; CPU / GPU render + compute / bellek / görünür nesne / üçgen karşılaştırması; WebGL2 mevcut culling ile çalışır |
+| R9 | 5.5 statiklerin geçişi (tamamlandı 2026-11-17: altyapı bağlı, statikler ölçüm kararıyla `instanced`; R9.0–R9.4 aşağıda) | 5.1 yolu + otomatik LOD; picking, detay fade, transform hızlı yolu, HLOD hazır olma, `compileAsync` korunur | Editör / render smoke'ları iki arka uçta |
+| R9a | GPU occlusion culling (yeni, açık) | İlk adım: ikincil kameralar (yansıma) kendi GPU culling görünümü ve sayacı (R9'da bulundu). Sonra R10 öncesinde meshlet'ten bağımsız nesne / instance düzeyinde konservatif Hi-Z adayı: önce tasarım + açık alan / örtülü alan A/B ölçümü, sonra yararlıysa üretim. Ters derinlik, MRT, MSAA, kamera hareketi ve gölge doğruluğu | Yanlış gizleme yok; culling kapalı referansla doğruluk; CPU / GPU render + compute / bellek / görünür nesne / üçgen karşılaştırması; WebGL2 mevcut culling ile çalışır |
 | R10 | 5.6 G6 ölçümü | Derekavak P2 60 Hz, R5 raporuyla; sonra 5c adım 6–11 eski sırayla | G6 sınırları |
 
 Öneriyle ilerleyen kararlar (kullanıcı itiraz ederse değişir): foliage 5.1 yolunda
@@ -1123,6 +1125,16 @@ kabulü ve toplu statik geçiş R9'dadır. R8, R9, R9a ve R10 başlatılmadı;
 occlusion eklenmedi. Tam gate ve push çalıştırılmadı.
 
 **R9a occlusion tasarım / kabul notları (yeni plan işi, uygulanmadı):**
+- **İlk adım: ikincil kamera görünümleri** (kullanıcı kararı, 2026-11-17; R9'da bulundu).
+  GPU güdümlü culling yalnız kayıtlı görünümler için yapılır (ana kamera + gölge kaskatları).
+  Sahneyi çizen başka bir kamera (su birikintisi `reflector()`'ı, ileride diğerleri) ana
+  görünümün görünür listesini çizer: ana görüşün dışındaki ama yansımada görünen nesne eksik
+  kalır; `?debug` o geçişin dolaylı çizimlerini saymaz. Bugün yalnız foliage'ı etkiler. Her
+  kamera kendi görünümü olarak kaydedilir (kaskatlardaki gibi kendi katmanı, dispatch'i ve
+  listesi; mesafe ölçüsü ana kameranın kalır mı ayrı tasarlanır), sayaca eklenir. Kapı: yansıma
+  smoke'unda yansıyan foliage CPU referansıyla, `puddle.smoke.ts`'in `staticPath=instanced`'ı
+  ve sayaç notu kaldırılabilir. Occlusion bunun üstüne kurulur: ana kameranın occlusion
+  sonucu ne gölgeye ne yansımaya uygulanır.
 - Mevcut frustum / mesafe culling ve ambient occlusion, nesne occlusion culling
   değildir. Mevcut meshlet taslağında `occlusionCulling: false`; bağımsız üretim
   occlusion sistemi doğrulanmadı. R7'ye eklenmez; önce R8 ve R9 tamamlanır.
@@ -1299,9 +1311,11 @@ Bağı açmadan önce üç eksik:
   117 isabet / 1 üretim (R9.2 kapısı). Kaydın draw sütunu güvenilmez (instanced'da 1–9; R8.6'daki
   sayaç sorunu), değerlendirmeye alınmadı. **Host varsayılanı `instanced`** (R9 öncesiyle aynı
   çizim); karar kullanıcıda.
-- [ ] **Açık:** (a) yol kararı / eşik; (b) ikincil kameralar (su birikintisi yansıması, ileride
-  diğerleri) GPU güdümlü batch'lerde ana görünümün culling listesini çizer, `?debug` o
-  geçişlerin dolaylı çizimlerini saymaz (foliage'da da aynı); (c) R9.5.
+- [x] **R9 kararı ve kapanışı** (kullanıcı, 2026-11-17; v1.62): statikler `instanced` kalır,
+  GPU güdümlü yol foliage'da sürer; R9 altyapı olarak kapanır. Ağır mesh'li / çok örnekli
+  içerik geldiğinde `measure:static-path` ile yeniden ölçülür; dispatch birleştirme (görünüm
+  başına bütün batch'ler tek dispatch) ayrı karar. R9.5 bu kararla düşer (R9.0 kaydı yeterli).
+  İkincil kamera görünümleri R9a'nın ilk adımı (aşağıda R9a notları).
 
 **R7 önceki uygulama taslağı (v1.54, tarihsel; yukarıdaki güncel kapsam geçerli):**
 1. r187 hattını sürümü ve MIT kaynağı belgelenmiş render kopyasında tut;
@@ -1878,3 +1892,4 @@ silinebilir.
 | 2026-11-17 | v1.59 | R8.4 landmark (`landmark` bileşen alanı, `landmarkDistance` level ayarı; far genişlemesi yerine köşeler far'ın içine çekilir, kaskat / culling değişmez), R8.5 rapor (`forge stats`, editör HLOD satırı), R8.6 ölçüm: Derekavak P2 sahne draw 398 → 68, gönderim 0,711 → 0,455 ms; StreamingBench HLOD 3,37 M → 1,64 M üçgen, uçuş p99 / max 8,5 / 43,6 ms. Kullanıcı görsel kabulü açık; R9 sırada |
 | 2026-11-17 | v1.60 | R8 kapandı (kullanıcı görsel kabulü). R9 bulguları (R7 bağı açılmamış; yapısal değişim batch'i yeniden kurar; birleşmiş slot LOD önbelleğini ıskalar; uygun olmayan parça hata verir), kararlar (batch başına yol seçimi, ölçümle eşik; birleşmiş slot LOD'u parça zincirlerinden) ve sıra R9.0–R9.5. Kod yok |
 | 2026-11-17 | v1.61 | R9.1 / R9.2 (`7724d18`; `mergeTriangleLods` Codex), R9.3 / R9.4 (batch başına yol, uygun olmayan parça instanced, LOD kökü çerçevelemenin dışında), R9.0 ölçümü (`measure:static-path`): GPU yolu dört level'da da kazandırmadı (Derekavak gönderim 0,41 → 1,21 ms), LOD önbelleği 117 / 1. Host varsayılanı `instanced`; yol kararı ve ikincil kamera culling'i açık |
+| 2026-11-17 | v1.62 | R9 kapandı (kullanıcı): statikler `instanced`, GPU güdümlü yol foliage'da; yeniden ölçüm ağır / çok örnekli içerikte, dispatch birleştirme ayrı karar; R9.5 düştü. İkincil kamera görünümleri (yansıma kendi culling listesi + sayaç) R9a'nın ilk adımı. Mimari v1.59 |

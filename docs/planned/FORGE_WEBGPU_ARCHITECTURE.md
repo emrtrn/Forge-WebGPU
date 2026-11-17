@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.58 · 2026-11-17 — §4.4 R8.0–R8.3 uygulandı: normalsiz proxy, çalışma anı slot birleştirme, `forge.levelHlod/2` küme katmanı.
+**Güncelleme:** v1.59 · 2026-11-17 — §4.4 R9 kararı: statik batch'ler varsayılan instanced (GPU yolu ölçümde kazandırmadı); ikincil kamera görünümleri R9a'nın ilk adımı.
+
+**Önceki güncelleme:** v1.58 · 2026-11-17 — §4.4 R8.0–R8.3 uygulandı: normalsiz proxy, çalışma anı slot birleştirme, `forge.levelHlod/2` küme katmanı.
 
 **Önceki güncelleme:** v1.57 · 2026-11-17 — §4.4 R8 draw call kararları.
 
@@ -860,6 +862,23 @@ features/height-fog/
     Meshlet kopyası / seçicisi / küme ön işlemesi / pipeline bağlantısı yoktur;
     R6 dosyaları değişmedi. Doğrulama ve dar ölçüm plan R7 / §11'de; G6 ve
     genel asset görsel kabulü açık, occlusion R9a'da.
+  - *R9 (kullanıcı kararı, 2026-11-17; v1.59):* statik batch'ler (`forge.staticMesh`,
+    `forge.shape`) GPU güdümlü LOD yoluna bağlıdır ama host varsayılanı `instanced`'dır
+    (`render/triangles/staticPath.ts`; `auto` / `gpu` yalnız dev `?staticPath=`).
+    R9.0 ölçümünde dört referans level'da yol kazandırmadı: batch × görünüm başına üç
+    dispatch, batch başına ~50 µs gönderim, GPU süresi düşmedi. Ağır mesh'li / çok
+    örnekli içerik geldiğinde `measure:static-path` ile yeniden ölçülür; dispatch
+    birleştirme ayrı karardır. Bağın kalıcı parçaları: düzenlemede LOD bağı yerinde
+    güncellenir, birleşmiş slotun LOD'u ham primitive zincirlerinden (önbellek isabeti),
+    uygun olmayan parça aynı batch'te instanced, LOD çizim kökü level çerçevelemesinin
+    dışında. Foliage GPU güdümlü yolda kalır.
+  - *İkincil kamera görünümleri (R9a'nın ilk adımı, kullanıcı kararı 2026-11-17):*
+    GPU güdümlü culling yalnız kayıtlı görünümler için yapılır (ana kamera + gölge
+    kaskatları); sahneyi çizen başka bir kamera (su birikintisi `reflector()`'ı, ileride
+    diğerleri) ana görünümün görünür listesini çizer ve `?debug` o geçişin dolaylı
+    çizimlerini saymaz. Her kamera kendi görünümü olarak kaydedilir (kaskatlardaki gibi
+    kendi katmanı, dispatch'i ve listesi), sayaca eklenir. Occlusion bunun üstüne kurulur:
+    ana kameranın occlusion sonucu ne gölgeye ne yansımaya uygulanır.
   - *Occlusion (yeni plan işi R9a, uygulanmadı):* meshlet'ten bağımsız nesne /
     instance düzeyinde konservatif GPU Hi-Z adayı; R8 ve R9'dan sonra, R10'dan
     önce tasarım + A/B ölçüm, yararlıysa üretim. Frustum / mesafe culling veya
