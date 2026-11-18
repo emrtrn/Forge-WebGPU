@@ -19,7 +19,16 @@ import type { ResolvedWorldEnvironment, Season, WeatherPreset } from "./worldEnv
 /** The live environment: transient preview, A7 shared runtime state in Play. */
 export interface WorldEnvironmentState {
   hour: number;
+  /** The season shown, or being moved to while `seasonProgress` < 1. */
   season: Season;
+  /**
+   * A timed season change (vegetation plan PG2, §6.9): from `seasonFrom` to
+   * `season`, `seasonProgress` 0..1 of `seasonSeconds` simulation seconds.
+   * Absent: the season has been reached.
+   */
+  seasonFrom?: Season;
+  seasonProgress?: number;
+  seasonSeconds?: number;
   weather: { preset: WeatherPreset; intensity: number };
   surface: { snowCoverage: number; wetness: number };
 }

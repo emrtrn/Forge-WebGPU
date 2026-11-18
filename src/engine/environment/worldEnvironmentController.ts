@@ -44,7 +44,14 @@ export interface WorldEnvironmentService {
   transitionTo(request: TimeTransitionRequest): Promise<boolean>;
   /** A timed transition is running. */
   readonly transitioning: boolean;
+  /** Jumps to the season at once; ends a running season change (its promise resolves false). */
   setSeason(season: Season): void;
+  /**
+   * Moves to `season` over `seconds` of simulation time (vegetation plan
+   * §6.9: plants' leaves and colours follow the progress). Resolves true when
+   * reached, false when cut short. No seconds, or the same season, sets it at once.
+   */
+  transitionSeason(request: { season: Season; seconds: number }): Promise<boolean>;
   /** K1: the change is immediate; timed transitions arrive with precipitation (K3). */
   setWeather(preset: WeatherPreset, intensity?: number): void;
   setSurface(partial: Partial<WorldEnvironmentState["surface"]>): void;
@@ -70,10 +77,12 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
   private stateRevision = 0;
   private transition: TimeTransition | null = null;
   private settle: ((reached: boolean) => void) | null = null;
+  private settleSeason: ((reached: boolean) => void) | null = null;
 
   /** Starts from a level's actor; null (no actor, or a hidden one) leaves no state. */
   load(actor: LayoutWorldEnvironment | null | undefined, rates: SurfaceRates = SURFACE_RATES): void {
     this.endTransition(false);
+    this.endSeason(false);
     this.clock = null;
     this.state = null;
     this.stateRevision += 1;
@@ -121,6 +130,13 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
    */
   advance(simulationSeconds: number): void {
     if (!Number.isFinite(simulationSeconds) || simulationSeconds <= 0) return;
+    if (this.state && this.state.seasonProgress !== undefined && this.state.seasonProgress < 1) {
+      const seconds = this.state.seasonSeconds ?? 0;
+      const progress = seconds > 0 ? Math.min(1, this.state.seasonProgress + simulationSeconds / seconds) : 1;
+      this.state = progress >= 1 ? this.arrived(this.state) : { ...this.state, seasonProgress: progress };
+      this.emit();
+      if (progress >= 1) this.endSeason(true);
+    }
     if (this.state) {
       const surface = advanceSurface(this.state.surface, this.surfaceTarget, this.surfaceRates, simulationSeconds);
       if (surface.snowCoverage !== this.state.surface.snowCoverage || surface.wetness !== this.state.surface.wetness) {
@@ -179,8 +195,35 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
 
   setSeason(season: Season): void {
     if (!this.state || !SEASONS.includes(season)) return;
-    this.state = { ...this.state, season };
+    this.endSeason(false);
+    this.state = this.arrived({ ...this.state, season });
     this.emit();
+  }
+
+  transitionSeason(request: { season: Season; seconds: number }): Promise<boolean> {
+    if (!this.state || !SEASONS.includes(request.season)) return Promise.resolve(false);
+    if (!(Number.isFinite(request.seconds) && request.seconds > 0) || (request.season === this.state.season && this.state.seasonProgress === undefined)) {
+      this.setSeason(request.season);
+      return Promise.resolve(true);
+    }
+    this.endSeason(false);
+    this.state = { ...this.state, seasonFrom: this.state.season, season: request.season, seasonProgress: 0, seasonSeconds: request.seconds };
+    this.emit();
+    return new Promise((resolve) => {
+      this.settleSeason = resolve;
+    });
+  }
+
+  /** The state with its season reached (no change running). */
+  private arrived(state: WorldEnvironmentState): WorldEnvironmentState {
+    const { seasonFrom: _from, seasonProgress: _progress, seasonSeconds: _seconds, ...rest } = state;
+    return rest;
+  }
+
+  private endSeason(reached: boolean): void {
+    const settle = this.settleSeason;
+    this.settleSeason = null;
+    settle?.(reached);
   }
 
   setWeather(preset: WeatherPreset, intensity = 1): void {
@@ -216,6 +259,11 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
   restore(state: WorldEnvironmentState & { surfaceTarget: SurfaceAmount }): void {
     this.setHour(state.hour);
     this.setSeason(state.season);
+    // A season change saved mid-way goes on from where it was (no history replayed).
+    if (this.state && state.seasonFrom !== undefined && (state.seasonProgress ?? 1) < 1 && (state.seasonSeconds ?? 0) > 0) {
+      this.state = { ...this.state, seasonFrom: state.seasonFrom, seasonProgress: state.seasonProgress!, seasonSeconds: state.seasonSeconds! };
+      this.emit();
+    }
     this.setWeather(state.weather.preset, state.weather.intensity);
     this.setSurface(state.surface);
     this.setSurfaceTarget(state.surfaceTarget);

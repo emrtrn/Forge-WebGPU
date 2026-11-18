@@ -104,3 +104,42 @@ describe("world environment controller: timed transition", () => {
     await expect(reached).resolves.toBe(true);
   });
 });
+
+// Vegetation plan PG2 (§6.9): a timed season change in simulation seconds.
+describe("world environment controller: season transition", () => {
+  test("moves from the season it left over the seconds, then is reached; setSeason cuts it short", async () => {
+    const controller = controllerAt(12);
+    const done = controller.transitionSeason({ season: "autumn", seconds: 10 });
+    expect(controller.current()).toMatchObject({ season: "autumn", seasonFrom: "summer", seasonProgress: 0 });
+    steps(controller, 4, 1);
+    expect(controller.current()!.seasonProgress).toBeCloseTo(0.4);
+    // The hour does not move: the season and the clock are separate inputs.
+    expect(controller.current()!.hour).toBe(12);
+    steps(controller, 7, 1);
+    await expect(done).resolves.toBe(true);
+    expect(controller.current()).not.toHaveProperty("seasonProgress");
+    expect(controller.current()!.season).toBe("autumn");
+
+    const cut = controller.transitionSeason({ season: "winter", seconds: 5 });
+    controller.setSeason("spring");
+    await expect(cut).resolves.toBe(false);
+    expect(controller.current()).toMatchObject({ season: "spring" });
+    expect(controller.current()).not.toHaveProperty("seasonFrom");
+  });
+
+  test("the same total time in different steps gives the same progress; a restore resumes it", () => {
+    const a = controllerAt(12), b = controllerAt(12);
+    void a.transitionSeason({ season: "winter", seconds: 8 });
+    void b.transitionSeason({ season: "winter", seconds: 8 });
+    steps(a, 30, 0.1);
+    steps(b, 3, 1);
+    expect(a.current()!.seasonProgress).toBeCloseTo(b.current()!.seasonProgress!, 9);
+    const saved = { ...structuredClone(a.current()!), surfaceTarget: a.getSurfaceTarget() };
+    const c = controllerAt(12);
+    c.restore(saved);
+    expect(c.current()).toMatchObject({ season: "winter", seasonFrom: "summer" });
+    expect(c.current()!.seasonProgress).toBeCloseTo(0.375, 9);
+    steps(c, 5, 1);
+    expect(c.current()).not.toHaveProperty("seasonProgress");
+  });
+});

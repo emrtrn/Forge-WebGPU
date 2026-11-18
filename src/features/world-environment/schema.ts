@@ -208,6 +208,10 @@ export const WorldEnvironment = defineComponent(
         initialized: bool({ default: false }),
         hour: num({ min: 0, max: 24, default: 12 }),
         season: enumOf(SEASONS, { default: "summer" }),
+        // A timed season change (vegetation plan PG2): absent fields read as "reached".
+        seasonFrom: enumOf(SEASONS, { default: "summer" }),
+        seasonProgress: num({ min: 0, max: 1, default: 1 }),
+        seasonSeconds: num({ min: 0, default: 0 }),
         weather: object(weatherFields()),
         surface: object(amounts()),
         surfaceTarget: object(amounts()),
