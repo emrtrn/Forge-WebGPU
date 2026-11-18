@@ -533,7 +533,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     });
     // The Foliage tab beside Details (plan 5c F5): Foliage Types listed and edited in place, saved as the asset editor saves.
     const foliagePanel = createFoliagePanel({
-      document: doc, registry, client: options.client, catalog: assets,
+      document: doc, registry, client: options.client, catalog: assets, editor: session,
       lookup: (id) => editableAsset(content.index().byId(id)),
       pickAsset: (type) => openPicker({ document: doc, host: shell.root, title: "Select Asset", testId: "foliage-picker", items: assets.ofType(type).map((item) => ({ id: item.guid, label: item.name, note: item.file })) }),
       createAsset: async (type, name, values) => {

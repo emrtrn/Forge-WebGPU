@@ -7,9 +7,12 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { cubeGlb } from "./glb.ts";
-import { openEditor, projectPath } from "./support.ts";
+import { IDENTITY, openEditor, projectPath, writeLevel } from "./support.ts";
 
 const MODEL = `ast_${"f".repeat(31)}1`;
+const TYPE = `ast_${"f".repeat(31)}2`;
+const LEVEL = "content/levels/foliage-rules-smoke";
+const TERRAIN = `act_${"f".repeat(31)}3`;
 const typeFiles = (): string[] => readdirSync(projectPath("content")).filter((name) => name.endsWith(".foliagetype.json"));
 
 test.beforeAll(() => {
@@ -19,6 +22,53 @@ test.beforeAll(() => {
   writeFileSync(projectPath("content/foliage-smoke/bush.glb.meta.json"), JSON.stringify({
     schema: "forge.assetMeta/1", id: MODEL, type: "forge.model@2", license: "CC0-1.0", source: { origin: "foliage tab smoke" },
   }));
+  writeFileSync(projectPath("content/foliage-smoke/bush.foliagetype.json"), JSON.stringify({ schema: "forge.foliageType/1", id: TYPE, mesh: MODEL }));
+  // A terrain actor without data (nothing draws; its rules are what the tab edits).
+  writeLevel(LEVEL, `lvl_${"f".repeat(31)}4`, [
+    { id: TERRAIN, name: "Ground", class: null, parent: null, spatiallyLoaded: false, transform: IDENTITY, components: { terrain: { type: "forge.terrain@2", data: null } } },
+  ]);
+});
+
+const levelRules = (): Array<Record<string, unknown>> => {
+  const level = JSON.parse(readFileSync(join(projectPath(LEVEL), "level.json"), "utf8")) as { actors: Array<{ id: string; components: Record<string, { rules?: Array<Record<string, unknown>> }> }> };
+  return level.actors.find((actor) => actor.id === TERRAIN)?.components.landscapeFoliage?.rules ?? [];
+};
+
+test("Landscape Rules: the component added, rules added / edited / moved / removed as level edits with undo, saved", async ({ page }) => {
+  const errors = await openEditor(page, { level: LEVEL });
+  await page.getByTestId("foliage-tab").click();
+  const rules = page.getByTestId("foliage-rules");
+  await expect(rules).toContainText("Landscape Foliage yok");
+  await page.getByTestId("foliage-rule-component").click();
+  // The Types list's selection is the new rule's type.
+  await page.locator(`[data-testid="foliage-type-row"][data-guid="${TYPE}"]`).click();
+  await page.getByTestId("foliage-rule-add").click();
+  await page.getByTestId("foliage-rule-add").click();
+  await expect(page.getByTestId("foliage-rule-row")).toHaveCount(2);
+  await expect(page.getByTestId("foliage-rule-row").first()).toContainText("bush");
+
+  // The selected rule's form: a bounded number is a slider and a box; one edit, one undo step.
+  await page.getByTestId("foliage-rule-row").nth(1).click();
+  const density = page.getByTestId("foliage-rule-field-density");
+  await expect(page.getByTestId("foliage-rule-field-density-slider")).toBeVisible();
+  await density.fill("0.05");
+  await density.press("Tab");
+  await expect(page.getByTestId("foliage-rule-row").nth(1)).toContainText("0.05");
+  await page.getByTestId("editor-undo").click();
+  await expect(density).toHaveValue("0.25");
+  await page.getByTestId("editor-redo").click();
+  await expect(density).toHaveValue("0.05");
+
+  // Up moves the edited rule first; Remove takes the other one.
+  await page.getByTestId("foliage-rule-up").click();
+  await expect(page.getByTestId("foliage-rule-row").first()).toContainText("0.05");
+  await page.getByTestId("foliage-rule-row").nth(1).click();
+  await page.getByTestId("foliage-rule-remove").click();
+  await expect(page.getByTestId("foliage-rule-row")).toHaveCount(1);
+
+  await page.getByTestId("editor-save").click();
+  await expect.poll(() => levelRules().map((rule) => [rule.foliageType, rule.density])).toEqual([[TYPE, 0.05]]);
+  expect(errors).toEqual([]);
 });
 
 test("Foliage tab: a new type from a model, edited, undone, saved and read again", async ({ page }) => {

@@ -9,6 +9,7 @@
 //   + box, Turkish hints, English names), edited in an asset session
 //   (assets/assetSession.ts: its own undo, Save, Reload); Save goes through the
 //   asset editor's `saved` path, so the open level's foliage regrows with it.
+// - Landscape Rules (F6, foliageRules.ts): the terrain's rules, level edits.
 // Visible explanations and empty states are Turkish; names and buttons English.
 
 import type { SaveClient, SchemaRegistry } from "../../core/index.ts";
@@ -16,7 +17,9 @@ import { pathKey } from "../../engine/edit/formPath.ts";
 import type { AssetCatalog } from "../assets/assetCatalog.ts";
 import { assetDocumentAdapter, type EditableAsset } from "../assets/assetDocument.ts";
 import { openAssetSession, type AssetSession } from "../assets/assetSession.ts";
+import type { EditorSession } from "../session/editorSession.ts";
 import { createFormView, type FormView } from "../ui/formView.ts";
+import { createFoliageRules, type FoliageRules } from "./foliageRules.ts";
 
 export const FOLIAGE_TYPE = "forge.foliageType";
 
@@ -25,6 +28,8 @@ export interface FoliagePanelOptions {
   readonly registry: SchemaRegistry;
   readonly client: SaveClient;
   readonly catalog: AssetCatalog;
+  /** The open level (Landscape Rules, F6); without it the tab shows the types only. */
+  readonly editor?: EditorSession;
   lookup(guid: string): EditableAsset | null;
   /** Creates a JSON asset as the Content Browser's New does; resolves to its GUID, null when refused. */
   createAsset(type: string, name: string, values: Readonly<Record<string, unknown>>): Promise<string | null>;
@@ -59,6 +64,8 @@ export function installFoliagePanelStyle(doc: Document): void {
 .foliage-row small{color:var(--forge-text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .foliage-empty{padding:8px;color:var(--forge-text-secondary)}
 .foliage-toolbar{display:flex;gap:6px;flex-wrap:wrap}
+.foliage-rules{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--forge-border-soft);padding-top:8px}
+.foliage-terrain{max-width:50%}
 `;
   doc.head.append(style);
 }
@@ -95,6 +102,13 @@ export function createFoliagePanel(options: FoliagePanelOptions): FoliagePanel {
   const editor = el("div", "foliage-type-editor");
   editor.dataset.testid = "foliage-type-editor";
   element.append(typesHead, list, editor);
+  const rules: FoliageRules | null = options.editor
+    ? createFoliageRules({
+        document: doc, editor: options.editor, catalog: options.catalog, selectedType: () => selected,
+        pickAsset: (type) => options.pickAsset(type), status: options.status,
+      })
+    : null;
+  if (rules) element.append(rules.element);
 
   let selected: string | null = null;
   let session: AssetSession | null = null;
@@ -230,6 +244,7 @@ export function createFoliagePanel(options: FoliagePanelOptions): FoliagePanel {
     dispose() {
       ticket += 1;
       closeSession();
+      rules?.dispose();
       element.remove();
     },
   };
