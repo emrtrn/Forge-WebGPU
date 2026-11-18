@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.77 · 2026-11-18 — F5 (`22c50c2`: Details'in yanında Foliage sekmesi, Foliage Type listesi / oluşturma / şemadan düzenleme) ve F6 (`50fc01a`, `44f4602`: terrain'in Landscape kuralları level düzenlemesi olarak, tek Undo; kural düzenlemesi artık terrain'i yeniden kurmuyor). Sırada F7 (R10).
+**Güncelleme:** v1.78 · 2026-11-18 — F7 = R10 (`184f00f`, `48536fe`): `npm run measure:foliage`, level'ların kendi foliage'ıyla G6. Profil, Forge'un her karede yaptığı halka planını ana iş parçacığının üçte biri gösterdi; halka artık kamera 1 m oynayınca / bekleyen hücrede / 30 karede bir planlanır. Derekavak P2: gönderim 1,03 ms (p95 3,0), ana iş parçacığı 1,60 ms (p95 3,8): **G6 sağlandı**. Sırada PG2.
+
+**Önceki güncelleme:** v1.77 · 2026-11-18 — F5 (`22c50c2`: Details'in yanında Foliage sekmesi, Foliage Type listesi / oluşturma / şemadan düzenleme) ve F6 (`50fc01a`, `44f4602`: terrain'in Landscape kuralları level düzenlemesi olarak, tek Undo; kural düzenlemesi artık terrain'i yeniden kurmuyor). Sırada F7 (R10).
 
 **Önceki güncelleme:** v1.76 · 2026-11-18 — F2 (`51d4788`: halka hücreleri worker'da) ve F4 (`1b63507`: boyanmış hücreler kameranın çevresinde akar, `?debug` foliage satırları). Kullanıcı kararı: F3 (uzak billboard + ton) PG3'le birlikte, çünkü referans içerikte hiçbir tür kullanmıyor; sıra F4 → F5–F6 → F7 → PG2 → PG3 + F3.
 
@@ -1098,6 +1100,26 @@ boya / silme fırçası (`engine/scene/foliagePaint.ts`) 5d'de kalır. Forge kar
   kurar. Kontrol (Derekavak, editör, gerçek WebGPU, kaydetmeden): bütün kurallarda yoğunluk 0 halkayı boşaltır, geri
   alma geri getirir. Editör smoke'u 85 / 85. Açık: sürükleme sırasında halka her girdide yeniden kurulur (kısa boşluk),
   görsel kabul kullanıcıda.
+- [x] **F7 = R10** (`184f00f`, `48536fe`, C): `npm run measure:foliage` (`tests/smoke/foliage.measure.ts`; başlıklı gerçek
+  WebGPU, 1080p `high`, 60 Hz adımlı, 60 ısınma + 300 kare; `FORGE_PROFILE=<senaryo>` CPU profili). Taban için foliage
+  sahneden çıkar ve bağlaması durur (dev `levelActive`). İlk koşu (paralel oturum yükü altında) P2'de 4,27 / 7,23 ms
+  gösterdi; temiz koşuda 1,58 / 3,22 ms ve profilde `plan` + `planFoliageRing` örneklerin %22'si (Forge her karede
+  planlıyordu). **Karar (Claude, sonuç değişmez):** bağlama halkayı kamera 1 m oynayınca, bekleyen hücre varken, kalite
+  değişince ve en geç 30 karede bir planlar. Son kayıt `render-refs/runs/2026-11-18T13-53-24-872Z-foliage.json`
+  (ort / p95 ms):
+
+  | Senaryo | Gönderim | Ana iş parçacığı | GPU |
+  |---|---|---|---|
+  | Derekavak P2, foliage yok | 0,59 / 2,1 | 1,09 / 2,9 | 2,12 |
+  | Derekavak P2, foliage (1.640 örnek, 6 batch) | **1,01 / 2,8** | **1,56 / 3,5** | 2,50 |
+  | + ×20 stres (120 ek batch) | 20,2 / 23,6 | 20,9 / 24,3 | 11,4 |
+  | P2'den 15 m/s yürüyüş | 1,48 / 3,2 (en çok 7,8) | 2,94 / 4,9 (en çok 9,7) | 3,55 |
+  | Island P1, foliage (1.408 örnek) | 0,89 / 1,4 | 1,29 / 2,0 | 2,31 |
+
+  G6 (P2'de gönderim ≤ 3 ms, ana iş parçacığı ≤ 6 ms) ortalamada ve p95'te sağlandı. ×20 stres foliage'ın değil,
+  batch başına dispatch'in maliyeti (R3 / R9 notu: dispatch birleştirme ayrı karar). Draw sütunu bu düzenekte güvenilir
+  değil: duraklatılmış döngüde three'nin sayacı aynı kare için bazı koşularda 1 okunuyor (süreleri etkilemiyor; `?debug`
+  okuması ayrı). Kapının S4 karşılığı: Derekavak'ın gerçek foliage'ı 1.640 örnek, S4 sayımıyla aynı.
 
 **5c yeni sıra: üçgen ve draw call işi (kullanıcı, 2026-11-17, plan v1.46).**
 Kullanıcı 5.2'yi durdurdu; adım 5'in kalan alt adımları (5.2–5.6) ve sahne
@@ -2210,6 +2232,7 @@ silinebilir.
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
+| 2026-11-18 | v1.78 | F7 = R10: `measure:foliage` (`184f00f`), halka planı kamera hareketine bağlandı; Derekavak P2 gönderim 1,01 ms / ana iş parçacığı 1,56 ms, G6 sağlandı |
 | 2026-11-18 | v1.77 | F5 Foliage sekmesi + türler (`22c50c2`), F6 Landscape kuralları (`50fc01a`) ve terrain'in kural düzenlemesinde korunması (`44f4602`) |
 | 2026-11-18 | v1.76 | F2 worker (`51d4788`), F4 boyanmış hücre akışı + `?debug` satırları (`1b63507`); kullanıcı: F3 PG3'le birlikte (referans içerik kullanmıyor) |
 | 2026-11-18 | v1.75 | F0 referans projesine foliage (üç level, `--compare` eşit), F1 halka (`b53e4db`): Derekavak P2 1.640 örnek Node referansıyla birebir, iki arka uçta; Island P1 / WbPilotValley P3 render referansları kullanıcı kabulü bekliyor |
