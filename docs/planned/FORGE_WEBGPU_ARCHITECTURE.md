@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.61 · 2026-11-17 — §4.4 R9a occlusion çalışması: CPU Hi-Z referansı ve üst sınır ölçümü; kazanç düşük, üretim önerilmiyor.
+**Güncelleme:** v1.62 · 2026-11-18 — §4.4 R9b: statiklerin varsayılan yolu `auto` (ağır parça GPU yolunda); occlusion culling iptal, yerine bölge sistemi (bölge / portal, portal görünürlüğü, instanced batch bölge bölmesi, GPU yolunda örnek başına bölge maskesi, otomatik üretim, editör).
+
+**Önceki güncelleme:** v1.61 · 2026-11-17 — §4.4 R9a occlusion çalışması: CPU Hi-Z referansı ve üst sınır ölçümü; kazanç düşük, üretim önerilmiyor.
 
 **Önceki güncelleme:** v1.60 · 2026-11-17 — §4.4 R9a adım 1 uygulandı: kamera görünümleri, görünüm rolü / katmanı, yansıma aynalanmış görünüm.
 
@@ -866,9 +868,12 @@ features/height-fog/
     Meshlet kopyası / seçicisi / küme ön işlemesi / pipeline bağlantısı yoktur;
     R6 dosyaları değişmedi. Doğrulama ve dar ölçüm plan R7 / §11'de; G6 ve
     genel asset görsel kabulü açık, occlusion R9a'da.
-  - *R9 (kullanıcı kararı, 2026-11-17; v1.59):* statik batch'ler (`forge.staticMesh`,
-    `forge.shape`) GPU güdümlü LOD yoluna bağlıdır ama host varsayılanı `instanced`'dır
-    (`render/triangles/staticPath.ts`; `auto` / `gpu` yalnız dev `?staticPath=`).
+  - *R9 (kullanıcı kararı, 2026-11-17; v1.59; R9b S1 ile değişti):* statik batch'ler (`forge.staticMesh`,
+    `forge.shape`) GPU güdümlü LOD yoluna bağlıdır; host varsayılanı **`auto`** (R9b S1,
+    2026-11-18): uygun bir parçası 5.000 üçgeni aşan batch GPU yolunda, gerisi instanced
+    (`render/triangles/staticPath.ts`; `instanced` / `gpu` yalnız dev `?staticPath=`). Ağır eşyada
+    (36,5 bin üçgen) GPU + otomatik LOD instanced'a göre ~8–10 kat hızlı; hafif referans içerik
+    hiç GPU batch'i açmaz.
     R9.0 ölçümünde dört referans level'da yol kazandırmadı: batch × görünüm başına üç
     dispatch, batch başına ~50 µs gönderim, GPU süresi düşmedi. Ağır mesh'li / çok
     örnekli içerik geldiğinde `measure:static-path` ile yeniden ölçülür; dispatch
@@ -886,7 +891,27 @@ features/height-fog/
     (2026-11-17, `ef12079`):* `gpuDriven.add(CameraViewSource)`; görünüm rol + katman taşır
     (gölge 1–8, ana 9, kamera 10–13); düzlemsel yansıma ana görünümün aynası (`mirrorCullView`,
     mesafe aynalanmış gözden, eğik yakın düzlem yok sayılır). WebGL2 ikizi aynı.
-  - *Occlusion (yeni plan işi R9a, uygulanmadı):* meshlet'ten bağımsız nesne /
+  - *Bölge sistemi (R9b, kullanıcı kararları 2026-11-18; occlusion ve PVS yerine):*
+    `forge.zone@1` (kutu: `size` × ölçek, `alwaysCastShadows`, `generated`) ve `forge.portal@1`
+    (dikdörtgen açıklık, isteğe bağlı `zoneA` / `zoneB`), `features/zone`. Çekirdek
+    `engine/world/zones.ts`: yerleşim / kamera bir noktayı tutan en küçük bölgeye aittir, bölgesiz içerik
+    hep görünür, kamera bölgede değilse hepsi görünür; kare başına kamera bölgesinden portal grafı
+    daralan ekran dikdörtgeniyle gezilir (önceden hesap yok, düzenlemede geçerli). Çizim
+    (`render/sync/zoneDrawing.ts`, bölge kümesi bağlamalardan önce tazelenir): hafif (instanced)
+    statik batch'ler bölgeye göre bölünür ve kare başına kip alır (görünür / yalnız gölge / gizli;
+    katmanla, yalnız gölge kameraları bölge gölge katmanını taşır); GPU yoluna giden batch'ler
+    **bölünmez**: örnek bölge yuvasını taşır (`extras.z`), compute cull host'un iki maskesini okur
+    (ana ve kamera görünümleri görünür bölgeleri, gölge görünümleri bunlara `alwaysCastShadows`
+    olanları ekler); WebGL2 ikizi aynı maskeyi CPU'da uygular. Bölme GPU yolunda gönderimi bölge
+    sayısıyla büyüttüğü için (Z6 ölçümü, bina dışından 0,56 → 13,6 ms) maske kararı verildi; iç
+    mekânda GPU %50–60 düşer, gönderim artmaz. Görünmeyen bölge gölge düşürmez (bölge başına
+    seçenek). Şimdilik yalnız görünürlük; bölgeye göre bellekten boşaltma ayrı karar. Otomatik
+    üretim `engine/world/zoneGeneration.ts` (göz hizası dilimi, Öklid uzaklık dönüşümü, kapı
+    yarı genişliğinden uzak çekirdekler, havza büyütme, sınırlardan portal) + `zoneLevel.ts`
+    (`generated` olanlar değişir, kullanıcınınkiler kalır, kararlı GUID): `npm run forge -- zones`
+    ve editörde World Settings > Generate Zones (tek Undo). Editör: Add Actor > Volumes, gizmo,
+    yalnız editörde çizilen kutu / açıklık (`features/zone/editorRender.ts`), `?debug` satırları.
+  - *Occlusion (R9a; R9b'de iptal, kod Z0'da kaldırıldı — kullanıcı kararı 2026-11-18):* meshlet'ten bağımsız nesne /
     instance düzeyinde konservatif GPU Hi-Z adayı; R8 ve R9'dan sonra, R10'dan
     önce tasarım + A/B ölçüm, yararlıysa üretim. Frustum / mesafe culling veya
     ambient occlusion bunun karşılığı değildir. Ters derinlik, MSAA / MRT depth

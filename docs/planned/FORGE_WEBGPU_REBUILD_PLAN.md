@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.71 · 2026-11-18 — R9b S1 ve Z0–Z5 uygulandı (`ed3ad1b` … `07d863b`), Z6 ölçümü (`4d1df67`): bölgeler iç mekânda GPU'yu ~%25 düşürüyor ama batch'in bölgeye göre bölünmesi GPU güdümlü ağır eşyada gönderimi büyütüyor (bölge dışından 0,56 → 13,6 ms). GPU yolunda bölge görünürlüğünün nasıl uygulanacağı kullanıcıya soruldu; Z6 kabulü ve Z7 bekliyor.
+**Güncelleme:** v1.72 · 2026-11-18 — Kullanıcı kararı: GPU yolunda bölge, batch bölmesi yerine örnek başına bölge maskesiyle (Z3b `acb8e7f`); ağır iç mekânda GPU %50–60 düşer, gönderim artmaz. Z7 belgeleri yazıldı; Z6 kullanıcı görsel kabulü bekliyor.
+
+**Önceki güncelleme:** v1.71 · 2026-11-18 — R9b S1 ve Z0–Z5 uygulandı (`ed3ad1b` … `07d863b`), Z6 ölçümü (`4d1df67`): bölgeler iç mekânda GPU'yu ~%25 düşürüyor ama batch'in bölgeye göre bölünmesi GPU güdümlü ağır eşyada gönderimi büyütüyor (bölge dışından 0,56 → 13,6 ms). GPU yolunda bölge görünürlüğünün nasıl uygulanacağı kullanıcıya soruldu; Z6 kabulü ve Z7 bekliyor.
 
 **Önceki güncelleme:** v1.70 · 2026-11-18 — R9b açık soruları kapandı (kullanıcı, önerilerle): gizli bölge gölge düşürmez (bölge başına seçenek), ilk aşama yalnız görünürlük, statiklerin varsayılan yolu `auto` (eşik ölçümle; adım S1). Uygulama yeni oturumda.
 
@@ -1368,11 +1370,28 @@ Tasarım:
   | yukarı (bölge dışı) | 0,56 / 1,77 / 13 | 13,58 / 4,74 / 769 | 0 |
 
   Bulgu: gizleme GPU'yu ~%25 düşürür, ama GPU güdümlü ağır eşya tek batch yerine bölge başına batch olur
-  (64 × görünüm başına dispatch + draw): gönderim içeride 3 kat, bütün bölgeler görünürken 24 kat. **Açık
-  soru (kullanıcıda):** GPU yolunda bölge, batch bölmesi yerine örnek başına bölge kimliği + görünür bölge
-  maskesiyle compute cull'da uygulanabilir (tek batch, gölge görünümleri ayrı maske); instanced yol bölmeyle
-  kalır.
-- [ ] **Z7** belgeler: mimari rapor, harita (karar sonrası).
+  (64 × görünüm başına dispatch + draw): gönderim içeride 3 kat, bütün bölgeler görünürken 24 kat.
+  **Kullanıcı kararı (2026-11-18):** GPU yolunda örnek başına bölge maskesi; instanced bölmeyle kalır.
+- [x] **Z3b** (`acb8e7f`): GPU güdümlü batch bölünmez; örnek bölge yuvasını taşır (`extras.z`, değer;
+  `triangleDrawing` bölge kümesi ya da matris değişince yazar), compute cull host'un iki maskesini okur
+  (`gpuDriven.setZoneMasks`: ana / kamera görünümleri görünür bölgeler, gölge görünümleri + `alwaysCastShadows`;
+  `ZONE_MASK_WORDS` 64, en çok 2.047 bölge, ötesi yuva 0 = hep görünür), WebGL2 ikizi aynı maskeyi CPU'da.
+  Statik mesh modeli yüklenince GPU yoluna gidiyorsa bölme dışına çıkar. Yeniden ölçüm
+  (`2026-11-18T08-50-56-823Z-zones.json`):
+
+  | Poz | Bölgesiz gönderim / GPU / draw | Bölgeli gönderim / GPU / draw |
+  |---|---|---|
+  | oda | 0,91 / 2,16 ms / 13 | 0,75 / 1,10 ms / 13 |
+  | koridor | 0,85 / 2,40 / 36 | 0,69 / 0,96 / 13 |
+  | çapraz | 0,69 / 2,11 / 13 | 0,58 / 0,83 / 13 |
+  | yukarı (bölge dışı) | 0,59 / 1,73 / 36 | 0,79 / 1,96 / 208 |
+
+  Bölge dışından kalan fark hafif şekil batch'lerinin (duvar / döşeme) bölünmesinden. Açık dünya: referans
+  level'larda bölge yok, yol değişmez (`zones.update` erken döner, maske hepsi açık). Render smoke 30 / 31
+  (bir çerçeveli çekim kararsız, tek başına geçer), editör 83 / 83 iki arka uçta. **Bekleyen:** Z6 kullanıcı
+  görsel kabulü.
+- [x] **Z7** belgeler: mimari rapor v1.62 §4.4 (bölge sistemi, R9 varsayılanı), harita, CLAUDE.md komut
+  satırları.
 
 **R8 kararları ve uygulama planı (kullanıcı, 2026-11-17; v1.57):**
 Bulgular: HLOD proxy'leri zaten tek ortak materyalli (renk köşe renginde, gölge
@@ -2112,6 +2131,7 @@ silinebilir.
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
+| 2026-11-18 | v1.72 | Kullanıcı: GPU yolunda örnek başına bölge maskesi (Z3b `acb8e7f`), instanced bölme kalır; Z6 yeniden ölçüldü, Z7 belgeleri; Z6 görsel kabulü kullanıcıda |
 | 2026-11-18 | v1.71 | R9b S1 (`ed3ad1b`: `auto` varsayılan, parça > 5.000 üçgen GPU yolu), Z0 (`30483f8`), Z1 (`0cb8139`), Z2 (`d6bb043`), Z3 (`319404f`), Z4 (`24fce8e`), Z5 (`07d863b`), Z6 ölçümü (`4d1df67`); GPU yolunda bölge bölmesi gönderimi büyütüyor, karar kullanıcıda |
 | 2026-11-18 | v1.70 | R9b kararları (önerilerle): gizli bölge gölgesiz + bölge başına seçenek, önce yalnız görünürlük, S1 statiklerin varsayılan yolu `auto` (eşik ölçümle). Kod yok |
 | 2026-11-18 | v1.69 | Kullanıcı: occlusion iptal, PVS yok; R9b bölge sistemi (otomatik + elle düzenlenen hacimler, portal görünürlüğü, bölgeye göre batch ve gölge); Z0 occlusion kodunun kaldırılması, Z1–Z7. Kod yok |

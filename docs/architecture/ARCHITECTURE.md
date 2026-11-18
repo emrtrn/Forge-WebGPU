@@ -35,7 +35,9 @@ R7 otomatik LOD: three'siz türev veri / üretici `engine/geometry`, Node cache 
 build `tools/triangles`, seçilebilir GPU / WebGL2 bağı ve worker `render/triangles`.
 Kararlar ve kabul sınırları [rapor §4.4](../planned/FORGE_WEBGPU_ARCHITECTURE.md);
 genel statik geçiş R9 (varsayılan `auto`, ağır parçalar GPU yolunda; R9b S1); occlusion
-culling iptal (R9b Z0), iç mekân görünürlüğü R9b bölge sistemi.
+culling iptal (R9b Z0), iç mekân görünürlüğü R9b bölge sistemi: çekirdek `engine/world/zones.ts`
+ve `zoneGeneration.ts` / `zoneLevel.ts`, çizim `render/sync/zoneDrawing.ts` (instanced bölme,
+GPU yolunda örnek başına bölge maskesi), şemalar ve editör `features/zone`, araç `tools/zones`.
 
 ## Özellik klasörü
 
