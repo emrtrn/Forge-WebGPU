@@ -39,7 +39,7 @@ import { disposeResource } from "../resources/disposeResource.ts";
 import { createSurfaceMaterials } from "../resources/surfaceMaterials.ts";
 import { createTerrainSource } from "../resources/terrains.ts";
 import { createTextureSource } from "../resources/textures.ts";
-import { createWorldResources, type ModelSource, type WorldResources } from "../resources/worldResources.ts";
+import { createWorldResources, type JsonAssetSource, type ModelSource, type WorldResources } from "../resources/worldResources.ts";
 import type { EnvironmentCapture, RenderBindingDef } from "../sync/renderBinding.ts";
 import { createRenderFeature, type RenderWorld } from "../sync/renderWorld.ts";
 import { mountBadge } from "./badge.ts";
@@ -213,6 +213,15 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   });
   releaseMaterialTextures = (material) => materials.releaseTextures(material);
   const terrains = createTerrainSource({ urls: options.assetUrls, materials });
+  const jsonAssets: JsonAssetSource = {
+    async load(guid) {
+      const url = options.assetUrls.url(guid);
+      if (url === null) throw new Error(`forge render: asset ${guid} is not in the asset index`);
+      const response = await fetch(url, { headers: { ...options.assetUrls.headers } });
+      if (!response.ok) throw new Error(`${url}: ${response.status}`);
+      return response.json() as Promise<unknown>;
+    },
+  };
   const models: ModelSource = {
     load: (guid) =>
       gltf.load(guid).catch((error: unknown) => {
@@ -395,8 +404,10 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
         materials,
         terrains,
         textures,
+        jsonAssets,
         bindings: options.bindings,
         cameraViews: gpuDriven,
+        gpuDriven,
         staticCellSize: () => staticCellSize,
         features,
         name,
@@ -422,7 +433,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
     get camera() {
       return camera;
     },
-    resources: (name) => createWorldResources(cache, name, models, materials, terrains, textures),
+    resources: (name) => createWorldResources(cache, name, models, materials, terrains, textures, jsonAssets),
     setOverlay(next) {
       overlay = next;
     },

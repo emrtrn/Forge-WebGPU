@@ -74,6 +74,9 @@ export interface CameraViews {
   add(source: CameraViewSource): () => void;
 }
 
+/** What a render binding may do with the GPU-driven drawing: own batches (`RenderBindingContext.gpuDriven`). */
+export type GpuDrivenBatches = Pick<GpuDrivenDrawing, "createBatch" | "removeBatch">;
+
 export interface GpuDrivenStats {
   readonly batches: number;
   readonly instances: number;

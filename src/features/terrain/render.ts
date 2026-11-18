@@ -34,7 +34,7 @@
 // the host reports it.
 
 import { Box3, Vector3 } from "three/webgpu";
-import { parseComponentTypeTag, type WorldActor } from "../../core/index.ts";
+import { parseComponentTypeTag, type ActorId, type WorldActor } from "../../core/index.ts";
 import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
 import { tagSceneSource } from "../../engine/perf/sceneCost.ts";
 import { raycastTerrain } from "../../engine/terrain/terrainHeightQuery.ts";
@@ -49,6 +49,7 @@ import { defineRenderBinding } from "../../render/sync/renderBinding.ts";
 import { tagTerrainStreaming, tagTerrainView } from "../../render/sync/debugTags.ts";
 import { tagActorObject, tagPickSurface, type PickSurface } from "../../render/sync/pickTags.ts";
 import { TerrainView, terrainShadowCasters } from "../../render/sync/terrainView.ts";
+import { publishTerrainSurface, terrainSurface, withdrawTerrainSurface } from "../../render/sync/terrainSurfaces.ts";
 import { Terrain, type TerrainData } from "./schema.ts";
 
 /** A drawn terrain as a pick surface: its live height field, in world space (placed by its definition's origin). */
@@ -78,6 +79,7 @@ export function terrainPickSurface(terrain: LoadedTerrain, view: TerrainView): P
 }
 
 interface Placed {
+  readonly actor: ActorId;
   view: TerrainView | null;
   stream: TerrainRuntimeStreaming | null;
   reader: TerrainTileReader | null;
@@ -85,6 +87,8 @@ interface Placed {
   sources: readonly StreamingSource[];
   /** Ends the readiness hold; null while not held. */
   busy: (() => void) | null;
+  /** The last frame's readiness: nothing streaming, no tile waiting for a slot. */
+  settled: boolean;
   removed: boolean;
   readonly key: string | null;
 }
@@ -130,11 +134,16 @@ export default defineRenderBinding({
       if (entry.stream) tagTerrainStreaming(view.mesh, { stream: entry.stream, sources: () => entry.sources });
       entry.view = view;
       ctx.root.add(view.mesh);
+      // The foliage ring grows on the live tiles (plan 5c F1).
+      publishTerrainSurface(ctx.scene, actor.id, {
+        def: terrain.def, tiles: view.source, existingTiles: new Set(terrain.def.tiles.map((tile) => tile.key)), global: terrain.global,
+        settled: () => entry.settled,
+      });
     };
 
     const add = (actor: WorldActor, key: string, data: TerrainData): void => {
       const id = `${actor.id}/${key}`;
-      const entry: Placed = { view: null, stream: null, reader: null, sources: [], busy: null, removed: false, key: data.data === null ? null : resourceKey.terrain(data.data) };
+      const entry: Placed = { actor: actor.id, view: null, stream: null, reader: null, sources: [], busy: null, settled: false, removed: false, key: data.data === null ? null : resourceKey.terrain(data.data) };
       placed.set(id, entry);
       if (data.data === null) return;
       entry.busy = ctx.resources.busy();
@@ -155,6 +164,7 @@ export default defineRenderBinding({
       if (!entry) return;
       placed.delete(id);
       entry.removed = true;
+      if (entry.view && terrainSurface(ctx.scene, entry.actor)?.tiles === entry.view.source) withdrawTerrainSurface(ctx.scene, entry.actor);
       entry.stream?.dispose();
       entry.reader?.dispose();
       entry.view?.dispose();
@@ -202,6 +212,7 @@ export default defineRenderBinding({
           view.update(frame.camera, casters);
           const stats = stream?.world.stats();
           const settled = (!stats || stats.queued + stats.inFlight === 0) && view.pendingUploads === 0;
+          entry.settled = settled;
           if (settled && entry.busy) {
             entry.busy();
             entry.busy = null;

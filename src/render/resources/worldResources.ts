@@ -25,6 +25,11 @@ export interface ModelSource {
   load(guid: string): Promise<ModelTemplate>;
 }
 
+/** Reads a JSON asset's document by GUID, as stored (the binding normalizes it with its own type). */
+export interface JsonAssetSource {
+  load(guid: string): Promise<unknown>;
+}
+
 export const shapeMaterialKey = (color: string, doubleSided: boolean): string =>
   `shapeMaterial:${color.toLowerCase()}:${doubleSided ? "double" : "single"}`;
 
@@ -51,6 +56,8 @@ export interface WorldResources {
   busy(): () => void;
   /** A `forge.texture` asset; key `texture:<guid>:<colour space>` (the editor's thumbnails). */
   texture(guid: string, colorSpace: "srgb" | "linear"): Promise<Texture>;
+  /** A JSON asset's stored document (a `forge.foliageType`); key `json:<guid>`, evicted when the editor saves it. */
+  json(guid: string): Promise<unknown>;
   /** Gives back one use of a key. */
   release(key: string): void;
   releaseAll(): void;
@@ -63,6 +70,7 @@ export function createWorldResources(
   materials: SurfaceMaterials | null = null,
   terrains: TerrainSource | null = null,
   textures: TextureSource | null = null,
+  jsonAssets: JsonAssetSource | null = null,
 ): WorldResources {
   const owner = cache.owner(name);
   const materialKey = (guid: string, contributions: MaterialContributions = {}): string =>
@@ -82,6 +90,10 @@ export function createWorldResources(
     texture: (guid, colorSpace) =>
       owner.acquire(resourceKey.texture(guid, colorSpace), () =>
         textures ? textures.load(guid, colorSpace) : Promise.reject(new Error(`forge render: no texture source for ${guid}`)),
+      ),
+    json: (guid) =>
+      owner.acquire(resourceKey.json(guid), () =>
+        jsonAssets ? jsonAssets.load(guid) : Promise.reject(new Error(`forge render: no JSON asset source for ${guid}`)),
       ),
     shapeGeometry: (primitive) => owner.acquire(resourceKey.shape(primitive), () => createShapeGeometry(primitive)),
     shapeMaterial: (color, doubleSided) =>

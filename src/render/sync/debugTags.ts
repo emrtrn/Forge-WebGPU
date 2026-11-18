@@ -13,6 +13,7 @@ import type { Object3D } from "three/webgpu";
 import type { TerrainStreamingView } from "../../engine/terrain/terrainStreamingDebug.ts";
 import type { WorldTerrainDef } from "../../engine/terrain/terrainTypes.ts";
 import type { StreamingSource } from "../../engine/world/streamingPolicy.ts";
+import type { GpuDrivenBatch } from "../gpu/gpuDrivenBatch.ts";
 import type { TerrainView } from "./terrainView.ts";
 
 const TERRAIN_STREAMING = "forgeDebugTerrainStreaming";
@@ -55,4 +56,27 @@ export function terrainStreamingProbes(root: Object3D): TerrainStreamingProbe[] 
     if (probe) probes.push(probe);
   });
   return probes;
+}
+
+/** A world's foliage (plan 5c F1): the procedural ring's cells and the batches it draws with. */
+export interface FoliageProbe {
+  /** Every placement's ring summed. */
+  ring(): { readonly rings: number; readonly cells: number; readonly instances: number; readonly pending: number };
+  /** The foliage batches built so far (one per Foliage Type). */
+  batches(): readonly GpuDrivenBatch[];
+}
+
+const FOLIAGE = "forgeDebugFoliage";
+
+export function tagFoliage(object: Object3D, probe: FoliageProbe): void {
+  object.userData[FOLIAGE] = probe;
+}
+
+/** The tagged foliage under `root` (one binding per world), or null. */
+export function foliageProbe(root: Object3D): FoliageProbe | null {
+  let found: FoliageProbe | null = null;
+  root.traverse((object) => {
+    found ??= (object.userData[FOLIAGE] as FoliageProbe | undefined) ?? null;
+  });
+  return found;
 }

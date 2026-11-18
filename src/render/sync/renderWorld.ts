@@ -23,8 +23,8 @@ import type { ResourceCache } from "../resources/resourceCache.ts";
 import type { SurfaceMaterials } from "../resources/surfaceMaterials.ts";
 import type { TerrainSource } from "../resources/terrains.ts";
 import type { TextureSource } from "../resources/textures.ts";
-import { createWorldResources, type ModelSource, type WorldResources } from "../resources/worldResources.ts";
-import type { CameraViews } from "../gpu/gpuDriven.ts";
+import { createWorldResources, type JsonAssetSource, type ModelSource, type WorldResources } from "../resources/worldResources.ts";
+import type { CameraViews, GpuDrivenBatches } from "../gpu/gpuDriven.ts";
 import type { StaticPath } from "../triangles/staticPath.ts";
 import type { TriangleDrawing } from "../triangles/triangleDrawing.ts";
 import { createDefaultLighting } from "./defaultLighting.ts";
@@ -63,6 +63,8 @@ export interface RenderFeatureOptions {
   readonly staticCellSize?: () => number;
   /** Cameras that draw the scene register their GPU-driven views here (R9a step 1). */
   readonly cameraViews?: CameraViews;
+  /** GPU-driven batches (foliage, plan 5c F1); absent in tests that draw none. */
+  readonly gpuDriven?: GpuDrivenBatches;
   readonly cache: ResourceCache;
   readonly models: ModelSource;
   /** `forge.material` assets; absent in tests that draw none. */
@@ -70,6 +72,8 @@ export interface RenderFeatureOptions {
   /** `forge.terrain` data; absent in tests that draw none. */
   readonly terrains?: TerrainSource;
   readonly textures?: TextureSource;
+  /** JSON asset documents (`forge.foliageType`); absent in tests that read none. */
+  readonly jsonAssets?: JsonAssetSource;
   readonly bindings: readonly RenderBindingDef[];
   /** The world's features: a binding runs only when its feature is installed. */
   readonly features: readonly FeatureDef[];
@@ -102,7 +106,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       const root = new Group();
       root.name = "actors";
       scene.add(root);
-      const resources = createWorldResources(options.cache, options.name, options.models, options.materials ?? null, options.terrains ?? null, options.textures ?? null);
+      const resources = createWorldResources(options.cache, options.name, options.models, options.materials ?? null, options.terrains ?? null, options.textures ?? null, options.jsonAssets ?? null);
       const view: RenderWorldView = {
         services: ctx.services,
         actor: (id) => ctx.actor(id),
@@ -122,6 +126,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           ...(options.triangles ? { triangles: options.triangles } : {}),
           ...(options.staticPath ? { staticPath: options.staticPath } : {}),
           ...(options.cameraViews ? { cameraViews: options.cameraViews } : {}),
+          ...(options.gpuDriven ? { gpuDriven: options.gpuDriven } : {}),
           ...(options.staticCellSize ? { staticCellSize: options.staticCellSize } : {}),
           zones,
         }),

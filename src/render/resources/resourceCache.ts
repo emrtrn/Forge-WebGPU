@@ -26,6 +26,7 @@ export const resourceKey = {
   material: (guid: string, contributions: string): string => `material:${guid}:${contributions}`,
   shape: (primitive: string): string => `shape:${primitive}`,
   terrain: (guid: string): string => `terrain:${guid}`,
+  json: (guid: string): string => `json:${guid}`,
 } as const;
 
 export interface ResourceOwner {

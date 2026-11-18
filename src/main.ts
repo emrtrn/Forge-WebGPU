@@ -318,6 +318,8 @@ async function start(): Promise<void> {
       gpuDriven: {
         install: async (types: Parameters<DevGpuDriven["install"]>[0], cullScale: number, castShadow?: boolean, bundle?: boolean) => (await devGpuDriven()).install(types, cullScale, castShadow, bundle),
         check: async () => (await devGpuDriven()).check(),
+        level: async () => (await devGpuDriven()).level(),
+        levelVisible: async (visible: boolean) => (await devGpuDriven()).levelVisible(visible),
         stats: () => viewer.host?.gpuDriven.stats() ?? null,
         bundleRecords: async () => (await devGpuDriven()).bundleRecords(),
         remove: async () => (await devGpuDriven()).remove(),

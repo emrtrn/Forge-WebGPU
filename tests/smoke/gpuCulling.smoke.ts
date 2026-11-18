@@ -35,6 +35,7 @@ interface Dev {
     stats(): { batches: number; instances: number; draws: number; views: number } | null;
     remove(): Promise<void>;
     mirror(plane: readonly [number, number, number, number] | null): Promise<void>;
+    levelVisible(visible: boolean): Promise<void>;
   };
 }
 
@@ -54,6 +55,8 @@ const dev = (page: Page) => ({
   remove: () => page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.remove()),
   mirror: (plane: readonly [number, number, number, number] | null) =>
     page.evaluate((value) => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.mirror(value), plane),
+  levelVisible: (visible: boolean) =>
+    page.evaluate((value) => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.levelVisible(value), visible),
 });
 
 async function steps(page: Page, count: number): Promise<void> {
@@ -90,6 +93,8 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
   // Foliage only: the static batches stay instanced so the GPU-driven counts are the foliage's (R9.4).
   await openSmokeLevel(page, scene.level, p2, webgl ? "&debug&forceWebGL&staticPath=instanced" : "&debug&staticPath=instanced");
   await expect(page.locator(`canvas[data-forge-backend='${webgl ? "webgl2" : "webgpu"}']`)).toBeVisible();
+  // The level's own foliage (the ring, plan 5c F1; `foliageRing.smoke.ts`) leaves the scene: the installed batches are the only ones.
+  await dev(page).levelVisible(false);
   // The readout reads three's count between frames: the frame loop runs for it.
   await expect.poll(() => readoutDraws(page), { timeout: 20_000 }).toBeGreaterThan(0);
   await page.waitForTimeout(1500);

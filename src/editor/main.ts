@@ -513,6 +513,8 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     const assetChanged = (guid: string, type: string): void => {
       if (type === "forge.model") viewport.host?.cache.evict(`model:${guid}`);
       else if (type === "forge.material") viewport.host?.cache.evictPrefix(`material:${guid}:`);
+      // JSON assets a binding reads as documents (`forge.foliageType`): `json:<guid>`.
+      viewport.host?.cache.evict(`json:${guid}`);
       const references = new Set([guid]);
       for (const item of content.index().assets) if (item.id && item.type === "forge.model" && JSON.stringify(options.assetUrls.importSettings(item.id)).includes(guid)) references.add(item.id);
       const users = session.level.level.actors.filter((actor) => {

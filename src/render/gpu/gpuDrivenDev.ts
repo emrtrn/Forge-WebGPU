@@ -7,10 +7,11 @@
 // (`engine/world/instanceCulling.ts`, as Phase 1 G7 compared culling). The
 // reference project is not changed.
 
-import { Group, PerspectiveCamera } from "three/webgpu";
+import { Group, PerspectiveCamera, type Object3D } from "three/webgpu";
 import { cullInstanceCounts, type InstanceCullResult } from "../../engine/world/instanceCulling.ts";
 import { createFoliageBatches, type FoliageBatches } from "../foliage/foliageBatches.ts";
 import type { RenderHost } from "../host/renderHost.ts";
+import { foliageProbe } from "../sync/debugTags.ts";
 import type { GpuDrivenBatch } from "./gpuDrivenBatch.ts";
 
 export interface DevGpuType {
@@ -48,8 +49,12 @@ export interface DevGpuCheck extends DevGpuViewCheck {
 
 export interface DevGpuDriven {
   install(types: readonly DevGpuType[], cullScale: number, castShadow?: boolean, bundle?: boolean): Promise<DevGpuInstall>;
-  /** The last frame's GPU counts beside the CPU reference of the same view. */
+  /** The last frame's GPU counts beside the CPU reference of the same view: the installed batches, else the level's foliage. */
   check(): Promise<DevGpuCheck[]>;
+  /** The level's procedural foliage ring (plan 5c F1), every placement summed; null without a world or foliage. */
+  level(): { rings: number; cells: number; instances: number; pending: number } | null;
+  /** Shows or hides the level's foliage (the smoke's image without it). */
+  levelVisible(visible: boolean): void;
   /** Render bundles three recorded (`backend.beginBundle` calls) since the first call (5.3 measurement). */
   bundleRecords(): number;
   /**
@@ -66,6 +71,7 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
   let records = 0;
   let counting = false;
   let unmirror: (() => void) | null = null;
+  let detached: { object: Object3D; parent: Object3D } | null = null;
   const mirrorCamera = new PerspectiveCamera();
 
   const remove = (): void => {
@@ -108,12 +114,37 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
         const cpu = cullInstanceCounts(batch.instances.matrices(), batch.instances.count, batch.cullBatch, views[index]!);
         return { gpu: await batch.readCounts(current.renderer, index), cpu: { counts: cpu.counts, certain: cpu.certain, possible: cpu.possible } };
       };
-      return Promise.all((foliage?.batches ?? []).map(async (batch) => {
-        // The dev batches cast shadows, so their view slots are the cull's views in order.
+      // The installed batches, else the level's own foliage (plan 5c F1: the ring).
+      const batches = foliage?.batches ?? (current.world ? foliageProbe(current.world.scene)?.batches() ?? [] : []);
+      return Promise.all(batches.map(async (batch) => {
+        // A batch that casts shadows has the cull's views in order; one that does not skips the shadow
+        // views, so only its main view is checked.
         const shadows: DevGpuViewCheck[] = [], cameras: DevGpuViewCheck[] = [];
-        for (let index = 1; index < batch.views; index += 1) (views[index]!.role === "camera" ? cameras : shadows).push(await viewCheck(batch, index));
+        if (batch.views === views.length) {
+          for (let index = 1; index < batch.views; index += 1) (views[index]!.role === "camera" ? cameras : shadows).push(await viewCheck(batch, index));
+        }
         return { name: batch.name, instances: batch.instances.count, ...(await viewCheck(batch, 0)), shadows, cameras };
       }));
+    },
+    level() {
+      const scene = host()?.world?.scene;
+      return scene ? foliageProbe(scene)?.ring() ?? null : null;
+    },
+    levelVisible(visible) {
+      // Out of the scene graph, not just hidden: the cull skips batches outside the scene, so the
+      // smoke's own batches are then the only GPU-driven ones.
+      const scene = host()?.world?.scene;
+      if (!scene) return;
+      if (!visible && !detached) {
+        const found = scene.getObjectByName("foliage");
+        if (found?.parent && foliageProbe(found)) {
+          detached = { object: found, parent: found.parent };
+          found.removeFromParent();
+        }
+      } else if (visible && detached) {
+        detached.parent.add(detached.object);
+        detached = null;
+      }
     },
     bundleRecords() {
       const backend = host()?.renderer.backend as { beginBundle?: (...args: unknown[]) => unknown } | undefined;

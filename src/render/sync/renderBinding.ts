@@ -22,7 +22,7 @@ import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { COMPONENT_NAME_PATTERN, SchemaDefinitionError, type ActorId, type ComponentEntry, type Services, type WorldActor, type WorldActorChange } from "../../core/index.ts";
 import type { FrameOutput } from "../pipeline/output.ts";
 import type { WorldResources } from "../resources/worldResources.ts";
-import type { CameraViews } from "../gpu/gpuDriven.ts";
+import type { CameraViews, GpuDrivenBatches } from "../gpu/gpuDriven.ts";
 import type { StaticPath } from "../triangles/staticPath.ts";
 import type { TriangleDrawing } from "../triangles/triangleDrawing.ts";
 import type { ZoneDrawing } from "./zoneDrawing.ts";
@@ -91,6 +91,8 @@ export interface RenderBindingContext {
   readonly staticCellSize?: () => number;
   /** Where a camera that draws the scene (a reflection) registers its GPU-driven view (R9a step 1). */
   readonly cameraViews?: CameraViews;
+  /** The host's GPU-driven batches (foliage, plan 5c F1; the CPU twin on WebGL2); absent where nothing draws (tests). */
+  readonly gpuDriven?: GpuDrivenBatches;
   /** The world's zones (plan 5c R9b): static batches split by zone and register here; refreshed before any binding sees an edit. */
   readonly zones?: ZoneDrawing;
   readonly world: RenderWorldView;
