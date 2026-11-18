@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.62 · 2026-11-18 — §4.4 R9b: statiklerin varsayılan yolu `auto` (ağır parça GPU yolunda); occlusion culling iptal, yerine bölge sistemi (bölge / portal, portal görünürlüğü, instanced batch bölge bölmesi, GPU yolunda örnek başına bölge maskesi, otomatik üretim, editör).
+**Güncelleme:** v1.63 · 2026-11-18 — §4.4 foliage halkası (5c F1): `forge.foliage` render bağlaması, terrain yüzey kaydı, bağlamaya GPU güdümlü batch'ler, JSON asset belgesi.
+
+**Önceki güncelleme:** v1.62 · 2026-11-18 — §4.4 R9b: statiklerin varsayılan yolu `auto` (ağır parça GPU yolunda); occlusion culling iptal, yerine bölge sistemi (bölge / portal, portal görünürlüğü, instanced batch bölge bölmesi, GPU yolunda örnek başına bölge maskesi, otomatik üretim, editör).
 
 **Önceki güncelleme:** v1.61 · 2026-11-17 — §4.4 R9a occlusion çalışması: CPU Hi-Z referansı ve üst sınır ölçümü; kazanç düşük, üretim önerilmiyor.
 
@@ -837,6 +839,19 @@ features/height-fog/
     kalite ölçeği, ekran boyundan LOD, `castShadow`); örnekler sahip anahtarıyla
     (boyanmış hücre, halka karosu) eklenir / değiştirilir / silinir. Halka ve
     boyanmış hücre akışı bu API'yi kullanır (5c adım 6 / 7).
+  - *Prosedürel halka (5c F1, 2026-11-18):* `features/foliage/render.ts` terrain
+    aktörünün `forge.landscapeFoliage` kurallarını Forge'un oyun tarafı halkasıyla
+    (`engine/foliage/foliageRingHost.ts`, three'siz; üretici
+    `foliageCellGenerator.ts`, şimdilik aynı iş parçacığı) kameranın çevresinde
+    büyütür, editörde ve oyunda aynı. Terrain'in yerleşik tile'ları terrain
+    bağlamasından `render/sync/terrainSurfaces.ts` kaydıyla gelir (sahne başına,
+    aktörle; yeniden gösterim `version` artırır, halka yeniden kurulur; `settled`
+    akışın hazır olmasıdır, foliage hazırlığı onu da bekler). Bağlama bağlamı
+    `gpuDriven` (`createBatch` / `removeBatch`) taşır. Foliage Type asset'i belge
+    olarak okunur (`WorldResources.json`, anahtar `json:<guid>`; editör kaydedince
+    boşaltır ve kullanan aktörleri yeniden yükler). `?debug` / dev ölçümü
+    `tagFoliage` etiketinden okur. Uzak billboard / ton F3, worker F2, boyanmış
+    hücreler F4.
   - *Sahne maliyet raporu (R5, 2026-11-17):* `forge stats` (`tools/stats/`, salt
     okur) level'ın dosyalarından ajan için maliyet dili verir: aktör, model + materyal
     birleşimi, kaynak üçgen, saydam / çift yüzlü materyal, statik / şekil batch'leri,

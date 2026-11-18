@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.74 · 2026-11-18 — R9c katmanlı çizim bütçesi planlandı, ayrı belgede ([LAYERED_DRAW_BUDGET_PLAN.md](LAYERED_DRAW_BUDGET_PLAN.md); kullanıcı kararı, "tek ana plan" kuralının istisnası): şehir sahnesi + ölçüm, boyuta göre gölge cull distance, bölge düzeltmeleri (R9b Z6 kabulü geçmedi), bina akışı, küçük nesnede örnek başına cull, ölçüme göre WP menzilleri / atlas. Açık sorular S1–S18 kullanıcıda. Kod yok.
+**Güncelleme:** v1.75 · 2026-11-18 — F0 (referans projesine Derekavak / Island / WbPilotValley foliage'la yeniden alındı, `--compare` eşit) ve F1 (`b53e4db`: Landscape foliage halkası, Derekavak P2'de Node referansıyla birebir 1.640 örnek / 177 görünür, iki arka uçta). Island P1 ve WbPilotValley P3 render referansları foliage'la değişti, görsel kabul kullanıcıda.
+
+**Önceki güncelleme:** v1.74 · 2026-11-18 — R9c katmanlı çizim bütçesi planlandı, ayrı belgede ([LAYERED_DRAW_BUDGET_PLAN.md](LAYERED_DRAW_BUDGET_PLAN.md); kullanıcı kararı, "tek ana plan" kuralının istisnası): şehir sahnesi + ölçüm, boyuta göre gölge cull distance, bölge düzeltmeleri (R9b Z6 kabulü geçmedi), bina akışı, küçük nesnede örnek başına cull, ölçüme göre WP menzilleri / atlas. Açık sorular S1–S18 kullanıcıda. Kod yok.
 
 **Önceki güncelleme:** v1.73 · 2026-11-18 — Kullanıcı kararları (foliage sırası): 5c adım 6 → 7 → Foliage paneli (tür listesi / düzenleme + kural düzenleme, 5d'den öne; boya / silme fırçası 5d'de kalır) → R10 → PG2–PG3 → adım 11. Referans projesine Derekavak, Island ve WbPilotValley foliage'la yeniden alınır (F0). Alt adımlar F0–F7 adım 11'in altında. Kod yok.
 
@@ -1046,6 +1048,22 @@ boya / silme fırçası (`engine/scene/foliagePaint.ts`) 5d'de kalır. Forge kar
 | F5 | Foliage sekmesi: türler | Editörde Details'in yanında **Foliage** sekmesi; tür listesi (proje yazılır, motor / paket salt okunur), yeni tür (model seçerek), seçili tür şemadan form (editör parametre UI kuralları), kayıt asset kayıt servisinden; açık level'da halka canlı tazelenir | Editör smoke: sekme, tür ekle / düzenle → kaydet → yeniden aç |
 | F6 | Foliage sekmesi: kurallar | Seçili terrain'in `forge.landscapeFoliage` kuralları: ekle / sil / sırala / düzenle (tür, yoğunluk, bantlar; yükseklik kaydırıcıları terrain'in kendi aralığında), tek Undo; liste işlemleri saf X | Editör smoke: kural düzenle → undo / redo → kaydet → yeniden aç; halka değişikliği çiziyor |
 | F7 | R10 (G6) | Derekavak P2 60 Hz, gerçek foliage (halka + varsa boyanmış), R5 raporuyla; ağır içerikte de (Island, ×20 stres) | G6 sınırları; kayıt `render-refs/runs/` |
+
+**Foliage ilerleme kaydı (2026-11-18; v1.75):**
+- [x] **F0** (referans projesi, depo dışı): Derekavak (Ridgebound kopyası), Island, WbPilotValley
+  `--force` ile yeniden alındı (önce level klasörleri yedeklendi); her biri 7 kural, Derekavak 6 tür, boyanmış
+  örnek yok; `--compare` her satırda eşit, fark yalnız foliage + yeni şema alanları (`landmark: false`) ve
+  `cells.json`. `check:projects` geçti; `ForgeReference/README.md`'ye kayıt.
+- [x] **F1** (`b53e4db`; halka çekirdeği Codex `gpt-6.2-sol`, Claude inceledi): `engine/foliage/foliageRingHost.ts`
+  (Forge `ProceduralFoliageRing`'in model halkası, sahip anahtarlı sink) + `foliageCellGenerator.ts` (aynı iş
+  parçacığı), 11 test; `features/foliage/render.ts`; `render/sync/terrainSurfaces.ts`; `WorldResources.json`
+  (`json:<guid>`, editör `assetChanged`'de boşaltır); bağlama bağlamına `gpuDriven`. Hazırlık: türler + batch
+  modelleri + terrain akışı oturdu + bekleyen hücre yok; ilk dolumda bütün hazır hücreler, sonra karede 2.
+  `foliageRing.smoke.ts`: Derekavak P2'de halka 1.380 hücre (boşlar dahil), **1.640 örnek = Node referansı**,
+  177 görünür, her batch GPU = CPU, görüntü farkı WebGPU 3,08 / WebGL2 0,88. `gpuCulling.smoke.ts` dev
+  kurulumundan önce level foliage'ını sahneden çıkarır. Tam render smoke 29 / 33; Island P1 ve WbPilotValley P3
+  referansla uyuşmuyor (foliage artık çiziliyor; adaylar `render-refs/candidates/`, görsel kabul kullanıcıda),
+  `physics-interaction` ve `triangles (webgpu)` yükte oynadı, tek başına geçti.
 
 **5c yeni sıra: üçgen ve draw call işi (kullanıcı, 2026-11-17, plan v1.46).**
 Kullanıcı 5.2'yi durdurdu; adım 5'in kalan alt adımları (5.2–5.6) ve sahne
@@ -2158,6 +2176,7 @@ silinebilir.
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
+| 2026-11-18 | v1.75 | F0 referans projesine foliage (üç level, `--compare` eşit), F1 halka (`b53e4db`): Derekavak P2 1.640 örnek Node referansıyla birebir, iki arka uçta; Island P1 / WbPilotValley P3 render referansları kullanıcı kabulü bekliyor |
 | 2026-11-18 | v1.74 | R9c katmanlı çizim bütçesi planı ayrı belgede (`docs/planned/LAYERED_DRAW_BUDGET_PLAN.md` v0.1; kullanıcı kararı, tek ana plan istisnası): katmanlar tablosu, sıra 1–6, şehir sahnesi tanımı, adım tasarımları, R9b Z6 durumu, açık sorular S1–S18. Kod yok |
 | 2026-11-18 | v1.73 | Foliage sırası (kullanıcı): adım 6 → 7 → Foliage paneli (türler + kurallar, 5d'den öne; fırça 5d'de) → R10 → PG2–PG3 → 11; referans projesine Derekavak / Island / WbPilotValley foliage'la yeniden alınır; alt adımlar F0–F7. Kod yok |
 | 2026-11-18 | v1.72 | Kullanıcı: GPU yolunda örnek başına bölge maskesi (Z3b `acb8e7f`), instanced bölme kalır; Z6 yeniden ölçüldü, Z7 belgeleri; Z6 görsel kabulü kullanıcıda |
