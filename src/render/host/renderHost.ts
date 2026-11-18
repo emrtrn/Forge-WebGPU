@@ -48,7 +48,6 @@ import { createPerfSampler, type PerfQuality, type PerfSampler } from "./perfSam
 import { createGpuDriven, type GpuDrivenDrawing } from "../gpu/gpuDriven.ts";
 import { createTriangleDrawing, type TriangleDrawing } from "../triangles/triangleDrawing.ts";
 import { createTriangleSource } from "../triangles/triangleSource.ts";
-import { createOcclusionPass } from "../gpu/occlusionPass.ts";
 import type { StaticPath } from "../triangles/staticPath.ts";
 
 /** The effective quality the renderer draws with. */
@@ -315,8 +314,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   const triangles = createTriangleDrawing(renderer, gpuDriven, triangleSource);
   // R9b S1: heavy parts draw GPU-driven with automatic LOD, light ones instanced (`staticPath.ts`).
   const staticPath: StaticPath = options.staticPath ?? "auto";
-  const occlusion = createOcclusionPass(renderer);
-  // Plan 5c R9a step a: off until the occlusion queries use it (`?staticCell=` measures).
+  // Plan 5c R9a step a: off by default (`?staticCell=` measures); R9b Z3 splits by zone instead.
   const staticCellSize = options.staticCellSize ?? 0;
   // The Sky Light capture (Forge's captureSkyEnvironment): the scene seen from
   // its origin, prefiltered into a PMREM. A render target never gets the
@@ -448,8 +446,6 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       if (options.dev) canvas.dataset.forgeShadows = String(renderer.shadowMap.enabled);
       const submitted = performance.now();
       triangles.update(camera, quality.settings.foliageCullDistanceScale);
-      // Plan 5c R9a: a level with occlusion culling draws its occluders' depth and Hi-Z first (WebGPU only).
-      gpuDriven.setOcclusion(gpuDriven.supported && world.levelSettings?.()?.occlusionCulling ? occlusion.update(world.occluderScene ?? null, camera) : null);
       gpuDriven.cull(world.scene, camera);
       pipeline.render(world.scene, camera, world.output, quality.settings);
       overlay?.render({ renderer, scene: world.scene, camera, sceneDepth: pipeline.sceneDepth });
@@ -485,7 +481,6 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       pipeline.dispose();
       triangles.dispose();
       triangleSource.dispose();
-      occlusion.dispose();
       gpuDriven.dispose();
       renderer.dispose();
       canvas.remove();

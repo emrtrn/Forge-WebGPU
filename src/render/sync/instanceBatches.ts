@@ -39,7 +39,6 @@ import { detailBatchCulled, detailCullDistance } from "../../engine/world/detail
 import { createDetailFade } from "../materials/detailFade.ts";
 import type { LodPiece, TriangleBinding, TriangleDrawing } from "../triangles/triangleDrawing.ts";
 import { lodParts, type StaticPath } from "../triangles/staticPath.ts";
-import { createOccluders } from "./occluders.ts";
 
 export interface InstancePart {
   readonly geometry: BufferGeometry;
@@ -76,8 +75,6 @@ export interface InstanceBatchOptions {
   readonly triangles?: TriangleDrawing;
   /** The path rule now (`staticPath.ts`); with `triangles` and no rule every eligible part takes it. */
   readonly staticPath?: () => StaticPath;
-  /** Occluder twins (plan 5c R9a O2, `occluders.ts`): their parent (the occluder scene) and the smallest world radius now (0: none). */
-  readonly occluders?: { readonly parent: Object3D; readonly radius: () => number };
   readonly name: string;
   /** The `?debug` scene-cost bucket its meshes count in (`SCENE_SOURCE_KEY`), e.g. `staticMesh`. */
   readonly source?: string;
@@ -135,11 +132,6 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
   const matrix = new Matrix4();
   const color = new Color();
   const shown = new Color();
-
-  const occluders = options.occluders ? createOccluders(options.occluders.parent, options.name) : null;
-  const updateOccluders = (): void => {
-    if (parts && occluders) occluders.update(parts, [...placements.values()].map((entry) => entry.matrix), capacity, options.occluders!.radius());
-  };
 
   /** A drawn set kept on screen while its replacement prepares (R9.1); released when that one shows. */
   let retired: (() => void) | null = null;
@@ -218,7 +210,6 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         maxScale = 0;
         for (const entry of placements.values()) maxScale = Math.max(maxScale, entry.matrix.getMaxScaleOnAxis());
         if (fadePlacements) fadePlacements.needsUpdate = true;
-        updateOccluders();
         return;
       }
       dirty = false;
@@ -230,7 +221,6 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
       const needsColor = [...placements.values()].some((entry) => entry.color !== null);
       if (count === 0) {
         removeMeshes();
-        occluders?.dispose();
         return;
       }
       if (count > capacity || needsColor !== colored || meshes.length === 0) {
@@ -280,7 +270,6 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         mesh.computeBoundingSphere();
         mesh.computeBoundingBox();
       });
-      updateOccluders();
       const anyLod = lodOf.includes(true);
       if (!options.prepare && !anyLod) { prepared = true; releaseRetired(); }
       else if (!prepared && !preparing && meshes.length > 0) {
@@ -330,7 +319,6 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
     },
     dispose() {
       removeMeshes();
-      occluders?.dispose();
       placements.clear();
       moved.clear();
       indexOf.clear();

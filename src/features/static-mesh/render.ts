@@ -94,7 +94,6 @@ export default defineRenderBinding({
           name: `staticMesh/${model}`, source: "staticMesh", parent: ctx.root, castShadow: data.castShadow,
           ...(ctx.prepare ? { prepare: ctx.prepare } : {}),
           ...(ctx.triangles ? { triangles: ctx.triangles, ...(ctx.staticPath ? { staticPath: ctx.staticPath } : {}) } : {}),
-          ...(ctx.occluders ? { occluders: ctx.occluders } : {}),
         }),
         keys: [resourceKey.model(model)],
         disposed: false,

@@ -1,7 +1,7 @@
 // Static batches split by world cell (plan 5c R9a, step a): placements that
 // draw alike share a batch only within one cell of `size` metres on X / Z, so
-// a batch's draw can be skipped when its cell is occluded (an occlusion query
-// per batch, step b). Size 0 keeps today's level-wide batches.
+// a batch's draw can be skipped as a whole (R9b Z3 generalises the split to
+// zones). Size 0 keeps today's level-wide batches.
 
 import type { Matrix4 } from "three/webgpu";
 

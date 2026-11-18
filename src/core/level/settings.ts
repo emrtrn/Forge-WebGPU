@@ -67,12 +67,6 @@ export const LevelSettingsFields = {
     label: "Landmark Distance",
     hint: "Landmark işaretli nesneler görüş mesafesinin ötesinde bu uzaklığa kadar siluet olarak görünür (metre); kalite ayarıyla ölçeklenir. 0 ise görüş mesafesinin 3 katı.",
   }),
-  // Plan 5c R9a (user, 2026-11-18): per-instance GPU occlusion, for interiors and cities.
-  occlusionCulling: bool({
-    default: false,
-    label: "Occlusion Culling",
-    hint: "Açıkken duvar ve bina gibi büyük opak statikler her karede önce derinliğe çizilir; arkalarında kalan statik ve foliage örnekleri GPU'da ayıklanır. İç mekân ve kentlerde yararlı, açık arazide kapalı bırakın. Yalnız WebGPU.",
-  }),
 };
 
 export type LevelSettings = FieldValues<typeof LevelSettingsFields>;

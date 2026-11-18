@@ -50,7 +50,6 @@ import {
   cameraViewLayer, createGpuDrivenBatch, MAIN_VIEW_LAYER, MAX_CAMERA_VIEWS, MAX_SHADOW_VIEWS, shadowViewLayer,
   type GpuCullView, type GpuDrivenBatch, type GpuDrivenBatchOptions,
 } from "./gpuDrivenBatch.ts";
-import type { GpuOcclusion } from "./occlusionPass.ts";
 
 /**
  * A camera that draws the scene besides the main one (R9a step 1), asked
@@ -93,10 +92,6 @@ export interface GpuDrivenDrawing extends CameraViews {
   removeBatch(batch: GpuDrivenBatch): void;
   /** Culls the batches drawn in `scene` for `camera` and the shadow views; before the frame's render. */
   cull(scene: Object3D, camera: Camera): void;
-  /** This frame's Hi-Z for the main view's occlusion test (plan 5c R9a O4); null none. Set before `cull`. */
-  setOcclusion(occlusion: GpuOcclusion | null): void;
-  /** The Hi-Z of the last cull, null without one. */
-  readonly lastOcclusion: GpuOcclusion | null;
   /** The main view of the last cull (the CPU reference's input), null before one. */
   readonly lastView: InstanceCullView | null;
   /** Every view of the last cull, the main view first, then shadow views, then camera views. */
@@ -155,7 +150,6 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
   const supported = (renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend === true;
   const batches = new Map<GpuDrivenBatch, Object3D>();
   const cameraSources = new Set<CameraViewSource>();
-  let occlusion: GpuOcclusion | null = null;
   const viewProjection = new Matrix4();
   const position = new Vector3();
   let lastViews: GpuCullView[] = [];
@@ -199,8 +193,6 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
       batch.dispose();
       lastBatches = lastBatches.filter((entry) => entry !== batch);
     },
-    setOcclusion(next) { occlusion = next; },
-    get lastOcclusion() { return occlusion; },
     add(source) {
       cameraSources.add(source);
       return () => { cameraSources.delete(source); };
@@ -256,7 +248,6 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
       for (const [batch, parent] of batches) {
         // An empty batch still dispatches: its arguments go back to zero instances.
         if (!inScene(parent, scene)) continue;
-        batch.setOcclusion(occlusion);
         dispatches.push(...batch.prepare(views));
         lastBatches.push(batch);
         lastDraws += batch.uncountedDraws;

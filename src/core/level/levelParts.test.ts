@@ -46,7 +46,7 @@ describe("split", () => {
   test("the persistent layer keeps settings; cells are the occupied ones, in cell order", () => {
     const split = splitLevel(WORLD, STRICT);
     expect(split.issues).toEqual([]);
-    expect(split.persistent.settings).toEqual({ cellSize: 100, wind: { directionDeg: 45, strength: .3, gust: .3 }, viewDistance: 0, loadRange: 384, landmarkDistance: 0, occlusionCulling: false });
+    expect(split.persistent.settings).toEqual({ cellSize: 100, wind: { directionDeg: 45, strength: .3, gust: .3 }, viewDistance: 0, loadRange: 384, landmarkDistance: 0 });
     expect(ids(split.persistent.actors)).toEqual(["a", "e"]);
     expect(split.cells.map((cell) => [cell.cell, ids(cell.actors)])).toEqual([
       ["1_-1", ["c", "d"]],

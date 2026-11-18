@@ -404,7 +404,7 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
   }
 
   return {
-    level: { schema: LEVEL_SCHEMA, id: levelId, settings: { cellSize, wind: forgeLevelWind(layout), ...streamingSettings(layout), landmarkDistance: 0, occlusionCulling: false }, actors },
+    level: { schema: LEVEL_SCHEMA, id: levelId, settings: { cellSize, wind: forgeLevelWind(layout), ...streamingSettings(layout), landmarkDistance: 0 }, actors },
     terrains,
     foliage: foliage?.part ?? null,
     report: {

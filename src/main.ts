@@ -289,7 +289,7 @@ async function start(): Promise<void> {
       captureBench: (count: number) => (viewer.host ? benchmarkSkyCapture(viewer.host, count) : Promise.resolve(null)),
       /** Spawns actors from raw documents (normalised as an edit's); their ids. */
       spawn: (raw: unknown[]) => booted.world.context.spawnActors(raw).map((actor) => actor.id),
-      /** Plan 5c R9a: overrides level settings for this session (e.g. `{ occlusionCulling: true }` before spawning a test interior). */
+      /** Plan 5c R9a: overrides level settings for this session (e.g. a test interior's). */
       levelSettings: (patch: Partial<LevelSettings>) => {
         const holder = booted.world.services.get(LevelSettingsKey);
         if (holder) holder.current = { ...holder.current, ...patch };
@@ -322,7 +322,6 @@ async function start(): Promise<void> {
         bundleRecords: async () => (await devGpuDriven()).bundleRecords(),
         remove: async () => (await devGpuDriven()).remove(),
         mirror: async (plane: Parameters<DevGpuDriven["mirror"]>[0]) => (await devGpuDriven()).mirror(plane),
-        occlusionCheck: async () => (await devGpuDriven()).occlusionCheck(),
       },
       /** Plan 5c R9a O5: high-poly props through the engine's static batch (`render/gpu/heavyPropsDev.ts`). */
       heavyProps: {
@@ -332,13 +331,6 @@ async function start(): Promise<void> {
           return devHeavy.install(matrices, segments, path);
         },
         remove: () => devHeavy?.remove(),
-      },
-      /** Plan 5c R9a: how much of the GPU-driven batches the current frame's occluders could hide (nothing is hidden). */
-      async occlusionStudy() {
-        const host = viewer.host;
-        if (!host) return null;
-        const { occlusionStudy } = await import("./render/gpu/occlusionStudy.ts");
-        return occlusionStudy(host);
       },
     };
   }

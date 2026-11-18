@@ -1,4 +1,4 @@
-/** Pure, deterministic actor data for the R9a occlusion measurement. No I/O. */
+/** Pure, deterministic actor data for the R9a / R9b indoor measurements (rooms, doors, props). No I/O. */
 export const SHAPE_SIZE = 0.5;
 type Vec3 = readonly [number, number, number];
 type Primitive = 'cube' | 'sphere' | 'cylinder' | 'cone';

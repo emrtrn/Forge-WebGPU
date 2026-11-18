@@ -52,7 +52,6 @@ export default defineRenderBinding({
           name: `shape/${primitive}`, source: "shape", parent: ctx.root, castShadow: data.castShadow,
           ...(ctx.prepare ? { prepare: ctx.prepare } : {}),
           ...(ctx.triangles ? { triangles: ctx.triangles, ...(ctx.staticPath ? { staticPath: ctx.staticPath } : {}) } : {}),
-          ...(ctx.occluders ? { occluders: ctx.occluders } : {}),
         }),
         keys: [resourceKey.shape(primitive), shapeMaterialKey(SHAPE_BASE_COLOR, doubleSided)],
         disposed: false,

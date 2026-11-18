@@ -34,7 +34,8 @@ kendini de sınar (rapor §4.2, A3).
 R7 otomatik LOD: three'siz türev veri / üretici `engine/geometry`, Node cache ve
 build `tools/triangles`, seçilebilir GPU / WebGL2 bağı ve worker `render/triangles`.
 Kararlar ve kabul sınırları [rapor §4.4](../planned/FORGE_WEBGPU_ARCHITECTURE.md);
-genel statik geçiş R9, occlusion ayrı R9a işidir.
+genel statik geçiş R9 (varsayılan `auto`, ağır parçalar GPU yolunda; R9b S1); occlusion
+culling iptal (R9b Z0), iç mekân görünürlüğü R9b bölge sistemi.
 
 ## Özellik klasörü
 

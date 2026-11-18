@@ -64,7 +64,7 @@ describe("documents are written in canonical form", () => {
     const result = await write(`${FOLDER}/level.json`, { id: LEVEL, schema: "forge.level/1" });
     expect(result.status).toBe("saved");
     const text = await read(`${FOLDER}/level.json`);
-    expect(text).toBe(stringifyDocument({ schema: "forge.level/1", id: LEVEL, settings: { cellSize: 128, wind: { directionDeg: 45, strength: .3, gust: .3 }, viewDistance: 0, loadRange: 384, landmarkDistance: 0, occlusionCulling: false }, actors: [] }));
+    expect(text).toBe(stringifyDocument({ schema: "forge.level/1", id: LEVEL, settings: { cellSize: 128, wind: { directionDeg: 45, strength: .3, gust: .3 }, viewDistance: 0, loadRange: 384, landmarkDistance: 0 }, actors: [] }));
   });
 
   test("a clamped value is written and reported; a loss refuses the save", async () => {
