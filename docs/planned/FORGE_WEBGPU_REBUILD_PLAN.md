@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.76 · 2026-11-18 — F2 (`51d4788`: halka hücreleri worker'da) ve F4 (`1b63507`: boyanmış hücreler kameranın çevresinde akar, `?debug` foliage satırları). Kullanıcı kararı: F3 (uzak billboard + ton) PG3'le birlikte, çünkü referans içerikte hiçbir tür kullanmıyor; sıra F4 → F5–F6 → F7 → PG2 → PG3 + F3.
+**Güncelleme:** v1.77 · 2026-11-18 — F5 (`22c50c2`: Details'in yanında Foliage sekmesi, Foliage Type listesi / oluşturma / şemadan düzenleme) ve F6 (`50fc01a`, `44f4602`: terrain'in Landscape kuralları level düzenlemesi olarak, tek Undo; kural düzenlemesi artık terrain'i yeniden kurmuyor). Sırada F7 (R10).
+
+**Önceki güncelleme:** v1.76 · 2026-11-18 — F2 (`51d4788`: halka hücreleri worker'da) ve F4 (`1b63507`: boyanmış hücreler kameranın çevresinde akar, `?debug` foliage satırları). Kullanıcı kararı: F3 (uzak billboard + ton) PG3'le birlikte, çünkü referans içerikte hiçbir tür kullanmıyor; sıra F4 → F5–F6 → F7 → PG2 → PG3 + F3.
 
 **Önceki güncelleme:** v1.75 · 2026-11-18 — F0 (referans projesine Derekavak / Island / WbPilotValley foliage'la yeniden alındı, `--compare` eşit) ve F1 (`b53e4db`: Landscape foliage halkası, Derekavak P2'de Node referansıyla birebir 1.640 örnek / 177 görünür, iki arka uçta). Island P1 ve WbPilotValley P3 render referansları foliage'la değişti, görsel kabul kullanıcıda.
 
@@ -1082,6 +1084,20 @@ boya / silme fırçası (`engine/scene/foliagePaint.ts`) 5d'de kalır. Forge kar
   404 smoke izin listelerine `hlod.json` gibi eklendi. Referans level'larda boyanmış örnek yok: bağ birim testiyle
   (gerçek FFOL hücreleri, eksik hücre uyarısı) kanıtlandı. Odaklı Vitest 106, typecheck, katman, Node yükleme,
   halka smoke'u 2 / 2, editör smoke'u 83 / 83, `smoke:dist` 1 / 1.
+- [x] **F5** (`22c50c2`, C): kabukta `attachDetailsTab` (Details başlığı sekmelere döner), `src/editor/foliage/foliagePanel.ts`:
+  projenin `forge.foliageType` asset'leri (motor / paket salt okunur), New Type model seçip Content Browser'ın `create`'iyle
+  oluşturur, seçili tür şemadan form (kaydırıcı + kutu, TR ipucu) bir asset oturumunda (Undo / Redo / Save / Reload,
+  sekmede Ctrl+S); Save asset editörünün `saved` yolunu izler (önbellek `json:<guid>` boşalır, türü kullanan terrain
+  yeniden yüklenir). Editör smoke'u `tests/editor/foliage.spec.ts`: yeni tür, düzenle, geri al / yinele, kaydet, yeniden aç.
+- [x] **F6** (`50fc01a`; liste işlemleri Codex `gpt-6.2-sol` medium, `engine/foliage/landscapeRuleEdit.ts`, 8 test):
+  `src/editor/foliage/foliageRules.ts`: terrain (seçili terrain ya da ilk; birden çoksa liste), Add Landscape Foliage,
+  Add Rule (Types listesinde seçili tür, mevcut bir kuralın katmanı), Duplicate, Up / Down, Remove ve seçili kuralın şema
+  formu; her biri level düzenlemesi, tek Undo, sürükleme tek adım. Sınıftan gelen terrain Details'te kalır. **Bulunan
+  hata (`44f4602`):** bağlamalarda `actorsChanged` yoktu; kural düzenlemesi terrain aktörünü çıkarıp ekliyor, terrain
+  görünümü ve akışı baştan kuruluyordu. Terrain ve foliage bağlamaları artık yalnız kendi bileşenleri değişince yeniden
+  kurar. Kontrol (Derekavak, editör, gerçek WebGPU, kaydetmeden): bütün kurallarda yoğunluk 0 halkayı boşaltır, geri
+  alma geri getirir. Editör smoke'u 85 / 85. Açık: sürükleme sırasında halka her girdide yeniden kurulur (kısa boşluk),
+  görsel kabul kullanıcıda.
 
 **5c yeni sıra: üçgen ve draw call işi (kullanıcı, 2026-11-17, plan v1.46).**
 Kullanıcı 5.2'yi durdurdu; adım 5'in kalan alt adımları (5.2–5.6) ve sahne
@@ -2194,6 +2210,7 @@ silinebilir.
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
+| 2026-11-18 | v1.77 | F5 Foliage sekmesi + türler (`22c50c2`), F6 Landscape kuralları (`50fc01a`) ve terrain'in kural düzenlemesinde korunması (`44f4602`) |
 | 2026-11-18 | v1.76 | F2 worker (`51d4788`), F4 boyanmış hücre akışı + `?debug` satırları (`1b63507`); kullanıcı: F3 PG3'le birlikte (referans içerik kullanmıyor) |
 | 2026-11-18 | v1.75 | F0 referans projesine foliage (üç level, `--compare` eşit), F1 halka (`b53e4db`): Derekavak P2 1.640 örnek Node referansıyla birebir, iki arka uçta; Island P1 / WbPilotValley P3 render referansları kullanıcı kabulü bekliyor |
 | 2026-11-18 | v1.74 | R9c katmanlı çizim bütçesi planı ayrı belgede (`docs/planned/LAYERED_DRAW_BUDGET_PLAN.md` v0.1; kullanıcı kararı, tek ana plan istisnası): katmanlar tablosu, sıra 1–6, şehir sahnesi tanımı, adım tasarımları, R9b Z6 durumu, açık sorular S1–S18. Kod yok |

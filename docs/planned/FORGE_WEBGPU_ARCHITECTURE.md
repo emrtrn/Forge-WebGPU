@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.64 · 2026-11-18 — §4.4 foliage: halka hücreleri worker'da (F2), boyanmış hücreler `LevelFoliageSourceKey` servisiyle kameranın çevresinde akar (F4).
+**Güncelleme:** v1.65 · 2026-11-18 — §4.4 foliage editörü (5c F5–F6): Details'in yanında Foliage sekmesi; türler asset oturumunda, kurallar level düzenlemesi; bağlamalar yalnız kendi bileşenleri değişince yeniden kurar.
+
+**Önceki güncelleme:** v1.64 · 2026-11-18 — §4.4 foliage: halka hücreleri worker'da (F2), boyanmış hücreler `LevelFoliageSourceKey` servisiyle kameranın çevresinde akar (F4).
 
 **Önceki güncelleme:** v1.63 · 2026-11-18 — §4.4 foliage halkası (5c F1): `forge.foliage` render bağlaması, terrain yüzey kaydı, bağlamaya GPU güdümlü batch'ler, JSON asset belgesi.
 
@@ -862,6 +864,14 @@ features/height-fog/
     akışıyla (`engine/foliage/paintedFoliageStreaming.ts`, level `loadRange`'i,
     1,5× önyükleme) aynı tür batch'lerine hücre başına sahip olarak verir
     (`render/foliage/paintedFoliageView.ts`).
+  - *Foliage sekmesi (5c F5–F6, 2026-11-18; 5d'den öne):* kabuğun `attachDetailsTab`'ı
+    Details'in yanına sekme ekler. `src/editor/foliage/foliagePanel.ts` Foliage Type
+    asset'lerini listeler, oluşturur ve şemadan formla bir asset oturumunda düzenler
+    (kayıt asset editörünün yoluyla); `foliageRules.ts` terrain'in
+    `forge.landscapeFoliage` kurallarını level düzenlemesi olarak (tek Undo) yönetir,
+    liste işlemleri saf `engine/foliage/landscapeRuleEdit.ts`. Terrain ve foliage render
+    bağlamaları `actorsChanged`'de yalnız kendi bileşenleri değiştiyse yeniden kurar.
+    Boya / silme fırçası 5d'de.
   - *Sahne maliyet raporu (R5, 2026-11-17):* `forge stats` (`tools/stats/`, salt
     okur) level'ın dosyalarından ajan için maliyet dili verir: aktör, model + materyal
     birleşimi, kaynak üçgen, saydam / çift yüzlü materyal, statik / şekil batch'leri,
