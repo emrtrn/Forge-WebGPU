@@ -18,14 +18,20 @@
 //   types are loaded, its batches built, its terrain settled and no cell is
 //   pending; the first fill builds every finished cell at once (Forge built
 //   them behind the loading overlay), later frames a few per frame.
-// - Far billboards and tint are F3; painted foliage is F4.
+// - Painted foliage (F4, step 7): the level part's cells, from the world's
+//   `LevelFoliageSourceKey` (the run time and the editor provide it), stream
+//   around the camera (render/foliage/paintedFoliageView.ts) into the same
+//   batches. The editor's revision bump streams them again.
+// - Far billboards and tint come with PG3 (F3, user 2026-11-18).
 
 import { Group, PerspectiveCamera, Vector3, type Camera } from "three/webgpu";
-import { normalizeJsonAsset, parseComponentTypeTag, type ActorId, type WorldActor } from "../../core/index.ts";
+import { LevelSettingsKey, normalizeJsonAsset, parseComponentTypeTag, type ActorId, type WorldActor } from "../../core/index.ts";
 import { foliageRuleParamsOf, foliageTypeParamsOf, type FoliageTypeAssetFields } from "../../engine/foliage/foliageAsset.ts";
 import type { FoliageCellGenerator } from "../../engine/foliage/foliageCellGenerator.ts";
 import { FoliageRing, type FoliageRingRule, type FoliageRingTerrain } from "../../engine/foliage/foliageRingHost.ts";
+import { LevelFoliageSourceKey, type LevelFoliageSource } from "../../engine/foliage/levelFoliageSource.ts";
 import { createFoliageBatches, type FoliageBatches, type FoliageTypeDraw } from "../../render/foliage/foliageBatches.ts";
+import { PaintedFoliageView } from "../../render/foliage/paintedFoliageView.ts";
 import { createFoliageCellGenerator } from "../../render/resources/foliageWorkerGenerator.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
 import { tagFoliage } from "../../render/sync/debugTags.ts";
@@ -56,6 +62,14 @@ interface Placed {
   removed: boolean;
 }
 
+interface Painted {
+  readonly source: LevelFoliageSource;
+  readonly revision: number | undefined;
+  readonly view: PaintedFoliageView;
+  readonly keys: string[];
+  busy: (() => void) | null;
+}
+
 const fovOf = (camera: Camera): number => (camera as PerspectiveCamera).isPerspectiveCamera ? (camera as PerspectiveCamera).fov : 60;
 
 export default defineRenderBinding({
@@ -70,6 +84,7 @@ export default defineRenderBinding({
     const cameraPosition = new Vector3();
     let batches: FoliageBatches | null = null;
     let lastQuality = "";
+    let painted: Painted | null = null;
     // One worker per world: rings come and go (an edit restarts one), their terrains with them.
     let cellGenerator: FoliageCellGenerator | null = null;
     const generator = (): FoliageCellGenerator => (cellGenerator ??= createFoliageCellGenerator());
@@ -84,6 +99,7 @@ export default defineRenderBinding({
         return { rings, cells, instances, pending };
       },
       batches: () => batches?.batches ?? [],
+      painted: () => painted?.view.snapshot() ?? null,
     });
 
     const foliageOf = (actor: WorldActor): LandscapeFoliageData | null => {
@@ -102,11 +118,11 @@ export default defineRenderBinding({
       return batches;
     };
 
-    const loadTypes = async (entry: Placed): Promise<void> => {
-      const guids = [...new Set(entry.rules.flatMap((rule) => (rule.foliageType ? [rule.foliageType as string] : [])))];
+    /** Reads Foliage Types (their keys go to `keys`, released by the caller); null: not drawn. */
+    const readTypes = async (guids: readonly string[], keys: string[]): Promise<Map<string, LoadedType | null>> => {
       const types = new Map<string, LoadedType | null>();
-      await Promise.all(guids.map(async (guid) => {
-        entry.keys.push(resourceKey.json(guid));
+      await Promise.all([...new Set(guids)].map(async (guid) => {
+        keys.push(resourceKey.json(guid));
         try {
           const result = normalizeJsonAsset(FoliageTypeAssetType, await ctx.resources.json(guid), { strict: false });
           if (!result.value) throw new Error(result.issues.map((issue) => `${issue.path} ${issue.message}`).join("; ") || "unreadable");
@@ -119,7 +135,47 @@ export default defineRenderBinding({
           types.set(guid, null);
         }
       }));
+      return types;
+    };
+
+    const loadTypes = async (entry: Placed): Promise<void> => {
+      const types = await readTypes(entry.rules.flatMap((rule) => (rule.foliageType ? [rule.foliageType as string] : [])), entry.keys);
       if (!entry.removed) entry.types = types;
+    };
+
+    const dropPainted = (): void => {
+      if (!painted) return;
+      painted.view.dispose();
+      painted.busy?.();
+      for (const key of painted.keys) ctx.resources.release(key);
+      painted = null;
+    };
+
+    /** The level's painted foliage, (re)started when its source or revision changes. */
+    const syncPainted = (target: FoliageBatches, center: readonly [number, number]): void => {
+      const source = ctx.world.services.get(LevelFoliageSourceKey);
+      if (painted && (painted.source !== source || painted.revision !== source?.revision)) dropPainted();
+      if (!painted && source?.index && source.index.cells.length > 0) {
+        const keys: string[] = [];
+        painted = {
+          source, revision: source.revision, keys, busy: ctx.resources.busy(),
+          view: new PaintedFoliageView({
+            source, batches: target,
+            loadRange: ctx.world.services.get(LevelSettingsKey)?.current.loadRange ?? 384,
+            loadTypes: async (guids) => new Map([...(await readTypes(guids, keys))].map(([guid, type]) => [guid, type?.draw ?? null])),
+          }),
+        };
+      }
+      if (!painted) return;
+      painted.view.update(center);
+      const busy = painted.view.busy();
+      if (!busy && painted.busy) {
+        const release = painted.busy;
+        painted.busy = null;
+        void target.ready().then(release);
+      } else if (busy && !painted.busy) {
+        painted.busy = ctx.resources.busy();
+      }
     };
 
     const startRing = (entry: Placed, terrain: FoliageRingTerrain, types: Map<string, LoadedType | null>, target: FoliageBatches): FoliageRing => {
@@ -182,7 +238,8 @@ export default defineRenderBinding({
         for (const actor of actors) remove(actor.id);
       },
       sync(frame) {
-        if (!frame.camera || placed.size === 0) return;
+        if (!frame.camera) return;
+        if (placed.size === 0 && !painted && !ctx.world.services.get(LevelFoliageSourceKey)?.index) return;
         const target = ensureBatches(frame.camera);
         if (!target) return;
         const quality = ctx.quality();
@@ -194,6 +251,7 @@ export default defineRenderBinding({
         }
         frame.camera.getWorldPosition(cameraPosition);
         const center: [number, number] = [cameraPosition.x, cameraPosition.z];
+        syncPainted(target, center);
         for (const entry of placed.values()) {
           const surface = terrainSurface(ctx.scene, entry.actor);
           if (!entry.types || !surface) continue;
@@ -219,6 +277,7 @@ export default defineRenderBinding({
       },
       dispose() {
         for (const id of [...placed.keys()]) remove(id);
+        dropPainted();
         batches?.dispose();
         cellGenerator?.dispose();
         cellGenerator = null;

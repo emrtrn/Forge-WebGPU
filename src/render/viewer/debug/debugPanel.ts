@@ -37,7 +37,7 @@ import {
 import { formatTerrainStreaming, terrainStreamingSnapshot, type TerrainStreamingSnapshot } from "../../../engine/terrain/terrainStreamingDebug.ts";
 import { buildSceneCostSnapshot, type SceneCostObject, type SceneCostSnapshot } from "../../../engine/perf/sceneCost.ts";
 import type { RenderHost } from "../../host/renderHost.ts";
-import { terrainStreamingProbes } from "../../sync/debugTags.ts";
+import { foliageProbe, terrainStreamingProbes, type FoliageProbe } from "../../sync/debugTags.ts";
 import { DebugTableModal } from "./debugTableModal.ts";
 import { DEBUG_PANEL_CSS } from "./debugStyle.ts";
 import { DebugTerrainMap } from "./debugTerrainMap.ts";
@@ -124,6 +124,19 @@ export function formatZones(zones: ZoneDrawingStats): string[] {
   ];
 }
 
+/** Foliage (plan 5c F1 / F4): the ring's cells and instances, and the painted cells streamed. */
+export function formatFoliage(probe: FoliageProbe): string[] {
+  const ring = probe.ring();
+  const painted = probe.painted();
+  const lines: string[] = [];
+  if (ring.rings > 0) lines.push(`foliage ring ${ring.rings}: ${groupThousands(ring.cells)} cells, ${groupThousands(ring.instances)} instances, ${ring.pending} pending`);
+  if (painted) {
+    lines.push(`foliage painted: ${painted.activeCells} / ${painted.totalCells} cells active, ${painted.fetchedCells} fetched, ${painted.fetching} fetching, ${groupThousands(painted.instances)} instances`);
+  }
+  if (lines.length > 0) lines.push(`foliage batches ${probe.batches().length}`);
+  return lines;
+}
+
 /** The readout text for the host as it is now. */
 export function debugReadout(host: RenderHost, environment: Readonly<WorldEnvironmentState> | null, terrain: TerrainStreamingSnapshot | null = null): string {
   const metrics = host.perf.metrics();
@@ -152,6 +165,8 @@ export function debugReadout(host: RenderHost, environment: Readonly<WorldEnviro
   if (terrain) lines.push(...formatTerrainStreaming(terrain));
   const zones = host.world?.zones?.stats();
   if (zones && zones.zones > 0) lines.push(...formatZones(zones));
+  const foliage = host.world ? foliageProbe(host.world.scene) : null;
+  if (foliage) lines.push(...formatFoliage(foliage));
   return lines.join("\n");
 }
 

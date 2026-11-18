@@ -77,6 +77,8 @@ import { createEditorPlay } from "./play/play.ts";
 import { createEditorSession, type EditorSession } from "./session/editorSession.ts";
 import { createEditorCellStreaming } from "./session/cellStreaming.ts";
 import { HlodSourceKey, hlodPlacementsOf, hlodCellSourceHash } from "../engine/world/hlod.ts";
+import { LevelFoliageSourceKey } from "../engine/foliage/levelFoliageSource.ts";
+import { FOLIAGE_DIR, FOLIAGE_INDEX_FILE, normalizeLevelFoliageIndex, type LevelFoliageIndex } from "../core/level/foliage.ts";
 import { createWorldPartitionPanel } from "./world/worldPartitionPanel.ts";
 import { KeptRegionsKey } from "../engine/world/keptRegions.ts";
 import { RenderReadinessKey } from "../engine/world/renderReadiness.ts";
@@ -277,6 +279,24 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         isCellActive: (key) => session.level.isLoaded(key) && (renderCells.get(key) ?? []).every((id) => world!.services.get(RenderReadinessKey)?.isActorReady(id) ?? true),
         load: (file) => options.client.readBinary!(`${options.level}/${file}`),
       });
+    // The level's painted foliage (plan 5c F4): its index, streamed by the foliage binding; a change on disk restreams it.
+    let foliageIndex: LevelFoliageIndex | null = null;
+    let foliageRevision = 0;
+    let foliageText: string | null | undefined;
+    const refreshFoliage = async (force = false): Promise<void> => {
+      const file = await options.client.read(`${options.level}/${FOLIAGE_INDEX_FILE}`);
+      const text = file?.text ?? null;
+      if (!force && text === foliageText) return;
+      const checked = text !== null ? normalizeLevelFoliageIndex(JSON.parse(text), { strict: false }) : null;
+      foliageIndex = checked?.value?.level === session.level.level.id ? checked.value : null;
+      foliageText = text; foliageRevision += 1;
+    };
+    await refreshFoliage();
+    if (options.client.readBinary) world.services.provide(LevelFoliageSourceKey, {
+      get index() { return foliageIndex; },
+      get revision() { return foliageRevision; },
+      load: (file) => options.client.readBinary!(`${options.level}/${file}`),
+    });
     let hiddenKey = JSON.stringify(session.visibility.ids());
     session.onChange(() => {
       const ids = session.visibility.ids();
@@ -531,6 +551,9 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       // The index is the publication marker; intermediate proxy writes are not a new scene.
       if (files.some((file) => file.path === `${options.level}/hlod.json`)) {
         await refreshHlod(); updateHlodStatus();
+      }
+      if (files.some((file) => file.path === `${options.level}/${FOLIAGE_INDEX_FILE}` || file.path.startsWith(`${options.level}/${FOLIAGE_DIR}/`))) {
+        await refreshFoliage(true);
       }
       const others = files.filter((file) => !file.path.startsWith(`${options.level}/`));
       if (others.length === 0) return;

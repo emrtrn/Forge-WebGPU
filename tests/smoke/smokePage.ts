@@ -10,12 +10,15 @@ import { REPO_ROOT, SMOKE_QUALITY, type SmokePose } from "./renderScenes.ts";
 
 export const READY_TIMEOUT_MS = 120_000;
 
-/** Legacy levels may have no HLOD bake; only that exact optional 404 is expected. */
+/**
+ * A level's optional parts may be missing: its HLOD bake (`hlod.json`, legacy levels) and its
+ * painted foliage (`foliage.json`, plan 5c F4); only those exact 404s are expected.
+ */
 export function isOptionalHlodMiss(message: ConsoleMessage): boolean {
   if (!message.text().startsWith("Failed to load resource:") || !message.text().includes("404 (Not Found)")) return false;
   try {
     const url = new URL(message.location().url);
-    return url.pathname === "/__forge/read" && /^content\/levels\/.+\/hlod\.json$/.test(url.searchParams.get("path") ?? "");
+    return url.pathname === "/__forge/read" && /^content\/levels\/.+\/(?:hlod|foliage)\.json$/.test(url.searchParams.get("path") ?? "");
   } catch { return false; }
 }
 

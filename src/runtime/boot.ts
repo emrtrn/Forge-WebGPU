@@ -28,6 +28,8 @@ import { CellStreamingKey, createCellStreaming, type CellSource, type CellStream
 import type { StreamingSource } from "../engine/world/streamingPolicy.ts";
 import { HlodSourceKey } from "../engine/world/hlod.ts";
 import type { HlodIndex } from "../core/level/hlod.ts";
+import type { LevelFoliageIndex } from "../core/level/foliage.ts";
+import { LevelFoliageSourceKey } from "../engine/foliage/levelFoliageSource.ts";
 import { gameModuleSubsystem, type GameModuleDef } from "./gameModule.ts";
 import { createWorld, WorldError, type World } from "./world.ts";
 
@@ -86,6 +88,8 @@ export interface LoadedLevel {
   readonly cells?: CellSource;
   /** The level's HLOD proxies (phase 5b), drawn for streamed cells that are not active. */
   readonly hlod?: { readonly index: HlodIndex; load(file: string): Promise<ArrayBuffer | null> };
+  /** The level's painted foliage (plan 5c F4): its index and cell files, streamed by the foliage binding. */
+  readonly foliage?: { readonly index: LevelFoliageIndex; load(file: string): Promise<ArrayBuffer | null> };
 }
 
 export interface BootOptions {
@@ -200,6 +204,8 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
         const active = streaming;
         live.services.provide(CellStreamingKey, active);
         if (loaded.hlod) live.services.provide(HlodSourceKey, { index: loaded.hlod.index, load: loaded.hlod.load, isCellActive: (key) => active.isCellActive(key) });
+        // Painted foliage streams with the camera in the foliage binding (plan 5c F4), not with the cells' actors.
+        if (loaded.foliage) live.services.provide(LevelFoliageSourceKey, { index: loaded.foliage.index, load: loaded.foliage.load });
       }
     } else if (loaded.cells) {
       // No renderer: no camera to stream around; the whole level is assembled (headless checks).

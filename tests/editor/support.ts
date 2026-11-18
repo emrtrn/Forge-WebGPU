@@ -65,11 +65,12 @@ export function writeLevel(level: string, levelId: string, actors: readonly unkn
 /**
  * Answers the editor asks for knowing they may be missing, never errors:
  * - a level's `cells.json` (a level without cells has none; the session reads it optionally);
+ * - a level's optional parts: `hlod.json` (no HLOD bake) and `foliage.json` (no painted foliage, plan 5c F4);
  * - a thumbnail the server's cache does not hold yet (the editor draws it and stores it).
  */
 export const EXPECTED_MISSES: readonly RegExp[] = [
   /^404 GET \/__forge\/read\?path=[^&]*%2Fcells\.json$/,
-  /^404 GET \/__forge\/read\?path=[^&]*%2Fhlod\.json(?:&play=[^&]+)?$/,
+  /^404 GET \/__forge\/read\?path=[^&]*%2F(?:hlod|foliage)\.json(?:&play=[^&]+)?$/,
   /^404 GET \/__forge\/thumbnail\?/,
 ];
 

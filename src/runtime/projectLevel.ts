@@ -7,7 +7,9 @@
 
 import {
   cellFileOf,
+  FOLIAGE_INDEX_FILE,
   HLOD_INDEX_FILE,
+  normalizeLevelFoliageIndex,
   normalizeHlodIndex,
   normalizeActorClass,
   normalizeLevelCell,
@@ -44,7 +46,23 @@ export async function loadProjectLevel(
     throw new WorldError(`The level at ${folder} has errors.`, issues);
   }
   const hlod = await levelHlod(client, folder, issues);
-  return { level: read.open.persistent, resolveClass, cells: levelCellSource(client, folder, read.cells, options), ...(hlod ? { hlod } : {}) };
+  const foliage = await levelFoliage(client, folder, issues);
+  return {
+    level: read.open.persistent, resolveClass, cells: levelCellSource(client, folder, read.cells, options),
+    ...(hlod ? { hlod } : {}), ...(foliage ? { foliage } : {}),
+  };
+}
+
+/** The level's painted foliage index and cell reader (plan 5c F4); null without an index or a binary reader. */
+async function levelFoliage(client: ContentClient, folder: string, issues: Issue[]): Promise<LoadedLevel["foliage"] | null> {
+  if (!client.readBinary) return null;
+  const file = await client.read(`${folder}/${FOLIAGE_INDEX_FILE}`);
+  if (!file) return null;
+  const index = normalizeLevelFoliageIndex(JSON.parse(file.text), { strict: false });
+  issues.push(...index.issues.map((found) => ({ ...found, path: `${FOLIAGE_INDEX_FILE} ${found.path}`.trim() })));
+  if (!index.value) return null;
+  const readBinary = client.readBinary.bind(client);
+  return { index: index.value, load: (file) => readBinary(`${folder}/${file}`) };
 }
 
 /** The level's HLOD index and proxy reader (phase 5b decision 5); null without an index or a binary reader. */
