@@ -349,6 +349,11 @@ async function start(): Promise<void> {
         const { applyProceduralStone } = await import("./render/materials/proceduralStoneDev.ts");
         return applyProceduralStone(scene, guid, metersPerRepeat);
       },
+      /** Vegetation plan PG3: every foliage / plant batch draws this LOD at any distance (the impostor is the last); null: by screen size. */
+      async foliageLod(lod: number | null) {
+        const { setFoliageLodOverride } = await import("./render/foliage/foliageBatches.ts");
+        setFoliageLodOverride(lod);
+      },
     };
   }
 }

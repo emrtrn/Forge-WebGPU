@@ -38,7 +38,7 @@ import type { FoliageCellGenerator } from "../../engine/foliage/foliageCellGener
 import { FoliageRing, type FoliageRingRule, type FoliageRingTerrain } from "../../engine/foliage/foliageRingHost.ts";
 import { LevelFoliageSourceKey, type LevelFoliageSource } from "../../engine/foliage/levelFoliageSource.ts";
 import { plantWorld } from "../../render/plant/plantDrawing.ts";
-import { readFamilyPrototype, type PlantFamilyFieldsRead } from "../../render/plant/plantFamilies.ts";
+import { impostorRef, readFamilyPrototype, type PlantFamilyFieldsRead } from "../../render/plant/plantFamilies.ts";
 import { PlantFamilyAssetType } from "../plant/schema.ts";
 import { createFoliageBatches, type FoliageBatches, type FoliageTypeDraw } from "../../render/foliage/foliageBatches.ts";
 import { PaintedFoliageView } from "../../render/foliage/paintedFoliageView.ts";
@@ -161,7 +161,8 @@ export default defineRenderBinding({
           const sway = family ? family.sway : data.sway.enabled
             ? { amplitude: data.sway.amplitude, height: data.sway.height, frequency: data.sway.frequency, source: data.sway.source }
             : null;
-          types.set(guid, { data, draw: { id: guid, mesh, lods, castShadow: data.castShadow, cullStart: data.cullStart, cullEnd: data.cullEnd, sway, plant: family?.plant ?? null } });
+          types.set(guid, { data, draw: { id: guid, mesh, lods, castShadow: data.castShadow, cullStart: data.cullStart, cullEnd: data.cullEnd, sway, plant: family?.plant ?? null,
+            impostor: family ? family.impostor : impostorRef(data.impostor) } });
         } catch (error) {
           console.warn(`forge render: foliage type ${guid} not drawn: ${String(error)}`);
           types.set(guid, null);

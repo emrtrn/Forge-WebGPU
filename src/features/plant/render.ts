@@ -71,7 +71,7 @@ export default defineRenderBinding({
         const type: FoliageTypeDraw = {
           id: `plant:${data.family}:${Math.floor(data.prototype)}:${data.castShadow ? 1 : 0}`,
           mesh: prototype.mesh, lods: prototype.lods, castShadow: data.castShadow, cullStart: 0, cullEnd: 0,
-          sway: prototype.sway, plant: prototype.plant,
+          sway: prototype.sway, plant: prototype.plant, impostor: prototype.impostor,
         };
         const owner = `${actor.id}/${key}`;
         entry.owners.push(owner);

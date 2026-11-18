@@ -3,9 +3,10 @@
 // Draws unlit G-buffer data of generated meshes through an orthographic
 // camera: per output layer the mean sRGB colour and coverage of the covered
 // samples, the octahedral object-space normal, the depth, and an `extra`
-// channel: the largest threshold of every fragment that passed the alpha
-// test in the pixel (hidden ones too), which lets a shader shed leaves per
-// pixel and keep a pixel leafy while any leaf covering it remains.
+// channel: the smallest threshold of every fragment that passed the alpha
+// test in the pixel (hidden ones too). A leaf shows while its threshold is
+// below the leaves shown, so a pixel stays leafy while any leaf covering it
+// remains: exactly while its smallest threshold is below.
 //
 // Each layer has its own depth buffer: a wood layer is not occluded by the
 // leaves. Samples sit at sample centres; the top-left rule keeps a shared
@@ -59,7 +60,7 @@ export interface RasterOptions {
 export interface RasterLayer {
   /** RGBA8: rgb the mean sRGB colour of the covered samples, a = covered / samples. */
   albedo: Uint8Array;
-  /** RGBA8: rg octahedral object-space normal, b depth (0 nearest the camera), a = round(255 × max threshold). */
+  /** RGBA8: rg octahedral object-space normal, b depth (0 nearest the camera), a = round(255 × min threshold). */
   normal: Uint8Array;
 }
 
@@ -123,7 +124,7 @@ export function rasterize(surfaces: readonly BakeSurface[], camera: BakeCamera, 
     depth: new Float32Array(count).fill(Infinity),
     color: new Float32Array(count * 3),
     normal: new Float32Array(count * 3),
-    extra: new Float32Array(count).fill(-1),
+    extra: new Float32Array(count).fill(Infinity),
   }));
   const { center, right, up, forward, halfWidth, halfHeight, halfDepth } = camera;
   const toX = sw / (2 * halfWidth), toY = sh / (2 * halfHeight);
@@ -188,12 +189,9 @@ export function rasterize(surfaces: readonly BakeSurface[], camera: BakeCamera, 
           }
           if (alpha < alphaTest) continue;
           const index = sy * sw + sx;
-          if (threshold) {
-            const value = threshold[a]! * l0 + threshold[b]! * l1 + threshold[c]! * l2;
-            if (value > target.extra[index]!) target.extra[index] = value;
-          } else if (target.extra[index]! < 0) {
-            target.extra[index] = 0;
-          }
+          // A surface without thresholds counts as 0: it never sheds.
+          const value = threshold ? threshold[a]! * l0 + threshold[b]! * l1 + threshold[c]! * l2 : 0;
+          if (value < target.extra[index]!) target.extra[index] = value;
           if (!(depth < target.depth[index]!)) continue;
           target.depth[index] = depth;
           target.color[index * 3] = r * tint[0];
@@ -218,10 +216,10 @@ function resolve(layer: SampleLayer, width: number, height: number, ss: number, 
   const albedo = new Uint8Array(width * height * 4), normal = new Uint8Array(width * height * 4);
   const sw = width * ss, samples = ss * ss;
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
-    let covered = 0, r = 0, g = 0, b = 0, nx = 0, ny = 0, nz = 0, depth = 0, extra = -1;
+    let covered = 0, r = 0, g = 0, b = 0, nx = 0, ny = 0, nz = 0, depth = 0, extra = Infinity;
     for (let j = 0; j < ss; j++) for (let i = 0; i < ss; i++) {
       const index = (y * ss + j) * sw + x * ss + i;
-      if (layer.extra[index]! > extra) extra = layer.extra[index]!;
+      if (layer.extra[index]! < extra) extra = layer.extra[index]!;
       const d = layer.depth[index]!;
       if (d === Infinity) continue;
       covered += 1;
@@ -237,7 +235,7 @@ function resolve(layer: SampleLayer, width: number, height: number, ss: number, 
     const [u, v] = octEncode([nx / length, ny / length, nz / length]);
     normal[out] = byte(u * 255); normal[out + 1] = byte(v * 255);
     normal[out + 2] = byte((depth / covered + halfDepth) / (2 * halfDepth) * 255);
-    normal[out + 3] = byte(Math.max(0, extra) * 255);
+    normal[out + 3] = Number.isFinite(extra) ? byte(extra * 255) : 0;
   }
   return { albedo, normal };
 }

@@ -27,6 +27,12 @@ import { resourceKey } from "../resources/resourceCache.ts";
 import type { WorldResources } from "../resources/worldResources.ts";
 import type { FoliageSway, FoliageWind } from "./foliageWind.ts";
 import type { PlantFamilyDraw, PlantWorld } from "../plant/plantDrawing.ts";
+import type { ImpostorRef } from "../plant/plantFamilies.ts";
+import { applyImpostor, impostorPart, isImpostor } from "../plant/impostorMaterial.ts";
+import type { InstanceShading } from "../gpu/instanceShading.ts";
+
+/** LODs a batch draws at most (gpuDrivenBatch: three LOD starts). */
+const MAX_BATCH_LODS = 4;
 
 /** What drawing needs of one `forge.foliageType` (its asset fields). */
 export interface FoliageTypeDraw {
@@ -42,6 +48,8 @@ export interface FoliageTypeDraw {
   readonly sway?: FoliageSway | null;
   /** A generated plant family's prototype (PG2): its response shades the instances. */
   readonly plant?: PlantFamilyDraw | null;
+  /** The baked impostor (PG3): drawn as the last LOD from its screen size. */
+  readonly impostor?: ImpostorRef | null;
 }
 
 export interface FoliageQuality {
@@ -92,6 +100,8 @@ interface TypeEntry {
   batch: GpuDrivenBatch | null;
   radius: number;
   disposed: boolean;
+  /** The impostor part this entry made (its geometry and source material are its own). */
+  impostor: GpuBatchPart | null;
   readonly owners: Map<string, Owned>;
   loading: Promise<void>;
 }
@@ -100,8 +110,18 @@ const sameSway = (a: FoliageSway | null | undefined, b: FoliageSway | null | und
   (a ?? null) === (b ?? null) || (!!a && !!b && a.amplitude === b.amplitude && a.height === b.height && a.frequency === b.frequency && a.source === b.source);
 
 const sameType = (a: FoliageTypeDraw, b: FoliageTypeDraw): boolean =>
-  sameSway(a.sway, b.sway) && JSON.stringify(a.plant ?? null) === JSON.stringify(b.plant ?? null) && a.mesh === b.mesh && a.castShadow === b.castShadow && a.cullStart === b.cullStart && a.cullEnd === b.cullEnd
+  sameSway(a.sway, b.sway) && JSON.stringify(a.plant ?? null) === JSON.stringify(b.plant ?? null) && JSON.stringify(a.impostor ?? null) === JSON.stringify(b.impostor ?? null) && a.mesh === b.mesh && a.castShadow === b.castShadow && a.cullStart === b.cullStart && a.cullEnd === b.cullEnd
   && a.lods.length === b.lods.length && a.lods.every((lod, index) => lod.mesh === b.lods[index]!.mesh && lod.screenSize === b.lods[index]!.screenSize);
+
+/** Development: the LOD every foliage batch draws at any distance (`__forgeDev.foliageLod`); null: by screen size. */
+let lodOverride: number | null = null;
+const liveBatches = new Set<() => void>();
+
+/** Development (smoke / measurement): every foliage batch draws LOD `lod` (its last when it has fewer; the impostor is the last) at any distance; null restores the screen sizes. */
+export function setFoliageLodOverride(lod: number | null): void {
+  lodOverride = lod === null ? null : Math.max(0, Math.floor(lod));
+  for (const apply of liveBatches) apply();
+}
 
 export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBatches {
   const types = new Map<string, TypeEntry>();
@@ -110,16 +130,29 @@ export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBat
   const applyDistances = (entry: TypeEntry): void => {
     if (!entry.batch) return;
     const window = foliageFadeWindow(entry.type.cullStart, entry.type.cullEnd, quality.cullScale);
-    const lodStarts = lodStartsOfScreenSizes(entry.radius, entry.type.lods.map((lod) => lod.screenSize), quality.verticalFov)
+    const screenSizes = entry.type.lods.map((lod) => lod.screenSize);
+    if (entry.batch.lodCount > screenSizes.length + 1) screenSizes.push(entry.type.impostor!.screenSize);
+    if (lodOverride !== null) {
+      const forced = Math.min(lodOverride, entry.batch.lodCount - 1);
+      entry.batch.setDistances({
+        fadeStart: window?.[0] ?? NO_CULL_DISTANCE, cullEnd: window?.[1] ?? NO_CULL_DISTANCE,
+        lodStarts: screenSizes.map((_, index) => (index < forced ? 0 : NO_CULL_DISTANCE)),
+      });
+      return;
+    }
+    const lodStarts = lodStartsOfScreenSizes(entry.radius, screenSizes, quality.verticalFov)
       // Ascending, as the batch requires.
       .map((start, index, all) => Math.max(start, index > 0 ? all[index - 1]! : 0));
     entry.batch.setDistances({ fadeStart: window?.[0] ?? NO_CULL_DISTANCE, cullEnd: window?.[1] ?? NO_CULL_DISTANCE, lodStarts });
   };
 
-  const shadingOf = (type: FoliageTypeDraw) => {
+  const shadingOf = (type: FoliageTypeDraw): InstanceShading | null => {
     const fadeEnd = type.cullEnd * quality.cullScale;
     if (type.plant && options.plants) return options.plants.shading(type.plant, type.sway ?? null, fadeEnd);
-    return type.sway && options.wind ? options.wind.shading(type.sway, fadeEnd) : null;
+    const sway = type.sway && options.wind ? options.wind.shading(type.sway, fadeEnd) : null;
+    if (!type.impostor) return sway;
+    // A plain type's impostor: the summer look, no sway.
+    return (material, instance, role) => (isImpostor(material) ? applyImpostor(material, instance, role, null) : sway?.(material, instance, role));
   };
 
   const addTo = (batch: GpuDrivenBatch, owned: Owned): void => {
@@ -143,6 +176,21 @@ export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBat
       const lods = await Promise.all([entry.type.mesh, ...entry.type.lods.map((lod) => lod.mesh)].map(lodParts));
       if (entry.disposed) return;
       const sphere = lods[0]!.sphere;
+      const impostor = entry.type.impostor;
+      if (impostor && lods.length < MAX_BATCH_LODS) {
+        entry.keys.push(resourceKey.texture(impostor.albedo, "srgb"), resourceKey.texture(impostor.normal, "linear"));
+        try {
+          const [albedo, normal] = await Promise.all([world.texture(impostor.albedo, "srgb"), world.texture(impostor.normal, "linear")]);
+          if (entry.disposed) return;
+          entry.impostor = impostorPart({ albedo, normal, views: impostor.views, center: sphere.center.clone(), radius: sphere.radius }, `foliage/${entry.type.id}`);
+          lods.push({ parts: [entry.impostor], sphere });
+        } catch (error) {
+          console.warn(`foliage type ${entry.type.id}: impostor not drawn: ${String(error)}`);
+        }
+        if (entry.disposed) return;
+      } else if (impostor) {
+        console.warn(`foliage type ${entry.type.id}: ${lods.length} LODs leave no room for the impostor (${MAX_BATCH_LODS} at most)`);
+      }
       entry.radius = sphere.radius;
       const capacity = [...entry.owners.values()].reduce((sum, owned) => sum + owned.matrices.length / MATRIX_FLOATS, 0);
       entry.batch = options.gpuDriven.createBatch({
@@ -164,6 +212,11 @@ export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBat
     entry.disposed = true;
     if (entry.batch) options.gpuDriven.removeBatch(entry.batch);
     entry.batch = null;
+    if (entry.impostor) {
+      entry.impostor.geometry.dispose();
+      for (const material of [entry.impostor.material].flat()) material.dispose();
+      entry.impostor = null;
+    }
     for (const key of entry.keys) options.resources.release(key);
     types.delete(entry.type.id);
   };
@@ -177,7 +230,7 @@ export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBat
       for (const [owner, owned] of existing.owners) owners.set(owner, { matrices: owned.matrices, seeds: owned.seeds, handles: null });
       disposeEntry(existing);
     }
-    const entry: TypeEntry = { type, keys: [], batch: null, radius: 0, disposed: false, owners, loading: Promise.resolve() };
+    const entry: TypeEntry = { type, keys: [], batch: null, radius: 0, disposed: false, impostor: null, owners, loading: Promise.resolve() };
     entry.loading = load(entry);
     types.set(type.id, entry);
     return entry;
@@ -189,6 +242,9 @@ export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBat
     entry.owners.delete(owner);
     if (owned.handles && entry.batch) for (const handle of owned.handles) entry.batch.instances.remove(handle);
   };
+
+  const reapply = (): void => { for (const entry of types.values()) applyDistances(entry); };
+  liveBatches.add(reapply);
 
   return {
     set(type, owner, matrices, seeds) {
@@ -213,6 +269,7 @@ export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBat
       await Promise.all([...types.values()].map((entry) => entry.loading));
     },
     dispose() {
+      liveBatches.delete(reapply);
       for (const entry of [...types.values()]) disposeEntry(entry);
     },
   };

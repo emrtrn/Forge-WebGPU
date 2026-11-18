@@ -14,6 +14,7 @@
 //   snow on up-facing wood and leaves × the family's acceptance (undersides
 //   stay dark); wetness darkens and smooths; the sway from the vertex weights
 //   scaled by the family's flexibility.
+// The impostor LOD takes the same appearance per pixel (impostorMaterial.ts).
 // Season changes move uniforms only: no program is rebuilt and nothing is
 // written back to the family, the level or the placements.
 
@@ -25,6 +26,7 @@ import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRu
 import { resolvePlantAppearance, type PlantResponseProfile } from "../../engine/plant/plantResponse.ts";
 import { createFoliageWind, type FoliageSway, type FoliageWind } from "../foliage/foliageWind.ts";
 import type { InstanceShading } from "../gpu/instanceShading.ts";
+import { applyImpostor, isImpostor } from "./impostorMaterial.ts";
 
 /** What drawing needs of a `forge.plantFamily`. */
 export interface PlantFamilyDraw {
@@ -116,6 +118,12 @@ export function plantWorld(world: Pick<RenderWorldView, "services" | "components
       resolve();
       const swayHook = sway ? wind.shading(sway, fadeEnd, look.windFlex) : null;
       return (material, instance, role) => {
+        // The impostor LOD (PG3): the same appearance per pixel, no sway.
+        if (isImpostor(material)) {
+          return applyImpostor(material, instance, role, {
+            foliage: look.foliage, tint: look.tint, snowWood: look.snowWood, snowLeaf: look.snowLeaf, wet: look.wet, snowColor,
+          });
+        }
         const name = (material as { name?: string }).name ?? "";
         const isLeaf = name === family.leaf || (family.leaf === null && name === "Leaf");
         const isWood = name === family.wood || (family.wood === null && name === "Wood");

@@ -3,9 +3,9 @@
 // (bake/impostorAtlas.ts) as two layers, side by side in one pair of
 // textures: the left half the wood alone (so a bare winter tree shows every
 // branch), the right half the leaves with, in the normal texture's alpha, the
-// largest shedding threshold (`_leaf`.x) of every leaf covering the pixel: a
-// pixel stays leafy while any of its leaves remains, the same rule the model
-// uses per cluster.
+// smallest shedding threshold (`_leaf`.x) of every leaf covering the pixel: a
+// cluster shows while its threshold is below the leaves shown, so the pixel
+// stays leafy exactly while any of its leaves remains.
 //
 // albedo: rgb sRGB colour (the material's colour × its texture), a coverage;
 // normal: rg octahedral object-space normal, b depth (0 nearest), a threshold

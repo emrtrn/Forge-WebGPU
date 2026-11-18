@@ -39,20 +39,20 @@ test("the alpha test discards a texture's transparent half", () => {
   assert.equal(alphaAt(layer!.albedo, 16, 14, 1), 0);
 });
 
-test("layers keep their own depth; extra is the max of front and hidden fragments", () => {
+test("layers keep their own depth; extra is the min of front and hidden fragments", () => {
   const wood = quad(-1, 1, -1, 1, -0.5);
   const front = quad(-1, 1, -1, 1, 0.5), behind = quad(-1, 1, -1, 1, 0);
   const surfaces: BakeSurface[] = [
     { mesh: wood, layer: 0, color: [0.5, 0.25, 0] },
-    { mesh: front, layer: 1, threshold: new Float32Array([0.2, 0.2, 0.2, 0.2]) },
-    { mesh: behind, layer: 1, threshold: new Float32Array([0.8, 0.8, 0.8, 0.8]), color: [0, 1, 0] },
+    { mesh: front, layer: 1, threshold: new Float32Array([0.8, 0.8, 0.8, 0.8]) },
+    { mesh: behind, layer: 1, threshold: new Float32Array([0.2, 0.2, 0.2, 0.2]), color: [0, 1, 0] },
   ];
   const [w, l] = rasterize(surfaces, CAMERA, { width: 4, height: 4, layers: 2, supersample: 1 });
   assert.equal(alphaAt(w!.albedo, 4, 1, 1), 255);
   assert.deepEqual([...w!.albedo.subarray(0, 3)], [128, 64, 0]);
-  // The front leaf wins the colour (white), the hidden one still raises the threshold.
+  // The front leaf wins the colour (white); the hidden one still lowers the threshold (the pixel stays leafy while it remains).
   assert.deepEqual([...l!.albedo.subarray(0, 3)], [255, 255, 255]);
-  assert.equal(l!.normal[3], Math.round(0.8 * 255));
+  assert.equal(l!.normal[3], Math.round(0.2 * 255));
   // Depth: the front quad at +0.5 toward the camera maps near 0.25.
   assert.equal(l!.normal[2], Math.round(0.25 * 255));
 });

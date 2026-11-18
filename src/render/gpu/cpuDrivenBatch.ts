@@ -99,7 +99,11 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         const shown = new InstancedBufferAttribute(new Float32Array(capacity), 1);
         const fade = varying(instancedDynamicBufferAttribute<"float">(shown, "float"), "vForgeCpuFade");
         const shading: CpuInstanceShadingAttributes | null = options.instanceShading
-          ? { placement: new InstancedBufferAttribute(new Float32Array(capacity * 4), 4), seed: new InstancedBufferAttribute(new Float32Array(capacity), 1) }
+          ? {
+            placement: new InstancedBufferAttribute(new Float32Array(capacity * 4), 4),
+            seed: new InstancedBufferAttribute(new Float32Array(capacity), 1),
+            basis: [0, 1, 2].map(() => new InstancedBufferAttribute(new Float32Array(capacity * 3), 3)) as unknown as CpuInstanceShadingAttributes["basis"],
+          }
           : null;
         const clone = (source: Material): Material => {
           const material = cloneNodeMaterial(renderer, source, options.name);
@@ -186,6 +190,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
               const e = instance.elements;
               shading.placement.setXYZW(slot, e[12]!, e[13]!, e[14]!, Math.max(Math.hypot(e[0]!, e[1]!, e[2]!), Math.hypot(e[4]!, e[5]!, e[6]!), Math.hypot(e[8]!, e[9]!, e[10]!)));
               shading.seed.setX(slot, seedBits[at * EXTRA_FLOATS + 1]! & INSTANCE_SEED_MASK);
+              shading.basis.forEach((column, k) => column.setXYZ(slot, e[k * 4]!, e[k * 4 + 1]!, e[k * 4 + 2]!));
             }
             mesh.setMatrixAt(slot, world.multiplyMatrices(instance, local));
             if (options.instanceColors) mesh.setColorAt(slot, new Color().setRGB(options.instanceColors.getX(at), options.instanceColors.getY(at), options.instanceColors.getZ(at)));
@@ -201,7 +206,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
           mesh.instanceMatrix.needsUpdate = true;
           if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
           shown.needsUpdate = true;
-          if (shading) { shading.placement.needsUpdate = true; shading.seed.needsUpdate = true; }
+          if (shading) { shading.placement.needsUpdate = true; shading.seed.needsUpdate = true; for (const column of shading.basis) column.needsUpdate = true; }
         }
         view.counts = masks ? lists.map((list) => list.length) : [...result.counts];
       }
