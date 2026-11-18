@@ -95,14 +95,22 @@ test("foliage: G6 with the levels' own foliage", async ({ page }) => {
     for (let i = 0; i < FRAMES; i += 1) { await perFrame?.(i); steps.push(await step(page)); }
     const ring = await evaluate(page, (d) => d.gpuDriven.level());
     const stats = await evaluate(page, (d) => d.gpuDriven.stats());
-    // One more frame's draws as `?debug` counts them (the renderer's calls in every view plus the indirect ones).
+    // One more frame's draws as `?debug` counts them (the renderer's calls in every view plus the indirect ones),
+    // from a step that drew. Not reliable here (plan 5c F7): with the loop paused three's own count reads 1 in
+    // some runs and the full count in others for the same frame; the times above do not depend on it.
     const sceneDraws = await evaluate(page, async (d, ms) => {
       const host = d.host();
       if (!host) return null;
       const info = host.renderer.info;
       info.autoReset = false;
-      info.reset();
-      try { await d.step(ms as number); return info.render.drawCalls + host.gpuDriven.lastDraws; } finally { info.autoReset = true; }
+      try {
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          info.reset();
+          const stepped = await d.step(ms as number);
+          if (stepped.ran) return info.render.drawCalls + host.gpuDriven.lastDraws;
+        }
+        return null;
+      } finally { info.autoReset = true; }
     }, FRAME_MS);
     const result = {
       id, ring, batches: stats?.batches ?? 0, instances: stats?.instances ?? 0, gpuDrivenDraws: stats?.draws ?? 0, views: stats?.views ?? 0, sceneDraws,
