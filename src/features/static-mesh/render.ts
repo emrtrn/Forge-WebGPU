@@ -39,7 +39,7 @@ import { modelParts } from "../../render/resources/modelParts.ts";
 import { assignSlotMaterials, slotMaterialIds } from "../../render/resources/modelSlots.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
 import type { ModelTemplate } from "../../render/resources/worldResources.ts";
-import { cellSuffix } from "../../render/sync/batchCells.ts";
+import { cellSuffix, placementParts, placementZone, zoneSuffix } from "../../render/sync/batchCells.ts";
 import { changeInstances, createInstanceBatch, type InstanceBatch } from "../../render/sync/instanceBatches.ts";
 import { defineRenderBinding, type RenderBindingContext } from "../../render/sync/renderBinding.ts";
 import { componentWorldMatrix } from "../../render/sync/transforms.ts";
@@ -50,6 +50,8 @@ interface Batch {
   /** Cache keys this batch holds a use of. */
   readonly keys: string[];
   disposed: boolean;
+  /** Its zone's registration (R9b); null in no zone. */
+  untrack: (() => void) | null;
 }
 
 // The slot rules live in render/resources/modelSlots.ts (the editor's thumbnails use them too), the
@@ -86,7 +88,7 @@ export default defineRenderBinding({
     const meshesOf = (actor: WorldActor) =>
       Object.entries(actor.components).filter(([, component]) => parseComponentTypeTag(component.type)?.name === StaticMesh.name);
 
-    const batchFor = (key: string, model: string, data: StaticMeshData): Batch => {
+    const batchFor = (key: string, model: string, data: StaticMeshData, zone: string | null): Batch => {
       const existing = batches.get(key);
       if (existing) return existing;
       const batch: Batch = {
@@ -97,8 +99,10 @@ export default defineRenderBinding({
         }),
         keys: [resourceKey.model(model)],
         disposed: false,
+        untrack: null,
       };
       batches.set(key, batch);
+      if (zone !== null && ctx.zones) batch.untrack = ctx.zones.track(zone, batch.instances);
       ctx.resources.model(model).then(
         async (template) => {
           if (batch.disposed) return;
@@ -117,6 +121,7 @@ export default defineRenderBinding({
     const disposeBatch = (key: string, batch: Batch): void => {
       batches.delete(key);
       batch.disposed = true;
+      batch.untrack?.();
       batch.instances.dispose();
       // Every use is taken synchronously when asked (the model at once, the materials when the model arrives).
       for (const resource of batch.keys) ctx.resources.release(resource);
@@ -128,9 +133,10 @@ export default defineRenderBinding({
       if (data.mesh === null) return;
       const id = `${actor.id}/${key}`;
       componentWorldMatrix(ctx.world, actor, key, matrix);
-      const batchKey = staticMeshBatchKey(data) + cellSuffix(matrix, cellSize());
+      const zone = placementZone(ctx.zones, matrix);
+      const batchKey = staticMeshBatchKey(data) + cellSuffix(matrix, cellSize()) + zoneSuffix(zone);
       placed.set(id, batchKey);
-      batchFor(batchKey, data.mesh, data).instances.set(id, matrix, data.color, actor.id);
+      batchFor(batchKey, data.mesh, data, zone).instances.set(id, matrix, data.color, actor.id);
     };
 
     const remove = (id: string): void => {
@@ -158,11 +164,24 @@ export default defineRenderBinding({
         if (batchKey === undefined) continue;
         const data = component as unknown as StaticMeshData;
         componentWorldMatrix(ctx.world, actor, key, matrix);
-        // Into another cell: another batch (R9a cells); within one, in place.
-        if (staticMeshBatchKey(data) + cellSuffix(matrix, cellSize()) !== batchKey) { remove(id); add(actor, key, data); continue; }
+        // Into another cell or zone: another batch (R9a cells, R9b zones); within one, in place.
+        if (staticMeshBatchKey(data) + cellSuffix(matrix, cellSize()) + zoneSuffix(placementZone(ctx.zones, matrix)) !== batchKey) { remove(id); add(actor, key, data); continue; }
         batches.get(batchKey)?.instances.move(id, matrix);
       }
     };
+
+    // The zone set changed (a zone or portal edited): placements whose zone changed move batch.
+    const unsubscribe = ctx.zones?.onChange(() => {
+      for (const [id, batchKey] of [...placed]) {
+        const [actorId, key] = placementParts(id);
+        const actor = ctx.world.actor(actorId);
+        const component = actor?.components[key];
+        if (!actor || !component) continue;
+        const data = component as unknown as StaticMeshData;
+        componentWorldMatrix(ctx.world, actor, key, matrix);
+        if (staticMeshBatchKey(data) + cellSuffix(matrix, cellSize()) + zoneSuffix(placementZone(ctx.zones, matrix)) !== batchKey) { remove(id); add(actor, key, data); }
+      }
+    });
 
     return {
       isActorReady(id) {
@@ -181,6 +200,7 @@ export default defineRenderBinding({
         }
       },
       dispose() {
+        unsubscribe?.();
         for (const [key, batch] of [...batches]) disposeBatch(key, batch);
         placed.clear();
       },

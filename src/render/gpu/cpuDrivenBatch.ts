@@ -32,7 +32,7 @@ import {
 import { EXTRA_FLOATS, MATRIX_FLOATS, createGpuInstances } from "./gpuInstances.ts";
 import {
   cloneNodeMaterial, drawPasses, maskWithFade, MAIN_VIEW_LAYER, MAX_CAMERA_VIEWS, MAX_SHADOW_VIEWS,
-  type GpuBatchDistances, type GpuCullView, type GpuDrivenBatch, type GpuDrivenBatchOptions,
+  type GpuBatchDistances, type GpuCullView, type GpuDrivenBatch, type GpuDrivenBatchOptions, type ZoneMode,
 } from "./gpuDrivenBatch.ts";
 
 /** `userData` key of a mesh's fade attribute (how much of each drawn instance the band shows). */
@@ -74,6 +74,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
   let distances: GpuBatchDistances = { fadeStart: NO_CULL_DISTANCE, cullEnd: NO_CULL_DISTANCE, lodStarts: [] };
   const views: View[] = [];
   let prepared = 0;
+  let zoneMode: ZoneMode = "visible";
   const world = new Matrix4();
   const instance = new Matrix4();
 
@@ -131,6 +132,11 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     get lastDraws() { return lastDraws; },
     // WebGL2 has no render bundles.
     bundleUpdates: 0,
+    get zoneMode() { return zoneMode; },
+    setZoneMode(mode) {
+      zoneMode = mode;
+      if (mode === "hidden") for (const view of views) for (const { mesh } of view.meshes) mesh.visible = false;
+    },
     setDistances(next) {
       if (next.lodStarts.length !== lodCount - 1) throw new Error(`gpu batch ${options.name}: ${lodCount - 1} LOD starts`);
       distances = next;
@@ -166,7 +172,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
           });
           mesh.count = visible.length;
           if (visible.length > 0) lastDraws += passes;
-          mesh.visible = true;
+          mesh.visible = zoneMode !== "shadow" || view.role === "shadow";
           mesh.instanceMatrix.needsUpdate = true;
           if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
           shown.needsUpdate = true;

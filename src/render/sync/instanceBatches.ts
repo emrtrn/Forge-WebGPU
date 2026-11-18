@@ -39,6 +39,7 @@ import { detailBatchCulled, detailCullDistance } from "../../engine/world/detail
 import { createDetailFade } from "../materials/detailFade.ts";
 import type { LodPiece, TriangleBinding, TriangleDrawing } from "../triangles/triangleDrawing.ts";
 import { lodParts, type StaticPath } from "../triangles/staticPath.ts";
+import { ZONE_HIDDEN_LAYER, ZONE_SHADOW_LAYER, type ZoneMode } from "../gpu/gpuDrivenBatch.ts";
 
 export interface InstancePart {
   readonly geometry: BufferGeometry;
@@ -66,6 +67,9 @@ export interface InstanceBatch {
   /** Rebuilds the instanced meshes if anything changed since the last flush. */
   flush(): void;
   readonly meshes: readonly InstancedMesh[];
+  /** Its zone's mode now (plan 5c R9b, `zoneDrawing.ts`); default `visible`. */
+  readonly zoneMode: ZoneMode;
+  setZoneMode(mode: ZoneMode): void;
   dispose(): void;
 }
 
@@ -136,6 +140,16 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
   /** A drawn set kept on screen while its replacement prepares (R9.1); released when that one shows. */
   let retired: (() => void) | null = null;
   const releaseRetired = (): void => { const release = retired; retired = null; release?.(); };
+
+  // R9b zones: instanced meshes by layer (shadow cameras alone have the shadow
+  // layer, no camera the hidden one), so the detail fade keeps `visible`; the
+  // automatic LOD path's batches by their own mode.
+  let zoneMode: ZoneMode = "visible";
+  const applyZoneMode = (): void => {
+    const layer = zoneMode === "visible" ? 0 : zoneMode === "shadow" ? ZONE_SHADOW_LAYER : ZONE_HIDDEN_LAYER;
+    for (const mesh of meshes) mesh.layers.set(layer);
+    for (const binding of triangleBindings) binding.batch.setZoneMode(zoneMode);
+  };
 
   /** `keep`: a prepared set stays drawn until the next set is prepared (capacity growth, colour buffer). */
   const removeMeshes = (keep = false): void => {
@@ -245,6 +259,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
           if (!options.prepare && !lodOf.includes(true)) options.parent.add(mesh);
           return mesh;
         });
+        applyZoneMode();
       }
       const actors = [...placements.values()].map((entry) => entry.actor);
       maxScale = 0;
@@ -297,6 +312,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
           if (ticket !== generation) return;
           for (const mesh of pending) options.parent.add(mesh);
           for (const binding of pendingBindings) binding.activate();
+          applyZoneMode();
           releaseRetired();
           prepared = true; preparing = false; preparationWork = null;
         }).catch((error: unknown) => {
@@ -306,6 +322,12 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
     },
     get meshes() {
       return meshes;
+    },
+    get zoneMode() { return zoneMode; },
+    setZoneMode(mode) {
+      if (mode === zoneMode) return;
+      zoneMode = mode;
+      applyZoneMode();
     },
     updateCulling(camera, qualityScale) {
       if (!camera || cullDistance === null || !fade) return;

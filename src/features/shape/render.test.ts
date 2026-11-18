@@ -1,11 +1,13 @@
 import { describe, expect, test } from "vitest";
-import { BoxGeometry, Color, Group, InstancedMesh, Matrix4, MeshStandardNodeMaterial, Scene } from "three/webgpu";
+import { BoxGeometry, Color, Group, InstancedMesh, Matrix4, MeshStandardNodeMaterial, PerspectiveCamera, Scene } from "three/webgpu";
 import type { ComponentEntry, WorldActor } from "../../core/index.ts";
 import type { WorldResources } from "../../render/resources/worldResources.ts";
-import type { RenderBindingContext } from "../../render/sync/renderBinding.ts";
+import { ZONE_HIDDEN_LAYER, ZONE_SHADOW_LAYER } from "../../render/gpu/gpuDrivenBatch.ts";
+import type { RenderBindingContext, RenderWorldView } from "../../render/sync/renderBinding.ts";
+import { createZoneDrawing, type ZoneDrawing } from "../../render/sync/zoneDrawing.ts";
 import binding, { SHAPE_BASE_COLOR } from "./render.ts";
 
-function harness(shapes: Record<string, unknown>[], cellSize = 0) {
+function harness(shapes: Record<string, unknown>[], cellSize = 0, zones?: ZoneDrawing) {
   const actors = shapes.map((data, index) => ({
     id: `act_0000000000000000000000000000000${index + 1}`,
     name: `Shape ${index + 1}`,
@@ -32,6 +34,7 @@ function harness(shapes: Record<string, unknown>[], cellSize = 0) {
     root,
     resources,
     staticCellSize: () => cellSize,
+    ...(zones ? { zones } : {}),
   } as unknown as RenderBindingContext;
   const instance = binding.create(ctx);
   instance.actorsAdded?.(actors);
@@ -112,5 +115,46 @@ describe("shape binding (instanced)", () => {
     const moved = (root.children as InstancedMesh[]).find((mesh) => mesh.count === 2)!;
     moved.getMatrixAt(1, out);
     expect([out.elements[12]]).toEqual([3]);
+  });
+
+  test("zones (R9b): a batch holds one zone's shapes, hidden zones draw nothing or only their shadow, a zone edit re-keys", async () => {
+    // Zone A holds x in [-1, 1.5], zone B x in [1.5, 4]; shapes at x = 0, 1, 2 (A, A, B). No portal joins them.
+    const zone = (id: string, x: number, size: number, alwaysCastShadows = false) => ({
+      id, name: id, parent: null, transform: { p: [x, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] },
+      components: { zone: { type: "forge.zone@1", parent: null, local: { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] }, size: [size, 4, 4], zoneName: "", alwaysCastShadows, generated: false } },
+    }) as unknown as WorldActor;
+    let zoneActors = [zone("act_a0000000000000000000000000000001", 0.25, 2.5), zone("act_b0000000000000000000000000000001", 2.75, 2.5)];
+    const view: RenderWorldView = {
+      services: null as unknown as RenderWorldView["services"],
+      actor: (id) => zoneActors.find((actor) => actor.id === id),
+      componentsOf: (type) => (type === "forge.zone" ? zoneActors.map((actor) => ({ actor, key: "zone", component: actor.components.zone! })) : []),
+    };
+    const zones = createZoneDrawing(view);
+    zones.refresh(zoneActors);
+    const { root, frame } = harness([{}, {}, {}], 0, zones);
+    await settle();
+    frame();
+    const meshes = (): InstancedMesh[] => root.children as InstancedMesh[];
+    expect(meshes().map((mesh) => mesh.count).sort()).toEqual([1, 2]);
+    const camera = new PerspectiveCamera(60, 1, 0.1, 100);
+    camera.position.set(0, 0, 0); camera.lookAt(10, 0, 0);
+    zones.update(camera);
+    const layerOf = (count: number): number => meshes().find((mesh) => mesh.count === count)!.layers.mask;
+    expect([layerOf(2), layerOf(1)]).toEqual([1, 1 << ZONE_HIDDEN_LAYER]);
+    expect(zones.stats()).toMatchObject({ zones: 2, cameraZone: "act_a0000000000000000000000000000001", visible: 1, tracked: 2, hidden: 1 });
+    // B always casts: hidden, it still reaches the shadow cameras.
+    zoneActors = [zoneActors[0]!, zone("act_b0000000000000000000000000000001", 2.75, 2.5, true)];
+    zones.refresh(zoneActors);
+    await settle(); frame();
+    zones.update(camera);
+    expect(layerOf(1)).toBe(1 << ZONE_SHADOW_LAYER);
+    // Without zone B the third shape is in no zone: untracked, always drawn.
+    zoneActors = [zoneActors[0]!];
+    zones.refresh(zoneActors);
+    await settle(); frame();
+    zones.update(camera);
+    expect(meshes().map((mesh) => mesh.count).sort()).toEqual([1, 2]);
+    expect(layerOf(1)).toBe(1);
+    expect(zones.stats()).toMatchObject({ zones: 1, tracked: 1, hidden: 0 });
   });
 });

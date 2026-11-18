@@ -323,6 +323,8 @@ async function start(): Promise<void> {
         remove: async () => (await devGpuDriven()).remove(),
         mirror: async (plane: Parameters<DevGpuDriven["mirror"]>[0]) => (await devGpuDriven()).mirror(plane),
       },
+      /** Plan 5c R9b: the drawn world's zones after the last frame (zones, camera zone, visible, batches hidden / shadow only). */
+      zones: () => viewer.host?.world?.zones?.stats() ?? null,
       /** Plan 5c R9a O5: high-poly props through the engine's static batch (`render/gpu/heavyPropsDev.ts`). */
       heavyProps: {
         install: async (matrices: number[], segments: number, path: "instanced" | "gpu" | "auto") => {

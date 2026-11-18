@@ -28,6 +28,7 @@ import type { CameraViews } from "../gpu/gpuDriven.ts";
 import type { StaticPath } from "../triangles/staticPath.ts";
 import type { TriangleDrawing } from "../triangles/triangleDrawing.ts";
 import { createDefaultLighting } from "./defaultLighting.ts";
+import { createZoneDrawing, type ZoneDrawing } from "./zoneDrawing.ts";
 import { createHlodProxies, type HlodProxies } from "./hlodProxies.ts";
 import { HlodSourceKey } from "../../engine/world/hlod.ts";
 import { RenderReadinessKey } from "../../engine/world/renderReadiness.ts";
@@ -50,6 +51,8 @@ export interface RenderWorld {
   readonly shadowsEnabled?: boolean;
   /** The level's settings now (view distance, load range); absent before a level is assembled. */
   readonly levelSettings?: () => LevelSettings | undefined;
+  /** Its zones (plan 5c R9b): the host updates them once a frame, before the cull. */
+  readonly zones?: ZoneDrawing;
 }
 
 export interface RenderFeatureOptions {
@@ -110,6 +113,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       const outputState = createOutputState(view);
       const output = outputState.output;
       const effectiveQuality = sceneShadowQuality(view, options.quality);
+      const zones = createZoneDrawing(view);
       const instances: RenderBindingInstance[] = bindings.map((binding) =>
         binding.create({
           world: view, scene, root, resources, lighting, environment: environment.environment, output,
@@ -119,6 +123,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           ...(options.staticPath ? { staticPath: options.staticPath } : {}),
           ...(options.cameraViews ? { cameraViews: options.cameraViews } : {}),
           ...(options.staticCellSize ? { staticCellSize: options.staticCellSize } : {}),
+          zones,
         }),
       );
       ctx.services.provide(RenderReadinessKey, { isActorReady: (id) => instances.every((instance) => instance.isActorReady?.(id) ?? true) });
@@ -126,6 +131,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
         name: options.name, scene, root, resources, output,
         get shadowsEnabled() { return sceneShadowsEnabled(view); },
         levelSettings: () => ctx.services.get(LevelSettingsKey)?.current,
+        zones,
       };
       options.attach?.(world);
       // HLOD proxies (phase 5b): the level's source is provided once the world is assembled.
@@ -137,16 +143,19 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       return {
         actorsAdded(actors) {
           lighting.refresh();
+          zones.refresh(actors);
           for (const instance of instances) instance.actorsAdded?.(actors);
         },
         actorsRemoved(actors) {
           lighting.refresh();
+          zones.refresh(actors);
           for (const instance of instances) instance.actorsRemoved?.(actors);
         },
         actorsChanged(changes) {
           lighting.refresh();
           const previous = changes.map((change) => change.previous);
           const actors = changes.map((change) => change.actor);
+          zones.refresh([...previous, ...actors]);
           for (const instance of instances) {
             if (instance.actorsChanged) instance.actorsChanged(changes);
             else {

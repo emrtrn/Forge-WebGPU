@@ -142,6 +142,17 @@ export const MAX_CAMERA_VIEWS = 4;
 export const cameraViewLayer = (index: number): number => MAIN_VIEW_LAYER + 1 + index;
 
 /**
+ * How a batch in a zone draws this frame (plan 5c R9b): `visible` as usual,
+ * `shadow` into the shadow views only (a hidden zone that always casts),
+ * `hidden` not at all (`gpuDriven.ts` skips its cull).
+ */
+export type ZoneMode = "visible" | "shadow" | "hidden";
+/** Instanced meshes of a hidden zone that still casts: only shadow cameras have it (`gpuDriven.ts`). */
+export const ZONE_SHADOW_LAYER = cameraViewLayer(MAX_CAMERA_VIEWS);
+/** Instanced meshes of a hidden zone: no camera has it. */
+export const ZONE_HIDDEN_LAYER = ZONE_SHADOW_LAYER + 1;
+
+/**
  * A view as a batch draws it: `main` the main camera, `shadow` a shadow map
  * (three's shadow material, casts only), `camera` another camera that draws
  * the scene lit (a reflection). Each view's meshes live on `layer` only.
@@ -213,6 +224,9 @@ export interface GpuDrivenBatch {
   /** Times the render bundle was marked for recording again (each camera then records it once). */
   readonly bundleUpdates: number;
   setDistances(distances: GpuBatchDistances): void;
+  /** Its zone's mode now (R9b; default `visible`). */
+  readonly zoneMode: ZoneMode;
+  setZoneMode(mode: ZoneMode): void;
   /** The CPU reference's view of this batch (bounds, distances) as the GPU culls it. */
   readonly cullBatch: InstanceCullBatch;
   /**
@@ -321,6 +335,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
 
   const views: View[] = [];
   let prepared = 0;
+  let zoneMode: ZoneMode = "visible";
   let bundleUpdates = 0;
   let bundleDirty = false;
   const bundle = options.bundle === true ? new BundleGroup() : null;
@@ -479,6 +494,12 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     get views() { return prepared; },
     get lastDraws() { return drawCount * prepared; },
     get bundleUpdates() { return bundleUpdates; },
+    get zoneMode() { return zoneMode; },
+    setZoneMode(mode) {
+      zoneMode = mode;
+      // Hidden: no cull runs, so nothing else would hide the last frame's draws.
+      if (mode === "hidden") for (const view of views) for (const mesh of view.meshes) mesh.visible = false;
+    },
     setDistances(next) {
       if (next.lodStarts.length !== lodCount - 1) throw new Error(`gpu batch ${options.name}: ${lodCount - 1} LOD starts`);
       distances = next;
@@ -514,7 +535,8 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
           view.planes[plane]!.set(source.planes[plane * 4]!, source.planes[plane * 4 + 1]!, source.planes[plane * 4 + 2]!, source.planes[plane * 4 + 3]!);
         }
         view.origin.set(...source.origin);
-        for (const mesh of view.meshes) mesh.visible = true;
+        // A zone that only casts draws its shadow views (R9b).
+        for (const mesh of view.meshes) mesh.visible = zoneMode !== "shadow" || view.role === "shadow";
         dispatches.push(...view.dispatches);
       }
       for (let index = prepared; index < views.length; index += 1) for (const mesh of views[index]!.meshes) mesh.visible = false;

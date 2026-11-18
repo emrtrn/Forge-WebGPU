@@ -47,7 +47,7 @@ import {
 import { frustumPlanesOf, mirrorCullView, type InstanceCullView } from "../../engine/world/instanceCulling.ts";
 import { createCpuDrivenBatch } from "./cpuDrivenBatch.ts";
 import {
-  cameraViewLayer, createGpuDrivenBatch, MAIN_VIEW_LAYER, MAX_CAMERA_VIEWS, MAX_SHADOW_VIEWS, shadowViewLayer,
+  cameraViewLayer, createGpuDrivenBatch, MAIN_VIEW_LAYER, MAX_CAMERA_VIEWS, MAX_SHADOW_VIEWS, shadowViewLayer, ZONE_SHADOW_LAYER,
   type GpuCullView, type GpuDrivenBatch, type GpuDrivenBatchOptions,
 } from "./gpuDrivenBatch.ts";
 
@@ -208,7 +208,14 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
       // Every other camera that draws the scene loses the main view's layer, with or without a view.
       const sources = [...cameraSources].map((source) => source.view(camera));
       for (const entry of sources) if (entry) entry.camera.layers.mask = camera.layers.mask & ~viewBits;
-      if (batches.size === 0) return;
+      // Shadow cameras also draw the instanced meshes of hidden zones that always cast (R9b), with or without batches.
+      const lights = renderer.shadowMap.enabled ? renderer.lighting.getNode(scene as Scene).getLights() as Light[] : [];
+      const shadowCameras = shadowCamerasOf(lights);
+      const zoneShadows = 1 << ZONE_SHADOW_LAYER;
+      if (batches.size === 0) {
+        for (const shadowCamera of shadowCameras) shadowCamera.layers.mask = (camera.layers.mask & ~viewBits) | zoneShadows;
+        return;
+      }
       const planes = planesOf(camera);
       if (!planes) return;
       camera.getWorldPosition(position);
@@ -216,12 +223,11 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
       const main: GpuCullView = { planes, origin, role: "main", layer: MAIN_VIEW_LAYER };
       const views: GpuCullView[] = [main];
       if (renderer.shadowMap.enabled) {
-        const lights = renderer.lighting.getNode(scene as Scene).getLights() as Light[];
         let shadows = 0;
-        for (const shadowCamera of shadowCamerasOf(lights)) {
+        for (const shadowCamera of shadowCameras) {
           const shadowPlanes = shadows >= MAX_SHADOW_VIEWS ? null : planesOf(shadowCamera);
           // A camera without a view this frame must not keep a layer another view now owns.
-          const base = camera.layers.mask & ~viewBits;
+          const base = (camera.layers.mask & ~viewBits) | zoneShadows;
           if (!shadowPlanes) { shadowCamera.layers.mask = base; continue; }
           shadows += 1;
           // Distances stay the main camera's: what it culls or fades, its shadow does too.
@@ -248,6 +254,8 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
       for (const [batch, parent] of batches) {
         // An empty batch still dispatches: its arguments go back to zero instances.
         if (!inScene(parent, scene)) continue;
+        // A hidden zone's batch (R9b): no cull, its meshes stay hidden.
+        if (batch.zoneMode === "hidden") continue;
         dispatches.push(...batch.prepare(views));
         lastBatches.push(batch);
         lastDraws += batch.uncountedDraws;

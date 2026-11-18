@@ -25,6 +25,7 @@ import type { WorldResources } from "../resources/worldResources.ts";
 import type { CameraViews } from "../gpu/gpuDriven.ts";
 import type { StaticPath } from "../triangles/staticPath.ts";
 import type { TriangleDrawing } from "../triangles/triangleDrawing.ts";
+import type { ZoneDrawing } from "./zoneDrawing.ts";
 
 /** What a binding sees of its world: read only. */
 export interface RenderWorldView {
@@ -90,6 +91,8 @@ export interface RenderBindingContext {
   readonly staticCellSize?: () => number;
   /** Where a camera that draws the scene (a reflection) registers its GPU-driven view (R9a step 1). */
   readonly cameraViews?: CameraViews;
+  /** The world's zones (plan 5c R9b): static batches split by zone and register here; refreshed before any binding sees an edit. */
+  readonly zones?: ZoneDrawing;
   readonly world: RenderWorldView;
   /** This world's scene: singletons set fog, background and environment here. */
   readonly scene: Scene;

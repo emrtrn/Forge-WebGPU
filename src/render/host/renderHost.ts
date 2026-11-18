@@ -445,6 +445,8 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       applyShadowSwitch();
       if (options.dev) canvas.dataset.forgeShadows = String(renderer.shadowMap.enabled);
       const submitted = performance.now();
+      // Plan 5c R9b: each zoned batch's mode for this camera, before the LOD update and the cull read it.
+      world.zones?.update(camera);
       triangles.update(camera, quality.settings.foliageCullDistanceScale);
       gpuDriven.cull(world.scene, camera);
       pipeline.render(world.scene, camera, world.output, quality.settings);

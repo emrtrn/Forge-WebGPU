@@ -100,5 +100,27 @@ describe("cpu-driven batch (the WebGL2 twin)", () => {
     expect([reflected!.castShadow, reflected!.receiveShadow, reflected!.layers.mask]).toEqual([false, true, 1 << cameraViewLayer(0)]);
     batch.dispose();
   });
-});
 
+  test("zone modes (R9b): shadow-only draws the shadow views alone, hidden draws nothing until visible again", () => {
+    const parent = new Group();
+    const batch = createCpuDrivenBatch({} as WebGPURenderer, {
+      name: "test", parent, distanceMode: "origin", bounds: { center: [0, 0, 0], radius: 1 },
+      lods: [[{ geometry: new BoxGeometry(), material: new MeshBasicNodeMaterial(), local: new Matrix4(), name: "part" }]],
+    });
+    batch.setDistances({ fadeStart: 80, cullEnd: 100, lodStarts: [] });
+    batch.instances.addMany(at(0, 0, -10), 1);
+    const shadowView = { ...VIEW, role: "shadow" as const, layer: shadowViewLayer(1) };
+    const visible = (): boolean[] => (batch.allMeshes as InstancedMesh[]).map((mesh) => mesh.visible);
+    batch.prepare([VIEW, shadowView]);
+    expect(visible()).toEqual([true, true]);
+    batch.setZoneMode("shadow");
+    batch.prepare([VIEW, shadowView]);
+    expect(visible()).toEqual([false, true]);
+    batch.setZoneMode("hidden");
+    expect(visible()).toEqual([false, false]);
+    batch.setZoneMode("visible");
+    batch.prepare([VIEW, shadowView]);
+    expect(visible()).toEqual([true, true]);
+    batch.dispose();
+  });
+});

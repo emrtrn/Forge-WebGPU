@@ -246,11 +246,12 @@ test("switching assets confirms dirty state and a closed, late load cannot repla
 
 test("repeated preview windows release their private GPU geometry and retain one canvas", async ({ page }) => {
   const errors = await open(page), samples: { geometries: number; textures: number }[] = [];
-  for (let i = 0; i < 4; i++) {
+  // Five windows; the first is a warm-up: the main viewport may create a shared geometry once around it (seen alone, without the rest of the file).
+  for (let i = 0; i < 5; i++) {
     await asset(page, "cube.glb"); await expect(page.getByTestId("asset-editor-preview")).toHaveAttribute("data-preview-ready", "1");
     await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
     await expect(page.getByTestId("forge-canvas")).toHaveCount(1); await close(page);
-    samples.push(JSON.parse((await page.getByTestId("forge-canvas").getAttribute("data-asset-preview-memory"))!));
+    if (i > 0) samples.push(JSON.parse((await page.getByTestId("forge-canvas").getAttribute("data-asset-preview-memory"))!));
   }
   expect(samples.at(-1)!.geometries).toBeLessThanOrEqual(samples[0]!.geometries);
   expect(samples.at(-1)!.textures).toBeLessThanOrEqual(samples[0]!.textures);
