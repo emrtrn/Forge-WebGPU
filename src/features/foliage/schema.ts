@@ -5,7 +5,7 @@
 // Forge WebGL's `ForgeFoliageTypeDef` (engine/scene/foliage.ts) with its units,
 // defaults and ranges. Differences:
 // - The mesh is an `assetRef(forge.model)` (Forge: `meshAssetId`); a generated
-//   plant family replaces it in PG2.
+//   plant family (`family` + `prototype`, PG0) replaces it and its LODs.
 // - Forge kept scale as a Vec3 but used only X (uniform): `scaleMin` / `scaleMax`
 //   are numbers here.
 // - Forge's optional height limits (absent = open) are an `enabled` group, as
@@ -44,6 +44,8 @@ export const FOLIAGE_SWAY_SOURCES = ["height", "vertex"] as const;
 
 export const FoliageTypeFields = {
   mesh: assetRef({ assetType: "forge.model", hint: "Her örnekte çizilen model." }),
+  family: assetRef({ assetType: "forge.plantFamily", hint: "Üretilmiş bitki ailesi; doluysa model ve LOD'ler yerine ailenin prototipi çizilir (tekil bitkiyle aynı tepki)." }),
+  prototype: num({ min: 0, default: 0, step: 1, slider: [0, 15], hint: "Ailenin kaçıncı prototipi (aile boşsa kullanılmaz)." }),
   radius: num({ min: 0, default: 0.5, slider: [0, 20], hint: "Aynı türün iki örneği arasındaki en küçük aralık (boyama), metre." }),
   density: num({ min: 0, max: 10, default: 1, hint: "Boyamada fırça darbesi başına örnek çarpanı." }),
   scaleMin: num({ min: 0.001, default: 1, slider: [0.05, 5], hint: "Örnek başına rastgele ölçeğin alt sınırı (eşit ölçek)." }),
