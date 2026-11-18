@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.70 · 2026-11-18 — R9b açık soruları kapandı (kullanıcı, önerilerle): gizli bölge gölge düşürmez (bölge başına seçenek), ilk aşama yalnız görünürlük, statiklerin varsayılan yolu `auto` (eşik ölçümle; adım S1). Uygulama yeni oturumda.
+**Güncelleme:** v1.71 · 2026-11-18 — R9b S1 ve Z0–Z5 uygulandı (`ed3ad1b` … `07d863b`), Z6 ölçümü (`4d1df67`): bölgeler iç mekânda GPU'yu ~%25 düşürüyor ama batch'in bölgeye göre bölünmesi GPU güdümlü ağır eşyada gönderimi büyütüyor (bölge dışından 0,56 → 13,6 ms). GPU yolunda bölge görünürlüğünün nasıl uygulanacağı kullanıcıya soruldu; Z6 kabulü ve Z7 bekliyor.
+
+**Önceki güncelleme:** v1.70 · 2026-11-18 — R9b açık soruları kapandı (kullanıcı, önerilerle): gizli bölge gölge düşürmez (bölge başına seçenek), ilk aşama yalnız görünürlük, statiklerin varsayılan yolu `auto` (eşik ölçümle; adım S1). Uygulama yeni oturumda.
 
 **Önceki güncelleme:** v1.69 · 2026-11-18 — Kullanıcı kararı: occlusion culling iptal (kod Z0'da kaldırılır), PVS yok. Yerine R9b bölge sistemi: otomatik kurulur, editörde Blocking Volume gibi sürükle-bırak ve gizmo ile elle düzeltilir; çalışma anında portal üzerinden görünür bölgeler. Plan Z0–Z7; kod yok.
 
@@ -1322,6 +1324,56 @@ Tasarım:
    referans level'lar gerilemez) + `measure:occlusion` "heavy props" (ağır eşyada kazanç korunur);
    render / editör smoke iki arka uçta. Sıra: S1, sonra Z0–Z7.
 
+**R9b ilerleme kaydı (2026-11-18; v1.71):**
+- [x] **S1** (`ed3ad1b`): `auto` kuralı yalnız parça üçgen eşiğine bakar (`GPU_STATIC_MIN_TRIANGLES`
+  5.000; yerleşim sayısı kuralı kalktı, çok yerleşimli hafif şekilleri GPU yoluna gönderiyordu), host
+  varsayılanı `auto`. Eşik taraması (768 eşya, tek batch): 2,2 bin üçgen gönderimde kaybettirir, ~4 bin başa
+  baş, 9 bin GPU'da net kazanç (3,0–4,0 → 1,2–1,3 ms). Ağır eşya (36,5 bin): instanced GPU 18,8–20,2 ms,
+  `auto` 2,3–3,0. Referans level'larda en ağır parça 824 üçgen: `auto` hiç GPU batch'i açmaz, `instanced`
+  ile gürültü içinde aynı (ilk koşudaki Derekavak farkı `gpu` koşusundan sonraki sıra etkisiydi). Render 29 /
+  29, editör 81 / 81 iki arka uçta.
+- [x] **Z0** (`30483f8`): occlusion kodu kaldırıldı (level ayarı, engelleyici ikizleri, GPU Hi-Z, batch
+  testi, CPU Hi-Z, çalışma ölçümleri ve dev kancaları). Ağır eşya testi `npm run measure:heavy-props`.
+- [x] **Z1** (`0cb8139`): `forge.zone@1` (`size`, `zoneName`, `alwaysCastShadows`, `generated`) ve
+  `forge.portal@1` (`size` genişlik × yükseklik, `zoneA` / `zoneB`, `generated`), uzamsal; kutu ve açıklık
+  ölçekle büyür. SDK yüzeyi değişmedi.
+- [x] **Z2** (`d6bb043`, çekirdek Codex): `engine/world/zones.ts`: hacme göre sıralı yönlü kutular (bir
+  noktayı tutan en küçüğü), portal normali boyunca sondayla ya da elle bağlantı, portal grafı üzerinde
+  daralan ekran dikdörtgeniyle görünür bölgeler (yakın düzlem kırpması, kapı eşiği kuralı, kapalı portal,
+  derinlik sınırı, bütçe aşılınca hepsi görünür).
+- [x] **Z3** (`319404f`): `render/sync/zoneDrawing.ts`; bölge kümesi bağlamalardan önce tazelenir; statik
+  mesh / şekil yerleşimi bölgesine göre batch anahtarı alır, bölge kümesi değişince taşınır. Kare başına
+  kip: görünür / yalnız gölge / gizli. Instanced mesh katmanla (yalnız gölge kameraları bölge gölge
+  katmanını taşır), GPU yolu ve WebGL2 ikizi ana ve kamera görünümlerini gizler, gizli batch cull'u atlar.
+  Render smoke `zones.smoke.ts` iki arka uçta. **Sapma:** atama yerleşimin noktasıyla (sınır küresinin
+  merkezi değil: model sınırları sonra yüklenir; bölgesiz içerik hep görünür, hata görünür tarafta kalır).
+  Asset önizleme bellek testine ısınma penceresi eklendi (tek başına bu işten önce de kırıktı).
+- [x] **Z4** (`24fce8e`, çekirdek Codex): `engine/world/zoneGeneration.ts` (göz hizası dilimi, dış taşkın,
+  tam Öklid uzaklık dönüşümü, kapı yarı genişliğinden uzak çekirdekler, havza büyütme, sınır koşularından
+  portal, lento yüksekliği), `engine/world/zoneLevel.ts` (üretilen değiştirilir, kullanıcınınki korunur,
+  kararlı GUID, hep yüklü), `npm run forge -- zones` (`forge edit` koşucusuyla tek kayıt; `--dry-run`,
+  `--floor`, `--json`). Sentetik iç mekânda 64 bölge / 112 portal birebir, ikinci koşu aynı baytlar.
+  **Sapma:** engelleyici seçimi en uzun dünya kenarı ≥ 1,5 m (yarıçap değil: lentolar girer, mobilya girmez).
+- [x] **Z5** (`07d863b`): Add Actor > Volumes (Zone Volume, Portal), editör çizimi (soluk mavi kutu,
+  turuncu açıklık, tık ikonda; seçili bölge ve portalları vurgulu), World Settings > Zones > Generate Zones
+  (tek Undo, bütün hücreler yüklü), `?debug` bölge satırları. Editör smoke 83 / 83 iki arka uçta.
+- [ ] **Z6** ölçüm (`4d1df67`, `measure:heavy-props -g zones`, kayıt `2026-11-18T08-08-22-403Z-zones.json`;
+  8 × 8 oda, 768 × 36,5 bin üçgen, `auto`):
+
+  | Poz | Bölgesiz gönderim / GPU / draw | Bölgeli gönderim / GPU / draw | Gizli batch |
+  |---|---|---|---|
+  | oda | 0,63 / 1,78 ms / 13 | 1,70 / 1,35 ms / 123 | 110 / 121 |
+  | koridor | 0,64 / 1,91 / 13 | 1,87 / 1,45 / 97 | 106 |
+  | çapraz | 0,58 / 1,89 / 13 | 1,42 / 1,44 / 37 | 116 |
+  | yukarı (bölge dışı) | 0,56 / 1,77 / 13 | 13,58 / 4,74 / 769 | 0 |
+
+  Bulgu: gizleme GPU'yu ~%25 düşürür, ama GPU güdümlü ağır eşya tek batch yerine bölge başına batch olur
+  (64 × görünüm başına dispatch + draw): gönderim içeride 3 kat, bütün bölgeler görünürken 24 kat. **Açık
+  soru (kullanıcıda):** GPU yolunda bölge, batch bölmesi yerine örnek başına bölge kimliği + görünür bölge
+  maskesiyle compute cull'da uygulanabilir (tek batch, gölge görünümleri ayrı maske); instanced yol bölmeyle
+  kalır.
+- [ ] **Z7** belgeler: mimari rapor, harita (karar sonrası).
+
 **R8 kararları ve uygulama planı (kullanıcı, 2026-11-17; v1.57):**
 Bulgular: HLOD proxy'leri zaten tek ortak materyalli (renk köşe renginde, gölge
 yok), hücre başına bir draw. Derekavak'ta draw'ın kaynağı gerçek binalar: iki
@@ -2060,6 +2112,7 @@ silinebilir.
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
+| 2026-11-18 | v1.71 | R9b S1 (`ed3ad1b`: `auto` varsayılan, parça > 5.000 üçgen GPU yolu), Z0 (`30483f8`), Z1 (`0cb8139`), Z2 (`d6bb043`), Z3 (`319404f`), Z4 (`24fce8e`), Z5 (`07d863b`), Z6 ölçümü (`4d1df67`); GPU yolunda bölge bölmesi gönderimi büyütüyor, karar kullanıcıda |
 | 2026-11-18 | v1.70 | R9b kararları (önerilerle): gizli bölge gölgesiz + bölge başına seçenek, önce yalnız görünürlük, S1 statiklerin varsayılan yolu `auto` (eşik ölçümle). Kod yok |
 | 2026-11-18 | v1.69 | Kullanıcı: occlusion iptal, PVS yok; R9b bölge sistemi (otomatik + elle düzenlenen hacimler, portal görünürlüğü, bölgeye göre batch ve gölge); Z0 occlusion kodunun kaldırılması, Z1–Z7. Kod yok |
 | 2026-11-18 | v1.68 | R9a O5 ağır mesh (`994c3b1`): instanced 19–20,5 ms → GPU yolu + otomatik LOD 1,75–2,1 ms → + occlusion 1,73–1,85 ms; kazanç LOD'dan, occlusion farkı gürültüde. Statik yol varsayılanı ve bölge / PVS kararı açık |
