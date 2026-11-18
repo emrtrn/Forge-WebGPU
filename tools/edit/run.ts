@@ -39,6 +39,11 @@ export interface EditRunOptions {
   readonly opened?: EditProject;
   /** Tests: new actor GUIDs. */
   readonly newId?: () => ActorId;
+  /**
+   * A tool's own edit after the commands (`forge zones`): runs on the level as
+   * read, inside the same save and 409 retry; it writes when given.
+   */
+  readonly step?: (context: CommandContext) => Promise<void>;
 }
 
 export interface EditRunResult {
@@ -72,7 +77,7 @@ function failure(level: string, outcomes: readonly CommandOutcome[], code: NonNu
 
 export async function runEdit(options: EditRunOptions): Promise<EditRunResult> {
   const level = levelFolderOf(options.level);
-  const writes = options.commands.some((command) => WRITES.has(command.kind));
+  const writes = options.step !== undefined || options.commands.some((command) => WRITES.has(command.kind));
   if (writes && level.startsWith(ENGINE_LABEL_PREFIX)) {
     return failure(level, [], "read-only", `${level} is the engine's content or a pack: edit commands read it (find, show) but do not change it.`);
   }
@@ -115,6 +120,7 @@ export async function runEdit(options: EditRunOptions): Promise<EditRunResult> {
     const outcomes: CommandOutcome[] = [];
     try {
       for (const command of options.commands) outcomes.push(runCommand(context, command));
+      await options.step?.(context);
     } catch (error) {
       if (error instanceof CommandError) return failure(level, outcomes, "command", error.message);
       throw error;

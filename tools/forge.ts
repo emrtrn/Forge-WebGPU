@@ -4,6 +4,7 @@
 //   npm run forge -- dev --project <path> [--port <port>]
 //   npm run forge -- edit --project <path> --level <folder> [--json] <command …> | -
 //   npm run forge -- stats --project <path> --level <folder> [--json] [--top <n>]
+//   npm run forge -- zones --project <path> --level <folder> [--json] [--floor <y>] [--dry-run]
 //
 // `check`: manifest, SDK version, generated .forge/tsconfig.json, compile,
 // import boundary (tools/project/check.ts).
@@ -13,6 +14,7 @@
 // `edit`: the agent's edit commands on a level (A12, tools/edit/): no dev
 // server needed; an editor that has the level open refreshes by itself.
 // `stats`: the level's scene cost report (plan 5c R5, tools/stats/).
+// `zones`: generates the level's zones and portals (plan 5c R9b Z4, tools/zones/).
 
 import { readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -23,6 +25,7 @@ import { checkProject, formatProblem, loadProject, writeProjectTsconfig } from "
 import { editMain } from "./edit/cli.ts";
 import { hlodMain } from "./world/hlodCli.ts";
 import { statsMain } from "./stats/statsCli.ts";
+import { zonesMain } from "./zones/zonesCli.ts";
 
 const engineRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -55,13 +58,17 @@ async function main(): Promise<void> {
     process.exitCode = await statsMain(args, engineRoot);
     return;
   }
+  if (command === "zones") {
+    process.exitCode = await zonesMain(args, engineRoot);
+    return;
+  }
   if (command === "edit") {
     process.exitCode = await editMain(args, engineRoot);
     return;
   }
   const project = option(args, "project");
   if ((command !== "check" && command !== "dev") || project === undefined) {
-    console.error("Usage: npm run forge -- <check|dev|edit|hlod|stats> --project <path> [--port <port>]");
+    console.error("Usage: npm run forge -- <check|dev|edit|hlod|stats|zones> --project <path> [--port <port>]");
     process.exitCode = 1;
     return;
   }

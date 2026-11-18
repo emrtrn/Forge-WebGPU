@@ -69,10 +69,12 @@ export interface SceneStats {
   readonly warnings: readonly string[];
 }
 
-interface ModelInfo {
+export interface ModelInfo {
   readonly path: string | null;
   readonly triangles: number;
   readonly radius: number;
+  /** Model-space bounds of the default scene (null when unread); `forge zones` takes walls' boxes from it. */
+  readonly bounds: { readonly min: [number, number, number]; readonly max: [number, number, number] } | null;
   /** Per primitive: its GLB slot index. */
   readonly primitiveSlots: readonly number[];
   /** Per GLB slot: the GLB material's own flags. */
@@ -117,9 +119,9 @@ export async function readModelInfo(read: (path: string) => Promise<Document>, i
         triangles += Math.floor((indices?.getCount() ?? primitive.getAttribute("POSITION")?.getCount() ?? 0) / 3);
       }
     });
-    return { path, triangles, radius, primitiveSlots, slotFlags };
+    return { path, triangles, radius, bounds: { min: [...bounds.min] as [number, number, number], max: [...bounds.max] as [number, number, number] }, primitiveSlots, slotFlags };
   } catch (error) {
-    return { path, triangles: 0, radius: 0, primitiveSlots: [], slotFlags: [], error: String(error) };
+    return { path, triangles: 0, radius: 0, bounds: null, primitiveSlots: [], slotFlags: [], error: String(error) };
   }
 }
 
