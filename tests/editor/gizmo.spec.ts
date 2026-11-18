@@ -33,6 +33,7 @@ test.beforeAll(() => {
 });
 
 test("the move gizmo drags with snap and one undo step; tool keys, World / Local and snap to floor", async ({ page }) => {
+  test.slow(); // ~100 s in CI (software WebGL); a slower runner passed 120 s.
   const errors = await openEditor(page, { level: LEVEL, drawn: true });
   const canvas = page.getByTestId("forge-canvas");
   const box = (await canvas.boundingBox())!;

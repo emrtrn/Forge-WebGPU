@@ -50,7 +50,7 @@ test("HLOD: first open generates, edits remain unsaved, Save updates proxies and
   expect(readFileSync(projectPath(cellFile), "utf8")).toBe(before);
   await page.getByTestId("editor-save").click();
   await expect.poll(async () => (await state(page)).publication, { timeout: 90_000 }).not.toBe(publication);
-  await expect(page.getByTestId("hlod-state")).toHaveAttribute("data-state", "current");
+  await expect(page.getByTestId("hlod-state")).toHaveAttribute("data-state", "current", { timeout: 30_000 });
   await page.getByTestId("outliner-actors-tab").click();
   await expect(row(page, ACTOR)).toHaveAttribute("aria-selected", "true"); await expect(x).toHaveValue("24");
   await page.getByTestId("editor-undo").click(); await expect(x).toHaveValue("16");
@@ -65,7 +65,7 @@ test("HLOD: auto off persists, explicit Save and Generate builds, same-GUID mode
   const x = page.getByTestId("detail-transform.p[0]"); await x.fill("32"); await x.press("Tab");
   await page.getByTestId("outliner-wp-tab").click(); await page.getByTestId("hlod-generate").click();
   await expect.poll(async () => (await state(page)).publication, { timeout: 90_000 }).not.toBe(publication);
-  await expect(page.getByTestId("hlod-state")).toHaveAttribute("data-state", "current");
+  await expect(page.getByTestId("hlod-state")).toHaveAttribute("data-state", "current", { timeout: 30_000 });
   await page.reload(); await expect(page.getByTestId("hlod-auto")).not.toBeChecked();
   await page.getByTestId("outliner-wp-tab").click();
   const beforeModel = (await state(page)).publication;
@@ -74,6 +74,6 @@ test("HLOD: auto off persists, explicit Save and Generate builds, same-GUID mode
   expect((await state(page)).publication).toBe(beforeModel);
   await page.getByTestId("hlod-auto").check();
   await expect.poll(async () => (await state(page)).publication, { timeout: 90_000 }).not.toBe(beforeModel);
-  await expect(page.getByTestId("hlod-state")).toHaveAttribute("data-state", "current");
+  await expect(page.getByTestId("hlod-state")).toHaveAttribute("data-state", "current", { timeout: 30_000 });
   expect(errors).toEqual([]);
 });

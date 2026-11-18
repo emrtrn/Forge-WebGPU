@@ -43,6 +43,7 @@ async function open(page: Page): Promise<string[]> {
 const undo = (page: Page) => page.getByTestId("editor-undo").click();
 
 test("compact Details keeps disclosure state and links each actor's and component's own scale in one undo step", async ({ page }, testInfo) => {
+  test.slow(); // ~100 s in CI (software WebGL); a slower runner passed 120 s.
   const errors = await open(page);
   await row(page, CUBE_B).click();
   for (const [axis, value] of [[1, "4"], [2, "6"]] as const) {

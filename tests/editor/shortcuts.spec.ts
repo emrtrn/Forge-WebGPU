@@ -79,6 +79,7 @@ test("Forge's keys: Ctrl + A, Escape, H / Shift + H, the tools, Space, X, the vi
 });
 
 test("the Outliner's row menu: Duplicate, Rename, Group, Ungroup, Parent to active, Unparent, Go To, Delete", async ({ page }) => {
+  test.slow(); // ~100 s in CI (software WebGL); a slower runner passed 120 s.
   const errors = await open(page);
   await menu(page, B, "duplicate");
   await expect(named(page, "Cube B 2")).toHaveClass(/active/);

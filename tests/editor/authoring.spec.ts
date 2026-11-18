@@ -51,6 +51,7 @@ async function placeCube(page: Page): Promise<void> {
 }
 
 test("Forge's editor-authoring: place, gizmo tools, Details X, undo / redo, save, reopen, Play", async ({ page, context }) => {
+  test.slow(); // ~100 s in CI (software WebGL); a slower runner passed 120 s.
   const errors = await openEditor(page, { level: LEVEL, drawn: true });
   const summary = page.getByTestId("outliner-summary");
   const undo = page.getByTestId("editor-undo");
