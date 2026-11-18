@@ -46,6 +46,8 @@ export interface ZoneDrawingStats {
   readonly tracked: number;
   readonly shadowOnly: number;
   readonly hidden: number;
+  readonly portalTests: number;
+  readonly portalBudgetExceeded: boolean;
 }
 
 export interface ZoneDrawing {
@@ -183,6 +185,8 @@ export function createZoneDrawing(world: RenderWorldView): ZoneDrawing {
       return {
         zones, portals: set?.links.length ?? 0, cameraZone: last?.cameraZone ?? null,
         visible: last?.zones ? last.zones.size : zones, tracked: targets.size, shadowOnly, hidden,
+        portalTests: last?.portalTests ?? 0,
+        portalBudgetExceeded: last !== null && last.cameraZone !== null && last.zones === null,
       };
     },
   };

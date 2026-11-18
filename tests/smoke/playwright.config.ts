@@ -7,7 +7,7 @@
 // on the port must not become the target (feedback-working-rules).
 
 import { defineConfig } from "@playwright/test";
-import { REFERENCE_PROJECT, RENDER_REFS, REPO_ROOT, SMOKE_PORT } from "./renderScenes.ts";
+import { REFERENCE_PROJECT, RENDER_REFS, REPO_ROOT, SMOKE_PORT } from "./renderPaths.ts";
 
 export default defineConfig({
   testDir: ".",

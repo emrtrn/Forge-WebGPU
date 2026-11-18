@@ -38,6 +38,7 @@
     "measure:streaming": "playwright test -c tests/smoke/streamingMeasure.config.ts",
     "measure:gpu-driven": "playwright test -c tests/smoke/gpuDrivenMeasure.config.ts",
     "measure:static-path": "playwright test -c tests/smoke/staticPathMeasure.config.ts",
+    "measure:city": "playwright test -c tests/smoke/cityMeasure.config.ts",
     "measure:heavy-props": "playwright test -c tests/smoke/heavyPropsMeasure.config.ts",
     "build": "vite build && node tools/build-content.ts",
     "verify:dist": "node tools/verify-dist.ts",
