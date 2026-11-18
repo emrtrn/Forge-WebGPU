@@ -21,7 +21,9 @@ import { git, isOptionalHlodMiss, openSmokeLevel } from "./smokePage.ts";
 const FRAME_MS = 1000 / 60;
 const WARM_FRAMES = 60;
 const FRAMES = 300;
-const PATHS = ["instanced", "gpu", "auto"] as const;
+const ALL_PATHS = ["instanced", "gpu", "auto"] as const;
+// `FORGE_STATIC_PATHS=auto,instanced` runs a subset in that order.
+const PATHS = process.env.FORGE_STATIC_PATHS ? process.env.FORGE_STATIC_PATHS.split(",").filter((path): path is typeof ALL_PATHS[number] => (ALL_PATHS as readonly string[]).includes(path)) : ALL_PATHS;
 const LEVELS: ReadonlyArray<{ id: string; pose: string }> = [
   { id: "derekavak", pose: "p2" }, { id: "wb-pilot", pose: "p1" }, { id: "island", pose: "p1" }, { id: "open-world", pose: "p1" },
 ];

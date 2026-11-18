@@ -294,11 +294,14 @@ test("heavy props: instanced vs GPU-driven vs occlusion", async ({ page }) => {
   const props = (furnished.actors as unknown as Array<{ name: string; transform: { p: number[]; r: number[]; s: number[] } }>).filter((actor) => actor.name.startsWith("Prop"));
   const matrices = props.flatMap((actor) => compose(actor.transform.p, actor.transform.r, actor.transform.s));
   const mean = (values: number[]): number => Math.round(1000 * values.reduce((a, b) => a + b, 0) / Math.max(1, values.length)) / 1000;
-  const modes = [
+  // `FORGE_HEAVY_MODES=instanced,gpu` runs a subset (the S1 threshold sweep).
+  const only = process.env.FORGE_HEAVY_MODES?.split(",");
+  const modes = ([
     { id: "instanced", path: "instanced", occlusion: false },
     { id: "gpu", path: "gpu", occlusion: false },
+    { id: "auto", path: "auto", occlusion: false },
     { id: "gpu + occlusion", path: "gpu", occlusion: true },
-  ] as const;
+  ] as const).filter((mode) => !only || only.includes(mode.id));
   const results = [];
   for (const mode of modes) {
     await openSmokeLevel(page, scene.level, scene.poses[0]!, "");

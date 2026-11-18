@@ -6,24 +6,22 @@
 //   indexed-or-not triangle list and its materials are opaque (R9.3).
 //   Transparent parts stay instanced: neither path sorts instances, but the
 //   instanced mesh keeps three's per-object order, which R9 does not change.
-// - `auto`: a batch with at least `GPU_STATIC_MIN_INSTANCES` placements when it builds, or with a
-//   part over `SMALL_TRIANGLES` (it may have LODs), takes the path; smaller
-//   batches stay instanced (per-view compute would cost more than it saves).
-//   The threshold is provisional.
+// - `auto` (the host's default, plan 5c R9b S1): a batch with an eligible
+//   part over `GPU_STATIC_MIN_TRIANGLES` takes the path; lighter batches stay
+//   instanced whatever their placement count. R9.0 (2026-11-17) measured light
+//   content losing on the GPU path (three dispatches per batch and view cost
+//   about 50 µs of submission per batch, GPU time no lower); R9a O5 measured
+//   heavy meshes about ten times faster on it (automatic LOD).
 // - `gpu` / `instanced` force a path (measurement, `?staticPath=`).
-// - The host's default is `instanced`: R9.0 (2026-11-17) measured no level
-//   where the GPU path paid (three dispatches per batch and view cost about
-//   50 µs of submission per batch; GPU time no lower).
 
 import type { BufferGeometry, Material } from "three/webgpu";
-import { SMALL_TRIANGLES } from "../../engine/geometry/triangleData.ts";
 
 export type StaticPath = "auto" | "gpu" | "instanced";
 
 export const STATIC_PATHS: readonly StaticPath[] = ["auto", "gpu", "instanced"];
 
-/** Placements from which `auto` draws a batch through the GPU path (provisional, R9.0). */
-export const GPU_STATIC_MIN_INSTANCES = 16;
+/** Part triangles over which `auto` draws a batch through the GPU path (R9b S1, measured). */
+export const GPU_STATIC_MIN_TRIANGLES = 5000;
 
 export interface StaticPathPart {
   readonly geometry: BufferGeometry;
@@ -46,11 +44,11 @@ function triangleCount(geometry: BufferGeometry): number {
 }
 
 /** Per part: draw it through the automatic LOD path. All false keeps the batch instanced. */
-export function lodParts(path: StaticPath, parts: readonly StaticPathPart[], placements: number): boolean[] {
+export function lodParts(path: StaticPath, parts: readonly StaticPathPart[]): boolean[] {
   const eligible = parts.map(lodEligible);
   if (path === "instanced") return eligible.map(() => false);
   if (path === "gpu") return eligible;
-  const worth = placements >= GPU_STATIC_MIN_INSTANCES || parts.some((part, i) => eligible[i] && triangleCount(part.geometry) > SMALL_TRIANGLES);
+  const worth = parts.some((part, i) => eligible[i] && triangleCount(part.geometry) > GPU_STATIC_MIN_TRIANGLES);
   return eligible.map((ok) => ok && worth);
 }
 

@@ -94,7 +94,7 @@ export interface RenderHostOptions {
   readonly dev: boolean;
   /** The labelled WebGL2 test mode (§4.10); never counts as a WebGPU run. */
   readonly forceWebGL?: boolean;
-  /** Which static batches take the GPU-driven automatic LOD path (R9.4; `?staticPath=` measures); default `instanced` (R9.0). */
+  /** Which static batches take the GPU-driven automatic LOD path (R9.4; `?staticPath=` measures); default `auto` (R9b S1). */
   readonly staticPath?: StaticPath;
   /** Static batches split by world cell of this size in metres (plan 5c R9a); default 0, off. */
   readonly staticCellSize?: number;
@@ -313,8 +313,8 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
   const gpuDriven = createGpuDriven(renderer);
   const triangleSource = createTriangleSource(options.dev);
   const triangles = createTriangleDrawing(renderer, gpuDriven, triangleSource);
-  // R9.0 (2026-11-17): no measured level gained from the GPU path; statics stay instanced until decided.
-  const staticPath: StaticPath = options.staticPath ?? "instanced";
+  // R9b S1: heavy parts draw GPU-driven with automatic LOD, light ones instanced (`staticPath.ts`).
+  const staticPath: StaticPath = options.staticPath ?? "auto";
   const occlusion = createOcclusionPass(renderer);
   // Plan 5c R9a step a: off until the occlusion queries use it (`?staticCell=` measures).
   const staticCellSize = options.staticCellSize ?? 0;

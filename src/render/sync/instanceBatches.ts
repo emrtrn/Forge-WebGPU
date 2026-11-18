@@ -238,7 +238,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         capacity = capacityFor(count);
         colored = needsColor;
         // R9.3 / R9.4: decided per set; the LOD path fades and culls on the GPU itself.
-        lodOf = options.triangles ? lodParts(options.staticPath?.() ?? "gpu", parts, count) : parts.map(() => false);
+        lodOf = options.triangles ? lodParts(options.staticPath?.() ?? "gpu", parts) : parts.map(() => false);
         if (cullDistance !== null && lodOf.some((lod) => !lod)) {
           fadePlacements = new InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
           fade = createDetailFade(cullDistance, fadePlacements);

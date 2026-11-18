@@ -135,16 +135,16 @@ test("R9.2: a merged slot's LOD comes from its raw primitives' cached chains, ne
   binding.dispose(); triangles.dispose(); gpu.dispose(); disposeMergedParts(scene);
 });
 
-test("R9.3 / R9.4: auto keeps small low-poly batches instanced; a transparent part stays instanced beside LOD parts", async () => {
+test("R9.3 / R9b S1: auto keeps light batches instanced whatever their count; a transparent part stays instanced beside LOD parts", async () => {
   const renderer = { backend: { isWebGPUBackend: false }, shadowMap: { enabled: false } } as unknown as WebGPURenderer;
   const gpu = createGpuDriven(renderer), triangles = createTriangleDrawing(renderer, gpu, prepareTriangles);
-  const box = new BoxGeometry(), sphere = new SphereGeometry(1, 48, 24);
+  const box = new BoxGeometry(), sphere = new SphereGeometry(1, 96, 48); // ~9 k triangles, over the auto threshold
   const opaque = new MeshStandardNodeMaterial(), glass = new MeshStandardNodeMaterial({ transparent: true });
-  expect(lodParts("auto", [{ geometry: box, material: opaque }], 15)).toEqual([false]);
-  expect(lodParts("auto", [{ geometry: box, material: opaque }], 16)).toEqual([true]);
-  expect(lodParts("auto", [{ geometry: sphere, material: opaque }], 1)).toEqual([true]);
-  expect(lodParts("instanced", [{ geometry: sphere, material: opaque }], 64)).toEqual([false]);
-  expect(lodParts("gpu", [{ geometry: box, material: glass }, { geometry: box, material: opaque }], 1)).toEqual([false, true]);
+  expect(lodParts("auto", [{ geometry: box, material: opaque }])).toEqual([false]);
+  expect(lodParts("auto", [{ geometry: sphere, material: opaque }])).toEqual([true]);
+  expect(lodParts("auto", [{ geometry: sphere, material: glass }, { geometry: box, material: opaque }])).toEqual([false, false]);
+  expect(lodParts("instanced", [{ geometry: sphere, material: opaque }])).toEqual([false]);
+  expect(lodParts("gpu", [{ geometry: box, material: glass }, { geometry: box, material: opaque }])).toEqual([false, true]);
   const parent = new Group();
   const batch = createInstanceBatch({ name: "r9-mixed", parent, castShadow: true, triangles, staticPath: () => "auto", prepare: () => Promise.resolve() });
   batch.setParts([{ geometry: sphere, material: opaque, local: new Matrix4(), name: "body" }, { geometry: box, material: glass, local: new Matrix4(), name: "glass" }], 1);
