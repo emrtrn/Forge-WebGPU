@@ -1,0 +1,104 @@
+{
+  "schema": "forge.treeRecipe/1",
+  "id": "ast_fd4f39c78d58ef550273be682359d194",
+  "generatorVersion": 1,
+  "habit": "conifer",
+  "variants": [1, 2, 3],
+  "height": 14,
+  "trunkRadius": 0.28,
+  "taper": 0.025,
+  "flare": 0.5,
+  "crownStart": 0.21,
+  "irregularity": 0.34,
+  "levels": [
+    {
+      "count": 32,
+      "angle": 91,
+      "angleVariation": 10,
+      "lengthRatio": 0.31,
+      "start": 0,
+      "radiusRatio": 0.4,
+      "bend": 0.17,
+      "wobble": 0.1
+    },
+    {
+      "count": 5,
+      "angle": 38,
+      "angleVariation": 19,
+      "lengthRatio": 0.34,
+      "start": 0.28,
+      "radiusRatio": 0.43,
+      "bend": 0.14,
+      "wobble": 0.13
+    }
+  ],
+  "leaves": {
+    "perStem": 5,
+    "size": [0.5, 0.15],
+    "cards": 2,
+    "texture": {
+      "kind": "needle",
+      "count": 22,
+      "leafColor": "#2b4d29",
+      "twigColor": "#3d2e22",
+      "size": "256"
+    }
+  },
+  "lods": [
+    {
+      "radialSegments": 13,
+      "ringsPerMeter": 4,
+      "minRadius": 0,
+      "leafFraction": 1,
+      "screenSize": 0.5
+    },
+    {
+      "radialSegments": 8,
+      "ringsPerMeter": 1.5,
+      "minRadius": 0.01,
+      "leafFraction": 0.33,
+      "screenSize": 0.2
+    },
+    {
+      "radialSegments": 4,
+      "ringsPerMeter": 0.65,
+      "minRadius": 0.04,
+      "leafFraction": 0.04,
+      "screenSize": 0.07
+    }
+  ],
+  "materials": {
+    "wood": "ast_4b4adfbe01f0389bf3a0269a3533244c",
+    "leaf": "ast_77e54da6b9185f7c5be134bfb21ea5a3"
+  },
+  "response": {
+    "habit": "evergreen",
+    "spring": {
+      "foliage": 1,
+      "tint": "#d8f0b8"
+    },
+    "summer": {
+      "foliage": 1,
+      "tint": "#ffffff"
+    },
+    "autumn": {
+      "foliage": 1,
+      "tint": "#eef0e4"
+    },
+    "winter": {
+      "foliage": 1,
+      "tint": "#d7dccf"
+    },
+    "windFlex": 0.7,
+    "snow": {
+      "wood": 0.5,
+      "leaf": 0.9
+    },
+    "wetness": 0.5
+  },
+  "sway": {
+    "amplitude": 0.15,
+    "frequency": 0.3
+  },
+  "collision": "trunk"
+}

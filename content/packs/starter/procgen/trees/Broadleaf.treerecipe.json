@@ -1,0 +1,114 @@
+{
+  "schema": "forge.treeRecipe/1",
+  "id": "ast_1cc830feab66656728f8bf965079b68a",
+  "generatorVersion": 1,
+  "habit": "broadleaf",
+  "variants": [1, 2, 3],
+  "height": 12,
+  "trunkRadius": 0.3,
+  "taper": 0.08,
+  "flare": 0.65,
+  "crownStart": 0.39,
+  "irregularity": 0.64,
+  "levels": [
+    {
+      "count": 14,
+      "angle": 84,
+      "angleVariation": 14,
+      "lengthRatio": 0.34,
+      "start": 0.44,
+      "radiusRatio": 0.52,
+      "bend": 0.25,
+      "wobble": 0.25
+    },
+    {
+      "count": 5,
+      "angle": 45,
+      "angleVariation": 20,
+      "lengthRatio": 0.44,
+      "start": 0.35,
+      "radiusRatio": 0.45,
+      "bend": 0.15,
+      "wobble": 0.24
+    },
+    {
+      "count": 3,
+      "angle": 33,
+      "angleVariation": 15,
+      "lengthRatio": 0.48,
+      "start": 0.45,
+      "radiusRatio": 0.42,
+      "bend": 0.12,
+      "wobble": 0.2
+    }
+  ],
+  "leaves": {
+    "perStem": 4,
+    "size": [0.35, 0.35],
+    "cards": 2,
+    "texture": {
+      "kind": "broad",
+      "count": 7,
+      "leafColor": "#4d7329",
+      "twigColor": "#4d3826",
+      "size": "256"
+    }
+  },
+  "lods": [
+    {
+      "radialSegments": 14,
+      "ringsPerMeter": 4,
+      "minRadius": 0,
+      "leafFraction": 1,
+      "screenSize": 0.5
+    },
+    {
+      "radialSegments": 8,
+      "ringsPerMeter": 1.6,
+      "minRadius": 0.006,
+      "leafFraction": 0.33,
+      "screenSize": 0.2
+    },
+    {
+      "radialSegments": 5,
+      "ringsPerMeter": 0.75,
+      "minRadius": 0.034,
+      "leafFraction": 0.05,
+      "screenSize": 0.07
+    }
+  ],
+  "materials": {
+    "wood": "ast_4b4adfbe01f0389bf3a0269a3533244c",
+    "leaf": "ast_b66b68747837e847808bd672bdf34e8a"
+  },
+  "response": {
+    "habit": "deciduous",
+    "spring": {
+      "foliage": 0.8,
+      "tint": "#9ccf6a"
+    },
+    "summer": {
+      "foliage": 1,
+      "tint": "#ffffff"
+    },
+    "autumn": {
+      "foliage": 0.7,
+      "tint": "#d98b3a"
+    },
+    "winter": {
+      "foliage": 0,
+      "tint": "#ffffff"
+    },
+    "windFlex": 1,
+    "snow": {
+      "wood": 0.6,
+      "leaf": 0.8
+    },
+    "wetness": 0.5
+  },
+  "sway": {
+    "amplitude": 0.25,
+    "frequency": 0.35
+  },
+  "collision": "trunk"
+}

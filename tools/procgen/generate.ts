@@ -13,11 +13,9 @@
 //   does not own is never overwritten.
 // - Everything goes through the save service in one commit.
 
-import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join, posix } from "node:path";
 import {
-  ASSET_META_SCHEMA,
   buildAssetIndex,
   fileLabel,
   isJsonAssetType,
@@ -28,7 +26,6 @@ import {
   type JsonObject,
   type SchemaRegistry,
 } from "../../src/core/index.ts";
-import { stableHex } from "../../src/engine/forgeImport/ids.ts";
 import { writeGlb } from "../../src/engine/procgen/glb.ts";
 import { generateRock } from "../../src/engine/procgen/rock/rockGenerator.ts";
 import { bakeSurfaceTexture } from "../../src/engine/procgen/texture/surfaceTexture.ts";
@@ -36,15 +33,15 @@ import { engineContentRoots } from "../assets/engineContent.ts";
 import { loadEngineRegistry } from "../assets/engineRegistry.ts";
 import { fileRevision } from "../assets/revision.ts";
 import { scanRoots } from "../assets/scan.ts";
-import { PROJECT_LICENSE } from "../import-forge-webgl/provenance.ts";
 import { createClassStore, createDocumentCheck } from "../save/documentCheck.ts";
 import { createSaveService, type SaveDelete, type SaveWrite } from "../save/transaction.ts";
 import { createWritePolicy } from "../server/projectPaths.ts";
 import { openWorldProject } from "../world/worldProject.ts";
+import { binaryWithMeta, GENERATED_MODEL_OPTIMIZE, GENERATOR_VERSIONS, outputId, round, srgbTriple, type GeneratorName, type Output } from "./outputs.ts";
 import { encodeRgbaPng } from "./png.ts";
+import { treeOutputs } from "./treeOutputs.ts";
 
-/** Bumped with every change to a generator that alters its output (written to the recipe's outputs). */
-export const GENERATOR_VERSIONS = { rock: 1, surfaceTexture: 1 } as const;
+export { GENERATOR_VERSIONS } from "./outputs.ts";
 
 /** Plan §8 first budgets, triangles per LOD: large rock. */
 const ROCK_TRIANGLE_BUDGET = [3000, 600, 120] as const;
@@ -65,7 +62,7 @@ export interface GeneratedFileReport { readonly path: string; readonly status: "
 
 export interface GenerateResult {
   readonly recipe: string;
-  readonly generator: keyof typeof GENERATOR_VERSIONS;
+  readonly generator: GeneratorName;
   readonly generatorVersion: number;
   readonly files: readonly GeneratedFileReport[];
   readonly removed: readonly string[];
@@ -82,13 +79,6 @@ interface Target {
   readonly index: AssetIndex;
 }
 
-interface Output {
-  readonly path: string;
-  readonly id: string;
-  readonly bytes?: Uint8Array;
-  readonly text?: string;
-}
-
 const PACK_ID = /^[a-z][a-z0-9-]*$/;
 
 async function openTarget(options: GenerateOptions): Promise<Target> {
@@ -103,32 +93,6 @@ async function openTarget(options: GenerateOptions): Promise<Target> {
   }
   const project = await openWorldProject(options.engineRoot, options.projectRoot!);
   return { root: project.root, writableRoots: project.manifest.contentRoots, registry: project.registry, index: project.index };
-}
-
-const sha256 = (bytes: Uint8Array | string): string => createHash("sha256").update(bytes).digest("hex");
-const outputId = (recipe: string, role: string): string => `ast_${stableHex(`procgen/${recipe}/${role}`)}`;
-const round = (value: number): number => Math.round(value * 1e5) / 1e5;
-
-function srgbTriple(hex: string): [number, number, number] {
-  const value = Number.parseInt(hex.slice(1), 16);
-  return [((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255];
-}
-
-function binaryWithMeta(
-  outputs: Output[], path: string, id: string, type: string, bytes: Uint8Array,
-  importSettings: JsonObject, generated: { recipe: string; generator: string; generatorVersion: number },
-): void {
-  outputs.push({ path, id, bytes });
-  const meta = {
-    schema: ASSET_META_SCHEMA,
-    id,
-    type,
-    license: PROJECT_LICENSE,
-    source: { origin: "generated", author: "", url: "" },
-    import: importSettings,
-    generated: { ...generated, contentHash: sha256(bytes) },
-  };
-  outputs.push({ path: `${path}.meta.json`, id, text: stringifyDocument(meta) });
 }
 
 function rockOutputs(recipeId: string, data: JsonObject, folder: string, stem: string, stats: string[], warnings: string[]): Output[] {
@@ -160,7 +124,7 @@ function rockOutputs(recipeId: string, data: JsonObject, folder: string, stem: s
         : { convex: [] };
       binaryWithMeta(outputs, `${folder}/${name}.glb`, id, "forge.model@2", bytes, {
         materials: [material],
-        optimize: { enabled: false, maxTextureSize: 1024, keepNormals: true, meshopt: false, stripTextures: false },
+        optimize: GENERATED_MODEL_OPTIMIZE,
         collision,
       }, generated);
       const { vertices, triangles } = result.stats[lod]!;
@@ -243,11 +207,14 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
   const dir = posix.dirname(label), stem = posix.basename(label).slice(0, -suffix.length);
   const folder = `${dir}/${stem}`;
   const stats: string[] = [], warnings: string[] = [];
-  let generator: keyof typeof GENERATOR_VERSIONS;
+  let generator: GeneratorName;
   let outputs: Output[];
   if (entry.type === "forge.rockRecipe") {
     generator = "rock";
     outputs = rockOutputs(entry.id, doc, folder, stem, stats, warnings);
+  } else if (entry.type === "forge.treeRecipe") {
+    generator = "tree";
+    outputs = treeOutputs(entry.id, doc, folder, stem, stats);
   } else if (entry.type === "forge.surfaceTextureRecipe") {
     generator = "surfaceTexture";
     outputs = surfaceTextureOutputs(entry.id, doc, folder, stem, stats);
@@ -260,7 +227,7 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
     const prefix = `${folder}/${stem}_`, suffix = ".foliagetype.json";
     const middle = path.startsWith(prefix) && path.endsWith(suffix) ? path.slice(prefix.length, -suffix.length) : "";
     const seed = /^\d+$/.test(middle) ? middle : undefined;
-    return generator === "rock" && seed !== undefined && id === outputId(entry.id, `rock/${Number(seed)}/foliageType`);
+    return (generator === "rock" || generator === "tree") && seed !== undefined && id === outputId(entry.id, `${generator}/${Number(seed)}/foliageType`);
   };
 
   // The save writes documents canonically (every field, schema order): compare and write that text.

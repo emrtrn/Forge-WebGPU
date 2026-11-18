@@ -16,6 +16,11 @@ export interface GlbPrimitive {
   mesh: ProcMesh;
   /** Optional TEXCOORD_0, two floats per vertex. */
   uvs?: Float32Array;
+  /**
+   * Application-specific float attributes (glTF: names start with "_"; three's
+   * loader keeps them lower-cased, `_WIND` -> `_wind`), `size` floats per vertex.
+   */
+  attributes?: Readonly<Record<string, { readonly data: Float32Array; readonly size: 2 | 3 | 4 }>>;
   /** Index into GlbInput.materials. */
   material: number;
 }
@@ -46,7 +51,7 @@ function align4(length: number): number {
   return Math.ceil(length / 4) * 4;
 }
 
-function validatePrimitive({ mesh, uvs, material }: GlbPrimitive, materialCount: number, label: string): number {
+function validatePrimitive({ mesh, uvs, material, attributes }: GlbPrimitive, materialCount: number, label: string): number {
   const { positions, normals, colors, indices } = mesh;
   const vertices = positions.length / 3;
   if (!Number.isInteger(vertices)) throw new Error(`${label}: positions length is not a multiple of 3`);
@@ -54,6 +59,11 @@ function validatePrimitive({ mesh, uvs, material }: GlbPrimitive, materialCount:
   if (normals.length !== positions.length) throw new Error(`${label}: normals length does not match positions`);
   if (colors && colors.length !== vertices * 4) throw new Error(`${label}: colors require four values per vertex`);
   if (uvs && uvs.length !== vertices * 2) throw new Error(`${label}: uvs require two values per vertex`);
+  for (const [name, { data, size }] of Object.entries(attributes ?? {})) {
+    if (!/^_[A-Z0-9_]+$/.test(name)) throw new Error(`${label}: custom attribute ${name} must be "_" followed by upper-case letters`);
+    if (data.length !== vertices * size) throw new Error(`${label}: ${name} requires ${size} values per vertex`);
+    if (data.some(value => !Number.isFinite(value))) throw new Error(`${label}: ${name} contains non-finite values`);
+  }
   if (indices.length % 3) throw new Error(`${label}: indices length is not a multiple of 3`);
   if (indices.length === 0) throw new Error(`${label}: indices are empty`);
   if (indices.some(index => index >= vertices)) throw new Error(`${label}: index out of range`);
@@ -96,6 +106,9 @@ export function writeGlb(input: GlbInput): Uint8Array {
       };
       if (mesh.colors) attributes.COLOR_0 = addAccessor(mesh.colors, "VEC4");
       if (uvs) attributes.TEXCOORD_0 = addAccessor(uvs, "VEC2");
+      for (const [name, { data, size }] of Object.entries(primitive.attributes ?? {})) {
+        attributes[name] = addAccessor(data, `VEC${size}` as AccessorType);
+      }
       const indices = addAccessor(vertices <= 65535 ? new Uint16Array(mesh.indices) : mesh.indices, "SCALAR");
       return { attributes, indices, material };
     });

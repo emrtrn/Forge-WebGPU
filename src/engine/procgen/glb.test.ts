@@ -202,3 +202,14 @@ test("pads the binary chunk and rejects malformed GLB containers", () => {
   view.setUint32(12, bytes.length, true);
   assert.throws(() => readGlb(badChunk), /chunk length/);
 });
+
+test("custom attributes are written as float vectors and read back; bad names and sizes throw", () => {
+  const mesh = { positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]), normals: new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]), indices: new Uint32Array([0, 1, 2]) };
+  const wind = new Float32Array([0, 0.1, 0.2, 0.3, 1, 1.1, 1.2, 1.3, 2, 2.1, 2.2, 2.3]);
+  const glb = readGlb(writeGlb({ nodes: [{ name: "a", primitives: [{ mesh, material: 0, attributes: { _WIND: { data: wind, size: 4 } } }] }], materials: [{ name: "m" }] }));
+  const index = glb.json.meshes[0].primitives[0].attributes._WIND;
+  assert.equal(glb.json.accessors[index].type, "VEC4");
+  assert.deepEqual([...glbAccessor(glb, index)], [...wind]);
+  assert.throws(() => writeGlb({ nodes: [{ name: "a", primitives: [{ mesh, material: 0, attributes: { wind: { data: wind, size: 4 } } }] }], materials: [{ name: "m" }] }), /node 0/);
+  assert.throws(() => writeGlb({ nodes: [{ name: "a", primitives: [{ mesh, material: 0, attributes: { _WIND: { data: wind, size: 3 } } }] }], materials: [{ name: "m" }] }), /node 0/);
+});

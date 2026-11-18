@@ -74,3 +74,34 @@ describe("forge generate (rock)", () => {
     expect(await exists("content/rocks/boulder/notes.txt")).toBe(true);
   });
 });
+
+describe("forge generate (tree)", () => {
+  const TREE = "content/rocks/oak.treerecipe.json";
+  test("writes the leaf texture, two-slot LOD models, the family and its foliage types; a rerun writes the same bytes", async () => {
+    await writeFile(join(project, TREE), `${JSON.stringify({ schema: "forge.treeRecipe/1", id: "ast_00000000000000000000000000000def", variants: [2] })}\n`);
+    const first = await generateFromRecipe({ engineRoot, projectRoot: project, recipe: TREE });
+    expect(first.generator).toBe("tree");
+    const names = (await readdir(join(project, "content/rocks/oak"))).sort();
+    expect(names).toEqual([
+      "oak.plantfamily.json", "oak_2.foliagetype.json",
+      "oak_2_lod0.glb", "oak_2_lod0.glb.meta.json", "oak_2_lod1.glb", "oak_2_lod1.glb.meta.json", "oak_2_lod2.glb", "oak_2_lod2.glb.meta.json",
+      "oak_leaf.png", "oak_leaf.png.meta.json",
+    ]);
+    const glb = readGlb(new Uint8Array(await readFile(join(project, "content/rocks/oak/oak_2_lod0.glb"))));
+    const [wood, leaves] = glb.json.meshes[0].primitives;
+    expect([wood.material, leaves.material]).toEqual([0, 1]);
+    expect(Object.keys(leaves.attributes).sort()).toEqual(["NORMAL", "POSITION", "TEXCOORD_0", "_LEAF", "_WIND"]);
+    const family = JSON.parse(await readFile(join(project, "content/rocks/oak/oak.plantfamily.json"), "utf8"));
+    const type = JSON.parse(await readFile(join(project, "content/rocks/oak/oak_2.foliagetype.json"), "utf8"));
+    expect(type).toMatchObject({ family: family.id, prototype: 0, sway: { enabled: true, source: "vertex" } });
+    expect(family.prototypes[0].lods).toHaveLength(3);
+    expect(family.prototypes[0].height).toBeGreaterThan(8);
+    const registry = await loadEngineRegistry(engineRoot);
+    const manifest = JSON.parse(await readFile(join(project, "forge.project.json"), "utf8"));
+    const index = buildAssetIndex((await scanRoots(projectIndexRoots(engineRoot, project, manifest))).files, { strict: true, registry });
+    // The rock test's own file (notes.txt, kept to prove ownership) has no meta: not this output's.
+    expect(index.issues.filter((issue) => !issue.file.endsWith("notes.txt"))).toEqual([]);
+    const again = await generateFromRecipe({ engineRoot, projectRoot: project, recipe: TREE, force: true });
+    expect(again.files.every((file) => file.status === "unchanged")).toBe(true);
+  });
+});
