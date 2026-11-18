@@ -237,6 +237,15 @@ export default defineRenderBinding({
       actorsRemoved(actors) {
         for (const actor of actors) remove(actor.id);
       },
+      // Only a changed Landscape Foliage component (the Foliage tab's rules, F6) grows the ring again;
+      // a moved or renamed terrain actor keeps it.
+      actorsChanged(changes) {
+        for (const { actor, previous } of changes) {
+          if (JSON.stringify(foliageOf(previous)) === JSON.stringify(foliageOf(actor))) continue;
+          remove(actor.id);
+          add(actor);
+        }
+      },
       sync(frame) {
         if (!frame.camera) return;
         if (placed.size === 0 && !painted && !ctx.world.services.get(LevelFoliageSourceKey)?.index) return;

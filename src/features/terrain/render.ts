@@ -182,6 +182,15 @@ export default defineRenderBinding({
       actorsRemoved(actors) {
         for (const actor of actors) for (const [key] of terrainsOf(actor)) remove(`${actor.id}/${key}`);
       },
+      // An edit of the actor's other components (its Landscape foliage rules, plan 5c F6) or its name keeps
+      // the drawn terrain and its stream; only a changed terrain component builds it again.
+      actorsChanged(changes) {
+        for (const { actor, previous } of changes) {
+          if (JSON.stringify(terrainsOf(previous)) === JSON.stringify(terrainsOf(actor))) continue;
+          for (const [key] of terrainsOf(previous)) remove(`${previous.id}/${key}`);
+          for (const [key, component] of terrainsOf(actor)) add(actor, key, component as unknown as TerrainData);
+        }
+      },
       sync(frame) {
         if (!frame.camera) return;
         frame.camera.getWorldPosition(camera);
