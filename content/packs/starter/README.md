@@ -10,6 +10,11 @@ requires, never to another pack (`npm run verify:assets` checks). The
 worldbuilder pack requires this one.
 
 - `classes/exponential-height-fog.json`: a height fog actor class.
+- `procgen/rocks/`: prosedürel kaya ön ayarları (vegetation plan PG1, PK6):
+  `Stone.surfacetexturerecipe.json` (taş dokuları), `M_Rock.material.json`
+  (triplanar + `variation`), `RockAngular` / `RockRounded.rockrecipe.json`;
+  çıktıları yanlarındaki klasörlerde, `npm run forge -- generate --pack starter
+  --recipe <dosya> --force` ile yeniden üretilir (aynı baytlar).
 - `starter-content/`, `DevelopmentContent/`: Forge WebGL assets the engine's
   ported code names by id (World Builder's temporary materials and their
   textures, particle flipbooks, water normal, noise, UI / footstep / impact /

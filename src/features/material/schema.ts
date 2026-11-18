@@ -15,6 +15,16 @@
 //   space (base colour and emissive sRGB, the rest linear), as in Forge.
 // The renderer draws the slots as a node material from phase 3; `sway` is
 // drawn in 5c and `terrainDetail` in 5a, their fields are here now.
+//
+// Vegetation plan PG1 (user decision 2026-11-18, §6.6 hybrid path C), both
+// added with defaults (old files read as they are):
+// - `projection`: `uv` (the mesh's UVs) or `triplanar` (three axis
+//   projections in model space, blended by the normal; no unwrapping, the
+//   generated rock has no UVs). `metersPerRepeat` is one texture repeat.
+// - `variation`: the shader's share of the hybrid path: a low-frequency world
+//   noise colour shift, a cavity tint from vertex colour R and an up-facing
+//   cover tint (moss, dust) from the world normal. Detail stays in the baked
+//   tile textures.
 
 import {
   assetRef,
@@ -34,6 +44,7 @@ export const MATERIAL_SIDES = ["front", "back", "double"] as const;
 export const MATERIAL_ALPHA_MODES = ["opaque", "blend", "mask"] as const;
 export const LAYER_BLEND_DRIVERS = ["constant", "slope", "worldHeight", "maskTexture", "vertexColor"] as const;
 export const VERTEX_COLOR_CHANNELS = ["r", "g", "b", "a"] as const;
+export const MATERIAL_PROJECTIONS = ["uv", "triplanar"] as const;
 
 /** Texture slots that hold colour (sRGB); every other slot is data (linear). */
 export const SRGB_TEXTURE_SLOTS: ReadonlySet<string> = new Set(["baseColorTexture", "emissiveTexture"]);
@@ -183,6 +194,32 @@ export const MaterialFields = {
       roughness: num({ min: 0.05, max: 1, default: 0.4, hint: "Ayrıntı yamalarının pürüzlülüğü." }),
     },
     { hint: "Yalnız terrain: uzun, tohumlu yamalarda statik ayrıntı (çizimi 5a)." },
+  ),
+  projection: object(
+    {
+      mode: enumOf(MATERIAL_PROJECTIONS, {
+        default: "uv",
+        labels: { uv: "UV", triplanar: "Triplanar" },
+        hint: "Dokular modelin UV'leriyle ya da model uzayında üç eksenden izdüşümle (UV açılımı gerekmez) örneklenir.",
+      }),
+      metersPerRepeat: num({ min: 0.01, max: 1000, default: 1, slider: [0.1, 20], hint: "Triplanar: bir doku tekrarının boyu, model uzayında metre." }),
+      sharpness: num({ min: 1, max: 16, default: 4, hint: "Triplanar: eksenler arası geçişin sertliği (büyük değer daha keskin)." }),
+    },
+    { hint: "Dokuların yüzeye nasıl izdüşürüldüğü." },
+  ),
+  variation: object(
+    {
+      enabled: bool({ default: false, hint: "Dokunun üstüne büyük ölçekli renk değişimi ve yıpranma ekler (gölgelendiricide, düşük frekans)." }),
+      scale: num({ min: 0.1, max: 1000, default: 6, slider: [0.5, 50], hint: "Renk kaymasının dünya uzayındaki boyu, metre." }),
+      tint: color({ default: "#b8ab97", hint: "Kaymanın hedef renk çarpanı." }),
+      strength: unit(0.35, "Renk kaymasının gücü: 0 yok, 1 tam."),
+      cavityColor: color({ default: "#3a3229", hint: "Oyuklardaki kir rengi (köşe rengi R: oyukluk)." }),
+      cavity: unit(0, "Oyuk kirinin gücü; köşe rengi olmayan modelde etkisiz."),
+      topColor: color({ default: "#5b6b3c", hint: "Yukarı bakan yüzlerin örtü rengi (yosun, toz)." }),
+      top: unit(0, "Üst yüz örtüsünün gücü."),
+      topSharpness: num({ min: 0.5, max: 16, default: 4, hint: "Üst yüz örtüsünün eğime göre sertliği (büyük değer yalnız düz üstler)." }),
+    },
+    { hint: "Karma yolun gölgelendirici payı: dünya gürültüsüyle renk kayması, oyuk kiri, üst yüz örtüsü." },
   ),
   sway: object(
     {

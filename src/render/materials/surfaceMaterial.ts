@@ -26,6 +26,14 @@
 //   `pow(value, contrast)`; colour, roughness, metalness, opacity, emissive,
 //   AO and (with a base normal map) the normal are mixed.
 // - Normal motion: two scrolling samples of the normal map, averaged, scaled.
+// - Projection (PG1): `triplanar` samples every slot through three model-space
+//   axis projections (triplanar.ts) instead of the UVs; normal maps get each
+//   projection's derivative frame. Flip Y does not apply.
+// - Variation (PG1, the hybrid path's shader share): after the layer blend,
+//   a low-frequency world noise shifts the colour toward `tint`, vertex
+//   colour R (the generator's concavity) darkens cavities, and up-facing
+//   geometry takes `topColor` (`pow(normal.y, topSharpness)`, broken up by the
+//   same noise). One noise sample per pixel.
 // - Contributions (world mask, ...) last, in their fixed order.
 // `sway` (5c) and `terrainDetail` (5a) are drawn in their phases.
 
@@ -40,7 +48,9 @@ import {
   materialMetalness,
   materialOpacity,
   materialRoughness,
+  max,
   mix,
+  mx_noise_float,
   normalize,
   normalMap,
   normalWorldGeometry,
@@ -65,6 +75,7 @@ import {
   type Texture,
 } from "three/webgpu";
 import { applyContributions, type MaterialContributions } from "./contributions.ts";
+import { triplanarProjection } from "./triplanar.ts";
 
 /** Authored emissive 1 -> 1000 (Forge WebGL's scale, matched by its bloom). */
 export const EMISSIVE_INTENSITY_SCALE = 1000;
@@ -119,6 +130,20 @@ export interface SurfaceMaterialData extends Omit<SurfaceLayerData, "baseColor">
     readonly vertexColorChannel: "r" | "g" | "b" | "a";
     readonly invertVertexColor: boolean;
   };
+  /** Absent in older data: UV projection. */
+  readonly projection?: { readonly mode: "uv" | "triplanar"; readonly metersPerRepeat: number; readonly sharpness: number };
+  /** Absent in older data: off. */
+  readonly variation?: {
+    readonly enabled: boolean;
+    readonly scale: number;
+    readonly tint: string;
+    readonly strength: number;
+    readonly cavityColor: string;
+    readonly cavity: number;
+    readonly topColor: string;
+    readonly top: number;
+    readonly topSharpness: number;
+  };
 }
 
 /** Texture slots by field path (`baseColorTexture`, `layerBlend.layer1.normalTexture`, `layerBlend.maskTexture`). */
@@ -170,6 +195,18 @@ function vertexColorChannel(channel: SurfaceMaterialData["layerBlend"]["vertexCo
   })() as unknown as FloatNode;
 }
 
+/** The variation group over a colour (linear). */
+function applyVariation(colorRgb: Vec3Node, variation: NonNullable<SurfaceMaterialData["variation"]>): Vec3Node {
+  const noise = mx_noise_float(positionWorld.div(Math.max(0.1, variation.scale))).mul(0.5).add(0.5).toVar("forgeVariationNoise");
+  let out: Vec3Node = mix(colorRgb, colorRgb.mul(linear(variation.tint)), noise.mul(variation.strength));
+  if (variation.cavity > 0) out = mix(out, linear(variation.cavityColor), clamp(vertexColorChannel("r").mul(variation.cavity), 0, 1));
+  if (variation.top > 0) {
+    const up = pow(max(normalWorldGeometry.y, 0), variation.topSharpness);
+    out = mix(out, linear(variation.topColor), clamp(up.mul(noise.mul(0.6).add(0.7)).mul(variation.top), 0, 1));
+  }
+  return out;
+}
+
 export function createSurfaceMaterial(
   data: SurfaceMaterialData,
   textures: SurfaceTextures,
@@ -182,7 +219,9 @@ export function createSurfaceMaterial(
     const flip = data.flipY && (tex as Texture & { isCompressedTexture?: boolean }).isCompressedTexture !== true;
     return flip ? vec2(tiled.x, float(1).sub(tiled.y)) : tiled;
   };
-  const sample = (tex: Texture, tiling: Pair) => texture(tex, uvFor(tex, tiling));
+  const triplanar = data.projection?.mode === "triplanar" ? triplanarProjection(data.projection.metersPerRepeat, data.projection.sharpness) : null;
+  const sample = (tex: Texture, tiling: Pair) => (triplanar ? triplanar.sample(tex, tiling) : texture(tex, uvFor(tex, tiling)));
+  const variation = data.variation?.enabled ? data.variation : null;
 
   const baseMap = map("baseColorTexture");
   const opacityMap = map("opacityTexture");
@@ -204,6 +243,7 @@ export function createSurfaceMaterial(
   let opacityNode: FloatNode = opacityMap ? materialOpacity.mul(sample(opacityMap, data.uvTiling).g) : materialOpacity;
 
   if (material instanceof MeshBasicNodeMaterial) {
+    if (variation) colorRgb = applyVariation(colorRgb, variation);
     material.colorNode = vec4(colorRgb, colorAlpha);
     material.opacityNode = opacityNode;
     applyContributions(material, contributions);
@@ -249,7 +289,10 @@ export function createSurfaceMaterial(
       packed = sample(normalTex, data.uvTiling).xyz;
     }
     const scale = motion.enabled ? motion.strength : 1;
-    normalNode = normalMap(packed, vec2(scale, scale)) as unknown as Vec3Node;
+    // Triplanar: each projection's own frame; normal motion scrolls UVs and is not projected.
+    normalNode = triplanar && !motion.enabled
+      ? triplanar.normal(normalTex, data.uvTiling)
+      : (normalMap(packed, vec2(scale, scale)) as unknown as Vec3Node);
   }
 
   const blend = data.layerBlend;
@@ -287,10 +330,12 @@ export function createSurfaceMaterial(
     // The layer's normal only over a base normal map (Forge's USE_NORMALMAP_TANGENTSPACE condition).
     const layerNormalMap = layerMap("normalTexture");
     if (normalNode && layerNormalMap) {
-      normalNode = normalize(mix(normalNode, normalMap(sample(layerNormalMap, layer.uvTiling).xyz) as unknown as Vec3Node, f));
+      const layerNormal = triplanar ? triplanar.normal(layerNormalMap, layer.uvTiling) : (normalMap(sample(layerNormalMap, layer.uvTiling).xyz) as unknown as Vec3Node);
+      normalNode = normalize(mix(normalNode, layerNormal, f));
     }
   }
 
+  if (variation) colorRgb = applyVariation(colorRgb, variation);
   material.colorNode = vec4(colorRgb, colorAlpha);
   material.opacityNode = opacityNode;
   material.roughnessNode = roughnessNode;

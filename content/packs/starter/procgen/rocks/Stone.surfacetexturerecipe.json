@@ -1,0 +1,47 @@
+{
+  "schema": "forge.surfaceTextureRecipe/1",
+  "id": "ast_9d307c885cd46c2fdff9c53ce68a9472",
+  "generatorVersion": 1,
+  "seed": 11,
+  "size": "512",
+  "layers": [
+    {
+      "kind": "gradient",
+      "scale": 4,
+      "octaves": 5,
+      "gain": 0.5,
+      "weight": 1,
+      "blend": "add",
+      "threshold": 0.5,
+      "softness": 1
+    },
+    {
+      "kind": "cellular",
+      "scale": 8,
+      "octaves": 2,
+      "gain": 0.5,
+      "weight": 0.45,
+      "blend": "add",
+      "threshold": 0.5,
+      "softness": 1
+    }
+  ],
+  "colorRamp": [
+    {
+      "at": 0,
+      "color": "#4a4640"
+    },
+    {
+      "at": 0.55,
+      "color": "#7b766d"
+    },
+    {
+      "at": 1,
+      "color": "#a29c90"
+    }
+  ],
+  "normalStrength": 4,
+  "roughness": [0.95, 0.75],
+  "aoStrength": 0.6,
+  "metalness": 0
+}

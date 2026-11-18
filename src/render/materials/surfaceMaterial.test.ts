@@ -138,6 +138,31 @@ describe("forge.material as a node material", () => {
   });
 });
 
+describe("projection and variation (vegetation plan PG1)", () => {
+  test("triplanar samples each slot three times and builds the normal from the map without uv(); variation adds to the colour only when on", () => {
+    const color = new Texture(), normal = new Texture();
+    const maps = new Map([["baseColorTexture", color], ["normalTexture", normal]]);
+    const count = (node: Node | null, texture: Texture): number => {
+      // Distinct sample nodes: one sample read as .rgb and .a is visited twice.
+      const nodes = new Set<unknown>();
+      (node as unknown as { traverse(visit: (child: { isTextureNode?: boolean; value?: unknown }) => void): void } | null)?.traverse((child) => {
+        if (child.isTextureNode && child.value === texture) nodes.add(child);
+      });
+      return nodes.size;
+    };
+    const projection = { mode: "triplanar", metersPerRepeat: 2, sharpness: 4 } as const;
+    const tri = createSurfaceMaterial(material({ projection }), maps) as MeshStandardNodeMaterial;
+    expect(count(tri.colorNode, color)).toBe(3);
+    expect(count(tri.normalNode, normal)).toBe(3);
+    const flat = createSurfaceMaterial(material(), maps) as MeshStandardNodeMaterial;
+    expect(count(flat.colorNode, color)).toBe(1);
+    const variation = { enabled: true, scale: 6, tint: "#b8ab97", strength: 0.35, cavityColor: "#3a3229", cavity: 0.5, topColor: "#5b6b3c", top: 0, topSharpness: 4 };
+    const varied = createSurfaceMaterial(material({ projection, variation }), maps) as MeshStandardNodeMaterial;
+    expect(varied.colorNode).not.toBe(tri.colorNode);
+    expect(sampled(varied.colorNode)).toEqual([color]);
+  });
+});
+
 describe("material contributions", () => {
   test("the signature names the contributions in their fixed order; a world mask masks colour and shadow", () => {
     expect(contributionSignature({})).toBe("none");

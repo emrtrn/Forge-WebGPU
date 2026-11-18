@@ -337,6 +337,13 @@ async function start(): Promise<void> {
         },
         remove: () => devHeavy?.remove(),
       },
+      /** Vegetation plan PG1: path A of a stone material (every pixel in the shader) for the A / C measurement. */
+      async proceduralStone(guid: string, metersPerRepeat?: number) {
+        const scene = viewer.host?.world?.scene;
+        if (!scene) return 0;
+        const { applyProceduralStone } = await import("./render/materials/proceduralStoneDev.ts");
+        return applyProceduralStone(scene, guid, metersPerRepeat);
+      },
     };
   }
 }

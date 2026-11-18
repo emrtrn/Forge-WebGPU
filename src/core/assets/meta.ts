@@ -9,11 +9,16 @@
 // Licence and source are an ordinary field map (`AssetMetaFields`), so the
 // Details form and the JSON Schema come from the same definition as the
 // normalisation.
+//
+// `generated` (optional; vegetation plan §5.2, PG1): an asset a generation
+// tool wrote from a recipe names the recipe's GUID, the generator and its
+// version and a digest of the file, so a regeneration finds the files it owns
+// and verify:assets needs no third-party record. Absent on every other asset.
 
 import { createId, isId, type AssetId } from "../id.ts";
 import { isJsonObject, type JsonObject } from "../json.ts";
 import { parseComponentTypeTag } from "../schema/component.ts";
-import { object, text, type FieldValues } from "../schema/fields.ts";
+import { assetRef, num, object, text, type FieldValues } from "../schema/fields.ts";
 import {
   createContext,
   finish,
@@ -60,6 +65,16 @@ export const AssetMetaFields = {
 
 export type AssetProvenance = FieldValues<typeof AssetMetaFields>;
 
+/** The recipe a generated asset came from (meta `generated`). */
+export const GeneratedAssetFields = {
+  recipe: assetRef({ hint: "Bu asset'i üreten tarif." }),
+  generator: text({ required: true, hint: "Üreticinin adı (rock, surfaceTexture, …)." }),
+  generatorVersion: num({ min: 1, step: 1, default: 1, hint: "Dosyayı yazan üreticinin sürümü." }),
+  contentHash: text({ pattern: "^[0-9a-f]{64}$", hint: "Dosyanın SHA-256 özeti." }),
+};
+
+export type GeneratedAssetRecord = FieldValues<typeof GeneratedAssetFields>;
+
 export interface AssetMetaDoc extends AssetProvenance {
   schema: typeof ASSET_META_SCHEMA;
   id: AssetId;
@@ -67,13 +82,15 @@ export interface AssetMetaDoc extends AssetProvenance {
   type: string;
   /** The type's import settings. */
   import: JsonObject;
+  /** Present on an asset a generation tool wrote. */
+  generated?: GeneratedAssetRecord;
 }
 
 export interface AssetMetaNormalizeOptions extends NormalizeOptions {
   readonly registry: SchemaRegistry;
 }
 
-const META_KEYS = ["schema", "id", "type", "license", "source", "import"];
+const META_KEYS = ["schema", "id", "type", "license", "source", "import", "generated"];
 
 /** `meshes/car.glb` -> `meshes/car.glb.meta.json`. */
 export function metaPathOf(assetPath: string): string {
@@ -114,6 +131,13 @@ export function normalizeAssetMeta(
     source: normalizeValue(AssetMetaFields.source, raw.source, "source", ctx) as AssetProvenance["source"],
     import: settings,
   };
+  if (raw.generated !== undefined) {
+    if (isJsonObject(raw.generated)) {
+      value.generated = normalizeFieldMap(GeneratedAssetFields, raw.generated, "generated", ctx) as GeneratedAssetRecord;
+    } else {
+      reportLoss(ctx, "invalid-value", "generated", "Expected the generating recipe's record; dropped.");
+    }
+  }
   for (const key of Object.keys(raw)) {
     if (!META_KEYS.includes(key)) {
       reportLoss(ctx, "unknown-field", key, "An asset meta file has no such field; dropped.");

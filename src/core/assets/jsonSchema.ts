@@ -7,7 +7,7 @@
 import { idJsonSchema, fieldMapJsonSchema, JSON_SCHEMA_DRAFT, type JsonSchema } from "../schema/jsonSchema.ts";
 import type { SchemaRegistry } from "../schema/registry.ts";
 import { assetTypeTag, type BinaryAssetTypeDef } from "./assetType.ts";
-import { ASSET_META_SCHEMA, AssetMetaFields } from "./meta.ts";
+import { ASSET_META_SCHEMA, AssetMetaFields, GeneratedAssetFields } from "./meta.ts";
 
 export function assetMetaJsonSchema(registry: SchemaRegistry): JsonSchema {
   const types = registry
@@ -28,6 +28,7 @@ export function assetMetaJsonSchema(registry: SchemaRegistry): JsonSchema {
       type: types.length === 0 ? false : { enum: types.map(assetTypeTag) },
       ...(provenance.properties as Record<string, JsonSchema>),
       import: { type: "object" },
+      generated: fieldMapJsonSchema(GeneratedAssetFields),
     },
     required: ["schema", "id", "type", ...(provenance.required as string[])],
     additionalProperties: false,

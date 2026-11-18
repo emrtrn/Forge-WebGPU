@@ -1,0 +1,19 @@
+{
+  "schema": "forge.rockRecipe/1",
+  "id": "ast_49952fa42490dda70383d99c0f04f762",
+  "generatorVersion": 1,
+  "variants": [1, 2, 3],
+  "size": [2.4, 1.6, 2],
+  "shape": "angular",
+  "cuts": 10,
+  "noise": {
+    "amplitude": 0.06,
+    "scale": 3,
+    "octaves": 3
+  },
+  "flattenBottom": 0.6,
+  "embedDepth": 0.08,
+  "lods": [3, 2, 1],
+  "material": "ast_c21ec62d73eb2b115ae713fe7bee348c",
+  "collision": "hull"
+}

@@ -1,0 +1,52 @@
+{
+  "schema": "forge.foliageType/1",
+  "id": "ast_9692cd744cb8684fedb0240413cd1d1d",
+  "mesh": "ast_c37f3f7112aee9be5592812b3a9b1dce",
+  "family": null,
+  "prototype": 0,
+  "radius": 0.5,
+  "density": 1,
+  "scaleMin": 1,
+  "scaleMax": 1,
+  "randomYaw": true,
+  "alignToNormal": true,
+  "zOffsetMin": 0,
+  "zOffsetMax": 0,
+  "slopeMin": 0,
+  "slopeMax": 90,
+  "heightLimit": {
+    "enabled": false,
+    "min": -10000,
+    "max": 10000
+  },
+  "castShadow": true,
+  "collision": true,
+  "cullStart": 0,
+  "cullEnd": 0,
+  "sway": {
+    "enabled": false,
+    "source": "height",
+    "amplitude": 0.15,
+    "height": 1,
+    "frequency": 0.6
+  },
+  "far": {
+    "distance": 0,
+    "tint": 0
+  },
+  "lods": [
+    {
+      "mesh": "ast_0b0b954c4b0c0c52c24b574e95383db8",
+      "screenSize": 0.3
+    },
+    {
+      "mesh": "ast_3787d059a974d99449ee178cefc4d5b5",
+      "screenSize": 0.12
+    }
+  ],
+  "impostor": {
+    "albedo": null,
+    "normal": null,
+    "views": 8
+  }
+}

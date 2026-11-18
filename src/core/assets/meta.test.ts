@@ -131,6 +131,24 @@ describe("normalizeAssetMeta", () => {
     ]);
   });
 
+  test("a generated asset's recipe record is kept and checked; it stays optional", () => {
+    const generated = {
+      recipe: "ast_fedcba9876543210fedcba9876543210",
+      generator: "rock",
+      generatorVersion: 2,
+      contentHash: "a".repeat(64),
+    };
+    const kept = check({ ...GOOD, generated });
+    expect(kept.issues).toEqual([]);
+    expect(kept.value?.generated).toEqual(generated);
+    expect(check(GOOD).value).not.toHaveProperty("generated");
+    expect(summary({ ...GOOD, generated: { ...generated, contentHash: "nope" } })).toEqual(["error invalid-value generated.contentHash"]);
+    expect(summary({ ...GOOD, generated: 3 })).toEqual(["error invalid-value generated"]);
+    const schema = assetMetaJsonSchema(createRegistry());
+    expect(validateJsonSchema(schema, { ...GOOD, generated })).toEqual([]);
+    expect(validateJsonSchema(schema, { ...GOOD, generated: { ...generated, extra: 1 } })).not.toEqual([]);
+  });
+
   test("createAssetMeta builds a canonical meta file and reports missing provenance", () => {
     const registry = createRegistry();
     const made = createAssetMeta(Mesh, { license: "CC0-1.0", source: { origin: "authored" } }, { strict: true, registry });

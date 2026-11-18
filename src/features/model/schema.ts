@@ -14,6 +14,11 @@
 //   (textures to WebP under a size limit, meshopt geometry, normal maps kept
 //   or dropped, embedded textures stripped); a Reimport applies it again.
 //   Added with defaults, so version 2 files read as they are.
+// - `collision` (vegetation plan PG1, user decision 2026-11-18): simple
+//   collision shapes in model space, where Forge WebGL kept `*.collision.json`.
+//   For now only convex hulls (`convex`, flat XYZ point lists), which the rock
+//   generator writes; phase 6 widens the group (Forge's primitives,
+//   complexity) and builds the collider from it. Empty: the physics default.
 // A placement can override the materials (`forge.staticMesh.materials`).
 // Version 1 had no settings; its files migrate to the defaults.
 
@@ -70,6 +75,17 @@ export const ModelAssetType = defineAssetType(
           }),
         },
         { label: "Optimize", hint: "İçe aktarmada GLB optimizasyonu; Reimport aynı ayarla uygular." },
+      ),
+      collision: object(
+        {
+          convex: array(
+            object({
+              points: array(num({ default: 0 }), { hint: "Kabuğun noktaları, model uzayında X Y Z sırasıyla, metre." }),
+            }, { label: "Convex Hull" }),
+            { hint: "Dışbükey çarpışma kabukları (prosedürel kaya yazar). Boşsa fiziğin varsayılanı." },
+          ),
+        },
+        { label: "Collision", hint: "Basit çarpışma şekilleri, model uzayında (çarpışmayı kuran fizik Faz 6'da)." },
       ),
     },
   },
