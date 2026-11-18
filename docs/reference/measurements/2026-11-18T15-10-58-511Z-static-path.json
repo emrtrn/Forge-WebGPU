@@ -1,0 +1,400 @@
+{
+  "schema": 1,
+  "kind": "phase 5c R9.0 static batches: instanced vs GPU-driven automatic LOD",
+  "date": "2026-11-18T15:10:58.511Z",
+  "commit": "af16f21d82449576eaf2dd910ccc18b05a7219fc",
+  "dirty": true,
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "frameMs": 16.666666666666668,
+  "warmFrames": 60,
+  "frames": 300,
+  "results": [
+    {
+      "level": "derekavak",
+      "pose": "p2",
+      "path": "instanced",
+      "readyMs": 6548,
+      "draws": 119,
+      "threeTriangles": 1849148,
+      "gpu": {
+        "batches": 6,
+        "instances": 1640,
+        "draws": 42,
+        "views": 4,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 0,
+        "generated": 0
+      },
+      "submitMs": {
+        "mean": 1.393,
+        "p95": 3.1
+      },
+      "cpuMs": {
+        "mean": 2.984,
+        "p95": 4.7
+      },
+      "gpuMs": {
+        "mean": 3.526,
+        "p95": 5.112,
+        "samples": 300
+      }
+    },
+    {
+      "level": "derekavak",
+      "pose": "p2",
+      "path": "gpu",
+      "readyMs": 7802,
+      "draws": 135,
+      "threeTriangles": 1816676,
+      "gpu": {
+        "batches": 21,
+        "instances": 1736,
+        "draws": 102,
+        "views": 4,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 117,
+        "generated": 1
+      },
+      "submitMs": {
+        "mean": 2.124,
+        "p95": 3.4
+      },
+      "cpuMs": {
+        "mean": 3.532,
+        "p95": 4.9
+      },
+      "gpuMs": {
+        "mean": 4.146,
+        "p95": 5.177,
+        "samples": 300
+      }
+    },
+    {
+      "level": "derekavak",
+      "pose": "p2",
+      "path": "auto",
+      "readyMs": 6252,
+      "draws": 43,
+      "threeTriangles": 1,
+      "gpu": {
+        "batches": 6,
+        "instances": 1640,
+        "draws": 42,
+        "views": 4,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 0,
+        "generated": 0
+      },
+      "submitMs": {
+        "mean": 1.555,
+        "p95": 4
+      },
+      "cpuMs": {
+        "mean": 3.004,
+        "p95": 5.9
+      },
+      "gpuMs": {
+        "mean": 3.388,
+        "p95": 5.177,
+        "samples": 300
+      }
+    },
+    {
+      "level": "wb-pilot",
+      "pose": "p1",
+      "path": "instanced",
+      "readyMs": 4011,
+      "draws": 68,
+      "threeTriangles": 1059893,
+      "gpu": {
+        "batches": 6,
+        "instances": 2250,
+        "draws": 42,
+        "views": 4,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 0,
+        "generated": 0
+      },
+      "submitMs": {
+        "mean": 1.194,
+        "p95": 1.8
+      },
+      "cpuMs": {
+        "mean": 2.158,
+        "p95": 3
+      },
+      "gpuMs": {
+        "mean": 3.8,
+        "p95": 4.85,
+        "samples": 300
+      }
+    },
+    {
+      "level": "wb-pilot",
+      "pose": "p1",
+      "path": "gpu",
+      "readyMs": 5035,
+      "draws": 89,
+      "threeTriangles": 263693,
+      "gpu": {
+        "batches": 17,
+        "instances": 2293,
+        "draws": 86,
+        "views": 4,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 11,
+        "generated": 0
+      },
+      "submitMs": {
+        "mean": 1.796,
+        "p95": 2.7
+      },
+      "cpuMs": {
+        "mean": 2.731,
+        "p95": 3.8
+      },
+      "gpuMs": {
+        "mean": 3.696,
+        "p95": 4.784,
+        "samples": 300
+      }
+    },
+    {
+      "level": "wb-pilot",
+      "pose": "p1",
+      "path": "auto",
+      "readyMs": 3963,
+      "draws": 68,
+      "threeTriangles": 1059893,
+      "gpu": {
+        "batches": 6,
+        "instances": 2250,
+        "draws": 42,
+        "views": 4,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 0,
+        "generated": 0
+      },
+      "submitMs": {
+        "mean": 1.217,
+        "p95": 1.8
+      },
+      "cpuMs": {
+        "mean": 2.148,
+        "p95": 3
+      },
+      "gpuMs": {
+        "mean": 3.989,
+        "p95": 4.85,
+        "samples": 300
+      }
+    },
+    {
+      "level": "island",
+      "pose": "p1",
+      "path": "instanced",
+      "readyMs": 4419,
+      "draws": 29,
+      "threeTriangles": 307457,
+      "gpu": {
+        "batches": 6,
+        "instances": 1408,
+        "draws": 24,
+        "views": 2,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 0,
+        "generated": 0
+      },
+      "submitMs": {
+        "mean": 0.75,
+        "p95": 1.1
+      },
+      "cpuMs": {
+        "mean": 1.777,
+        "p95": 2.5
+      },
+      "gpuMs": {
+        "mean": 2.246,
+        "p95": 2.884,
+        "samples": 300
+      }
+    },
+    {
+      "level": "island",
+      "pose": "p1",
+      "path": "gpu",
+      "readyMs": 4933,
+      "draws": 28,
+      "threeTriangles": 151053,
+      "gpu": {
+        "batches": 7,
+        "instances": 1855,
+        "draws": 25,
+        "views": 2,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 0,
+        "generated": 1
+      },
+      "submitMs": {
+        "mean": 0.76,
+        "p95": 1.1
+      },
+      "cpuMs": {
+        "mean": 1.783,
+        "p95": 2.4
+      },
+      "gpuMs": {
+        "mean": 2.29,
+        "p95": 2.753,
+        "samples": 300
+      }
+    },
+    {
+      "level": "island",
+      "pose": "p1",
+      "path": "auto",
+      "readyMs": 4893,
+      "draws": 28,
+      "threeTriangles": 156417,
+      "gpu": {
+        "batches": 6,
+        "instances": 1408,
+        "draws": 24,
+        "views": 2,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 0,
+        "generated": 0
+      },
+      "submitMs": {
+        "mean": 0.762,
+        "p95": 1.2
+      },
+      "cpuMs": {
+        "mean": 1.782,
+        "p95": 2.5
+      },
+      "gpuMs": {
+        "mean": 2.267,
+        "p95": 2.753,
+        "samples": 300
+      }
+    },
+    {
+      "level": "open-world",
+      "pose": "p1",
+      "path": "instanced",
+      "readyMs": 1343,
+      "draws": 3,
+      "threeTriangles": 289293,
+      "gpu": {
+        "batches": 0,
+        "instances": 0,
+        "draws": 0,
+        "views": 0,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 0,
+        "generated": 0
+      },
+      "submitMs": {
+        "mean": 0.325,
+        "p95": 0.5
+      },
+      "cpuMs": {
+        "mean": 0.633,
+        "p95": 1
+      },
+      "gpuMs": {
+        "mean": 1.325,
+        "p95": 1.507,
+        "samples": 300
+      }
+    },
+    {
+      "level": "open-world",
+      "pose": "p1",
+      "path": "gpu",
+      "readyMs": 1379,
+      "draws": 3,
+      "threeTriangles": 289293,
+      "gpu": {
+        "batches": 0,
+        "instances": 0,
+        "draws": 0,
+        "views": 0,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 0,
+        "generated": 0
+      },
+      "submitMs": {
+        "mean": 0.329,
+        "p95": 0.6
+      },
+      "cpuMs": {
+        "mean": 0.631,
+        "p95": 1
+      },
+      "gpuMs": {
+        "mean": 1.315,
+        "p95": 1.573,
+        "samples": 300
+      }
+    },
+    {
+      "level": "open-world",
+      "pose": "p1",
+      "path": "auto",
+      "readyMs": 1391,
+      "draws": 3,
+      "threeTriangles": 289293,
+      "gpu": {
+        "batches": 0,
+        "instances": 0,
+        "draws": 0,
+        "views": 0,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 0,
+        "generated": 0
+      },
+      "submitMs": {
+        "mean": 0.319,
+        "p95": 0.6
+      },
+      "cpuMs": {
+        "mean": 0.604,
+        "p95": 0.9
+      },
+      "gpuMs": {
+        "mean": 1.323,
+        "p95": 1.573,
+        "samples": 300
+      }
+    }
+  ]
+}

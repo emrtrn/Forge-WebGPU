@@ -1,7 +1,7 @@
 # Katmanlı çizim bütçesi planı (Faz 5c R9c)
 
-**Sürüm:** v0.1 · 2026-11-18 — İlk taslak: katmanlar, altı adım, şehir sahnesi, açık sorular.
-Yalnız plan; kod yok. Kararlar kullanıcıda (aşağıda §8).
+**Sürüm:** v0.3 · 2026-11-18 — Adım 2 ve Adım 3 donanım doğrulaması ve kullanıcı
+görsel onayıyla kapandı. Adım 3 aynı zamanda R9b’nin yeni Z6 kabulünü tamamladı.
 
 Bu belge ana plandan ayrıdır (kullanıcı kararı 2026-11-18; `CLAUDE.md`'deki "tek ana plan"
 kuralının istisnası). Ana planda ([FORGE_WEBGPU_REBUILD_PLAN.md](FORGE_WEBGPU_REBUILD_PLAN.md))
@@ -32,7 +32,7 @@ olmadan. G6 (Derekavak P2) R10 / F7'de ölçülür; bu plan ona girdi verir, onu
 
 ## 2. Katmanlar
 
-| Katman | Hangi nesneler | Mekanizma | Bugünkü durum | Açık |
+| Katman | Hangi nesneler | Mekanizma | Başlangıç durumu | İlgili adım |
 |---|---|---|---|---|
 | Batch + slot birleştirme (zemin) | Hepsi | Aynı model + slot materyali tek batch; slot başına tek geometri (R8.1) | Var; `instanced` / `gpu` / `auto` yol seçimi (R9, S1: > 5.000 üçgenli parça GPU yolu) | Farklı materyallerin atlası (kayıplı) yok — adım 6 |
 | Otomatik LOD (zemin) | GPU yolundaki statikler, foliage | Ekran hatasıyla ayrık LOD (R7) | Yalnız GPU yoluna giden batch'lerde | Instanced hafif batch'lerde LOD yok (kasıtlı, S1) |
@@ -172,6 +172,9 @@ sırasıyla p99’da 50,2 ve 50,2 ms, en uzun karede 66,7 ve 66,6 ms oldu.
 
 ### 5.2 Adım 2 — Boyuta göre gölge cull distance
 
+**Durum:** Kapalı. Yerel donanım WebGPU doğrulaması ve kullanıcı görsel kabulü
+18 Kasım 2026’da tamamlandı.
+
 **Tasarım.** Bir nesnenin kaskat k'ya gölge düşürmesi için dünya yarıçapı, o kaskadın texel
 boyunun belli bir katından büyük olmalı (texel kuralı, öneri; S9):
 
@@ -230,35 +233,230 @@ k = 1..n), `casterLayerMask(cascade: number, classLayers: readonly number[]): nu
 sınırda eşitlik dahil, NaN / 0 / negatif girişte 0, texel dizisi artan değilse hata; tablodaki
 örnek değerler testte.
 
+**Yerel doğrulama — 18 Kasım 2026.** `1076ea5`, yerel `main` geçmişinde doğrulandı.
+Adım 2’nin ölçümleri yalıtılmış `1076ea5` çalışma ağacında, şehir referansı §5.1’deki
+`2cd3878` kaydıyla ve statik yol kontrolleri `af16f21` ebeveyniyle karşılaştırılır.
+İlk tam şehir koşusu donanım WebGPU ile 11 profil-poz çiftini ölçtü. `ultra / high`
+açılırken 20 dakikalık test bütçesi doldu ve koşucu JSON yazamadı. Tam koşu bütçesi
+30 dakikaya çıkarıldı.
+
+- **Donanım WebGPU.** Beş odaklı dosyada 31 test geçti. Derekavak P2 smoke’unda ana
+  görünüm ve kaskat sayımları CPU referansıyla uyuştu. İlk bundle görüntü karşılaştırması
+  başarısız oldu. Tekrar koşusunda yeniden kurulum ve görüntü alımı boyunca sahne saati
+  sabitlendi, mevcut piksel toleransıyla test geçti. Editörde gölgeleri kapatma görüntüyü
+  1,490 ortalama piksel birimi değiştirdi, açınca fark sıfıra döndü.
+  [Culling kaydı](../reference/measurements/2026-11-18T14-49-46-708Z-gpu-culling.json)
+- **WebGL2.** CPU culling ikizi ve editörde gölge anahtarı testi geçti. Editörde kapatma
+  farkı 1,491, yeniden açma farkı sıfırdı.
+  [Culling kaydı](../reference/measurements/2026-11-18T14-44-03-032Z-gpu-culling-webgl.json)
+
+**Şehir karşılaştırması.** Odaklı tekrar koşusunda istenen altı profil-poz çifti
+aynı sahne, `auto` yolu, 1920 × 1080, DPR 1, 60 ısınma ve 300 ölçüm karesiyle kaydedildi.
+Chrome 157.0.8103.79, NVIDIA GeForce RTX 3060 (Ampere), donanım WebGPU ve timestamp
+sorguları. Rakamlar önce → sonra sırasındadır. GPU farkı, gölgeli eksi gölgesiz
+ortalama süredir. Gölge kapalıyken kaskat geçişi ve kaskat draw’u sıfırdır.
+[Referans JSON](../reference/measurements/2026-11-18T12-56-43-343Z-city.json)
+[Adım 2 JSON](../reference/measurements/2026-11-18T14-56-13-740Z-city.json)
+
+| Profil | Poz | Ana draw açık | Ana draw kapalı | Kaskat draw (1–4), önce → sonra | Toplam draw açık | Toplam draw kapalı |
+| --- | --- | ---: | ---: | --- | ---: | ---: |
+| high | street | 358 → 358 | 358 → 358 | 126 / 245 / 495 → 126 / 245 / 404 | 1225 → 1134 | 359 → 359 |
+| high | square | 156 → 156 | 156 → 156 | 102 / 102 / 288 → 102 / 102 / 270 | 649 → 631 | 157 → 157 |
+| high | high | 163 → 163 | 163 → 163 | 101 / 101 / 134 → 101 / 101 / 134 | 500 → 500 | 164 → 164 |
+| ultra | street | 387 → 387 | 387 → 387 | 124 / 126 / 354 / 548 → 124 / 126 / 354 / 548 | 1540 → 1540 | 388 → 388 |
+| ultra | square | 185 → 185 | 185 → 185 | 102 / 102 / 143 / 421 → 102 / 102 / 143 / 421 | 954 → 954 | 186 → 186 |
+| ultra | high | 163 → 163 | 163 → 163 | 101 / 101 / 110 / 158 → 101 / 101 / 110 / 158 | 634 → 634 | 164 → 164 |
+
+| Profil | Poz | Render GPU açık / kapalı / fark (ms), önce → sonra | Compute GPU açık / kapalı / fark (ms), önce → sonra |
+| --- | --- | --- | --- |
+| high | street | 3,392 / 1,306 / 2,085 → 3,448 / 1,283 / 2,165 | 0,000 / 0,000 / 0,000 → 0,000 / 0,000 / 0,000 |
+| high | square | 4,513 / 1,527 / 2,986 → 4,442 / 1,531 / 2,911 | 0,000 / 0,000 / 0,000 → 0,000 / 0,000 / 0,000 |
+| high | high | 4,242 / 1,582 / 2,661 → 4,260 / 1,579 / 2,681 | 0,000 / 0,000 / 0,000 → 0,000 / 0,000 / 0,000 |
+| ultra | street | 4,234 / 1,332 / 2,901 → 4,082 / 1,280 / 2,802 | 0,000 / 0,000 / 0,000 → 0,000 / 0,000 / 0,000 |
+| ultra | square | 5,367 / 1,475 / 3,892 → 5,610 / 1,493 / 4,117 | 0,000 / 0,000 / 0,000 → 0,000 / 0,000 / 0,000 |
+| ultra | high | 5,216 / 1,599 / 3,617 → 5,323 / 1,619 / 3,704 | 0,000 / 0,000 / 0,000 → 0,000 / 0,000 / 0,000 |
+
+`high / street` K3’te 91 (%18,4), `high / square` K3’te 18 (%6,3) draw azaldı.
+Altı ana görünümün draw sayısı aynı kaldı. Boş indirect komutları sayaca dahil
+olabilir. Bu `auto` örneklerinde açık ve kapalı koşulda compute dispatch ve indirect
+draw kaydedilmedi, dolayısıyla düşüş doğrudan draw’larda ölçüldü. Gölgeli render
+süresi örnekler arasında −0,152 ile +0,243 ms değişti.
+
+**Görünüm başına GPU render süresi.** §5.1 JSON’u yalnız toplam süre içeriyor.
+Ana görünüm ve kaskat süreleri için `af16f21` ve `1076ea5` üzerinde ayrı birer
+donanım WebGPU koşusunda, her koşulda 15 ısınma ve 30 ölçüm karesi kullanıldı.
+Her poz yeni sayfada açıldı. Render timestamp’leri kameraya göre toplandı.
+Gölge kapalı kaskat süresi 0 ms. Bu örneklerde compute dispatch olmadığı için
+ana görünüm, kaskatlar ve diğer geçişlerin compute süresi 0 ms.
+[Önceki geçiş süreleri](../reference/measurements/af16f21-city-pass-times.json)
+[Adım 2 geçiş süreleri](../reference/measurements/1076ea5-city-pass-times.json)
+
+| Profil | Poz | Ana render açık (ms) | Ana render kapalı (ms) | Kaskat render (ms), önce → sonra | Diğer render açık (ms) |
+| --- | --- | ---: | ---: | --- | ---: |
+| high | street | 1,669 → 1,654 | 1,520 → 1,466 | 0,623 / 0,636 / 0,717 → 0,599 / 0,616 / 0,686 | 0,035 → 0,037 |
+| high | square | 1,802 → 1,726 | 1,724 → 1,684 | 0,944 / 0,979 / 0,985 → 0,918 / 0,924 / 0,963 | 0,039 → 0,042 |
+| high | high | 1,877 → 1,898 | 1,800 → 1,813 | 0,883 / 0,893 / 0,915 → 0,885 / 0,885 / 0,904 | 0,031 → 0,035 |
+| ultra | street | 1,728 → 1,719 | 1,525 → 1,536 | 0,592 / 0,614 / 0,644 / 0,765 → 0,623 / 0,629 / 0,673 / 0,793 | 0,033 → 0,039 |
+| ultra | square | 1,811 → 1,798 | 1,684 → 1,715 | 0,937 / 0,920 / 0,944 / 1,051 → 0,887 / 0,880 / 0,907 / 0,992 | 0,037 → 0,028 |
+| ultra | high | 1,935 → 1,962 | 1,802 → 1,811 | 0,850 / 0,841 / 0,883 / 0,976 → 0,889 / 0,856 / 0,880 / 0,950 | 0,042 → 0,033 |
+
+**Referans sahneler.** `measure:static-path` dört sahne × üç yol için iki commit’te
+de tamamlandı. İlk GPU yolu açılışındaki sayfa yenilemesini önlemek için Vite,
+üçgen worker’ının kullandığı mevcut `meshoptimizer/simplifier` girişini önceden
+hazırlıyor. İki kayıttaki çalışma ağacı değişikliği aynı Vite ayarıdır.
+[Önceki kayıt](../reference/measurements/2026-11-18T15-10-58-511Z-static-path.json)
+[Adım 2 kaydı](../reference/measurements/2026-11-18T15-09-22-362Z-static-path.json)
+
+| Sahne / poz | Statik yol | Draw | Gönderim ort. (ms) | Kare CPU ort. (ms) | GPU render ort. (ms) | GPU render p95 (ms) |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| derekavak / p2 | instanced | 119 → 119 | 1,393 → 1,317 | 2,984 → 2,763 | 3,526 → 3,112 | 5,112 → 5,112 |
+| derekavak / p2 | gpu | 135 → 135 | 2,124 → 2,265 | 3,532 → 3,757 | 4,146 → 4,116 | 5,177 → 5,177 |
+| derekavak / p2 | auto | 43 → 119 | 1,555 → 1,276 | 3,004 → 2,686 | 3,388 → 3,126 | 5,177 → 5,112 |
+| wb-pilot / p1 | instanced | 68 → 51 | 1,194 → 1,189 | 2,158 → 2,138 | 3,800 → 3,826 | 4,850 → 4,784 |
+| wb-pilot / p1 | gpu | 89 → 89 | 1,796 → 1,871 | 2,731 → 2,825 | 3,696 → 3,764 | 4,784 → 4,915 |
+| wb-pilot / p1 | auto | 68 → 51 | 1,217 → 1,251 | 2,148 → 2,238 | 3,989 → 3,603 | 4,850 → 4,653 |
+| island / p1 | instanced | 29 → 29 | 0,750 → 0,769 | 1,777 → 1,806 | 2,246 → 2,287 | 2,884 → 2,884 |
+| island / p1 | gpu | 28 → 28 | 0,760 → 0,791 | 1,783 → 1,851 | 2,290 → 2,316 | 2,753 → 3,146 |
+| island / p1 | auto | 28 → 28 | 0,762 → 0,750 | 1,782 → 1,755 | 2,267 → 2,264 | 2,753 → 3,015 |
+| open-world / p1 | instanced | 3 → 3 | 0,325 → 0,322 | 0,633 → 0,615 | 1,325 → 1,293 | 1,507 → 1,573 |
+| open-world / p1 | gpu | 3 → 3 | 0,329 → 0,339 | 0,631 → 0,635 | 1,315 → 1,268 | 1,573 → 1,507 |
+| open-world / p1 | auto | 3 → 3 | 0,319 → 0,339 | 0,604 → 0,631 | 1,323 → 1,281 | 1,573 → 1,573 |
+
+Varsayılan `auto` yolunda dört sahnenin GPU render ortalaması düştü. Island P1’de
+GPU render p95, `auto` yolunda +0,262 ms ve `gpu` yolunda +0,393 ms ölçüldü.
+Island tekrarında GPU render ortalaması `auto` için 2,243 → 2,182 ms,
+`gpu` için 2,343 → 2,281 ms oldu. p95 farkı sırasıyla +0,065 ms ve −0,131 ms.
+İlk ölçümdeki kuyruk gecikmesi artışı aynı büyüklükte tekrarlanmadı.
+[Island önce](../reference/measurements/2026-11-18T15-18-45-397Z-static-path.json)
+[Island sonra](../reference/measurements/2026-11-18T15-19-09-919Z-static-path.json)
+
+Statik yol komutunun tek karelik draw sayacı, duraklatılmış sahnede bazı
+geçişleri kaçırabildiğinden karşılaştırma GPU ve CPU sürelerine dayanıyor.
+
+**Görsel inceleme.** Donanım WebGPU, `high`, 1080p. Sokak pozuna yalnız görsel
+inceleme için turuncu bir koni, büyük bir küre ve ortam dolgu ışığı eklendi.
+Koni, ölçülen K2/K3 eşiği arasındaki 0,320 m yarıçapıyla son olarak K2’ye gölge
+düşürüyor. K2 sınırı 46,33 m, solma 39,38 m’de başlıyor. Aşağıdaki yakın
+çekimlerde koninin zemindeki gölgesi karşılaştırılabilir.
+
+- [Solma öncesi (37,52 m)](../reference/measurements/r9c-step2-visual/street-fade-before.png)
+- [Solma bandı (43,31 m)](../reference/measurements/r9c-step2-visual/street-fade-within.png)
+  ve [aynı kamera, boyut eşiği kapalı](../reference/measurements/r9c-step2-visual/street-fade-within-threshold-off.png)
+- [Kaskat sınırının ötesi (47,48 m)](../reference/measurements/r9c-step2-visual/street-fade-beyond.png)
+- [Öğle](../reference/measurements/r9c-step2-visual/street-day.png),
+  [gün batımı, 17.33](../reference/measurements/r9c-step2-visual/street-sunset.png).
+  Ağaç ve lamba gölgeleri kaldırım boyunca uzuyor. Bu kadrajda boyut eşiği
+  açık ve kapalı gün batımı PNG’lerinin SHA-256 değerleri aynıydı.
+  [Çekim parametreleri](../reference/measurements/r9c-step2-visual/street-visual.json)
+
+Kullanıcı, sokak pozundaki kaskat solmasını ve gün batımı gölgelerini 18 Kasım 2026’da onayladı.
+
 ### 5.3 Adım 3 — Bölge düzeltmeleri (a, b, d)
 
-**(a) Atama: yalnız tamamen sığan bölgeye girer (öneri; S1).** Yerleşimin dünya kutusu (model
-sınırları × matris; şekil sınırları biliniyor) bir bölgenin kutusuna küçük toleransla (öneri
-2 cm) tamamen sığarsa o bölgeye (en küçüğüne) aittir; sığmayan bölgesizdir ve hep çizilir. Duvar,
+**Durum:** Yerelde tamamlandı. Kullanıcı görselleri 18 Kasım 2026’da onayladı.
+(a) için `zoneOfBox` instanced batch ve GPU örnek
+yuvasına bağlı. (b) için dış kamera portal grafına `OUTSIDE` düğümünden giriyor.
+Üretim S16 kararı uyarınca katları tek koşuda tarıyor. (d) için HLOD hücre ve
+landmark proxy’lerinden bölgeye sığan yerleşimler çıkarılıyor. Kaynak hash’i
+bölge ve portal yerleşimlerini içeriyor.
+
+Tam sığma sınırı, döndürülmüş bölge, model yüklenince yeniden atama ve GPU
+yoluna tam model kutusunun aktarılması odaklı testlerle doğrulandı.
+
+Sentetik iç mekânda tekrar üretim 64 oda, 112 iç kapı ve 64 açık tavan portalı
+için aynı baytları verdi. İki katlı sahnenin tek koşusu 0 ve 3 m zeminlerde dört
+oda ve sekiz portal üretti. İki katta da dış kapı ve pencere, üst katta iki açık
+tavan portalı oluştu. HLOD testinde sığan model ve şekil proxy’den çıkarıldı,
+taşan model korundu ve bir portalın taşınması proxy’yi bayat olarak işaretledi.
+
+Şehir üretimi 0 ve 3,2 m zeminlerde 234 + 18 oda buldu. 336 iç portal ve
+338 dış portal oluştu. Dış portallar 26 kapı, 310 pencere ve iki avlu üst
+açıklığından oluşuyor. Şehir üreteci sentetik bina kabuklarını ve bina
+modellerini engel olarak kullanıyor. Ağaç ve sokak eşyalarının kutuları
+önceki denemede sokakta dokuz sahte oda oluşturuyordu. Açık dış kapıyla
+`threshold` pozunda içeri bakılabiliyor.
+
+`zones.smoke.ts` donanım WebGPU ve WebGL2’de geçti. İç kapıdan iki oda
+göründü. Dış pencereye dönünce bir oda görünür kaldı, açıklıklardan uzağa
+bakınca görünür oda sayısı sıfıra indi. Editörde `Outside` etiketi ve üretimin
+tek Undo davranışı iki arka uçta doğrulandı.
+[Pencereden görülen oda (RTX 3060)](../reference/measurements/r9c-step3-visual/outside-through-window.png).
+
+**Ağır iç mekân, WebGPU.** 768 adet 36.480 üçgenli örnek, `auto`, poz başına 120 kare.
+Her yol tek batch kullandı. Bölge portal test sayısı en fazla 234/256 oldu, bütçe
+aşımı görülmedi. Oda pozunda GPU ortalaması 0,405 ms arttı. Diğer üç değişim
+−0,083 ile +0,032 ms arasında. Tek kare draw sayacı bazı pozlarda 13 ile 36
+arasında değiştiği için bu kayıttan draw kazancı çıkarılmadı.
+[Ham ölçüm](../reference/measurements/2026-11-18T16-18-27-868Z-zones.json).
+
+| Poz | GPU ms, bölgesiz → bölgeli | CPU ms, bölgesiz → bölgeli | Görünür oda / 64 | Portal testi |
+|---|---:|---:|---:|---:|
+| `room` | 1,916 → 2,321 | 0,925 → 1,362 | 9 | 45 |
+| `corridor` | 2,444 → 2,476 | 1,093 → 1,087 | 10 | 49 |
+| `diagonal` | 2,091 → 2,076 | 0,809 → 0,884 | 6 | 36 |
+| `above` | 1,808 → 1,725 | 0,750 → 0,938 | 24 | 234 |
+
+**Şehir, RTX 3060 WebGPU.** `auto`, 1920 × 1080, DPR 1. Poz ve gölge ayarı başına
+60 ısınma ve 300 örnek. `street` §5.2 ile, diğer pozlar §5.1 ile karşılaştırıldı.
+§5.1 referansında dış kapı kanadı kapalıydı. Karşılaştırma açık kapıyı ve yeni
+portal/HLOD üretimini de kapsıyor. GPU sütunu gölgeler açık/kapalı render
+ortalamalarını veriyor. Bu koşuda indirect draw, compute dispatch ve compute
+süresi sıfırdı.
+[Şehir ölçümü ve görünüm sayaçları](../reference/measurements/2026-11-18T16-38-24-150Z-city.json).
+
+| Profil | Poz | Ana draw, önce → sonra | Toplam draw, önce → sonra | GPU açık/kapalı ms, önce → sonra | Görünür oda / 252 | Portal testi / 256 |
+|---|---|---:|---:|---:|---:|---:|
+| high | `inside` | 125 → 124 | 561 → 548 | 4,392 / 1,546 → 4,729 / 1,662 | 2 | 7 |
+| high | `threshold` | 281 → 199 | 1.238 → 783 | 4,802 / 1,688 → 4,705 / 1,716 | 5 | 30 |
+| high | `facade` | 338 → 289 | 1.175 → 1.008 | 4,588 / 1,582 → 4,587 / 1,644 | 9 | 44 |
+| high | `street` | 358 → 118 | 1.134 → 422 | 3,448 / 1,283 → 3,345 / 1,235 | 0 | 0 |
+| ultra | `inside` | 125 → 124 | 706 → 701 | 5,267 / 1,527 → 5,725 / 1,719 | 2 | 7 |
+| ultra | `threshold` | 281 → 199 | 1.645 → 1.018 | 5,788 / 1,686 → 5,604 / 1,697 | 5 | 30 |
+| ultra | `facade` | 338 → 289 | 1.544 → 1.341 | 5,680 / 1,587 → 5,587 / 1,658 | 9 | 44 |
+| ultra | `street` | 387 → 118 | 1.540 → 523 | 4,082 / 1,280 → 3,969 / 1,225 | 0 | 0 |
+
+Portal bütçesi hiçbir şehir pozunda aşılmadı. `street` pozunda 20 dış aday
+projeksiyon öncesi mesafe filtresini geçti ve hiçbiri yürüyüş bütçesine girmedi.
+Gölgeli `inside` render süresi `high` için 0,337 ms, `ultra` için 0,458 ms arttı.
+`inside` p95 değeri `high` için 4,522 → 5,243 ms, `ultra` için 5,439 → 6,226 ms.
+`street` toplam draw sayısı iki profilde sırasıyla %62,8 ve %66,0 azaldı.
+
+**Görsel inceleme.** Şehir kareleri `high`, donanım WebGPU ve ölçümdeki kamera
+pozlarıyla alındı. İç mekân ayrıntılarını okunur kılmak için çekimde gölgesiz dolgu
+ışığı kullanıldı. Üretim ve performans JSON’u ölçüm sahnesinin güneş ışığıyla alındı.
+[İç mekân](../reference/measurements/r9c-step3-visual/city-inside.png),
+[dış kapı eşiği](../reference/measurements/r9c-step3-visual/city-threshold.png),
+[15 m cephe](../reference/measurements/r9c-step3-visual/city-facade.png),
+[yakın cephe ve pencere (3 m)](../reference/measurements/r9c-step3-visual/city-facade-close.png),
+[sokak](../reference/measurements/r9c-step3-visual/city-street.png).
+Kullanıcı Adım 3 görsellerini onayladı. Bu onay yeni Z6 görsel kabulünü tamamladı.
+
+**(a) Atama: yalnız tamamen sığan bölgeye girer (S1, kullanıcı kararı).** Yerleşimin dünya kutusu
+(model veya şekil sınırları × matris) bir bölgenin kutusuna 2 cm toleransla tamamen sığarsa
+o bölgeye (en küçüğüne) aittir; sığmayan bölgesizdir ve hep çizilir. Duvar,
 döşeme, tavan iki odanın sınırına ya da dışarıya taştığı için bölgesiz kalır: oda gizlenince
 yapı kaybolmaz. Model sınırları yüklenene kadar yerleşim bölgesizdir (görünür taraf), yüklenince
-yeniden anahtarlanır (Z3'ün `onChange` yolu). Şema ipucundaki "sınır küresinin merkezi"
-yazısı da düzeltilir (bugün kod yerleşim noktasını kullanıyor). Sığmayan ama bina içinde kalan
+yeniden anahtarlanır. Şema ipucu 2 cm toleranslı kutu kuralını gösterir. Sığmayan ama bina içinde kalan
 ara duvar / döşeme için S2.
 
 **(b) Dış düğüm.** Dışarısı portal grafında bir düğümdür (`OUTSIDE`). Dış portal = bir tarafı
 bölge, öbür tarafı dışarı olan portal (kapı, pencere, üst açıklık).
 - Kamera hiçbir bölgede değilse yürüyüş dış düğümden tam ekran dikdörtgenle başlar; bölge ancak
-  dış portaldan görünüyorsa çizilir. Bugünkü "bölge dışında hepsi görünür" kuralı kalkar.
+  dış portaldan görünüyorsa çizilir.
 - Kamera içerideyken dış portal geçilirse dış düğüme varılır; bölgesiz içerik zaten hep çizilir,
   dış düğümden başka binaların dış portallarına devam edilir (derinlik sınırı).
 - Üretim (`zoneGeneration.ts`): oda hücreleriyle dış hücrelerin (sınıra ulaşan boşluk) sınır
   koşuları dış portal olur (dış kapı); pencereler için duvar hücrelerinin dikey profili birkaç
   yükseklikte taranır, boşluk dış portal olur (S3); tavanı olmayan odaya tavan yüksekliğinde
   yatay üst açıklık portalı (S4).
-- Elle portal: otomatik bağlantı yalnız bir bölge bulursa öbür taraf dış (öneri; bugün
-  `unlinked`). Yeni şema alanı gerekmez (S18).
+- Elle portal: otomatik bağlantı bir bölge bulursa ve karşı taraf açık kalırsa portal dışarıya
+  bağlanır. Bu bağlantı mevcut şema ile çözülür (S18).
 - **Bütçe:** dış düğümden her binanın her dış portalını test etmek şehirde kare bütçesini (256)
   aşar ve bütçe aşımı "hepsi görünür"e düşer. Dış düğümden yalnız frustum içindeki ve belli
-  mesafedeki dış portallar test edilir (dış portal ızgarası; mesafe adım 4'ün yükleme mesafesiyle
-  aynı, öneri). Ölçümde portal testi sütunu var.
+  mesafedeki dış portallar yürüyüş bütçesini kullanır. Şimdiki mesafe 40 m. Dış portal
+  ızgarası yakın adayları seçer ve debug satırı projeksiyon sayısını gösterir.
 
-**(d) Bölgeye ait içerik HLOD'a girmez.** `tools/world/hlodInput.ts` / `hlodBuild.ts`
+**(d) Bölgeye ait içerik HLOD'a girmez.** `tools/world/hlodAssets.ts` / `hlodBuild.ts`
 yerleşimleri bölge kümesine (a)'nın kuralıyla atar, bölgeye ait olanları pişirmez. HLOD kaynak
 hash'i bölge / portal kümesini içerir (bölge değişince HLOD bayat; editörün Auto HLOD'u görür).
 (a)'da bölgesiz kalan ara duvar HLOD'da kalır (S2).
@@ -273,6 +471,8 @@ portal rengi), `engine/world/hlod.ts` + `tools/world/hlod*.ts`, `tools/zones/`,
 
 **Veri / şema:** `forge.zone@1` / `forge.portal@1` alanları değişmez (S18 öneriyle); HLOD index'in
 hash girdisi genişler (v2 içinde bayatlık, yeniden üretim).
+Mevcut bölgeli seviyelerde kapı ve pencereden dış görüş için portalları yeniden
+üretmek veya bu açıklıklara elle portal yerleştirmek gerekir.
 
 **Editör:** dış portallar ayrı renk, Details'ta çözülen taraflar ("Outside" gösterimi),
 `?debug`: dış düğüm, test edilen dış portal, bütçe aşımı.
@@ -381,17 +581,16 @@ Z0–Z5, Z3b ve Z7 commit'li; **Z6 kullanıcı görsel kabulü geçmedi** (2026-
 yerleşim noktası bölge sınırına (sınır dahil) düştüğü için bölgeye atanıyor, oda gizlenince
 duvar da kayboluyor. Ayrıca kamera bölge dışındayken her şey çiziliyor; hedef tersi.
 
-Öneri (S14): adım 3 (a, b, d) **R9b'nin tamamlanmasıdır**: (a) ve (d) R9b tasarımının düzeltmesi,
-(b) R9b'nin "bölge dışında hepsi görünür" kuralının değişmesi; üçü de görünürlük kapsamında
-(R9b kararı 2 "önce yalnız görünürlük"). R9b, adım 3'ün kabulüyle (yeni Z6 kabulü) kapanır; ana
-planın R9b kaydına o zaman Z8–Z10 olarak işlenir. Adım 4 (c) yenidir: R9b kararı 2'nin ertelediği
-bellekten boşaltma; R9c'nin kendi adımı.
+R9b, Adım 3’te Z8–Z10 ve yeni Z6 görsel kabulüyle yerelde kapandı. Z8 dünya
+kutusunun bölgeye tam sığmasını, Z9 dış portal yürüyüşünü ve çok katlı üretimi,
+Z10 HLOD filtresini kapsıyor. Adım 4 (c), R9c kapsamında bina akışı ve bellekten
+boşaltmayı ele alıyor.
 
 ## 8. Açık sorular (kullanıcı yanıtlayacak)
 
 | # | Soru | Öneri | Gerekçe |
 |---|---|---|---|
-| S1 | Bölge ataması "sığma" mı "boyut eşiği" mi? | Sığma (dünya kutusu bölgeye tamamen, tolerans ~2 cm); sınır yüklenene kadar bölgesiz | Boyut eşiği (≥ 1,5 m bölgesiz) büyük dolabı hep çizer, sınırdaki küçük nesneyi (duvar tablosu) yanlış odaya atar; sığma yapıyı da sınırdaki eşyayı da görünür tarafta bırakır |
+| S1 | Bölge ataması "sığma" mı "boyut eşiği" mi? | **Onaylandı (18 Kasım):** Dünya kutusu 2 cm toleransla bölgeye tamamen sığmalı; sınır yüklenene kadar yerleşim bölgesiz | Boyut eşiği (≥ 1,5 m bölgesiz) büyük dolabı hep çizer, sınırdaki küçük nesneyi (duvar tablosu) yanlış odaya atar; sığma yapıyı da sınırdaki eşyayı da görünür tarafta bırakır |
 | S2 | Sığmayan ama bina içinde kalan ara duvar / döşeme | Önce hep çiz (bölgesiz); ölçümde payı büyükse üretimin voksel ızgarasından "dış hücreye değmiyor" üyeliği (bina üyeliği) | Şekil batch'leri az draw üretir, köşe işi küçük; bina üyeliği yeni kavram ve level parçası ister. Bina modelin içine gömülü iç duvar zaten bölünemez |
 | S3 | Pencereler portal değilse dışarıdan iç boş görünür. Ne yapılsın? | Üretim duvarın dikey profilinden pencereyi bulur, dış portal yazar; kalanı elle; kabul ölçütü `facade` pozu | Cam materyalini portal saymak materyal bilgisine bağlanır ve şekillerde yok; yalnız elle portal şehirde ölçeklenmez |
 | S4 | Tavansız oda (avlu, yıkık bina) | Üretim tavanı olmayan odaya yatay üst açıklık portalı yazar | Yürüyüş kendiliğinden çalışır (yukarıdan bakınca görünür); odayı bölgesiz bırakmak avlu eşyasını hep çizer |
@@ -406,7 +605,7 @@ bellekten boşaltma; R9c'nin kendi adımı.
 | S13 | World Partition çoklu menzil gerekli mi? | Şimdilik hayır | Draw'ı detay cull + adım 5 çözer; menzil yalnız bellek / yükleme sorunuysa |
 | S14 | Adım 3 R9b'nin tamamlanması mı, ayrı mı? | R9b'nin tamamlanması (Z8–Z10, yeni Z6 kabulü); adım 4 R9c'nin | §7 |
 | S15 | Şehir sahnesinin modelleri | Prosedürel deterministik GLB, yalnız ölçüm kopyasında | Şekiller slot üretmez (draw dili yanlış çıkar); referans projesi modelleri az arketip; lisans sorunu yok |
-| S16 | Çok katlı bina bölgesi | Şehirde 2 bina iki katlı; üretim tek koşuda birden çok kat dilimi (bugün `--floor` tek, ikinci koşu ilkini siler) — ayrı alt adım mı, adım 3'ün içinde mi? | Şehirde çok katlı bina olağan; bugünkü üretim tek katlı |
+| S16 | Çok katlı bina bölgesi | **Onaylandı (18 Kasım):** Çok katlı üretim Adım 3 kapsamında. Kat dilimleri varsayılan üretim koşusunda birlikte bulunur. | Şehirde iki bina iki katlı. Kullanıcı tek koşuda üretimi seçti. |
 | S17 | R9c'nin foliage sırasıyla (F0–F7, R10) yeri | Adım 1 hemen (çakışmasız); adım 2 F1 commit'lendikten sonra, F7 / R10'dan önce (G6 gölge kuralıyla ölçülsün); adım 3–5 F serisiyle paralel | Ortak dosyalar §6; G6'nın gölge payı adım 2'ye bağlı |
 | S18 | Dış portal için şema alanı? | Gerek yok: otomatik bağlantı tek bölge bulursa öbür taraf dış | Kullanıcının önerisi; yanlış boyutlu iç portal dış olur, hata görünür tarafta. Editör rengi ayırt eder |
 
@@ -443,3 +642,7 @@ bellekten boşaltma; R9c'nin kendi adımı.
 | 2026-11-18 | v0.1 | İlk taslak (kullanıcıyla tartışmanın planı): katmanlar, sıra 1–6, şehir sahnesi, adım tasarımları, R9b'nin durumu, açık sorular S1–S18. Kod yok |
 | 2026-11-18 | v0.1 | Adım 1'in üreteci, geçici proje hazırlığı ve `measure:city` koşucusu eklendi. Varsayılan normal ve ağır sahnelerde 28.964 model yerleşimi, 234 zemin kat odası, 312 iç portal ve 36 HLOD hücresi üretildi. Gerçek WebGPU referans koşusu ve sonuç tablosu §5.1’de. |
 | 2026-11-18 | v0.1 | Adım 2'nin kaskat boyutu eşiği ve son izinli kaskatta dither solması bağlandı. Başlangıç değerleri `ultra` 1,5 / `high` 2 / `medium` ve `low` 3 texel ve son %15 solma. WebGPU karşılaştırması, referans level gerileme koşusu ve görsel kabul açık. |
+| 2026-11-18 | v0.2 | Adım 2 kapandı. Donanım WebGPU ölçümleri, iki arka uçta smoke sonuçları ve kullanıcı görsel onayı §5.2’de. Adım 3 (a) için kullanıcı 2 cm toleranslı tam sığma kuralını seçti; instanced ve GPU çizim yollarına bağlandı. |
+| 2026-11-18 | v0.2 | Adım 3’te dış portal yürüyüşü ve HLOD filtresi yerelde uygulandı. S16 uyarınca üretim katları tek koşuda tarıyor. Odaklı doğrulamalar §5.3’te. |
+| 2026-11-18 | v0.2 | Adım 3 şehir ve ağır iç mekân ölçümleri tamamlandı. Şehirde iki kat, 252 oda ve 674 portal doğrulandı. Görsel kabul açık (§5.3). |
+| 2026-11-18 | v0.3 | Kullanıcı Adım 3 görsellerini onayladı. Adım 3 ve R9b Z8–Z10, yeni Z6 kabulüyle kapandı. |

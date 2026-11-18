@@ -832,6 +832,10 @@ features/height-fog/
     dönüşümü `castShadowPositionNode`, solma `maskShadowNode`; mesafe ana kameradan.
     Spot / nokta gölgeleri GPU güdümlü batch'i görmez. WebGL2 ikizi aynı görünümleri
     örnekli mesh'le kurar.
+    R9c Adım 2’de CSM kaskadı, dünya yarıçapı kaskadın dünya texel boyu ×
+    `shadowCasterMinTexels` eşiğine ulaşan nesneleri alır. GPU yolu örnek başına,
+    instanced yol batch’in en büyük ölçeğiyle karar verir. Son izinli kaskadın
+    bölmesine yaklaşırken son %15’te dither solması uygulanır.
   - *Render bundle (5.3, 2026-11-17):* isteğe bağlı (`bundle: true`, varsayılan
     kapalı): opak mesh'ler batch'in `BundleGroup`'unda, kamera başına kayıt, yeniden
     kayıt yalnız mesh kümesi / görünüm sayısı değişince; saydamlar dışarıda (three
@@ -929,9 +933,12 @@ features/height-fog/
   - *Bölge sistemi (R9b, kullanıcı kararları 2026-11-18; occlusion ve PVS yerine):*
     `forge.zone@1` (kutu: `size` × ölçek, `alwaysCastShadows`, `generated`) ve `forge.portal@1`
     (dikdörtgen açıklık, isteğe bağlı `zoneA` / `zoneB`), `features/zone`. Çekirdek
-    `engine/world/zones.ts`: yerleşim / kamera bir noktayı tutan en küçük bölgeye aittir, bölgesiz içerik
-    hep görünür, kamera bölgede değilse hepsi görünür; kare başına kamera bölgesinden portal grafı
-    daralan ekran dikdörtgeniyle gezilir (önceden hesap yok, düzenlemede geçerli). Çizim
+    `engine/world/zones.ts`: kamera konumunu tutan en küçük bölge seçilir.
+    R9c S1 kararıyla yerleşim, dünya sınır kutusu 2 cm toleransla tamamen
+    sığdığı en küçük bölgeye aittir. Model sınırı yüklenene kadar bölgesiz kalır.
+    Bölgesiz içerik hep görünür. Kamera dışarıdaysa portal yürüyüşü `OUTSIDE` düğümünden
+    başlar. Yakın ve ekrandaki dış açıklıklar daralan ekran dikdörtgeniyle geçilir.
+    Dış kapı, pencere ve açık tavan portalları katlar için birlikte üretilir. Çizim
     (`render/sync/zoneDrawing.ts`, bölge kümesi bağlamalardan önce tazelenir): hafif (instanced)
     statik batch'ler bölgeye göre bölünür ve kare başına kip alır (görünür / yalnız gölge / gizli;
     katmanla, yalnız gölge kameraları bölge gölge katmanını taşır); GPU yoluna giden batch'ler
@@ -941,7 +948,9 @@ features/height-fog/
     sayısıyla büyüttüğü için (Z6 ölçümü, bina dışından 0,56 → 13,6 ms) maske kararı verildi; iç
     mekânda GPU %50–60 düşer, gönderim artmaz. Görünmeyen bölge gölge düşürmez (bölge başına
     seçenek). Şimdilik yalnız görünürlük; bölgeye göre bellekten boşaltma ayrı karar. Otomatik
-    üretim `engine/world/zoneGeneration.ts` (göz hizası dilimi, Öklid uzaklık dönüşümü, kapı
+    HLOD üretimi bölgeye tamamen sığan içerikleri hücre ve landmark proxy’lerinden çıkarır.
+    Bölge veya portal düzenlemesi proxy kaynak hash’ini değiştirir.
+    Otomatik üretim `engine/world/zoneGeneration.ts` (göz hizası dilimi, Öklid uzaklık dönüşümü, kapı
     yarı genişliğinden uzak çekirdekler, havza büyütme, sınırlardan portal) + `zoneLevel.ts`
     (`generated` olanlar değişir, kullanıcınınkiler kalır, kararlı GUID): `npm run forge -- zones`
     ve editörde World Settings > Generate Zones (tek Undo). Editör: Add Actor > Volumes, gizmo,

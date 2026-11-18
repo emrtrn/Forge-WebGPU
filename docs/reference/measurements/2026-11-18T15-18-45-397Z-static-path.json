@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "focusedLevel": "island",
+  "kind": "phase 5c R9.0 static batches: instanced vs GPU-driven automatic LOD",
+  "date": "2026-11-18T15:18:45.397Z",
+  "commit": "af16f21d82449576eaf2dd910ccc18b05a7219fc",
+  "dirty": true,
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "frameMs": 16.666666666666668,
+  "warmFrames": 60,
+  "frames": 300,
+  "results": [
+    {
+      "level": "island",
+      "pose": "p1",
+      "path": "auto",
+      "readyMs": 5030,
+      "draws": 28,
+      "threeTriangles": 156417,
+      "gpu": {
+        "batches": 6,
+        "instances": 1408,
+        "draws": 24,
+        "views": 2,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 0,
+        "generated": 0
+      },
+      "submitMs": {
+        "mean": 0.88,
+        "p95": 1.5
+      },
+      "cpuMs": {
+        "mean": 1.976,
+        "p95": 2.9
+      },
+      "gpuMs": {
+        "mean": 2.243,
+        "p95": 2.884,
+        "samples": 300
+      }
+    },
+    {
+      "level": "island",
+      "pose": "p1",
+      "path": "gpu",
+      "readyMs": 4878,
+      "draws": 28,
+      "threeTriangles": 151053,
+      "gpu": {
+        "batches": 7,
+        "instances": 1855,
+        "draws": 25,
+        "views": 2,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 0,
+        "generated": 1
+      },
+      "submitMs": {
+        "mean": 0.749,
+        "p95": 1
+      },
+      "cpuMs": {
+        "mean": 1.744,
+        "p95": 2.2
+      },
+      "gpuMs": {
+        "mean": 2.343,
+        "p95": 3.146,
+        "samples": 300
+      }
+    }
+  ]
+}

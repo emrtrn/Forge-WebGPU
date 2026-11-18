@@ -1,0 +1,200 @@
+{
+  "schema": 1,
+  "kind": "phase 5c R9b Z6: heavy interior without and with zones (auto path)",
+  "date": "2026-11-18T16:18:27.868Z",
+  "commit": "622b33f60f85fdd5faaae08e9ea80a1f77818a78",
+  "dirty": true,
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "segments": 192,
+  "zones": 64,
+  "portals": 176,
+  "results": [
+    {
+      "zones": false,
+      "pose": "room",
+      "batches": 1,
+      "trianglesPerProp": 36480,
+      "props": 768,
+      "submitMs": 0.728,
+      "cpuMs": 0.925,
+      "gpuMs": 1.916,
+      "draws": 13,
+      "zoneStats": {
+        "zones": 0,
+        "portals": 0,
+        "cameraZone": null,
+        "visible": 0,
+        "tracked": 0,
+        "shadowOnly": 0,
+        "hidden": 0,
+        "portalTests": 0,
+        "exteriorPortalTests": 0,
+        "portalBudgetExceeded": false
+      }
+    },
+    {
+      "zones": false,
+      "pose": "corridor",
+      "batches": 1,
+      "trianglesPerProp": 36480,
+      "props": 768,
+      "submitMs": 0.865,
+      "cpuMs": 1.093,
+      "gpuMs": 2.444,
+      "draws": 36,
+      "zoneStats": {
+        "zones": 0,
+        "portals": 0,
+        "cameraZone": null,
+        "visible": 0,
+        "tracked": 0,
+        "shadowOnly": 0,
+        "hidden": 0,
+        "portalTests": 0,
+        "exteriorPortalTests": 0,
+        "portalBudgetExceeded": false
+      }
+    },
+    {
+      "zones": false,
+      "pose": "diagonal",
+      "batches": 1,
+      "trianglesPerProp": 36480,
+      "props": 768,
+      "submitMs": 0.628,
+      "cpuMs": 0.809,
+      "gpuMs": 2.091,
+      "draws": 13,
+      "zoneStats": {
+        "zones": 0,
+        "portals": 0,
+        "cameraZone": null,
+        "visible": 0,
+        "tracked": 0,
+        "shadowOnly": 0,
+        "hidden": 0,
+        "portalTests": 0,
+        "exteriorPortalTests": 0,
+        "portalBudgetExceeded": false
+      }
+    },
+    {
+      "zones": false,
+      "pose": "above",
+      "batches": 1,
+      "trianglesPerProp": 36480,
+      "props": 768,
+      "submitMs": 0.567,
+      "cpuMs": 0.75,
+      "gpuMs": 1.808,
+      "draws": 13,
+      "zoneStats": {
+        "zones": 0,
+        "portals": 0,
+        "cameraZone": null,
+        "visible": 0,
+        "tracked": 0,
+        "shadowOnly": 0,
+        "hidden": 0,
+        "portalTests": 0,
+        "exteriorPortalTests": 0,
+        "portalBudgetExceeded": false
+      }
+    },
+    {
+      "zones": true,
+      "pose": "room",
+      "batches": 1,
+      "trianglesPerProp": 36480,
+      "props": 768,
+      "submitMs": 1.097,
+      "cpuMs": 1.362,
+      "gpuMs": 2.321,
+      "draws": 36,
+      "zoneStats": {
+        "zones": 64,
+        "portals": 176,
+        "cameraZone": "act_edad4896ea3b2e799aab1ad7f94768b6",
+        "visible": 9,
+        "tracked": 0,
+        "shadowOnly": 0,
+        "hidden": 0,
+        "portalTests": 45,
+        "exteriorPortalTests": 85,
+        "portalBudgetExceeded": false
+      }
+    },
+    {
+      "zones": true,
+      "pose": "corridor",
+      "batches": 1,
+      "trianglesPerProp": 36480,
+      "props": 768,
+      "submitMs": 0.862,
+      "cpuMs": 1.087,
+      "gpuMs": 2.476,
+      "draws": 13,
+      "zoneStats": {
+        "zones": 64,
+        "portals": 176,
+        "cameraZone": "act_f724701d6a82e8b876a253c261067b8d",
+        "visible": 10,
+        "tracked": 0,
+        "shadowOnly": 0,
+        "hidden": 0,
+        "portalTests": 49,
+        "exteriorPortalTests": 87,
+        "portalBudgetExceeded": false
+      }
+    },
+    {
+      "zones": true,
+      "pose": "diagonal",
+      "batches": 1,
+      "trianglesPerProp": 36480,
+      "props": 768,
+      "submitMs": 0.682,
+      "cpuMs": 0.884,
+      "gpuMs": 2.076,
+      "draws": 13,
+      "zoneStats": {
+        "zones": 64,
+        "portals": 176,
+        "cameraZone": "act_edad4896ea3b2e799aab1ad7f94768b6",
+        "visible": 6,
+        "tracked": 0,
+        "shadowOnly": 0,
+        "hidden": 0,
+        "portalTests": 36,
+        "exteriorPortalTests": 40,
+        "portalBudgetExceeded": false
+      }
+    },
+    {
+      "zones": true,
+      "pose": "above",
+      "batches": 1,
+      "trianglesPerProp": 36480,
+      "props": 768,
+      "submitMs": 0.743,
+      "cpuMs": 0.938,
+      "gpuMs": 1.725,
+      "draws": 13,
+      "zoneStats": {
+        "zones": 64,
+        "portals": 176,
+        "cameraZone": null,
+        "visible": 24,
+        "tracked": 0,
+        "shadowOnly": 0,
+        "hidden": 0,
+        "portalTests": 234,
+        "exteriorPortalTests": 60,
+        "portalBudgetExceeded": false
+      }
+    }
+  ]
+}

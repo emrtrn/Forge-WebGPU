@@ -1,0 +1,2353 @@
+{
+  "schema": 1,
+  "kind": "phase 5c steps 5.1 / 5.2 GPU-driven culling smoke (main view and shadow cascades)",
+  "backend": "webgpu",
+  "date": "2026-11-18T14:49:46.708Z",
+  "commit": "622b33f60f85fdd5faaae08e9ea80a1f77818a78",
+  "dirty": true,
+  "level": "content/levels/Derekavak",
+  "foliage": {
+    "cells": 370,
+    "instances": 1640,
+    "types": [
+      {
+        "name": "wp-conifer-a-type",
+        "instances": 495
+      },
+      {
+        "name": "wp-conifer-b-type",
+        "instances": 540
+      },
+      {
+        "name": "wp-conifer-c-type",
+        "instances": 196
+      },
+      {
+        "name": "wp-bush-a-type",
+        "instances": 73
+      },
+      {
+        "name": "wp-bush-b-type",
+        "instances": 45
+      },
+      {
+        "name": "wp-grass-a-type",
+        "instances": 291
+      }
+    ]
+  },
+  "installed": {
+    "path": "gpu",
+    "batches": 6,
+    "instances": 1640,
+    "parts": 0,
+    "draws": 15
+  },
+  "readoutDraws": {
+    "before": 77,
+    "after": 137
+  },
+  "readoutTriangles": {
+    "before": 1849148,
+    "after": 2135540
+  },
+  "shadowViews": 3,
+  "imageDifference": 3.2927094439620053,
+  "shadowImageDifference": 2.8107163216625337,
+  "bundleImageDifference": 0.10350617621527755,
+  "reinstallImageDifference": 0.11410513917824262,
+  "views": [
+    {
+      "id": "p2",
+      "visible": 177,
+      "checks": [
+        {
+          "name": "foliage/wp-conifer-a-type",
+          "instances": 495,
+          "gpu": [
+            44
+          ],
+          "cpu": {
+            "counts": [
+              44
+            ],
+            "certain": [
+              44
+            ],
+            "possible": [
+              44
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                5
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  5
+                ],
+                "certain": [
+                  5
+                ],
+                "possible": [
+                  5
+                ]
+              }
+            },
+            {
+              "gpu": [
+                69
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  69
+                ],
+                "certain": [
+                  69
+                ],
+                "possible": [
+                  69
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-conifer-b-type",
+          "instances": 540,
+          "gpu": [
+            51
+          ],
+          "cpu": {
+            "counts": [
+              51
+            ],
+            "certain": [
+              51
+            ],
+            "possible": [
+              51
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                5
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  5
+                ],
+                "certain": [
+                  5
+                ],
+                "possible": [
+                  5
+                ]
+              }
+            },
+            {
+              "gpu": [
+                69
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  69
+                ],
+                "certain": [
+                  69
+                ],
+                "possible": [
+                  69
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-conifer-c-type",
+          "instances": 196,
+          "gpu": [
+            21
+          ],
+          "cpu": {
+            "counts": [
+              21
+            ],
+            "certain": [
+              21
+            ],
+            "possible": [
+              21
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                1
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  1
+                ],
+                "certain": [
+                  1
+                ],
+                "possible": [
+                  1
+                ]
+              }
+            },
+            {
+              "gpu": [
+                24
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  24
+                ],
+                "certain": [
+                  24
+                ],
+                "possible": [
+                  24
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-bush-a-type",
+          "instances": 73,
+          "gpu": [
+            13
+          ],
+          "cpu": {
+            "counts": [
+              13
+            ],
+            "certain": [
+              13
+            ],
+            "possible": [
+              13
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                28
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  28
+                ],
+                "certain": [
+                  28
+                ],
+                "possible": [
+                  28
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-bush-b-type",
+          "instances": 45,
+          "gpu": [
+            4
+          ],
+          "cpu": {
+            "counts": [
+              4
+            ],
+            "certain": [
+              4
+            ],
+            "possible": [
+              4
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                13
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  13
+                ],
+                "certain": [
+                  13
+                ],
+                "possible": [
+                  13
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-grass-a-type",
+          "instances": 291,
+          "gpu": [
+            44
+          ],
+          "cpu": {
+            "counts": [
+              44
+            ],
+            "certain": [
+              44
+            ],
+            "possible": [
+              44
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                34
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  34
+                ],
+                "certain": [
+                  34
+                ],
+                "possible": [
+                  34
+                ]
+              }
+            },
+            {
+              "gpu": [
+                208
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  208
+                ],
+                "certain": [
+                  208
+                ],
+                "possible": [
+                  208
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        }
+      ]
+    },
+    {
+      "id": "caster-radius",
+      "visible": 177,
+      "checks": [
+        {
+          "name": "foliage/wp-conifer-a-type",
+          "instances": 495,
+          "gpu": [
+            44
+          ],
+          "cpu": {
+            "counts": [
+              44
+            ],
+            "certain": [
+              44
+            ],
+            "possible": [
+              44
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 268.3595700526129,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 747.148822052807,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 2441.83424497849,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-conifer-b-type",
+          "instances": 540,
+          "gpu": [
+            51
+          ],
+          "cpu": {
+            "counts": [
+              51
+            ],
+            "certain": [
+              51
+            ],
+            "possible": [
+              51
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 268.3595700526129,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 747.148822052807,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 2441.83424497849,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-conifer-c-type",
+          "instances": 196,
+          "gpu": [
+            21
+          ],
+          "cpu": {
+            "counts": [
+              21
+            ],
+            "certain": [
+              21
+            ],
+            "possible": [
+              21
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 268.3595700526129,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 747.148822052807,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 2441.83424497849,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-bush-a-type",
+          "instances": 73,
+          "gpu": [
+            13
+          ],
+          "cpu": {
+            "counts": [
+              13
+            ],
+            "certain": [
+              13
+            ],
+            "possible": [
+              13
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 268.3595700526129,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 747.148822052807,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 2441.83424497849,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-bush-b-type",
+          "instances": 45,
+          "gpu": [
+            4
+          ],
+          "cpu": {
+            "counts": [
+              4
+            ],
+            "certain": [
+              4
+            ],
+            "possible": [
+              4
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 268.3595700526129,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 747.148822052807,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 2441.83424497849,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-grass-a-type",
+          "instances": 291,
+          "gpu": [
+            44
+          ],
+          "cpu": {
+            "counts": [
+              44
+            ],
+            "certain": [
+              44
+            ],
+            "possible": [
+              44
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 268.3595700526129,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 747.148822052807,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 2441.83424497849,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        }
+      ]
+    },
+    {
+      "id": "p2-mirror",
+      "visible": 177,
+      "checks": [
+        {
+          "name": "foliage/wp-conifer-a-type",
+          "instances": 495,
+          "gpu": [
+            44
+          ],
+          "cpu": {
+            "counts": [
+              44
+            ],
+            "certain": [
+              44
+            ],
+            "possible": [
+              44
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                5
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  5
+                ],
+                "certain": [
+                  5
+                ],
+                "possible": [
+                  5
+                ]
+              }
+            },
+            {
+              "gpu": [
+                69
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  69
+                ],
+                "certain": [
+                  69
+                ],
+                "possible": [
+                  69
+                ]
+              }
+            }
+          ],
+          "cameras": [
+            {
+              "gpu": [
+                21
+              ],
+              "cpu": {
+                "counts": [
+                  21
+                ],
+                "certain": [
+                  21
+                ],
+                "possible": [
+                  21
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "foliage/wp-conifer-b-type",
+          "instances": 540,
+          "gpu": [
+            51
+          ],
+          "cpu": {
+            "counts": [
+              51
+            ],
+            "certain": [
+              51
+            ],
+            "possible": [
+              51
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                5
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  5
+                ],
+                "certain": [
+                  5
+                ],
+                "possible": [
+                  5
+                ]
+              }
+            },
+            {
+              "gpu": [
+                69
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  69
+                ],
+                "certain": [
+                  69
+                ],
+                "possible": [
+                  69
+                ]
+              }
+            }
+          ],
+          "cameras": [
+            {
+              "gpu": [
+                22
+              ],
+              "cpu": {
+                "counts": [
+                  22
+                ],
+                "certain": [
+                  22
+                ],
+                "possible": [
+                  22
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "foliage/wp-conifer-c-type",
+          "instances": 196,
+          "gpu": [
+            21
+          ],
+          "cpu": {
+            "counts": [
+              21
+            ],
+            "certain": [
+              21
+            ],
+            "possible": [
+              21
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                1
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  1
+                ],
+                "certain": [
+                  1
+                ],
+                "possible": [
+                  1
+                ]
+              }
+            },
+            {
+              "gpu": [
+                24
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  24
+                ],
+                "certain": [
+                  24
+                ],
+                "possible": [
+                  24
+                ]
+              }
+            }
+          ],
+          "cameras": [
+            {
+              "gpu": [
+                6
+              ],
+              "cpu": {
+                "counts": [
+                  6
+                ],
+                "certain": [
+                  6
+                ],
+                "possible": [
+                  6
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "foliage/wp-bush-a-type",
+          "instances": 73,
+          "gpu": [
+            13
+          ],
+          "cpu": {
+            "counts": [
+              13
+            ],
+            "certain": [
+              13
+            ],
+            "possible": [
+              13
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                28
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  28
+                ],
+                "certain": [
+                  28
+                ],
+                "possible": [
+                  28
+                ]
+              }
+            }
+          ],
+          "cameras": [
+            {
+              "gpu": [
+                0
+              ],
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "foliage/wp-bush-b-type",
+          "instances": 45,
+          "gpu": [
+            4
+          ],
+          "cpu": {
+            "counts": [
+              4
+            ],
+            "certain": [
+              4
+            ],
+            "possible": [
+              4
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                13
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  13
+                ],
+                "certain": [
+                  13
+                ],
+                "possible": [
+                  13
+                ]
+              }
+            }
+          ],
+          "cameras": [
+            {
+              "gpu": [
+                0
+              ],
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "foliage/wp-grass-a-type",
+          "instances": 291,
+          "gpu": [
+            44
+          ],
+          "cpu": {
+            "counts": [
+              44
+            ],
+            "certain": [
+              44
+            ],
+            "possible": [
+              44
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                34
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  34
+                ],
+                "certain": [
+                  34
+                ],
+                "possible": [
+                  34
+                ]
+              }
+            },
+            {
+              "gpu": [
+                208
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  208
+                ],
+                "certain": [
+                  208
+                ],
+                "possible": [
+                  208
+                ]
+              }
+            }
+          ],
+          "cameras": [
+            {
+              "gpu": [
+                0
+              ],
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "p1",
+      "visible": 32,
+      "checks": [
+        {
+          "name": "foliage/wp-conifer-a-type",
+          "instances": 495,
+          "gpu": [
+            9
+          ],
+          "cpu": {
+            "counts": [
+              9
+            ],
+            "certain": [
+              9
+            ],
+            "possible": [
+              9
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                1
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  1
+                ],
+                "certain": [
+                  1
+                ],
+                "possible": [
+                  1
+                ]
+              }
+            },
+            {
+              "gpu": [
+                29
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  29
+                ],
+                "certain": [
+                  29
+                ],
+                "possible": [
+                  29
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-conifer-b-type",
+          "instances": 540,
+          "gpu": [
+            11
+          ],
+          "cpu": {
+            "counts": [
+              11
+            ],
+            "certain": [
+              11
+            ],
+            "possible": [
+              11
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                2
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  2
+                ],
+                "certain": [
+                  2
+                ],
+                "possible": [
+                  2
+                ]
+              }
+            },
+            {
+              "gpu": [
+                31
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  31
+                ],
+                "certain": [
+                  31
+                ],
+                "possible": [
+                  31
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-conifer-c-type",
+          "instances": 196,
+          "gpu": [
+            9
+          ],
+          "cpu": {
+            "counts": [
+              9
+            ],
+            "certain": [
+              9
+            ],
+            "possible": [
+              9
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                1
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  1
+                ],
+                "certain": [
+                  1
+                ],
+                "possible": [
+                  1
+                ]
+              }
+            },
+            {
+              "gpu": [
+                10
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  10
+                ],
+                "certain": [
+                  10
+                ],
+                "possible": [
+                  10
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-bush-a-type",
+          "instances": 73,
+          "gpu": [
+            3
+          ],
+          "cpu": {
+            "counts": [
+              3
+            ],
+            "certain": [
+              3
+            ],
+            "possible": [
+              3
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                1
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  1
+                ],
+                "certain": [
+                  1
+                ],
+                "possible": [
+                  1
+                ]
+              }
+            },
+            {
+              "gpu": [
+                6
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  6
+                ],
+                "certain": [
+                  6
+                ],
+                "possible": [
+                  6
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-bush-b-type",
+          "instances": 45,
+          "gpu": [
+            0
+          ],
+          "cpu": {
+            "counts": [
+              0
+            ],
+            "certain": [
+              0
+            ],
+            "possible": [
+              0
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                3
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  3
+                ],
+                "certain": [
+                  3
+                ],
+                "possible": [
+                  3
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-grass-a-type",
+          "instances": 291,
+          "gpu": [
+            0
+          ],
+          "cpu": {
+            "counts": [
+              0
+            ],
+            "certain": [
+              0
+            ],
+            "possible": [
+              0
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                22
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  22
+                ],
+                "certain": [
+                  22
+                ],
+                "possible": [
+                  22
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        }
+      ]
+    },
+    {
+      "id": "sky",
+      "visible": 0,
+      "checks": [
+        {
+          "name": "foliage/wp-conifer-a-type",
+          "instances": 495,
+          "gpu": [
+            0
+          ],
+          "cpu": {
+            "counts": [
+              0
+            ],
+            "certain": [
+              0
+            ],
+            "possible": [
+              0
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                11
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  11
+                ],
+                "certain": [
+                  11
+                ],
+                "possible": [
+                  11
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-conifer-b-type",
+          "instances": 540,
+          "gpu": [
+            0
+          ],
+          "cpu": {
+            "counts": [
+              0
+            ],
+            "certain": [
+              0
+            ],
+            "possible": [
+              0
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                9
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  9
+                ],
+                "certain": [
+                  9
+                ],
+                "possible": [
+                  9
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-conifer-c-type",
+          "instances": 196,
+          "gpu": [
+            0
+          ],
+          "cpu": {
+            "counts": [
+              0
+            ],
+            "certain": [
+              0
+            ],
+            "possible": [
+              0
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                2
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  2
+                ],
+                "certain": [
+                  2
+                ],
+                "possible": [
+                  2
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-bush-a-type",
+          "instances": 73,
+          "gpu": [
+            0
+          ],
+          "cpu": {
+            "counts": [
+              0
+            ],
+            "certain": [
+              0
+            ],
+            "possible": [
+              0
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                2
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  2
+                ],
+                "certain": [
+                  2
+                ],
+                "possible": [
+                  2
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-bush-b-type",
+          "instances": 45,
+          "gpu": [
+            0
+          ],
+          "cpu": {
+            "counts": [
+              0
+            ],
+            "certain": [
+              0
+            ],
+            "possible": [
+              0
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        },
+        {
+          "name": "foliage/wp-grass-a-type",
+          "instances": 291,
+          "gpu": [
+            0
+          ],
+          "cpu": {
+            "counts": [
+              0
+            ],
+            "certain": [
+              0
+            ],
+            "possible": [
+              0
+            ]
+          },
+          "shadows": [
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.053671914010522584,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                0
+              ],
+              "minCasterRadius": 0.14942976441056138,
+              "cpu": {
+                "counts": [
+                  0
+                ],
+                "certain": [
+                  0
+                ],
+                "possible": [
+                  0
+                ]
+              }
+            },
+            {
+              "gpu": [
+                7
+              ],
+              "minCasterRadius": 0.48836684899569804,
+              "cpu": {
+                "counts": [
+                  7
+                ],
+                "certain": [
+                  7
+                ],
+                "possible": [
+                  7
+                ]
+              }
+            }
+          ],
+          "cameras": []
+        }
+      ]
+    }
+  ]
+}

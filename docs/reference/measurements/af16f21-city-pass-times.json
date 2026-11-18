@@ -1,0 +1,820 @@
+{
+  "commit": "af16f21d82449576eaf2dd910ccc18b05a7219fc",
+  "browser": "157.0.8103.79",
+  "frames": 30,
+  "results": [
+    {
+      "profile": "high",
+      "pose": "street",
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+      },
+      "on": {
+        "renderMs": {
+          "samples": 30,
+          "mean": 3.678754133333331,
+          "p95": 3.801088,
+          "p99": 3.9321599999999997,
+          "max": 3.9321599999999997
+        },
+        "sharedComputeMs": {
+          "samples": 30,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "renderMsPerView": {
+          "main": {
+            "samples": 30,
+            "mean": 1.6689834666666665,
+            "p95": 1.835008,
+            "p99": 1.835008,
+            "max": 1.835008
+          },
+          "shadow-1": {
+            "samples": 30,
+            "mean": 0.6225920000000003,
+            "p95": 0.65536,
+            "p99": 0.65536,
+            "max": 0.65536
+          },
+          "shadow-2": {
+            "samples": 30,
+            "mean": 0.6356992000000002,
+            "p95": 0.65536,
+            "p99": 0.65536,
+            "max": 0.65536
+          },
+          "shadow-3": {
+            "samples": 30,
+            "mean": 0.7165269333333332,
+            "p95": 0.720896,
+            "p99": 0.786432,
+            "max": 0.786432
+          },
+          "other": {
+            "samples": 30,
+            "mean": 0.03495253333333334,
+            "p95": 0.065536,
+            "p99": 0.065536,
+            "max": 0.065536
+          }
+        }
+      },
+      "off": {
+        "renderMs": {
+          "samples": 30,
+          "mean": 1.5597567999999993,
+          "p95": 1.7039360000000001,
+          "p99": 1.769472,
+          "max": 1.769472
+        },
+        "sharedComputeMs": {
+          "samples": 30,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "renderMsPerView": {
+          "main": {
+            "samples": 30,
+            "mean": 1.5204352000000005,
+            "p95": 1.6384,
+            "p99": 1.703936,
+            "max": 1.703936
+          },
+          "other": {
+            "samples": 30,
+            "mean": 0.039321600000000005,
+            "p95": 0.065536,
+            "p99": 0.065536,
+            "max": 0.065536
+          }
+        }
+      }
+    },
+    {
+      "profile": "high",
+      "pose": "square",
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+      },
+      "on": {
+        "renderMs": {
+          "samples": 30,
+          "mean": 4.7491754666666655,
+          "p95": 5.046272,
+          "p99": 5.111808,
+          "max": 5.111808
+        },
+        "sharedComputeMs": {
+          "samples": 30,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "renderMsPerView": {
+          "main": {
+            "samples": 30,
+            "mean": 1.80224,
+            "p95": 1.96608,
+            "p99": 1.96608,
+            "max": 1.96608
+          },
+          "shadow-1": {
+            "samples": 30,
+            "mean": 0.9437183999999994,
+            "p95": 0.98304,
+            "p99": 0.98304,
+            "max": 0.98304
+          },
+          "shadow-2": {
+            "samples": 30,
+            "mean": 0.9786709333333332,
+            "p95": 1.245184,
+            "p99": 1.245184,
+            "max": 1.245184
+          },
+          "shadow-3": {
+            "samples": 30,
+            "mean": 0.9852245333333333,
+            "p95": 1.048576,
+            "p99": 1.048576,
+            "max": 1.048576
+          },
+          "other": {
+            "samples": 30,
+            "mean": 0.039321600000000005,
+            "p95": 0.065536,
+            "p99": 0.065536,
+            "max": 0.065536
+          }
+        }
+      },
+      "off": {
+        "renderMs": {
+          "samples": 30,
+          "mean": 1.7629184,
+          "p95": 1.96608,
+          "p99": 1.96608,
+          "max": 1.96608
+        },
+        "sharedComputeMs": {
+          "samples": 30,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "renderMsPerView": {
+          "main": {
+            "samples": 30,
+            "mean": 1.7235967999999995,
+            "p95": 1.900544,
+            "p99": 1.900544,
+            "max": 1.900544
+          },
+          "other": {
+            "samples": 30,
+            "mean": 0.039321600000000005,
+            "p95": 0.065536,
+            "p99": 0.065536,
+            "max": 0.065536
+          }
+        }
+      }
+    },
+    {
+      "profile": "high",
+      "pose": "high",
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+      },
+      "on": {
+        "renderMs": {
+          "samples": 30,
+          "mean": 4.598442666666667,
+          "p95": 4.9152000000000005,
+          "p99": 5.308416,
+          "max": 5.308416
+        },
+        "sharedComputeMs": {
+          "samples": 30,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "renderMsPerView": {
+          "main": {
+            "samples": 30,
+            "mean": 1.876514133333332,
+            "p95": 1.900544,
+            "p99": 2.097152,
+            "max": 2.097152
+          },
+          "shadow-1": {
+            "samples": 30,
+            "mean": 0.882551466666667,
+            "p95": 0.917504,
+            "p99": 0.917504,
+            "max": 0.917504
+          },
+          "shadow-2": {
+            "samples": 30,
+            "mean": 0.8934741333333335,
+            "p95": 0.917504,
+            "p99": 1.179648,
+            "max": 1.179648
+          },
+          "shadow-3": {
+            "samples": 30,
+            "mean": 0.9153194666666669,
+            "p95": 0.917504,
+            "p99": 1.31072,
+            "max": 1.31072
+          },
+          "other": {
+            "samples": 30,
+            "mean": 0.030583466666666673,
+            "p95": 0.065536,
+            "p99": 0.065536,
+            "max": 0.065536
+          }
+        }
+      },
+      "off": {
+        "renderMs": {
+          "samples": 30,
+          "mean": 1.8437461333333323,
+          "p95": 2.1626879999999997,
+          "p99": 2.29376,
+          "max": 2.29376
+        },
+        "sharedComputeMs": {
+          "samples": 30,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "renderMsPerView": {
+          "main": {
+            "samples": 30,
+            "mean": 1.800055466666667,
+            "p95": 2.097152,
+            "p99": 2.228224,
+            "max": 2.228224
+          },
+          "other": {
+            "samples": 30,
+            "mean": 0.043690666666666676,
+            "p95": 0.065536,
+            "p99": 0.065536,
+            "max": 0.065536
+          }
+        }
+      }
+    },
+    {
+      "profile": "ultra",
+      "pose": "street",
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+      },
+      "on": {
+        "renderMs": {
+          "samples": 30,
+          "mean": 4.375620266666666,
+          "p95": 4.718592,
+          "p99": 4.784128,
+          "max": 4.784128
+        },
+        "sharedComputeMs": {
+          "samples": 30,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "renderMsPerView": {
+          "main": {
+            "samples": 30,
+            "mean": 1.7279658666666668,
+            "p95": 1.769472,
+            "p99": 1.769472,
+            "max": 1.769472
+          },
+          "shadow-1": {
+            "samples": 30,
+            "mean": 0.5920085333333334,
+            "p95": 0.589824,
+            "p99": 0.65536,
+            "max": 0.65536
+          },
+          "shadow-2": {
+            "samples": 30,
+            "mean": 0.6138538666666667,
+            "p95": 0.917504,
+            "p99": 0.917504,
+            "max": 0.917504
+          },
+          "shadow-3": {
+            "samples": 30,
+            "mean": 0.6444373333333336,
+            "p95": 0.65536,
+            "p99": 0.65536,
+            "max": 0.65536
+          },
+          "shadow-4": {
+            "samples": 30,
+            "mean": 0.7645866666666669,
+            "p95": 0.786432,
+            "p99": 0.786432,
+            "max": 0.786432
+          },
+          "other": {
+            "samples": 30,
+            "mean": 0.032768000000000005,
+            "p95": 0.065536,
+            "p99": 0.065536,
+            "max": 0.065536
+          }
+        }
+      },
+      "off": {
+        "renderMs": {
+          "samples": 30,
+          "mean": 1.5532032000000002,
+          "p95": 1.703936,
+          "p99": 1.769472,
+          "max": 1.769472
+        },
+        "sharedComputeMs": {
+          "samples": 30,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "renderMsPerView": {
+          "main": {
+            "samples": 30,
+            "mean": 1.524804266666667,
+            "p95": 1.703936,
+            "p99": 1.703936,
+            "max": 1.703936
+          },
+          "other": {
+            "samples": 30,
+            "mean": 0.028398933333333338,
+            "p95": 0.065536,
+            "p99": 0.065536,
+            "max": 0.065536
+          }
+        }
+      }
+    },
+    {
+      "profile": "ultra",
+      "pose": "square",
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+      },
+      "on": {
+        "renderMs": {
+          "samples": 30,
+          "mean": 5.699447466666666,
+          "p95": 5.963776,
+          "p99": 6.160384,
+          "max": 6.160384
+        },
+        "sharedComputeMs": {
+          "samples": 30,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "renderMsPerView": {
+          "main": {
+            "samples": 30,
+            "mean": 1.8109781333333335,
+            "p95": 1.96608,
+            "p99": 1.96608,
+            "max": 1.96608
+          },
+          "shadow-1": {
+            "samples": 30,
+            "mean": 0.9371647999999998,
+            "p95": 0.98304,
+            "p99": 1.179648,
+            "max": 1.179648
+          },
+          "shadow-2": {
+            "samples": 30,
+            "mean": 0.9196885333333334,
+            "p95": 0.917504,
+            "p99": 0.98304,
+            "max": 0.98304
+          },
+          "shadow-3": {
+            "samples": 30,
+            "mean": 0.9437183999999994,
+            "p95": 0.98304,
+            "p99": 0.98304,
+            "max": 0.98304
+          },
+          "shadow-4": {
+            "samples": 30,
+            "mean": 1.0507605333333339,
+            "p95": 1.31072,
+            "p99": 1.376256,
+            "max": 1.376256
+          },
+          "other": {
+            "samples": 30,
+            "mean": 0.03713706666666668,
+            "p95": 0.065536,
+            "p99": 0.065536,
+            "max": 0.065536
+          }
+        }
+      },
+      "off": {
+        "renderMs": {
+          "samples": 30,
+          "mean": 1.7170432,
+          "p95": 1.835008,
+          "p99": 1.900544,
+          "max": 1.900544
+        },
+        "sharedComputeMs": {
+          "samples": 30,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "renderMsPerView": {
+          "main": {
+            "samples": 30,
+            "mean": 1.6842751999999999,
+            "p95": 1.835008,
+            "p99": 1.835008,
+            "max": 1.835008
+          },
+          "other": {
+            "samples": 30,
+            "mean": 0.032768000000000005,
+            "p95": 0.065536,
+            "p99": 0.065536,
+            "max": 0.065536
+          }
+        }
+      }
+    },
+    {
+      "profile": "ultra",
+      "pose": "high",
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
+      },
+      "on": {
+        "renderMs": {
+          "samples": 30,
+          "mean": 5.526869333333334,
+          "p95": 5.963776,
+          "p99": 6.160384,
+          "max": 6.160384
+        },
+        "sharedComputeMs": {
+          "samples": 30,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "renderMsPerView": {
+          "main": {
+            "samples": 30,
+            "mean": 1.9354965333333325,
+            "p95": 2.29376,
+            "p99": 2.29376,
+            "max": 2.29376
+          },
+          "shadow-1": {
+            "samples": 30,
+            "mean": 0.8497834666666664,
+            "p95": 0.851968,
+            "p99": 0.917504,
+            "max": 0.917504
+          },
+          "shadow-2": {
+            "samples": 30,
+            "mean": 0.8410453333333331,
+            "p95": 0.851968,
+            "p99": 0.917504,
+            "max": 0.917504
+          },
+          "shadow-3": {
+            "samples": 30,
+            "mean": 0.8825514666666666,
+            "p95": 1.179648,
+            "p99": 1.245184,
+            "max": 1.245184
+          },
+          "shadow-4": {
+            "samples": 30,
+            "mean": 0.9764863999999996,
+            "p95": 1.245184,
+            "p99": 1.31072,
+            "max": 1.31072
+          },
+          "other": {
+            "samples": 30,
+            "mean": 0.04150613333333334,
+            "p95": 0.065536,
+            "p99": 0.065536,
+            "max": 0.065536
+          }
+        }
+      },
+      "off": {
+        "renderMs": {
+          "samples": 30,
+          "mean": 1.8371925333333337,
+          "p95": 2.031616,
+          "p99": 2.031616,
+          "max": 2.031616
+        },
+        "sharedComputeMs": {
+          "samples": 30,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "renderMsPerView": {
+          "main": {
+            "samples": 30,
+            "mean": 1.8022400000000003,
+            "p95": 1.96608,
+            "p99": 1.96608,
+            "max": 1.96608
+          },
+          "other": {
+            "samples": 30,
+            "mean": 0.03495253333333334,
+            "p95": 0.065536,
+            "p99": 0.065536,
+            "max": 0.065536
+          }
+        }
+      }
+    }
+  ]
+}

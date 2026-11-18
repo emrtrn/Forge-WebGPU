@@ -1,6 +1,10 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.79 · 2026-11-18 — Adım 8 başladı: PG0 şemaları (`c0937cd`; bitki planı v0.7). Kullanıcı kararları: PK6 ön ayarlar starter paketinde, üretici başına tarif türü, ağaç LOD'u başına tek GLB (odun / yaprak iki slot). 5c foliage'ında rüzgâr yok: PG2'de.
+**Güncelleme:** v1.81 · 2026-11-18 — R9c Adım 3 ve R9b Z8–Z10 donanım WebGPU ölçümü ve kullanıcı görsel onayıyla yerelde kapandı.
+
+**Önceki güncelleme:** v1.80 · 2026-11-18 — R9c Adım 2 donanım WebGPU ölçümü ve kullanıcı görsel onayıyla kapandı. Adım 3’te yerleşimin bölgeye tam sığması için 2 cm tolerans kararlaştırıldı.
+
+**Önceki güncelleme:** v1.79 · 2026-11-18 — Adım 8 başladı: PG0 şemaları (`c0937cd`; bitki planı v0.7). Kullanıcı kararları: PK6 ön ayarlar starter paketinde, üretici başına tarif türü, ağaç LOD'u başına tek GLB (odun / yaprak iki slot). 5c foliage'ında rüzgâr yok: PG2'de.
 
 **Önceki güncelleme:** v1.78 · 2026-11-18 — F7 = R10 (`184f00f`, `48536fe`): `npm run measure:foliage`, level'ların kendi foliage'ıyla G6. Profil, Forge'un her karede yaptığı halka planını ana iş parçacığının üçte biri gösterdi; halka artık kamera 1 m oynayınca / bekleyen hücrede / 30 karede bir planlanır. Derekavak P2: gönderim 1,03 ms (p95 3,0), ana iş parçacığı 1,60 ms (p95 3,8): **G6 sağlandı**. Sırada PG2.
 
@@ -1151,8 +1155,8 @@ işleyicisi (`clusterlod.h` portu) ve çatlak denetimi referanstır. Bütün ad�
 | R8 | HLOD katmanları (draw call; tamamlandı, kullanıcı kabulü 2026-11-17) | Hiyerarşik HLOD (öneri: ikinci katman 4 × 4 hücre, uzak menzilde), siluet / landmark işareti (view distance ötesinde uzak katman), slot düzeyinde materyal birleştirme; proxy'ler düz mesh, bundle kapalı (v1.57 kararları ve R8.0–R8.6 aşağıda) | Draw call ve gönderim öncesi / sonrası |
 | R9 | 5.5 statiklerin geçişi (tamamlandı 2026-11-17: altyapı bağlı, statikler ölçüm kararıyla `instanced`; R9.0–R9.4 aşağıda) | 5.1 yolu + otomatik LOD; picking, detay fade, transform hızlı yolu, HLOD hazır olma, `compileAsync` korunur | Editör / render smoke'ları iki arka uçta |
 | R9a | GPU occlusion culling (**iptal**, kullanıcı 2026-11-18; adım 1 kamera görünümleri kalır, occlusion kodu R9b Z0'da kaldırılır) | İlk adım (tamamlandı 2026-11-17): ikincil kameralar (yansıma) kendi GPU culling görünümü ve sayacı. Sonra R10 öncesinde meshlet'ten bağımsız nesne / instance düzeyinde konservatif Hi-Z adayı: önce tasarım + açık alan / örtülü alan A/B ölçümü, sonra yararlıysa üretim. Ters derinlik, MRT, MSAA, kamera hareketi ve gölge doğruluğu | Yanlış gizleme yok; culling kapalı referansla doğruluk; CPU / GPU render + compute / bellek / görünür nesne / üçgen karşılaştırması; WebGL2 mevcut culling ile çalışır |
-| R9b | Bölge sistemi (yeni, kullanıcı 2026-11-18) | Otomatik bölge + portal üretimi, editörde elle düzenleme, çalışma anında portal üzerinden görünür bölgeler; Z0–Z7 aşağıda | Draw / gölge / GPU önce–sonra; açık dünya değişmez; smoke iki arka uçta |
-| R9c | Katmanlı çizim bütçesi (planlandı 2026-11-18, kod yok; ayrı belge [LAYERED_DRAW_BUDGET_PLAN.md](LAYERED_DRAW_BUDGET_PLAN.md)) | 1 sentetik şehir sahnesi + görünüm başına draw / GPU / gönderim ölçümü, 2 boyuta göre gölge cull distance (kaskat texel'i), 3 bölge düzeltmeleri (sığma ataması, dış düğüm, HLOD'dan çıkarma; R9b Z6 kabulü geçmedi, öneri: R9b'nin tamamlanması), 4 bina akışı, 5 küçük çok yerleşimli statikte örnek başına cull, 6 ölçüme göre WP menzilleri / atlas. Açık sorular S1–S18 kullanıcıda | Şehir sahnesi `measure:city` önce–sonra; referans level'larda gerileme yok; smoke iki arka uçta; kullanıcı görsel kabulü |
+| R9b | Bölge sistemi (yerelde tamamlandı, kullanıcı 2026-11-18) | Otomatik bölge + portal üretimi, editörde elle düzenleme, çalışma anında portal üzerinden görünür bölgeler. Z0–Z10 aşağıda | Yeni Z6 görsel kabulü, şehir ve ağır iç mekân ölçümleri, iki arka uçta odaklı smoke |
+| R9c | Katmanlı çizim bütçesi ([ayrı plan](LAYERED_DRAW_BUDGET_PLAN.md), Adım 1–3 kapalı) | 1 sentetik şehir ve ölçüm, 2 kaskat texel boyuna göre gölge culling, 3 bölge ataması, dış düğüm, çok katlı üretim ve HLOD filtresi, 4 bina akışı, 5 küçük statiklerde örnek başına cull, 6 ölçüme göre WP menzilleri / atlas | Şehir sahnesi `measure:city` önce–sonra; referans level'larda gerileme yok; smoke iki arka uçta; kullanıcı görsel kabulü |
 | R10 | 5.6 G6 ölçümü | Derekavak P2 60 Hz, R5 raporuyla. **v1.73:** adım 6–7 ve Foliage panelinden sonra, gerçek foliage'la (F7, foliage sırası adım 11'in altında) | G6 sınırları |
 
 Öneriyle ilerleyen kararlar (kullanıcı itiraz ederse değişir): foliage 5.1 yolunda
@@ -1461,7 +1465,7 @@ Tasarım:
 - [x] **Z5** (`07d863b`): Add Actor > Volumes (Zone Volume, Portal), editör çizimi (soluk mavi kutu,
   turuncu açıklık, tık ikonda; seçili bölge ve portalları vurgulu), World Settings > Zones > Generate Zones
   (tek Undo, bütün hücreler yüklü), `?debug` bölge satırları. Editör smoke 83 / 83 iki arka uçta.
-- [ ] **Z6** ölçüm (`4d1df67`, `measure:heavy-props -g zones`, kayıt `2026-11-18T08-08-22-403Z-zones.json`;
+- [x] **Z6** ölçüm (`4d1df67`, `measure:heavy-props -g zones`, kayıt `2026-11-18T08-08-22-403Z-zones.json`;
   8 × 8 oda, 768 × 36,5 bin üçgen, `auto`):
 
   | Poz | Bölgesiz gönderim / GPU / draw | Bölgeli gönderim / GPU / draw | Gizli batch |
@@ -1490,10 +1494,13 @@ Tasarım:
 
   Bölge dışından kalan fark hafif şekil batch'lerinin (duvar / döşeme) bölünmesinden. Açık dünya: referans
   level'larda bölge yok, yol değişmez (`zones.update` erken döner, maske hepsi açık). Render smoke 30 / 31
-  (bir çerçeveli çekim kararsız, tek başına geçer), editör 83 / 83 iki arka uçta. **Bekleyen:** Z6 kullanıcı
-  görsel kabulü.
+  (bir çerçeveli çekim kararsız, tek başına geçer), editör 83 / 83 iki arka uçta. Kullanıcı Z6 görsel
+  kabulünü Z8–Z10 sonrası [Adım 3 görselleriyle](LAYERED_DRAW_BUDGET_PLAN.md#53-adım-3--bölge-düzeltmeleri-a-b-d) verdi.
 - [x] **Z7** belgeler: mimari rapor v1.62 §4.4 (bölge sistemi, R9 varsayılanı), harita, CLAUDE.md komut
   satırları.
+- [x] **Z8** dünya kutusunun 2 cm toleransla bölgeye tamamen sığması. Model sınırı gelince yerleşim yeniden atanır.
+- [x] **Z9** dış düğüm ve mesafe bütçesi. Dış kapı, pencere ve açık tavan portalları katlar için tek koşuda üretilir.
+- [x] **Z10** bölgeye sığan yerleşimler HLOD hücre ve landmark proxy’lerinden çıkarılır. Bölge ve portal düzenlemeleri kaynak hash’ini günceller.
 
 **R8 kararları ve uygulama planı (kullanıcı, 2026-11-17; v1.57):**
 Bulgular: HLOD proxy'leri zaten tek ortak materyalli (renk köşe renginde, gölge
@@ -2234,6 +2241,8 @@ silinebilir.
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
+| 2026-11-18 | v1.81 | R9c Adım 3 ve R9b Z8–Z10 kapandı. İki katlı şehir üretimi, donanım WebGPU ölçümleri ve yeni Z6 kullanıcı görsel kabulü ayrı plan §5.3’te. |
+| 2026-11-18 | v1.80 | R9c Adım 2 kapandı. Şehir ve referans sahne ölçümleriyle görsel kabul ayrı plan §5.2’de. Adım 3 (a) için dünya kutusunun bölgeye 2 cm toleransla tamamen sığması kullanıcı kararı. |
 | 2026-11-18 | v1.79 | PG0 şemaları (`c0937cd`): `forge.rockRecipe@1`, `forge.plantFamily@1`, `forge.plant@1`, foliage türüne `family`; kararlar PK6 / tarif türü / LOD çıktısı (bitki planı v0.7) |
 | 2026-11-18 | v1.78 | F7 = R10: `measure:foliage` (`184f00f`), halka planı kamera hareketine bağlandı; Derekavak P2 gönderim 1,01 ms / ana iş parçacığı 1,56 ms, G6 sağlandı |
 | 2026-11-18 | v1.77 | F5 Foliage sekmesi + türler (`22c50c2`), F6 Landscape kuralları (`50fc01a`) ve terrain'in kural düzenlemesinde korunması (`44f4602`) |
