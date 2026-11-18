@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.75 · 2026-11-18 — F0 (referans projesine Derekavak / Island / WbPilotValley foliage'la yeniden alındı, `--compare` eşit) ve F1 (`b53e4db`: Landscape foliage halkası, Derekavak P2'de Node referansıyla birebir 1.640 örnek / 177 görünür, iki arka uçta). Island P1 ve WbPilotValley P3 render referansları foliage'la değişti, görsel kabul kullanıcıda.
+**Güncelleme:** v1.76 · 2026-11-18 — F2 (`51d4788`: halka hücreleri worker'da) ve F4 (`1b63507`: boyanmış hücreler kameranın çevresinde akar, `?debug` foliage satırları). Kullanıcı kararı: F3 (uzak billboard + ton) PG3'le birlikte, çünkü referans içerikte hiçbir tür kullanmıyor; sıra F4 → F5–F6 → F7 → PG2 → PG3 + F3.
+
+**Önceki güncelleme:** v1.75 · 2026-11-18 — F0 (referans projesine Derekavak / Island / WbPilotValley foliage'la yeniden alındı, `--compare` eşit) ve F1 (`b53e4db`: Landscape foliage halkası, Derekavak P2'de Node referansıyla birebir 1.640 örnek / 177 görünür, iki arka uçta). Island P1 ve WbPilotValley P3 render referansları foliage'la değişti, görsel kabul kullanıcıda.
 
 **Önceki güncelleme:** v1.74 · 2026-11-18 — R9c katmanlı çizim bütçesi planlandı, ayrı belgede ([LAYERED_DRAW_BUDGET_PLAN.md](LAYERED_DRAW_BUDGET_PLAN.md); kullanıcı kararı, "tek ana plan" kuralının istisnası): şehir sahnesi + ölçüm, boyuta göre gölge cull distance, bölge düzeltmeleri (R9b Z6 kabulü geçmedi), bina akışı, küçük nesnede örnek başına cull, ölçüme göre WP menzilleri / atlas. Açık sorular S1–S18 kullanıcıda. Kod yok.
 
@@ -1064,6 +1066,22 @@ boya / silme fırçası (`engine/scene/foliagePaint.ts`) 5d'de kalır. Forge kar
   kurulumundan önce level foliage'ını sahneden çıkarır. Tam render smoke 29 / 33; Island P1 ve WbPilotValley P3
   referansla uyuşmuyor (foliage artık çiziliyor; adaylar `render-refs/candidates/`, görsel kabul kullanıcıda),
   `physics-interaction` ve `triangles (webgpu)` yükte oynadı, tek başına geçti.
+- [x] **F2** (`51d4788`, C; Forge'un worker üreticisi küçük olduğu için Codex'e verilmedi):
+  `engine/world/workers/foliageWorker.ts` + `render/resources/foliageWorkerGenerator.ts` (dünya başına tek sıralı
+  worker, aynı iş parçacığı üreticisi aynalı yedek, ilk hatada tek uyarı). Halka smoke'u yedeğe düşmeyi hata sayar;
+  Derekavak P2 iki arka uçta yine 1.640 örnek. Ana iş parçacığı ölçümü F7'de (G6: ana iş parçacığı ≤ 6 ms).
+- [ ] **F3** ertelendi (kullanıcı, 2026-11-18): referans projedeki 6 türün hiçbiri `far.distance` / `far.tint`
+  kullanmıyor; billboard ve ton PG3'ün impostor atlasıyla, üretilmiş ağaçların uzak mesafesiyle gerçek içerikte yapılır.
+- [x] **F4** (`1b63507`; akış çekirdeği Codex `gpt-6.2-sol` medium, 6 test): `engine/foliage/paintedFoliageStreaming.ts`
+  (Forge `FoliageCellStreaming`: önyükleme 1,5×, karede iki etkinleştirme, histerezis, okunamayan hücre boş + uyarı,
+  `prepare`), servis `engine/foliage/levelFoliageSource.ts` (`LevelFoliageSourceKey`; çalışma anı
+  `runtime/projectLevel.ts` + `boot.ts`, editör `foliage.json` / `foliage/` diskte değişince sürüm artırır),
+  `render/foliage/paintedFoliageView.ts` (hücre başına sahip `painted:<x>_<z>`, Matrix4.compose matrisleri, ilk karede
+  `prepare`, hazırlık okuma bitene kadar), `?debug` foliage satırları (halka hücre / örnek / bekleyen, boyanmış hücre
+  durumu, batch). Menzil level'ın `loadRange`'i (tek ızgara, A11). `foliage.json`'u olmayan level'da isteğe bağlı
+  404 smoke izin listelerine `hlod.json` gibi eklendi. Referans level'larda boyanmış örnek yok: bağ birim testiyle
+  (gerçek FFOL hücreleri, eksik hücre uyarısı) kanıtlandı. Odaklı Vitest 106, typecheck, katman, Node yükleme,
+  halka smoke'u 2 / 2, editör smoke'u 83 / 83, `smoke:dist` 1 / 1.
 
 **5c yeni sıra: üçgen ve draw call işi (kullanıcı, 2026-11-17, plan v1.46).**
 Kullanıcı 5.2'yi durdurdu; adım 5'in kalan alt adımları (5.2–5.6) ve sahne
@@ -2176,6 +2194,7 @@ silinebilir.
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
+| 2026-11-18 | v1.76 | F2 worker (`51d4788`), F4 boyanmış hücre akışı + `?debug` satırları (`1b63507`); kullanıcı: F3 PG3'le birlikte (referans içerik kullanmıyor) |
 | 2026-11-18 | v1.75 | F0 referans projesine foliage (üç level, `--compare` eşit), F1 halka (`b53e4db`): Derekavak P2 1.640 örnek Node referansıyla birebir, iki arka uçta; Island P1 / WbPilotValley P3 render referansları kullanıcı kabulü bekliyor |
 | 2026-11-18 | v1.74 | R9c katmanlı çizim bütçesi planı ayrı belgede (`docs/planned/LAYERED_DRAW_BUDGET_PLAN.md` v0.1; kullanıcı kararı, tek ana plan istisnası): katmanlar tablosu, sıra 1–6, şehir sahnesi tanımı, adım tasarımları, R9b Z6 durumu, açık sorular S1–S18. Kod yok |
 | 2026-11-18 | v1.73 | Foliage sırası (kullanıcı): adım 6 → 7 → Foliage paneli (türler + kurallar, 5d'den öne; fırça 5d'de) → R10 → PG2–PG3 → 11; referans projesine Derekavak / Island / WbPilotValley foliage'la yeniden alınır; alt adımlar F0–F7. Kod yok |

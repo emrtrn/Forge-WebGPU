@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.63 · 2026-11-18 — §4.4 foliage halkası (5c F1): `forge.foliage` render bağlaması, terrain yüzey kaydı, bağlamaya GPU güdümlü batch'ler, JSON asset belgesi.
+**Güncelleme:** v1.64 · 2026-11-18 — §4.4 foliage: halka hücreleri worker'da (F2), boyanmış hücreler `LevelFoliageSourceKey` servisiyle kameranın çevresinde akar (F4).
+
+**Önceki güncelleme:** v1.63 · 2026-11-18 — §4.4 foliage halkası (5c F1): `forge.foliage` render bağlaması, terrain yüzey kaydı, bağlamaya GPU güdümlü batch'ler, JSON asset belgesi.
 
 **Önceki güncelleme:** v1.62 · 2026-11-18 — §4.4 R9b: statiklerin varsayılan yolu `auto` (ağır parça GPU yolunda); occlusion culling iptal, yerine bölge sistemi (bölge / portal, portal görünürlüğü, instanced batch bölge bölmesi, GPU yolunda örnek başına bölge maskesi, otomatik üretim, editör).
 
@@ -850,8 +852,16 @@ features/height-fog/
     `gpuDriven` (`createBatch` / `removeBatch`) taşır. Foliage Type asset'i belge
     olarak okunur (`WorldResources.json`, anahtar `json:<guid>`; editör kaydedince
     boşaltır ve kullanan aktörleri yeniden yükler). `?debug` / dev ölçümü
-    `tagFoliage` etiketinden okur. Uzak billboard / ton F3, worker F2, boyanmış
-    hücreler F4.
+    `tagFoliage` etiketinden okur. Hücreler dünya başına tek worker'da üretilir
+    (`render/resources/foliageWorkerGenerator.ts`, F2; aynı iş parçacığı üreticisi
+    yedek). Uzak billboard / ton PG3'le (F3).
+  - *Boyanmış hücreler (5c F4, 2026-11-18):* level parçası (`foliage.json` + FFOL)
+    world servisi `LevelFoliageSourceKey` (`engine/foliage/levelFoliageSource.ts`)
+    olarak gelir: çalışma anı level yükleyicisi ve editör sağlar (editör dosyalar
+    değişince `revision` artırır). Bağlama hücreleri Forge'un boyanmış hücre
+    akışıyla (`engine/foliage/paintedFoliageStreaming.ts`, level `loadRange`'i,
+    1,5× önyükleme) aynı tür batch'lerine hücre başına sahip olarak verir
+    (`render/foliage/paintedFoliageView.ts`).
   - *Sahne maliyet raporu (R5, 2026-11-17):* `forge stats` (`tools/stats/`, salt
     okur) level'ın dosyalarından ajan için maliyet dili verir: aktör, model + materyal
     birleşimi, kaynak üçgen, saydam / çift yüzlü materyal, statik / şekil batch'leri,
