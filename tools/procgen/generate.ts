@@ -38,8 +38,8 @@ import { createSaveService, type SaveDelete, type SaveWrite } from "../save/tran
 import { createWritePolicy } from "../server/projectPaths.ts";
 import { openWorldProject } from "../world/worldProject.ts";
 import { binaryWithMeta, GENERATED_MODEL_OPTIMIZE, GENERATOR_VERSIONS, outputId, round, srgbTriple, type GeneratorName, type Output } from "./outputs.ts";
-import { encodeRgbaPng } from "./png.ts";
-import { treeOutputs } from "./treeOutputs.ts";
+import { decodePng, encodeRgbaPng } from "./png.ts";
+import { treeOutputs, type MaterialLook } from "./treeOutputs.ts";
 
 export { GENERATOR_VERSIONS } from "./outputs.ts";
 
@@ -186,6 +186,34 @@ function canonicalText(registry: SchemaRegistry, path: string, text: string): st
   return stringifyDocument(result.value);
 }
 
+/** The file of an index label: `engine:` labels in the engine repo, the rest in the target. */
+const labelPath = (options: GenerateOptions, target: Target, label: string): string =>
+  label.startsWith("engine:") ? join(options.engineRoot, label.slice("engine:".length)) : join(target.root, label);
+
+/** A material as the impostor bake sees it: colour, base colour texture (decoded PNG), tiling, flip, cut. */
+async function materialLook(options: GenerateOptions, target: Target, guid: string | null, ownTexture: string, warnings: string[]): Promise<MaterialLook | null> {
+  if (guid === null) return null;
+  const doc = target.index.jsonAssets.get(guid) as JsonObject | undefined;
+  if (!doc) { warnings.push(`material ${guid} not found: the impostor uses a plain colour`); return null; }
+  const textureId = typeof doc.baseColorTexture === "string" ? doc.baseColorTexture : null;
+  let texture: MaterialLook["texture"] = null;
+  if (textureId === ownTexture) {
+    texture = "leafAtlas";
+  } else if (textureId) {
+    const entry = target.index.entries.get(textureId);
+    const bytes = entry ? await readOrNull(labelPath(options, target, fileLabel(entry.root, entry.path))) : null;
+    const decoded = bytes ? decodePng(bytes) : null;
+    if (decoded) texture = decoded;
+    else warnings.push(`texture ${textureId} of material ${guid} is not a readable PNG: the impostor uses its colour`);
+  }
+  const tiling = Array.isArray(doc.uvTiling) ? doc.uvTiling as [number, number] : [1, 1] as const;
+  return {
+    color: srgbTriple(typeof doc.baseColor === "string" ? doc.baseColor : "#ffffff"),
+    texture, tiling: [tiling[0], tiling[1]], flipY: doc.flipY !== false,
+    alphaTest: doc.alphaMode === "mask" && typeof doc.alphaTest === "number" ? doc.alphaTest : 0,
+  };
+}
+
 async function readOrNull(path: string): Promise<Uint8Array | null> {
   try { return new Uint8Array(await readFile(path)); } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
@@ -214,7 +242,13 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
     outputs = rockOutputs(entry.id, doc, folder, stem, stats, warnings);
   } else if (entry.type === "forge.treeRecipe") {
     generator = "tree";
-    outputs = treeOutputs(entry.id, doc, folder, stem, stats);
+    const own = outputId(entry.id, "tree/leafTexture");
+    const materials = (doc.materials ?? {}) as { wood?: string | null; leaf?: string | null };
+    const looks = {
+      wood: await materialLook(options, target, materials.wood ?? null, own, warnings),
+      leaf: await materialLook(options, target, materials.leaf ?? null, own, warnings),
+    };
+    outputs = treeOutputs(entry.id, doc, folder, stem, stats, looks);
   } else if (entry.type === "forge.surfaceTextureRecipe") {
     generator = "surfaceTexture";
     outputs = surfaceTextureOutputs(entry.id, doc, folder, stem, stats);

@@ -45,8 +45,9 @@
     }
   ],
   "impostor": {
-    "albedo": null,
-    "normal": null,
-    "views": 8
+    "albedo": "ast_d367013ff7d3c92670d77336474ff9d8",
+    "normal": "ast_77735e68b655fab457880f23d20affda",
+    "views": 8,
+    "screenSize": 0.03
   }
 }

@@ -17,6 +17,8 @@ export interface TreeLodParams {
   ringsPerMeter: number;
   minRadius: number;
   leafFraction: number;
+  /** Branch-tip cards (one card per kept terminal stem, from the species' card library) instead of leaf cards. */
+  clusterCards: boolean;
 }
 
 export interface TreeParams {
@@ -29,7 +31,7 @@ export interface TreeParams {
   crownStart: number;
   levels: TreeLevelParams[];
   irregularity: number;
-  leaves: { perStem: number; size: readonly [number, number]; cards: number };
+  leaves: { perStem: number; size: readonly [number, number]; cards: number; /** Branch-tip card library size, 0..15. */ clusters: number };
   /** Fine to coarse. */
   lods: TreeLodParams[];
 }
@@ -43,11 +45,11 @@ export const TREE_PRESETS: { broadleaf: TreeParams; conifer: TreeParams } = {
       { count: 5, angle: 45, angleVariation: 20, lengthRatio: 0.44, start: 0.35, radiusRatio: 0.45, bend: 0.15, wobble: 0.24 },
       { count: 3, angle: 33, angleVariation: 15, lengthRatio: 0.48, start: 0.45, radiusRatio: 0.42, bend: 0.12, wobble: 0.2 },
     ],
-    leaves: { perStem: 4, size: [0.35, 0.35], cards: 2 },
+    leaves: { perStem: 4, size: [0.35, 0.35], cards: 2, clusters: 12 },
     lods: [
-      { radialSegments: 14, ringsPerMeter: 4, minRadius: 0, leafFraction: 1 },
-      { radialSegments: 8, ringsPerMeter: 1.6, minRadius: 0.006, leafFraction: 0.33 },
-      { radialSegments: 5, ringsPerMeter: 0.75, minRadius: 0.034, leafFraction: 0.05 },
+      { radialSegments: 14, ringsPerMeter: 4, minRadius: 0, leafFraction: 1, clusterCards: false },
+      { radialSegments: 8, ringsPerMeter: 1.6, minRadius: 0.006, leafFraction: 0.8, clusterCards: true },
+      { radialSegments: 5, ringsPerMeter: 0.75, minRadius: 0.034, leafFraction: 0.2, clusterCards: true },
     ],
   },
   conifer: {
@@ -57,11 +59,11 @@ export const TREE_PRESETS: { broadleaf: TreeParams; conifer: TreeParams } = {
       { count: 32, angle: 91, angleVariation: 10, lengthRatio: 0.31, start: 0, radiusRatio: 0.4, bend: 0.17, wobble: 0.1 },
       { count: 5, angle: 38, angleVariation: 19, lengthRatio: 0.34, start: 0.28, radiusRatio: 0.43, bend: 0.14, wobble: 0.13 },
     ],
-    leaves: { perStem: 5, size: [0.5, 0.15], cards: 2 },
+    leaves: { perStem: 5, size: [0.5, 0.15], cards: 2, clusters: 12 },
     lods: [
-      { radialSegments: 13, ringsPerMeter: 4, minRadius: 0, leafFraction: 1 },
-      { radialSegments: 8, ringsPerMeter: 1.5, minRadius: 0.01, leafFraction: 0.33 },
-      { radialSegments: 4, ringsPerMeter: 0.65, minRadius: 0.04, leafFraction: 0.04 },
+      { radialSegments: 13, ringsPerMeter: 4, minRadius: 0, leafFraction: 1, clusterCards: false },
+      { radialSegments: 8, ringsPerMeter: 1.5, minRadius: 0.01, leafFraction: 0.8, clusterCards: true },
+      { radialSegments: 4, ringsPerMeter: 0.65, minRadius: 0.04, leafFraction: 0.2, clusterCards: true },
     ],
   },
 };
@@ -106,6 +108,8 @@ function normalizeLod(entry: Readonly<Record<string, unknown>>, fallback: TreeLo
     ringsPerMeter: finite(entry.ringsPerMeter, fallback.ringsPerMeter, 0.5, 16),
     minRadius: finite(entry.minRadius, fallback.minRadius, 0, 0.5),
     leafFraction: finite(entry.leafFraction, fallback.leafFraction, 0, 1),
+    clusterCards: entry.leafCards === "clusters" ? true : entry.leafCards === "leaves" ? false
+      : typeof entry.clusterCards === "boolean" ? entry.clusterCards : fallback.clusterCards,
   };
 }
 
@@ -128,6 +132,7 @@ export function normalizeTreeParams(input: Readonly<Record<string, unknown>>): T
       perStem: Math.floor(finite(leaves.perStem, defaults.leaves.perStem, 0, 64)),
       size: [finite(size[0], defaults.leaves.size[0], 0.01, 5), finite(size[1], defaults.leaves.size[1], 0.01, 5)],
       cards: Math.floor(finite(leaves.cards, defaults.leaves.cards, 1, 4)),
+      clusters: Math.floor(finite(leaves.clusters, defaults.leaves.clusters, 0, 15)),
     },
     lods: entries(input.lods, defaults.lods, 4, normalizeLod),
   };

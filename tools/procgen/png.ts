@@ -1,8 +1,10 @@
 // An 8-bit RGBA PNG encoder for generated textures (vegetation plan PG1):
 // deterministic bytes (fixed zlib level, per-row filter chosen by the usual
-// minimum-sum-of-absolute-differences rule), no metadata chunks.
+// minimum-sum-of-absolute-differences rule), no metadata chunks. And the
+// matching decoder (PG3: the bake reads a material's texture): 8-bit RGB /
+// RGBA / grey (+ alpha), not interlaced; anything else returns null.
 
-import { deflateSync } from "node:zlib";
+import { deflateSync, inflateSync } from "node:zlib";
 
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256);
@@ -77,4 +79,57 @@ export function encodeRgbaPng(width: number, height: number, rgba: Uint8Array): 
   let offset = 0;
   for (const part of parts) { out.set(part, offset); offset += part.length; }
   return out;
+}
+
+/** Decodes an 8-bit, non-interlaced RGB / RGBA / grey / grey-alpha PNG to RGBA8; null for anything else. */
+export function decodePng(bytes: Uint8Array): { width: number; height: number; rgba: Uint8Array } | null {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (bytes.length < 33 || view.getUint32(0) !== 0x89504e47) return null;
+  let offset = 8, width = 0, height = 0, channels = 0;
+  const data: Uint8Array[] = [];
+  while (offset + 8 <= bytes.length) {
+    const length = view.getUint32(offset);
+    const type = String.fromCharCode(...bytes.subarray(offset + 4, offset + 8));
+    const body = bytes.subarray(offset + 8, offset + 8 + length);
+    if (type === "IHDR") {
+      width = view.getUint32(offset + 8); height = view.getUint32(offset + 12);
+      const [depth, colour, , , interlace] = body.subarray(8, 13);
+      channels = colour === 6 ? 4 : colour === 2 ? 3 : colour === 4 ? 2 : colour === 0 ? 1 : 0;
+      if (depth !== 8 || interlace !== 0 || channels === 0) return null;
+    } else if (type === "IDAT") {
+      data.push(body);
+    } else if (type === "IEND") {
+      break;
+    }
+    offset += 12 + length;
+  }
+  if (!width || !height) return null;
+  const joined = new Uint8Array(data.reduce((sum, part) => sum + part.length, 0));
+  let at = 0;
+  for (const part of data) { joined.set(part, at); at += part.length; }
+  const raw = new Uint8Array(inflateSync(joined));
+  const stride = width * channels;
+  if (raw.length < (stride + 1) * height) return null;
+  const pixels = new Uint8Array(stride * height);
+  for (let y = 0; y < height; y += 1) {
+    const filter = raw[y * (stride + 1)]!;
+    const row = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
+    for (let x = 0; x < stride; x += 1) {
+      const a = x >= channels ? pixels[y * stride + x - channels]! : 0;
+      const b = y > 0 ? pixels[(y - 1) * stride + x]! : 0;
+      const c = y > 0 && x >= channels ? pixels[(y - 1) * stride + x - channels]! : 0;
+      const predictor = filter === 0 ? 0 : filter === 1 ? a : filter === 2 ? b : filter === 3 ? (a + b) >> 1 : paeth(a, b, c);
+      pixels[y * stride + x] = (row[x]! + predictor) & 0xff;
+    }
+  }
+  const rgba = new Uint8Array(width * height * 4);
+  for (let i = 0; i < width * height; i += 1) {
+    const p = i * channels;
+    const grey = channels <= 2;
+    rgba[i * 4] = pixels[p]!;
+    rgba[i * 4 + 1] = grey ? pixels[p]! : pixels[p + 1]!;
+    rgba[i * 4 + 2] = grey ? pixels[p]! : pixels[p + 2]!;
+    rgba[i * 4 + 3] = channels === 4 ? pixels[p + 3]! : channels === 2 ? pixels[p + 1]! : 255;
+  }
+  return { width, height, rgba };
 }

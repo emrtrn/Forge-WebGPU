@@ -77,6 +77,7 @@ export const PlantFamilyFields = {
             albedo: assetRef({ assetType: "forge.texture", hint: "Impostor atlasının renk + alfa dokusu (PG3)." }),
             normal: assetRef({ assetType: "forge.texture", hint: "Impostor atlasının normal + derinlik dokusu (PG3)." }),
             views: num({ min: 1, max: 32, default: 8, step: 1, hint: "Atlasın kenar başına görüş sayısı." }),
+            screenSize: num({ min: 0, max: 1, default: 0.03, hint: "Impostor'a geçilen ekran boyu (yükseklik oranı)." }),
           },
           { hint: "Uzak temsil (PG3 doldurur); boşsa çalışma anı kartı." },
         ),
@@ -136,6 +137,8 @@ export const TREE_HABITS = ["broadleaf", "conifer"] as const;
 export const LEAF_CARD_KINDS = ["broad", "needle"] as const;
 export const TREE_COLLIDERS = ["none", "trunk"] as const;
 export const LEAF_TEXTURE_SIZES = ["128", "256", "512", "1024"] as const;
+export const LEAF_CARD_MODES = ["leaves", "clusters"] as const;
+export const IMPOSTOR_FRAME_SIZES = ["64", "128", "256"] as const;
 
 const treeLevel = object(
   {
@@ -156,7 +159,8 @@ const treeLod = object(
     radialSegments: num({ min: 3, max: 32, default: 8, step: 1, hint: "Gövdenin çevre dilimi; ince dallar daha az." }),
     ringsPerMeter: num({ min: 0.5, max: 16, default: 2, hint: "Metre başına halka (kıvrım çözünürlüğü)." }),
     minRadius: num({ min: 0, max: 0.5, default: 0, hint: "Bundan ince dallar ve çocukları düşer, metre." }),
-    leafFraction: num({ min: 0, max: 1, default: 1, hint: "Tutulan yaprak kümesi oranı; tutulanlar alanı koruyacak kadar büyür." }),
+    leafFraction: num({ min: 0, max: 1, default: 1, hint: "Tutulan yaprak kümesi oranı (dal ucu kartlarında kart taşıyan uç dal oranı); tutulanlar alanı koruyacak kadar büyür." }),
+    leafCards: enumOf(LEAF_CARD_MODES, { default: "leaves", labels: { leaves: "Leaf Cards", clusters: "Branch Tip Cards" }, hint: "Yapraklar tek tek kartlarla mı, türün dal ucu kartı kitaplığından kartlarla mı çizilir (uzak LOD'lar)." }),
     screenSize: num({ min: 0, max: 1, default: 0.25, hint: "Bu LOD'a geçilen ekran boyu (yükseklik oranı); LOD0'da kullanılmaz." }),
   },
   { label: "LOD" },
@@ -186,6 +190,7 @@ export const TreeRecipeFields = {
       perStem: num({ min: 0, max: 64, default: 4, step: 1, hint: "Uç dal başına yaprak kümesi." }),
       size: vec2({ default: [0.35, 0.35], min: 0.01, max: 5, hint: "Yaprak kartının eni ve boyu, metre." }),
       cards: num({ min: 1, max: 4, default: 2, step: 1, hint: "Küme başına çapraz kart sayısı." }),
+      clusters: num({ min: 0, max: 15, default: 12, step: 1, hint: "Dal ucu kartı kitaplığındaki küme sayısı; tür başına bir kez çizilir, bütün prototipler paylaşır." }),
       texture: object(
         {
           kind: enumOf(LEAF_CARD_KINDS, { default: "broad", labels: { broad: "Broad Leaves", needle: "Needles" }, hint: "Kart dokusu: dalcıkta geniş yapraklar ya da iğneler." }),
@@ -201,12 +206,21 @@ export const TreeRecipeFields = {
   ),
   lods: array(treeLod, {
     default: [
-      { radialSegments: 14, ringsPerMeter: 4, minRadius: 0, leafFraction: 1, screenSize: 0.5 },
-      { radialSegments: 8, ringsPerMeter: 1.6, minRadius: 0.006, leafFraction: 0.33, screenSize: 0.2 },
-      { radialSegments: 5, ringsPerMeter: 0.75, minRadius: 0.034, leafFraction: 0.05, screenSize: 0.07 },
+      { radialSegments: 14, ringsPerMeter: 4, minRadius: 0, leafFraction: 1, leafCards: "leaves", screenSize: 0.5 },
+      { radialSegments: 8, ringsPerMeter: 1.6, minRadius: 0.006, leafFraction: 0.8, leafCards: "clusters", screenSize: 0.2 },
+      { radialSegments: 5, ringsPerMeter: 0.75, minRadius: 0.034, leafFraction: 0.2, leafCards: "clusters", screenSize: 0.07 },
     ],
     hint: "İnceden kabaya LOD'lar; her biri ayrı GLB (odun ve yaprak iki slot).",
   }),
+  impostor: object(
+    {
+      enabled: bool({ default: true, hint: "Prototip başına çok açılı impostor atlası çizilsin (en uzak temsil)." }),
+      views: num({ min: 4, max: 16, default: 8, step: 1, hint: "Atlasın kenar başına görüş sayısı (8 → yarım kürede 8 × 8)." }),
+      frameSize: enumOf(IMPOSTOR_FRAME_SIZES, { default: "128", labels: { 64: "64", 128: "128", 256: "256" }, hint: "Görüş başına piksel." }),
+      screenSize: num({ min: 0, max: 1, default: 0.03, hint: "Impostor'a geçilen ekran boyu (yükseklik oranı)." }),
+    },
+    { hint: "Uzak temsil: odun ve yaprak ayrı katmanlarda, yaprak katmanı dökülme eşiğiyle (PG3)." },
+  ),
   materials: object(
     {
       wood: assetRef({ assetType: "forge.material", hint: "Gövde ve dalların (kabuk) materyali; LOD modellerinin 1. slotu." }),

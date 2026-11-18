@@ -101,6 +101,7 @@ export const FoliageTypeFields = {
       albedo: assetRef({ assetType: "forge.texture", hint: "Impostor atlasının renk + alfa dokusu." }),
       normal: assetRef({ assetType: "forge.texture", hint: "Impostor atlasının normal + derinlik dokusu." }),
       views: num({ min: 1, max: 32, default: 8, step: 1, hint: "Atlasın kenar başına görüş sayısı (8 → 8 × 8)." }),
+      screenSize: num({ min: 0, max: 1, default: 0.03, hint: "Impostor'a geçilen ekran boyu (yükseklik oranı)." }),
     },
     { hint: "Önceden çizilmiş çok açılı impostor atlası (üretilmiş bitkiler, PG3). Boşsa çalışma anı kartı." },
   ),

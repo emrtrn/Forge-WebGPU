@@ -32,8 +32,8 @@ test("normalization uses habit defaults, clamps fields and drops invalid entries
     ...TREE_PRESETS.conifer,
     seed: 4294967295, height: 1, taper: 1, flare: 0,
     levels: [{ count: 64, angle: 0, angleVariation: 60, lengthRatio: 0.05, start: 1, radiusRatio: 0.1, bend: -1, wobble: 1 }],
-    leaves: { perStem: 2, size: [0.5, 0.25], cards: 4 },
-    lods: [{ radialSegments: 32, ringsPerMeter: 16, minRadius: 0.5, leafFraction: 0 }, TREE_PRESETS.conifer.lods[1]],
+    leaves: { perStem: 2, size: [0.5, 0.25], cards: 4, clusters: 12 },
+    lods: [{ radialSegments: 32, ringsPerMeter: 16, minRadius: 0.5, leafFraction: 0, clusterCards: false }, TREE_PRESETS.conifer.lods[1]],
   });
   assert.deepStrictEqual(normalizeTreeParams({ levels: [null], lods: [] }), TREE_PRESETS.broadleaf);
   params.lods[1]!.leafFraction = 0;
@@ -96,7 +96,11 @@ for (const params of Object.values(TREE_PRESETS)) {
     const shedding = result.lods.map(lod => lod.leaves!.attributes.leaf!.filter((_, i) => i % 2 === 0));
     const thresholds = new Set(shedding[0]!);
     assert.ok(thresholds.size > new Set(shedding[1]!).size);
-    for (const coarse of shedding.slice(1)) assert.ok(coarse.every(value => thresholds.has(value)));
+    // Leaf-card LODs keep LOD0's cluster thresholds; a branch-tip card falls at the mean of its twig's clusters.
+    for (const [i, coarse] of shedding.slice(1).entries()) {
+      if (params.lods[i + 1]!.clusterCards) assert.ok(coarse.every(value => value > 0 && value < 1));
+      else assert.ok(coarse.every(value => thresholds.has(value)));
+    }
   });
 }
 

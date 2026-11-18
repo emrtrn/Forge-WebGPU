@@ -36,6 +36,7 @@
     "perStem": 5,
     "size": [0.5, 0.15],
     "cards": 2,
+    "clusters": 12,
     "texture": {
       "kind": "needle",
       "count": 22,
@@ -50,23 +51,32 @@
       "ringsPerMeter": 4,
       "minRadius": 0,
       "leafFraction": 1,
+      "leafCards": "leaves",
       "screenSize": 0.5
     },
     {
       "radialSegments": 8,
       "ringsPerMeter": 1.5,
       "minRadius": 0.01,
-      "leafFraction": 0.33,
+      "leafFraction": 0.8,
+      "leafCards": "clusters",
       "screenSize": 0.2
     },
     {
       "radialSegments": 4,
       "ringsPerMeter": 0.65,
       "minRadius": 0.04,
-      "leafFraction": 0.04,
+      "leafFraction": 0.2,
+      "leafCards": "clusters",
       "screenSize": 0.07
     }
   ],
+  "impostor": {
+    "enabled": true,
+    "views": 8,
+    "frameSize": "128",
+    "screenSize": 0.03
+  },
   "materials": {
     "wood": "ast_4b4adfbe01f0389bf3a0269a3533244c",
     "leaf": "ast_77e54da6b9185f7c5be134bfb21ea5a3"

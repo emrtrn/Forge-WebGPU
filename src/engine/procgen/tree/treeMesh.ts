@@ -21,18 +21,43 @@ export interface TreeLodMesh {
   leaves: TreeMesh | null;
 }
 
-interface Tube { index: number; segments: number; spans: number }
+/** A rectangle in the leaf material's UVs (flipY: v = 0 the image's bottom row): u0, v0, u1, v1. */
+export type UvRect = readonly [number, number, number, number];
+
+/** A branch-tip card of the species' library (treeCards.ts): its tile and its card in its twig's frame. */
+export interface ClusterCard {
+  readonly rect: UvRect;
+  /** The representative twig's length, metres; a card scales with its own twig's length. */
+  readonly length: number;
+  /** Extent along the twig from its base and across it, metres. */
+  readonly along: readonly [number, number];
+  readonly across: readonly [number, number];
+}
+
+/** The leaf texture as an atlas: the single leaf card and the branch-tip cards (PG3, §6.4). */
+export interface LeafAtlas {
+  readonly leaf: UvRect;
+  readonly clusters: readonly ClusterCard[];
+}
+
+export const FULL_RECT: UvRect = [0, 0, 1, 1];
+
+export interface Tube { index: number; segments: number; spans: number }
 interface LeafPlacement { host: number; dropped?: TreeStem }
 interface LeafSource extends LeafPlacement { id: string }
 interface TreeLodPlan {
   tubes: Tube[];
   sources: LeafSource[];
+  /** Branch-tip card mode: the terminal stems that carry a card. */
+  cardStems: number[] | null;
   clusters: number;
   triangles: number;
 }
 
 const TAU = 2 * Math.PI;
-const hash01 = (id: string): number => hashString(id) / 4294967296;
+export const hash01 = (id: string): number => hashString(id) / 4294967296;
+/** Largest growth of a kept branch-tip card standing in for dropped ones. */
+const MAX_CARD_GROWTH = 1.5;
 
 function eachKeptCluster(
   params: TreeParams, lod: TreeLodParams, sources: LeafSource[],
@@ -47,8 +72,18 @@ function eachKeptCluster(
   }
 }
 
-/** Count the exact triangles before allocating any vertices. */
-export function planTreeLod(params: TreeParams, { stems }: { stems: TreeStem[] }, lod: TreeLodParams): TreeLodPlan {
+/** The terminal (leaf-bearing) stems. */
+export function terminalStems(stems: readonly TreeStem[]): number[] {
+  const parents = new Set(stems.map(stem => stem.parent));
+  return stems.flatMap((_, index) => (parents.has(index) ? [] : [index]));
+}
+
+/**
+ * Count the exact triangles before allocating any vertices. `clustered`: the leaves are branch-tip cards, one
+ * crossed card per kept terminal stem (`leafFraction` of them), drawn along the stem itself even where its tube
+ * dropped: the card shows the twig.
+ */
+export function planTreeLod(params: TreeParams, { stems }: { stems: TreeStem[] }, lod: TreeLodParams, clustered = false): TreeLodPlan {
   const tubes: Tube[] = [];
   const sources: LeafSource[] = [];
   const hosts: (LeafPlacement | undefined)[] = [];
@@ -72,16 +107,22 @@ export function planTreeLod(params: TreeParams, { stems }: { stems: TreeStem[] }
       if (placement) sources.push({ id: stem.id, ...placement });
     }
   }
+  if (clustered) {
+    const cardStems = lod.leafFraction === 0 || params.leaves.perStem === 0 ? []
+      : terminalStems(stems).filter((index) => hash01(stems[index]!.id + "/card") < lod.leafFraction);
+    triangles += cardStems.length * 4 * params.leaves.cards;
+    return { tubes, sources, cardStems, clusters, triangles };
+  }
   eachKeptCluster(params, lod, sources, () => { triangles += 4 * params.leaves.cards; });
-  return { tubes, sources, clusters, triangles };
+  return { tubes, sources, cardStems: null, clusters, triangles };
 }
 
-function wind(params: TreeParams, stem: TreeStem, y: number, t: number, phase: number, flutter: number): number[] {
+export function wind(params: TreeParams, stem: TreeStem, y: number, t: number, phase: number, flutter: number): number[] {
   const bend = Math.min(1, Math.max(0, y / params.height)) ** 2;
   return [bend, t * stem.level / params.levels.length, phase, flutter];
 }
 
-class TreeMeshBuilder {
+export class TreeMeshBuilder {
   readonly geometry = new MeshBuilder();
   readonly uvs: number[] = [];
   readonly wind: number[] = [];
@@ -111,7 +152,7 @@ function transport(normal: Vec3, from: Vec3, to: Vec3): Vec3 {
   return unit(addScaled(normal, to, -dot(normal, to)));
 }
 
-function addTube(
+export function addTube(
   builder: TreeMeshBuilder, params: TreeParams, stem: TreeStem, { segments, spans }: Tube,
   sample: ReturnType<typeof createStemSampler>,
 ): void {
@@ -151,9 +192,9 @@ function addTube(
   for (let j = 0; j < segments; j++) builder.geometry.addTriangle(lastRing + j, lastRing + j + 1, tip);
 }
 
-function addCluster(
+export function addCluster(
   builder: TreeMeshBuilder, params: TreeParams, lod: TreeLodParams, stem: TreeStem, id: string, t: number,
-  sample: ReturnType<typeof createStemSampler>, crown: Vec3, dropped?: TreeStem,
+  sample: ReturnType<typeof createStemSampler>, crown: Vec3, dropped?: TreeStem, rect: UvRect = FULL_RECT,
 ): void {
   const { point, tangent } = sample(t);
   const random = createStream(params.seed, id);
@@ -186,7 +227,7 @@ function addCluster(
       const litNormal = addScaled([0, 0, 0], lighting, side);
       const [a, b, c, d] = corners.map((position, i) => {
         builder.leaf.push(threshold, color);
-        return builder.addVertex(position, litNormal, i === 1 || i === 2 ? 1 : 0, i < 2 ? 0 : 1,
+        return builder.addVertex(position, litNormal, i === 1 || i === 2 ? rect[2] : rect[0], i < 2 ? rect[1] : rect[3],
           wind(params, stem, position[1], t, phase, 1));
       });
       if (side === 1) {
@@ -200,8 +241,61 @@ function addCluster(
   }
 }
 
+/**
+ * One branch-tip card on a terminal stem: `cards` crossed quads around the stem's base → tip axis showing a
+ * library tile (the representative nearest in length), scaled by the stem's length (and, standing in for
+ * dropped neighbours, grown about its centre by up to `MAX_CARD_GROWTH`). `_leaf` carries the mean shedding threshold of the stem's
+ * leaf clusters (the ids of `addCluster`), so the card falls with them on average.
+ */
+function addClusterCard(
+  builder: TreeMeshBuilder, params: TreeParams, lod: TreeLodParams, stem: TreeStem, atlas: LeafAtlas, crown: Vec3,
+): void {
+  const card = atlas.clusters.reduce((best, entry) => (Math.abs(entry.length - stem.length) < Math.abs(best.length - stem.length) ? entry : best));
+  const base = stem.points[0]!, axis = unit(sub(stem.points[stem.points.length - 1]!, base));
+  // The tile scales with the twig's length; growth (standing in for dropped neighbours) about the card's centre.
+  const fit = stem.length / card.length, grow = Math.min(MAX_CARD_GROWTH, 1 / Math.sqrt(Math.max(lod.leafFraction, 1e-3)));
+  const around = (lo: number, hi: number): [number, number] => {
+    const mid = (lo + hi) / 2 * fit, half = (hi - lo) / 2 * fit * grow;
+    return [mid - half, mid + half];
+  };
+  const [a0, a1] = around(card.along[0], card.along[1]), [b0, b1] = around(card.across[0], card.across[1]);
+  const centre = addScaled(base, axis, (a0 + a1) / 2);
+  const crownDirection = unit(sub(centre, crown));
+  const across = perpendicular(axis), normal = cross(axis, across);
+  const rotation = createStream(params.seed, stem.id + "/card").range(0, TAU);
+  let threshold = 0;
+  for (let i = 0; i < params.leaves.perStem; i++) threshold += hash01(`${stem.id}/leaf/${i}/shed`);
+  threshold /= Math.max(1, params.leaves.perStem);
+  const phase = hash01(stem.id + "/phase"), color = hash01(stem.id + "/color");
+  const [u0, v0, u1, v1] = card.rect;
+  for (let k = 0; k < params.leaves.cards; k++) {
+    const angle = rotation + k * Math.PI / params.leaves.cards;
+    const vertical = addScaled(addScaled([0, 0, 0], across, Math.cos(angle)), normal, Math.sin(angle));
+    const face = cross(axis, vertical);
+    const lighting = unit(addScaled(dot(face, crownDirection) < 0 ? addScaled([0, 0, 0], face, -1) : face, crownDirection, 1));
+    // Corners (along, across): base-low, tip-low, tip-high, base-high; across max is the tile's top (v1).
+    const corners = [[a0, b0, u0, v0], [a1, b0, u1, v0], [a1, b1, u1, v1], [a0, b1, u0, v1]] as const;
+    for (const side of [1, -1]) {
+      const litNormal = addScaled([0, 0, 0], lighting, side);
+      const [a, b, c, d] = corners.map(([along, high, u, v]) => {
+        const position = addScaled(addScaled(base, axis, along), vertical, high);
+        builder.leaf.push(threshold, color);
+        return builder.addVertex(position, litNormal, u, v,
+          wind(params, stem, position[1], Math.min(1, Math.max(0, along / stem.length)), phase, 1));
+      });
+      if (side === 1) {
+        builder.geometry.addTriangle(a!, b!, c!);
+        builder.geometry.addTriangle(a!, c!, d!);
+      } else {
+        builder.geometry.addTriangle(a!, c!, b!);
+        builder.geometry.addTriangle(a!, d!, c!);
+      }
+    }
+  }
+}
+
 export function buildTreeLod(
-  params: TreeParams, { stems }: { stems: TreeStem[] }, lod: TreeLodParams, plan: TreeLodPlan,
+  params: TreeParams, { stems }: { stems: TreeStem[] }, lod: TreeLodParams, plan: TreeLodPlan, atlas?: LeafAtlas,
 ): TreeLodMesh {
   const wood = new TreeMeshBuilder(), leaves = new TreeMeshBuilder();
   if (!plan.tubes.length) return { wood: wood.build(), leaves: null };
@@ -213,9 +307,14 @@ export function buildTreeLod(
     samplers.set(tube.index, sample);
   }
   const crown = samplers.get(0)!((1 + params.crownStart) / 2).point;
-  eachKeptCluster(params, lod, plan.sources, (id, t, { host, dropped }) => {
-    addCluster(leaves, params, lod, stems[host]!, id, t, samplers.get(host)!, crown, dropped);
-  });
+  if (plan.cardStems) {
+    if (!atlas || atlas.clusters.length === 0) throw new Error("branch-tip cards need the card library");
+    for (const index of plan.cardStems) addClusterCard(leaves, params, lod, stems[index]!, atlas, crown);
+  } else {
+    eachKeptCluster(params, lod, plan.sources, (id, t, { host, dropped }) => {
+      addCluster(leaves, params, lod, stems[host]!, id, t, samplers.get(host)!, crown, dropped, atlas?.leaf ?? FULL_RECT);
+    });
+  }
   return { wood: wood.build(), leaves: leaves.leaf.length ? leaves.build() : null };
 }
 

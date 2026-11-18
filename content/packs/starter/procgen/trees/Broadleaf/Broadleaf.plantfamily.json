@@ -1,7 +1,7 @@
 {
   "schema": "forge.plantFamily/1",
   "id": "ast_e6beb70fb2c3ee3f49dc40b4d332462c",
-  "generatorVersion": 1,
+  "generatorVersion": 2,
   "prototypes": [
     {
       "seed": 1,
@@ -20,9 +20,10 @@
         }
       ],
       "impostor": {
-        "albedo": null,
-        "normal": null,
-        "views": 8
+        "albedo": "ast_a1fcc4635a1ff40d4c2d67aef66e2c65",
+        "normal": "ast_333d5a54c1bcff5b741e6ad407ec13b7",
+        "views": 8,
+        "screenSize": 0.03
       },
       "height": 13.47068
     },
@@ -43,9 +44,10 @@
         }
       ],
       "impostor": {
-        "albedo": null,
-        "normal": null,
-        "views": 8
+        "albedo": "ast_48c58913dfb85a101920180b94fe54fb",
+        "normal": "ast_031ce36f9d4fdb62b20470e76b9e90dd",
+        "views": 8,
+        "screenSize": 0.03
       },
       "height": 13.49717
     },
@@ -66,9 +68,10 @@
         }
       ],
       "impostor": {
-        "albedo": null,
-        "normal": null,
-        "views": 8
+        "albedo": "ast_d37514fe374e2da436f3431e02cca654",
+        "normal": "ast_f0b4b0a115c08c3d9711d2190352ff62",
+        "views": 8,
+        "screenSize": 0.03
       },
       "height": 13.56947
     }
