@@ -144,6 +144,32 @@ snapshot + changelog aynı commit'te.
 §4. Çıktı: bugünkü durumun tablosu (her poz, görünüm başına draw ve GPU, gölge payı). Adım 2–6'nın
 öncesi bu tablodur.
 
+18 Kasım 2026 temel ölçümü [ham JSON kaydı](../reference/measurements/2026-11-18T12-56-43-343Z-city.json) ile
+`2cd3878` commit’inde alındı. Chrome 157.0.8103.79, NVIDIA Ampere, donanım WebGPU,
+1920 × 1080, DPR 1, `auto` yolu. Varsayılan sahnede 28.964 model yerleşimi, 234 oda,
+312 portal ve 36 HLOD hücresi üretildi. Her poz ve gölge ayarı için 60 kare ısınma
+sonrası 300 kare örneklendi. GPU süreleri ortalamadır. Gölge farkı, açık ve kapalı
+koşulların ortalamaları arasındaki farktır. Çizim çağrıları gölgeler açıkken
+alınan bir tanılama karesinden gelir.
+
+| Profil | Poz | Ana görünüm | Gölge kaskatları (1–4) | Diğer | Toplam | Gölgeli GPU (ms) | Gölgesiz GPU (ms) | Gölge farkı (ms) |
+|---|---|---:|---|---:|---:|---:|---:|---:|
+| high | `street` | 358 | 126 / 245 / 495 | 1 | 1225 | 3,39 | 1,31 | 2,09 |
+| high | `square` | 156 | 102 / 102 / 288 | 1 | 649 | 4,51 | 1,53 | 2,99 |
+| high | `inside` | 125 | 145 / 145 / 145 | 1 | 561 | 4,39 | 1,55 | 2,85 |
+| high | `threshold` | 281 | 296 / 296 / 364 | 1 | 1238 | 4,80 | 1,69 | 3,11 |
+| high | `facade` | 338 | 208 / 296 / 332 | 1 | 1175 | 4,59 | 1,58 | 3,01 |
+| high | `high` | 163 | 101 / 101 / 134 | 1 | 500 | 4,24 | 1,58 | 2,66 |
+| ultra | `street` | 387 | 124 / 126 / 354 / 548 | 1 | 1540 | 4,23 | 1,33 | 2,90 |
+| ultra | `square` | 185 | 102 / 102 / 143 / 421 | 1 | 954 | 5,37 | 1,47 | 3,89 |
+| ultra | `inside` | 125 | 145 / 145 / 145 / 145 | 1 | 706 | 5,27 | 1,53 | 3,74 |
+| ultra | `threshold` | 281 | 296 / 296 / 297 / 474 | 1 | 1645 | 5,79 | 1,69 | 4,10 |
+| ultra | `facade` | 338 | 193 / 296 / 297 / 419 | 1 | 1544 | 5,68 | 1,59 | 4,09 |
+| ultra | `high` | 163 | 101 / 101 / 110 / 158 | 1 | 634 | 5,22 | 1,60 | 3,62 |
+
+Sokak → bina → sokak yürüyüşünde tarayıcı kare aralığı `high` ve `ultra` için
+sırasıyla p99’da 50,2 ve 50,2 ms, en uzun karede 66,7 ve 66,6 ms oldu.
+
 ### 5.2 Adım 2 — Boyuta göre gölge cull distance
 
 **Tasarım.** Bir nesnenin kaskat k'ya gölge düşürmesi için dünya yarıçapı, o kaskadın texel
@@ -416,4 +442,4 @@ bellekten boşaltma; R9c'nin kendi adımı.
 | Tarih | Sürüm | Ne oldu |
 |---|---|---|
 | 2026-11-18 | v0.1 | İlk taslak (kullanıcıyla tartışmanın planı): katmanlar, sıra 1–6, şehir sahnesi, adım tasarımları, R9b'nin durumu, açık sorular S1–S18. Kod yok |
-| 2026-11-18 | v0.1 | Adım 1'in üreteci, geçici proje hazırlığı ve `measure:city` koşucusu eklendi. Varsayılan normal ve ağır sahnelerde 28.964 model yerleşimi, 234 zemin kat odası, 312 iç portal ve 36 HLOD hücresi üretildi. Gerçek WebGPU referans koşusu ve sonuç tablosu bekliyor. |
+| 2026-11-18 | v0.1 | Adım 1'in üreteci, geçici proje hazırlığı ve `measure:city` koşucusu eklendi. Varsayılan normal ve ağır sahnelerde 28.964 model yerleşimi, 234 zemin kat odası, 312 iç portal ve 36 HLOD hücresi üretildi. Gerçek WebGPU referans koşusu ve sonuç tablosu §5.1’de. |
