@@ -320,6 +320,7 @@ async function start(): Promise<void> {
         check: async () => (await devGpuDriven()).check(),
         level: async () => (await devGpuDriven()).level(),
         levelVisible: async (visible: boolean) => (await devGpuDriven()).levelVisible(visible),
+        levelActive: async (active: boolean) => (await devGpuDriven()).levelActive(active),
         stats: () => viewer.host?.gpuDriven.stats() ?? null,
         bundleRecords: async () => (await devGpuDriven()).bundleRecords(),
         remove: async () => (await devGpuDriven()).remove(),

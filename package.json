@@ -37,6 +37,7 @@
     "measure:terrain": "playwright test -c tests/smoke/terrainMeasure.config.ts",
     "measure:streaming": "playwright test -c tests/smoke/streamingMeasure.config.ts",
     "measure:gpu-driven": "playwright test -c tests/smoke/gpuDrivenMeasure.config.ts",
+    "measure:foliage": "playwright test -c tests/smoke/foliageMeasure.config.ts",
     "measure:static-path": "playwright test -c tests/smoke/staticPathMeasure.config.ts",
     "measure:city": "playwright test -c tests/smoke/cityMeasure.config.ts",
     "measure:heavy-props": "playwright test -c tests/smoke/heavyPropsMeasure.config.ts",

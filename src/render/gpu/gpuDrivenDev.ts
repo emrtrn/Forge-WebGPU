@@ -56,6 +56,8 @@ export interface DevGpuDriven {
   level(): { rings: number; cells: number; instances: number; pending: number } | null;
   /** Shows or hides the level's foliage (the smoke's image without it). */
   levelVisible(visible: boolean): void;
+  /** Stops or resumes the level foliage binding's per-frame work (a measurement's baseline). */
+  levelActive(active: boolean): void;
   /** Render bundles three recorded (`backend.beginBundle` calls) since the first call (5.3 measurement). */
   bundleRecords(): number;
   /**
@@ -134,6 +136,10 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
     level() {
       const scene = host()?.world?.scene;
       return scene ? foliageProbe(scene)?.ring() ?? null : null;
+    },
+    levelActive(active) {
+      const scene = host()?.world?.scene;
+      if (scene) (detached?.object ? foliageProbe(detached.object) : foliageProbe(scene))?.setActive(active);
     },
     levelVisible(visible) {
       // Out of the scene graph, not just hidden: the cull skips batches outside the scene, so the

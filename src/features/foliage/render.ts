@@ -41,6 +41,13 @@ import { FoliageTypeAssetType, LandscapeFoliage, type FoliageTypeData, type Land
 
 /** Ring cells built per frame once a placement is ready (Forge: one, with a worker). */
 const CELLS_PER_FRAME = 2;
+/**
+ * The ring is planned again when the camera moved this far (m), when cells are pending or the quality
+ * changed, and at least every REPLAN_FRAMES frames (tiles that streamed in). Forge planned every frame; the
+ * plan is the same for a still camera, and it was a third of the frame's main thread (plan 5c F7 profile).
+ */
+const REPLAN_DISTANCE = 1;
+const REPLAN_FRAMES = 30;
 
 interface LoadedType {
   readonly draw: FoliageTypeDraw;
@@ -56,6 +63,8 @@ interface Placed {
   ring: FoliageRing | null;
   /** The terrain surface version the ring grows on. */
   surfaceVersion: number;
+  /** Where and with which quality the ring was last planned, and the frames since. */
+  planned: { x: number; z: number; quality: string; frames: number } | null;
   /** Until the first release: build every finished cell each frame. */
   filling: boolean;
   busy: (() => void) | null;
@@ -85,6 +94,8 @@ export default defineRenderBinding({
     let batches: FoliageBatches | null = null;
     let lastQuality = "";
     let painted: Painted | null = null;
+    // Development measurements stop the per-frame work for a baseline (`FoliageProbe.setActive`).
+    let active = true;
     // One worker per world: rings come and go (an edit restarts one), their terrains with them.
     let cellGenerator: FoliageCellGenerator | null = null;
     const generator = (): FoliageCellGenerator => (cellGenerator ??= createFoliageCellGenerator());
@@ -100,6 +111,7 @@ export default defineRenderBinding({
       },
       batches: () => batches?.batches ?? [],
       painted: () => painted?.view.snapshot() ?? null,
+      setActive: (next) => { active = next; },
     });
 
     const foliageOf = (actor: WorldActor): LandscapeFoliageData | null => {
@@ -211,7 +223,7 @@ export default defineRenderBinding({
       const data = foliageOf(actor);
       if (!data || data.rules.length === 0) return;
       const entry: Placed = {
-        actor: actor.id, rules: data.rules, types: null, keys: [], ring: null, surfaceVersion: 0, filling: true,
+        actor: actor.id, rules: data.rules, types: null, keys: [], ring: null, surfaceVersion: 0, planned: null, filling: true,
         busy: ctx.resources.busy(), removed: false,
       };
       placed.set(actor.id, entry);
@@ -247,7 +259,7 @@ export default defineRenderBinding({
         }
       },
       sync(frame) {
-        if (!frame.camera) return;
+        if (!frame.camera || !active) return;
         if (placed.size === 0 && !painted && !ctx.world.services.get(LevelFoliageSourceKey)?.index) return;
         const target = ensureBatches(frame.camera);
         if (!target) return;
@@ -266,10 +278,20 @@ export default defineRenderBinding({
           if (!entry.types || !surface) continue;
           if (!entry.ring || entry.surfaceVersion !== surface.version) {
             entry.ring?.dispose();
+            entry.planned = null;
             entry.ring = startRing(entry, { id: entry.actor, def: surface.def, tiles: surface.tiles, existingTiles: surface.existingTiles }, entry.types, target);
             entry.surfaceVersion = surface.version;
           }
-          entry.ring.update(center, quality.foliageCullDistanceScale, quality.grassDensity, entry.filling ? Infinity : CELLS_PER_FRAME);
+          const plan = entry.planned;
+          const qualityKey = `${quality.foliageCullDistanceScale}|${quality.grassDensity}`;
+          const due = !plan || entry.filling || entry.ring.snapshot().pending > 0 || plan.quality !== qualityKey
+            || plan.frames >= REPLAN_FRAMES || Math.hypot(center[0] - plan.x, center[1] - plan.z) >= REPLAN_DISTANCE;
+          if (due) {
+            entry.ring.update(center, quality.foliageCullDistanceScale, quality.grassDensity, entry.filling ? Infinity : CELLS_PER_FRAME);
+            entry.planned = { x: center[0], z: center[1], quality: qualityKey, frames: 0 };
+          } else {
+            plan.frames += 1;
+          }
           const settled = surface.settled() && entry.ring.snapshot().pending === 0;
           if (settled && entry.busy) {
             // The batches' models: readiness waits for them too.

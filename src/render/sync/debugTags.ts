@@ -64,6 +64,8 @@ export interface FoliageProbe {
   ring(): { readonly rings: number; readonly cells: number; readonly instances: number; readonly pending: number };
   /** The foliage batches built so far (one per Foliage Type). */
   batches(): readonly GpuDrivenBatch[];
+  /** Stops (false) or resumes the binding's per-frame work: the ring's plan and the painted streaming (a measurement's baseline). */
+  setActive(active: boolean): void;
   /** The level's painted foliage cells (F4); null without any. */
   painted(): { readonly activeCells: number; readonly totalCells: number; readonly fetchedCells: number; readonly instances: number; readonly fetching: number } | null;
 }
