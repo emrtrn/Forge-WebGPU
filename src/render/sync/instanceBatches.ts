@@ -36,9 +36,10 @@ import type { ActorId, WorldActor, WorldActorChange } from "../../core/index.ts"
 import { SCENE_SOURCE_KEY } from "../../engine/perf/sceneCost.ts";
 import { tagInstanceActors, tagPartSlots } from "./pickTags.ts";
 import { detailBatchCulled, detailCullDistance } from "../../engine/world/detailCulling.ts";
-import { createDetailFade } from "../materials/detailFade.ts";
+import { createCasterFade, createDetailFade } from "../materials/detailFade.ts";
 import type { LodPiece, TriangleBinding, TriangleDrawing } from "../triangles/triangleDrawing.ts";
 import { lodParts, type StaticPath } from "../triangles/staticPath.ts";
+import type { InstancedShadowCasters } from "./shadowCasterLayers.ts";
 import { ZONE_HIDDEN_LAYER, ZONE_SHADOW_LAYER, type ZoneMode } from "../gpu/gpuDrivenBatch.ts";
 
 export interface InstancePart {
@@ -62,7 +63,7 @@ export interface InstanceBatch {
   move(id: string, matrix: Matrix4): boolean;
   readonly size: number;
   /** The parts to draw; until set, placements wait and nothing is drawn. */
-  setParts(parts: readonly InstancePart[], detailRadius?: number): void;
+  setParts(parts: readonly InstancePart[], detailRadius?: number, casterRadius?: number): void;
   updateCulling(camera: Camera | null, qualityScale: number): void;
   /** Rebuilds the instanced meshes if anything changed since the last flush. */
   flush(): void;
@@ -84,6 +85,7 @@ export interface InstanceBatchOptions {
   readonly source?: string;
   readonly parent: Object3D;
   readonly castShadow: boolean;
+  readonly shadowCasters?: InstancedShadowCasters;
 }
 
 const WHITE = new Color(1, 1, 1);
@@ -123,6 +125,10 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
   let cullDistance: number | null = null;
   let fade: ReturnType<typeof createDetailFade> | null = null;
   let fadePlacements: InstancedBufferAttribute | null = null;
+  let casterFade: ReturnType<typeof createCasterFade> | null = null;
+  let casterRadius: number | undefined;
+  let casterScale = { value: 0 };
+  let untrackCaster: (() => void) | undefined;
   let triangleBindings: TriangleBinding[] = [];
   /** Per mesh of the current set: drawn by the automatic LOD path (its source stays for picking). */
   let lodOf: boolean[] = [];
@@ -157,8 +163,18 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
     const wasPrepared = prepared;
     generation += 1; prepared = false; preparing = false;
     const oldMeshes = meshes, oldFade = fade, oldTriangles = triangleBindings;
+    const oldCasterFade = casterFade, untrackOldCaster = untrackCaster;
+    untrackCaster = undefined;
+    casterFade = null;
+    casterScale = { value: 0 };
     triangleBindings = [];
-    const release = (): void => { for (const binding of oldTriangles) binding.dispose(); for (const mesh of oldMeshes) { mesh.removeFromParent(); mesh.dispose(); } oldFade?.dispose(); };
+    const release = (): void => {
+      untrackOldCaster?.();
+      for (const binding of oldTriangles) binding.dispose();
+      for (const mesh of oldMeshes) { mesh.removeFromParent(); mesh.dispose(); }
+      oldCasterFade?.dispose();
+      oldFade?.dispose();
+    };
     if (keep && wasPrepared && oldMeshes.length > 0 && (options.prepare || options.triangles)) {
       releaseRetired();
       retired = release;
@@ -195,9 +211,10 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
     get size() {
       return placements.size;
     },
-    setParts(next, radius) {
+    setParts(next, radius, shadowRadius = radius) {
       parts = next;
       detailRadius = radius;
+      casterRadius = shadowRadius;
       cullDistance = radius === undefined ? null : detailCullDistance(radius);
       removeMeshes();
       dirty = true;
@@ -223,6 +240,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         moved.clear();
         maxScale = 0;
         for (const entry of placements.values()) maxScale = Math.max(maxScale, entry.matrix.getMaxScaleOnAxis());
+        casterScale.value = maxScale;
         if (fadePlacements) fadePlacements.needsUpdate = true;
         return;
       }
@@ -243,12 +261,20 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         colored = needsColor;
         // R9.3 / R9.4: decided per set; the LOD path fades and culls on the GPU itself.
         lodOf = options.triangles ? lodParts(options.staticPath?.() ?? "gpu", parts) : parts.map(() => false);
-        if (cullDistance !== null && lodOf.some((lod) => !lod)) {
+        const detail = cullDistance !== null && lodOf.some(lod => !lod);
+        const caster = options.castShadow && options.shadowCasters && casterRadius !== undefined;
+        if (detail || caster) {
           fadePlacements = new InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
-          fade = createDetailFade(cullDistance, fadePlacements);
+          if (detail) fade = createDetailFade(cullDistance!, fadePlacements);
+          if (caster) casterFade = createCasterFade(fadePlacements);
         }
+        const materialOf = (one: Material): Material => {
+          const detailed = fade?.material(one) ?? one;
+          return casterFade?.material(detailed) ?? detailed;
+        };
         meshes = parts.map((part, partIndex) => {
-          const material = fade && !lodOf[partIndex] ? (Array.isArray(part.material) ? part.material.map((one) => fade!.material(one)) : fade.material(part.material)) : part.material;
+          const material = lodOf[partIndex] ? part.material
+            : Array.isArray(part.material) ? part.material.map(materialOf) : materialOf(part.material);
           const mesh = new InstancedMesh(part.geometry, material, capacity);
           mesh.name = `${options.name}/${part.name}`;
           mesh.castShadow = options.castShadow;
@@ -259,6 +285,14 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
           if (!options.prepare && !lodOf.includes(true)) options.parent.add(mesh);
           return mesh;
         });
+        if (casterFade && casterRadius !== undefined) {
+          const radius = casterRadius, scale = casterScale;
+          untrackCaster = options.shadowCasters?.add({
+            parent: options.parent, meshes, fade: casterFade,
+            radius: () => radius * scale.value,
+            zoneMode: () => zoneMode,
+          });
+        }
         applyZoneMode();
       }
       const actors = [...placements.values()].map((entry) => entry.actor);
@@ -268,6 +302,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         const scale = entry.matrix.getMaxScaleOnAxis(); maxScale = Math.max(maxScale, scale);
         fadePlacements?.setXYZW(placementIndex++, entry.matrix.elements[12]!, entry.matrix.elements[13]!, entry.matrix.elements[14]!, scale);
       }
+      casterScale.value = maxScale;
       if (fadePlacements) fadePlacements.needsUpdate = true;
       meshes.forEach((mesh, partIndex) => {
         tagInstanceActors(mesh, actors);
@@ -292,6 +327,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         preparation = new AbortController();
         const ticket = generation, pending = [...meshes], lods = lodOf;
         const pendingBindings = triangleBindings, signal = preparation.signal;
+        const pendingCasterFade = casterFade;
         const locals = parts!.map((part) => part.local.clone()), pieces = parts!.map((part) => part.lodPieces);
         preparationWork = anyLod ? (async () => {
           for (let i = 0; i < pending.length; i += 1) {
@@ -302,6 +338,11 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
               // R9.3: a part the LOD path cannot take draws instanced (unfaded) in the same batch.
               if (signal.aborted) return;
               lods[i] = false;
+              if (pendingCasterFade) {
+                const mesh = pending[i]!, material = mesh.material;
+                mesh.material = Array.isArray(material) ? material.map(one => pendingCasterFade.material(one))
+                  : pendingCasterFade.material(material);
+              }
               console.warn(`forge render: ${pending[i]!.name} stays instanced`, error);
             }
           }

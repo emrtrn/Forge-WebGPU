@@ -56,10 +56,11 @@ export function createDevHeavyProps(host: () => RenderHost | null): DevHeavyProp
         if (!batch) {
           batch = createInstanceBatch({
             name: `heavyProps${zone === null ? "" : `/${zone}`}`, source: "staticMesh", parent: world.root, castShadow: true,
+            shadowCasters: current.gpuDriven.instancedCasters,
             prepare: (objects, signal) => current.prepare(objects, scene, signal),
             ...(path === "instanced" ? {} : { triangles: current.triangles, staticPath: () => path }),
           });
-          batch.setParts([{ geometry, material, local: new Matrix4(), name: "sphere" }]);
+          batch.setParts([{ geometry, material, local: new Matrix4(), name: "sphere" }], undefined, 0.5);
           byZone.set(zone, batch);
           batches.push({ batch, untrack: zone !== null && world.zones ? world.zones.track(zone, batch) : null });
         }

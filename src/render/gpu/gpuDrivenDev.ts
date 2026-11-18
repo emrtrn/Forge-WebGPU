@@ -35,6 +35,7 @@ export interface DevGpuInstall {
 
 export interface DevGpuViewCheck {
   readonly gpu: readonly number[];
+  readonly minCasterRadius?: number;
   readonly cpu: Pick<InstanceCullResult, "counts" | "certain" | "possible">;
 }
 
@@ -111,8 +112,12 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
       const views = current?.gpuDriven.lastViews ?? [];
       if (!current || views.length === 0) throw new Error("no culled frame yet");
       const viewCheck = async (batch: GpuDrivenBatch, index: number): Promise<DevGpuViewCheck> => {
-        const cpu = cullInstanceCounts(batch.instances.matrices(), batch.instances.count, batch.cullBatch, views[index]!);
-        return { gpu: await batch.readCounts(current.renderer, index), cpu: { counts: cpu.counts, certain: cpu.certain, possible: cpu.possible } };
+        const layer = batch.viewLayers[index];
+        const view = views.find(entry => entry.layer === layer) ?? views[0]!;
+        const cpu = cullInstanceCounts(batch.instances.matrices(), batch.instances.count, batch.cullBatch, view);
+        return { gpu: await batch.readCounts(current.renderer, index),
+          ...(view.minCasterRadius === undefined ? {} : { minCasterRadius: view.minCasterRadius }),
+          cpu: { counts: cpu.counts, certain: cpu.certain, possible: cpu.possible } };
       };
       // The installed batches, else the level's own foliage (plan 5c F1: the ring).
       const batches = foliage?.batches ?? (current.world ? foliageProbe(current.world.scene)?.batches() ?? [] : []);

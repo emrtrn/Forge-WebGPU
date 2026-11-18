@@ -460,7 +460,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       world.zones?.update(camera);
       gpuDriven.setZoneMasks(world.zones?.masks ?? null);
       triangles.update(camera, quality.settings.foliageCullDistanceScale, world.zones ?? null);
-      gpuDriven.cull(world.scene, camera);
+      gpuDriven.cull(world.scene, camera, quality.settings.shadowCasterMinTexels);
       pipeline.render(world.scene, camera, world.output, quality.settings);
       overlay?.render({ renderer, scene: world.scene, camera, sceneDepth: pipeline.sceneDepth });
       // CPU wall time for render traversal / encoding / submission; never GPU execution time.

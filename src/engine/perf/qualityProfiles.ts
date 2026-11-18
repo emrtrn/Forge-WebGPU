@@ -96,6 +96,8 @@ export interface QualitySettings {
    * levels keep one bounds-fitted map whatever this says.
    */
   shadowCascades: ShadowCascadeCount;
+  /** Minimum world-radius in shadow-map texels for a caster (zero disables). */
+  shadowCasterMinTexels: number;
   /** Redraw cascades 2+ every other frame, alternating (saves ~0.3 ms on Ultra). */
   shadowCascadeStagger: boolean;
 
@@ -180,6 +182,7 @@ export const QUALITY_PROFILES: Record<Exclude<QualityLevel, "custom" | "cinemati
     aoResolutionScale: 1,
     shadowsEnabled: true,
     shadowMapSize: 2048,
+    shadowCasterMinTexels: 1.5,
     shadowDistanceScale: 1.0,
     shadowCascades: 4,
     shadowCascadeStagger: true,
@@ -213,6 +216,7 @@ export const QUALITY_PROFILES: Record<Exclude<QualityLevel, "custom" | "cinemati
     aoResolutionScale: 1,
     shadowsEnabled: true,
     shadowMapSize: 1024,
+    shadowCasterMinTexels: 2,
     shadowDistanceScale: 0.75,
     shadowCascades: 3,
     shadowCascadeStagger: false,
@@ -246,6 +250,7 @@ export const QUALITY_PROFILES: Record<Exclude<QualityLevel, "custom" | "cinemati
     aoResolutionScale: 1,
     shadowsEnabled: true,
     shadowMapSize: 512,
+    shadowCasterMinTexels: 3,
     shadowDistanceScale: 0.5,
     shadowCascades: 2,
     shadowCascadeStagger: false,
@@ -279,6 +284,7 @@ export const QUALITY_PROFILES: Record<Exclude<QualityLevel, "custom" | "cinemati
     aoResolutionScale: 1,
     shadowsEnabled: false,
     shadowMapSize: 256,
+    shadowCasterMinTexels: 3,
     shadowDistanceScale: 0.35,
     shadowCascades: 2,
     shadowCascadeStagger: false,

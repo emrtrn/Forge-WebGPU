@@ -42,3 +42,17 @@ export function casterLayerMask(cascade: number, classLayers: readonly number[])
   }
   return mask;
 }
+
+/** A single sun's nested shadow maps, nearest first. Widths and splits are in metres. */
+export interface ShadowCasterProfile {
+  readonly texels: readonly number[];
+  readonly splits: readonly number[];
+  readonly minTexels: number;
+}
+
+/** Fade only a caster with some, but not all, cascades available. Zero means no extra fade. */
+export function casterFadeEnd(cascade: number, profile: ShadowCasterProfile): number {
+  return cascade > 0 && cascade < profile.splits.length ? profile.splits[cascade - 1]! : 0;
+}
+
+export const CASTER_FADE_START = 0.85;

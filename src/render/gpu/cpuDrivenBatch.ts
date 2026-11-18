@@ -25,10 +25,12 @@ import { SCENE_SOURCE_KEY } from "../../engine/perf/sceneCost.ts";
 import {
   cullInstanceCounts,
   fadeShown,
+  instanceCasterFadeEnd,
   MAX_INSTANCE_LODS,
   measuredDistance,
   NO_CULL_DISTANCE,
 } from "../../engine/world/instanceCulling.ts";
+import { CASTER_FADE_START } from "../../engine/world/shadowCasters.ts";
 import { EXTRA_FLOATS, MATRIX_FLOATS, createGpuInstances } from "./gpuInstances.ts";
 import {
   cloneNodeMaterial, drawPasses, maskWithFade, MAIN_VIEW_LAYER, MAX_CAMERA_VIEWS, MAX_SHADOW_VIEWS,
@@ -129,6 +131,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     // three counts the twin's triangles itself; the field keeps the interface.
     lodTriangles: options.lods.map(() => 0),
     get views() { return prepared; },
+    get viewLayers() { return views.slice(0, prepared).map(view => view.layer); },
     get lastDraws() { return lastDraws; },
     // WebGL2 has no render bundles.
     bundleUpdates: 0,
@@ -173,8 +176,11 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
             instance.fromArray(matrices, at * MATRIX_FLOATS);
             mesh.setMatrixAt(slot, world.multiplyMatrices(instance, local));
             if (options.instanceColors) mesh.setColorAt(slot, new Color().setRGB(options.instanceColors.getX(at), options.instanceColors.getY(at), options.instanceColors.getZ(at)));
-            const distance = measuredDistance(matrices, at * MATRIX_FLOATS, cull.distanceMode, source.origin);
-            shown.setX(slot, fadeShown(distance, fadeStart, cull.cullEnd) * extras[at * EXTRA_FLOATS]!);
+            const offset = at * MATRIX_FLOATS;
+            const distance = measuredDistance(matrices, offset, cull.distanceMode, source.origin);
+            const end = source.casterProfile ? instanceCasterFadeEnd(matrices, offset, cull.radius, source.casterProfile) : 0;
+            const shadow = end > 0 ? fadeShown(measuredDistance(matrices, offset, "origin", source.origin), end * CASTER_FADE_START, end) : 1;
+            shown.setX(slot, fadeShown(distance, fadeStart, cull.cullEnd) * extras[at * EXTRA_FLOATS]! * shadow);
           });
           mesh.count = visible.length;
           if (visible.length > 0) lastDraws += passes;

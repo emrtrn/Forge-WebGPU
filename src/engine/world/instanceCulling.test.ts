@@ -3,6 +3,7 @@ import {
   cullInstanceCounts,
   fadeShown,
   frustumPlanesOf,
+  instanceCasterFadeEnd,
   lodStartsOfScreenSizes,
   maxAxisScale,
   measuredDistance,
@@ -148,4 +149,18 @@ describe("mirrorCullView (R9a step 1)", () => {
       expect(inside(mirrored.planes, p)).toBe(inside(box.planes, reflected));
     }
   });
+});
+
+test("shadow culling uses the scaled radius, includes equality and brackets f32 edges", () => {
+  const camera = { origin: [0, 0, 0] as const, planes: frustumPlanesOf(perspective(60, 1, .1, 100, false)) };
+  const packed = matrices(translation(0, 0, -10, .25), translation(0, 0, -10, .5),
+    translation(0, 0, -10, .75), translation(0, 0, -10, .5 - .00001));
+  const result = cullInstanceCounts(packed, 4, BATCH, { ...camera, minCasterRadius: .5 });
+  expect(result.visible).toEqual([[1, 2]]);
+  expect(result.certain).toEqual([1]);
+  expect(result.possible).toEqual([3]);
+  expect(cullInstanceCounts(packed, 4, BATCH, camera).counts).toEqual([4]);
+  const profile = { texels: [.25, .375], splits: [10, 30], minTexels: 2 };
+  expect(instanceCasterFadeEnd(packed, 16, 1, profile)).toBe(10);
+  expect(instanceCasterFadeEnd(packed, 32, 1, profile)).toBe(0);
 });

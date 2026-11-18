@@ -17,6 +17,7 @@
 import { Box3, InstancedMesh, Matrix4, Raycaster, Vector2, Vector3, type BufferGeometry, type Camera, type Intersection, type Mesh, type Object3D } from "three/webgpu";
 import type { ActorId } from "../../core/index.ts";
 import { actorOfHit, actorOfObject, instanceActorsOf, ownActorOf, pickSurfaceOf, slotOfHit, type PickSurface } from "../sync/pickTags.ts";
+import { VISIBLE_CASTER_LAYERS } from "../sync/shadowCasterLayers.ts";
 
 export interface ViewportPick {
   readonly actor: ActorId;
@@ -48,6 +49,7 @@ const NONE: ReadonlySet<ActorId> = new Set();
 
 export function createScenePicker(root: () => Object3D | null, helpers: () => Object3D | null = () => null): ScenePicker {
   const raycaster = new Raycaster();
+  raycaster.layers.mask |= VISIBLE_CASTER_LAYERS;
   const hits: Intersection[] = [];
   const instance = new Matrix4();
   const world = new Matrix4();

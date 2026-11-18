@@ -101,6 +101,24 @@ describe("cpu-driven batch (the WebGL2 twin)", () => {
     batch.dispose();
   });
 
+  test("caster size and the last eligible split affect only the shadow view", async () => {
+    const batch = createCpuDrivenBatch({} as WebGPURenderer, {
+      name: "casters", parent: new Group(), distanceMode: "origin", bounds: { center: [0, 0, 0], radius: 1 },
+      lods: [[{ geometry: new BoxGeometry(), material: new MeshBasicNodeMaterial(), local: new Matrix4(), name: "part" }]],
+    });
+    batch.instances.addMany([...at(0, 0, -8), ...at(0, 0, -9.25), ...at(0, 0, -10),
+      ...new Matrix4().makeScale(.25, .25, .25).setPosition(0, 0, -8).elements], 4);
+    const first = { ...VIEW, role: "shadow" as const, layer: shadowViewLayer(1), minCasterRadius: .5,
+      casterProfile: { texels: [.25, .75], splits: [10, 30], minTexels: 2 } };
+    batch.prepare([VIEW, first, { ...first, layer: shadowViewLayer(2), minCasterRadius: 1.5 }]);
+    expect(await batch.readCounts({} as WebGPURenderer, 0)).toEqual([4]);
+    expect(await batch.readCounts({} as WebGPURenderer, 1)).toEqual([3]);
+    expect(await batch.readCounts({} as WebGPURenderer, 2)).toEqual([0]);
+    const fade = (batch.allMeshes[1]!.userData[CPU_FADE_KEY] as InstancedBufferAttribute);
+    expect([fade.getX(0), fade.getX(1), fade.getX(2)]).toEqual([1, .5, 0]);
+    batch.dispose();
+  });
+
   test("zone modes (R9b): shadow-only draws the shadow views alone, hidden draws nothing until visible again", () => {
     const parent = new Group();
     const batch = createCpuDrivenBatch({} as WebGPURenderer, {

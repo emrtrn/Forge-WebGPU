@@ -196,12 +196,11 @@ ve `shadowCascades` texel'i belirler, τ profil alanıdır (S9).
   İzinli son kaskadın bölmesine yakın solma (S10): `maskShadowNode`'da ana kamera mesafesiyle
   dither, bugünkü detay solmasının ikinci penceresi.
 - **Instanced yol:** batch başına sınıf: `kmax` = batch yarıçapı × en büyük örnek ölçeğiyle
-  izinli son kaskat (0 = hiç). Gölge sınıfı katmanları (16–19 boş; 0–15 dolu: gölge görünümleri
-  1–8, ana 9, kamera 10–13, bölge 14–15): mesh sınıf katmanında, ana kamera bütün sınıf
-  katmanlarını, kaskat k kamerası `kmax ≥ k` olan sınıfları açar; katman 0'daki diğer her şey
-  (terrain, karakter) değişmez. Bölge kipleri (`ZONE_SHADOW_LAYER` / `ZONE_HIDDEN_LAYER`) sınıfla
-  birleşir: `applyZoneMode` katmanı kip × sınıftan seçer. Sınıf yalnız profil ya da kaskat
-  kurulumu değişince yeniden hesaplanır (CSM dilim küresi dönüşte sabit).
+  izinli son kaskat (0 = CSM gölgesi yok). Görünür sınıflar 16–19, yalnız gölge veren bölge
+  sınıfları 20–23. Sınıf 0 aynı iki kip için 24–25'i kullanır. Ana kamera görünür sınıfların
+  tamamını, kaskat k ise her iki kipte `kmax ≥ k` olan sınıfları görür. Tek haritalı ışıklar
+  boyut eşiği uygulamaz. Gizli bölgeler 15'te kalır. Sınıf, profil, kaskat genişliği veya
+  batch'in en büyük ölçeği değişince yeniden hesaplanır.
 - **Kapsam dışı (S11):** yakın kaskadın tamamen kapsadığı gölge düşürücüyü uzak kaskattan çıkarmak
   (gölge hacmi dışarı taşabilir; yanlış gizleme riski). Ölçümden sonra ayrı karar.
 
@@ -419,7 +418,7 @@ bellekten boşaltma; R9c'nin kendi adımı.
 - Sınırların geç gelmesi: model yüklenince yeniden anahtarlama instanced batch'i yeniden kurar;
   açılışta toplu yeniden kurma sıçraması. S8 bunu da giderir.
 - Gölge kesilmesi: kaskat sınırında, gün batımında uzun gölgede görünebilir (S10, kullanıcı kabulü).
-- Katman bütçesi: three katmanları 32 bit; 0–15 dolu, gölge sınıfı 16–19. Yeni görünüm türü
+- Katman bütçesi: three katmanları 32 bit; 0–15 dolu, gölge sınıfları 16–25. Yeni görünüm türü
   eklenirse bütçe daralır.
 - Ölçüm sayacı three iç API'sine (`backend.draw`) dayanır; three yükseltmesinde kırılabilir
   (yalnız ölçüm, ürün kodu değil).
@@ -443,3 +442,4 @@ bellekten boşaltma; R9c'nin kendi adımı.
 |---|---|---|
 | 2026-11-18 | v0.1 | İlk taslak (kullanıcıyla tartışmanın planı): katmanlar, sıra 1–6, şehir sahnesi, adım tasarımları, R9b'nin durumu, açık sorular S1–S18. Kod yok |
 | 2026-11-18 | v0.1 | Adım 1'in üreteci, geçici proje hazırlığı ve `measure:city` koşucusu eklendi. Varsayılan normal ve ağır sahnelerde 28.964 model yerleşimi, 234 zemin kat odası, 312 iç portal ve 36 HLOD hücresi üretildi. Gerçek WebGPU referans koşusu ve sonuç tablosu §5.1’de. |
+| 2026-11-18 | v0.1 | Adım 2'nin kaskat boyutu eşiği ve son izinli kaskatta dither solması bağlandı. Başlangıç değerleri `ultra` 1,5 / `high` 2 / `medium` ve `low` 3 texel ve son %15 solma. WebGPU karşılaştırması, referans level gerileme koşusu ve görsel kabul açık. |

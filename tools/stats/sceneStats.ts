@@ -27,7 +27,13 @@ import { isId, type AssetId } from "../../src/core/id.ts";
 import { effectiveComponents } from "../../src/core/level/actorClass.ts";
 import type { LevelDoc } from "../../src/core/level/model.ts";
 import { parseComponentTypeTag } from "../../src/core/schema/component.ts";
-import { shapeMesh, type ShapePrimitiveName } from "../../src/engine/procgen/shapePrimitives.ts";
+import { worldMatrixOf } from "../../src/engine/edit/hierarchy.ts";
+import { composeMat4, multiplyMat4, type Mat4 } from "../../src/engine/math/affine.ts";
+import { QUALITY_PROFILES } from "../../src/engine/perf/qualityProfiles.ts";
+import { maxAxisScale } from "../../src/engine/world/hlod.ts";
+import { cascadeTexelSize, maxCasterCascade } from "../../src/engine/world/shadowCasters.ts";
+import { cascadeSliceSphere, computeCascadeSplits, SUN_CASCADE_NEAR, SUN_CASCADE_SPLIT_LAMBDA, sunCascadeDistance } from "../../src/engine/world/sunCascades.ts";
+import { shapeBoundingRadius, shapeMesh, type ShapePrimitiveName } from "../../src/engine/procgen/shapePrimitives.ts";
 import type { HlodInput } from "../world/hlodInput.ts";
 import { contentPath, resourcePath } from "../world/hlodInput.ts";
 
@@ -61,7 +67,7 @@ export interface SceneStats {
   };
   readonly shapes: { readonly placements: number; readonly byPrimitive: Readonly<Record<string, number>>; readonly triangles: number };
   readonly materials: { readonly unique: number; readonly transparent: number; readonly doubleSided: number; readonly transparentDoubleSided: number };
-  readonly draws: { readonly staticBatches: number; readonly shapeBatches: number; readonly drawsPerView: number; readonly shadowCastingBatches: number; readonly shadowDrawsPerCascade: number };
+  readonly draws: { readonly staticBatches: number; readonly shapeBatches: number; readonly drawsPerView: number; readonly shadowCastingBatches: number; readonly shadowDrawsPerCascade: number; readonly shadowDrawsByCascade: Readonly<Record<"high" | "ultra", readonly number[]>> };
   readonly triangles: { readonly source: number };
   readonly foliage: { readonly landscapeRules: number; readonly paintedInstances: number; readonly paintedTypes: number };
   readonly hlod: { readonly cells: number; readonly triangles: number; readonly clusters: number; readonly clusterTriangles: number; readonly landmarkTriangles: number } | null;
@@ -150,7 +156,25 @@ export async function sceneStats(source: SceneStatsInput): Promise<SceneStats> {
   const modelMaterialKeys = new Set<string>();
   const staticBatches = new Map<string, { model: string; slots: readonly (string | null)[] }>();
   const shapeBatches = new Set<string>();
-  const castingStatic = new Set<string>();
+  const castingStatic = new Map<string, number>();
+  const castingShapes = new Map<ShapePrimitiveName, number>();
+  const actors = new Map(level.actors.map(actor => [actor.id, actor]));
+  const lookup = (id: (typeof level.actors)[number]["id"]) => actors.get(id);
+  const profiles = (["high", "ultra"] as const).map(profile => {
+    const quality = QUALITY_PROFILES[profile];
+    const splits = computeCascadeSplits(quality.shadowCascades, SUN_CASCADE_NEAR,
+      sunCascadeDistance(quality.shadowDistanceScale), SUN_CASCADE_SPLIT_LAMBDA);
+    // The level viewer's reference 44° vertical FOV at 16:9. This estimate
+    // precedes runtime camera fitting, zone visibility and instance culling.
+    const texels = splits.map(split => cascadeTexelSize(2 * cascadeSliceSphere(44, 16 / 9, split).radius, quality.shadowMapSize));
+    return { profile, texels, minTexels: quality.shadowCasterMinTexels, draws: texels.map(() => 0) };
+  });
+  const countCascadeDraws = (radius: number, draws: number) => {
+    for (const profile of profiles) {
+      const last = radius > 0 ? maxCasterCascade(radius, profile.texels, profile.minTexels) : profile.draws.length;
+      for (let index = 0; index < last; index += 1) profile.draws[index]! += draws;
+    }
+  };
   const placedMaterials = new Map<string, MaterialFlags>();
   let spatial = 0, shapes = 0, shapeTris = 0, landscapeRules = 0, staticPlacements = 0;
 
@@ -165,16 +189,23 @@ export async function sceneStats(source: SceneStatsInput): Promise<SceneStats> {
 
   for (const actor of level.actors) {
     if (actor.spatiallyLoaded !== false) spatial += 1;
+    let world: Mat4 | undefined;
     const effective = effectiveComponents(actor, actor.class ? input.index.resolveClass(actor.class) : undefined);
     for (const component of Object.values(effective)) {
       const name = parseComponentTypeTag(component.type)?.name ?? component.type;
       components[name] = (components[name] ?? 0) + 1;
+      const casterScale = (): number => {
+        world ??= worldMatrixOf(lookup, actor);
+        const local = component.local;
+        return maxAxisScale(local ? multiplyMat4(world, composeMat4(local.p, local.r, local.s)) : world);
+      };
       if (name === "forge.shape") {
         const primitive = (component.primitive ?? "cube") as ShapePrimitiveName;
         shapes += 1;
         byPrimitive[primitive] = (byPrimitive[primitive] ?? 0) + 1;
         try { shapeTris += shapeTriangles(primitive); } catch { warnings.push(`shape ${actor.id}: unknown primitive ${String(primitive)}`); }
         shapeBatches.add(`${primitive}|${component.castShadow === false ? "none" : "cast"}`);
+        if (component.castShadow !== false) castingShapes.set(primitive, Math.max(castingShapes.get(primitive) ?? 0, casterScale()));
       } else if (name === "forge.staticMesh" && isId(component.mesh, "asset")) {
         const model = component.mesh as AssetId;
         const overrides = ((component.materials ?? []) as readonly (string | null)[]);
@@ -182,7 +213,7 @@ export async function sceneStats(source: SceneStatsInput): Promise<SceneStats> {
         modelPlacements.set(model, (modelPlacements.get(model) ?? 0) + 1);
         const key = `${model}|${overrides.map((id) => id ?? "").join(",")}|${component.castShadow === false ? "none" : "cast"}`;
         staticBatches.set(key, { model, slots: overrides });
-        if (component.castShadow !== false) castingStatic.add(key);
+        if (component.castShadow !== false) castingStatic.set(key, Math.max(castingStatic.get(key) ?? 0, casterScale()));
       } else if (name === "forge.landscapeFoliage") {
         landscapeRules += Array.isArray(component.rules) ? component.rules.length : 0;
       }
@@ -214,10 +245,17 @@ export async function sceneStats(source: SceneStatsInput): Promise<SceneStats> {
       draws += flags.transparent && flags.doubleSided ? 2 : 1;
     }
     drawsPerView += draws;
-    if (castingStatic.has(key)) shadowDraws += draws;
+    const scale = castingStatic.get(key);
+    if (scale !== undefined) {
+      shadowDraws += draws;
+      countCascadeDraws(info.radius * scale, draws);
+    }
   }
   drawsPerView += shapeBatches.size;
-  shadowDraws += [...shapeBatches].filter((key) => key.endsWith("|cast")).length;
+  shadowDraws += castingShapes.size;
+  for (const [primitive, scale] of castingShapes) {
+    try { countCascadeDraws(shapeBoundingRadius(primitive) * scale, 1); } catch { /* already reported above */ }
+  }
 
   const modelStats: ModelStats[] = [];
   let sourceTriangles = 0;
@@ -254,8 +292,9 @@ export async function sceneStats(source: SceneStatsInput): Promise<SceneStats> {
     },
     draws: {
       staticBatches: staticBatches.size, shapeBatches: shapeBatches.size, drawsPerView,
-      shadowCastingBatches: castingStatic.size + [...shapeBatches].filter((key) => key.endsWith("|cast")).length,
+      shadowCastingBatches: castingStatic.size + castingShapes.size,
       shadowDrawsPerCascade: shadowDraws,
+      shadowDrawsByCascade: { high: profiles[0]!.draws, ultra: profiles[1]!.draws },
     },
     triangles: { source: sourceTriangles + shapeTris },
     foliage: { landscapeRules, paintedInstances: painted, paintedTypes: source.foliageIndex?.types.length ?? 0 },
@@ -277,7 +316,9 @@ export function formatSceneStats(stats: SceneStats, top = 10): string {
     `static meshes ${n(stats.staticMeshes.placements)} placements, ${n(stats.staticMeshes.uniqueModels)} models, ${n(stats.staticMeshes.uniqueModelMaterials)} model+material combinations, ${n(stats.staticMeshes.sourceTriangles)} triangles`,
     `shapes ${n(stats.shapes.placements)} (${Object.entries(stats.shapes.byPrimitive).map(([k, v]) => `${k} ${v}`).join(", ") || "-"}), ${n(stats.shapes.triangles)} triangles`,
     `materials ${n(stats.materials.unique)} unique, ${stats.materials.transparent} transparent, ${stats.materials.doubleSided} double-sided, ${stats.materials.transparentDoubleSided} both`,
-    `draws ${n(stats.draws.drawsPerView)} per view (${stats.draws.staticBatches} static + ${stats.draws.shapeBatches} shape batches); ${stats.draws.shadowCastingBatches} batches cast, ${n(stats.draws.shadowDrawsPerCascade)} draws per shadow cascade`,
+    `draws ${n(stats.draws.drawsPerView)} per view (${stats.draws.staticBatches} static + ${stats.draws.shapeBatches} shape batches); ${stats.draws.shadowCastingBatches} batches cast, ${n(stats.draws.shadowDrawsPerCascade)} unfiltered draws per shadow cascade`,
+    ...Object.entries(stats.draws.shadowDrawsByCascade).map(([profile, draws]) =>
+      `shadow draws by cascade (${profile}, eligible batch estimate) ${draws.map(n).join(" / ")}`),
     `triangles ${n(stats.triangles.source)} source (every placement at full detail)`,
     `foliage ${stats.foliage.landscapeRules} landscape rules, ${n(stats.foliage.paintedInstances)} painted instances of ${stats.foliage.paintedTypes} types`,
     `hlod ${stats.hlod ? `${stats.hlod.cells} cells, ${n(stats.hlod.triangles)} triangles; ${stats.hlod.clusters} clusters, ${n(stats.hlod.clusterTriangles)} triangles; landmarks ${n(stats.hlod.landmarkTriangles)} triangles` : "none"}`,

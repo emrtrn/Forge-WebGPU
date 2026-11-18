@@ -1,7 +1,9 @@
 // Forge staticDetailCulling / foliageFade, expressed as TSL mask slots.
 // The per-instance origin/scale excludes the model's own node transforms.
-import { Vector2, Vector3, type InstancedBufferAttribute, type Material, type NodeMaterial, type Node } from "three/webgpu";
+import { Vector2, Vector3, type Camera, type InstancedBufferAttribute, type Material, type NodeMaterial, type Node } from "three/webgpu";
 import { bool, distance, dot, float, fract, instancedDynamicBufferAttribute, max, screenCoordinate, smoothstep, uniform, varying, vec2 } from "three/tsl";
+import { NO_CULL_DISTANCE } from "../../engine/world/instanceCulling.ts";
+import { CASTER_FADE_START } from "../../engine/world/shadowCasters.ts";
 import { detailCullWindow } from "../../engine/world/detailCulling.ts";
 
 /** The screen-door threshold of the dither fade (interleaved gradient noise); the GPU-driven batches share it. */
@@ -28,6 +30,36 @@ export function createDetailFade(distanceAtScaleOne: number, placements: Instanc
     },
     update(camera: Vector3, qualityScale: number) {
       origin.value.copy(camera); range.value.set(...detailCullWindow(distanceAtScaleOne, qualityScale));
+    },
+    dispose() { for (const clone of clones.values()) clone.dispose(); clones.clear(); },
+  };
+}
+
+/** Fade a class-limited instanced caster only in the sun's actual shadow passes. */
+export function createCasterFade(placements: InstancedBufferAttribute) {
+  const origin = uniform(new Vector3());
+  let cameras: ReadonlySet<Camera> | null = null;
+  let fadeEnd = 0;
+  const end = uniform(NO_CULL_DISTANCE).onRenderUpdate(({ camera }) =>
+    fadeEnd > 0 && camera && cameras?.has(camera) ? fadeEnd : NO_CULL_DISTANCE);
+  const placement = varying(instancedDynamicBufferAttribute<"vec4">(placements, "vec4"));
+  const hidden = smoothstep(end.mul(CASTER_FADE_START), end, distance(origin, placement.xyz));
+  const keeps = hidden.lessThanEqual(detailFadeDither);
+  const clones = new Map<Material, Material>();
+  return {
+    material(source: Material): Material {
+      if (!(source as NodeMaterial).isNodeMaterial) return source;
+      const existing = clones.get(source);
+      if (existing) return existing;
+      const clone = source.clone() as NodeMaterial;
+      clone.maskShadowNode = clone.maskShadowNode ? bool(clone.maskShadowNode as Node<"bool">).and(keeps) : keeps;
+      clones.set(source, clone);
+      return clone;
+    },
+    update(cameraOrigin: Vector3, sunCameras: ReadonlySet<Camera>, endDistance: number) {
+      origin.value.copy(cameraOrigin);
+      cameras = sunCameras;
+      fadeEnd = endDistance;
     },
     dispose() { for (const clone of clones.values()) clone.dispose(); clones.clear(); },
   };

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { BoxGeometry, Color, Group, Matrix4, MeshStandardNodeMaterial, PerspectiveCamera } from "three/webgpu";
 import { createInstanceBatch, instanceColorOver } from "./instanceBatches.ts";
+import { createInstancedShadowCasters, instancedCasterMask, VISIBLE_CASTER_LAYERS } from "./shadowCasterLayers.ts";
 import { actorOfHit, instanceActorsOf } from "./pickTags.ts";
 
 const at = (x: number) => new Matrix4().makeTranslation(x, 0, 0);
@@ -148,4 +149,44 @@ describe("instance batches", () => {
     instances.meshes[0]!.getMatrixAt(1, out);
     expect(out.elements[12]).toBe(40);
   });
+});
+
+test("caster layers combine zones with scale edits", () => {
+  const scene = new Group(), parent = new Group();
+  scene.add(parent);
+  const shadowCasters = createInstancedShadowCasters();
+  const camera = new PerspectiveCamera();
+  const profile = { texels: [.1, .2, .4], splits: [10, 30, 100], minTexels: 2 };
+  const casters = new Set([camera]);
+  const material = new MeshStandardNodeMaterial();
+  const instances = createInstanceBatch({ name: "shadow", parent, castShadow: true, shadowCasters });
+  instances.setParts([{ geometry: new BoxGeometry(), material, local: new Matrix4(), name: "box" }], undefined, .3);
+  instances.set("a", at(0), null, "act_a");
+  instances.flush();
+
+  const mesh = instances.meshes[0]!;
+  expect((mesh.material as MeshStandardNodeMaterial).maskShadowNode).not.toBeNull();
+  expect((mesh.material as MeshStandardNodeMaterial).maskNode).toBeNull();
+
+  shadowCasters.update(scene, camera, profile, casters);
+  expect(mesh.layers.mask & VISIBLE_CASTER_LAYERS).not.toBe(0);
+  expect(mesh.layers.mask & instancedCasterMask(1)).not.toBe(0);
+  expect(mesh.layers.mask & instancedCasterMask(2)).toBe(0);
+
+  instances.move("a", new Matrix4().makeScale(4, 1, 1));
+  instances.flush();
+  instances.setZoneMode("shadow");
+  shadowCasters.update(scene, camera, profile, casters);
+  expect(mesh.layers.mask & VISIBLE_CASTER_LAYERS).toBe(0);
+  expect(mesh.layers.mask & instancedCasterMask(3)).not.toBe(0);
+
+  instances.setZoneMode("hidden");
+  shadowCasters.update(scene, camera, profile, casters);
+  expect(mesh.layers.mask & instancedCasterMask(1)).toBe(0);
+  expect(shadowCasters.stats()).toEqual(Array.from({ length: 3 }, () => ({ batches: 0, instances: 0 })));
+
+  instances.setZoneMode("visible");
+  shadowCasters.update(scene, camera, null, new Set());
+  expect(mesh.layers.mask).toBe(1);
+  instances.dispose();
 });

@@ -42,10 +42,18 @@ import {
   type DirectionalLight,
   type Light,
   type Object3D,
+  type PerspectiveCamera,
   type Scene,
   type WebGPURenderer,
 } from "three/webgpu";
 import { frustumPlanesOf, mirrorCullView, type InstanceCullView } from "../../engine/world/instanceCulling.ts";
+import { SCENE_SOURCE_KEY } from "../../engine/perf/sceneCost.ts";
+import { cascadeTexelSize, type ShadowCasterProfile } from "../../engine/world/shadowCasters.ts";
+import { SUN_CASCADE_MAX } from "../../engine/world/sunCascades.ts";
+import {
+  createInstancedShadowCasters, instancedCasterMask, SHADOW_CASTER_LAYERS, VISIBLE_CASTER_LAYERS,
+  type InstancedShadowCasters, type ShadowCasterCount,
+} from "../sync/shadowCasterLayers.ts";
 import { createCpuDrivenBatch } from "./cpuDrivenBatch.ts";
 import {
   cameraViewLayer, createGpuDrivenBatch, MAIN_VIEW_LAYER, MAX_CAMERA_VIEWS, MAX_SHADOW_VIEWS, shadowViewLayer, ZONE_MASK_WORDS, ZONE_SHADOW_LAYER,
@@ -75,7 +83,9 @@ export interface CameraViews {
 }
 
 /** What a render binding may do with the GPU-driven drawing: own batches (`RenderBindingContext.gpuDriven`). */
-export type GpuDrivenBatches = Pick<GpuDrivenDrawing, "createBatch" | "removeBatch">;
+export type GpuDrivenBatches = Pick<GpuDrivenDrawing, "createBatch" | "removeBatch"> & {
+  readonly instancedCasters?: InstancedShadowCasters;
+};
 
 export interface GpuDrivenStats {
   readonly batches: number;
@@ -91,6 +101,7 @@ export interface GpuDrivenStats {
 export interface GpuDrivenDrawing extends CameraViews {
   /** The GPU path (WebGPU); false: batches are the CPU twin (WebGL2). */
   readonly supported: boolean;
+  readonly instancedCasters: InstancedShadowCasters;
   createBatch(options: GpuDrivenBatchOptions): GpuDrivenBatch;
   /**
    * This frame's zone masks (plan 5c R9b; `ZONE_MASK_WORDS` u32 each): the
@@ -102,7 +113,12 @@ export interface GpuDrivenDrawing extends CameraViews {
   /** Disposes the batch and stops culling it. */
   removeBatch(batch: GpuDrivenBatch): void;
   /** Culls the batches drawn in `scene` for `camera` and the shadow views; before the frame's render. */
-  cull(scene: Object3D, camera: Camera): void;
+  cull(scene: Object3D, camera: Camera, minCasterTexels?: number): void;
+  shadowCasterStats(): {
+    readonly instanced: readonly ShadowCasterCount[];
+    readonly driven: readonly ShadowCasterCount[];
+    readonly foliage: readonly ShadowCasterCount[];
+  };
   /** The main view of the last cull (the CPU reference's input), null before one. */
   readonly lastView: InstanceCullView | null;
   /** Every view of the last cull, the main view first, then shadow views, then camera views. */
@@ -129,14 +145,20 @@ function inScene(object: Object3D, scene: Object3D): boolean {
 
 type ShadowCaster = DirectionalLight & { shadow: DirectionalLight["shadow"] & { shadowNode?: unknown } };
 
-/** The shadow cameras the frame's directional shadows will render with, cascades in order. */
-export function shadowCamerasOf(lights: readonly Light[]): Camera[] {
+interface ShadowView {
+  readonly camera: Camera;
+  readonly cascade?: number;
+  readonly profile?: ShadowCasterProfile;
+}
+
+/** The directional shadow cameras in render order, with thresholds on initialized CSM views. */
+function shadowViewsOf(lights: readonly Light[], minTexels: number): ShadowView[] {
   const cascadeLights = new Set<Object3D>();
   for (const light of lights) {
     const node = (light as ShadowCaster).shadow?.shadowNode;
     if (node instanceof CSMShadowNode) for (const cascade of node.lights) cascadeLights.add(cascade);
   }
-  const cameras: Camera[] = [];
+  const cameras: ShadowView[] = [];
   for (const light of lights) {
     const caster = light as ShadowCaster;
     if (!caster.isDirectionalLight || !caster.castShadow || cascadeLights.has(caster) || !caster.shadow) continue;
@@ -145,13 +167,23 @@ export function shadowCamerasOf(lights: readonly Light[]): Camera[] {
       // Not set up before its first render: no cascades to cull for yet.
       if (node.camera === null) continue;
       node.updateBefore(undefined as never);
-      for (const cascade of node.lights as DirectionalLight[]) {
+      const cascades = node.lights as DirectionalLight[];
+      const texels = cascades.map(({ shadow }) =>
+        cascadeTexelSize((shadow.camera.right - shadow.camera.left) / shadow.camera.zoom, shadow.mapSize.width));
+      const { near, far: cameraFar } = node.camera as PerspectiveCamera;
+      const far = Math.min(cameraFar, node.maxFar);
+      const splits = node.breaks.map(split => near + split * (far - near));
+      const profile = minTexels > 0 && Number.isFinite(minTexels) && texels.length <= SUN_CASCADE_MAX
+        && texels.length === splits.length && texels.every((texel, i) => texel > (texels[i - 1] ?? 0))
+        && splits.every((split, i) => Number.isFinite(split) && split > (splits[i - 1] ?? 0))
+        ? { texels, splits, minTexels } : undefined;
+      for (const [index, cascade] of cascades.entries()) {
         cascade.shadow.updateMatrices(cascade);
-        cameras.push(cascade.shadow.camera);
+        cameras.push({ camera: cascade.shadow.camera, ...(profile ? { cascade: index + 1, profile } : {}) });
       }
     } else {
       caster.shadow.updateMatrices(caster);
-      cameras.push(caster.shadow.camera);
+      cameras.push({ camera: caster.shadow.camera });
     }
   }
   return cameras;
@@ -160,6 +192,7 @@ export function shadowCamerasOf(lights: readonly Light[]): Camera[] {
 export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
   const supported = (renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend === true;
   const batches = new Map<GpuDrivenBatch, Object3D>();
+  const instancedCasters = createInstancedShadowCasters();
   const cameraSources = new Set<CameraViewSource>();
   const viewProjection = new Matrix4();
   const position = new Vector3();
@@ -171,17 +204,42 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
   let draws = 0;
   let removedUpdates = 0;
   let triangles = 0;
+  let drivenShadows: ShadowCasterCount[] = [];
+  let foliageShadows: ShadowCasterCount[] = [];
   let reading = false;
   let askedAt = -Infinity;
   const readTriangles = async (): Promise<void> => {
     let sum = 0;
-    for (const batch of lastBatches) {
-      for (let view = 0; view < batch.views; view += 1) {
+    const cascades = new Map(lastViews.flatMap(view => view.cascade === undefined ? [] : [[view.layer, view.cascade] as const]));
+    const shadows = Array.from({ length: Math.max(0, ...cascades.values()) }, () => ({ batches: 0, instances: 0 }));
+    const foliage = shadows.map(() => ({ batches: 0, instances: 0 }));
+    const active = lastBatches.map(batch => ({ batch, layers: batch.viewLayers, mode: batch.zoneMode,
+      foliage: batch.meshes[0]?.userData[SCENE_SOURCE_KEY] === "foliage" }));
+    for (const { batch, layers, mode, foliage: isFoliage } of active) {
+      for (const [view, layer] of layers.entries()) {
+        if (mode === "shadow" && layer >= MAIN_VIEW_LAYER) continue;
         const counts = await batch.readCounts(renderer, view);
         counts.forEach((count, lod) => { sum += count * (batch.lodTriangles[lod] ?? 0); });
+        const cascade = cascades.get(layer);
+        const instances = counts.reduce((total, count) => total + count, 0);
+        if (cascade !== undefined && instances > 0) {
+          const counts = (isFoliage ? foliage : shadows)[cascade - 1]!;
+          counts.batches += 1;
+          counts.instances += instances;
+        }
       }
     }
     triangles = sum;
+    drivenShadows = shadows;
+    foliageShadows = foliage;
+  };
+  const refreshCounts = (): void => {
+    const now = performance.now();
+    if (!reading && now - askedAt > 500) {
+      askedAt = now;
+      reading = true;
+      void readTriangles().catch(() => undefined).finally(() => { reading = false; });
+    }
   };
 
   const planesOf = (camera: Camera): Float32Array | null => {
@@ -194,7 +252,12 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
   };
 
   return {
-    supported,
+    supported, instancedCasters,
+    shadowCasterStats() {
+      if (lastBatches.length > 0) refreshCounts();
+      const hasCascades = lastBatches.length > 0 && lastViews.some(view => view.cascade !== undefined);
+      return { instanced: instancedCasters.stats(), driven: hasCascades ? drivenShadows : [], foliage: hasCascades ? foliageShadows : [] };
+    },
     createBatch(options) {
       const zoned = { ...options, zoneMasks };
       const batch = supported ? createGpuDrivenBatch(renderer, zoned) : createCpuDrivenBatch(renderer, zoned);
@@ -220,25 +283,32 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
       cameraSources.add(source);
       return () => { cameraSources.delete(source); };
     },
-    cull(scene, camera) {
+    cull(scene, camera, minCasterTexels = 0) {
       lastBatches = [];
       lastViews = [];
       lastDraws = 0;
       draws = 0;
       // The main view's meshes are drawn by the main camera only (R9a step 1).
       camera.layers.enable(MAIN_VIEW_LAYER);
+      camera.layers.mask = (camera.layers.mask & ~SHADOW_CASTER_LAYERS) | VISIBLE_CASTER_LAYERS;
       const viewBits = VIEW_LAYER_BITS;
       // Every other camera that draws the scene loses the main view's layer, with or without a view.
       const sources = [...cameraSources].map((source) => source.view(camera));
       for (const entry of sources) if (entry) entry.camera.layers.mask = camera.layers.mask & ~viewBits;
       // Shadow cameras also draw the instanced meshes of hidden zones that always cast (R9b), with or without batches.
       const lights = renderer.shadowMap.enabled ? renderer.lighting.getNode(scene as Scene).getLights() as Light[] : [];
-      const shadowCameras = shadowCamerasOf(lights);
-      const zoneShadows = 1 << ZONE_SHADOW_LAYER;
-      if (batches.size === 0) {
-        for (const shadowCamera of shadowCameras) shadowCamera.layers.mask = (camera.layers.mask & ~viewBits) | zoneShadows;
-        return;
+      const shadowViews = shadowViewsOf(lights, minCasterTexels);
+      const profiles = new Set(shadowViews.flatMap(view => view.profile ? [view.profile] : []));
+      // A batch has one class. If there is more than one CSM layout, leave
+      // instanced casting unrestricted while GPU views use their own layouts.
+      const profile = profiles.size === 1 ? [...profiles][0]! : null;
+      const casterCameras = new Set(shadowViews.filter(view => profile !== null && view.profile === profile).map(view => view.camera));
+      instancedCasters.update(scene, camera, profile, casterCameras);
+      const base = (camera.layers.mask & ~(viewBits | VISIBLE_CASTER_LAYERS | SHADOW_CASTER_LAYERS)) | (1 << ZONE_SHADOW_LAYER);
+      for (const view of shadowViews) {
+        view.camera.layers.mask = base | instancedCasterMask(profile !== null && view.profile === profile ? view.cascade : undefined);
       }
+      if (batches.size === 0) return;
       const planes = planesOf(camera);
       if (!planes) return;
       camera.getWorldPosition(position);
@@ -247,16 +317,16 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
       const views: GpuCullView[] = [main];
       if (renderer.shadowMap.enabled) {
         let shadows = 0;
-        for (const shadowCamera of shadowCameras) {
-          const shadowPlanes = shadows >= MAX_SHADOW_VIEWS ? null : planesOf(shadowCamera);
-          // A camera without a view this frame must not keep a layer another view now owns.
-          const base = (camera.layers.mask & ~viewBits) | zoneShadows;
-          if (!shadowPlanes) { shadowCamera.layers.mask = base; continue; }
-          shadows += 1;
-          // Distances stay the main camera's: what it culls or fades, its shadow does too.
-          const layer = shadowViewLayer(shadows);
-          shadowCamera.layers.mask = base | (1 << layer);
-          views.push({ planes: shadowPlanes, origin, role: "shadow", layer });
+        for (const view of shadowViews) {
+          const shadowPlanes = shadows >= MAX_SHADOW_VIEWS ? null : planesOf(view.camera);
+          if (!shadowPlanes) continue;
+          const layer = shadowViewLayer(++shadows);
+          view.camera.layers.enable(layer);
+          const caster = view.profile && view.cascade !== undefined ? {
+            minCasterRadius: view.profile.texels[view.cascade - 1]! * view.profile.minTexels,
+            casterProfile: view.profile, cascade: view.cascade,
+          } : {};
+          views.push({ planes: shadowPlanes, origin, role: "shadow", layer, ...caster });
         }
       }
       let cameras = 0;
@@ -293,12 +363,7 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
     get lastDraws() { return lastDraws; },
     uncountedTriangles() {
       if (!supported) return 0;
-      const now = performance.now();
-      if (!reading && now - askedAt > 500) {
-        askedAt = now;
-        reading = true;
-        void readTriangles().catch(() => undefined).finally(() => { reading = false; });
-      }
+      refreshCounts();
       return lastBatches.length > 0 ? triangles : 0;
     },
     stats() {
@@ -307,6 +372,7 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
       return { batches: batches.size, instances, draws, views: lastViews.length, bundleUpdates };
     },
     dispose() {
+      instancedCasters.clear();
       zoneMasks.dispose?.();
       for (const batch of batches.keys()) batch.dispose();
       batches.clear();

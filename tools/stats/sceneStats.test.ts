@@ -27,7 +27,8 @@ test("forge stats: placements, models, materials, draws and triangles of a level
   expect(stats.shapes).toEqual({ placements: 2, byPrimitive: { plane: 1, cube: 1 }, triangles: 14 });
   expect(stats.materials).toEqual({ unique: 1, transparent: 0, doubleSided: 0, transparentDoubleSided: 0 });
   // Two static batches (the shadow switch splits them) of one primitive, two shape batches.
-  expect(stats.draws).toEqual({ staticBatches: 2, shapeBatches: 2, drawsPerView: 4, shadowCastingBatches: 3, shadowDrawsPerCascade: 3 });
+  expect(stats.draws).toEqual({ staticBatches: 2, shapeBatches: 2, drawsPerView: 4, shadowCastingBatches: 3, shadowDrawsPerCascade: 3,
+    shadowDrawsByCascade: { high: [3, 3, 2], ultra: [3, 3, 3, 3] } });
   expect(stats.triangles.source).toBe(50);
   expect(stats.foliage).toEqual({ landscapeRules: 0, paintedInstances: 6, paintedTypes: 2 });
   expect(stats.models).toMatchObject([{ path: "content/cube.glb", placements: 3, triangles: 12, placedTriangles: 36, slots: 1, primitives: 1 }]);

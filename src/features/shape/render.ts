@@ -16,6 +16,7 @@ import { resourceKey } from "../../render/resources/resourceCache.ts";
 import type { ShapePrimitive } from "../../render/resources/shapes.ts";
 import { shapeMaterialKey } from "../../render/resources/worldResources.ts";
 import { cellSuffix, placementParts, placementZone, zoneSuffix } from "../../render/sync/batchCells.ts";
+import { shapeBoundingRadius } from "../../engine/procgen/shapePrimitives.ts";
 import { changeInstances, createInstanceBatch, type InstanceBatch } from "../../render/sync/instanceBatches.ts";
 import { defineRenderBinding } from "../../render/sync/renderBinding.ts";
 import { componentWorldMatrix } from "../../render/sync/transforms.ts";
@@ -53,6 +54,7 @@ export default defineRenderBinding({
         instances: createInstanceBatch({
           name: `shape/${primitive}`, source: "shape", parent: ctx.root, castShadow: data.castShadow,
           ...(ctx.prepare ? { prepare: ctx.prepare } : {}),
+          ...(ctx.gpuDriven?.instancedCasters ? { shadowCasters: ctx.gpuDriven.instancedCasters } : {}),
           ...(ctx.triangles ? { triangles: ctx.triangles, ...(ctx.staticPath ? { staticPath: ctx.staticPath } : {}) } : {}),
         }),
         keys: [resourceKey.shape(primitive), shapeMaterialKey(SHAPE_BASE_COLOR, doubleSided)],
@@ -64,7 +66,7 @@ export default defineRenderBinding({
       void Promise.all([ctx.resources.shapeGeometry(primitive), ctx.resources.shapeMaterial(SHAPE_BASE_COLOR, doubleSided)]).then(
         ([geometry, material]) => {
           if (batch.disposed) return;
-          batch.instances.setParts([{ geometry, material, local: new Matrix4(), name: primitive }]);
+          batch.instances.setParts([{ geometry, material, local: new Matrix4(), name: primitive }], undefined, shapeBoundingRadius(primitive));
         },
       );
       return batch;

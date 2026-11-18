@@ -162,6 +162,11 @@ export function debugReadout(host: RenderHost, environment: Readonly<WorldEnviro
   lines.push(...formatMemory({ render: { geometries: memory.geometries, textures: memory.textures, programs: memory.programs ?? 0 }, jsHeapBytes: used, jsHeapLimitBytes: limit }));
   lines.push(...formatPerfBudget(evaluatePerfBudget({ drawCalls, triangles, textures: memory.textures }, DEFAULT_PERF_BUDGET)));
   if (environment) lines.push(formatWorldEnvironment(environment));
+  const casters = host.gpuDriven.shadowCasterStats();
+  for (let i = 0; i < Math.max(casters.instanced.length, casters.driven.length); i += 1) {
+    const bound = casters.instanced[i], driven = casters.driven[i], foliage = casters.foliage[i];
+    lines.push(`shadow cascade ${i + 1}: instanced eligible ${bound?.batches ?? 0} / ${groupThousands(bound?.instances ?? 0)}, driven visible ${driven?.batches ?? 0} / ${groupThousands(driven?.instances ?? 0)}, foliage ${foliage?.batches ?? 0} / ${groupThousands(foliage?.instances ?? 0)} (batches / instances)`);
+  }
   if (terrain) lines.push(...formatTerrainStreaming(terrain));
   const zones = host.world?.zones?.stats();
   if (zones && zones.zones > 0) lines.push(...formatZones(zones));

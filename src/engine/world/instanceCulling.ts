@@ -21,6 +21,7 @@
  * within a small relative margin of a plane, the cull end or a LOD start.
  * A GPU count outside that range is a bug, not rounding.
  */
+import { casterFadeEnd, maxCasterCascade, type ShadowCasterProfile } from "./shadowCasters.ts";
 import type { Vec3 } from "../../core/schema/fields.ts";
 
 /** Most LODs a batch draws (the uniform holds one start per LOD past the first). */
@@ -48,6 +49,8 @@ export interface InstanceCullView {
   readonly planes: ArrayLike<number>;
   /** Where distances are measured from (the camera). */
   readonly origin: Readonly<Vec3>;
+  readonly minCasterRadius?: number;
+  readonly casterProfile?: ShadowCasterProfile;
 }
 
 /**
@@ -111,6 +114,11 @@ export function measuredDistance(matrices: ArrayLike<number>, at: number, mode: 
   return mode === "scaled" ? raw / Math.max(maxAxisScale(matrices, at), 1e-6) : raw;
 }
 
+/** Distance where a surviving caster loses its last eligible cascade. */
+export function instanceCasterFadeEnd(matrices: ArrayLike<number>, at: number, radius: number, profile: ShadowCasterProfile): number {
+  return casterFadeEnd(maxCasterCascade(radius * maxAxisScale(matrices, at), profile.texels, profile.minTexels), profile);
+}
+
 /**
  * How much of an instance the fade band shows at a measured distance: 1 before
  * `fadeStart`, 0 from `cullEnd`, smoothstep between (the dither threshold
@@ -161,6 +169,9 @@ export function cullInstanceCounts(
     const wy = e(1) * cx + e(5) * cy + e(9) * cz + e(13);
     const wz = e(2) * cx + e(6) * cy + e(10) * cz + e(14);
     const radius = batch.radius * scale;
+    const minimum = view.minCasterRadius ?? 0;
+    const caster = minimum > 0 ? side(radius, minimum) : 1;
+    if (caster === -1) continue;
     // Inside: every plane passes; 1 certainly, 0 maybe.
     let inside: -1 | 0 | 1 = 1;
     for (let plane = 0; plane < 6 && inside !== -1; plane += 1) {
@@ -173,7 +184,7 @@ export function cullInstanceCounts(
     // Near: below the cull end (strictly, as the shader's `lessThan`).
     const far = side(distance, batch.cullEnd);
     const near: -1 | 0 | 1 = far === 1 ? -1 : far === -1 ? 1 : 0;
-    const passes: -1 | 0 | 1 = inside === -1 || near === -1 ? -1 : inside === 0 || near === 0 ? 0 : 1;
+    const passes = Math.min(inside, near, caster);
     let lod = 0;
     let lowLod = 0;
     let highLod = 0;
@@ -183,7 +194,7 @@ export function cullInstanceCounts(
       if (s === 1) lowLod += 1;
       if (s >= 0) highLod += 1;
     }
-    if (distance < batch.cullEnd && passesExactly(view.planes, wx, wy, wz, radius)) {
+    if (radius >= minimum && distance < batch.cullEnd && passesExactly(view.planes, wx, wy, wz, radius)) {
       counts[lod] = counts[lod]! + 1;
       visible[lod]!.push(index);
     }

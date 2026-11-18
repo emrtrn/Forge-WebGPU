@@ -123,6 +123,7 @@ import {
   type InstanceCullView,
   type InstanceDistanceMode,
 } from "../../engine/world/instanceCulling.ts";
+import { CASTER_FADE_START } from "../../engine/world/shadowCasters.ts";
 import { detailFadeDither } from "../materials/detailFade.ts";
 import { createGpuInstances, type GpuInstances } from "./gpuInstances.ts";
 
@@ -168,6 +169,7 @@ export const MAX_ZONE_SLOTS = ZONE_MASK_WORDS * 32;
 export interface GpuCullView extends InstanceCullView {
   readonly role: "main" | "shadow" | "camera";
   readonly layer: number;
+  readonly cascade?: number;
 }
 
 /** u32 arguments of one `drawIndexedIndirect`: index count, instance count, first index, base vertex, first instance. */
@@ -229,6 +231,8 @@ export interface GpuDrivenBatch {
   readonly lodTriangles: readonly number[];
   /** Views the last prepare culled (the main view, its shadow views, camera views). */
   readonly views: number;
+  /** Layers of the prepared views, in readCounts index order. */
+  readonly viewLayers: readonly number[];
   /** Draws of the last prepare, every view (the CPU twin: only meshes with instances, as three skips empty ones). */
   readonly lastDraws: number;
   /** Times the render bundle was marked for recording again (each camera then records it once). */
@@ -314,6 +318,10 @@ interface View {
   readonly planesNode: Node;
   readonly origin: Vector3;
   readonly originNode: Node<"vec3">;
+  readonly casterRadii: Vector4;
+  readonly casterRadiiNode: Node<"vec4">;
+  readonly casterEnds: Vector3;
+  readonly casterEndsNode: Node<"vec3">;
   visible: StorageBufferAttribute | null;
   dispatches: ComputeNode[];
   meshes: Mesh[];
@@ -359,12 +367,14 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     draws.forEach((draw, at) => { argsArray[at * ARGS] = draw.count; argsArray[at * ARGS + 2] = draw.start; });
     const planes = Array.from({ length: 6 }, () => new Vector4(0, 0, 0, 1));
     const origin = new Vector3();
+    const casterRadii = new Vector4(), casterEnds = new Vector3();
     return {
       index, role: "main", layer: MAIN_VIEW_LAYER,
       counters: new StorageBufferAttribute(new Uint32Array(lodCount), 1),
       args: new IndirectStorageBufferAttribute(argsArray, 1),
       planes, planesNode: uniformArray(planes, "vec4"),
       origin, originNode: uniform(origin),
+      casterRadii, casterRadiiNode: uniform(casterRadii), casterEnds, casterEndsNode: uniform(casterEnds),
       visible: null, dispatches: [], meshes: [], materials: [], built: -1,
     };
   };
@@ -412,9 +422,11 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       If(instanceIndex.greaterThanEqual(count), () => { Return(); });
       const matrix = matrixCull.element(instanceIndex).toVar();
       const { scale, measured } = measure(matrix);
+      const radius = bounds.w.mul(scale).toVar();
+      if (shadow) If(radius.lessThan(view.casterRadiiNode.x), () => { Return(); });
       const distanceVar = measured.toVar();
       const center = matrix.mul(vec4(bounds.xyz, 1)).xyz.toVar();
-      const reach = bounds.w.mul(scale).negate().toVar();
+      const reach = radius.negate().toVar();
       let inside: Node<"bool"> = bool(true);
       for (let plane = 0; plane < 6; plane += 1) {
         const p = planes.element(plane);
@@ -473,12 +485,21 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
             [velocity.previousModelWorldMatrix, world],
           ]), (material.contextNode as unknown as { getFlowContextData(): Record<string, unknown> } | null)?.getFlowContextData() ?? {});
         }
-        const { measured } = measure(instanceMatrix);
+        const placement = measure(instanceMatrix);
         if (!shadow && colorBuffer) {
           const color = varying(storage(colorBuffer, "vec4", colorBuffer.count).toReadOnly().element(slot).xyz);
           material.colorNode = vec3((material.colorNode as Node<"vec3"> | null) ?? materialColor.rgb).mul(color);
         }
-        const shown = varying(float(1).sub(smoothstep(fade.x, fade.y, measured)).mul(extraRead.element(slot).x), "vForgeGpuFade");
+        let opacity = float(1).sub(smoothstep(fade.x, fade.y, placement.measured)).mul(extraRead.element(slot).x);
+        if (shadow) {
+          const radius = bounds.w.mul(placement.scale);
+          const { y: second, z: third, w: fourth } = view.casterRadiiNode;
+          const { x, y, z } = view.casterEndsNode;
+          const end = select(radius.lessThan(second), x,
+            select(radius.lessThan(third), y, select(radius.lessThan(fourth), z, float(NO_CULL_DISTANCE))));
+          opacity = opacity.mul(float(1).sub(smoothstep(end.mul(CASTER_FADE_START), end, distance(placement.origin, origin))));
+        }
+        const shown = varying(opacity, "vForgeGpuFade");
         maskWithFade(material, shown);
         sources.set(key, material);
         view.materials.push(material);
@@ -511,6 +532,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     draws: drawCount,
     lodTriangles,
     get views() { return prepared; },
+    get viewLayers() { return views.slice(0, prepared).map(view => view.layer); },
     get lastDraws() { return drawCount * prepared; },
     get bundleUpdates() { return bundleUpdates; },
     get zoneMode() { return zoneMode; },
@@ -554,6 +576,10 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
           view.planes[plane]!.set(source.planes[plane * 4]!, source.planes[plane * 4 + 1]!, source.planes[plane * 4 + 2]!, source.planes[plane * 4 + 3]!);
         }
         view.origin.set(...source.origin);
+        const profile = source.casterProfile;
+        const threshold = (index: number) => (profile?.texels[index] ?? 0) * (profile?.minTexels ?? 0);
+        view.casterRadii.set(source.minCasterRadius ?? 0, threshold(1), threshold(2), threshold(3));
+        view.casterEnds.set(profile?.splits[0] ?? NO_CULL_DISTANCE, profile?.splits[1] ?? NO_CULL_DISTANCE, profile?.splits[2] ?? NO_CULL_DISTANCE);
         // A zone that only casts draws its shadow views (R9b).
         for (const mesh of view.meshes) mesh.visible = zoneMode !== "shadow" || view.role === "shadow";
         dispatches.push(...view.dispatches);

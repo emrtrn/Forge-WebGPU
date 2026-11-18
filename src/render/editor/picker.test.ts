@@ -1,6 +1,7 @@
 import { Box3, BoxGeometry, Group, InstancedMesh, Matrix4, MeshBasicNodeMaterial, PerspectiveCamera, Sprite, SpriteNodeMaterial, Vector2, Vector3 } from "three/webgpu";
 import { describe, expect, test } from "vitest";
 import { tagActorObject, tagInstanceActors, tagPickSurface } from "../sync/pickTags.ts";
+import { instancedCasterLayer } from "../sync/shadowCasterLayers.ts";
 import { createScenePicker } from "./picker.ts";
 
 /** A camera at (0, 5, 10) looking at the origin. */
@@ -57,6 +58,17 @@ describe("the editor's picking (plan phase 4 step 3)", () => {
     up.lookAt(0, 50, 0);
     up.updateMatrixWorld();
     expect(picker.pick(new Vector2(0, 0), up)).toBeNull();
+  });
+
+  test("visible caster classes are pickable, including objects too small to cast", () => {
+    const { root, picker } = scene();
+    const view = camera();
+    const batch = root.children[0]!;
+    const point = ndcOf(new Vector3(0, .5, 0), view);
+    batch.layers.set(instancedCasterLayer("visible", 0));
+    expect(picker.pick(point, view)?.actor).toBe("act_a");
+    batch.layers.set(instancedCasterLayer("shadow", 3));
+    expect(picker.pick(point, view)?.actor).not.toBe("act_a");
   });
 
   test("a helper icon is drawn over the scene and wins, even behind a mesh", () => {

@@ -20,11 +20,13 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { derekavakFoliage, type FoliageSceneType } from "./gpuFoliageScene.ts";
 import { RENDER_REFS, SMOKE_SCENES, SMOKE_VIEWPORT } from "./renderScenes.ts";
+import type { RenderHost } from "../../src/render/host/renderHost.ts";
 import { difference, git, isOptionalHlodMiss, openSmokeLevel } from "./smokePage.ts";
 
-interface ViewCheck { gpu: number[]; cpu: { counts: number[]; certain: number[]; possible: number[] } }
+interface ViewCheck { minCasterRadius?: number; gpu: number[]; cpu: { counts: number[]; certain: number[]; possible: number[] } }
 interface Check extends ViewCheck { name: string; instances: number; shadows: ViewCheck[]; cameras: ViewCheck[] }
 interface Dev {
+  host(): RenderHost | null;
   pause(): void;
   resume(): void;
   step(ms: number): Promise<{ ran: boolean }>;
@@ -149,6 +151,26 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
   await expect.poll(() => readoutTriangles(page), { timeout: 20_000, message: "the readout counts the batches' triangles" }).toBeGreaterThan(trianglesBefore);
   const trianglesAfter = await readoutTriangles(page);
   await dev(page).pause();
+
+  // The same main view and stricter radius thresholds in every sun cascade.
+  // Both paths must agree with the CPU reference and have no surviving small casters.
+  const minTexels = await page.evaluate(() => {
+    const host = (window as unknown as { __forgeDev: Dev }).__forgeDev.host()!;
+    const quality = host.quality;
+    host.setQuality({ ...quality, settings: { ...quality.settings, shadowCasterMinTexels: 10_000 } });
+    return quality.settings.shadowCasterMinTexels;
+  });
+  await steps(page, 4);
+  const strict = await checkView("caster-radius");
+  expect(total(strict)).toBe(visibleP2);
+  const sized = strict.flatMap(check => check.shadows.filter(shadow => shadow.minCasterRadius !== undefined));
+  expect(sized.length).toBeGreaterThan(0);
+  expect(sized.every(shadow => shadow.gpu.every(count => count === 0))).toBe(true);
+  await page.evaluate((threshold) => {
+    const host = (window as unknown as { __forgeDev: Dev }).__forgeDev.host()!;
+    const quality = host.quality;
+    host.setQuality({ ...quality, settings: { ...quality.settings, shadowCasterMinTexels: threshold } });
+  }, minTexels);
 
   // The same batches without shadow views: the shadows they cast change the image.
   await dev(page).install(foliage.types, foliage.cullScale, false);
