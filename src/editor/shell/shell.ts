@@ -124,6 +124,8 @@ export interface EditorShell {
   /** Adds the Content Browser's drawer (step 6a). */
   attachContent(panel: ContentPanel): void;
   attachWorldPartition(panel: HTMLElement): void;
+  /** Adds a tab beside Details (the Foliage tab, plan 5c F5); the first one turns Details' heading into tabs. */
+  attachDetailsTab(label: string, testId: string, panel: HTMLElement): void;
   /** Adds Forge's Play button after the view menus, and its key P (step 8); `play` reports for the status line. */
   attachPlay(play: () => Promise<{ readonly ok: boolean; readonly message: string }>): void;
   /** Saves the level, as the Save button does (the drawer's Save All). */
@@ -261,6 +263,23 @@ export function createShell(options: ShellOptions): EditorShell {
   detailsHeading.append(el("span", "", "Details"));
   const detailsBody = el("div", "details-scroll");
   details.append(detailsHeading, detailsBody);
+  // Tabs beside Details (attachDetailsTab): one pane shows at a time.
+  let detailsTabs: { readonly list: HTMLElement; readonly tabs: { readonly button: HTMLButtonElement; readonly pane: HTMLElement }[] } | null = null;
+  const showDetailsTab = (pane: HTMLElement): void => {
+    for (const tab of detailsTabs?.tabs ?? []) {
+      tab.pane.hidden = tab.pane !== pane;
+      tab.button.setAttribute("aria-selected", String(tab.pane === pane));
+    }
+  };
+  const addDetailsTab = (label: string, testId: string, pane: HTMLElement): void => {
+    const button = el("button", "forge-btn-ghost", label);
+    button.type = "button";
+    button.setAttribute("role", "tab");
+    button.dataset.testid = testId;
+    button.onclick = () => showDetailsTab(pane);
+    detailsTabs!.list.append(button);
+    detailsTabs!.tabs.push({ button, pane });
+  };
 
   const statusLine = el("footer", "editor-status");
   const statusText = el("span", "", "Loading level");
@@ -362,6 +381,20 @@ export function createShell(options: ShellOptions): EditorShell {
       split.append(button);
       viewControls.append(split);
       actions.play = () => void run();
+    },
+    attachDetailsTab(label, testId, panel) {
+      if (!detailsTabs) {
+        const list = el("div", "forge-tab-list");
+        list.setAttribute("role", "tablist");
+        detailsTabs = { list, tabs: [] };
+        detailsHeading.replaceChildren(list);
+        addDetailsTab("Details", "details-tab", detailsBody);
+      }
+      const pane = el("div", "details-scroll");
+      pane.append(panel);
+      details.append(pane);
+      addDetailsTab(label, testId, pane);
+      showDetailsTab(detailsBody);
     },
     attachContent(panel) {
       contentPanel = panel;

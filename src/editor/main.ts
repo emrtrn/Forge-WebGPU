@@ -52,6 +52,8 @@ import { createModelBounds } from "../render/editor/modelBounds.ts";
 import { createThumbnailRenderer } from "../render/editor/thumbnails.ts";
 import { createAssetPreview, type AssetPreviewRegistration } from "../render/editor/assetPreview.ts";
 import { createAssetEditor } from "./assets/assetEditor.ts";
+import { openPicker } from "./details/pickerPopover.ts";
+import { createFoliagePanel } from "./foliage/foliagePanel.ts";
 import { assetDocumentAdapter, type EditableAsset } from "./assets/assetDocument.ts";
 import type { AssetFile } from "../render/resources/assetUrls.ts";
 import { assembleLevel } from "../runtime/assembler.ts";
@@ -529,6 +531,26 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         assetChanged(opened.asset.id, opened.asset.type);
       },
     });
+    // The Foliage tab beside Details (plan 5c F5): Foliage Types listed and edited in place, saved as the asset editor saves.
+    const foliagePanel = createFoliagePanel({
+      document: doc, registry, client: options.client, catalog: assets,
+      lookup: (id) => editableAsset(content.index().byId(id)),
+      pickAsset: (type) => openPicker({ document: doc, host: shell.root, title: "Select Asset", testId: "foliage-picker", items: assets.ofType(type).map((item) => ({ id: item.guid, label: item.name, note: item.file })) }),
+      createAsset: async (type, name, values) => {
+        const answer = await content.op({ op: "create", folder: "content", name, kind: "asset", type, values });
+        if (answer.status === "refused") { shell.status(answer.message, "warning"); return null; }
+        await content.refresh(true); await refreshAssetUrls();
+        shell.status(`Created ${name}`);
+        return answer.result.map((path) => content.index().byFile(path)?.id ?? null).find((id) => id !== null) ?? null;
+      },
+      saved: async (opened) => {
+        await content.refresh(true); await refreshAssetUrls();
+        assetChanged(opened.asset.id, opened.asset.type);
+      },
+      status: (message, tone) => shell.status(message, tone),
+    });
+    content.onChange(() => foliagePanel.refresh());
+    shell.attachDetailsTab("Foliage", "foliage-tab", foliagePanel.element);
     /** After an asset's file changed (saved here or on disk): caches forget it, the actors that use it read it again, its thumbnail redraws. */
     const assetChanged = (guid: string, type: string): void => {
       if (type === "forge.model") viewport.host?.cache.evict(`model:${guid}`);
