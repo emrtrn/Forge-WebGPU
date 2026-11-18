@@ -59,7 +59,11 @@ for (const backend of ["webgpu", "webgl"] as const) test(`foliage ring (${backen
   const webgl = backend === "webgl";
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => { if (message.type() === "error" && !isOptionalHlodMiss(message)) errors.push(message.text()); });
+  page.on("console", (message) => {
+    if (message.type() === "error" && !isOptionalHlodMiss(message)) errors.push(message.text());
+    // The cells are generated in the worker (F2): its same-thread fallback is a failure here.
+    if (message.text().includes("Foliage worker failed")) errors.push(message.text());
+  });
   const scene = SMOKE_SCENES.find((entry) => entry.id === "derekavak")!;
   const p2 = scene.poses.find((pose) => pose.id === "p2")!;
   const expected = derekavakFoliage([p2.position![0], p2.position![2]]);

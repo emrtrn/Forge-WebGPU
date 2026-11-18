@@ -23,9 +23,10 @@
 import { Group, PerspectiveCamera, Vector3, type Camera } from "three/webgpu";
 import { normalizeJsonAsset, parseComponentTypeTag, type ActorId, type WorldActor } from "../../core/index.ts";
 import { foliageRuleParamsOf, foliageTypeParamsOf, type FoliageTypeAssetFields } from "../../engine/foliage/foliageAsset.ts";
-import { LocalFoliageCellGenerator } from "../../engine/foliage/foliageCellGenerator.ts";
+import type { FoliageCellGenerator } from "../../engine/foliage/foliageCellGenerator.ts";
 import { FoliageRing, type FoliageRingRule, type FoliageRingTerrain } from "../../engine/foliage/foliageRingHost.ts";
 import { createFoliageBatches, type FoliageBatches, type FoliageTypeDraw } from "../../render/foliage/foliageBatches.ts";
+import { createFoliageCellGenerator } from "../../render/resources/foliageWorkerGenerator.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
 import { tagFoliage } from "../../render/sync/debugTags.ts";
 import { defineRenderBinding } from "../../render/sync/renderBinding.ts";
@@ -69,6 +70,9 @@ export default defineRenderBinding({
     const cameraPosition = new Vector3();
     let batches: FoliageBatches | null = null;
     let lastQuality = "";
+    // One worker per world: rings come and go (an edit restarts one), their terrains with them.
+    let cellGenerator: FoliageCellGenerator | null = null;
+    const generator = (): FoliageCellGenerator => (cellGenerator ??= createFoliageCellGenerator());
     tagFoliage(group, {
       ring() {
         let rings = 0, cells = 0, instances = 0, pending = 0;
@@ -131,7 +135,7 @@ export default defineRenderBinding({
       const prefix = `${entry.actor}/`;
       return new FoliageRing({
         rules,
-        generator: new LocalFoliageCellGenerator(),
+        generator: generator(),
         sink: {
           set(owner, typeId, matrices, count) {
             const type = types.get(typeId);
@@ -216,6 +220,8 @@ export default defineRenderBinding({
       dispose() {
         for (const id of [...placed.keys()]) remove(id);
         batches?.dispose();
+        cellGenerator?.dispose();
+        cellGenerator = null;
         batches = null;
         group.removeFromParent();
       },
