@@ -41,6 +41,7 @@ import { terrainStreamingProbes } from "../../sync/debugTags.ts";
 import { DebugTableModal } from "./debugTableModal.ts";
 import { DEBUG_PANEL_CSS } from "./debugStyle.ts";
 import { DebugTerrainMap } from "./debugTerrainMap.ts";
+import type { ZoneDrawingStats } from "../../sync/zoneDrawing.ts";
 
 const UPDATE_INTERVAL_MS = 500;
 
@@ -114,6 +115,15 @@ export function hostTerrainStreaming(host: RenderHost): TerrainStreamingSnapshot
   return terrainStreamingSnapshot(probes.map((probe) => probe.stream), probes.flatMap((probe) => probe.sources()));
 }
 
+/** Zones (plan 5c R9b): the camera's zone, how many zones show, and the static batches hidden or casting only. */
+export function formatZones(zones: ZoneDrawingStats): string[] {
+  const camera = zones.cameraZone === null ? "none (everything shows)" : zones.cameraZone.slice(0, 12);
+  return [
+    `zones ${zones.zones}, portals ${zones.portals}, camera zone ${camera}`,
+    `zones visible ${zones.visible} / ${zones.zones}, zoned batches ${zones.tracked}: hidden ${zones.hidden}, shadow only ${zones.shadowOnly}`,
+  ];
+}
+
 /** The readout text for the host as it is now. */
 export function debugReadout(host: RenderHost, environment: Readonly<WorldEnvironmentState> | null, terrain: TerrainStreamingSnapshot | null = null): string {
   const metrics = host.perf.metrics();
@@ -140,6 +150,8 @@ export function debugReadout(host: RenderHost, environment: Readonly<WorldEnviro
   lines.push(...formatPerfBudget(evaluatePerfBudget({ drawCalls, triangles, textures: memory.textures }, DEFAULT_PERF_BUDGET)));
   if (environment) lines.push(formatWorldEnvironment(environment));
   if (terrain) lines.push(...formatTerrainStreaming(terrain));
+  const zones = host.world?.zones?.stats();
+  if (zones && zones.zones > 0) lines.push(...formatZones(zones));
   return lines.join("\n");
 }
 

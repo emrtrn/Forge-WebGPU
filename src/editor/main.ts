@@ -48,6 +48,7 @@ import type { AssetUrls } from "../render/resources/assetUrls.ts";
 import type { RenderBindingDef } from "../render/sync/renderBinding.ts";
 import type { EditorRenderBindingDef } from "../render/editor/editorBinding.ts";
 import { createEditorViewport } from "../render/editor/editorViewport.ts";
+import { createModelBounds } from "../render/editor/modelBounds.ts";
 import { createThumbnailRenderer } from "../render/editor/thumbnails.ts";
 import { createAssetPreview, type AssetPreviewRegistration } from "../render/editor/assetPreview.ts";
 import { createAssetEditor } from "./assets/assetEditor.ts";
@@ -446,6 +447,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         },
       });
     shell.attachPlacer(placer);
+    shell.attachModelBounds(createModelBounds(() => viewport.host));
     assetDrop = createAssetDrop({
       host: shell.viewport,
       editors,

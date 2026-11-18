@@ -36,6 +36,7 @@ import { createAddActorMenu } from "../place/addActorMenu.ts";
 import { openContextMenu } from "../ui/contextMenu.ts";
 import { UI_ICONS } from "../ui/icons.ts";
 import { createWorldSettings } from "../world/worldSettingsPanel.ts";
+import type { ModelBounds } from "../world/zones.ts";
 import { createOutlinerPanel } from "../outliner/outlinerPanel.ts";
 import { createConflictStrip } from "../session/conflictUi.ts";
 import { createLiveRefresh, type ChangedFile, type LiveRefresh } from "../session/liveRefresh.ts";
@@ -116,6 +117,8 @@ export interface EditorShell {
   attachViewport(menus: ViewportMenus): void;
   /** Adds Forge's "+ Add Actor" menu at the start of the work bar; its drags end in the viewport (step 5d). */
   attachPlacer(placer: ActorPlacer): void;
+  /** Static meshes' model bounds for World Settings' Generate Zones (plan 5c R9b). */
+  attachModelBounds(read: ModelBounds): void;
   /** Adds the transform toolbar and Details' pivot and placement actions; `navigating` is true while the camera flies. */
   attachTools(tools: TransformTools, navigating: () => boolean): void;
   /** Adds the Content Browser's drawer (step 6a). */
@@ -193,6 +196,7 @@ export function createShell(options: ShellOptions): EditorShell {
     run();
   });
   let placerNow: ActorPlacer | null = null;
+  let modelBoundsNow: ModelBounds | null = null;
   let saveNow = (): void => {};
   let live: LiveRefresh | null = null;
   /** The Content Browser, once attached (step 6). */
@@ -324,6 +328,9 @@ export function createShell(options: ShellOptions): EditorShell {
         viewLeft: () => menus.setView("left"),
         viewPerspective: () => menus.setView("perspective"),
       } satisfies Partial<Record<ShortcutId, () => void>>);
+    },
+    attachModelBounds(read) {
+      modelBoundsNow = read;
     },
     attachPlacer(placer) {
       placerNow = placer;
@@ -458,7 +465,7 @@ export function createShell(options: ShellOptions): EditorShell {
       };
       save.addEventListener("click", () => void runSave());
       saveNow = () => void runSave();
-      const worldSettings = createWorldSettings({ document: doc, host: root, editor, registry: context.registry, resolveClass: context.resolveClass, placer: () => placerNow });
+      const worldSettings = createWorldSettings({ document: doc, host: root, editor, registry: context.registry, resolveClass: context.resolveClass, placer: () => placerNow, modelBounds: () => modelBoundsNow });
       mainMenu.addEventListener("click", () => {
         const rect = mainMenu.getBoundingClientRect();
         openContextMenu(

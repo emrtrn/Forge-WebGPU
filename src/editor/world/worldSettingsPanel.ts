@@ -15,6 +15,7 @@ import type { EditorSession } from "../session/editorSession.ts";
 import { createFormView, createSection } from "../ui/formView.ts";
 import { environmentRows } from "./worldSettings.ts";
 import { SHADOW_SETTINGS_COMPONENT, setObjectShadows, setSceneShadows, shadowSettingsTarget } from "./sceneShadows.ts";
+import { generateLevelZones, type ModelBounds } from "./zones.ts";
 
 export interface WorldSettingsOptions {
   readonly document: Document;
@@ -25,6 +26,8 @@ export interface WorldSettingsOptions {
   readonly resolveClass: ClassResolver;
   /** Adds a missing actor; null before the viewport is up. */
   readonly placer: () => ActorPlacer | null;
+  /** Static meshes' model bounds for Generate Zones (plan 5c R9b); null before the viewport is up. */
+  readonly modelBounds?: () => ModelBounds | null;
 }
 
 export interface WorldSettingsPopover {
@@ -89,6 +92,13 @@ export function createWorldSettings(options: WorldSettingsOptions): WorldSetting
     },
   });
 
+  /** Generate Zones' last outcome: the panel redraws after the edit, the line is drawn again from it. */
+  let zoneReport: { text: string; zones: number; portals: number } | null = null;
+  let zoneFeedbackNow: HTMLElement | null = null;
+  const showZoneReport = (element: HTMLElement): void => {
+    element.textContent = zoneReport?.text ?? "";
+    if (zoneReport) { element.dataset.zones = String(zoneReport.zones); element.dataset.portals = String(zoneReport.portals); }
+  };
   const draw = (): void => {
     if (streamingInput) return;
     const level = editor.level.level;
@@ -141,6 +151,41 @@ export function createWorldSettings(options: WorldSettingsOptions): WorldSetting
       bulk, el("div", "detail-hint", incomplete
         ? "Toplu işlem için sahnenin bütün hücrelerini yükleyin."
         : "Modellerin ve temel şekillerin Cast Shadow değerlerini topluca değiştirir. Her işlem tek adımda geri alınır."), feedback);
+    // Zones (plan 5c R9b): rooms and doors from the walls, one undo step; the user's zones stay.
+    const zones = createSection(doc, "Zones", { testId: "world-settings-zones" });
+    const zonesSupported = options.registry.components().some((component) => component.name === "forge.zone");
+    const zoneFeedback = el("div", "detail-hint");
+    zoneFeedback.setAttribute("role", "status");
+    zoneFeedback.dataset.testid = "world-settings-zones-status";
+    zoneFeedbackNow = zoneFeedback;
+    showZoneReport(zoneFeedback);
+    const generate = el("button", "detail-action-button", "Generate Zones");
+    generate.type = "button";
+    generate.dataset.testid = "world-settings-generate-zones";
+    generate.disabled = !zonesSupported || incomplete;
+    generate.addEventListener("click", () => {
+      generate.disabled = true;
+      zoneFeedback.textContent = "Bölgeler üretiliyor…";
+      void generateLevelZones(editor, options.registry, options.resolveClass, options.modelBounds?.() ?? null).then(({ result, plan }) => {
+        generate.disabled = false;
+        zoneReport = {
+          zones: plan?.zones ?? 0, portals: plan?.portals ?? 0,
+          text: !result.ok
+            ? result.issues.map((issue) => issue.message).join(" ")
+            : plan?.floorY === null || plan === null
+              ? "Göz hizasına uzanan duvar bulunamadı; bölge üretilmedi."
+              : `${plan.zones} bölge, ${plan.portals} portal üretildi${plan.kept > 0 ? `; elle düzenlenen ${plan.kept} bölge korundu` : ""}.`,
+        };
+        if (zoneFeedbackNow) showZoneReport(zoneFeedbackNow);
+      }, (error: unknown) => {
+        generate.disabled = false;
+        zoneReport = { text: String(error), zones: 0, portals: 0 };
+        if (zoneFeedbackNow) showZoneReport(zoneFeedbackNow);
+      });
+    });
+    zones.body.append(generate, el("div", "detail-hint", incomplete
+      ? "Bölgeleri üretmek için sahnenin bütün hücrelerini yükleyin."
+      : "Duvarlardan odaları ve kapıları bulur; her odaya bir Zone Volume, her kapıya bir Portal yazar. Önceki üretileni değiştirir; Generated işareti kapatılan bölgeler korunur. Tek adımda geri alınır."), zoneFeedback);
     const environment = createSection(doc, "Environment", { testId: "world-settings-environment" });
     const placer = options.placer();
     const entries = placer?.entries() ?? [];
@@ -168,7 +213,7 @@ export function createWorldSettings(options: WorldSettingsOptions): WorldSetting
       environment.body.append(row(item.label, button));
     }
     environment.body.append(el("div", "detail-hint", "Ortamın değerleri bu aktörlerin bileşenlerindedir; seçip Details'te düzenleyin."));
-    body.replaceChildren(heading, levelPart.section, streaming.section, shadows.section, environment.section);
+    body.replaceChildren(heading, levelPart.section, streaming.section, shadows.section, zones.section, environment.section);
   };
 
   const onPointerDown = (event: Event): void => {
