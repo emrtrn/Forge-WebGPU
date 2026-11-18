@@ -1,6 +1,9 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.6 · 2026-11-14 (WES ile birleşik bitki ailesi, ortak çalışma
+**Sürüm:** v0.7 · 2026-11-18 (PG0 şemaları; PK6 kapandı: ön ayarlar starter
+paketinde; üretici başına tarif türü; LOD başına tek GLB, odun / yaprak iki slot).
+
+**Önceki sürüm:** v0.6 · 2026-11-14 (WES ile birleşik bitki ailesi, ortak çalışma
 zamanı davranışı ve 5c ile birlikte ilerleyen üretim dilimi; kullanıcı kararı).
 **Durum:** Plan. Uygulama başlamadı; kod ve bağımlılık değişmedi, ana plan
 kutusu kapanmadı. Başlama koşulu §2'de.
@@ -632,6 +635,16 @@ panel ve World Builder bağlantısı PG5'te 5d ile gelir. PG4–PG7 genişlemele
       doğrulanır; aile, tekil bileşen / foliage, WES zaman ve geçiş
       sözleşmeleri şemalanır; PK6
       kapanır. Ana plan bağlantısı bu sürümde vardır; uygulama durumu doğrulanır.
+      **2026-11-18 (`c0937cd`):** PK6 kapandı (starter paketi). Şemalar:
+      `features/procgen` `forge.rockRecipe@1`; `features/plant` `forge.plantFamily@1`
+      (prototip başına LOD zinciri, impostor yuvası, odun / yaprak materyali, çarpışma,
+      tepki profili: yaprak döken / herdem yeşil, mevsim başına yaprak oranı + renk,
+      rüzgâr esnekliği, kar, ıslaklık) ve `forge.plant@1` (uzamsal: aile, prototip,
+      örnek tohumu, gölge); `forge.foliageType`'a `family` + `prototype`. Sözleşmeler:
+      (1) foliage türü GUID + LOD zinciri + impostor yuvası: var, batch LOD çiziyor;
+      (2) köşe niteliğinden rüzgâr: şemada var, 5c batch'lerinde rüzgâr yok, PG2'de
+      yazılır; (3) World Builder model kaynağı: PG5 / 5d; (4) aileyi tekil aktör ve
+      foliage tüketmesi: şema hazır, çözümleyici ve çizim PG2. Kutu PG2 çözümleyicisiyle kapanır.
 - [ ] **PG1 Kaya, uçtan uca ince dilim.** Saf çekirdek (rastgele akışlar,
       mesh yazımı, LOD örneklemesi, collider, istatistik) + kaya üreticisi +
       tarif şeması + taş yüzeyi materyal tarifi (§6.6) + triplanar materyal +
@@ -711,12 +724,14 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 | Doku yolu (eski PK4) | Karma (C): pişirilmiş karo + gölgelendiricide büyük ölçekli değişim (kullanıcı, 2026-11-11; §6.6) |
 | Prosedürel doku yetmezse | Codex'e ürettirilen doku ve Poly Haven (CC0) dokuları (kullanıcı, 2026-11-11; §6.6) |
 | İnsan yapımı prop'lar (eski PK5) | Bu işe dahil değil (kullanıcı, 2026-11-11) |
+| Başlangıç ön ayarları (eski PK6) | `content/packs/starter/`: birkaç nötr ön ayar; bölgeye özgü türler oyun projesinde (kullanıcı, 2026-11-18) |
+| Tarif asset türü | Üretici başına bir şemalı tür (`forge.rockRecipe`, `forge.treeRecipe`, …); ortak alanlar aynı adlarla (kullanıcı, 2026-11-18) |
+| Bitki LOD çıktısı | LOD başına tek GLB; odun ve yaprak iki primitive / materyal slotu; yaprak küme kimliği ve dökülme eşiği köşe niteliğinde (kullanıcı, 2026-11-18) |
 
 **Açık (belirtilen adımda kapanır):**
 
 | ID | Soru | Öneri |
 |---|---|---|
-| PK6 | Başlangıç ön ayarları nerede durur? | `content/packs/starter/`: birkaç nötr ön ayar (geniş yapraklı, iğne yapraklı, çalı, ot, köşeli ve yuvarlak kaya); bölgeye özgü türler oyun projesinde |
 | PK7 | Mevsimsel kart / impostor temsili nasıl saklanır? | PG3'te odun / yaprak ayrımı ile sınırlı mevsim atlaslarını görsel kalite, toplam / tepe bellek ve GPU süresiyle karşılaştır; her prototipe dört atlas zorunlu değil |
 
 ---
@@ -795,4 +810,5 @@ kurallarına göre yeniden yazılır.
 | 2026-11-11 | v0.3 | Bake CPU'da (PK3 kapandı). Dokular da prosedürel (kullanıcı kararı): §6.6 materyal tarifi, dört yol, öneri karma; PK4 yeniden yazıldı, açık |
 | 2026-11-11 | v0.4 | Doku yolu karma (C), yedek kaynaklar Codex ve Poly Haven (kullanıcı kararı; PK4 kapandı). Poly Haven lisansı ve API koşulları aynı gün sitesinden doğrulandı |
 | 2026-11-11 | v0.5 | İnsan yapımı prop'lar kapsam dışı (kullanıcı kararı; PK5 kapandı); "Basit biçim" üreticisi yalnız mantara indi |
+| 2026-11-18 | v0.7 | Kullanıcı: PK6 starter paketi, üretici başına tarif türü, LOD başına tek GLB (odun / yaprak iki slot). PG0 şemaları (`c0937cd`); sözleşme denetimi: 5c foliage'ında rüzgâr yok, PG2'de |
 | 2026-11-14 | v0.6 | Kullanıcının WES ile birleşik tasarım kararı kaydedildi: bitki ailesi, odun / yaprak ayrımı, tekil aktör / foliage eşitliği ve ortak tepki sistemi; rüzgâr, mevsim geçişi, görsel kar / ıslaklık, olay bazlı saatten ayrı birikim süresi; küçük üretim 5c ile, tam araçlar 5d ile; PK7 ve PV-WES kabul matrisi. Forge WES belgesi tarihsel referans; kod / bağımlılık değişikliği ve kapanan uygulama kutusu yok |

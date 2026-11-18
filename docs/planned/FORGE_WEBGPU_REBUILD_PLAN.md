@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.78 · 2026-11-18 — F7 = R10 (`184f00f`, `48536fe`): `npm run measure:foliage`, level'ların kendi foliage'ıyla G6. Profil, Forge'un her karede yaptığı halka planını ana iş parçacığının üçte biri gösterdi; halka artık kamera 1 m oynayınca / bekleyen hücrede / 30 karede bir planlanır. Derekavak P2: gönderim 1,03 ms (p95 3,0), ana iş parçacığı 1,60 ms (p95 3,8): **G6 sağlandı**. Sırada PG2.
+**Güncelleme:** v1.79 · 2026-11-18 — Adım 8 başladı: PG0 şemaları (`c0937cd`; bitki planı v0.7). Kullanıcı kararları: PK6 ön ayarlar starter paketinde, üretici başına tarif türü, ağaç LOD'u başına tek GLB (odun / yaprak iki slot). 5c foliage'ında rüzgâr yok: PG2'de.
+
+**Önceki güncelleme:** v1.78 · 2026-11-18 — F7 = R10 (`184f00f`, `48536fe`): `npm run measure:foliage`, level'ların kendi foliage'ıyla G6. Profil, Forge'un her karede yaptığı halka planını ana iş parçacığının üçte biri gösterdi; halka artık kamera 1 m oynayınca / bekleyen hücrede / 30 karede bir planlanır. Derekavak P2: gönderim 1,03 ms (p95 3,0), ana iş parçacığı 1,60 ms (p95 3,8): **G6 sağlandı**. Sırada PG2.
 
 **Önceki güncelleme:** v1.77 · 2026-11-18 — F5 (`22c50c2`: Details'in yanında Foliage sekmesi, Foliage Type listesi / oluşturma / şemadan düzenleme) ve F6 (`50fc01a`, `44f4602`: terrain'in Landscape kuralları level düzenlemesi olarak, tek Undo; kural düzenlemesi artık terrain'i yeniden kurmuyor). Sırada F7 (R10).
 
@@ -2232,6 +2234,7 @@ silinebilir.
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
+| 2026-11-18 | v1.79 | PG0 şemaları (`c0937cd`): `forge.rockRecipe@1`, `forge.plantFamily@1`, `forge.plant@1`, foliage türüne `family`; kararlar PK6 / tarif türü / LOD çıktısı (bitki planı v0.7) |
 | 2026-11-18 | v1.78 | F7 = R10: `measure:foliage` (`184f00f`), halka planı kamera hareketine bağlandı; Derekavak P2 gönderim 1,01 ms / ana iş parçacığı 1,56 ms, G6 sağlandı |
 | 2026-11-18 | v1.77 | F5 Foliage sekmesi + türler (`22c50c2`), F6 Landscape kuralları (`50fc01a`) ve terrain'in kural düzenlemesinde korunması (`44f4602`) |
 | 2026-11-18 | v1.76 | F2 worker (`51d4788`), F4 boyanmış hücre akışı + `?debug` satırları (`1b63507`); kullanıcı: F3 PG3'le birlikte (referans içerik kullanmıyor) |
