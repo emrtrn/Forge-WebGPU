@@ -122,6 +122,10 @@ export function formatZones(zones: ZoneDrawingStats): string[] {
     `zones ${zones.zones}, portals ${zones.portals}, camera zone ${camera}`,
     `zones visible ${zones.visible} / ${zones.zones}, zoned batches ${zones.tracked}: hidden ${zones.hidden}, shadow only ${zones.shadowOnly}`,
     `portal tests ${zones.portalTests}, exterior projections ${zones.exteriorPortalTests}${zones.portalBudgetExceeded ? " (budget exceeded)" : ""}`,
+    ...(zones.streaming ? [
+      `buildings ${zones.streaming.buildings}, active ${zones.streaming.active}, prefetch ${zones.streaming.prefetched}, queued ${zones.streaming.queued}`,
+      `interior placements ready ${zones.streaming.ready} / ${zones.streaming.resident}, camera building ${zones.streaming.cameraBuilding ?? "outside"}`,
+    ] : []),
   ];
 }
 

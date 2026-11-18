@@ -96,10 +96,11 @@ describe("static mesh material slots", () => {
 
 
 /** A world with static mesh actors (one component each), and the resources the binding asks. */
-function harness(placements: Record<string, unknown>[], zones?: ZoneDrawing) {
+function harness(placements: Record<string, unknown>[], zones?: ZoneDrawing, modelBounds?: RenderBindingContext["modelBounds"]) {
   const { template, body, trim } = twoSlotModel();
   const materials = new Map([[MOSS, new MeshStandardNodeMaterial({ name: "moss", color: "#b9c0c6" })], [BRICK, new MeshStandardNodeMaterial({ name: "brick" })]]);
   const released: string[] = [];
+  const loaded: string[] = [];
   const actors = placements.map((data, index) => ({
     id: `act_0000000000000000000000000000000${index + 1}`,
     name: `Rock ${index + 1}`,
@@ -107,7 +108,7 @@ function harness(placements: Record<string, unknown>[], zones?: ZoneDrawing) {
     components: { mesh: { type: "forge.staticMesh@2", parent: null, local: { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] }, mesh: MODEL, materials: [], color: null, castShadow: true, collision: true, ...data } },
   })) as unknown as WorldActor[];
   const resources = {
-    model: async () => template,
+    model: async (guid: string) => { loaded.push(guid); return template; },
     material: async (guid: string) => materials.get(guid)!,
     materialKey: (guid: string) => `material:${guid}:none`,
     release: (key: string) => released.push(key),
@@ -120,12 +121,13 @@ function harness(placements: Record<string, unknown>[], zones?: ZoneDrawing) {
     resources,
     lighting: null,
     ...(zones ? { zones } : {}),
+    ...(modelBounds ? { modelBounds } : {}),
     quality: () => ({ foliageCullDistanceScale: 1 }),
   } as unknown as RenderBindingContext;
   const instance = binding.create(ctx);
   instance.actorsAdded?.(actors);
   const frame = () => instance.sync?.({ dt: 0, camera: null });
-  return { instance, actors, root, released, body, trim, materials, frame };
+  return { instance, actors, root, loaded, released, body, trim, materials, frame };
 }
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -152,6 +154,40 @@ test("rekeys model placements after loading bounds and leaves a protruding model
   expect(instanced(root).map(mesh => mesh.count)).toEqual([1, 1, 1, 1]);
   instance.dispose?.();
   expect(zones.stats().tracked).toBe(0);
+});
+
+test("an indexed interior model stays unloaded until prefetch and releases its cache uses on departure", async () => {
+  const zone = {
+    id: "room", parent: null, transform: { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] },
+    components: { zone: { type: "forge.zone@1", parent: null, size: [4, 4, 4] } },
+  } as unknown as WorldActor;
+  const door = {
+    id: "door", parent: null, transform: { p: [0, 0, -2], r: [0, 0, 0, 1], s: [1, 1, 1] },
+    components: { portal: { type: "forge.portal@1", parent: null, size: [2, 2], zoneA: zone.id, zoneB: null } },
+  } as unknown as WorldActor;
+  const zones = createZoneDrawing({
+    services: null as unknown as RenderBindingContext["world"]["services"],
+    actor: (id) => id === zone.id ? zone : door,
+    componentsOf: (type) => type === "forge.zone" ? [{ actor: zone, key: "zone", component: zone.components.zone! }]
+      : type === "forge.portal" ? [{ actor: door, key: "portal", component: door.components.portal! }] : [],
+  }, () => 1);
+  zones.refresh([zone, door]);
+  const { actors, loaded, released, frame, instance, root } = harness([{}], zones,
+    () => ({ min: [-0.5, -0.5, -0.5], max: [0.5, 0.5, 0.5] }));
+  zones.residency!.update([0, 0, -70]);
+  expect(loaded).toEqual([]);
+  zones.residency!.update([0, 0, -57]);
+  expect(loaded).toEqual([MODEL]);
+  expect(instance.isActorReady?.(actors[0]!.id)).toBe(true);
+  await settle();
+  frame();
+  expect(zones.residency?.inspect(zone.id)).toMatchObject({ phase: "prefetch", resident: 1, ready: 1 });
+  zones.residency!.update([0, 0, 0]);
+  expect(loaded).toEqual([MODEL]);
+  zones.residency!.update([0, 0, -55]);
+  expect(released).toEqual([`model:${MODEL}`, `material:${BRICK}:none`]);
+  expect(instanced(root)).toHaveLength(0);
+  instance.dispose?.();
 });
 
 describe("static mesh binding (instanced)", () => {

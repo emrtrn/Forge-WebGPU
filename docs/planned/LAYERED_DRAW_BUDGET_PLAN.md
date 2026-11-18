@@ -492,21 +492,36 @@ sayımları, aynı bayt.
 
 ### 5.4 Adım 4 — Bina akışı (c)
 
-**Tasarım.** Bina = dış portalı olan bölgelerin iç portallarla bağlı bileşeni (öneri; S5).
-Kamera binanın dış portallarına (ya da bölgelerine) yükleme mesafesinden yakın değilse binanın
-iç mekânı yüklü değildir: bölgeye ait yerleşimler batch'e girmez, model / doku cache kullanımı
-bırakılır. Yaklaşınca önyükleme (`compileAsync` dahil), uzaklaşınca histerezisle boşaltma
-(öneri: yükleme 40 m × kalite çarpanı, önyükleme 1,5×, boşaltma 1,25×; F4'ün oranları; S6).
-Kamera binanın bir bölgesindeyse bina her zaman yüklü. Kare başına yükleme bütçesi.
+**Durum:** Uygulandı. Kullanıcı görsel onayı 18 Kasım 2026'da alındı.
+Teknik kabul açık. İlk yürüyüşte iki profil de p99 eşiğini aştı.
 
-**Ne boşalır (S7):** öneri önce render: batch yerleşimleri + model cache kullanımı (GPU geometri,
-doku); World aktörleri (oyun bileşenleri, fizik) yerinde kalır. World aktörlerinin de boşaltılması
-WP'ye ikinci bir akış birimi ekler, ayrı karar.
+**Karar ve kabul bütçesi (18 Kasım 2026).** Kullanıcı S5–S8 varsayılanlarını ve
+görsel kabulü onayladı. Donanım WebGPU'da RTX, 1080p, DPR 1 ve kare hızı sınırı
+kaldırılmış `walk` rotasında p99 kare aralığı **≤ 20 ms**, en uzun kare
+**≤ 50 ms**. Rota ön yükleme ve boşaltma sınırlarını geçer. İlk yaklaşma ve
+tekrar giriş örnekleri, başlangıç ve tahliye sonrası kaynak sayaçları kaydedilir.
+`facade` aynı donanımda ölçülür. WebGL2 smoke ayrı kaydedilir.
 
-**Üyelik yüklemeden önce gerekir (S8):** (a)'nın sığma kuralı model sınırlarını ister; modeli
-yüklemeden "bunu yükleme" denebilmesi için sınırlar asset dizininde olmalı (öneri: `tools/assets`
-model asset'inin yerel AABB'sini dizine yazar, build `forge/` dizinine taşır; HLOD, bölge ve
-`forge stats` da kullanır). Seçenek: level parçası olarak üyelik dizini (bölge üretiminin çıktısı).
+**Tasarım.** Bina, en az bir dış portalı bulunan ve iç portallarla bağlı bölge
+kümesidir (S5). `OUTSIDE` düğümü yalnız dış açıklıklara erişim verir.
+Uzaktaki bir binanın iç yerleşimleri batch dışında bekler. Yaklaşınca önyükleme
+(`compileAsync` dahil), uzaklaşınca histerezisle boşaltma
+(yükleme 40 m × kalite çarpanı, önyükleme 1,5×, boşaltma 1,25×; S6). Mesafe
+en yakın dış portal açıklığından ölçülür ve dış portal görünürlüğü aynı yükleme
+menzilini kullanır. Kamera binanın bir bölgesindeyse bina yüklü kalır.
+Yerleşim kuyruğu 3 ms/kare bütçeyle işlenir.
+
+**Kaynak sahipliği (S7).** Akış, render batch yerleşimlerini ve onların önbellek
+referanslarını bırakır. Paylaşılan kaynakları son kullanıcısına kadar önbellek
+tutar. Sıfır referanslı kaynaklar mevcut 30 sn tahliye süresine girer.
+World aktörleri ve fizik, World Partition yaşam döngüsüne bağlıdır. §5.3'te HLOD
+proxy'sinden çıkarılan iç yerleşimlerin hazırlanması, hücrenin dış kabuğunun
+HLOD geçişini bekletmez.
+
+**Üyelik (S8).** Asset dizini varsayılan glTF sahnesinin yerel AABB'sini
+taşır. Play modeli istemeden önce §5.3'teki 2 cm tam sığma kuralını uygular.
+Sınırı dizinde bulunmayan yerleşim, model yüklenip yeniden atanabilene kadar
+görünür tarafta kalır.
 
 **Modüller:** `engine/world/buildingStreaming.ts` (yeni, saf), `render/sync/zoneDrawing.ts`
 (bina residency, batch'e giriş / çıkış), `features/static-mesh/render.ts` (yerleşimi beklet,
@@ -516,13 +531,60 @@ dizini (S8), `?debug` (yüklü / önyüklenen bina, kuyruk).
 **Veri / şema:** S8'e göre asset dizinine `bounds` (dizin biçimi; `.forge-cache/asset-index.json`
 ve `dist/forge/`); bileşen şeması değişmez.
 
-**Editör:** editörde akış kapalı (bütün iç mekân yüklü, düzenlenebilir; 5b'nin kısmi oturum
-kuralıyla çelişmez), Play'de açık. Öneri; S7 ile birlikte sorulur.
+**Editör:** bina akışı Play'de açık, editörde kapalı (S7).
 
 **Kapı:** saf testler (bileşen, histerezis, bütçe, kamera içerideyken hep yüklü); `walk` yolu:
 sızıntı yok (heap, geometri / doku sayısı döngü sonunda başa döner), en uzun kare ve p99 eşiği
 (5b G-ölçütleri gibi, ölçümden önce yazılır), içeri girerken boş oda görülmez; iki arka uçta
 smoke; kullanıcı görsel kabulü (`walk`, `facade`).
+
+Tekrar koşusu `measure:city` ve `FORGE_CITY_BUILDING_STREAMING=1` ile yapılır.
+RTX için `high` ve `ultra` profilleri ve akış açık/kapalı eşleri alınır.
+WebGL2 smoke kendi kaydında tutulur. Görsel incelemede gölgesiz dolgu ışığı kullanılır.
+
+**RTX 3060 WebGPU, 18 Kasım 2026.** 1920 × 1080, DPR 1, `auto`, Chrome 157.
+252 odalı ve 674 portallı şehirde 8 m/s sokak → bina → sokak rotası.
+Kare aralıkları sürekli `requestAnimationFrame` üzerinden, `facade` GPU
+süresi ise 120 adımlı karenin zaman damgalarından alındı.
+[Ham WebGPU ölçümü](../reference/measurements/r9c-step4/webgpu.json).
+
+| Profil | Akış | İlk `walk` p99 / en uzun (ms) | Tekrar `walk` p99 / en uzun (ms) | `facade` GPU ort. (ms) | `facade` toplam draw |
+|---|---|---:|---:|---:|---:|
+| high | Kapalı | 36,0 / 69,0 | 35,6 / 43,7 | 4,605 | 1.008 |
+| high | Açık | **21,5** / 35,6 | 16,8 / 32,8 | 4,475 | 1.008 |
+| ultra | Kapalı | 43,1 / 80,4 | 36,7 / 66,0 | 5,649 | 1.341 |
+| ultra | Açık | **23,0** / 46,8 | 17,3 / 33,7 | 5,667 | 1.341 |
+
+Hedef binada ilk önyükleme örneği iki profilde de yaklaşık 59,7 m'de
+alındı. 180/180 yerleşim `high` profilde 49,4 m'de, `ultra` profilde
+48,5 m'de hazırdı. Eşikte ve içeride 180/180 hazır kaldı. 79,3 m'ye
+dönüldüğünde hedefin render yerleşimleri sıfıra indi.
+`facade` pozunda iki profilde de dokuz oda görünürdü. Çizimden önce
+bekleyen iş sayısı yerleşik pozda sıfırdı.
+[Kapı eşiği](../reference/measurements/r9c-step4/webgpu-threshold.png),
+[oda içi](../reference/measurements/r9c-step4/webgpu-inside.png),
+[15 m cephe](../reference/measurements/r9c-step4/webgpu-facade.png).
+
+İlk yürüyüş World Partition'da bir ek hücre açtı. Bellek kıyası aynı
+yerleşik 34 hücreyle, ilk dönüş ve ikinci dönüşten 31 sn sonra alındı.
+Geometri/doku sayaçları `high` için 145/9, `ultra` için 145/11,
+cache giriş sayısı iki profilde de 48 kaldı. GC sonrası heap artışı
+sırasıyla %0,27 ve %0,25. Cephede paylaşımlı mobilya modellerinin cache
+kullanım sayısı akış kapalıyken 2.916, açıkken 108. Odaklı bağlama testi
+uzaklaşınca tek modelin ve materyalinin referanslarının iade edildiğini doğruladı.
+
+**WebGL2 smoke.** `high` profilinde yaklaşma, içeride tutma, eşik ve dönüş
+kontrolleri geçti. Kaynak kontrolünde kamera bina menzillerinin üstüne
+çıkarıldı. Aynı 34 WP hücresi açıkken mobilya modeli kullanımları 108'den
+sıfıra indi ve 15 model mevcut tahliye kuyruğuna girdi. Tarayıcı hatası
+görülmedi. [WebGL2 kayıt dosyası](../reference/measurements/r9c-step4/webgl2.json),
+[WebGL2 kapı eşiği](../reference/measurements/r9c-step4/webgl2-threshold.png),
+[WebGL2 oda içi](../reference/measurements/r9c-step4/webgl2-inside.png),
+[WebGL2 cephe](../reference/measurements/r9c-step4/webgl2-facade.png).
+
+**Odaklı doğrulama.** Bina grafiği, kuyruk bütçesi, bölge/çizim bağları ve kaynak
+sahipliği testleri ile `typecheck` geçti. Starter üretim asset dizininde
+18 modelin 18'i yerel AABB içeriyor.
 
 **Codex (X):** `buildingStreaming.ts`: `buildingsOf(set: ZoneSet): Building[]` (bileşen, dış
 portallar, sınır kutusu); `planBuildingResidency(buildings, camera: ZoneVec3, state:
@@ -594,10 +656,10 @@ boşaltmayı ele alıyor.
 | S2 | Sığmayan ama bina içinde kalan ara duvar / döşeme | Önce hep çiz (bölgesiz); ölçümde payı büyükse üretimin voksel ızgarasından "dış hücreye değmiyor" üyeliği (bina üyeliği) | Şekil batch'leri az draw üretir, köşe işi küçük; bina üyeliği yeni kavram ve level parçası ister. Bina modelin içine gömülü iç duvar zaten bölünemez |
 | S3 | Pencereler portal değilse dışarıdan iç boş görünür. Ne yapılsın? | Üretim duvarın dikey profilinden pencereyi bulur, dış portal yazar; kalanı elle; kabul ölçütü `facade` pozu | Cam materyalini portal saymak materyal bilgisine bağlanır ve şekillerde yok; yalnız elle portal şehirde ölçeklenmez |
 | S4 | Tavansız oda (avlu, yıkık bina) | Üretim tavanı olmayan odaya yatay üst açıklık portalı yazar | Yürüyüş kendiliğinden çalışır (yukarıdan bakınca görünür); odayı bölgesiz bırakmak avlu eşyasını hep çizer |
-| S5 | "Bina" (akış birimi) nasıl tanımlanır? | Portal grafında dış portalı olan bölgelerin bağlı bileşeni | Ek veri yok; elle `building` alanı yalnız bileşen yanlış çıkarsa (iki bina ortak portalla) |
-| S6 | Bina akış mesafesi ve histerezisi | Yükleme 40 m × kalite, önyükleme 1,5×, boşaltma 1,25× (F4 oranları); şehirde ölçülür | Pencereden 40 m ötede iç mekân ekranda küçük; önyükleme `compileAsync` sıçramasını gizler, histerezis sınırda titremeyi önler |
-| S7 | Akışta ne boşalır? Editörde akış? | Önce render (batch + model / doku); World aktörleri kalır. Editörde kapalı, Play'de açık | Oyun bileşenli aktörü boşaltmak WP'ye ikinci akış birimi ekler; editör her şeyi düzenleyebilmeli |
-| S8 | Yüklemeden önce üyelik için model sınırları nereden? | Asset dizinine model AABB'si (`tools/assets` + build) | Genel: HLOD, bölge, `forge stats` da kullanır; level başına bayatlık yok. Seçenek üyelik level parçası |
+| S5 | "Bina" (akış birimi) nasıl tanımlanır? | **Onaylandı (18 Kasım).** İç portallarla bağlı, en az bir dış portala sahip bölge kümesi | Üyelik mevcut portal grafından çıkarılır |
+| S6 | Bina akış mesafesi ve histerezisi | **Onaylandı (18 Kasım).** 40 m × kalite, önyükleme 1,5×, boşaltma 1,25× | Önyüklemeye `compileAsync` dahildir, yerleşim kuyruğu 3 ms/kare bütçeli |
+| S7 | Akışta ne boşalır? Editörde akış? | **Onaylandı (18 Kasım).** Render batch ve kaynak referansları. Editörde kapalı, Play'de açık | World aktörleri ve fizik WP'ye bağlı, son referanstan sonra cache tahliyesi 30 sn |
+| S8 | Yüklemeden önce üyelik için model sınırları nereden? | **Onaylandı (18 Kasım).** Asset dizininde yerel model AABB'si | Model yüklenmeden 2 cm tam sığma testi, eksik sınırda geç yüklenen modelden yeniden atama |
 | S9 | Gölge cull formülü ve kalite profiliyle ilişki | Texel kuralı `r ≥ τ · t_k`, τ profil alanı (`shadowCasterMinTexels`, öneri `ultra` 1,5, `high` 2, düşükler 3); level / nesne geçersiz kılması yok (bölgenin `alwaysCastShadows`'u gibi gerekirse sonra) | Yarıçap × K kuralı harita boyutunu ve kaskat sayısını görmez; texel kuralı profille kendiliğinden ölçeklenir. τ ölçümle |
 | S10 | Gölge kesilmesi solsun mu? | Evet, `maskShadowNode` dither, izinli son bölmenin son %15'i | Kaskat sınırında küçük gölgenin birden kaybolması sokakta görülür; maliyeti ihmal edilebilir |
 | S11 | Yakın kaskadın kapsadığı gölge düşürücü uzak kaskattan çıkarılsın mı? | Şimdi değil; adım 2 ölçümünden sonra | Gölge hacmi kaskattan taşabilir (gün batımı); yanlış gizleme riski, kazancı adım 2'den sonra küçük olabilir |
@@ -630,7 +692,7 @@ boşaltmayı ele alıyor.
 **Ölçülmeden verilmeyecek kararlar**
 - τ (S9) ve solma bandı (S10).
 - GPU yolu mu hücre bölmesi mi (S12), yerleşim / yayılma eşikleri.
-- Bina akış mesafeleri (S6) ve yükleme bütçesi.
+- İlk `walk` rotasında 20 ms p99 sınırı (§5.4).
 - S2'nin bina üyeliği, S11'in kaskat iç içe kesimi, dispatch birleştirme.
 - WP çoklu menzil (S13) ve atlas (§5.6).
 - `GPU_STATIC_MIN_TRIANGLES` (S1 eşiği) değişikliği.
@@ -646,3 +708,4 @@ boşaltmayı ele alıyor.
 | 2026-11-18 | v0.2 | Adım 3’te dış portal yürüyüşü ve HLOD filtresi yerelde uygulandı. S16 uyarınca üretim katları tek koşuda tarıyor. Odaklı doğrulamalar §5.3’te. |
 | 2026-11-18 | v0.2 | Adım 3 şehir ve ağır iç mekân ölçümleri tamamlandı. Şehirde iki kat, 252 oda ve 674 portal doğrulandı. Görsel kabul açık (§5.3). |
 | 2026-11-18 | v0.3 | Kullanıcı Adım 3 görsellerini onayladı. Adım 3 ve R9b Z8–Z10, yeni Z6 kabulüyle kapandı. |
+| 2026-11-18 | v0.3 | S5–S8 onaylandı ve Adım 4 yerelde uygulandı. Görsel onay, WebGPU/WebGL2 kayıtları ve ilk yürüyüşte açık kalan p99 kabulü §5.4’te. |

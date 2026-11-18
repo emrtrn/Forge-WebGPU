@@ -5,8 +5,10 @@
 // its own directory with the build (phase 4 dist work).
 
 import { FORGE_REQUEST_HEADER, type JsonObject } from "../../core/index.ts";
+import type { ZoneBox } from "../../engine/world/zones.ts";
 
 export interface AssetFile {
+  readonly bounds?: ZoneBox;
   /** Asset type, e.g. `forge.model`. */
   readonly type: string;
   /** `<root label>/<path>`: what `/__forge/read?path=` takes. */
@@ -16,6 +18,7 @@ export interface AssetFile {
 }
 
 export interface AssetUrls {
+  modelBounds?(guid: string): ZoneBox | null;
   /** Null when the index has no such asset. */
   url(guid: string): string | null;
   /**
@@ -39,6 +42,7 @@ export interface AssetUrls {
 export function assetUrlsFromIndex(initial: Readonly<Record<string, AssetFile>>, readUrl: (file: string) => string, headers: Record<string, string> = {}): AssetUrls {
   let files = initial;
   return {
+    modelBounds: (guid) => files[guid]?.bounds ?? null,
     update: (next) => {
       files = next;
     },

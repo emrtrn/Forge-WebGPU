@@ -123,7 +123,7 @@ export interface RenderHost {
   /** The world being drawn, once one attached. */
   readonly world: RenderWorld | null;
   /** The `forge.render` feature for a world that installs `features`. */
-  feature(features: readonly FeatureDef[], name: string, options?: { readonly prepare?: boolean }): FeatureDef;
+  feature(features: readonly FeatureDef[], name: string, options?: { readonly prepare?: boolean; readonly buildingStreaming?: boolean }): FeatureDef;
   /** CPU geometry queries may inspect batches while their GPU pipelines prepare. */
   preparingObjects(): readonly Object3D[];
   /** Shared serial warmup queue with the target scene's lights and MRT formats. */
@@ -409,6 +409,8 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
         cameraViews: gpuDriven,
         gpuDriven,
         staticCellSize: () => staticCellSize,
+        buildingStreaming: featureOptions?.buildingStreaming === true,
+        modelBounds: (guid) => options.assetUrls.modelBounds?.(guid) ?? null,
         features,
         name,
         camera: () => camera,

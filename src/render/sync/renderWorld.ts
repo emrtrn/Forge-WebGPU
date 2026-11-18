@@ -16,7 +16,7 @@
 // A headless boot (Node, check:projects) installs no such subsystem, so the
 // world runs without render.
 
-import { Group, Scene, type Camera, type Object3D } from "three/webgpu";
+import { Group, Scene, Vector3, type Camera, type Object3D } from "three/webgpu";
 import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { defineFeature, defineSubsystem, LevelSettingsKey, type FeatureDef, type LevelSettings, type SubsystemContext } from "../../core/index.ts";
 import type { ResourceCache } from "../resources/resourceCache.ts";
@@ -37,6 +37,7 @@ import { createEnvironmentOverride } from "./environment.ts";
 import { createOutputState } from "./output.ts";
 import { sceneShadowQuality, sceneShadowsEnabled } from "./sceneShadows.ts";
 import type { EnvironmentCapture, RenderBindingDef, RenderBindingInstance, RenderOutput, RenderWorldView } from "./renderBinding.ts";
+import type { ZoneBox } from "../../engine/world/zones.ts";
 
 export const RENDER_FEATURE_ID = "forge.render";
 
@@ -57,6 +58,8 @@ export interface RenderWorld {
 }
 
 export interface RenderFeatureOptions {
+  readonly buildingStreaming?: boolean;
+  readonly modelBounds?: (guid: string) => ZoneBox | null;
   readonly prepare?: (objects: readonly Object3D[], scene: Scene, signal?: AbortSignal) => Promise<void>;
   /** The GPU-driven automatic LOD drawing static batches may take (R9.4). */
   readonly triangles?: TriangleDrawing;
@@ -118,7 +121,8 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       const outputState = createOutputState(view);
       const output = outputState.output;
       const effectiveQuality = sceneShadowQuality(view, options.quality);
-      const zones = createZoneDrawing(view);
+      const zones = createZoneDrawing(view, options.buildingStreaming ? options.viewDistanceMultiplier ?? (() => 1) : undefined);
+      const cameraPosition = new Vector3();
       ctx.services.provide(PortalSidesKey, zones);
       const instances: RenderBindingInstance[] = bindings.map((binding) =>
         binding.create({
@@ -130,10 +134,12 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           ...(options.cameraViews ? { cameraViews: options.cameraViews } : {}),
           ...(options.gpuDriven ? { gpuDriven: options.gpuDriven } : {}),
           ...(options.staticCellSize ? { staticCellSize: options.staticCellSize } : {}),
+          ...(options.modelBounds ? { modelBounds: options.modelBounds } : {}),
           zones,
         }),
       );
-      ctx.services.provide(RenderReadinessKey, { isActorReady: (id) => instances.every((instance) => instance.isActorReady?.(id) ?? true) });
+      const readiness = instances.filter((instance) => instance.isActorReady !== undefined);
+      ctx.services.provide(RenderReadinessKey, { isActorReady: (id) => readiness.every((instance) => instance.isActorReady!(id)) });
       const world: RenderWorld = {
         name: options.name, scene, root, resources, output,
         get shadowsEnabled() { return sceneShadowsEnabled(view); },
@@ -173,6 +179,10 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
         },
         tick(_group, dt) {
           const frame = { dt, camera: options.camera() };
+          if (zones.residency && frame.camera) {
+            frame.camera.getWorldPosition(cameraPosition);
+            zones.residency.update([cameraPosition.x, cameraPosition.y, cameraPosition.z]);
+          }
           environment.update();
           lighting.sync(frame.camera, effectiveQuality(), environment.environment.override);
           outputState.update(environment.environment.override, options.quality());
@@ -190,6 +200,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           hlod = null;
           for (const instance of [...instances].reverse()) instance.dispose?.();
           instances.length = 0;
+          readiness.length = 0;
           lighting.dispose();
           resources.releaseAll();
           options.detach?.(world);

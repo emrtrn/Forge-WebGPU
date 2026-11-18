@@ -19,7 +19,7 @@ interface CityDev {
   moveCamera(x: number, y: number, z: number, target: readonly [number, number, number]): void;
   streaming(): {
     cells: { actors: number; active: number; fetching: number; queued: number } | null;
-    cache: { pending: number } | null;
+    cache: { entries: number; pending: number; pendingEvict: number; evicted: number } | null;
     hlod: { visible: number; loaded: number };
     gpu: { geometries: number; textures: number } | null;
   };

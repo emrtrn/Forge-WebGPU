@@ -149,6 +149,7 @@ async function start(): Promise<void> {
     document,
     container: viewport,
     dev: import.meta.env.DEV,
+    ...(import.meta.env.DEV && params.get("buildingStreaming") === "off" ? { buildingStreaming: false } : {}),
     forceWebGL: params.has("forceWebGL"),
     // Development measurement (plan 5c R9.0): force the static batches' path.
     ...(import.meta.env.DEV && params.has("staticPath") ? { staticPath: parseStaticPath(params.get("staticPath")) } : {}),

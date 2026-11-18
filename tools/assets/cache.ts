@@ -13,6 +13,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { isJsonObject, type AssetEntry, type AssetIndex } from "../../src/core/index.ts";
+import type { ZoneBox } from "../../src/engine/world/zones.ts";
 
 export const ASSET_INDEX_CACHE_SCHEMA = "forge.assetIndexCache/1";
 export const CACHE_DIRECTORY = ".forge-cache";
@@ -31,7 +32,7 @@ export interface AssetIndexCache {
   readonly schema: typeof ASSET_INDEX_CACHE_SCHEMA;
   readonly roots: readonly string[];
   /** GUID -> location, sorted by GUID. */
-  readonly assets: Readonly<Record<string, Omit<AssetEntry, "id">>>;
+  readonly assets: Readonly<Record<string, Omit<AssetEntry, "id"> & { readonly bounds?: ZoneBox }>>;
   /** Target GUID -> the references that point at it (the reverse index). */
   readonly references: Readonly<Record<string, readonly CachedReference[]>>;
 }
@@ -40,11 +41,12 @@ export function assetIndexCachePath(projectRoot: string): string {
   return join(projectRoot, CACHE_DIRECTORY, ASSET_INDEX_CACHE_FILE);
 }
 
-export function toAssetIndexCache(index: AssetIndex, roots: readonly string[]): AssetIndexCache {
-  const assets: Record<string, Omit<AssetEntry, "id">> = {};
+export function toAssetIndexCache(index: AssetIndex, roots: readonly string[], modelBounds?: ReadonlyMap<string, ZoneBox>): AssetIndexCache {
+  const assets: Record<string, AssetIndexCache["assets"][string]> = {};
   for (const id of [...index.entries.keys()].sort()) {
     const { id: _, ...location } = index.entries.get(id) as AssetEntry;
-    assets[id] = location;
+    const bounds = modelBounds?.get(id);
+    assets[id] = bounds ? { ...location, bounds } : location;
   }
   const references: Record<string, CachedReference[]> = {};
   for (const target of [...new Set(index.references.map((reference) => reference.target))].sort()) {

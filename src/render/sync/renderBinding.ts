@@ -26,6 +26,7 @@ import type { CameraViews, GpuDrivenBatches } from "../gpu/gpuDriven.ts";
 import type { StaticPath } from "../triangles/staticPath.ts";
 import type { TriangleDrawing } from "../triangles/triangleDrawing.ts";
 import type { ZoneDrawing } from "./zoneDrawing.ts";
+import type { ZoneBox } from "../../engine/world/zones.ts";
 
 /** What a binding sees of its world: read only. */
 export interface RenderWorldView {
@@ -81,6 +82,7 @@ export interface EnvironmentCapture {
 }
 
 export interface RenderBindingContext {
+  readonly modelBounds?: (guid: string) => ZoneBox | null;
   /** Prepares detached batch parts against this world's actual scene / pass. */
   readonly prepare?: (objects: readonly Object3D[], signal?: AbortSignal) => Promise<void>;
   /** The host's GPU-driven automatic LOD drawing (R9.4); absent where batches stay instanced. */

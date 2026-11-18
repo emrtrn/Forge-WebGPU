@@ -9,7 +9,7 @@
 // the host calls `update` with the camera: the visible zones come from the
 // portal walk (`engine/world/zones.ts`) and every batch gets its mode:
 // visible, shadow only (hidden, `alwaysCastShadows`) or hidden. Content in no
-// zone is never tracked and always draws. Visibility only: nothing unloads.
+// zone is never tracked and always draws. Play also streams zoned placements.
 //
 // GPU-driven batches are not split (user decision 2026-11-18, after the Z6
 // measurement: a batch per zone multiplied dispatches and draws): each
@@ -25,6 +25,7 @@ import { Matrix4, Quaternion, Vector3, type Camera } from "three/webgpu";
 import type { ActorId, WorldActor } from "../../core/index.ts";
 import { buildZoneSet, OUTSIDE, visibleZones, zoneOfBox, type PortalInput, type VisibleZones, type ZoneBox, type ZoneInput, type ZoneSet, type ZoneVec3 } from "../../engine/world/zones.ts";
 import { MAX_ZONE_SLOTS, ZONE_MASK_WORDS, type ZoneMode } from "../gpu/gpuDrivenBatch.ts";
+import { createBuildingResidency } from "./buildingResidency.ts";
 import type { RenderWorldView } from "./renderBinding.ts";
 import { componentWorldMatrix } from "./transforms.ts";
 
@@ -38,6 +39,7 @@ export interface ZoneTarget {
 }
 
 export interface ZoneDrawingStats {
+  readonly streaming?: ReturnType<ReturnType<typeof createBuildingResidency>["stats"]>;
   readonly zones: number;
   readonly portals: number;
   readonly cameraZone: string | null;
@@ -52,6 +54,7 @@ export interface ZoneDrawingStats {
 }
 
 export interface ZoneDrawing {
+  readonly residency?: ReturnType<typeof createBuildingResidency>;
   /** Zone id (its actor) holding the world box, null in none. */
   zoneOf(box: ZoneBox): string | null;
   /** The zone slot (GPU masks) holding the world box; 0 in none. */
@@ -85,7 +88,8 @@ const hasZoneParts = (actor: WorldActor): boolean =>
 const tuple = (vector: Vector3): ZoneVec3 => [vector.x, vector.y, vector.z];
 const quat = (q: Quaternion): readonly [number, number, number, number] => [q.x, q.y, q.z, q.w];
 
-export function createZoneDrawing(world: RenderWorldView): ZoneDrawing {
+export function createZoneDrawing(world: RenderWorldView, streamingMultiplier?: () => number): ZoneDrawing {
+  const residency = streamingMultiplier ? createBuildingResidency(streamingMultiplier) : undefined;
   let set: ZoneSet | null = null;
   /** Zones whose content casts while hidden. */
   let alwaysCast = new Set<string>();
@@ -126,6 +130,7 @@ export function createZoneDrawing(world: RenderWorldView): ZoneDrawing {
       });
     }
     set = zones.length > 0 ? buildZoneSet(zones, portals) : null;
+    residency?.rebuild(set);
     alwaysCast = casting;
     slots = new Map((set?.zones ?? []).slice(0, MAX_ZONE_SLOTS - 1).map((zone, index) => [zone.id, index + 1]));
     revision += 1;
@@ -133,6 +138,7 @@ export function createZoneDrawing(world: RenderWorldView): ZoneDrawing {
   };
 
   return {
+    ...(residency ? { residency } : {}),
     zoneOf(box) {
       return set ? zoneOfBox(set, box) : null;
     },
@@ -165,20 +171,25 @@ export function createZoneDrawing(world: RenderWorldView): ZoneDrawing {
         camera.updateMatrixWorld();
         viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
         camera.getWorldPosition(position);
-        last = visibleZones(set, { position: tuple(position), viewProjection: viewProjection.elements });
+        last = visibleZones(set, { position: tuple(position), viewProjection: viewProjection.elements },
+          residency ? { exteriorRange: residency.range() } : undefined);
         visible = last.zones;
       } else last = null;
-      if (visible === null) masks = null;
+      if (visible === null && !residency) masks = null;
       else {
         main.fill(0); shadow.fill(0);
         setBit(main, 0); setBit(shadow, 0);
         for (const [zone, slot] of slots) {
-          if (visible.has(zone)) { setBit(main, slot); setBit(shadow, slot); } else if (alwaysCast.has(zone)) setBit(shadow, slot);
+          if (residency && !residency.draws(zone)) continue;
+          if (visible === null || visible.has(zone)) { setBit(main, slot); setBit(shadow, slot); } else if (alwaysCast.has(zone)) setBit(shadow, slot);
         }
         masks = { main, shadow };
       }
       for (const [target, zone] of targets) {
-        const mode: ZoneMode = visible === null || visible.has(zone) ? "visible" : alwaysCast.has(zone) ? "shadow" : "hidden";
+        let mode: ZoneMode = "hidden";
+        if (!residency || residency.draws(zone)) {
+          mode = visible === null || visible.has(zone) ? "visible" : alwaysCast.has(zone) ? "shadow" : "hidden";
+        }
         if (target.zoneMode !== mode) target.setZoneMode(mode);
       }
     },
@@ -191,6 +202,7 @@ export function createZoneDrawing(world: RenderWorldView): ZoneDrawing {
       }
       const zones = set?.zones.length ?? 0;
       return {
+        ...(residency ? { streaming: residency.stats() } : {}),
         zones, portals: set?.links.length ?? 0, cameraZone: last?.cameraZone ?? null,
         visible: last?.zones ? last.zones.size : zones, tracked: targets.size, shadowOnly, hidden,
         portalTests: last?.portalTests ?? 0,

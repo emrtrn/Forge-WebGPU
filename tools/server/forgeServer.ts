@@ -61,6 +61,8 @@ import { buildContentListing } from "../assets/contentListing.ts";
 import { planContentOp, type ContentOp, type ContentPlan } from "../assets/contentOps.ts";
 import { glbOptimizeSettings } from "../assets/glbOptimizeSettings.ts";
 import { fileRevision } from "../assets/revision.ts";
+import { createModelBoundsIndex } from "../assets/modelBounds.ts";
+import type { ZoneBox } from "../../src/engine/world/zones.ts";
 import { ENGINE_LABEL_PREFIX } from "../assets/engineContent.ts";
 import { engineContentResult } from "./engineContentMode.ts";
 import { openAuthoring, READ_ONLY_MESSAGE, resolveReadOnlyPath, STATUS_OF, type Authoring, type AuthoringOptions } from "./authoring.ts";
@@ -161,6 +163,7 @@ export interface ForgeServerOptions extends AuthoringOptions {
 
 /** An asset's file as `GET /__forge/asset-files` lists it; `file` is what `/__forge/read?path=` takes. */
 export interface AssetFileEntry {
+  readonly bounds?: ZoneBox;
   readonly type: string;
   readonly file: string;
   /** A binary asset's normalised import settings (texture anisotropy, a model's material slots). */
@@ -176,13 +179,14 @@ const isDataDocumentType = (type: string): boolean => DATA_DOCUMENT_NAMES.has(ty
  * every data document (a terrain; its parts are read beside it, plan phase 3
  * step 8). Levels and classes are read otherwise.
  */
-export function rendererAssetFiles(index: AssetIndex): Record<string, AssetFileEntry> {
+export function rendererAssetFiles(index: AssetIndex, modelBounds?: ReadonlyMap<string, ZoneBox>): Record<string, AssetFileEntry> {
   const out: Record<string, AssetFileEntry> = {};
   for (const entry of index.entries.values()) {
     const file = `${entry.root}/${entry.path}`;
     if (entry.storage === "binary") {
       const meta = index.metas.get(entry.id);
-      out[entry.id] = meta ? { type: entry.type, file, import: meta.import } : { type: entry.type, file };
+      const bounds = modelBounds?.get(entry.id);
+      out[entry.id] = { type: entry.type, file, ...(meta ? { import: meta.import } : {}), ...(bounds ? { bounds } : {}) };
     } else if (index.jsonAssets.has(entry.id) || isDataDocumentType(entry.type)) {
       out[entry.id] = { type: entry.type, file };
     }
@@ -205,6 +209,7 @@ class ContentRequestError extends Error {}
 
 export async function createForgeServer(options: ForgeServerOptions): Promise<ForgeServer> {
   const authoring = await openAuthoring(options);
+  const modelBounds = createModelBoundsIndex(authoring.resolveReadable);
   const { policy, readOnlyRoots, engine, engineMode, classes, check, saves, engineSaves, rootOfLabel, absoluteOf, writableLabel, current } = authoring;
   const maxBody = options.maxBodyBytes ?? MAX_BODY_BYTES;
   const stagingDir = join(policy.root, STAGING_DIR);
@@ -541,7 +546,8 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
       "GET /__forge/read": () => read(url, res),
       "GET /__forge/identity": async () => send(res, 200, options.identity ?? {}),
       "GET /__forge/classes": async () => send(res, 200, { classes: classes.all() }),
-      "GET /__forge/asset-files": () => current().then(({ index }) => send(res, 200, { assets: rendererAssetFiles(index) })),
+      "GET /__forge/asset-files": () => current().then(async ({ index, scan }) =>
+        send(res, 200, { assets: rendererAssetFiles(index, await modelBounds(index, scan.stamps)) })),
       "GET /__forge/content": () =>
         (url.searchParams.get("refresh") === "1" ? authoring.rescan() : current()).then(async ({ scan, index }) =>
           send(res, 200, buildContentListing(scan, index, writableLabel, (await readManifest())?.startLevel ?? "")),

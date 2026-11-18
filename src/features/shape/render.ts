@@ -20,6 +20,7 @@ import { shapeBoundingRadius } from "../../engine/procgen/shapePrimitives.ts";
 import { changeInstances, createInstanceBatch, type InstanceBatch } from "../../render/sync/instanceBatches.ts";
 import { defineRenderBinding } from "../../render/sync/renderBinding.ts";
 import { componentWorldMatrix } from "../../render/sync/transforms.ts";
+import { createStreamedPlacements } from "../../render/sync/streamedPlacements.ts";
 import { Shape, type ShapeData } from "./schema.ts";
 
 /** The material every shape batch draws with; the shape's colour is per instance. */
@@ -86,16 +87,24 @@ export default defineRenderBinding({
     };
 
     const cellSize = (): number => ctx.staticCellSize?.() ?? 0;
+    const assignmentFor = (data: ShapeData) => {
+      const zone = placementZone(ctx.zones, matrix, shapeBounds(data.primitive));
+      const batchKey = shapeBatchKey(data) + cellSuffix(matrix, cellSize()) + zoneSuffix(zone);
+      return { key: batchKey, zone };
+    };
     const add = (actor: WorldActor, key: string, data: ShapeData): void => {
       const id = `${actor.id}/${key}`;
       componentWorldMatrix(ctx.world, actor, key, matrix);
-      const zone = placementZone(ctx.zones, matrix, shapeBounds(data.primitive));
-      const batchKey = shapeBatchKey(data) + cellSuffix(matrix, cellSize()) + zoneSuffix(zone);
-      placed.set(id, batchKey);
-      batchFor(batchKey, data, zone).instances.set(id, matrix, data.color, actor.id);
+      const assignment = assignmentFor(data);
+      placements.set(id, actor.id, assignment, () => {
+        const current = ctx.world.actor(actor.id) ?? actor;
+        componentWorldMatrix(ctx.world, current, key, matrix);
+        placed.set(id, assignment.key);
+        batchFor(assignment.key, data, assignment.zone).instances.set(id, matrix, data.color, actor.id);
+      }, () => batches.get(placed.get(id) ?? "")?.instances.ready === true);
     };
 
-    const remove = (id: string): void => {
+    const detach = (id: string): void => {
       const batchKey = placed.get(id);
       if (batchKey === undefined) return;
       placed.delete(id);
@@ -104,6 +113,7 @@ export default defineRenderBinding({
       batch.instances.delete(id);
       if (batch.instances.size === 0) disposeBatch(batchKey, batch);
     };
+    const placements = createStreamedPlacements(ctx.zones, detach);
 
     const added = (actors: readonly WorldActor[]): void => {
       for (const actor of actors) {
@@ -111,39 +121,34 @@ export default defineRenderBinding({
       }
     };
     const removed = (actors: readonly WorldActor[]): void => {
-      for (const actor of actors) for (const [key] of shapesOf(actor)) remove(`${actor.id}/${key}`);
+      for (const actor of actors) for (const [key] of shapesOf(actor)) placements.remove(`${actor.id}/${key}`);
     };
     const move = (actor: WorldActor): void => {
       for (const [key, component] of shapesOf(actor)) {
         const id = `${actor.id}/${key}`;
-        const batchKey = placed.get(id);
-        if (batchKey === undefined) continue;
         const data = component as unknown as ShapeData;
         componentWorldMatrix(ctx.world, actor, key, matrix);
         // Into another cell or zone: another batch (R9a cells, R9b zones); within one, in place.
-        if (shapeBatchKey(data) + cellSuffix(matrix, cellSize()) + zoneSuffix(placementZone(ctx.zones, matrix, shapeBounds(data.primitive))) !== batchKey) { remove(id); add(actor, key, data); continue; }
-        batches.get(batchKey)?.instances.move(id, matrix);
+        if (!placements.matches(id, assignmentFor(data))) { add(actor, key, data); continue; }
+        batches.get(placed.get(id) ?? "")?.instances.move(id, matrix);
       }
     };
 
     // The zone set changed (a zone or portal edited): placements whose zone changed move batch.
     const unsubscribe = ctx.zones?.onChange(() => {
-      for (const [id, batchKey] of [...placed]) {
+      for (const id of [...placements.ids()]) {
         const [actorId, key] = placementParts(id);
         const actor = ctx.world.actor(actorId);
         const component = actor?.components[key];
         if (!actor || !component) continue;
         const data = component as unknown as ShapeData;
         componentWorldMatrix(ctx.world, actor, key, matrix);
-        if (shapeBatchKey(data) + cellSuffix(matrix, cellSize()) + zoneSuffix(placementZone(ctx.zones, matrix, shapeBounds(data.primitive))) !== batchKey) { remove(id); add(actor, key, data); }
+        if (!placements.matches(id, assignmentFor(data))) add(actor, key, data);
       }
     });
 
     return {
-      isActorReady(id) {
-        const actor = ctx.world.actor(id);
-        return !actor || shapesOf(actor).every(([key]) => batches.get(placed.get(`${id}/${key}`) ?? "")?.instances.ready ?? true);
-      },
+      isActorReady: placements.isActorReady,
       actorsAdded: added,
       actorsRemoved: removed,
       actorsChanged(changes) {
@@ -154,6 +159,7 @@ export default defineRenderBinding({
       },
       dispose() {
         unsubscribe?.();
+        placements.dispose();
         for (const [key, batch] of [...batches]) disposeBatch(key, batch);
         placed.clear();
       },

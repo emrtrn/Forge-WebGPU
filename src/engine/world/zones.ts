@@ -267,7 +267,7 @@ function clipToPositiveW(quad: readonly [ClipPoint, ClipPoint, ClipPoint, ClipPo
   return clipped;
 }
 
-function portalDistance(portal: PortalInput, point: ZoneVec3): number {
+export function portalDistance(portal: PortalInput, point: ZoneVec3): number {
   const [x, y, z] = rotate(invertQuat(portal.rotation), sub(point, portal.center));
   const [hw, hh] = portal.halfSize;
   return Math.hypot(Math.max(0, Math.abs(x) - hw), Math.max(0, Math.abs(y) - hh), z);

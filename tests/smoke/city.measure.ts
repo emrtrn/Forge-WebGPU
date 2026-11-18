@@ -54,7 +54,7 @@ test("city draw budget baseline", async ({ context, browser }, info) => {
   }) : fixture.poses;
   const results = [];
   const walks = [];
-  const startup = (path: string) => `&staticPath=${path}`;
+  const startup = (path: string) => `&staticPath=${path}&buildingStreaming=off`;
   for (const profile of PROFILES) {
     for (const path of paths) {
       for (const pose of poses) {

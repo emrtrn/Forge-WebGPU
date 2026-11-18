@@ -34,6 +34,7 @@ export const READY_FRAMES = 3;
 const FRAMING_DIRECTION = new Vector3(0.6, 0.55, 1).normalize();
 
 export interface LevelViewerOptions extends RenderHostOptions {
+  readonly buildingStreaming?: boolean;
   /** Where the pose handoff lives; null when the page has no storage. */
   readonly storage: Pick<Storage, "getItem" | "removeItem"> | null;
   /** The camera's start (the editor's Play session names it); the storage handoff is left alone then. */
@@ -127,7 +128,7 @@ export function createLevelViewer(options: LevelViewerOptions): LevelViewer {
     },
     feature(features) {
       if (!host) throw new Error("The level viewer is not initialised.");
-      return host.feature(features, "game");
+      return host.feature(features, "game", { buildingStreaming: options.buildingStreaming !== false });
     },
     frame(now) {
       if (!host || host.world === null) return;

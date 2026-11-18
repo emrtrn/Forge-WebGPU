@@ -29,6 +29,7 @@ import { scanRoots } from "./assets/scan.ts";
 import { createClassStore } from "./save/documentCheck.ts";
 import { identityOf, resolveDevProject } from "./server/devProject.ts";
 import { rendererAssetFiles } from "./server/forgeServer.ts";
+import { createModelBoundsIndex } from "./assets/modelBounds.ts";
 import { diskHlodInput } from "./world/hlodInput.ts";
 import { hlodStaleness, hlodWarningLine } from "./world/hlodStale.ts";
 import { prepareTriangleModels } from "./triangles/triangleCache.ts";
@@ -61,11 +62,15 @@ export async function buildContent(options: { readonly outDir: string; readonly 
   const index = buildAssetIndex(scan.files, { strict: false, registry });
   for (const warning of await hlodStaleness(diskHlodInput(scan.files, index, registry, roots))) console.warn(hlodWarningLine(warning));
   const classes = createClassStore(project.root, registry, index).all();
-  const assets = rendererAssetFiles(index);
+  const dirOf = new Map(roots.map((root) => [root.label, root.dir]));
+  const bounds = await createModelBoundsIndex((label) => {
+    const root = roots.find(({ label: prefix }) => label.startsWith(`${prefix}/`))!;
+    return join(root.dir, label.slice(root.label.length + 1));
+  })(index, scan.stamps);
+  const assets = rendererAssetFiles(index, bounds);
 
   const out = join(resolve(options.outDir), STATIC_CONTENT_DIR);
   await rm(out, { recursive: true, force: true });
-  const dirOf = new Map(roots.map((root) => [root.label, root.dir]));
   await prepareTriangleModels([...index.entries.values()].filter((entry) => entry.type === "forge.model").map((entry) => join(dirOf.get(entry.root)!, ...entry.path.split("/"))), join(engineRoot, ".forge-cache/triangles"), join(out, "triangles"));
   for (const file of scan.files) {
     const target = join(out, ...staticContentFile(`${file.root}/${file.path}`).split("/"));
