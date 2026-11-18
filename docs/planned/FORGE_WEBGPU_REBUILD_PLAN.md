@@ -1,8 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.82 · 2026-11-18 — 5c adım 8: PG1 kaya çıktısı (`eea639f`): GLB yazımı, `forge generate`, taş doku tarifi, triplanar + `variation`, starter ön ayarları; A / C ölçüldü.
+**Güncelleme:** v1.83 · 2026-11-18 — 5c adım 9: PG2 (`fa11eb2` … `3a8dd57`): foliage rüzgârı, ortak bitki tepkisi + WES mevsim geçişi, dallanan üretici + `forge.treeRecipe`, tekil bitki ve aileli foliage aynı yoldan. Kullanıcı: PG2–PG3 5c içinde (sıra korunur).
 
-**Önceki güncelleme:** v1.81 · 2026-11-18 — R9c Adım 3 ve R9b Z8–Z10 donanım WebGPU ölçümü ve kullanıcı görsel onayıyla yerelde kapandı.
+**Önceki güncelleme:** v1.82 · 2026-11-18 — 5c adım 8: PG1 kaya çıktısı (`eea639f`): GLB yazımı, `forge generate`, taş doku tarifi, triplanar + `variation`, starter ön ayarları; A / C ölçüldü.
 
 **Önceki güncelleme:** v1.79 · 2026-11-18 — Adım 8 başladı: PG0 şemaları (`c0937cd`; bitki planı v0.7). Kullanıcı kararları: PK6 ön ayarlar starter paketinde, üretici başına tarif türü, ağaç LOD'u başına tek GLB (odun / yaprak iki slot). 5c foliage'ında rüzgâr yok: PG2'de.
 
@@ -1048,6 +1048,14 @@ call'unun 260'ı foliage; foliage çizimleri toplanınca gönderim 3,9 → 2,2 m
    kayıt `render-refs/runs/2026-11-18T17-28-28-708Z-rock-material.json`, kontrol çekimi
    `render-refs/candidates/pg1-rocks.png` (görsel kabul kullanıcıda).
 9. PG2 iki ağaç: aile, bileşen, WES tepkisi — X üretici / C TSL ve tepki.
+   **Kullanıcı kararı (2026-11-18):** bitki planının 2026-11-14 sırası korunur, PG2–PG3 5c içinde.
+   **Uygulandı (2026-11-18), ayrıntı bitki planı §10 PG2:** foliage rüzgârı `fa11eb2` (batch'e örnek
+   başına shading kancası, GPU yolu + gölge görünümleri + WebGL2 ikizi; Forge'un yükseklik formülü ve
+   köşe ağırlıkları), ortak tepki çözümleyicisi + WES `transitionSeason` `b9608c8`, dallanan üretici
+   (Codex) + yaprak dokusu + `forge.treeRecipe@1` + `forge generate` ağaç çıktısı + starter `Broadleaf` /
+   `Conifer` `bc05121`, bitki çizimi (`render/plant/`, `forge.plant` bağlaması, aileli foliage türü)
+   `3a8dd57`. Smoke: `foliageWind.smoke.ts`, `plants.smoke.ts` (iki arka uç); adaylar
+   `render-refs/candidates/pg2-plants-{summer,winter,snow}.png` (görsel kabul kullanıcıda).
 10. PG3 LOD / kart / impostor bake, PK7 — X rasterleyici / C.
 11. `measure:foliage`, PV-WES, kapı, belgeler, görsel kabul — C.
 
@@ -2250,6 +2258,7 @@ silinebilir.
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
+| 2026-11-18 | v1.83 | 5c adım 9 = PG2 (`fa11eb2` `b9608c8` `bc05121` `3a8dd57`): foliage rüzgârı (iki yol, gölge dahil), ortak bitki tepkisi + WES mevsim geçişi, dallanan üretici + `forge.treeRecipe`, tekil `forge.plant` ve aileli foliage aynı batch yolu ve kancası. Kullanıcı: PG2–PG3 5c içinde |
 | 2026-11-18 | v1.82 | 5c adım 8, PG1 kalanı (`eea639f`): GLB yazıcısı, `forge.surfaceTextureRecipe@1`, materyal `projection` / `variation`, model `collision`, meta `generated`, `npm run forge -- generate`, starter kaya ön ayarları, `measure:rock-material` (A ekranı dolduran kayada C'den ~1,3 ms GPU fazla; `variation` ~0,1–0,2 ms) |
 | 2026-11-18 | v1.81 | R9c Adım 3 ve R9b Z8–Z10 kapandı. İki katlı şehir üretimi, donanım WebGPU ölçümleri ve yeni Z6 kullanıcı görsel kabulü ayrı plan §5.3’te. |
 | 2026-11-18 | v1.80 | R9c Adım 2 kapandı. Şehir ve referans sahne ölçümleriyle görsel kabul ayrı plan §5.2’de. Adım 3 (a) için dünya kutusunun bölgeye 2 cm toleransla tamamen sığması kullanıcı kararı. |

@@ -1,8 +1,8 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.8 · 2026-11-18 (PG1 kapandı: kaya GLB çıktısı, `forge generate`,
-taş doku tarifi, triplanar + `variation`, A / C ölçümü). Önceki: v0.7 (PG0
-şemaları; PK6 starter paketi; üretici başına tarif türü; LOD başına tek GLB).
+**Sürüm:** v0.9 · 2026-11-18 (PG0 ve PG2 kapandı: iki ağaç, ortak WES tepkisi,
+foliage rüzgârı). Önceki: v0.8 (PG1 kapandı: kaya GLB çıktısı, `forge generate`,
+taş doku tarifi, triplanar + `variation`, A / C ölçümü).
 
 **Önceki sürüm:** v0.6 · 2026-11-14 (WES ile birleşik bitki ailesi, ortak çalışma
 zamanı davranışı ve 5c ile birlikte ilerleyen üretim dilimi; kullanıcı kararı).
@@ -632,7 +632,7 @@ kabulüdür; kapılar işlevsel ve ölçülebilirdir.
 panel ve World Builder bağlantısı PG5'te 5d ile gelir. PG4–PG7 genişlemeleri
 5c'nin iki ağaçlık kabulünü bekletmez. Bütün kutular hâlâ açıktır.
 
-- [ ] **PG0 Hazırlık.** §2'deki ana plan çıktıları ve dört sözleşme kodla
+- [x] **PG0 Hazırlık.** §2'deki ana plan çıktıları ve dört sözleşme kodla
       doğrulanır; aile, tekil bileşen / foliage, WES zaman ve geçiş
       sözleşmeleri şemalanır; PK6
       kapanır. Ana plan bağlantısı bu sürümde vardır; uygulama durumu doğrulanır.
@@ -646,6 +646,7 @@ panel ve World Builder bağlantısı PG5'te 5d ile gelir. PG4–PG7 genişlemele
       (2) köşe niteliğinden rüzgâr: şemada var, 5c batch'lerinde rüzgâr yok, PG2'de
       yazılır; (3) World Builder model kaynağı: PG5 / 5d; (4) aileyi tekil aktör ve
       foliage tüketmesi: şema hazır, çözümleyici ve çizim PG2. Kutu PG2 çözümleyicisiyle kapanır.
+      **Kapandı (PG2, `b9608c8` / `3a8dd57`):** sözleşme 2 rüzgâr batch'lerde yazıldı, sözleşme 4 çözümleyici ve çizimle.
 - [x] **PG1 Kaya, uçtan uca ince dilim.** Saf çekirdek (rastgele akışlar,
       mesh yazımı, LOD örneklemesi, collider, istatistik) + kaya üreticisi +
       tarif şeması + taş yüzeyi materyal tarifi (§6.6) + triplanar materyal +
@@ -690,13 +691,41 @@ panel ve World Builder bağlantısı PG5'te 5d ile gelir. PG4–PG7 genişlemele
       `render-refs/candidates/pg1-rocks.png` (gerçek WebGPU, hata yok); renk / ışık kabulü
       kullanıcıda. Bilerek yok: tarif paneli (PG5), World Builder `generated` kaynağı (PG5),
       collider'ı kuran fizik (Faz 6), KTX2 (PG3).
-- [ ] **PG2 WES'e tepki veren iki ağaçlık dilim.** Bir yaprak döken ve bir
+- [x] **PG2 WES'e tepki veren iki ağaçlık dilim.** Bir yaprak döken ve bir
       iğne yapraklı küçük örnek; ortak iskelet, ayrılabilir odun / yaprak,
       kararlı dökülme eşikleri, kabuk / yaprak materyali, rüzgâr ağırlıkları
       ve kar maskeleri; aile asset'i, bitki bileşeni ve ortak tepki sistemi.
       *Kapı:* CLI üretimi bütçe içinde sonlanıyor; kaydet → yeniden aç aynı
       çıktı; tekil aktör ve foliage aynı WES durumunda aynı tepkiyi veriyor;
       rüzgâr, renk / yapraklılık geçişi ve kar / ıslaklık 5c yolunda çalışıyor.
+      **2026-11-18 (`fa11eb2` `b9608c8` `bc05121` `3a8dd57`; kullanıcı: PG2–PG3 5c içinde).**
+      *Rüzgâr:* GPU güdümlü batch'e örnek başına shading kancası (`render/gpu/instanceShading.ts`:
+      köken, ölçek, 24 bitlik tohum, şablon konumu; dünya ofseti her yolun uzayına, gölge görünümleri
+      dahil); `render/foliage/foliageWind.ts`: `height` Forge'un formülü, `vertex` `_WIND` ağırlıkları
+      (gövde bükülmesi, dal salınımı, faz, yaprak titremesi); WES / level rüzgârı ve simülasyon zamanı
+      ortak uniform. *Tepki:* `engine/plant/plantResponse.ts` (aile profili + WES → gösterilen yaprak oranı,
+      ton, odun / yaprak karı, ıslaklık, esneklik; herdem yeşil yaprağını korur); WES'e
+      `transitionSeason({season, seconds})` (simülasyon saniyesi, `seasonFrom` / `seasonProgress` canlı ve
+      kayıt durumunda, geri yüklemede sürer). *Üretici:* `engine/procgen/tree/` (Codex): sap başına akış,
+      phyllotaxis, taç biçimi, iğne yapraklıda katlı dallar, paralel taşıma tüpleri, çapraz yaprak
+      kartları; `_LEAF` dökülme eşiği küme kimliğinden, LOD'lar arasında aynı. Yaprak / iğne kart dokusu
+      `engine/procgen/texture/leafTexture.ts`. `forge.treeRecipe@1` (`features/plant`, ailenin tepki
+      alanını paylaşır); aileye `sway` (tekil ve foliage aynı salınım). `forge generate`: yaprak dokusu,
+      LOD başına GLB (odun / yaprak iki slot, `_WIND` / `_LEAF`), `forge.plantFamily`, prototip başına
+      köşe ağırlıklı foliage türü; ikinci koşu aynı baytlar. Starter `procgen/trees/`: `Bark` dokusu,
+      `M_Bark` / `M_Leaf` / `M_Needle`, `Broadleaf` (yaprak döken; LOD 17,5 k / 4,7 k / 0,8 k üçgen) ve
+      `Conifer` (herdem yeşil; 14,1 k / 4,4 k / 0,8 k), 3'er tohum, Node'da ~60 ms / prototip.
+      *Çizim:* `render/plant/plantDrawing.ts` dünya başına tek rüzgâr ve aile başına görünüm uniform'u
+      (kare başına bir kez çözülür); kanca yaprak kümesini kararlı eşik + örnek kaydırmasıyla döker
+      (gölgede de), mevsim tonu yaprak başına yayılımla, yukarı bakan odun / yaprağa kar (alt yüz koyu
+      kalır), ıslaklık koyulaştırır ve pürüzü azaltır, rüzgâr esneklikle çarpılır. Tekil `forge.plant`
+      ailenin prototipini foliage yolunda tek örnek olarak çizer (`features/plant/render.ts`); `family`'li
+      foliage türü aynı prototipi aynı kancayla çizer: PV-WES-02 kurgu gereği aynı (yan yana sahne
+      PG3 / adım 11'de). Mevsim yalnız uniform değiştirir, program yeniden derlenmez.
+      *Smoke:* `foliageWind.smoke.ts` (sakin 0,000, rüzgârlı 0,10 / 0,13), `plants.smoke.ts` (çizim, kış
+      yaprak döken çıplak, zamanlı geçişle yaz geri, kar; iki arka uç); halka smoke'u ve editör foliage
+      testleri geçti. Adaylar `render-refs/candidates/pg2-plants-{summer,winter,snow}.png`; biçim, yoğunluk
+      (iğne yapraklının seyrek iğneleri dahil), renk ve ışık kabulü kullanıcıda.
 - [ ] **PG3 LOD, kart ve impostor.** Dal ucu kartı kitaplığı, CPU bake, KTX2,
       impostor, foliage türü çıktısı. *Kapı:* 360° ve yukarıdan bakışta siluet
       tutarlı; gölge ve alfa LOD'ler arasında uyumlu; §8 bütçeleri ölçüldü ve
@@ -846,6 +875,7 @@ kurallarına göre yeniden yazılır.
 | 2026-11-11 | v0.3 | Bake CPU'da (PK3 kapandı). Dokular da prosedürel (kullanıcı kararı): §6.6 materyal tarifi, dört yol, öneri karma; PK4 yeniden yazıldı, açık |
 | 2026-11-11 | v0.4 | Doku yolu karma (C), yedek kaynaklar Codex ve Poly Haven (kullanıcı kararı; PK4 kapandı). Poly Haven lisansı ve API koşulları aynı gün sitesinden doğrulandı |
 | 2026-11-11 | v0.5 | İnsan yapımı prop'lar kapsam dışı (kullanıcı kararı; PK5 kapandı); "Basit biçim" üreticisi yalnız mantara indi |
+| 2026-11-18 | v0.9 | PG0 ve PG2 kapandı (`fa11eb2` `b9608c8` `bc05121` `3a8dd57`): foliage rüzgârı, ortak tepki + WES mevsim geçişi, dallanan üretici + `forge.treeRecipe`, aile `sway`, tekil bitki ve aileli foliage aynı yol |
 | 2026-11-18 | v0.8 | PG1 kapandı (`eea639f`): kaya GLB çıktısı + `forge generate`, `forge.surfaceTextureRecipe`, materyal `projection` / `variation`, model `collision`, meta `generated`, starter ön ayarları; A / C ölçüldü (A ~2×) |
 | 2026-11-18 | v0.7 | Kullanıcı: PK6 starter paketi, üretici başına tarif türü, LOD başına tek GLB (odun / yaprak iki slot). PG0 şemaları (`c0937cd`); sözleşme denetimi: 5c foliage'ında rüzgâr yok, PG2'de |
 | 2026-11-14 | v0.6 | Kullanıcının WES ile birleşik tasarım kararı kaydedildi: bitki ailesi, odun / yaprak ayrımı, tekil aktör / foliage eşitliği ve ortak tepki sistemi; rüzgâr, mevsim geçişi, görsel kar / ıslaklık, olay bazlı saatten ayrı birikim süresi; küçük üretim 5c ile, tam araçlar 5d ile; PK7 ve PV-WES kabul matrisi. Forge WES belgesi tarihsel referans; kod / bağımlılık değişikliği ve kapanan uygulama kutusu yok |

@@ -1,8 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.66 · 2026-11-18 — §4.6 asset modeli (PG1): meta `generated` kaydı, `forge.model` `collision`, `forge.material` `projection` / `variation`; prosedürel çıktı `forge generate` ile kalıcı asset.
+**Güncelleme:** v1.67 · 2026-11-18 — §4.4 bitki dilimi (PG2): GPU güdümlü batch'e örnek başına shading kancası (rüzgâr, bitki tepkisi), dünya başına ortak bitki çizimi, tekil `forge.plant` foliage yolunda; WES zamanlı mevsim geçişi.
 
-**Önceki güncelleme:** v1.65 · 2026-11-18 — §4.4 foliage editörü (5c F5–F6): Details'in yanında Foliage sekmesi; türler asset oturumunda, kurallar level düzenlemesi; bağlamalar yalnız kendi bileşenleri değişince yeniden kurar.
+**Önceki güncelleme:** v1.66 · 2026-11-18 — §4.6 asset modeli (PG1): meta `generated` kaydı, `forge.model` `collision`, `forge.material` `projection` / `variation`; prosedürel çıktı `forge generate` ile kalıcı asset.
 
 **Önceki güncelleme:** v1.63 · 2026-11-18 — §4.4 foliage halkası (5c F1): `forge.foliage` render bağlaması, terrain yüzey kaydı, bağlamaya GPU güdümlü batch'ler, JSON asset belgesi.
 
@@ -804,6 +804,15 @@ features/height-fog/
   - *Bitki dilimi:* `forge.plantFamily` asset'i + `forge.plant` bileşeni;
     tepki çözücü `engine`'de saf, tekil aktör ve foliage aynı uniform'larla
     (§4.9 ortak sözleşme). PG1 kayası saf çekirdeğin ince dilimi olarak kalır.
+    **Uygulama (PG2, 2026-11-18):** GPU güdümlü batch'in örnek başına shading kancası
+    (`render/gpu/instanceShading.ts`) iki yolda ve gölge görünümlerinde aynı düğümleri verir
+    (köken, ölçek, 24 bit tohum, şablon konumu) ve dünya ofsetini yolun uzayına çevirir;
+    rüzgâr (`render/foliage/foliageWind.ts`) ve bitki tepkisi (`render/plant/plantDrawing.ts`)
+    bu kancadır. Dünya başına tek bitki çizimi: rüzgâr / saat ve aile başına görünüm
+    uniform'ları kare başına bir kez `engine/plant/plantResponse.ts`'ten. Tekil `forge.plant`
+    ailenin prototipini foliage batch'inde tek örnek olarak çizer; `family`'li foliage türü
+    aynısını: iki temsil arasında ayrı yol yok. WES canlı durumunda zamanlı mevsim geçişi
+    (`seasonFrom` / `seasonProgress`, kayıt durumunda).
   - *İçe aktarıcı:* foliage type, landscape kuralları ve boyanmış gruplar
     çevrilir; referans projesi yeniden alınmadan önce kullanıcıya sorulur.
   - *Kapı ölçümü:* `npm run measure:foliage` (başlıklı gerçek WebGPU):
