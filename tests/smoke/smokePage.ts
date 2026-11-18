@@ -6,7 +6,8 @@
 import { execFileSync } from "node:child_process";
 import { expect, type ConsoleMessage, type Page } from "@playwright/test";
 import { Matrix4, Quaternion, Vector3 } from "three";
-import { REPO_ROOT, SMOKE_QUALITY, type SmokePose } from "./renderScenes.ts";
+import { REPO_ROOT, SMOKE_QUALITY } from "./renderPaths.ts";
+import type { SmokePose } from "./renderScenes.ts";
 
 export const READY_TIMEOUT_MS = 120_000;
 
@@ -41,7 +42,7 @@ export interface OpenedLevel {
 }
 
 /** Opens `level` at `pose` with the smoke profile and waits until it is ready; a boot error throws. `query` adds URL parameters (`&debug`). */
-export async function openSmokeLevel(page: Page, level: string, pose: SmokePose, query = ""): Promise<OpenedLevel> {
+export async function openSmokeLevel(page: Page, level: string, pose: SmokePose, query = "", profile: string = SMOKE_QUALITY): Promise<OpenedLevel> {
   const quaternion = pose.quaternion ? [...pose.quaternion] as [number, number, number, number] : pose.position && pose.target ? quaternionOf(pose as Required<SmokePose>) : null;
   const cameraPose = pose.position && quaternion ? { position: pose.position, quaternion } : null;
   if (cameraPose) await page.addInitScript((value) => localStorage.setItem("forge.play.cameraPose", value), JSON.stringify(cameraPose));
@@ -54,7 +55,7 @@ export async function openSmokeLevel(page: Page, level: string, pose: SmokePose,
       graphics: {
         adaptiveOptimizationEnabled: false,
         targetFrameRate: 60,
-        selectedQualityLevel: SMOKE_QUALITY,
+        selectedQualityLevel: profile,
         allowAdaptiveFineTuning: false,
         manuallySelected: true,
         startupCalibrated: true,

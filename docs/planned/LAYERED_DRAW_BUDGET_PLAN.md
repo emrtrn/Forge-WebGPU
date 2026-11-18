@@ -416,3 +416,4 @@ bellekten boşaltma; R9c'nin kendi adımı.
 | Tarih | Sürüm | Ne oldu |
 |---|---|---|
 | 2026-11-18 | v0.1 | İlk taslak (kullanıcıyla tartışmanın planı): katmanlar, sıra 1–6, şehir sahnesi, adım tasarımları, R9b'nin durumu, açık sorular S1–S18. Kod yok |
+| 2026-11-18 | v0.1 | Adım 1'in üreteci, geçici proje hazırlığı ve `measure:city` koşucusu eklendi. Varsayılan normal ve ağır sahnelerde 28.964 model yerleşimi, 234 zemin kat odası, 312 iç portal ve 36 HLOD hücresi üretildi. Gerçek WebGPU referans koşusu ve sonuç tablosu bekliyor. |
