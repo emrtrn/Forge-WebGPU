@@ -1,8 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.81 · 2026-11-18 — R9c Adım 3 ve R9b Z8–Z10 donanım WebGPU ölçümü ve kullanıcı görsel onayıyla yerelde kapandı.
+**Güncelleme:** v1.82 · 2026-11-18 — 5c adım 8: PG1 kaya çıktısı (`eea639f`): GLB yazımı, `forge generate`, taş doku tarifi, triplanar + `variation`, starter ön ayarları; A / C ölçüldü.
 
-**Önceki güncelleme:** v1.80 · 2026-11-18 — R9c Adım 2 donanım WebGPU ölçümü ve kullanıcı görsel onayıyla kapandı. Adım 3’te yerleşimin bölgeye tam sığması için 2 cm tolerans kararlaştırıldı.
+**Önceki güncelleme:** v1.81 · 2026-11-18 — R9c Adım 3 ve R9b Z8–Z10 donanım WebGPU ölçümü ve kullanıcı görsel onayıyla yerelde kapandı.
 
 **Önceki güncelleme:** v1.79 · 2026-11-18 — Adım 8 başladı: PG0 şemaları (`c0937cd`; bitki planı v0.7). Kullanıcı kararları: PK6 ön ayarlar starter paketinde, üretici başına tarif türü, ağaç LOD'u başına tek GLB (odun / yaprak iki slot). 5c foliage'ında rüzgâr yok: PG2'de.
 
@@ -1038,6 +1038,15 @@ call'unun 260'ı foliage; foliage çizimleri toplanınca gönderim 3,9 → 2,2 m
    köşe rengi R oyukluk / G üst yüz / B yükseklik, LOD0'ı saran ≤ 32 noktalı collider,
    köşe bütçesi raporu. Varsayılan: LOD0 / 1 / 2 642 / 162 / 42 köşe, Node'da
    14–40 ms. 24 test. Şema, GLB yazımı, CLI ve materyal (A / C ölçümü) sonra.
+   **PG0 şemaları `c0937cd`; PG1 kalanı uygulandı (2026-11-18, `eea639f`; GLB yazıcısı ve doku
+   pişirici Codex `gpt-6.2-sol` high, Claude inceledi).** Kullanıcı kararları (2026-11-18): collider
+   modelin meta'sında (`forge.model` `collision.convex`, Faz 6 genişletir); materyal öneri gibi:
+   `forge.surfaceTextureRecipe@1` + `forge.material` `projection` (uv / triplanar) ve `variation`
+   (karma yolun gölgelendirici payı), A yalnız ölçüm. Ayrıntı bitki planı §10 PG1. Ölçüm
+   `npm run measure:rock-material` (L03, 196 kaya, 1080p `high`, 60 Hz adımlı, GPU ms, yakın / tarla):
+   M_White 1,48 / 0,76, **C 1,55 / 1,11**, C `variation` kapalı 1,44 / 0,91, **A 2,85 / 1,93**;
+   kayıt `render-refs/runs/2026-11-18T17-28-28-708Z-rock-material.json`, kontrol çekimi
+   `render-refs/candidates/pg1-rocks.png` (görsel kabul kullanıcıda).
 9. PG2 iki ağaç: aile, bileşen, WES tepkisi — X üretici / C TSL ve tepki.
 10. PG3 LOD / kart / impostor bake, PK7 — X rasterleyici / C.
 11. `measure:foliage`, PV-WES, kapı, belgeler, görsel kabul — C.
@@ -2241,6 +2250,7 @@ silinebilir.
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
+| 2026-11-18 | v1.82 | 5c adım 8, PG1 kalanı (`eea639f`): GLB yazıcısı, `forge.surfaceTextureRecipe@1`, materyal `projection` / `variation`, model `collision`, meta `generated`, `npm run forge -- generate`, starter kaya ön ayarları, `measure:rock-material` (A ekranı dolduran kayada C'den ~1,3 ms GPU fazla; `variation` ~0,1–0,2 ms) |
 | 2026-11-18 | v1.81 | R9c Adım 3 ve R9b Z8–Z10 kapandı. İki katlı şehir üretimi, donanım WebGPU ölçümleri ve yeni Z6 kullanıcı görsel kabulü ayrı plan §5.3’te. |
 | 2026-11-18 | v1.80 | R9c Adım 2 kapandı. Şehir ve referans sahne ölçümleriyle görsel kabul ayrı plan §5.2’de. Adım 3 (a) için dünya kutusunun bölgeye 2 cm toleransla tamamen sığması kullanıcı kararı. |
 | 2026-11-18 | v1.79 | PG0 şemaları (`c0937cd`): `forge.rockRecipe@1`, `forge.plantFamily@1`, `forge.plant@1`, foliage türüne `family`; kararlar PK6 / tarif türü / LOD çıktısı (bitki planı v0.7) |

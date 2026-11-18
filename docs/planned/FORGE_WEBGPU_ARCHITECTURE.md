@@ -1,8 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.65 · 2026-11-18 — §4.4 foliage editörü (5c F5–F6): Details'in yanında Foliage sekmesi; türler asset oturumunda, kurallar level düzenlemesi; bağlamalar yalnız kendi bileşenleri değişince yeniden kurar.
+**Güncelleme:** v1.66 · 2026-11-18 — §4.6 asset modeli (PG1): meta `generated` kaydı, `forge.model` `collision`, `forge.material` `projection` / `variation`; prosedürel çıktı `forge generate` ile kalıcı asset.
 
-**Önceki güncelleme:** v1.64 · 2026-11-18 — §4.4 foliage: halka hücreleri worker'da (F2), boyanmış hücreler `LevelFoliageSourceKey` servisiyle kameranın çevresinde akar (F4).
+**Önceki güncelleme:** v1.65 · 2026-11-18 — §4.4 foliage editörü (5c F5–F6): Details'in yanında Foliage sekmesi; türler asset oturumunda, kurallar level düzenlemesi; bağlamalar yalnız kendi bileşenleri değişince yeniden kurar.
 
 **Önceki güncelleme:** v1.63 · 2026-11-18 — §4.4 foliage halkası (5c F1): `forge.foliage` render bağlaması, terrain yüzey kaydı, bağlamaya GPU güdümlü batch'ler, JSON asset belgesi.
 
@@ -1122,7 +1122,9 @@ düşen alan uyarı değil, **hatadır**.
   - *Meta dosyası:* `<dosya>.meta.json` (tam ad korunur: `car.glb.meta.json`),
     `forge.assetMeta/1`: `schema`, `id`, `type` (`<asset türü>@<içe aktarma
     ayarları sürümü>`), `license`, `source` (`origin` zorunlu; `author`, `url`),
-    `import`. Lisans tek bir SPDX kimliği ya da `LicenseRef-<ad>`; `Unknown` ve
+    `import`; isteğe bağlı `generated` (üretim aracının yazdığı asset: tarifin GUID'i,
+    üretici, üretici sürümü, dosyanın SHA-256'sı; `GeneratedAssetFields`, PG1,
+    kullanıcı kararı 2026-11-18). Lisans tek bir SPDX kimliği ya da `LicenseRef-<ad>`; `Unknown` ve
     `NOASSERTION` reddedilir (D16). Lisans ve kaynak DSL alan haritasıdır
     (`AssetMetaFields`); normalize, form ve JSON Schema ondan türer. Lisans ve
     kaynak yalnız ikili asset'te zorunlu; JSON asset'ler motorda üretilir.
@@ -1202,6 +1204,16 @@ düşen alan uyarı değil, **hatadır**.
     materyaller (Forge'un `collectAssetMaterialElements`'i). `forge.terrain@2`
     `material` (Forge Landscape materyali). Modelin `vertexColors`'u Mesh
     Paint varsayılanıdır, render uygulamaz (Forge runtime'ı da uygulamıyordu).
+    Modelin `collision` grubu (PG1, kullanıcı kararı 2026-11-18): Forge'un
+    `*.collision.json`'unun yeri; şimdilik model uzayında dışbükey kabuklar
+    (`convex[].points`), Faz 6 genişletir ve collider'ı kurar. Materyalde
+    `projection` (`uv` / `triplanar`: model uzayında üç eksen, normal haritası
+    izdüşüm başına türev çerçevesiyle, her çizim yolunda doğru) ve `variation`
+    (karma doku yolunun gölgelendirici payı, bitki planı §6.6).
+  - *Prosedürel çıktı (bitki planı §5.2, PG1):* tarif şemalı JSON asset'tir
+    (üretici başına tür); `npm run forge -- generate` çıktıyı tarifin yanına
+    kalıcı asset olarak kayıt servisinden yazar; GUID tarif GUID'i + rolden
+    türer, yeniden üretim aynı baytları yazar, var olan çıktı `--force` ister.
   - *İçe aktarılan asset'lerin kökeni (kullanıcı kararı 2026-11-12):* lisans
     sorumluluğu kullanıcıdadır; lisansı bilinmeyen Forge asset'i de alınır,
     oyun projesine girmez (kullanıcı kendi varlıklarını üretene kadar durur;

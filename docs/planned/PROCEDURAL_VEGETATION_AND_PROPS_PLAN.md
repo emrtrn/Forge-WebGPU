@@ -1,7 +1,8 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.7 · 2026-11-18 (PG0 şemaları; PK6 kapandı: ön ayarlar starter
-paketinde; üretici başına tarif türü; LOD başına tek GLB, odun / yaprak iki slot).
+**Sürüm:** v0.8 · 2026-11-18 (PG1 kapandı: kaya GLB çıktısı, `forge generate`,
+taş doku tarifi, triplanar + `variation`, A / C ölçümü). Önceki: v0.7 (PG0
+şemaları; PK6 starter paketi; üretici başına tarif türü; LOD başına tek GLB).
 
 **Önceki sürüm:** v0.6 · 2026-11-14 (WES ile birleşik bitki ailesi, ortak çalışma
 zamanı davranışı ve 5c ile birlikte ilerleyen üretim dilimi; kullanıcı kararı).
@@ -645,7 +646,7 @@ panel ve World Builder bağlantısı PG5'te 5d ile gelir. PG4–PG7 genişlemele
       (2) köşe niteliğinden rüzgâr: şemada var, 5c batch'lerinde rüzgâr yok, PG2'de
       yazılır; (3) World Builder model kaynağı: PG5 / 5d; (4) aileyi tekil aktör ve
       foliage tüketmesi: şema hazır, çözümleyici ve çizim PG2. Kutu PG2 çözümleyicisiyle kapanır.
-- [ ] **PG1 Kaya, uçtan uca ince dilim.** Saf çekirdek (rastgele akışlar,
+- [x] **PG1 Kaya, uçtan uca ince dilim.** Saf çekirdek (rastgele akışlar,
       mesh yazımı, LOD örneklemesi, collider, istatistik) + kaya üreticisi +
       tarif şeması + taş yüzeyi materyal tarifi (§6.6) + triplanar materyal +
       küçük CLI üretimi. Tam panel ve `generated` World Builder bağlantısı
@@ -654,6 +655,41 @@ panel ve World Builder bağlantısı PG5'te 5d ile gelir. PG4–PG7 genişlemele
       iki koşuda aynı sayıları veriyor; gerçek WebGPU'da tek kontrol çekimi;
       aynı kaya materyali gölgelendiricide (A) ve karma (C) yolla R1'de
       ölçüldü, karma yolun gölgelendirici payı sayıyla ayarlandı.
+      **2026-11-18 (`eea639f`).** Kullanıcı kararları: collider model meta'sında
+      (`forge.model` `collision.convex`, düz XYZ noktaları; Faz 6 grubu genişletir);
+      doku tarifi `forge.surfaceTextureRecipe@1` (gürültü yığını: gradient / ridged /
+      cellular katmanları, renk rampası, normal, ORM; CPU'da döşenebilir) ve
+      `forge.material`'e `projection` (uv / triplanar, model uzayında, normal haritası
+      izdüşüm başına türev çerçevesiyle) + `variation` (düşük frekanslı dünya gürültüsüyle
+      renk kayması, köşe rengi R'den oyuk kiri, dünya normalinden üst yüz örtüsü; piksel
+      başına bir gürültü örneği); A yolu yalnız ölçüm (dev `__forgeDev.proceduralStone`).
+      Meta'ya isteğe bağlı `generated` kaydı (tarif, üretici, sürüm, SHA-256); köken
+      `generated`, lisans `LicenseRef-forge-project`. CLI `npm run forge -- generate
+      (--project | --pack) --recipe <dosya> [--force] [--dry-run] [--json]`
+      (`tools/procgen/`): tarifin yanındaki klasöre tohum başına LOD GLB'leri (LOD başına
+      tek GLB, UV'siz, köşe rengi oyukluk / üst yüz / yükseklik), LOD0 meta'sında collider,
+      prototip başına foliage türü (5c LOD zinciri); GUID'ler tarif GUID'i + rolden, ikinci
+      koşu aynı baytlar (`--force` ile 21 / 21 unchanged), tarifin bırakılan dosyaları
+      silinir, başkasının dosyası korunur. Starter paketi `procgen/rocks/`: `Stone` doku
+      tarifi (512 px, pişirme ~0,4 s), `M_Rock` (triplanar 1,5 m, `variation` açık,
+      oyuk 0,5), `RockAngular` / `RockRounded` (3'er tohum, LOD 1.280 / 320 / 80 üçgen,
+      32 noktalı kabuk; §8 büyük kaya bütçesinin içinde). `verify:assets` 0 hata.
+      **A / C ölçümü** (`npm run measure:rock-material`, R1 NVIDIA Ampere, L03, 14 × 14 kaya,
+      1080p `high`, 60 Hz adımlı, 120 kare ort. GPU ms; yakın = ekranı dolduran kayalar):
+
+      | Kip | Yakın | Tarla |
+      |---|---:|---:|
+      | Dokusuz (M_White) | 1,48 | 0,76 |
+      | C: pişirilmiş triplanar + `variation` | 1,55 | 1,11 |
+      | C, `variation` kapalı | 1,44 | 0,91 |
+      | A: gürültü yığını piksel başına | 2,85 | 1,93 |
+
+      A, C'nin yaklaşık iki katı (ekran dolduğunda +1,3 ms); C'nin dokuları dokusuza göre
+      ölçüm gürültüsü içinde, `variation` ~0,1–0,2 ms. Karar: gölgelendirici payı tek
+      gürültü örneğinde kalır, ayrıntı pişirilmiş karoda. Kontrol çekimi
+      `render-refs/candidates/pg1-rocks.png` (gerçek WebGPU, hata yok); renk / ışık kabulü
+      kullanıcıda. Bilerek yok: tarif paneli (PG5), World Builder `generated` kaynağı (PG5),
+      collider'ı kuran fizik (Faz 6), KTX2 (PG3).
 - [ ] **PG2 WES'e tepki veren iki ağaçlık dilim.** Bir yaprak döken ve bir
       iğne yapraklı küçük örnek; ortak iskelet, ayrılabilir odun / yaprak,
       kararlı dökülme eşikleri, kabuk / yaprak materyali, rüzgâr ağırlıkları
@@ -810,5 +846,6 @@ kurallarına göre yeniden yazılır.
 | 2026-11-11 | v0.3 | Bake CPU'da (PK3 kapandı). Dokular da prosedürel (kullanıcı kararı): §6.6 materyal tarifi, dört yol, öneri karma; PK4 yeniden yazıldı, açık |
 | 2026-11-11 | v0.4 | Doku yolu karma (C), yedek kaynaklar Codex ve Poly Haven (kullanıcı kararı; PK4 kapandı). Poly Haven lisansı ve API koşulları aynı gün sitesinden doğrulandı |
 | 2026-11-11 | v0.5 | İnsan yapımı prop'lar kapsam dışı (kullanıcı kararı; PK5 kapandı); "Basit biçim" üreticisi yalnız mantara indi |
+| 2026-11-18 | v0.8 | PG1 kapandı (`eea639f`): kaya GLB çıktısı + `forge generate`, `forge.surfaceTextureRecipe`, materyal `projection` / `variation`, model `collision`, meta `generated`, starter ön ayarları; A / C ölçüldü (A ~2×) |
 | 2026-11-18 | v0.7 | Kullanıcı: PK6 starter paketi, üretici başına tarif türü, LOD başına tek GLB (odun / yaprak iki slot). PG0 şemaları (`c0937cd`); sözleşme denetimi: 5c foliage'ında rüzgâr yok, PG2'de |
 | 2026-11-14 | v0.6 | Kullanıcının WES ile birleşik tasarım kararı kaydedildi: bitki ailesi, odun / yaprak ayrımı, tekil aktör / foliage eşitliği ve ortak tepki sistemi; rüzgâr, mevsim geçişi, görsel kar / ıslaklık, olay bazlı saatten ayrı birikim süresi; küçük üretim 5c ile, tam araçlar 5d ile; PK7 ve PV-WES kabul matrisi. Forge WES belgesi tarihsel referans; kod / bağımlılık değişikliği ve kapanan uygulama kutusu yok |
