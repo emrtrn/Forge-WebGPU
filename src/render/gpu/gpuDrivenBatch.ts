@@ -126,6 +126,7 @@ import {
 import { CASTER_FADE_START } from "../../engine/world/shadowCasters.ts";
 import { detailFadeDither } from "../materials/detailFade.ts";
 import { createGpuInstances, type GpuInstances } from "./gpuInstances.ts";
+import { applyGpuInstanceShading, type InstanceShading } from "./instanceShading.ts";
 
 /** Most shadow views a batch draws into (cascades and other directional maps together). */
 export const MAX_SHADOW_VIEWS = 8;
@@ -203,6 +204,8 @@ export interface GpuDrivenBatchOptions {
   readonly instanceColors?: InstancedBufferAttribute;
   /** The host's zone masks (plan 5c R9b, `ZONE_MASK_WORDS` × 2 u32): each instance's zone slot (extras.z) is culled by them. */
   readonly zoneMasks?: StorageBufferAttribute;
+  /** Per-instance shading (wind, plant response; `instanceShading.ts`), applied in every view on both paths. */
+  readonly instanceShading?: InstanceShading;
 }
 
 /** The fade band and LOD starts, in measured distance (the owner applies the quality scales). */
@@ -470,6 +473,11 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         const slot = varying(visibleRead.element(uint(draw.lod * capacity).add(instanceIndex)), "vForgeGpuInstance");
         const instanceMatrix = matrixRead.element(slot);
         const world = instanceMatrix.mul(uniform(draw.part.local.clone()));
+        if (options.instanceShading) {
+          applyGpuInstanceShading(options.instanceShading, material, view.role, {
+            instance: instanceMatrix, world, scale: measure(instanceMatrix).scale, extraY: extraRead.element(slot).y, partLocal: draw.part.local,
+          });
+        }
         if (shadow) {
           // The shadow material keeps only the position: the instance's world position, back in the mesh's own space.
           const local = (material.castShadowPositionNode as Node<"vec3"> | null) ?? (material.positionNode as Node<"vec3"> | null) ?? positionLocal;

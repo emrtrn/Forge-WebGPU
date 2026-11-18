@@ -14,6 +14,8 @@
 // models are still loading keeps its owners' instances and adds them when
 // its batch exists. Changing the quality only sets the batches' distances.
 // The WebGL2 twin comes with the batch (`gpuDriven.ts`), nothing here.
+// A type with `sway` sways in the world's wind (`foliageWind.ts`, PG2), every
+// view and both paths, through the batch's instance-shading hook.
 
 import { Box3, Sphere, type Object3D } from "three/webgpu";
 import { foliageFadeWindow, lodStartsOfScreenSizes, NO_CULL_DISTANCE } from "../../engine/world/instanceCulling.ts";
@@ -23,6 +25,7 @@ import { MATRIX_FLOATS } from "../gpu/gpuInstances.ts";
 import { modelParts } from "../resources/modelParts.ts";
 import { resourceKey } from "../resources/resourceCache.ts";
 import type { WorldResources } from "../resources/worldResources.ts";
+import type { FoliageSway, FoliageWind } from "./foliageWind.ts";
 
 /** What drawing needs of one `forge.foliageType` (its asset fields). */
 export interface FoliageTypeDraw {
@@ -34,6 +37,8 @@ export interface FoliageTypeDraw {
   readonly castShadow: boolean;
   readonly cullStart: number;
   readonly cullEnd: number;
+  /** Wind sway; absent or null: still. */
+  readonly sway?: FoliageSway | null;
 }
 
 export interface FoliageQuality {
@@ -65,6 +70,8 @@ export interface FoliageBatchesOptions {
   readonly bundle?: boolean;
   /** The `?debug` scene-cost bucket. */
   readonly source?: string;
+  /** The world's wind uniforms; without them nothing sways. */
+  readonly wind?: FoliageWind;
 }
 
 interface Owned {
@@ -84,8 +91,11 @@ interface TypeEntry {
   loading: Promise<void>;
 }
 
+const sameSway = (a: FoliageSway | null | undefined, b: FoliageSway | null | undefined): boolean =>
+  (a ?? null) === (b ?? null) || (!!a && !!b && a.amplitude === b.amplitude && a.height === b.height && a.frequency === b.frequency && a.source === b.source);
+
 const sameType = (a: FoliageTypeDraw, b: FoliageTypeDraw): boolean =>
-  a.mesh === b.mesh && a.castShadow === b.castShadow && a.cullStart === b.cullStart && a.cullEnd === b.cullEnd
+  sameSway(a.sway, b.sway) && a.mesh === b.mesh && a.castShadow === b.castShadow && a.cullStart === b.cullStart && a.cullEnd === b.cullEnd
   && a.lods.length === b.lods.length && a.lods.every((lod, index) => lod.mesh === b.lods[index]!.mesh && lod.screenSize === b.lods[index]!.screenSize);
 
 export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBatches {
@@ -130,6 +140,7 @@ export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBat
         distanceMode: "origin", castShadow: entry.type.castShadow, source: options.source ?? "foliage",
         ...(options.bundle !== undefined ? { bundle: options.bundle } : {}),
         ...(capacity > 0 ? { capacity } : {}),
+        ...(entry.type.sway && options.wind ? { instanceShading: options.wind.shading(entry.type.sway, entry.type.cullEnd * quality.cullScale) } : {}),
       });
       applyDistances(entry);
       for (const owned of entry.owners.values()) addTo(entry.batch, owned);

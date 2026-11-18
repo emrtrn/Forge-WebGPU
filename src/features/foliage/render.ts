@@ -23,6 +23,9 @@
 //   around the camera (render/foliage/paintedFoliageView.ts) into the same
 //   batches. The editor's revision bump streams them again.
 // - Far billboards and tint come with PG3 (F3, user 2026-11-18).
+// - Wind (PG2): a type with `sway.enabled` sways in the world's WES / level
+//   wind (render/foliage/foliageWind.ts), simulation time (a paused world
+//   stands still), every view and both draw paths.
 
 import { Group, PerspectiveCamera, Vector3, type Camera } from "three/webgpu";
 import { LevelSettingsKey, normalizeJsonAsset, parseComponentTypeTag, type ActorId, type WorldActor } from "../../core/index.ts";
@@ -30,6 +33,8 @@ import { foliageRuleParamsOf, foliageTypeParamsOf, type FoliageTypeAssetFields }
 import type { FoliageCellGenerator } from "../../engine/foliage/foliageCellGenerator.ts";
 import { FoliageRing, type FoliageRingRule, type FoliageRingTerrain } from "../../engine/foliage/foliageRingHost.ts";
 import { LevelFoliageSourceKey, type LevelFoliageSource } from "../../engine/foliage/levelFoliageSource.ts";
+import { resolveWorldWind } from "../../engine/environment/worldWind.ts";
+import { createFoliageWind } from "../../render/foliage/foliageWind.ts";
 import { createFoliageBatches, type FoliageBatches, type FoliageTypeDraw } from "../../render/foliage/foliageBatches.ts";
 import { PaintedFoliageView } from "../../render/foliage/paintedFoliageView.ts";
 import { createFoliageCellGenerator } from "../../render/resources/foliageWorkerGenerator.ts";
@@ -91,6 +96,8 @@ export default defineRenderBinding({
     group.userData.framing = false;
     ctx.root.add(group);
     const cameraPosition = new Vector3();
+    const wind = createFoliageWind();
+    let simulationSeconds = 0;
     let batches: FoliageBatches | null = null;
     let lastQuality = "";
     let painted: Painted | null = null;
@@ -125,7 +132,7 @@ export default defineRenderBinding({
       if (batches || !ctx.gpuDriven) return batches;
       batches = createFoliageBatches({
         gpuDriven: ctx.gpuDriven, resources: ctx.resources, parent: group,
-        quality: { cullScale: ctx.quality().foliageCullDistanceScale, verticalFov: fovOf(camera) },
+        quality: { cullScale: ctx.quality().foliageCullDistanceScale, verticalFov: fovOf(camera) }, wind,
       });
       return batches;
     };
@@ -141,7 +148,10 @@ export default defineRenderBinding({
           const data = result.value as unknown as FoliageTypeData;
           if (typeof data.mesh !== "string" || data.mesh.length === 0) { types.set(guid, null); return; }
           const lods = data.lods.flatMap((lod) => (typeof lod.mesh === "string" && lod.mesh.length > 0 ? [{ mesh: lod.mesh, screenSize: lod.screenSize }] : []));
-          types.set(guid, { data, draw: { id: guid, mesh: data.mesh, lods, castShadow: data.castShadow, cullStart: data.cullStart, cullEnd: data.cullEnd } });
+          const sway = data.sway.enabled
+            ? { amplitude: data.sway.amplitude, height: data.sway.height, frequency: data.sway.frequency, source: data.sway.source }
+            : null;
+          types.set(guid, { data, draw: { id: guid, mesh: data.mesh, lods, castShadow: data.castShadow, cullStart: data.cullStart, cullEnd: data.cullEnd, sway } });
         } catch (error) {
           console.warn(`forge render: foliage type ${guid} not drawn: ${String(error)}`);
           types.set(guid, null);
@@ -259,6 +269,7 @@ export default defineRenderBinding({
         }
       },
       sync(frame) {
+        if (Number.isFinite(frame.dt) && frame.dt > 0) simulationSeconds += frame.dt;
         if (!frame.camera || !active) return;
         if (placed.size === 0 && !painted && !ctx.world.services.get(LevelFoliageSourceKey)?.index) return;
         const target = ensureBatches(frame.camera);
@@ -271,6 +282,7 @@ export default defineRenderBinding({
           target.setQuality({ cullScale: quality.foliageCullDistanceScale, verticalFov: fov });
         }
         frame.camera.getWorldPosition(cameraPosition);
+        wind.update(resolveWorldWind(ctx.world), simulationSeconds, cameraPosition);
         const center: [number, number] = [cameraPosition.x, cameraPosition.z];
         syncPainted(target, center);
         for (const entry of placed.values()) {

@@ -32,6 +32,7 @@ import {
 } from "../../engine/world/instanceCulling.ts";
 import { CASTER_FADE_START } from "../../engine/world/shadowCasters.ts";
 import { EXTRA_FLOATS, MATRIX_FLOATS, createGpuInstances } from "./gpuInstances.ts";
+import { applyCpuInstanceShading, INSTANCE_SEED_MASK, type CpuInstanceShadingAttributes } from "./instanceShading.ts";
 import {
   cloneNodeMaterial, drawPasses, maskWithFade, MAIN_VIEW_LAYER, MAX_CAMERA_VIEWS, MAX_SHADOW_VIEWS,
   ZONE_MASK_WORDS, type GpuBatchDistances, type GpuCullView, type GpuDrivenBatch, type GpuDrivenBatchOptions, type ZoneMode,
@@ -47,6 +48,8 @@ interface LodMesh {
   readonly shown: InstancedBufferAttribute;
   /** Draws the mesh issues when it has instances (three skips an empty one). */
   readonly passes: number;
+  /** The per-instance shading hook's attributes, when the batch has one. */
+  readonly shading: CpuInstanceShadingAttributes | null;
 }
 
 interface View {
@@ -95,8 +98,12 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         // Each mesh its own fade attribute, so each material its own clone.
         const shown = new InstancedBufferAttribute(new Float32Array(capacity), 1);
         const fade = varying(instancedDynamicBufferAttribute<"float">(shown, "float"), "vForgeCpuFade");
+        const shading: CpuInstanceShadingAttributes | null = options.instanceShading
+          ? { placement: new InstancedBufferAttribute(new Float32Array(capacity * 4), 4), seed: new InstancedBufferAttribute(new Float32Array(capacity), 1) }
+          : null;
         const clone = (source: Material): Material => {
           const material = cloneNodeMaterial(renderer, source, options.name);
+          if (options.instanceShading && shading) applyCpuInstanceShading(options.instanceShading, material, view.role, shading, part.local);
           maskWithFade(material, fade);
           view.materials.push(material);
           return material;
@@ -113,7 +120,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         if (options.source !== undefined) mesh.userData[SCENE_SOURCE_KEY] = options.source;
         mesh.userData[CPU_FADE_KEY] = shown;
         options.parent.add(mesh);
-        view.meshes.push({ lod, mesh, local: part.local.clone(), shown, passes: partPasses(part) });
+        view.meshes.push({ lod, mesh, local: part.local.clone(), shown, passes: partPasses(part), shading });
       }
     });
     view.built = instances.generation;
@@ -151,6 +158,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       instances.flush();
       const matrices = instances.matrices();
       const extras = instances.extraBuffer.array as Float32Array;
+      const seedBits = new Uint32Array(extras.buffer, extras.byteOffset, extras.length);
       const cull = batch.cullBatch;
       const fadeStart = Math.min(distances.fadeStart, cull.cullEnd);
       const accepted = list.filter((view) => view.role !== "shadow" || options.castShadow !== false).slice(0, maxViews);
@@ -170,10 +178,15 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         const lists = masks
           ? result.visible.map((list) => list.filter((at) => { const zone = extras[at * EXTRA_FLOATS + 2]! | 0; return ((masks[base + (zone >>> 5)]! >>> (zone & 31)) & 1) === 1; }))
           : result.visible;
-        for (const { lod, mesh, local, shown, passes } of view.meshes) {
+        for (const { lod, mesh, local, shown, passes, shading } of view.meshes) {
           const visible = lists[lod]!;
           visible.forEach((at, slot) => {
             instance.fromArray(matrices, at * MATRIX_FLOATS);
+            if (shading) {
+              const e = instance.elements;
+              shading.placement.setXYZW(slot, e[12]!, e[13]!, e[14]!, Math.max(Math.hypot(e[0]!, e[1]!, e[2]!), Math.hypot(e[4]!, e[5]!, e[6]!), Math.hypot(e[8]!, e[9]!, e[10]!)));
+              shading.seed.setX(slot, seedBits[at * EXTRA_FLOATS + 1]! & INSTANCE_SEED_MASK);
+            }
             mesh.setMatrixAt(slot, world.multiplyMatrices(instance, local));
             if (options.instanceColors) mesh.setColorAt(slot, new Color().setRGB(options.instanceColors.getX(at), options.instanceColors.getY(at), options.instanceColors.getZ(at)));
             const offset = at * MATRIX_FLOATS;
@@ -188,6 +201,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
           mesh.instanceMatrix.needsUpdate = true;
           if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
           shown.needsUpdate = true;
+          if (shading) { shading.placement.needsUpdate = true; shading.seed.needsUpdate = true; }
         }
         view.counts = masks ? lists.map((list) => list.length) : [...result.counts];
       }
