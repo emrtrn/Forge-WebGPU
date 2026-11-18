@@ -445,9 +445,10 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       applyShadowSwitch();
       if (options.dev) canvas.dataset.forgeShadows = String(renderer.shadowMap.enabled);
       const submitted = performance.now();
-      // Plan 5c R9b: each zoned batch's mode for this camera, before the LOD update and the cull read it.
+      // Plan 5c R9b: each zoned batch's mode and the GPU-driven zone masks for this camera, before the LOD update and the cull read them.
       world.zones?.update(camera);
-      triangles.update(camera, quality.settings.foliageCullDistanceScale);
+      gpuDriven.setZoneMasks(world.zones?.masks ?? null);
+      triangles.update(camera, quality.settings.foliageCullDistanceScale, world.zones ?? null);
       gpuDriven.cull(world.scene, camera);
       pipeline.render(world.scene, camera, world.output, quality.settings);
       overlay?.render({ renderer, scene: world.scene, camera, sceneDepth: pipeline.sceneDepth });

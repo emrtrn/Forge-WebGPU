@@ -29,6 +29,12 @@
 // placements of one world cell only (`render/sync/batchCells.ts`); a move into
 // another cell changes batch.
 //
+// Zones (plan 5c R9b): a light model's batch holds one zone's placements and
+// draws by its zone's mode; a model that takes the GPU path (known once it
+// loads) is not split: its instances carry their zone and the GPU cull reads
+// the zone masks (user decision 2026-11-18). Its placements then move to the
+// zoneless batch.
+//
 // Edits (plan phase 4 decision 3): a transform-only change moves the actor's
 // placements in their batches (`changeInstances`); any other is removed and
 // added again.
@@ -40,6 +46,7 @@ import { assignSlotMaterials, slotMaterialIds } from "../../render/resources/mod
 import { resourceKey } from "../../render/resources/resourceCache.ts";
 import type { ModelTemplate } from "../../render/resources/worldResources.ts";
 import { cellSuffix, placementParts, placementZone, zoneSuffix } from "../../render/sync/batchCells.ts";
+import { lodParts } from "../../render/triangles/staticPath.ts";
 import { changeInstances, createInstanceBatch, type InstanceBatch } from "../../render/sync/instanceBatches.ts";
 import { defineRenderBinding, type RenderBindingContext } from "../../render/sync/renderBinding.ts";
 import { componentWorldMatrix } from "../../render/sync/transforms.ts";
@@ -109,7 +116,13 @@ export default defineRenderBinding({
           const materials = await materialsFor(ctx, batch, template, data.materials);
           if (batch.disposed) return;
           const radius = new Box3().setFromObject(template.scene).getBoundingSphere(new Sphere()).radius;
-          batch.instances.setParts(modelParts(template, materials), radius);
+          const parts = modelParts(template, materials);
+          batch.instances.setParts(parts, radius);
+          // R9b: a model on the GPU path leaves the zone split (its zone batches merge into one).
+          if (zone !== null && ctx.triangles && !unsplit.has(model) && lodParts(ctx.staticPath?.() ?? "gpu", parts).some(Boolean)) {
+            unsplit.add(model);
+            rekey();
+          }
         },
         () => {
           // Counted by the cache and reported by the host; the batch stays empty.
@@ -129,12 +142,28 @@ export default defineRenderBinding({
     };
 
     const cellSize = (): number => ctx.staticCellSize?.() ?? 0;
+    /** Models whose batches draw GPU-driven: not split by zone (the instances carry their zone). */
+    const unsplit = new Set<string>();
+    const placementKey = (data: StaticMeshData, at: typeof matrix): { key: string; zone: string | null } => {
+      const zone = data.mesh !== null && unsplit.has(data.mesh) ? null : placementZone(ctx.zones, at);
+      return { key: staticMeshBatchKey(data) + cellSuffix(at, cellSize()) + zoneSuffix(zone), zone };
+    };
+    const rekey = (): void => {
+      for (const [id, batchKey] of [...placed]) {
+        const [actorId, key] = placementParts(id);
+        const actor = ctx.world.actor(actorId);
+        const component = actor?.components[key];
+        if (!actor || !component) continue;
+        const data = component as unknown as StaticMeshData;
+        componentWorldMatrix(ctx.world, actor, key, matrix);
+        if (placementKey(data, matrix).key !== batchKey) { remove(id); add(actor, key, data); }
+      }
+    };
     const add = (actor: WorldActor, key: string, data: StaticMeshData): void => {
       if (data.mesh === null) return;
       const id = `${actor.id}/${key}`;
       componentWorldMatrix(ctx.world, actor, key, matrix);
-      const zone = placementZone(ctx.zones, matrix);
-      const batchKey = staticMeshBatchKey(data) + cellSuffix(matrix, cellSize()) + zoneSuffix(zone);
+      const { key: batchKey, zone } = placementKey(data, matrix);
       placed.set(id, batchKey);
       batchFor(batchKey, data.mesh, data, zone).instances.set(id, matrix, data.color, actor.id);
     };
@@ -165,23 +194,13 @@ export default defineRenderBinding({
         const data = component as unknown as StaticMeshData;
         componentWorldMatrix(ctx.world, actor, key, matrix);
         // Into another cell or zone: another batch (R9a cells, R9b zones); within one, in place.
-        if (staticMeshBatchKey(data) + cellSuffix(matrix, cellSize()) + zoneSuffix(placementZone(ctx.zones, matrix)) !== batchKey) { remove(id); add(actor, key, data); continue; }
+        if (placementKey(data, matrix).key !== batchKey) { remove(id); add(actor, key, data); continue; }
         batches.get(batchKey)?.instances.move(id, matrix);
       }
     };
 
     // The zone set changed (a zone or portal edited): placements whose zone changed move batch.
-    const unsubscribe = ctx.zones?.onChange(() => {
-      for (const [id, batchKey] of [...placed]) {
-        const [actorId, key] = placementParts(id);
-        const actor = ctx.world.actor(actorId);
-        const component = actor?.components[key];
-        if (!actor || !component) continue;
-        const data = component as unknown as StaticMeshData;
-        componentWorldMatrix(ctx.world, actor, key, matrix);
-        if (staticMeshBatchKey(data) + cellSuffix(matrix, cellSize()) + zoneSuffix(placementZone(ctx.zones, matrix)) !== batchKey) { remove(id); add(actor, key, data); }
-      }
-    });
+    const unsubscribe = ctx.zones?.onChange(rekey);
 
     return {
       isActorReady(id) {

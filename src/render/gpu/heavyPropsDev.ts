@@ -5,9 +5,9 @@
 // (the host's rule, `triangles/staticPath.ts`). The geometry is a sphere of
 // `segments` × segments / 2 quads; nothing is saved to the level.
 //
-// Zones (plan 5c R9b Z6): with the world's zones present when installed, the
-// props split into one batch per zone and register with it, as the static
-// bindings do (`batchCells.ts`), so a measurement sees the zones hide them.
+// Zones (plan 5c R9b Z6): as the static mesh binding does, `instanced` props
+// split into one batch per zone of the world (registered with it); on the GPU
+// path they stay one batch and the cull reads each instance's zone.
 
 import { Matrix4, MeshStandardNodeMaterial, SphereGeometry } from "three/webgpu";
 import { placementZone } from "../sync/batchCells.ts";
@@ -51,7 +51,7 @@ export function createDevHeavyProps(host: () => RenderHost | null): DevHeavyProp
       const placement = new Matrix4();
       for (let i = 0; i * 16 < matrices.length; i += 1) {
         placement.fromArray(matrices, i * 16);
-        const zone = placementZone(world.zones, placement);
+        const zone = path === "instanced" ? placementZone(world.zones, placement) : null;
         let batch = byZone.get(zone);
         if (!batch) {
           batch = createInstanceBatch({

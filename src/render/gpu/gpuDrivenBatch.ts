@@ -151,6 +151,14 @@ export type ZoneMode = "visible" | "shadow" | "hidden";
 export const ZONE_SHADOW_LAYER = cameraViewLayer(MAX_CAMERA_VIEWS);
 /** Instanced meshes of a hidden zone: no camera has it. */
 export const ZONE_HIDDEN_LAYER = ZONE_SHADOW_LAYER + 1;
+/**
+ * u32 words of one zone mask (plan 5c R9b): bit `slot` of the mask says
+ * whether zone slot `slot` draws; slot 0 (no zone) always does. The masks
+ * buffer holds the main view's mask, then the shadow views' (`gpuDriven.ts`).
+ */
+export const ZONE_MASK_WORDS = 64;
+/** Zone slots the masks can tell apart; zones past it get slot 0 (always drawn). */
+export const MAX_ZONE_SLOTS = ZONE_MASK_WORDS * 32;
 
 /**
  * A view as a batch draws it: `main` the main camera, `shadow` a shadow map
@@ -191,6 +199,8 @@ export interface GpuDrivenBatchOptions {
   readonly capacity?: number;
   /** Optional source-slot RGB, compacted with the visible list (R7). */
   readonly instanceColors?: InstancedBufferAttribute;
+  /** The host's zone masks (plan 5c R9b, `ZONE_MASK_WORDS` × 2 u32): each instance's zone slot (extras.z) is culled by them. */
+  readonly zoneMasks?: StorageBufferAttribute;
 }
 
 /** The fade band and LOD starts, in measured distance (the owner applies the quality scales). */
@@ -396,6 +406,8 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
 
     const visibleWrite = storage(visibleBuffer, "uint", capacity * lodCount);
     const matrixCull = storage(instances.matrixBuffer, "mat4", capacity).toReadOnly();
+    const extraCull = storage(instances.extraBuffer, "vec4", capacity).toReadOnly();
+    const zoneMasks = options.zoneMasks ? storage(options.zoneMasks, "uint", ZONE_MASK_WORDS * 2).toReadOnly() : null;
     const cull = Fn(() => {
       If(instanceIndex.greaterThanEqual(count), () => { Return(); });
       const matrix = matrixCull.element(instanceIndex).toVar();
@@ -408,7 +420,14 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         const p = planes.element(plane);
         inside = inside.and(dot(p.xyz, center).add(p.w).greaterThanEqual(reach));
       }
-      If(inside.and(distanceVar.lessThan(cullEnd)), () => {
+      let keep: Node<"bool"> = inside.and(distanceVar.lessThan(cullEnd));
+      if (zoneMasks) {
+        // R9b: the instance's zone draws in this view (shadow views read the casting mask).
+        const zone = uint(extraCull.element(instanceIndex).z).toVar();
+        const word = zoneMasks.element(zone.shiftRight(uint(5)).add(uint(view.role === "shadow" ? ZONE_MASK_WORDS : 0)));
+        keep = keep.and(word.shiftRight(zone.bitAnd(uint(31))).bitAnd(uint(1)).equal(uint(1)));
+      }
+      If(keep, () => {
         let lod: Node<"uint"> = uint(0);
         for (let k = 0; k < lodCount - 1; k += 1) lod = lod.add(select(distanceVar.greaterThanEqual([lodStarts.x, lodStarts.y, lodStarts.z][k]!), uint(1), uint(0)));
         const lodVar = lod.toVar();

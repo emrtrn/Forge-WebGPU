@@ -35,6 +35,12 @@ export interface TriangleBinding {
   activate(): void;
   dispose(): void;
 }
+/** The world's zones as the LOD path needs them (`render/sync/zoneDrawing.ts`). */
+export interface TriangleZones {
+  slotOf(point: readonly [number, number, number]): number;
+  readonly revision: number;
+}
+
 export interface TriangleDrawing {
   /** Detached sources retain their CPU geometry / picking tags. Await this
    * preprocessing and the owner's compileAsync before activating. A source
@@ -44,12 +50,13 @@ export interface TriangleDrawing {
    * The owner retains sources through compilation, including cancelled work.
    */
   prepare(source: InstancedMesh, detailRadius?: number, bundle?: boolean, local?: Matrix4, pieces?: readonly LodPiece[]): Promise<TriangleBinding>;
-  update(camera: Camera, qualityScale: number): void;
+  /** Once a frame before the cull; `zones` (plan 5c R9b) gives each instance its zone slot when the set or the matrices change. */
+  update(camera: Camera, qualityScale: number, zones?: TriangleZones | null): void;
   dispose(): void;
 }
 
 export function createTriangleDrawing(renderer: WebGPURenderer, gpu: GpuDrivenDrawing, load: (input: TriangleInput) => Promise<TriangleData>): TriangleDrawing {
-  const bindings = new Set<{ update(qualityScale: number, pixelScale: number, perspective: boolean): void; dispose(): void }>();
+  const bindings = new Set<{ update(qualityScale: number, pixelScale: number, perspective: boolean, zones: TriangleZones | null): void; dispose(): void }>();
   const viewport = new Vector2();
   let disposed = false;
   /** LOD data per geometry object (templates' geometries are immutable and shared across rebuilds). */
@@ -119,10 +126,10 @@ export function createTriangleDrawing(renderer: WebGPURenderer, gpu: GpuDrivenDr
       // compileAsync stages and detaches these objects. Preserve their actual
       // draw parents (including the optional bundle) for atomic activation.
       const preparedParents = new Map(batch.allMeshes.map((mesh) => [mesh, mesh.parent]));
-      let version = -1, maxScale = 1;
+      let version = -1, maxScale = 1, zoneRevision = -1;
       const matrix = new Matrix4(), inverseLocal = local.clone().invert();
       const owner = {
-        update(qualityScale: number, pixelScale: number, perspective: boolean) {
+        update(qualityScale: number, pixelScale: number, perspective: boolean, zones: TriangleZones | null) {
           if (!active || released) return;
           if (root.parent !== source.parent) source.parent?.add(root);
           root.visible = source.visible;
@@ -138,13 +145,17 @@ export function createTriangleDrawing(renderer: WebGPURenderer, gpu: GpuDrivenDr
             while (handles.length > source.count) batch.instances.remove(handles.pop()!);
             version = -1;
           }
-          if (source.instanceMatrix.version !== version || !source.matrixWorld.equals(matrix)) {
+          const zonesNow = zones?.revision ?? 0;
+          if (source.instanceMatrix.version !== version || !source.matrixWorld.equals(matrix) || zonesNow !== zoneRevision) {
             const placement = new Matrix4(); maxScale = 0;
             for (let i = 0; i < source.count; i += 1) {
               source.getMatrixAt(i, placement); placement.multiply(inverseLocal).premultiply(source.matrixWorld);
               batch.instances.move(handles[i]!, placement.elements); maxScale = Math.max(maxScale, placement.getMaxScaleOnAxis());
+              // R9b: the placement's zone (its origin), culled by this frame's zone masks.
+              const e = placement.elements;
+              batch.instances.setZone(handles[i]!, zones ? zones.slotOf([e[12]!, e[13]!, e[14]!]) : 0);
             }
-            version = source.instanceMatrix.version; matrix.copy(source.matrixWorld);
+            version = source.instanceMatrix.version; matrix.copy(source.matrixWorld); zoneRevision = zonesNow;
           }
           const [, end] = cullDistance === null ? [NO_CULL_DISTANCE, NO_CULL_DISTANCE] : detailCullWindow(cullDistance, qualityScale);
           batch.setDistances({ fadeStart: cullDistance === null ? NO_CULL_DISTANCE : end * .8, cullEnd: end,
@@ -171,11 +182,11 @@ export function createTriangleDrawing(renderer: WebGPURenderer, gpu: GpuDrivenDr
         dispose: owner.dispose,
       };
     },
-    update(camera, qualityScale) {
+    update(camera, qualityScale, zones = null) {
       renderer.getDrawingBufferSize?.(viewport);
       const pixelScale = Math.abs(camera.projectionMatrix.elements[5]!) * Math.max(1, viewport.y) / 2;
       const perspective = (camera as Camera & { isPerspectiveCamera?: boolean }).isPerspectiveCamera === true;
-      for (const binding of bindings) binding.update(qualityScale, pixelScale, perspective);
+      for (const binding of bindings) binding.update(qualityScale, pixelScale, perspective, zones);
     },
     dispose() { disposed = true; for (const binding of [...bindings]) binding.dispose(); },
   };

@@ -11,13 +11,20 @@
 // visible, shadow only (hidden, `alwaysCastShadows`) or hidden. Content in no
 // zone is never tracked and always draws. Visibility only: nothing unloads.
 //
+// GPU-driven batches are not split (user decision 2026-11-18, after the Z6
+// measurement: a batch per zone multiplied dispatches and draws): each
+// instance carries its zone's slot (`slotOf`, written by `triangleDrawing.ts`
+// when `revision` changes) and the cull reads this frame's masks (`masks`:
+// the visible zones for the main view, those plus the always-casting ones for
+// shadow views; `gpuDriven.setZoneMasks`).
+//
 // The component names are strings here: the render layer never imports a
 // feature (the schemas live in `features/zone/schema.ts`).
 
 import { Matrix4, Quaternion, Vector3, type Camera } from "three/webgpu";
 import type { ActorId, WorldActor } from "../../core/index.ts";
 import { buildZoneSet, visibleZones, zoneAt, type PortalInput, type VisibleZones, type ZoneInput, type ZoneSet, type ZoneVec3 } from "../../engine/world/zones.ts";
-import type { ZoneMode } from "../gpu/gpuDrivenBatch.ts";
+import { MAX_ZONE_SLOTS, ZONE_MASK_WORDS, type ZoneMode } from "../gpu/gpuDrivenBatch.ts";
 import type { RenderWorldView } from "./renderBinding.ts";
 import { componentWorldMatrix } from "./transforms.ts";
 
@@ -44,6 +51,12 @@ export interface ZoneDrawingStats {
 export interface ZoneDrawing {
   /** Zone id (its actor) holding a world point, null in none. */
   zoneOf(point: ZoneVec3): string | null;
+  /** The zone slot (GPU masks) holding a world point; 0 in none. */
+  slotOf(point: ZoneVec3): number;
+  /** Bumps when the zone set changes (slots are reassigned). */
+  readonly revision: number;
+  /** This frame's masks for the GPU-driven cull; null: every zone draws. */
+  readonly masks: { readonly main: Uint32Array; readonly shadow: Uint32Array } | null;
   /** Called after the zone set changed; returns the unsubscribe. */
   onChange(listener: () => void): () => void;
   /** A batch of zone `zone`'s content; returns the untrack. */
@@ -75,6 +88,12 @@ export function createZoneDrawing(world: RenderWorldView): ZoneDrawing {
   const listeners = new Set<() => void>();
   const targets = new Map<ZoneTarget, string>();
   let last: VisibleZones | null = null;
+  let revision = 0;
+  /** Zone id -> slot (1 … MAX_ZONE_SLOTS - 1; zones past it stay slot 0, always drawn). */
+  let slots = new Map<string, number>();
+  const main = new Uint32Array(ZONE_MASK_WORDS), shadow = new Uint32Array(ZONE_MASK_WORDS);
+  let masks: { main: Uint32Array; shadow: Uint32Array } | null = null;
+  const setBit = (words: Uint32Array, slot: number): void => { words[slot >>> 5] = (words[slot >>> 5]! | (1 << (slot & 31))) >>> 0; };
 
   const rebuild = (): void => {
     const zones: ZoneInput[] = [];
@@ -104,6 +123,8 @@ export function createZoneDrawing(world: RenderWorldView): ZoneDrawing {
     }
     set = zones.length > 0 ? buildZoneSet(zones, portals) : null;
     alwaysCast = casting;
+    slots = new Map((set?.zones ?? []).slice(0, MAX_ZONE_SLOTS - 1).map((zone, index) => [zone.id, index + 1]));
+    revision += 1;
     for (const listener of [...listeners]) listener();
   };
 
@@ -111,6 +132,12 @@ export function createZoneDrawing(world: RenderWorldView): ZoneDrawing {
     zoneOf(point) {
       return set ? zoneAt(set, point) : null;
     },
+    slotOf(point) {
+      const zone = set ? zoneAt(set, point) : null;
+      return zone === null ? 0 : slots.get(zone) ?? 0;
+    },
+    get revision() { return revision; },
+    get masks() { return masks; },
     onChange(listener) {
       listeners.add(listener);
       return () => { listeners.delete(listener); };
@@ -123,7 +150,6 @@ export function createZoneDrawing(world: RenderWorldView): ZoneDrawing {
       if (actors.some(hasZoneParts)) rebuild();
     },
     update(camera) {
-      if (targets.size === 0) { last = null; return; }
       let visible: ReadonlySet<string> | null = null;
       if (set && camera) {
         camera.updateMatrixWorld();
@@ -132,6 +158,15 @@ export function createZoneDrawing(world: RenderWorldView): ZoneDrawing {
         last = visibleZones(set, { position: tuple(position), viewProjection: viewProjection.elements });
         visible = last.zones;
       } else last = null;
+      if (visible === null) masks = null;
+      else {
+        main.fill(0); shadow.fill(0);
+        setBit(main, 0); setBit(shadow, 0);
+        for (const [zone, slot] of slots) {
+          if (visible.has(zone)) { setBit(main, slot); setBit(shadow, slot); } else if (alwaysCast.has(zone)) setBit(shadow, slot);
+        }
+        masks = { main, shadow };
+      }
       for (const [target, zone] of targets) {
         const mode: ZoneMode = visible === null || visible.has(zone) ? "visible" : alwaysCast.has(zone) ? "shadow" : "hidden";
         if (target.zoneMode !== mode) target.setZoneMode(mode);

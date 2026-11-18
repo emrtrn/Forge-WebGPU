@@ -1,8 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { BoxGeometry, Group, Matrix4, MeshBasicNodeMaterial, type InstancedBufferAttribute, type InstancedMesh, type WebGPURenderer } from "three/webgpu";
+import { BoxGeometry, Group, Matrix4, MeshBasicNodeMaterial, StorageBufferAttribute, type InstancedBufferAttribute, type InstancedMesh, type WebGPURenderer } from "three/webgpu";
 import { cullInstanceCounts, frustumPlanesOf, mirrorCullView } from "../../engine/world/instanceCulling.ts";
 import { CPU_FADE_KEY, createCpuDrivenBatch } from "./cpuDrivenBatch.ts";
-import { cameraViewLayer, MAIN_VIEW_LAYER, shadowViewLayer } from "./gpuDrivenBatch.ts";
+import { cameraViewLayer, MAIN_VIEW_LAYER, shadowViewLayer, ZONE_MASK_WORDS } from "./gpuDrivenBatch.ts";
 
 // A camera at the origin looking down -Z, WebGL clip depth (the WebGL2 twin's backend).
 const f = 1 / Math.tan(Math.PI / 6);
@@ -121,6 +121,28 @@ describe("cpu-driven batch (the WebGL2 twin)", () => {
     batch.setZoneMode("visible");
     batch.prepare([VIEW, shadowView]);
     expect(visible()).toEqual([true, true]);
+    batch.dispose();
+  });
+
+  test("zone masks (R9b): an instance draws in a view only while its zone's bit is set; slot 0 always", () => {
+    const parent = new Group();
+    const masks = new StorageBufferAttribute(new Uint32Array(ZONE_MASK_WORDS * 2).fill(0xffffffff), 1);
+    const batch = createCpuDrivenBatch({} as WebGPURenderer, {
+      name: "test", parent, distanceMode: "origin", bounds: { center: [0, 0, 0], radius: 1 }, zoneMasks: masks,
+      lods: [[{ geometry: new BoxGeometry(), material: new MeshBasicNodeMaterial(), local: new Matrix4(), name: "part" }]],
+    });
+    batch.setDistances({ fadeStart: 80, cullEnd: 100, lodStarts: [] });
+    const [, zoned] = batch.instances.addMany([...at(0, 0, -10), ...at(1, 0, -10)], 2);
+    batch.instances.setZone(zoned!, 37);
+    const shadowView = { ...VIEW, role: "shadow" as const, layer: shadowViewLayer(1) };
+    const words = masks.array as Uint32Array;
+    words.fill(0); words[0] = 1; words[ZONE_MASK_WORDS] = 1; words[ZONE_MASK_WORDS + 1] = 1 << 5; // shadow: slot 37
+    batch.prepare([VIEW, shadowView]);
+    const [main, shadow] = batch.allMeshes as InstancedMesh[];
+    expect([main!.count, shadow!.count]).toEqual([1, 2]);
+    words.fill(0xffffffff);
+    batch.prepare([VIEW, shadowView]);
+    expect([main!.count, shadow!.count]).toEqual([2, 2]);
     batch.dispose();
   });
 });

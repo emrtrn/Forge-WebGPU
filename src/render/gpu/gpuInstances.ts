@@ -13,7 +13,9 @@
 //   stays valid while the capacity holds (5.3).
 // - Extras are a vec4 per instance: x the instance's own fade (1 drawn fully;
 //   streaming and the editor fade through it later), y the seed's u32 bits
-//   (wind phase, tint variation), z / w free.
+//   (wind phase, tint variation), z the instance's zone slot as a float value
+//   (plan 5c R9b: 0 in no zone, always drawn; `gpuDriven.ts` zone masks; a
+//   value, not bits: small integers' bits are denormal floats), w free.
 
 import { StorageBufferAttribute } from "three/webgpu";
 
@@ -34,6 +36,8 @@ export interface GpuInstances {
   addMany(matrices: ArrayLike<number>, count: number, seeds?: ArrayLike<number>): number[];
   move(handle: number, matrix: ArrayLike<number>, offset?: number): void;
   setFade(handle: number, fade: number): void;
+  /** The instance's zone slot (plan 5c R9b; 0: none). */
+  setZone(handle: number, zone: number): void;
   remove(handle: number): void;
   has(handle: number): boolean;
   clear(): void;
@@ -125,6 +129,12 @@ export function createGpuInstances(initialCapacity = MIN_CAPACITY): GpuInstances
     setFade(handle, fade) {
       const slot = slotFor(handle);
       extraArray[slot * EXTRA_FLOATS] = fade;
+      touch(slot);
+    },
+    setZone(handle, zone) {
+      const slot = slotFor(handle);
+      if (extraArray[slot * EXTRA_FLOATS + 2] === zone) return;
+      extraArray[slot * EXTRA_FLOATS + 2] = zone;
       touch(slot);
     },
     remove(handle) {

@@ -34,6 +34,7 @@
 import { CSMShadowNode } from "three/examples/jsm/csm/CSMShadowNode.js";
 import {
   Matrix4,
+  StorageBufferAttribute,
   Vector3,
   WebGPUCoordinateSystem,
   type Camera,
@@ -47,7 +48,7 @@ import {
 import { frustumPlanesOf, mirrorCullView, type InstanceCullView } from "../../engine/world/instanceCulling.ts";
 import { createCpuDrivenBatch } from "./cpuDrivenBatch.ts";
 import {
-  cameraViewLayer, createGpuDrivenBatch, MAIN_VIEW_LAYER, MAX_CAMERA_VIEWS, MAX_SHADOW_VIEWS, shadowViewLayer, ZONE_SHADOW_LAYER,
+  cameraViewLayer, createGpuDrivenBatch, MAIN_VIEW_LAYER, MAX_CAMERA_VIEWS, MAX_SHADOW_VIEWS, shadowViewLayer, ZONE_MASK_WORDS, ZONE_SHADOW_LAYER,
   type GpuCullView, type GpuDrivenBatch, type GpuDrivenBatchOptions,
 } from "./gpuDrivenBatch.ts";
 
@@ -88,6 +89,13 @@ export interface GpuDrivenDrawing extends CameraViews {
   /** The GPU path (WebGPU); false: batches are the CPU twin (WebGL2). */
   readonly supported: boolean;
   createBatch(options: GpuDrivenBatchOptions): GpuDrivenBatch;
+  /**
+   * This frame's zone masks (plan 5c R9b; `ZONE_MASK_WORDS` u32 each): the
+   * main and camera views draw the instances whose zone slot is set in
+   * `main`, shadow views those set in `shadow`; null draws every zone.
+   * Every batch culls by them (an instance in no zone is slot 0, always set).
+   */
+  setZoneMasks(masks: { readonly main: Uint32Array; readonly shadow: Uint32Array } | null): void;
   /** Disposes the batch and stops culling it. */
   removeBatch(batch: GpuDrivenBatch): void;
   /** Culls the batches drawn in `scene` for `camera` and the shadow views; before the frame's render. */
@@ -155,6 +163,8 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
   let lastViews: GpuCullView[] = [];
   let lastBatches: GpuDrivenBatch[] = [];
   let lastDraws = 0;
+  // R9b zone masks: the main view's words, then the shadow views'; all set until zones say otherwise.
+  const zoneMasks = new StorageBufferAttribute(new Uint32Array(ZONE_MASK_WORDS * 2).fill(0xffffffff), 1);
   let draws = 0;
   let removedUpdates = 0;
   let triangles = 0;
@@ -183,9 +193,19 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
   return {
     supported,
     createBatch(options) {
-      const batch = supported ? createGpuDrivenBatch(renderer, options) : createCpuDrivenBatch(renderer, options);
+      const zoned = { ...options, zoneMasks };
+      const batch = supported ? createGpuDrivenBatch(renderer, zoned) : createCpuDrivenBatch(renderer, zoned);
       batches.set(batch, options.parent);
       return batch;
+    },
+    setZoneMasks(masks) {
+      const words = zoneMasks.array as Uint32Array;
+      let changed = false;
+      for (let i = 0; i < ZONE_MASK_WORDS * 2; i += 1) {
+        const next = masks === null ? 0xffffffff : (i < ZONE_MASK_WORDS ? masks.main[i] : masks.shadow[i - ZONE_MASK_WORDS]) ?? 0;
+        if (words[i] !== next >>> 0) { words[i] = next >>> 0; changed = true; }
+      }
+      if (changed) zoneMasks.needsUpdate = true;
     },
     removeBatch(batch) {
       if (!batches.delete(batch)) return;
@@ -284,6 +304,7 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
       return { batches: batches.size, instances, draws, views: lastViews.length, bundleUpdates };
     },
     dispose() {
+      zoneMasks.dispose?.();
       for (const batch of batches.keys()) batch.dispose();
       batches.clear();
       cameraSources.clear();

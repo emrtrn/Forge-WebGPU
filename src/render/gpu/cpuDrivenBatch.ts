@@ -32,7 +32,7 @@ import {
 import { EXTRA_FLOATS, MATRIX_FLOATS, createGpuInstances } from "./gpuInstances.ts";
 import {
   cloneNodeMaterial, drawPasses, maskWithFade, MAIN_VIEW_LAYER, MAX_CAMERA_VIEWS, MAX_SHADOW_VIEWS,
-  type GpuBatchDistances, type GpuCullView, type GpuDrivenBatch, type GpuDrivenBatchOptions, type ZoneMode,
+  ZONE_MASK_WORDS, type GpuBatchDistances, type GpuCullView, type GpuDrivenBatch, type GpuDrivenBatchOptions, type ZoneMode,
 } from "./gpuDrivenBatch.ts";
 
 /** `userData` key of a mesh's fade attribute (how much of each drawn instance the band shows). */
@@ -161,8 +161,14 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
           buildView(view, index);
         }
         const result = cullInstanceCounts(matrices, instances.count, cull, source);
+        // R9b: the zone masks as the GPU reads them (extras.z, the view's mask).
+        const masks = options.zoneMasks?.array as Uint32Array | undefined;
+        const base = source.role === "shadow" ? ZONE_MASK_WORDS : 0;
+        const lists = masks
+          ? result.visible.map((list) => list.filter((at) => { const zone = extras[at * EXTRA_FLOATS + 2]! | 0; return ((masks[base + (zone >>> 5)]! >>> (zone & 31)) & 1) === 1; }))
+          : result.visible;
         for (const { lod, mesh, local, shown, passes } of view.meshes) {
-          const visible = result.visible[lod]!;
+          const visible = lists[lod]!;
           visible.forEach((at, slot) => {
             instance.fromArray(matrices, at * MATRIX_FLOATS);
             mesh.setMatrixAt(slot, world.multiplyMatrices(instance, local));
@@ -177,7 +183,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
           if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
           shown.needsUpdate = true;
         }
-        view.counts = [...result.counts];
+        view.counts = masks ? lists.map((list) => list.length) : [...result.counts];
       }
       for (let index = prepared; index < views.length; index += 1) for (const { mesh } of views[index]!.meshes) mesh.visible = false;
       return [];
