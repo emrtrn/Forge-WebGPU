@@ -284,6 +284,11 @@ async function start(): Promise<void> {
       },
       setHour: (hour: number) => environment()?.setHour(hour),
       setSurface: (surface: { snowCoverage?: number; wetness?: number }) => environment()?.setSurface(surface),
+      /** Vegetation plan PG2: the season at once, or a timed change in simulation seconds. */
+      setSeason: (season: "spring" | "summer" | "autumn" | "winter") => environment()?.setSeason(season),
+      transitionSeason: (request: { season: "spring" | "summer" | "autumn" | "winter"; seconds: number }) => {
+        void environment()?.transitionSeason(request);
+      },
       environmentState: () => environment()?.current() ?? null,
       /** The Sky Light capture alone, `count` times back to back (pause first). */
       captureBench: (count: number) => (viewer.host ? benchmarkSkyCapture(viewer.host, count) : Promise.resolve(null)),

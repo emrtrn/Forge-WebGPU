@@ -26,6 +26,10 @@
 // - Wind (PG2): a type with `sway.enabled` sways in the world's WES / level
 //   wind (render/foliage/foliageWind.ts), simulation time (a paused world
 //   stands still), every view and both draw paths.
+// - Plants (PG2): a type with a `family` draws that family's prototype (its
+//   LOD chain replaces `mesh` / `lods`) shaded by the family's response to
+//   WES, through the world's shared plant drawing (render/plant/), the same
+//   as a single `forge.plant` actor of that family.
 
 import { Group, PerspectiveCamera, Vector3, type Camera } from "three/webgpu";
 import { LevelSettingsKey, normalizeJsonAsset, parseComponentTypeTag, type ActorId, type WorldActor } from "../../core/index.ts";
@@ -33,8 +37,9 @@ import { foliageRuleParamsOf, foliageTypeParamsOf, type FoliageTypeAssetFields }
 import type { FoliageCellGenerator } from "../../engine/foliage/foliageCellGenerator.ts";
 import { FoliageRing, type FoliageRingRule, type FoliageRingTerrain } from "../../engine/foliage/foliageRingHost.ts";
 import { LevelFoliageSourceKey, type LevelFoliageSource } from "../../engine/foliage/levelFoliageSource.ts";
-import { resolveWorldWind } from "../../engine/environment/worldWind.ts";
-import { createFoliageWind } from "../../render/foliage/foliageWind.ts";
+import { plantWorld } from "../../render/plant/plantDrawing.ts";
+import { readFamilyPrototype, type PlantFamilyFieldsRead } from "../../render/plant/plantFamilies.ts";
+import { PlantFamilyAssetType } from "../plant/schema.ts";
 import { createFoliageBatches, type FoliageBatches, type FoliageTypeDraw } from "../../render/foliage/foliageBatches.ts";
 import { PaintedFoliageView } from "../../render/foliage/paintedFoliageView.ts";
 import { createFoliageCellGenerator } from "../../render/resources/foliageWorkerGenerator.ts";
@@ -96,8 +101,9 @@ export default defineRenderBinding({
     group.userData.framing = false;
     ctx.root.add(group);
     const cameraPosition = new Vector3();
-    const wind = createFoliageWind();
-    let simulationSeconds = 0;
+    const plants = plantWorld(ctx.world);
+    const readFamily = (raw: unknown): PlantFamilyFieldsRead | null =>
+      (normalizeJsonAsset(PlantFamilyAssetType, raw, { strict: false }).value as unknown as PlantFamilyFieldsRead | null) ?? null;
     let batches: FoliageBatches | null = null;
     let lastQuality = "";
     let painted: Painted | null = null;
@@ -132,7 +138,7 @@ export default defineRenderBinding({
       if (batches || !ctx.gpuDriven) return batches;
       batches = createFoliageBatches({
         gpuDriven: ctx.gpuDriven, resources: ctx.resources, parent: group,
-        quality: { cullScale: ctx.quality().foliageCullDistanceScale, verticalFov: fovOf(camera) }, wind,
+        quality: { cullScale: ctx.quality().foliageCullDistanceScale, verticalFov: fovOf(camera) }, wind: plants.wind, plants,
       });
       return batches;
     };
@@ -146,12 +152,16 @@ export default defineRenderBinding({
           const result = normalizeJsonAsset(FoliageTypeAssetType, await ctx.resources.json(guid), { strict: false });
           if (!result.value) throw new Error(result.issues.map((issue) => `${issue.path} ${issue.message}`).join("; ") || "unreadable");
           const data = result.value as unknown as FoliageTypeData;
-          if (typeof data.mesh !== "string" || data.mesh.length === 0) { types.set(guid, null); return; }
-          const lods = data.lods.flatMap((lod) => (typeof lod.mesh === "string" && lod.mesh.length > 0 ? [{ mesh: lod.mesh, screenSize: lod.screenSize }] : []));
-          const sway = data.sway.enabled
+          const family = typeof data.family === "string" && data.family.length > 0
+            ? await readFamilyPrototype(ctx.resources, data.family, data.prototype, keys, readFamily) : null;
+          const mesh = family?.mesh ?? data.mesh;
+          if (typeof mesh !== "string" || mesh.length === 0) { types.set(guid, null); return; }
+          const lods = family ? [...family.lods] : data.lods.flatMap((lod) => (typeof lod.mesh === "string" && lod.mesh.length > 0 ? [{ mesh: lod.mesh, screenSize: lod.screenSize }] : []));
+          // A family's instances sway as its single plants do (the family's sway, PV-WES-02).
+          const sway = family ? family.sway : data.sway.enabled
             ? { amplitude: data.sway.amplitude, height: data.sway.height, frequency: data.sway.frequency, source: data.sway.source }
             : null;
-          types.set(guid, { data, draw: { id: guid, mesh: data.mesh, lods, castShadow: data.castShadow, cullStart: data.cullStart, cullEnd: data.cullEnd, sway } });
+          types.set(guid, { data, draw: { id: guid, mesh, lods, castShadow: data.castShadow, cullStart: data.cullStart, cullEnd: data.cullEnd, sway, plant: family?.plant ?? null } });
         } catch (error) {
           console.warn(`forge render: foliage type ${guid} not drawn: ${String(error)}`);
           types.set(guid, null);
@@ -269,7 +279,8 @@ export default defineRenderBinding({
         }
       },
       sync(frame) {
-        if (Number.isFinite(frame.dt) && frame.dt > 0) simulationSeconds += frame.dt;
+        if (frame.camera) frame.camera.getWorldPosition(cameraPosition);
+        plants.sync(frame, frame.dt, frame.camera ? cameraPosition : null);
         if (!frame.camera || !active) return;
         if (placed.size === 0 && !painted && !ctx.world.services.get(LevelFoliageSourceKey)?.index) return;
         const target = ensureBatches(frame.camera);
@@ -281,8 +292,6 @@ export default defineRenderBinding({
           lastQuality = signature;
           target.setQuality({ cullScale: quality.foliageCullDistanceScale, verticalFov: fov });
         }
-        frame.camera.getWorldPosition(cameraPosition);
-        wind.update(resolveWorldWind(ctx.world), simulationSeconds, cameraPosition);
         const center: [number, number] = [cameraPosition.x, cameraPosition.z];
         syncPainted(target, center);
         for (const entry of placed.values()) {

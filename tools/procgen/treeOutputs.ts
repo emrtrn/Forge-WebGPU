@@ -99,6 +99,7 @@ export function treeOutputs(recipeId: string, data: JsonObject, folder: string, 
     prototypes,
     materials: { wood: materials.wood, leaf: materials.leaf },
     collider: data.collision === "none" ? "none" : "trunk",
+    sway: data.sway as JsonObject,
     response: data.response as JsonObject,
   });
   return outputs;

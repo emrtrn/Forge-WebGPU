@@ -94,6 +94,13 @@ export const PlantFamilyFields = {
     { hint: "Modellerin iki slotuna verilen materyaller." },
   ),
   collider: enumOf(PLANT_COLLIDERS, { default: "trunk", labels: { none: "None", trunk: "Trunk Capsule", hull: "Convex Hull" }, hint: "Tekil bitkinin çarpışması; foliage'da türün `collision` ayarı." }),
+  sway: object(
+    {
+      amplitude: num({ min: 0, max: 5, default: 0.25, hint: "Rüzgâr gücü 1'de tacın yer değiştirmesi, metre (köşe ağırlıklarıyla; esneklik çarpar)." }),
+      frequency: num({ min: 0, max: 10, default: 0.35, hint: "Salınım sıklığı, Hz." }),
+    },
+    { hint: "Ailenin rüzgârı: tekil bitki ve foliage aynı salınımı kullanır." },
+  ),
   response: ResponseField,
 };
 

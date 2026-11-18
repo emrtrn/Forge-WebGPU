@@ -78,6 +78,10 @@
     "leaf": "ast_77e54da6b9185f7c5be134bfb21ea5a3"
   },
   "collider": "trunk",
+  "sway": {
+    "amplitude": 0.15,
+    "frequency": 0.3
+  },
   "response": {
     "habit": "evergreen",
     "spring": {

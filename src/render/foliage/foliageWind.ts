@@ -31,8 +31,8 @@ export interface FoliageSway {
 export interface FoliageWind {
   /** The frame's wind, its simulation seconds and the camera position. */
   update(wind: ResolvedWind, seconds: number, view: { x: number; y: number; z: number }): void;
-  /** The hook of one type's sway; `fadeEnd` <= 0 never fades. */
-  shading(sway: FoliageSway, fadeEnd: number): InstanceShading;
+  /** The hook of one type's sway; `fadeEnd` <= 0 never fades; `scale` multiplies it (a plant family's flexibility). */
+  shading(sway: FoliageSway, fadeEnd: number, scale?: Node<"float">): InstanceShading;
 }
 
 const TAU = 6.2831853;
@@ -82,7 +82,7 @@ export function createFoliageWind(): FoliageWind {
       gust.value = wind.gust;
       viewOrigin.value.set(view.x, view.y, view.z);
     },
-    shading(sway, fadeEnd) {
+    shading(sway, fadeEnd, scale) {
       return (_material, instance) => {
         if (sway.amplitude <= 0) return;
         const worldOffset = sway.source === "vertex"
@@ -90,7 +90,7 @@ export function createFoliageWind(): FoliageWind {
           ? Fn((builder) => ((builder as unknown as { geometry?: { getAttribute(name: string): unknown } }).geometry?.getAttribute("_wind")
             ? vertexOffset(instance, sway, fadeEnd) : heightOffset(instance, sway, fadeEnd)))() as unknown as Node<"vec3">
           : heightOffset(instance, sway, fadeEnd);
-        return { worldOffset };
+        return { worldOffset: scale ? worldOffset.mul(scale) : worldOffset };
       };
     },
   };

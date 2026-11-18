@@ -26,6 +26,7 @@ import { modelParts } from "../resources/modelParts.ts";
 import { resourceKey } from "../resources/resourceCache.ts";
 import type { WorldResources } from "../resources/worldResources.ts";
 import type { FoliageSway, FoliageWind } from "./foliageWind.ts";
+import type { PlantFamilyDraw, PlantWorld } from "../plant/plantDrawing.ts";
 
 /** What drawing needs of one `forge.foliageType` (its asset fields). */
 export interface FoliageTypeDraw {
@@ -39,6 +40,8 @@ export interface FoliageTypeDraw {
   readonly cullEnd: number;
   /** Wind sway; absent or null: still. */
   readonly sway?: FoliageSway | null;
+  /** A generated plant family's prototype (PG2): its response shades the instances. */
+  readonly plant?: PlantFamilyDraw | null;
 }
 
 export interface FoliageQuality {
@@ -72,6 +75,8 @@ export interface FoliageBatchesOptions {
   readonly source?: string;
   /** The world's wind uniforms; without them nothing sways. */
   readonly wind?: FoliageWind;
+  /** The world's plant drawing (family appearance); without it a family type draws unshaded. */
+  readonly plants?: PlantWorld;
 }
 
 interface Owned {
@@ -95,7 +100,7 @@ const sameSway = (a: FoliageSway | null | undefined, b: FoliageSway | null | und
   (a ?? null) === (b ?? null) || (!!a && !!b && a.amplitude === b.amplitude && a.height === b.height && a.frequency === b.frequency && a.source === b.source);
 
 const sameType = (a: FoliageTypeDraw, b: FoliageTypeDraw): boolean =>
-  sameSway(a.sway, b.sway) && a.mesh === b.mesh && a.castShadow === b.castShadow && a.cullStart === b.cullStart && a.cullEnd === b.cullEnd
+  sameSway(a.sway, b.sway) && JSON.stringify(a.plant ?? null) === JSON.stringify(b.plant ?? null) && a.mesh === b.mesh && a.castShadow === b.castShadow && a.cullStart === b.cullStart && a.cullEnd === b.cullEnd
   && a.lods.length === b.lods.length && a.lods.every((lod, index) => lod.mesh === b.lods[index]!.mesh && lod.screenSize === b.lods[index]!.screenSize);
 
 export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBatches {
@@ -109,6 +114,12 @@ export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBat
       // Ascending, as the batch requires.
       .map((start, index, all) => Math.max(start, index > 0 ? all[index - 1]! : 0));
     entry.batch.setDistances({ fadeStart: window?.[0] ?? NO_CULL_DISTANCE, cullEnd: window?.[1] ?? NO_CULL_DISTANCE, lodStarts });
+  };
+
+  const shadingOf = (type: FoliageTypeDraw) => {
+    const fadeEnd = type.cullEnd * quality.cullScale;
+    if (type.plant && options.plants) return options.plants.shading(type.plant, type.sway ?? null, fadeEnd);
+    return type.sway && options.wind ? options.wind.shading(type.sway, fadeEnd) : null;
   };
 
   const addTo = (batch: GpuDrivenBatch, owned: Owned): void => {
@@ -140,7 +151,7 @@ export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBat
         distanceMode: "origin", castShadow: entry.type.castShadow, source: options.source ?? "foliage",
         ...(options.bundle !== undefined ? { bundle: options.bundle } : {}),
         ...(capacity > 0 ? { capacity } : {}),
-        ...(entry.type.sway && options.wind ? { instanceShading: options.wind.shading(entry.type.sway, entry.type.cullEnd * quality.cullScale) } : {}),
+        ...(shadingOf(entry.type) ? { instanceShading: shadingOf(entry.type)! } : {}),
       });
       applyDistances(entry);
       for (const owned of entry.owners.values()) addTo(entry.batch, owned);
