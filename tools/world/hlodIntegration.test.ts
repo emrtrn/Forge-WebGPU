@@ -11,7 +11,7 @@ import { createWritePolicy } from "../server/projectPaths.ts";
 import { buildLevelHlod } from "./hlodBuild.ts";
 import { parseHlodArgs, runHlod, writeHlodResult } from "./hlodCli.ts";
 import { hlodStaleness } from "./hlodStale.ts";
-import { actor, addResult, encode, fixture, FOLDER, inputOf, level, LEVEL } from "./hlodTestKit.ts";
+import { actor, actorId, addResult, encode, fixture, FOLDER, inputOf, level, LEVEL } from "./hlodTestKit.ts";
 
 const temps: string[] = [];
 afterAll(async () => { for (const path of temps) await rm(path, { recursive: true, force: true }); });
@@ -29,6 +29,36 @@ test("source hash staleness is one warning per changed, removed or missing cell 
   // HLOD is optional: a level without hlod.json is not stale.
   source.delete(`${FOLDER}/hlod.json`);
   expect(await hlodStaleness(await inputOf(source))).toEqual([]);
+});
+
+test("HLOD leaves zoned models and shapes out, keeps protruding geometry, and notices portal edits", async () => {
+  const source = await fixture();
+  const interior = actor(1);
+  const room = {
+    id: actorId(10), spatiallyLoaded: false, transform: { p: [10, 0, 10] },
+    components: { zone: { type: "forge.zone@1", size: [8, 8, 8] } },
+  };
+  const portal = {
+    id: actorId(11), spatiallyLoaded: false, transform: { p: [14, 0, 10] },
+    components: { portal: { type: "forge.portal@1", size: [2, 3], zoneA: room.id } },
+  };
+  const wall = actor(2, 13.5);
+  const shape = {
+    id: actorId(12), transform: { p: [10, 0, 10], s: [8, 8, 8] },
+    components: { shape: { type: "forge.shape@2", primitive: "cube", landmark: true } },
+  };
+  const actors = [interior, wall, shape, room, portal];
+  const writeLevel = () => source.set(`${FOLDER}/level.json`, encode(level(actors)));
+  writeLevel();
+  const result = await buildLevelHlod(FOLDER, await inputOf(source), { ratio: 1 });
+  expect(result.index.cells.map(cell => [cell.key, cell.triangles])).toEqual([["0_0", 12]]);
+  expect(result.index.landmarks).toBeUndefined();
+  expect(result.skippedPlacements).toBe(2);
+  addResult(source, result.files);
+  expect(await hlodStaleness(await inputOf(source))).toEqual([]);
+  portal.transform.p[1] = 0.5;
+  writeLevel();
+  expect((await hlodStaleness(await inputOf(source))).map(warning => warning.cell)).toEqual(["0_0"]);
 });
 
 test("asset verification prints hlod-stale without failing; production copies index and proxies and warns", async () => {

@@ -185,7 +185,7 @@ export function createWorldSettings(options: WorldSettingsOptions): WorldSetting
     });
     zones.body.append(generate, el("div", "detail-hint", incomplete
       ? "Bölgeleri üretmek için sahnenin bütün hücrelerini yükleyin."
-      : "Duvarlardan odaları ve kapıları bulur; her odaya bir Zone Volume, her kapıya bir Portal yazar. Önceki üretileni değiştirir; Generated işareti kapatılan bölgeler korunur. Tek adımda geri alınır."), zoneFeedback);
+      : "Katları ve odaları tarar. Kapı, pencere ve açık tavanlara Portal, odalara Zone Volume ekler. Önceki üretileni değiştirir ve elle düzenlenen bölgeleri korur. Tek adımda geri alınır."), zoneFeedback);
     const environment = createSection(doc, "Environment", { testId: "world-settings-environment" });
     const placer = options.placer();
     const entries = placer?.entries() ?? [];

@@ -117,10 +117,11 @@ export function hostTerrainStreaming(host: RenderHost): TerrainStreamingSnapshot
 
 /** Zones (plan 5c R9b): the camera's zone, how many zones show, and the static batches hidden or casting only. */
 export function formatZones(zones: ZoneDrawingStats): string[] {
-  const camera = zones.cameraZone === null ? "none (everything shows)" : zones.cameraZone.slice(0, 12);
+  const camera = zones.cameraZone === null ? "outside" : zones.cameraZone.slice(0, 12);
   return [
     `zones ${zones.zones}, portals ${zones.portals}, camera zone ${camera}`,
     `zones visible ${zones.visible} / ${zones.zones}, zoned batches ${zones.tracked}: hidden ${zones.hidden}, shadow only ${zones.shadowOnly}`,
+    `portal tests ${zones.portalTests}, exterior projections ${zones.exteriorPortalTests}${zones.portalBudgetExceeded ? " (budget exceeded)" : ""}`,
   ];
 }
 

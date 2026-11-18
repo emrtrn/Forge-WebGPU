@@ -16,7 +16,7 @@
 import type { ActorId, ComponentMap, Vec3 } from "../../core/index.ts";
 import { stableHex } from "../forgeImport/ids.ts";
 import { decomposeMat4, multiplyMat4, rotate, invertQuat, sub, type Mat4 } from "../math/affine.ts";
-import { generateZones, type ZoneGenerationOptions, type ZoneOccluder } from "./zoneGeneration.ts";
+import { generateZones, zoneOccluderBounds, type ZoneGenerationOptions, type ZoneOccluder, type ZoneOccluderBounds } from "./zoneGeneration.ts";
 import type { ZoneQuat, ZoneVec3 } from "./zones.ts";
 
 export const ZONE_TYPE = "forge.zone";
@@ -102,6 +102,7 @@ export interface ZoneLevelPlan {
   /** New actor documents (raw: the caller normalises them). */
   readonly add: readonly Record<string, unknown>[];
   readonly floorY: number | null;
+  readonly floorYs: readonly number[];
   readonly zones: number;
   readonly portals: number;
   /** User zones kept, and generated rooms left to them. */
@@ -119,6 +120,32 @@ function inZone(world: Mat4, size: Vec3, point: ZoneVec3): boolean {
   return [0, 1, 2].every((axis) => Math.abs(local[axis]!) <= Math.abs(size[axis]! * s[axis]!) / 2 + 1e-6);
 }
 
+const FLOOR_TOLERANCE = 0.08;
+interface Floor { readonly y: number; readonly slabs: ZoneOccluderBounds[] }
+
+function zoneFloors(occluders: readonly ZoneOccluder[], options: ZoneLevelOptions): Floor[] {
+  const ground = options.floorY ?? zoneFloorY(occluders);
+  if (ground === null) return [];
+  const floors: Floor[] = [{ y: ground, slabs: [] }];
+  if (options.floorY !== undefined) return floors;
+
+  const boxes = occluders.map(zoneOccluderBounds);
+  const probeHeight = Math.max(...(options.probeHeights ?? [0.3, 1.0, 1.7]));
+  const walls = boxes.filter(({ min, max }) => max[1] - min[1] >= probeHeight);
+  const slabs = boxes.filter(({ min, max }) => max[1] - min[1] <= 0.5 && max[1] >= ground + probeHeight
+    && (max[0] - min[0]) * (max[2] - min[2]) >= (options.minRoomArea ?? 4))
+    .sort((a, b) => a.max[1] - b.max[1]);
+  for (const slab of slabs) {
+    const y = slab.max[1];
+    if (!walls.some(({ min, max }) => min[1] <= y + 0.5 && max[1] >= y + probeHeight
+      && min[0] <= slab.max[0] && max[0] >= slab.min[0] && min[2] <= slab.max[2] && max[2] >= slab.min[2])) continue;
+    const floor = floors.at(-1)!;
+    if (y - floor.y <= FLOOR_TOLERANCE) floor.slabs.push(slab);
+    else floors.push({ y, slabs: [slab] });
+  }
+  return floors;
+}
+
 export function planZoneLevel(actors: readonly ZoneLevelActor[], occluders: readonly ZoneOccluder[], options: ZoneLevelOptions): ZoneLevelPlan {
   const remove: ActorId[] = [];
   const kept: { id: ActorId; world: Mat4; size: Vec3 }[] = [];
@@ -134,37 +161,42 @@ export function planZoneLevel(actors: readonly ZoneLevelActor[], occluders: read
     if (generated) remove.push(actor.id);
     else if (zone) kept.push({ id: actor.id, ...zone });
   }
-  const floorY = options.floorY ?? zoneFloorY(occluders);
-  if (floorY === null) return { remove, add: [], floorY, zones: 0, portals: 0, kept: kept.length, skipped: 0 };
-  const generated = generateZones(occluders, { ...options, floorY });
+  const floors = zoneFloors(occluders, options);
+  const floorYs: number[] = [];
   const add: Record<string, unknown>[] = [];
-  const idOf: (ActorId | null)[] = [];
-  let skipped = 0, zoneCount = 0;
+  let skipped = 0, zoneCount = 0, portalCount = 0;
   const actorId = (key: string): ActorId => `act_${stableHex(`${options.levelId}/zones/${key}`)}` as ActorId;
   const transform = (p: ZoneVec3, r: ZoneQuat) => ({ p: [...p], r: [...r], s: [1, 1, 1] });
-  generated.zones.forEach((zone, index) => {
-    const owner = kept.find((entry) => inZone(entry.world, entry.size, zone.center));
-    if (owner) { idOf.push(owner.id); skipped += 1; return; }
-    const id = actorId(`zone/${index}`);
-    idOf.push(id);
-    zoneCount += 1;
-    add.push({
-      id, name: `Zone ${index + 1}`, class: null, parent: null, spatiallyLoaded: false,
-      transform: transform(zone.center, [0, 0, 0, 1]),
-      components: { zone: { type: `${ZONE_TYPE}@1`, size: zone.halfExtents.map((half) => half * 2), generated: true } },
+  for (const [story, floor] of floors.entries()) {
+    const generated = generateZones(occluders, { ...options, floorY: floor.y });
+    const prefix = story === 0 ? "" : `floor/${floor.y.toFixed(3)}/`;
+    const idOf = generated.zones.map((zone, index): ActorId | null => {
+      const [x, , z] = zone.center;
+      if (floor.slabs.length && !floor.slabs.some(({ min, max }) => x >= min[0] && x <= max[0] && z >= min[2] && z <= max[2])) return null;
+      const owner = kept.find((entry) => inZone(entry.world, entry.size, zone.center));
+      if (owner) { skipped += 1; return owner.id; }
+      const id = actorId(`${prefix}zone/${index}`);
+      zoneCount += 1;
+      add.push({
+        id, name: `Zone ${zoneCount}`, class: null, parent: null, spatiallyLoaded: false,
+        transform: transform(zone.center, [0, 0, 0, 1]),
+        components: { zone: { type: `${ZONE_TYPE}@1`, size: zone.halfExtents.map((half) => half * 2), generated: true } },
+      });
+      return id;
     });
-  });
-  let portalCount = 0;
-  generated.portals.forEach((portal, index) => {
-    const a = idOf[portal.a] ?? null, b = idOf[portal.b] ?? null;
-    // Two rooms left to the same kept zone: nothing to join.
-    if (a === null || b === null || a === b) return;
-    portalCount += 1;
-    add.push({
-      id: actorId(`portal/${index}`), name: `Portal ${index + 1}`, class: null, parent: null, spatiallyLoaded: false,
-      transform: transform(portal.center, portal.rotation),
-      components: { portal: { type: `${PORTAL_TYPE}@1`, size: [portal.halfSize[0] * 2, portal.halfSize[1] * 2], zoneA: a, zoneB: b, generated: true } },
+    if (story === 0 || idOf.some(id => id !== null)) floorYs.push(floor.y);
+    generated.portals.forEach((portal, index) => {
+      const a = portal.a === null ? null : idOf[portal.a] ?? null;
+      const b = idOf[portal.b] ?? null;
+      if (b === null || (portal.a !== null && (a === null || a === b))) return;
+      portalCount += 1;
+      add.push({
+        id: actorId(`${prefix}portal/${index}`), name: `Portal ${portalCount}`, class: null, parent: null, spatiallyLoaded: false,
+        transform: transform(portal.center, portal.rotation),
+        components: { portal: { type: `${PORTAL_TYPE}@1`, size: [portal.halfSize[0] * 2, portal.halfSize[1] * 2], zoneA: a, zoneB: b, generated: true } },
+      });
     });
-  });
-  return { remove, add, floorY, zones: zoneCount, portals: portalCount, kept: kept.length, skipped };
+  }
+  return { remove, add, floorY: floors[0]?.y ?? null, floorYs,
+    zones: zoneCount, portals: portalCount, kept: kept.length, skipped };
 }

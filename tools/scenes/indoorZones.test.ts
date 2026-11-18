@@ -9,7 +9,7 @@ const floor = { floorY: 0 };
 const cellSize = 0.25;
 
 function toOccluders(actors: readonly IndoorActor[]): ZoneOccluder[] {
-  return actors.filter(({ name }) => /^(Wall|Lintel|Floor)/.test(name)).map(({ transform }) => ({
+  return actors.filter(({ name }) => /^(Wall|Lintel|Floor|Window sill)/.test(name)).map(({ transform }) => ({
     center: transform.p,
     rotation: transform.r,
     halfExtents: scale(transform.s, SHAPE_SIZE / 2),
@@ -23,7 +23,8 @@ function sceneOccluders(options: IndoorSceneOptions = {}): ZoneOccluder[] {
 test("finds all rooms and doorway rectangles in the default building", () => {
   const { zones, portals } = generateZones(sceneOccluders(), floor);
   expect(zones).toHaveLength(64);
-  expect(portals).toHaveLength(112);
+  expect(portals).toHaveLength(176);
+  expect(portals.filter(portal => portal.a === null)).toHaveLength(64);
 
   const rooms = zones.map(({ center: [cx, , cz], halfExtents: [hx, , hz] }) => {
     const x = Math.floor(cx / 8), z = Math.floor(cz / 8);
@@ -48,6 +49,7 @@ test("finds all rooms and doorway rectangles in the default building", () => {
   }
   const normalX = quatFromAxisAngle([0, 1, 0], Math.PI / 2);
   for (const { a, b, center: [x, y, z], rotation, halfSize: [hw, hh] } of portals) {
+    if (a === null) continue;
     expect(a).toBeLessThan(b);
     const left = rooms[a]!, right = rooms[b]!;
     const pair = [Math.min(left.id, right.id), Math.max(left.id, right.id)].join(",");
@@ -68,20 +70,20 @@ test("finds all rooms and doorway rectangles in the default building", () => {
 test("finds six rooms in a building translated away from the origin", () => {
   const { zones, portals, grid } = generateZones(sceneOccluders({ roomsX: 3, roomsZ: 2, origin: [300, 0, 300] }), floor);
   expect(zones).toHaveLength(6);
-  expect(portals).toHaveLength(7);
-  expect(grid).toEqual({ width: 102, depth: 70, minX: 299.25, minZ: 299.25 });
+  expect(portals).toHaveLength(13);
+  expect(grid).toEqual({ width: 110, depth: 78, minX: 298.25, minZ: 298.25 });
 });
 
 test("a wide opening joins the rooms on either side", () => {
   const { zones, portals } = generateZones(sceneOccluders({ roomsX: 2, roomsZ: 1, doorWidth: 6 }), floor);
   expect(zones).toHaveLength(1);
-  expect(portals).toEqual([]);
+  expect(portals.map(portal => portal.a)).toEqual([null]);
 });
 
 test("a closed room excludes the exterior", () => {
   const { zones, portals } = generateZones(sceneOccluders({ roomsX: 1, roomsZ: 1 }), floor);
   expect(zones).toEqual([{ center: [4, 1.5, 4], halfExtents: [3.75, 1.5, 3.75], cells: 900 }]);
-  expect(portals).toEqual([]);
+  expect(portals).toMatchObject([{ a: null, b: 0, center: [4, 3, 4] }]);
 });
 
 test("floors below all probes produce an empty grid", () => {
@@ -108,5 +110,5 @@ test("rotated walls still enclose two rooms joined by a portal", () => {
   }));
   const { zones, portals } = generateZones(toOccluders(rotated), floor);
   expect(zones).toHaveLength(2);
-  expect(portals).toHaveLength(1);
+  expect(portals.filter(portal => portal.a !== null)).toHaveLength(1);
 });

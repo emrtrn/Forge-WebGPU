@@ -13,7 +13,7 @@
 import { BoxGeometry, DoubleSide, EdgesGeometry, Group, LineBasicNodeMaterial, LineSegments, Matrix4, Mesh, MeshBasicNodeMaterial, PlaneGeometry, Quaternion, Vector3, type BufferGeometry, type Sprite, type UniformNode } from "three/webgpu";
 import { uniform } from "three/tsl";
 import { parseComponentTypeTag, type ActorId, type ComponentRecord, type WorldActor } from "../../core/index.ts";
-import { buildZoneSet, type PortalInput, type ZoneInput } from "../../engine/world/zones.ts";
+import { buildZoneSet, OUTSIDE, type PortalInput, type ZoneInput } from "../../engine/world/zones.ts";
 import { defineEditorRenderBinding, type EditorHelperContext } from "../../render/editor/editorBinding.ts";
 import { tagActorObject } from "../../render/sync/pickTags.ts";
 import { componentWorldMatrix } from "../../render/sync/transforms.ts";
@@ -21,6 +21,7 @@ import { Portal, Zone, type PortalData, type ZoneData } from "./schema.ts";
 
 const ZONE_COLOR = "#45a8ff";
 const PORTAL_COLOR = "#ffa13d";
+const OUTSIDE_COLOR = "#32c7a4";
 const FILL = { idle: 0.04, lit: 0.12 };
 const EDGE = { idle: 0.45, lit: 1 };
 const ICON_SCALE = 0.6;
@@ -143,14 +144,23 @@ export default defineEditorRenderBinding({
           halfSize: [Math.abs(data.size[0] * scale.x) / 2, Math.abs(data.size[1] * scale.y) / 2], zoneA: data.zoneA, zoneB: data.zoneB });
       }
       const next = new Map<ActorId, ActorId[]>();
+      const exterior = new Set<string>();
       const join = (from: string, to: string): void => {
         const list = next.get(from as ActorId) ?? [];
         list.push(to as ActorId);
         next.set(from as ActorId, list);
       };
       for (const link of buildZoneSet(zones, portals).links) {
-        join(link.a, link.portal); join(link.b, link.portal);
-        join(link.portal, link.a); join(link.portal, link.b);
+        for (const side of [link.a, link.b]) {
+          if (side === OUTSIDE) exterior.add(link.portal);
+          else { join(side, link.portal); join(link.portal, side); }
+        }
+      }
+      for (const entry of placed.values()) {
+        if (entry.kind !== "portal") continue;
+        const color = exterior.has(entry.actor) ? OUTSIDE_COLOR : PORTAL_COLOR;
+        (entry.fill.material as MeshBasicNodeMaterial).color.set(color);
+        (entry.edges.material as LineBasicNodeMaterial).color.set(color);
       }
       lit = next;
     };

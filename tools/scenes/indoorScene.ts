@@ -14,6 +14,7 @@ export interface IndoorSceneOptions {
   readonly propsPerRoom?: number;
   readonly origin?: Vec3;
   readonly seed?: number;
+  readonly exteriorOpenings?: boolean;
 }
 export interface IndoorPose {
   readonly id: string;
@@ -53,7 +54,7 @@ export function indoorScene(options: IndoorSceneOptions = {}): IndoorScene {
   const {
     roomsX = 8, roomsZ = 8, roomSize = 8, wallHeight = 3,
     wallThickness = 0.3, doorWidth = 1.6, doorHeight = 2.2,
-    propsPerRoom = 12, origin = [0, 0, 0], seed = 1,
+    propsPerRoom = 12, origin = [0, 0, 0], seed = 1, exteriorOpenings = false,
   } = options;
   const fail = (message: string): never => { throw new Error(`indoor scene: ${message}`); };
   for (const [name, value] of Object.entries({ roomsX, roomsZ, roomSize, wallHeight,
@@ -123,13 +124,16 @@ export function indoorScene(options: IndoorSceneOptions = {}): IndoorScene {
             axis === 'x' ? [wallThickness, height, length] : [length, height, wallThickness]);
         };
         const start = segment * roomSize;
-        if (line === 0 || line === lines) {
+        const entry = exteriorOpenings && axis === 'x' && line === 0 && segment === 0;
+        const window = exteriorOpenings && axis === 'x' && line === lines && segment === 0;
+        if ((line === 0 || line === lines) && !entry && !window) {
           piece('Wall outer', start + roomSize / 2, 0, roomSize, wallHeight);
         } else {
           const side = (roomSize - doorWidth) / 2;
           piece('Wall left', start + side / 2, 0, side, wallHeight);
           piece('Wall right', start + roomSize - side / 2, 0, side, wallHeight);
           piece('Lintel', start + roomSize / 2, doorHeight, doorWidth, wallHeight - doorHeight);
+          if (window) piece('Window sill', start + roomSize / 2, 0, doorWidth, doorHeight / 2);
         }
       }
     }

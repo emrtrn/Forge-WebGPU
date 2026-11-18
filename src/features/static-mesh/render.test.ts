@@ -5,6 +5,7 @@ import { modelMaterialSlots } from "../../render/resources/modelSetup.ts";
 import type { ModelTemplate, WorldResources } from "../../render/resources/worldResources.ts";
 import type { RenderBindingContext } from "../../render/sync/renderBinding.ts";
 import { slotOfHit } from "../../render/sync/pickTags.ts";
+import { createZoneDrawing, type ZoneDrawing } from "../../render/sync/zoneDrawing.ts";
 import binding, { assignSlotMaterials, modelParts, slotMaterialIds, staticMeshBatchKey } from "./render.ts";
 
 const MODEL = "ast_00000000000000000000000000000001";
@@ -95,7 +96,7 @@ describe("static mesh material slots", () => {
 
 
 /** A world with static mesh actors (one component each), and the resources the binding asks. */
-function harness(placements: Record<string, unknown>[]) {
+function harness(placements: Record<string, unknown>[], zones?: ZoneDrawing) {
   const { template, body, trim } = twoSlotModel();
   const materials = new Map([[MOSS, new MeshStandardNodeMaterial({ name: "moss", color: "#b9c0c6" })], [BRICK, new MeshStandardNodeMaterial({ name: "brick" })]]);
   const released: string[] = [];
@@ -118,6 +119,7 @@ function harness(placements: Record<string, unknown>[]) {
     root,
     resources,
     lighting: null,
+    ...(zones ? { zones } : {}),
     quality: () => ({ foliageCullDistanceScale: 1 }),
   } as unknown as RenderBindingContext;
   const instance = binding.create(ctx);
@@ -128,6 +130,29 @@ function harness(placements: Record<string, unknown>[]) {
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 const instanced = (root: Object3D): InstancedMesh[] => root.children.filter((child): child is InstancedMesh => child instanceof InstancedMesh);
+
+test("rekeys model placements after loading bounds and leaves a protruding model unzoned", async () => {
+  const zone = {
+    id: "act_a0000000000000000000000000000001", parent: null,
+    transform: { p: [4.9, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] },
+    components: { zone: { type: "forge.zone@1", parent: null, size: [10.9, 3, 3] } },
+  } as unknown as WorldActor;
+  const zones = createZoneDrawing({
+    services: null as unknown as RenderBindingContext["world"]["services"],
+    actor: () => zone,
+    componentsOf: (type) => type === "forge.zone" ? [{ actor: zone, key: "zone", component: zone.components.zone! }] : [],
+  });
+  zones.refresh([zone]);
+
+  const { instance, root, frame } = harness([{}, {}], zones);
+  expect(zones.stats().tracked).toBe(0);
+  await settle();
+  frame();
+  expect(zones.stats().tracked).toBe(1);
+  expect(instanced(root).map(mesh => mesh.count)).toEqual([1, 1, 1, 1]);
+  instance.dispose?.();
+  expect(zones.stats().tracked).toBe(0);
+});
 
 describe("static mesh binding (instanced)", () => {
   test("one batch per model: an instanced mesh per part with the slot materials, cast as the component says, always received", async () => {

@@ -6,9 +6,10 @@ import { effectiveComponents, type ClassResolver } from "../../core/level/actorC
 import type { ActorDoc, ComponentMap, ComponentRecord } from "../../core/level/model.ts";
 import { parseComponentTypeTag } from "../../core/schema/component.ts";
 import { worldMatrixOf } from "../edit/hierarchy.ts";
-import { composeMat4, multiplyMat4, type Mat4 } from "../math/affine.ts";
-import type { ShapePrimitiveName } from "../procgen/shapePrimitives.ts";
+import { composeMat4, decomposeMat4, multiplyMat4, type Mat4 } from "../math/affine.ts";
+import { SHAPE_PLANE_SIZE, SHAPE_SOLID_SIZE, type ShapePrimitiveName } from "../procgen/shapePrimitives.ts";
 import { detailCullDistance } from "./detailCulling.ts";
+import { buildZoneSet, transformZoneBox, zoneOfBox, type ZoneBox, type ZoneInput, type ZoneSet } from "./zones.ts";
 
 import { createServiceKey } from "../../core/world/services.ts";
 import type { HlodIndex as HlodIndexDoc } from "../../core/level/hlod.ts";
@@ -111,6 +112,50 @@ export function hlodPlacementsOf(
   return placements;
 }
 
+export interface HlodZoneContext {
+  readonly set: ZoneSet;
+  readonly source: string;
+}
+
+/** Effective zone bounds and a stable source signature shared by the bake and editor checks. */
+export function hlodZonesOf(actors: readonly ActorDoc[], resolveClass: ClassResolver): HlodZoneContext | null {
+  const lookup = new Map(actors.map(actor => [actor.id, actor]));
+  const zones: ZoneInput[] = [], sources: string[] = [];
+  for (const actor of actors) {
+    const components = effectiveComponents(actor, actor.class ? resolveClass(actor.class) : undefined);
+    let zoneFound = false;
+    for (const [key, component] of Object.entries(components)) {
+      const name = parseComponentTypeTag(component.type)?.name;
+      if (name !== "forge.zone" && name !== "forge.portal") continue;
+      if (!Array.isArray(component.size)) continue;
+      const matrix = placementMatrix(worldMatrixOf(id => lookup.get(id), actor), components, key);
+      if (name === "forge.portal") {
+        sources.push(JSON.stringify([actor.id, key, name, matrix, component.size, component.zoneA, component.zoneB]));
+        continue;
+      }
+      if (zoneFound) continue;
+      zoneFound = true;
+      const { p, r, s } = decomposeMat4(matrix);
+      const [x, y, z] = component.size as [number, number, number];
+      zones.push({ id: actor.id, center: p, rotation: r, halfExtents: [Math.abs(x * s[0]) / 2, Math.abs(y * s[1]) / 2, Math.abs(z * s[2]) / 2] });
+      sources.push(JSON.stringify([actor.id, key, name, matrix, component.size, component.alwaysCastShadows]));
+    }
+  }
+  return sources.length ? { set: buildZoneSet(zones, []), source: fnv1a(JSON.stringify(sources.sort())) } : null;
+}
+
+export function hlodPlacementInZone(placement: HlodPlacement, zones: HlodZoneContext | null, modelBounds?: ZoneBox): boolean {
+  if (!zones?.set.zones.length) return false;
+  let local = modelBounds;
+  if (isHlodShapePlacement(placement)) {
+    const plane = placement.shape === "plane";
+    const width = (plane ? SHAPE_PLANE_SIZE : SHAPE_SOLID_SIZE) / 2;
+    const height = plane ? 0 : width;
+    local = { min: [-width, -height, -width], max: [width, height, width] };
+  }
+  return local !== undefined && zoneOfBox(zones.set, transformZoneBox(local, placement.matrix)) !== null;
+}
+
 /** A cluster's hash covers its cells' index entries (key and sourceHash), in any order. */
 export function hlodClusterSourceHash(cells: readonly { readonly key: string; readonly sourceHash: string }[]): string {
   return fnv1a(JSON.stringify(cells.map((cell) => `${cell.key}:${cell.sourceHash}`).sort()));
@@ -125,14 +170,14 @@ function fnv1a(source: string): string {
 }
 
 /** Order-independent FNV-1a; asset bytes and editor visibility are not document inputs. */
-export function hlodCellSourceHash(placements: readonly HlodPlacement[]): string {
+export function hlodCellSourceHash(placements: readonly HlodPlacement[], zoneSource?: string): string {
   const rounded = (values: readonly number[]) => values.map((value) => Math.round(value * 1e4) / 1e4);
   // Model entries keep their pre-R1 form, so levels without shapes keep their hashes; a landmark
   // (plan 5c R8.4) adds a marker only when on, so unmarked levels keep theirs too.
   const canonical = placements.map((placement) => JSON.stringify([...(isHlodShapePlacement(placement)
     ? [`shape:${placement.shape}`, placement.color, rounded(placement.matrix)]
     : [placement.model, placement.materials, placement.color, rounded(placement.matrix)]), ...(placement.landmark ? ["landmark"] : [])])).sort();
-  return fnv1a(JSON.stringify(canonical));
+  return fnv1a(JSON.stringify(zoneSource === undefined ? canonical : [zoneSource, ...canonical]));
 }
 
 /** Largest absolute axis scale, including mirrored and non-uniform transforms. */

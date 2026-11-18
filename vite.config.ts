@@ -18,11 +18,11 @@ export default defineConfig({
       "@forge/editor-sdk": fileURLToPath(new URL("./src/editor-sdk/index.ts", import.meta.url)),
     },
   },
-  // Rapier is only ever imported dynamically (physics, the G8 measurement): left
-  // to discovery, its first import makes the dev server re-optimise and reload
-  // the page mid-run.
+  // Rapier (physics) and the mesh simplifier (the triangle worker) first load
+  // on demand. Pre-bundle them to avoid re-optimising and reloading the page
+  // during the G8 and static path measurements.
   optimizeDeps: {
-    include: ["@dimforge/rapier3d-compat"],
+    include: ["@dimforge/rapier3d-compat", "meshoptimizer/simplifier"],
   },
   server: {
     port: DEV_PORT,

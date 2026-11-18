@@ -40,7 +40,7 @@ export interface ZonesResult {
   readonly edit: EditRunResult;
 }
 
-export async function runZones(args: Args, engineRoot: string): Promise<ZonesResult> {
+export async function runZones(args: Args, engineRoot: string, occludingModels?: ReadonlySet<string>): Promise<ZonesResult> {
   const opened = await openEditProject(engineRoot, args.project);
   const manifest = opened.project.manifest!;
   // Model bounds read from disk as `forge stats` reads them (static meshes as walls).
@@ -63,7 +63,9 @@ export async function runZones(args: Args, engineRoot: string): Promise<ZonesRes
       for (const actor of actors) {
         for (const component of Object.values(actor.components)) {
           const mesh = (component as { mesh?: unknown }).mesh;
-          if (typeof mesh === "string" && !bounds.has(mesh)) bounds.set(mesh, (await readModelInfo((path) => nodeIO.read(path), input, mesh)).bounds);
+          if (typeof mesh === "string" && (!occludingModels || occludingModels.has(mesh)) && !bounds.has(mesh)) {
+            bounds.set(mesh, (await readModelInfo((path) => nodeIO.read(path), input, mesh)).bounds);
+          }
         }
       }
       const occluders = zoneOccluders(actors, (model) => bounds.get(model) ?? null);
@@ -92,7 +94,7 @@ function formatZones({ plan, edit }: ZonesResult, dryRun: boolean): string {
   if (!plan) return "forge zones: nothing was planned";
   const p: ZoneLevelPlan = plan;
   const lines = [
-    `${edit.level}: floor ${p.floorY ?? "not found (no wall reaches eye height)"}`,
+    `${edit.level}: ${p.floorYs.length > 1 ? "floors" : "floor"} ${p.floorYs.join(", ") || "not found (no wall reaches eye height)"}`,
     `zones ${p.zones}, portals ${p.portals}; generated actors replaced ${p.remove.length}; user zones kept ${p.kept} (rooms left to them ${p.skipped})`,
     dryRun ? "dry run: nothing saved" : `files ${edit.files.length === 0 ? "unchanged" : edit.files.map((file) => file.path).join(", ")}`,
   ];
@@ -113,7 +115,7 @@ export async function zonesMain(argv: readonly string[], engineRoot: string): Pr
       const p = result.plan as ZoneLevelPlan | null;
       console.log(JSON.stringify({
         ok: result.edit.ok, level: result.edit.level, dryRun: args.dryRun,
-        ...(p ? { floorY: p.floorY, zones: p.zones, portals: p.portals, replaced: p.remove.length, kept: p.kept, skipped: p.skipped } : {}),
+        ...(p ? { floorY: p.floorY, floorYs: p.floorYs, zones: p.zones, portals: p.portals, replaced: p.remove.length, kept: p.kept, skipped: p.skipped } : {}),
         files: result.edit.files, ...(result.edit.error ? { error: result.edit.error } : {}),
       }, null, 2));
     } else if (result.edit.ok) console.log(formatZones(result, args.dryRun));

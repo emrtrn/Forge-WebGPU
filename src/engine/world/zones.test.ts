@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { cross, dot, IDENTITY_QUAT, multiplyMat4, normalize, quatFromAxisAngle } from "../math/affine.ts";
 import {
-  buildZoneSet, visibleZones, zoneAt,
+  buildZoneSet, OUTSIDE, visibleZones, zoneAt, zoneOfBox,
   type PortalInput, type ZoneInput, type ZoneVec3, type ZoneView,
 } from "./zones.ts";
 
@@ -73,6 +73,25 @@ test("rotated containment excludes a point inside the world-axis bounds", () => 
   expect(zoneAt(set, [1.4, 0, 1.4])).toBeNull();
 });
 
+test("assigns only fully contained placement boxes, with a two centimetre boundary tolerance", () => {
+  const set = buildZoneSet([box("large", [0, 0, 0], [2, 2, 2]), box("small", [0, 0, 0], [1, 1, 1])], []);
+  const min = [-.5, -.5, -.5] as const;
+  expect(zoneOfBox(set, { min, max: [1.02, .5, .5] })).toBe("small");
+  expect(zoneOfBox(set, { min, max: [1.021, .5, .5] })).toBe("large");
+  expect(zoneOfBox(set, { min, max: [1.01, .5, .5] }, 0)).toBe("large");
+  expect(zoneOfBox(set, { min, max: [2.05, .5, .5] })).toBeNull();
+  expect(zoneOfBox(set, { min, max: [-1, 0, 0] })).toBeNull();
+});
+
+test("checks all placement corners against the rotated zone", () => {
+  const set = buildZoneSet([{
+    ...box("angled", [0, 0, 0], [2, 1, .5]),
+    rotation: quatFromAxisAngle([0, 1, 0], Math.PI / 4),
+  }], []);
+  expect(zoneOfBox(set, { min: [-.2, -.2, -.2], max: [.2, .2, .2] })).toBe("angled");
+  expect(zoneOfBox(set, { min: [-.4, -.2, -.4], max: [.4, .2, .4] })).toBeNull();
+});
+
 test("links wall-gap portals in input order using probes and valid pins", () => {
   const rooms = rowRooms.slice(0, 2);
   const set = buildZoneSet(rooms, [
@@ -86,11 +105,12 @@ test("links wall-gap portals in input order using probes and valid pins", () => 
 
   expect(set.links).toEqual([
     { portal: "AB", a: "B", b: "A" },
+    { portal: "exterior", a: "A", b: OUTSIDE },
     { portal: "pinned-a", a: "B", b: "A" },
     { portal: "pinned-b", a: "B", b: "A" },
     { portal: "both-pinned", a: "A", b: "B" },
   ]);
-  expect(set.unlinked).toEqual(["exterior", "same-zone"]);
+  expect(set.unlinked).toEqual(["same-zone"]);
   expect(buildZoneSet(rooms, [doorAB], { probeSteps: [0.05] }).unlinked).toEqual(["AB"]);
 });
 
@@ -117,11 +137,24 @@ test("authored and frame-specific closures both prevent traversal", () => {
   expect(visibleZones(open, forward, { closed: new Set(["AB"]) })).toEqual(expected);
 });
 
-test("a camera outside every zone sees everything without testing portals", () => {
+test("a camera outside sees no rooms without an exterior connection", () => {
   const set = buildZoneSet(rowRooms, [doorAB, doorBC]);
   expect(visibleZones(set, camera([-3, 0, 0], [1, 0, 0]))).toEqual({
-    cameraZone: null, zones: null, portalTests: 0, portalsPassed: 0,
+    cameraZone: null, zones: new Set(), portalTests: 0, portalsPassed: 0, exteriorPortalTests: 0,
   });
+});
+
+test("outdoor traversal uses exterior portals in range and frustum before spending the budget", () => {
+  const entrance = door("entrance", [-2, 0, 0]);
+  const behind = { ...door("behind", [-20, 0, 0]), zoneA: "C", zoneB: OUTSIDE };
+  const far = { ...door("far", [70, 0, 0]), zoneA: "C", zoneB: OUTSIDE };
+  const set = buildZoneSet(rowRooms, [behind, far, entrance, doorAB]);
+  const eye = camera([-6, 0, 0], [1, 0, 0]);
+  expect(visibleZones(set, eye, { maxPortalTests: 2 })).toEqual({
+    cameraZone: null, zones: new Set(["A", "B"]), portalTests: 2, portalsPassed: 2, exteriorPortalTests: 2,
+  });
+  expect(visibleZones(set, eye, { maxPortalTests: 0 }).zones).toBeNull();
+  expect(visibleZones(set, eye, { exteriorRange: 2 }).zones).toEqual(new Set());
 });
 
 test("the doorway exception works along the wall within reach of the finite opening", () => {

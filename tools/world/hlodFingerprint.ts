@@ -3,7 +3,7 @@ import { CELL_INDEX_FILE, LEVEL_FILE, cellFileOf } from "../../src/core/index.ts
 import { fileRevision } from "../assets/revision.ts";
 import { contentPath, hlodCellsOf, loadHlodLevel, type HlodInput } from "./hlodInput.ts";
 import { validateHlodOptions, type HlodBuildOptions } from "./hlodBuild.ts";
-import { isHlodShapePlacement } from "../../src/engine/world/hlod.ts";
+import { hlodZonesOf, isHlodShapePlacement } from "../../src/engine/world/hlod.ts";
 
 /** Bump when the shape generator's output changes: every stamp with it goes stale. */
 export const HLOD_SHAPE_GENERATOR = 1;
@@ -46,6 +46,7 @@ export async function dependencyRevisions(input: HlodInput, paths: Iterable<stri
  * Byte reads add GLTF buffers/images and resources not represented in AssetIndex. */
 export async function fingerprintHlod(folder: string, input: HlodInput, options: HlodBuildOptions) {
   const level = loadHlodLevel(folder, input);
+  const zoneSource = hlodZonesOf(level.actors, input.index.resolveClass)?.source;
   const cells = [...hlodCellsOf(level, input)].sort(([a], [b]) => a.localeCompare(b));
   const files = new Map(input.files.map((file) => [contentPath(file), file]));
   const dependencies = new Set<string>([`${folder}/${LEVEL_FILE}`, `${folder}/${CELL_INDEX_FILE}`]);
@@ -84,5 +85,6 @@ export async function fingerprintHlod(folder: string, input: HlodInput, options:
     }
   }
   return { stamp: digest({ level: level.id, cellSize: level.settings.cellSize, loadRange: level.settings.loadRange,
-    cells, resolutions, options: validateHlodOptions(options), shapes: HLOD_SHAPE_GENERATOR }), revisions };
+    cells, resolutions, options: validateHlodOptions(options), shapes: HLOD_SHAPE_GENERATOR,
+    ...(zoneSource ? { zones: zoneSource } : {}) }), revisions };
 }

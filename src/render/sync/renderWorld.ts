@@ -31,6 +31,7 @@ import { createDefaultLighting } from "./defaultLighting.ts";
 import { createZoneDrawing, type ZoneDrawing } from "./zoneDrawing.ts";
 import { createHlodProxies, type HlodProxies } from "./hlodProxies.ts";
 import { HlodSourceKey } from "../../engine/world/hlod.ts";
+import { PortalSidesKey } from "../../engine/world/zones.ts";
 import { RenderReadinessKey } from "../../engine/world/renderReadiness.ts";
 import { createEnvironmentOverride } from "./environment.ts";
 import { createOutputState } from "./output.ts";
@@ -118,6 +119,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       const output = outputState.output;
       const effectiveQuality = sceneShadowQuality(view, options.quality);
       const zones = createZoneDrawing(view);
+      ctx.services.provide(PortalSidesKey, zones);
       const instances: RenderBindingInstance[] = bindings.map((binding) =>
         binding.create({
           world: view, scene, root, resources, lighting, environment: environment.environment, output,

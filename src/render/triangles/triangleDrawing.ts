@@ -1,11 +1,13 @@
 // R7 opt-in automatic LOD infrastructure. General static migration is R9.
-import { BufferAttribute, BufferGeometry, Group, Matrix4, Vector2, type Camera, type InstancedMesh, type Material, type Object3D, type WebGPURenderer } from "three/webgpu";
+import { BufferAttribute, BufferGeometry, Group, Matrix4, Vector2, type Box3, type Camera, type InstancedMesh, type Material, type Object3D, type WebGPURenderer } from "three/webgpu";
 import { mergeTriangleLods } from "../../engine/geometry/mergeTriangleLods.ts";
 import { projectedLodStarts, TRIANGLE_VERSION, type TriangleData, type TriangleInput } from "../../engine/geometry/triangleData.ts";
 import { detailCullDistance, detailCullWindow } from "../../engine/world/detailCulling.ts";
 import { NO_CULL_DISTANCE } from "../../engine/world/instanceCulling.ts";
+import type { ZoneBox } from "../../engine/world/zones.ts";
 import type { GpuDrivenDrawing } from "../gpu/gpuDriven.ts";
 import { MAIN_VIEW_LAYER, shadowViewLayer, type GpuDrivenBatch } from "../gpu/gpuDrivenBatch.ts";
+import { placementBox } from "../sync/batchCells.ts";
 import { triangleInput } from "./triangleSource.ts";
 
 /**
@@ -37,7 +39,7 @@ export interface TriangleBinding {
 }
 /** The world's zones as the LOD path needs them (`render/sync/zoneDrawing.ts`). */
 export interface TriangleZones {
-  slotOf(point: readonly [number, number, number]): number;
+  slotOf(box: ZoneBox): number;
   readonly revision: number;
 }
 
@@ -49,7 +51,7 @@ export interface TriangleDrawing {
    * buffer, parts) replaces it.
    * The owner retains sources through compilation, including cancelled work.
    */
-  prepare(source: InstancedMesh, detailRadius?: number, bundle?: boolean, local?: Matrix4, pieces?: readonly LodPiece[]): Promise<TriangleBinding>;
+  prepare(source: InstancedMesh, detailRadius?: number, bundle?: boolean, local?: Matrix4, pieces?: readonly LodPiece[], placementBounds?: Box3): Promise<TriangleBinding>;
   /** Once a frame before the cull; `zones` (plan 5c R9b) gives each instance its zone slot when the set or the matrices change. */
   update(camera: Camera, qualityScale: number, zones?: TriangleZones | null): void;
   dispose(): void;
@@ -83,7 +85,7 @@ export function createTriangleDrawing(renderer: WebGPURenderer, gpu: GpuDrivenDr
     return mergeTriangleLods(pieces.map((piece, i) => ({ data: chains[i]!, vertexOffset: piece.vertexOffset, vertexCount: piece.vertexCount, flip: piece.flip, scale: piece.scale })), `merged:${chains.map((chain) => chain.key).join("+")}`);
   };
   return {
-    async prepare(source, detailRadius, bundle = false, local = new Matrix4(), pieces) {
+    async prepare(source, detailRadius, bundle = false, local = new Matrix4(), pieces, placementBounds) {
       if (disposed) throw new Error("triangles: drawing disposed");
       if (source.geometry.drawRange.start !== 0 || source.geometry.drawRange.count !== Infinity || Object.keys(source.geometry.morphAttributes).length) throw new Error("triangles: source must be a complete, static triangle primitive");
       const cullDistance = detailRadius === undefined ? null : detailCullDistance(detailRadius);
@@ -151,9 +153,8 @@ export function createTriangleDrawing(renderer: WebGPURenderer, gpu: GpuDrivenDr
             for (let i = 0; i < source.count; i += 1) {
               source.getMatrixAt(i, placement); placement.multiply(inverseLocal).premultiply(source.matrixWorld);
               batch.instances.move(handles[i]!, placement.elements); maxScale = Math.max(maxScale, placement.getMaxScaleOnAxis());
-              // R9b: the placement's zone (its origin), culled by this frame's zone masks.
-              const e = placement.elements;
-              batch.instances.setZone(handles[i]!, zones ? zones.slotOf([e[12]!, e[13]!, e[14]!]) : 0);
+              const slot = zones && placementBounds ? zones.slotOf(placementBox(placementBounds, placement)) : 0;
+              batch.instances.setZone(handles[i]!, slot);
             }
             version = source.instanceMatrix.version; matrix.copy(source.matrixWorld); zoneRevision = zonesNow;
           }

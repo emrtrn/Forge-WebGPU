@@ -11,7 +11,7 @@ import { MeshoptSimplifier } from "meshoptimizer";
 import { compareCellKeys, parseCellKey, stringifyDocument, type Vec3 } from "../../src/core/index.ts";
 import {
   HLOD_SCHEMA, HLOD_INDEX_FILE, HLOD_LANDMARK_FILE, hlodCellFileOf, hlodCellSourceHash, hlodClusterFileOf, hlodClusterOf, hlodClusterSourceHash,
-  hlodIncludesPlacement, isHlodShapePlacement, maxAxisScale,
+  hlodIncludesPlacement, hlodPlacementInZone, hlodZonesOf, isHlodShapePlacement, maxAxisScale,
   type HlodIndex, type HlodPlacement,
 } from "../../src/engine/world/hlod.ts";
 import { multiplyMat4, transformPoint, type Mat4 } from "../../src/engine/math/affine.ts";
@@ -101,6 +101,7 @@ export function validateHlodOptions(options: HlodBuildOptions): { ratio: number;
 export async function buildLevelHlod(folder: string, input: HlodInput, options: HlodBuildOptions = {}): Promise<HlodBuildResult> {
   const { ratio, error } = validateHlodOptions(options);
   const level = loadHlodLevel(folder, input);
+  const zones = hlodZonesOf(level.actors, input.index.resolveClass);
   const warnings: string[] = [], warned = new Set<string>();
   const warn = (key: string, message: string): void => { if (!warned.has(key)) { warned.add(key); warnings.push(message); } };
   const assets = await createHlodAssets(input, warn);
@@ -132,6 +133,7 @@ export async function buildLevelHlod(folder: string, input: HlodInput, options: 
     const before = vertexCount(target);
     const center: Vec3 | null = landmark ? [placement.matrix[12]!, placement.matrix[13]!, placement.matrix[14]!] : null;
     if (isHlodShapePlacement(placement)) {
+      if (hlodPlacementInZone(placement, zones)) return false;
       if (!landmark && !hlodIncludesPlacement(shapeBoundingRadius(placement.shape), maxAxisScale(placement.matrix), level.settings.loadRange)) return false;
       const mesh = shapeMesh(placement.shape), color = linearColor(placement.color);
       const at = (index: number): Vec3 => [mesh.positions[index * 3]!, mesh.positions[index * 3 + 1]!, mesh.positions[index * 3 + 2]!];
@@ -141,7 +143,8 @@ export async function buildLevelHlod(folder: string, input: HlodInput, options: 
       return vertexCount(target) > before;
     }
     const asset = await assets.loadAsset(placement.model);
-    if (!asset || (!landmark && !hlodIncludesPlacement(asset.radius, maxAxisScale(placement.matrix), level.settings.loadRange))) return false;
+    if (!asset || hlodPlacementInZone(placement, zones, asset.bounds) ||
+      (!landmark && !hlodIncludesPlacement(asset.radius, maxAxisScale(placement.matrix), level.settings.loadRange))) return false;
     for (const part of asset.parts) {
       const source = part.primitive.getAttribute("POSITION")!;
       const indices = part.primitive.getIndices();
@@ -168,7 +171,7 @@ export async function buildLevelHlod(folder: string, input: HlodInput, options: 
     if (!proxy) continue;
     proxy.doc.getRoot().setExtras({ hlodSourceTriangles: (target[0].positions.length + 2 * target[1].positions.length) / 9 });
     files.set(hlodCellFileOf(key), await assets.nodeIO.writeBinary(proxy.doc));
-    const entry = { key, triangles: proxy.triangles, sourceHash: hlodCellSourceHash(placements) };
+    const entry = { key, triangles: proxy.triangles, sourceHash: hlodCellSourceHash(placements, zones?.source) };
     entries.push(entry);
     const coord = parseCellKey(key)!;
     const cluster = hlodClusterOf(coord.x, coord.z);
@@ -195,7 +198,7 @@ export async function buildLevelHlod(folder: string, input: HlodInput, options: 
     const proxy = vertexCount(target) ? proxyOf(await simplifyBuckets(target, ratio, error)) : null;
     if (proxy) {
       files.set(HLOD_LANDMARK_FILE, await assets.nodeIO.writeBinary(proxy.doc));
-      landmarks = { triangles: proxy.triangles, sourceHash: hlodCellSourceHash(landmarkPlacements) };
+      landmarks = { triangles: proxy.triangles, sourceHash: hlodCellSourceHash(landmarkPlacements, zones?.source) };
     }
   }
   const index: HlodIndex = { schema: HLOD_SCHEMA, level: level.id, cellSize: level.settings.cellSize, cells: entries, clusters, ...(landmarks ? { landmarks } : {}) };

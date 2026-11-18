@@ -1,17 +1,34 @@
 // Zones and portals (plan 5c R9b Z2): which indoor zones the camera can see.
 // Pure data, no three; the renderer (`render/sync/zoneDrawing.ts`) feeds world
 // boxes and rectangles and asks once per frame. A placement belongs to the
-// smallest zone holding it (`zoneAt`); a portal joins the zones its probes
+// smallest zone holding its world box; a portal joins the zones its probes
 // find on either side unless pinned by hand. Visibility walks the portal
 // graph from the camera's zone, narrowing the screen rectangle to each
 // portal's projected bounds (classic portal culling): no precomputation, so
-// it stays valid while the level is edited. A camera in no zone, or a frame
-// whose portal budget runs out, sees everything.
+// it stays valid while the level is edited. A camera in no zone starts at
+// OUTSIDE. A frame whose portal budget runs out sees everything.
 
-import { add, invertQuat, rotate, scale, sub } from "../math/affine.ts";
+import { add, invertQuat, rotate, scale, sub, transformPoint, type Mat4 } from "../math/affine.ts";
+import { createServiceKey } from "../../core/world/services.ts";
 
 export type ZoneVec3 = readonly [number, number, number];
 export type ZoneQuat = readonly [number, number, number, number];
+
+/** Axis-aligned placement bounds in world space. */
+export interface ZoneBox {
+  readonly min: ZoneVec3;
+  readonly max: ZoneVec3;
+}
+
+/** Conservative world AABB of an affine-transformed local box. */
+export function transformZoneBox({ min, max }: ZoneBox, matrix: Mat4): ZoneBox {
+  const center = transformPoint(matrix, scale(add(min, max), 0.5));
+  const half = scale(sub(max, min), 0.5);
+  const extent = (axis: number): number => Math.abs(matrix[axis]!) * half[0]
+    + Math.abs(matrix[axis + 4]!) * half[1] + Math.abs(matrix[axis + 8]!) * half[2];
+  const worldHalf: ZoneVec3 = [extent(0), extent(1), extent(2)];
+  return { min: sub(center, worldHalf), max: add(center, worldHalf) };
+}
 
 /** A zone in world space: an oriented box. */
 export interface ZoneInput {
@@ -53,6 +70,8 @@ export interface ZoneSet {
   /** Portal ids that could not be linked, in input order. */
   readonly unlinked: readonly string[];
   readonly portalsByZone: ReadonlyMap<string, readonly PortalConnection[]>;
+  readonly exteriorCells: ReadonlyMap<string, readonly PortalConnection[]>;
+  readonly wideExterior: readonly PortalConnection[];
 }
 
 export interface ZoneSetOptions {
@@ -61,6 +80,12 @@ export interface ZoneSetOptions {
 }
 
 export const PORTAL_PROBE_STEPS: readonly number[] = [0.05, 0.25, 0.5, 1, 2];
+export const OUTSIDE = "outside";
+export const PortalSidesKey = createServiceKey<{ portalSides(id: string): readonly [string, string] | null }>("forge.portalSides");
+export const DEFAULT_EXTERIOR_RANGE = 40;
+const EXTERIOR_CELL_SIZE = 32;
+const CONTAINMENT_EPSILON = 1e-6;
+const PLACEMENT_TOLERANCE = 0.02;
 
 function volume(zone: ZoneInput): number {
   const [hx, hy, hz] = zone.halfExtents;
@@ -69,13 +94,32 @@ function volume(zone: ZoneInput): number {
 
 /** The smallest zone containing the point, including the boundary. */
 export function zoneAt(set: ZoneSet, point: ZoneVec3): string | null {
-  const epsilon = 1e-6;
   for (const zone of set.zones) {
-    const [x, y, z] = rotate(invertQuat(zone.rotation), sub(point, zone.center));
-    const [hx, hy, hz] = zone.halfExtents;
-    if (Math.abs(x) <= hx + epsilon && Math.abs(y) <= hy + epsilon && Math.abs(z) <= hz + epsilon) {
-      return zone.id;
-    }
+    if (contains(zone, invertQuat(zone.rotation), point, CONTAINMENT_EPSILON)) return zone.id;
+  }
+  return null;
+}
+
+function contains(zone: ZoneInput, inverse: ZoneQuat, point: ZoneVec3, tolerance: number): boolean {
+  const [x, y, z] = rotate(inverse, sub(point, zone.center));
+  const [hx, hy, hz] = zone.halfExtents;
+  return Math.abs(x) <= hx + tolerance && Math.abs(y) <= hy + tolerance && Math.abs(z) <= hz + tolerance;
+}
+
+/** Smallest oriented zone containing every corner of the placement's world AABB. */
+export function zoneOfBox(set: ZoneSet, { min, max }: ZoneBox, tolerance = PLACEMENT_TOLERANCE): string | null {
+  if (!Number.isFinite(tolerance) || tolerance < 0 ||
+    min.some((value, axis) => !Number.isFinite(value) || !Number.isFinite(max[axis]) || value > max[axis]!)) return null;
+
+  const center = scale(add(min, max), 0.5);
+  const margin = tolerance + CONTAINMENT_EPSILON;
+  const corners: ZoneVec3[] = [min, max,
+    [min[0], min[1], max[2]], [min[0], max[1], min[2]], [max[0], min[1], min[2]],
+    [min[0], max[1], max[2]], [max[0], min[1], max[2]], [max[0], max[1], min[2]],
+  ];
+  for (const zone of set.zones) {
+    const inverse = invertQuat(zone.rotation);
+    if (contains(zone, inverse, center, margin) && corners.every(corner => contains(zone, inverse, corner, margin))) return zone.id;
   }
   return null;
 }
@@ -101,8 +145,11 @@ export function buildZoneSet(
   const links: PortalLink[] = [];
   const unlinked: string[] = [];
   const portalsByZone = new Map<string, PortalConnection[]>();
+  const exteriorCells = new Map<string, PortalConnection[]>();
+  const wideExterior: PortalConnection[] = [];
   for (const zone of sortedZones) portalsByZone.set(zone.id, []);
-  const set: ZoneSet = { zones: sortedZones, links, unlinked, portalsByZone };
+  portalsByZone.set(OUTSIDE, []);
+  const set: ZoneSet = { zones: sortedZones, links, unlinked, portalsByZone, exteriorCells, wideExterior };
   const steps = options?.probeSteps ?? PORTAL_PROBE_STEPS;
 
   for (const portal of portals) {
@@ -121,6 +168,11 @@ export function buildZoneSet(
         a ??= other;
         b ??= other;
       }
+      // A single resolved side with an open probe direction leads outdoors.
+      if (front === null || back === null) {
+        if (a === null && b !== null) a = OUTSIDE;
+        if (b === null && a !== null) b = OUTSIDE;
+      }
     }
 
     if (a === null || b === null || a === b) {
@@ -130,6 +182,17 @@ export function buildZoneSet(
       portalsByZone.get(a)!.push({ next: b, portal });
       portalsByZone.get(b)!.push({ next: a, portal });
     }
+  }
+  for (const connection of portalsByZone.get(OUTSIDE)!) {
+    const { portal } = connection;
+    if (Math.hypot(...portal.halfSize) > EXTERIOR_CELL_SIZE) {
+      wideExterior.push(connection);
+      continue;
+    }
+    const key = exteriorCellKey(Math.floor(portal.center[0] / EXTERIOR_CELL_SIZE), Math.floor(portal.center[2] / EXTERIOR_CELL_SIZE));
+    const cell = exteriorCells.get(key);
+    if (cell) cell.push(connection);
+    else exteriorCells.set(key, [connection]);
   }
   return set;
 }
@@ -148,6 +211,8 @@ export interface VisibleZoneOptions {
   readonly maxPortalTests?: number;
   /** Cameras closer to the portal rectangle pass without narrowing. Default 0.3 m. */
   readonly nearPortal?: number;
+  /** Maximum eye-to-opening distance for outdoor branches. Default 40 m. */
+  readonly exteriorRange?: number;
   /** Additional portal ids closed this frame. */
   readonly closed?: ReadonlySet<string>;
 }
@@ -158,6 +223,7 @@ export interface VisibleZones {
   readonly zones: ReadonlySet<string> | null;
   readonly portalTests: number;
   readonly portalsPassed: number;
+  readonly exteriorPortalTests?: number;
 }
 
 interface ScreenRect {
@@ -207,6 +273,25 @@ function portalDistance(portal: PortalInput, point: ZoneVec3): number {
   return Math.hypot(Math.max(0, Math.abs(x) - hw), Math.max(0, Math.abs(y) - hh), z);
 }
 
+const exteriorCellKey = (x: number, z: number): string => `${x},${z}`;
+
+function nearbyExterior(set: ZoneSet, [x, , z]: ZoneVec3, range: number): readonly PortalConnection[] {
+  const reach = range + EXTERIOR_CELL_SIZE;
+  const minX = Math.floor((x - reach) / EXTERIOR_CELL_SIZE), maxX = Math.floor((x + reach) / EXTERIOR_CELL_SIZE);
+  const minZ = Math.floor((z - reach) / EXTERIOR_CELL_SIZE), maxZ = Math.floor((z + reach) / EXTERIOR_CELL_SIZE);
+  if (!Number.isFinite(reach) || !Number.isFinite(x) || !Number.isFinite(z) ||
+    (maxX - minX + 1) * (maxZ - minZ + 1) > set.exteriorCells.size) {
+    return set.portalsByZone.get(OUTSIDE) ?? [];
+  }
+  const nearby = [...set.wideExterior];
+  for (let cellZ = minZ; cellZ <= maxZ; cellZ++) {
+    for (let cellX = minX; cellX <= maxX; cellX++) {
+      for (const connection of set.exteriorCells.get(exteriorCellKey(cellX, cellZ)) ?? []) nearby.push(connection);
+    }
+  }
+  return nearby;
+}
+
 function narrowRect(portal: PortalInput, matrix: readonly number[], rect: ScreenRect): ScreenRect | null {
   const [hw, hh] = portal.halfSize;
   const corner = (x: number, y: number) => toClip(matrix, add(portal.center, rotate(portal.rotation, [x, y, 0])));
@@ -237,24 +322,31 @@ interface ZoneVisit {
 
 export function visibleZones(set: ZoneSet, view: ZoneView, options?: VisibleZoneOptions): VisibleZones {
   const cameraZone = zoneAt(set, view.position);
-  if (cameraZone === null) return { cameraZone, zones: null, portalTests: 0, portalsPassed: 0 };
 
   const maxDepth = options?.maxDepth ?? 8;
   const maxPortalTests = options?.maxPortalTests ?? 256;
   const nearPortal = options?.nearPortal ?? 0.3;
+  const exteriorRange = Math.max(0, options?.exteriorRange ?? DEFAULT_EXTERIOR_RANGE);
   const zones = new Set<string>();
   const path = new Set<string>();
   const stack: ZoneVisit[] = [];
   let portalTests = 0;
   let portalsPassed = 0;
+  let exteriorPortalTests: number | undefined;
 
   function enter(zone: string, rect: ScreenRect): void {
-    zones.add(zone);
+    if (zone !== OUTSIDE) zones.add(zone);
+    else exteriorPortalTests ??= 0;
     path.add(zone);
-    stack.push({ zone, rect, connections: set.portalsByZone.get(zone) ?? [], nextConnection: 0 });
+    const connections = zone === OUTSIDE ? nearbyExterior(set, view.position, exteriorRange) : set.portalsByZone.get(zone) ?? [];
+    stack.push({ zone, rect, connections, nextConnection: 0 });
   }
 
-  enter(cameraZone, { minX: -1, maxX: 1, minY: -1, maxY: 1 });
+  const result = (visible: ReadonlySet<string> | null): VisibleZones => ({
+    cameraZone, zones: visible, portalTests, portalsPassed, ...(exteriorPortalTests === undefined ? {} : { exteriorPortalTests }),
+  });
+
+  enter(cameraZone ?? OUTSIDE, { minX: -1, maxX: 1, minY: -1, maxY: 1 });
   while (stack.length > 0) {
     const visit = stack[stack.length - 1]!;
     const connection = visit.connections[visit.nextConnection];
@@ -268,16 +360,21 @@ export function visibleZones(set: ZoneSet, view: ZoneView, options?: VisibleZone
     // Each path carries its own rectangle, so other paths may revisit a zone.
     const { next, portal } = connection;
     if (portal.open === false || options?.closed?.has(portal.id) || path.has(next)) continue;
-    portalTests += 1;
-    if (portalTests > maxPortalTests) return { cameraZone, zones: null, portalTests, portalsPassed };
-
-    const rect = portalDistance(portal, view.position) < nearPortal
+    const distance = portalDistance(portal, view.position);
+    const fromOutside = visit.zone === OUTSIDE;
+    if (fromOutside && distance > exteriorRange) continue;
+    if (fromOutside) exteriorPortalTests = (exteriorPortalTests ?? 0) + 1;
+    const rect = distance < nearPortal
       ? visit.rect
       : narrowRect(portal, view.viewProjection, visit.rect);
+    // Off-screen outdoor candidates do not spend the traversal budget.
+    if (fromOutside && rect === null) continue;
+    portalTests += 1;
+    if (portalTests > maxPortalTests) return result(null);
     if (rect === null) continue;
     portalsPassed += 1;
     enter(next, rect);
   }
 
-  return { cameraZone, zones, portalTests, portalsPassed };
+  return result(zones);
 }

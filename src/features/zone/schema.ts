@@ -4,7 +4,7 @@
 // - A zone is a box volume: `size` in the component's local frame, times the
 //   world scale, so the gizmo scales it (the box's edges follow the scale) and
 //   rotates it. A static placement belongs to the smallest zone that holds its
-//   bounding sphere's centre; content in no zone is always visible. Hidden
+//   entire world bounds; content in no zone is always visible. Hidden
 //   zones draw nothing and cast no shadow unless `alwaysCastShadows`.
 // - A portal is a rectangle (`size` = width × height in the local X / Y
 //   plane, its normal local Z): a door, window or corridor mouth joining two
@@ -28,7 +28,7 @@ export const Zone = defineComponent(
   },
   {
     label: "Zone Volume",
-    hint: "İç mekânı odalara ayıran kutu. Kamera bir bölgedeyken yalnız portallardan görünen bölgeler çizilir; hiçbir bölgede olmayan içerik hep görünür.",
+    hint: "İç mekânı odalara ayıran kutu. Dünya sınır kutusu 2 cm toleransla tamamen sığan yerleşimler bu bölgeye girebilir. Kamera bir bölgedeyken yalnız portallardan görünen bölgeler çizilir; bölgesiz içerik hep görünür.",
     spatial: true,
   },
 );
@@ -38,8 +38,8 @@ export const Portal = defineComponent(
   1,
   {
     size: vec2({ default: [1.2, 2.2], min: 0.05, max: 1024, step: 0.05, label: "Size (m)", hint: "Açıklığın genişliği ve yüksekliği, metre; nesnenin ölçeğiyle çarpılır. Açıklık yerel X / Y düzleminde, yüzü yerel Z yönünde." }),
-    zoneA: actorRef({ label: "Zone A", hint: "Portalın bağladığı bölge. Boşsa açıklığın kenarına değdiği bölgeler kendiliğinden bulunur." }),
-    zoneB: actorRef({ label: "Zone B", hint: "Portalın bağladığı öbür bölge. Boşsa kendiliğinden bulunur." }),
+    zoneA: actorRef({ label: "Zone A", hint: "Portalın bağladığı bölge. Boşsa açıklığın yanındaki bölge aranır." }),
+    zoneB: actorRef({ label: "Zone B", hint: "Portalın öbür tarafındaki bölge. Yalnız bir bölge bulunursa diğer taraf Outside olarak çözülür." }),
     generated: bool({ default: false, label: "Generated", hint: "Generate Zones bu portalı yazdı ve yeniden üretince değiştirir. Elle düzeltilen portalda kapatın, korunur." }),
   },
   {

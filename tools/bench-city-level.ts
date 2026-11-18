@@ -85,7 +85,10 @@ export async function writeCityLevel(projectPath: string, options: CitySceneOpti
     await rename(stage, folder);
     published = true;
 
-    const zones = await runZones({ project: root, level, floor: 0, json: false, dryRun: false }, ENGINE_ROOT);
+    // The synthetic scene knows which meshes are solid buildings. Tree crowns
+    // and street furniture have coarse bounds that can close outdoor passages.
+    const occludingModels = new Set(scene.models.filter(model => model.name.startsWith("building-")).map(model => model.id));
+    const zones = await runZones({ project: root, level, floor: undefined, json: false, dryRun: false }, ENGINE_ROOT, occludingModels);
     if (!zones.edit.ok || !zones.plan?.zones || !zones.plan.portals) {
       throw new Error(`City zone generation failed: ${zones.edit.error?.message ?? "no rooms or portals"}`);
     }
@@ -96,7 +99,7 @@ export async function writeCityLevel(projectPath: string, options: CitySceneOpti
 
     const report = { level, poses: scene.poses, walk: scene.walk, settings: scene.settings, counts: scene.counts,
       options: { seed: options.seed ?? 1, blocks: options.blocks ?? 8, heavy: options.heavy ?? false },
-      zones: { rooms: zones.plan.zones, portals: zones.plan.portals }, hlod };
+      zones: { rooms: zones.plan.zones, portals: zones.plan.portals, floors: zones.plan.floorYs }, hlod };
     await writeFile(join(cache, "city.json"), stringifyDocument(report), { flag: "wx" });
     return report;
   } catch (error) {

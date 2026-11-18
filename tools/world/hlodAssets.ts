@@ -4,8 +4,10 @@ import { createRequire } from "node:module";
 import { NodeIO, getBounds, type Material, type Node, type Primitive, type Texture } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { MeshoptDecoder } from "meshoptimizer";
+import type { Vec3 } from "../../src/core/index.ts";
 import { averageLinearColor } from "../../src/engine/world/hlod.ts";
 import type { Mat4 } from "../../src/engine/math/affine.ts";
+import { transformZoneBox, type ZoneBox } from "../../src/engine/world/zones.ts";
 import { contentPath, resourcePath, type HlodBuildIO, type HlodInput } from "./hlodInput.ts";
 import { ensureNormals } from "./hlodMath.ts";
 
@@ -17,7 +19,7 @@ export function linearColor(hex: string): RGB {
 }
 
 export interface AssetPart { primitive: Primitive; matrix: Mat4; color: RGB; slot: number }
-export interface LoadedAsset { radius: number; parts: AssetPart[] }
+export interface LoadedAsset { radius: number; parts: AssetPart[]; bounds: ZoneBox }
 export type Warn = (key: string, message: string) => void;
 
 class ContentNodeIO extends NodeIO {
@@ -117,26 +119,36 @@ export async function createHlodAssets(input: HlodInput, warn: Warn) {
         const doc = await nodeIO.read(resourcePath(path));
         const scene = doc.getRoot().getDefaultScene() ?? doc.getRoot().listScenes()[0];
         if (!scene) throw new Error("GLTF has no scene");
-        const bounds = getBounds(scene);
-        const radius = Math.hypot(...bounds.max.map((value, index) => value - bounds.min[index]!)) / 2;
+        const tight = getBounds(scene);
+        const radius = Math.hypot(...tight.max.map((value, index) => value - tight.min[index]!)) / 2;
+        // Match the renderer's union of transformed primitive boxes for zone membership.
+        const min: Vec3 = [Infinity, Infinity, Infinity], max: Vec3 = [-Infinity, -Infinity, -Infinity];
         const slots = input.index.metas.get(id)?.import.materials as readonly (string | null)[] | undefined;
         const materials = new Map<Material | null, number>();
         const parts: AssetPart[] = [];
         const nodes: Node[] = [];
         scene.traverse((node) => nodes.push(node));
         for (const node of nodes) for (const primitive of node.getMesh()?.listPrimitives() ?? []) {
+          const matrix = node.getWorldMatrix(), position = primitive.getAttribute("POSITION");
+          if (position) {
+            const bounds = transformZoneBox({ min: position.getMin([0, 0, 0]) as Vec3, max: position.getMax([0, 0, 0]) as Vec3 }, matrix);
+            for (const axis of [0, 1, 2] as const) {
+              min[axis] = Math.min(min[axis], bounds.min[axis]);
+              max[axis] = Math.max(max[axis], bounds.max[axis]);
+            }
+          }
           const material = primitive.getMaterial();
           if (!materials.has(material)) materials.set(material, materials.size);
-          if (primitive.getMode() !== 4 || !primitive.getAttribute("POSITION")) {
+          if (primitive.getMode() !== 4 || !position) {
             warn(`primitive:${id}`, `Asset ${id}: skipped a non-triangle or undecodable primitive`); continue;
           }
           try { ensureNormals(doc, primitive); }
           catch (cause) { warn(`decode:${id}`, `Asset ${id}: ${String(cause)}; skipped undecodable primitive`); continue; }
           const slot = materials.get(material)!;
           const override = slots?.[slot] ? await slotColor(slots[slot]!) : null;
-          parts.push({ primitive, slot, matrix: node.getWorldMatrix(), color: override ?? await gltfColor(material, path) });
+          parts.push({ primitive, slot, matrix, color: override ?? await gltfColor(material, path) });
         }
-        return { radius, parts };
+        return { radius, parts, bounds: { min, max } };
       } catch (cause) { warn(`asset:${id}`, `Asset ${id}: ${String(cause)}; skipped`); return null; }
     })();
     assets.set(id, result);

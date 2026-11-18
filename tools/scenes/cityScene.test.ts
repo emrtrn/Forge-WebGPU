@@ -64,7 +64,7 @@ test("building footprints are outside roads, sidewalks and street furniture", ()
   }
 });
 
-test("the current zone generator finds nine rooms and twelve interior portals in the baseline building", () => {
+test("the zone generator finds the rooms, doors and windows of the city acceptance building", () => {
   const { actors, poses } = cityScene({ blocks: 3, smallObjects: 0 });
   const { position: [x, , z] } = poses.find(({ id }) => id === "inside")!;
   const building = actors.find(({ name, transform }) => /^Building \d+$/.test(name)
@@ -75,7 +75,10 @@ test("the current zone generator finds nine rooms and twelve interior portals in
   })), () => ({ min: [-.5, -.5, -.5], max: [.5, .5, .5] }));
   const result = generateZones(occluders, { floorY: 0 });
   expect(result.zones).toHaveLength(9);
-  expect(result.portals).toHaveLength(12);
+  expect(result.portals.filter(portal => portal.a !== null)).toHaveLength(12);
+  const exterior = result.portals.filter(portal => portal.a === null);
+  expect(exterior).toHaveLength(12);
+  expect(exterior.filter(portal => portal.center[1] < 1.2)).toHaveLength(1);
   expect(generateZones(occluders, { floorY: 0 })).toEqual(result);
 });
 

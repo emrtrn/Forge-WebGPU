@@ -1,11 +1,9 @@
 // Automatic zones (plan 5c R9b Z4): rooms and doors of a single-storey
 // interior from its large opaque statics. A horizontal slice at eye height
-// becomes a grid of solid / free cells; free cells reaching the border are
-// outside. An exact Euclidean distance transform finds the cells far from any
-// wall (further than half the widest door): their connected groups are the
-// rooms, which then grow back over the remaining free cells. Where two rooms'
-// cells meet, the boundary runs are the portals (a door's opening up to its
-// lintel). Deterministic: same occluders in the same order, same bytes. The
+// becomes a grid of solid / free cells. The Euclidean distance transform
+// finds the cells far from any wall. Their border-connected core is outdoors;
+// the other cores are rooms. Both grow back over free cells, leaving doorway
+// boundaries between rooms and the outside. Deterministic: same inputs, same bytes. The
 // output feeds `zones.ts` (axis-aligned room boxes, portal rectangles); the
 // `forge zones` command and the editor's Generate Zones write it to a level.
 
@@ -46,8 +44,8 @@ export interface GeneratedPortal {
   readonly rotation: ZoneQuat;
   /** World half width (local X), half height (local Y). */
   readonly halfSize: readonly [number, number];
-  /** Indices into `zones`, a < b. */
-  readonly a: number;
+  /** Indices into `zones`, a < b; a is null for an exterior opening. */
+  readonly a: number | null;
   readonly b: number;
 }
 
@@ -60,12 +58,14 @@ export interface GeneratedZones {
 
 type Grid = GeneratedZones["grid"];
 
-interface Box {
+export interface ZoneOccluderBounds {
   readonly min: ZoneVec3;
   readonly max: ZoneVec3;
 }
 
-function bounds({ center, rotation, halfExtents: [hx, hy, hz] }: ZoneOccluder): Box {
+type Box = ZoneOccluderBounds;
+
+export function zoneOccluderBounds({ center, rotation, halfExtents: [hx, hy, hz] }: ZoneOccluder): Box {
   const x = rotate(rotation, [hx, 0, 0]);
   const y = rotate(rotation, [0, hy, 0]);
   const z = rotate(rotation, [0, 0, hz]);
@@ -77,7 +77,7 @@ function bounds({ center, rotation, halfExtents: [hx, hy, hz] }: ZoneOccluder): 
   };
 }
 
-function makeGrid(boxes: readonly Box[], c: number): Grid {
+function makeGrid(boxes: readonly Box[], c: number, maxDoorWidth: number): Grid {
   let lowX = Infinity, lowZ = Infinity, highX = -Infinity, highZ = -Infinity;
   for (const { min, max } of boxes) {
     lowX = Math.min(lowX, min[0]);
@@ -85,10 +85,11 @@ function makeGrid(boxes: readonly Box[], c: number): Grid {
     highX = Math.max(highX, max[0]);
     highZ = Math.max(highZ, max[2]);
   }
-  const minX = Math.floor(lowX / c) * c - 2 * c;
-  const minZ = Math.floor(lowZ / c) * c - 2 * c;
-  const maxX = Math.ceil(highX / c) * c + 2 * c;
-  const maxZ = Math.ceil(highZ / c) * c + 2 * c;
+  const margin = (Math.ceil(maxDoorWidth / (2 * c)) + 2) * c;
+  const minX = Math.floor(lowX / c) * c - margin;
+  const minZ = Math.floor(lowZ / c) * c - margin;
+  const maxX = Math.ceil(highX / c) * c + margin;
+  const maxZ = Math.ceil(highZ / c) * c + margin;
   return { width: Math.round((maxX - minX) / c), depth: Math.round((maxZ - minZ) / c), minX, minZ };
 }
 
@@ -132,15 +133,18 @@ function flood({ width, depth }: Grid, queue: number[], claim: (from: number, to
   }
 }
 
-function markOutside(cells: Uint8Array, grid: Grid): void {
+const OUTSIDE_ROOM = -2;
+const SMALL_CORE = -3;
+
+function markOutside(roomOf: Int32Array, grid: Grid, isCore: (p: number) => boolean): void {
   const { width, depth } = grid;
   const border: number[] = [];
   function claim(p: number): boolean {
-    if (cells[p]) return false;
-    cells[p] = 1;
+    if (roomOf[p] !== -1 || !isCore(p)) return false;
+    roomOf[p] = OUTSIDE_ROOM;
     return true;
   }
-  for (let p = 0; p < cells.length; p++) {
+  for (let p = 0; p < roomOf.length; p++) {
     const x = p % width;
     if ((x === 0 || x === width - 1 || p < width || p >= (depth - 1) * width) && claim(p)) border.push(p);
   }
@@ -187,6 +191,7 @@ function assignRooms(cells: Uint8Array, grid: Grid, c: number, maxDoorWidth: num
   const distances = squaredDistances(cells, grid);
   const isCore = (p: number) => !cells[p] && Math.sqrt(distances[p]!) * c > maxDoorWidth / 2;
   const roomOf = new Int32Array(cells.length).fill(-1);
+  markOutside(roomOf, grid, isCore);
   let count = 0;
   for (let p = 0; p < cells.length; p++) {
     if (roomOf[p] !== -1 || !isCore(p)) continue;
@@ -198,23 +203,24 @@ function assignRooms(cells: Uint8Array, grid: Grid, c: number, maxDoorWidth: num
       return true;
     });
     if (component.length * c ** 2 >= minRoomArea) count++;
-    else for (const cell of component) roomOf[cell] = -2;
+    else for (const cell of component) roomOf[cell] = SMALL_CORE;
   }
 
   // Seed in cell order so equal-distance claims have a stable winner.
   const queue: number[] = [];
   for (let p = 0; p < cells.length; p++) {
-    if (roomOf[p]! >= 0) queue.push(p);
+    if (roomOf[p]! >= 0 || roomOf[p] === OUTSIDE_ROOM) queue.push(p);
   }
   flood(grid, queue, (from, to) => {
-    if (cells[to] || roomOf[to]! >= 0) return false;
+    if (cells[to] || roomOf[to]! >= 0 || roomOf[to] === OUTSIDE_ROOM) return false;
     roomOf[to] = roomOf[from]!;
     return true;
   });
   return { roomOf, count };
 }
 
-function makeZones(roomOf: Int32Array, count: number, grid: Grid, c: number, floorY: number, boxes: readonly Box[]) {
+function makeZones(roomOf: Int32Array, count: number, grid: Grid, c: number, floorY: number,
+  highestProbe: number, walls: readonly Box[], boxes: readonly Box[]) {
   const rooms = Array.from({ length: count }, () => ({
     minX: Infinity, minZ: Infinity, maxX: -Infinity, maxZ: -Infinity, cells: 0,
   }));
@@ -233,17 +239,33 @@ function makeZones(roomOf: Int32Array, count: number, grid: Grid, c: number, flo
     const minX = grid.minX + room.minX * c, maxX = grid.minX + room.maxX * c;
     const minZ = grid.minZ + room.minZ * c, maxZ = grid.minZ + room.maxZ * c;
     let top = -Infinity;
-    for (const { min, max } of boxes) {
+    for (const { min, max } of walls) {
       if (min[0] <= maxX && max[0] >= minX && min[2] <= maxZ && max[2] >= minZ) top = Math.max(top, max[1]);
     }
     if (top === -Infinity) top = floorY + 3;
+    // A floor above this room may also be its ceiling. Look for slabs above
+    // the eye-height slice at the centre and just inside all four corners.
+    const ceilingAt = (x: number, z: number): number => {
+      let ceiling = Infinity;
+      for (const { min, max } of boxes) {
+        if (min[1] <= highestProbe || max[1] - min[1] > 0.5
+          || x < min[0] || x > max[0] || z < min[2] || z > max[2]) continue;
+        ceiling = Math.min(ceiling, min[1]);
+      }
+      return ceiling;
+    };
+    const roof = [
+      ceilingAt((minX + maxX) / 2, (minZ + maxZ) / 2),
+      ...[minX + c / 2, maxX - c / 2].flatMap(x => [minZ + c / 2, maxZ - c / 2].map(z => ceilingAt(x, z))),
+    ];
+    if (roof.every(Number.isFinite)) top = Math.min(top, ...roof);
     const halfExtents: ZoneVec3 = [(maxX - minX) / 2, (top - floorY) / 2, (maxZ - minZ) / 2];
     const zone: GeneratedZone = {
       center: [minX + halfExtents[0], floorY + halfExtents[1], minZ + halfExtents[2]],
       halfExtents,
       cells: room.cells,
     };
-    return { zone, top };
+    return { zone, top, roofOpen: roof.every(height => height === Infinity) };
   });
 }
 
@@ -313,7 +335,7 @@ function makePortals(
   const pairs = new Map<string, { a: number; b: number; edges: Edge[] }>();
   function addEdge(p: number, q: number, x: number, z: number, acrossX: boolean): void {
     const ra = roomOf[p]!, rb = roomOf[q]!;
-    if (rb < 0 || ra === rb) return;
+    if (ra === rb || (ra < 0 && rb < 0) || ra === -1 || rb === -1 || ra === SMALL_CORE || rb === SMALL_CORE) return;
     const a = Math.min(ra, rb), b = Math.max(ra, rb);
     const key = `${a},${b}`;
     const edge = { x, z, acrossX };
@@ -322,7 +344,7 @@ function makePortals(
     else pair.edges.push(edge);
   }
   for (let p = 0; p < roomOf.length; p++) {
-    if (roomOf[p]! < 0) continue;
+    if (roomOf[p]! < 0 && roomOf[p] !== OUTSIDE_ROOM) continue;
     const x = p % width, z = Math.floor(p / width);
     if (x + 1 < width) addEdge(p, p + 1, x + 1, z, true);
     if (p + width < roomOf.length) addEdge(p, p + width, x, z + 1, false);
@@ -337,35 +359,105 @@ function makePortals(
           top = Math.min(top, min[1]);
         }
       }
-      if (top === Infinity) top = rooms[a]!.top;
+      const room = rooms[a === OUTSIDE_ROOM ? b : a]!;
+      top = Math.min(top, room.top);
       const halfHeight = (top - floorY) / 2;
       portals.push({
         center: [x, floorY + halfHeight, z],
         rotation: normalX ? quatFromAxisAngle([0, 1, 0], Math.PI / 2) : [0, 0, 0, 1],
         halfSize: [span / 2, halfHeight],
-        a, b,
+        a: a === OUTSIDE_ROOM ? null : a, b,
       });
     }
   }
-  return portals.sort((p, q) => p.a - q.a || p.b - q.b || p.center[0] - q.center[0] || p.center[2] - q.center[2]);
+  return portals.sort((p, q) => (p.a ?? -1) - (q.a ?? -1) || p.b - q.b || p.center[0] - q.center[0] || p.center[2] - q.center[2]);
+}
+
+/** Find elevated gaps across a wall that has a room on one side and outside on the other. */
+function makeWindows(roomOf: Int32Array, cells: Uint8Array, grid: Grid, c: number, floorY: number,
+  boxes: readonly Box[], rooms: readonly { readonly top: number }[], maxWallCells: number): GeneratedPortal[] {
+  const groups = new Map<string, { room: number; bottom: number; top: number; edges: Edge[] }>();
+  const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]] as const;
+  const { width, depth } = grid;
+
+  const gapsAt = (x: number, z: number, top: number): [number, number][] => {
+    const intervals = boxes.filter(({ min, max }) => x >= min[0] && x <= max[0] && z >= min[2] && z <= max[2]
+      && max[1] > floorY && min[1] < top)
+      .map(({ min, max }) => [Math.max(floorY, min[1]), Math.min(top, max[1])] as const)
+      .sort(([a], [b]) => a - b);
+    const gaps: [number, number][] = [];
+    let covered = intervals[0]?.[1] ?? floorY;
+    for (const [low, high] of intervals.slice(1)) {
+      if (low - covered >= c && covered > floorY) gaps.push([covered, low]);
+      covered = Math.max(covered, high);
+    }
+    return gaps;
+  };
+
+  for (let p = 0; p < roomOf.length; p++) {
+    const room = roomOf[p]!;
+    if (room < 0) continue;
+    const x = p % width, z = Math.floor(p / width);
+    for (const [dx, dz] of directions) {
+      let wallCells = 0;
+      let qx = x + dx, qz = z + dz;
+      while (qx >= 0 && qx < width && qz >= 0 && qz < depth && cells[qz * width + qx] && wallCells <= maxWallCells) {
+        wallCells++;
+        qx += dx;
+        qz += dz;
+      }
+      if (wallCells === 0 || wallCells > maxWallCells || qx < 0 || qx >= width || qz < 0 || qz >= depth
+        || roomOf[qz * width + qx] !== OUTSIDE_ROOM) continue;
+      const mid = (wallCells + 1) / 2;
+      const acrossX = dx !== 0;
+      const edge = { x: x + (acrossX ? 0.5 + dx * mid : 0), z: z + (acrossX ? 0 : 0.5 + dz * mid), acrossX };
+      const worldX = grid.minX + (edge.x + Number(!acrossX) * 0.5) * c;
+      const worldZ = grid.minZ + (edge.z + Number(acrossX) * 0.5) * c;
+      for (const [bottom, top] of gapsAt(worldX, worldZ, rooms[room]!.top)) {
+        const key = `${room}|${acrossX}|${acrossX ? edge.x : edge.z}|${bottom}|${top}`;
+        const group = groups.get(key);
+        if (group) group.edges.push(edge);
+        else groups.set(key, { room, bottom, top, edges: [edge] });
+      }
+    }
+  }
+  const portals: GeneratedPortal[] = [];
+  for (const { room, bottom, top, edges } of groups.values()) {
+    for (const run of edgeRuns(edges, width + 1)) {
+      const { x, z, width: span, normalX } = portalGeometry(run, grid, c);
+      portals.push({ a: null, b: room, center: [x, (top + bottom) / 2, z],
+        rotation: normalX ? quatFromAxisAngle([0, 1, 0], Math.PI / 2) : [0, 0, 0, 1],
+        halfSize: [span / 2, (top - bottom) / 2] });
+    }
+  }
+  return portals;
 }
 
 export function generateZones(occluders: readonly ZoneOccluder[], options: ZoneGenerationOptions): GeneratedZones {
   const { floorY, cellSize: c = 0.25, probeHeights = [0.3, 1.0, 1.7], maxDoorWidth = 2, minRoomArea = 4 } = options;
   const probes = probeHeights.map((height) => floorY + height);
-  const boxes = occluders.map(bounds);
+  const boxes = occluders.map(zoneOccluderBounds);
   const slice = boxes.flatMap((box, i) =>
     probes.some((y) => box.min[1] <= y && y <= box.max[1]) ? [{ box, occluder: occluders[i]! }] : [],
   );
   if (slice.length === 0) return { zones: [], portals: [], grid: { width: 0, depth: 0, minX: 0, minZ: 0 } };
 
   const sliceBoxes = slice.map(({ box }) => box);
-  const grid = makeGrid(sliceBoxes, c);
+  const grid = makeGrid(sliceBoxes, c, maxDoorWidth);
   const cells = new Uint8Array(grid.width * grid.depth);
   for (const { box, occluder } of slice) markSolid(cells, grid, c, probes, occluder, box);
-  markOutside(cells, grid);
   const { roomOf, count } = assignRooms(cells, grid, c, maxDoorWidth, minRoomArea);
-  const rooms = makeZones(roomOf, count, grid, c, floorY, sliceBoxes);
-  const portals = makePortals(roomOf, grid, c, floorY, Math.max(...probes), boxes, rooms);
+  const highestProbe = Math.max(...probes);
+  const rooms = makeZones(roomOf, count, grid, c, floorY, highestProbe, sliceBoxes, boxes);
+  const portals = [
+    ...makePortals(roomOf, grid, c, floorY, highestProbe, boxes, rooms),
+    ...makeWindows(roomOf, cells, grid, c, floorY, boxes, rooms, Math.ceil(maxDoorWidth / c)),
+  ];
+  const roofRotation = quatFromAxisAngle([1, 0, 0], -Math.PI / 2);
+  rooms.forEach(({ zone, roofOpen, top }, index) => {
+    if (!roofOpen) return;
+    portals.push({ a: null, b: index, center: [zone.center[0], top, zone.center[2]], rotation: roofRotation,
+      halfSize: [zone.halfExtents[0], zone.halfExtents[2]] });
+  });
   return { zones: rooms.map(({ zone }) => zone), portals, grid };
 }

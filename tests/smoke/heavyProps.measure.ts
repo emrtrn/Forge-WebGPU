@@ -122,7 +122,7 @@ test("zones: the heavy interior without and with zones", async ({ page }) => {
     world: compose(actor.transform.p, actor.transform.r, actor.transform.s),
   }));
   const plan = planZoneLevel(zoneActors, zoneOccluders(zoneActors, () => null), { levelId: "lvl_00000000000000000000000000000a06" });
-  expect([plan.zones, plan.portals]).toEqual([64, 112]);
+  expect([plan.zones, plan.portals]).toEqual([64, 176]);
   const mean = (values: number[]): number => Math.round(1000 * values.reduce((a, b) => a + b, 0) / Math.max(1, values.length)) / 1000;
   const results = [];
   for (const zoned of [false, true]) {

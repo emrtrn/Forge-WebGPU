@@ -78,7 +78,7 @@ import { installWorldSettingsStyle } from "./world/worldSettingsPanel.ts";
 import { createEditorPlay } from "./play/play.ts";
 import { createEditorSession, type EditorSession } from "./session/editorSession.ts";
 import { createEditorCellStreaming } from "./session/cellStreaming.ts";
-import { HlodSourceKey, hlodPlacementsOf, hlodCellSourceHash } from "../engine/world/hlod.ts";
+import { HlodSourceKey, hlodPlacementsOf, hlodCellSourceHash, hlodZonesOf } from "../engine/world/hlod.ts";
 import { LevelFoliageSourceKey } from "../engine/foliage/levelFoliageSource.ts";
 import { FOLIAGE_DIR, FOLIAGE_INDEX_FILE, normalizeLevelFoliageIndex, type LevelFoliageIndex } from "../core/level/foliage.ts";
 import { createWorldPartitionPanel } from "./world/worldPartitionPanel.ts";
@@ -363,11 +363,13 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       for (const [id, cell] of assignment) if (cell !== null) { const ids = renderCells.get(cell) ?? []; ids.push(id); renderCells.set(cell, ids); }
       const stale: string[] = [];
       const indexed = new Set(hlodIndex?.cells.map((entry) => entry.key) ?? []);
+      const zoneSource = hlodIndex ? hlodZonesOf(session.level.level.actors, resolveClass)?.source : undefined;
       let unchecked = session.level.cellKeys().filter((key) => !indexed.has(key)).length;
       for (const entry of hlodIndex?.cells ?? []) {
         if (!session.level.isLoaded(entry.key)) { unchecked += 1; continue; }
         const actors = session.level.level.actors.filter((actor) => assignment.get(actor.id) === entry.key);
-        if (hlodIndex?.cellSize !== session.level.level.settings.cellSize || hlodCellSourceHash(hlodPlacementsOf(actors, (id) => session.level.actor(id), resolveClass)) !== entry.sourceHash) stale.push(entry.key);
+        if (hlodIndex?.cellSize !== session.level.level.settings.cellSize ||
+          hlodCellSourceHash(hlodPlacementsOf(actors, (id) => session.level.actor(id), resolveClass), zoneSource) !== entry.sourceHash) stale.push(entry.key);
       }
       hlodStatus = { present: hlodIndex !== null, stale, unchecked };
     };

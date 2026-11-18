@@ -1,5 +1,6 @@
 import {
-  HLOD_INDEX_FILE, hlodCellSourceHash, hlodClusterOf, hlodClusterSourceHash, hlodIncludesPlacement, isHlodShapePlacement, maxAxisScale, normalizeHlodIndex,
+  HLOD_INDEX_FILE, hlodCellSourceHash, hlodClusterOf, hlodClusterSourceHash, hlodIncludesPlacement, hlodPlacementInZone, hlodZonesOf,
+  isHlodShapePlacement, maxAxisScale, normalizeHlodIndex, type HlodPlacement,
 } from "../../src/engine/world/hlod.ts";
 import { parseCellKey } from "../../src/core/index.ts";
 import { shapeBoundingRadius } from "../../src/engine/procgen/shapePrimitives.ts";
@@ -30,24 +31,26 @@ export async function hlodStaleness(input: HlodInput): Promise<HlodStaleWarning[
     // HLOD is optional: a level that never built one is not stale (and its models are not read).
     if (!raw) continue;
     const index = normalizeHlodIndex(raw.json, { strict: true }).value;
+    const zones = hlodZonesOf(level.actors, input.index.resolveClass);
     const entries = new Map((index?.cells ?? []).map((cell) => [cell.key, cell]));
     const cells = hlodCellsOf(level, input);
+    const contributes = async (placement: HlodPlacement, landmark = false): Promise<boolean> => {
+      const scale = maxAxisScale(placement.matrix);
+      if (isHlodShapePlacement(placement)) return !hlodPlacementInZone(placement, zones) &&
+        (landmark || hlodIncludesPlacement(shapeBoundingRadius(placement.shape), scale, level.settings.loadRange));
+      assets ??= await createHlodAssets(input, () => undefined);
+      const asset = await assets.loadAsset(placement.model);
+      return !!asset?.parts.length && !hlodPlacementInZone(placement, zones, asset.bounds) &&
+        (landmark || hlodIncludesPlacement(asset.radius, scale, level.settings.loadRange));
+    };
     const keys = new Set([...cells.keys(), ...entries.keys()]);
     for (const key of keys) {
       const placements = cells.get(key) ?? [];
       const entry = entries.get(key);
-      let stale = entry !== undefined && entry.sourceHash !== hlodCellSourceHash(placements);
+      let stale = entry !== undefined && entry.sourceHash !== hlodCellSourceHash(placements, zones?.source);
       if (!entry && placements.length) {
-        assets ??= await createHlodAssets(input, () => undefined);
         for (const placement of placements) {
-          if (isHlodShapePlacement(placement)) {
-            if (hlodIncludesPlacement(shapeBoundingRadius(placement.shape), maxAxisScale(placement.matrix), level.settings.loadRange)) {
-              stale = true; break;
-            }
-            continue;
-          }
-          const asset = await assets.loadAsset(placement.model);
-          if (asset?.parts.length && hlodIncludesPlacement(asset.radius, maxAxisScale(placement.matrix), level.settings.loadRange)) {
+          if (await contributes(placement)) {
             stale = true; break;
           }
         }
@@ -72,7 +75,14 @@ export async function hlodStaleness(input: HlodInput): Promise<HlodStaleWarning[
     }
     // Landmarks (plan 5c R8.4): the proxy's hash covers every landmark placement.
     const landmarks = hlodLandmarksOf(level, input);
-    const expectedHash = landmarks.length ? hlodCellSourceHash(landmarks) : null;
+    let expectedHash = landmarks.length ? hlodCellSourceHash(landmarks, zones?.source) : null;
+    if (zones && !index?.landmarks && expectedHash !== null) {
+      let hasLandmark = false;
+      for (const placement of landmarks) {
+        if (await contributes(placement, true)) { hasLandmark = true; break; }
+      }
+      if (!hasLandmark) expectedHash = null;
+    }
     if ((index?.landmarks?.sourceHash ?? null) !== expectedHash) {
       warnings.push({ severity: "warning", code: "hlod-stale", file: `${folder.root}/${folder.folder}/${HLOD_INDEX_FILE}`,
         cell: "landmarks", message: "Landmarks have changed; rebuild with forge hlod." });

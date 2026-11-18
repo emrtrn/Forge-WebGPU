@@ -14,6 +14,10 @@ const paths = (process.env.FORGE_CITY_PATHS ?? "auto").split(",");
 if (paths.some(path => !ALLOWED_PATHS.some(allowed => allowed === path)) || new Set(paths).size !== paths.length) {
   throw new Error("FORGE_CITY_PATHS must list distinct paths from auto,instanced,gpu.");
 }
+const focus = process.env.FORGE_CITY_POSES?.split(",").map(pose => pose.trim());
+if (focus && (focus.some(pose => !pose) || new Set(focus).size !== focus.length)) {
+  throw new Error("FORGE_CITY_POSES must list distinct, non-empty pose IDs.");
+}
 const WARM_FRAMES = 60;
 const FRAMES = 300;
 const WALK_SPEED = 4;
@@ -36,17 +40,24 @@ async function requireCityGpu(page: Page, profile: string) {
   return { ...proof, fallback };
 }
 
-test("city draw budget baseline", async ({ context, browser }) => {
-  test.setTimeout(1_200_000 * paths.length);
+test("city draw budget baseline", async ({ context, browser }, info) => {
+  // The six poses and walk run serially for both profiles. A hardware RTX 3060
+  // run reached the final pose at the previous 20-minute limit.
+  test.setTimeout(1_800_000 * paths.length);
   const folder = process.env.FORGE_CITY_TEMP_PROJECT;
   if (!folder) throw new Error("City fixture path is missing.");
   const fixture = JSON.parse(await readFile(join(folder, ".forge-cache", "city.json"), "utf8")) as Awaited<ReturnType<typeof writeCityLevel>>;
+  const poses = focus ? focus.map(id => {
+    const pose = fixture.poses.find(candidate => candidate.id === id);
+    if (!pose) throw new Error(`Unknown city pose: ${id}.`);
+    return pose;
+  }) : fixture.poses;
   const results = [];
   const walks = [];
   const startup = (path: string) => `&staticPath=${path}`;
   for (const profile of PROFILES) {
     for (const path of paths) {
-      for (const pose of fixture.poses) {
+      for (const pose of poses) {
         const page = await context.newPage();
         const errors: string[] = [];
         page.on("pageerror", error => errors.push(error.message));
@@ -66,6 +77,9 @@ test("city draw budget baseline", async ({ context, browser }) => {
           expect(withShadows.perView.main?.draws).toBeGreaterThan(0);
           const shadowViews = Object.entries(withShadows.perView).filter(([key]) => key.startsWith("shadow-"));
           expect(shadowViews.length).toBe(profile === "high" ? 3 : 4);
+          if (focus && profile === "high" && path === "auto") {
+            await page.getByTestId("forge-canvas").screenshot({ path: info.outputPath(`${pose.id}.png`) });
+          }
 
           await page.evaluate(() => {
             const host = window.__forgeDev.host()!;
@@ -91,6 +105,7 @@ test("city draw budget baseline", async ({ context, browser }) => {
         }
       }
 
+      if (focus) continue;
       const page = await context.newPage();
       try {
         const [start, target] = fixture.walk;
@@ -121,5 +136,6 @@ test("city draw budget baseline", async ({ context, browser }) => {
       draws: "one diagnostic frame per pose and shadow setting; indirect commands with zero instances still count",
     },
     warmFrames: WARM_FRAMES, frames: FRAMES, fixture, results, walks,
+    ...(focus ? { focusedPoses: focus } : {}),
   }, null, 2) + "\n", { flag: "wx" });
 });

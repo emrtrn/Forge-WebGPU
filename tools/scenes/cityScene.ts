@@ -185,11 +185,7 @@ export function cityScene(options: CitySceneOptions = {}): CityScene {
         piece("Facade wall", -(ROOM + opening) / 4, 0, cheek, WALL_HEIGHT);
         piece("Facade wall", (ROOM + opening) / 4, 0, cheek, WALL_HEIGHT);
         piece("Facade lintel", 0, DOOR_HEIGHT, opening, WALL_HEIGHT - DOOR_HEIGHT);
-        if (entrance) {
-          // The current zone generator floods through exterior openings before
-          // finding rooms. Keep a distinct closed entrance leaf for the baseline.
-          piece("Entrance door", 0, 0, opening, DOOR_HEIGHT, "#5b4235");
-        } else {
+        if (!entrance) {
           piece("Window sill", 0, 0, opening, 1);
         }
       }

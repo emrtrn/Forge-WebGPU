@@ -3,8 +3,8 @@
 //
 // The world's render subsystem refreshes the zone set from the level's
 // `forge.zone` / `forge.portal` components before its bindings see an edit, so
-// a static binding keys its placements by the zone they fall in (`zoneOf`,
-// the placement's origin) and re-keys them when the set changes (`onChange`).
+// a static binding keys its placements by the zone holding the whole world
+// box (`zoneOf`) and re-keys them when the set changes (`onChange`).
 // Each zoned batch registers here (`track`); once a frame, before the GPU cull,
 // the host calls `update` with the camera: the visible zones come from the
 // portal walk (`engine/world/zones.ts`) and every batch gets its mode:
@@ -23,7 +23,7 @@
 
 import { Matrix4, Quaternion, Vector3, type Camera } from "three/webgpu";
 import type { ActorId, WorldActor } from "../../core/index.ts";
-import { buildZoneSet, visibleZones, zoneAt, type PortalInput, type VisibleZones, type ZoneInput, type ZoneSet, type ZoneVec3 } from "../../engine/world/zones.ts";
+import { buildZoneSet, OUTSIDE, visibleZones, zoneOfBox, type PortalInput, type VisibleZones, type ZoneBox, type ZoneInput, type ZoneSet, type ZoneVec3 } from "../../engine/world/zones.ts";
 import { MAX_ZONE_SLOTS, ZONE_MASK_WORDS, type ZoneMode } from "../gpu/gpuDrivenBatch.ts";
 import type { RenderWorldView } from "./renderBinding.ts";
 import { componentWorldMatrix } from "./transforms.ts";
@@ -47,14 +47,16 @@ export interface ZoneDrawingStats {
   readonly shadowOnly: number;
   readonly hidden: number;
   readonly portalTests: number;
+  readonly exteriorPortalTests: number;
   readonly portalBudgetExceeded: boolean;
 }
 
 export interface ZoneDrawing {
-  /** Zone id (its actor) holding a world point, null in none. */
-  zoneOf(point: ZoneVec3): string | null;
-  /** The zone slot (GPU masks) holding a world point; 0 in none. */
-  slotOf(point: ZoneVec3): number;
+  /** Zone id (its actor) holding the world box, null in none. */
+  zoneOf(box: ZoneBox): string | null;
+  /** The zone slot (GPU masks) holding the world box; 0 in none. */
+  slotOf(box: ZoneBox): number;
+  portalSides(id: string): readonly [string, string] | null;
   /** Bumps when the zone set changes (slots are reassigned). */
   readonly revision: number;
   /** This frame's masks for the GPU-driven cull; null: every zone draws. */
@@ -131,12 +133,18 @@ export function createZoneDrawing(world: RenderWorldView): ZoneDrawing {
   };
 
   return {
-    zoneOf(point) {
-      return set ? zoneAt(set, point) : null;
+    zoneOf(box) {
+      return set ? zoneOfBox(set, box) : null;
     },
-    slotOf(point) {
-      const zone = set ? zoneAt(set, point) : null;
+    slotOf(box) {
+      const zone = set ? zoneOfBox(set, box) : null;
       return zone === null ? 0 : slots.get(zone) ?? 0;
+    },
+    portalSides(id) {
+      const link = set?.links.find(entry => entry.portal === id);
+      if (!link) return null;
+      const label = (zone: string): string => zone === OUTSIDE ? "Outside" : world.actor(zone as ActorId)?.name ?? zone;
+      return [label(link.a), label(link.b)];
     },
     get revision() { return revision; },
     get masks() { return masks; },
@@ -186,7 +194,8 @@ export function createZoneDrawing(world: RenderWorldView): ZoneDrawing {
         zones, portals: set?.links.length ?? 0, cameraZone: last?.cameraZone ?? null,
         visible: last?.zones ? last.zones.size : zones, tracked: targets.size, shadowOnly, hidden,
         portalTests: last?.portalTests ?? 0,
-        portalBudgetExceeded: last !== null && last.cameraZone !== null && last.zones === null,
+        exteriorPortalTests: last?.exteriorPortalTests ?? 0,
+        portalBudgetExceeded: last !== null && last.zones === null,
       };
     },
   };

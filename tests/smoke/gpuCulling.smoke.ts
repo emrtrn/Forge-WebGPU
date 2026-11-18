@@ -44,10 +44,10 @@ interface Dev {
 const dev = (page: Page) => ({
   pause: () => page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.pause()),
   resume: () => page.evaluate(() => (window as unknown as { __forgeDev: Dev }).__forgeDev.resume()),
-  step: () => page.evaluate(async () => {
+  step: (ms: number) => page.evaluate(async (ms) => {
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    return (window as unknown as { __forgeDev: Dev }).__forgeDev.step(1000 / 60);
-  }),
+    return (window as unknown as { __forgeDev: Dev }).__forgeDev.step(ms);
+  }, ms),
   move: (position: readonly [number, number, number], look: readonly [number, number, number]) =>
     page.evaluate(([p, t]) => (window as unknown as { __forgeDev: Dev }).__forgeDev.moveCamera(p[0], p[1], p[2], t), [position, look] as const),
   install: (types: FoliageSceneType[], scale: number, castShadow = true, bundle = false) =>
@@ -61,8 +61,8 @@ const dev = (page: Page) => ({
     page.evaluate((value) => (window as unknown as { __forgeDev: Dev }).__forgeDev.gpuDriven.levelVisible(value), visible),
 });
 
-async function steps(page: Page, count: number): Promise<void> {
-  for (let i = 0; i < count; i += 1) await dev(page).step();
+async function steps(page: Page, count: number, ms = 1000 / 60): Promise<void> {
+  for (let i = 0; i < count; i += 1) await dev(page).step(ms);
 }
 
 /** Draw calls in the `?debug` readout. */
@@ -182,17 +182,16 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
   if (webgl) expect(unshadowedDraws).toBeLessThanOrEqual(installed.draws);
   else expect(unshadowedDraws, "without castShadow only the main view draws").toBe(installed.draws);
   // In a render bundle (5.3, on WebGPU; WebGL2 has none): the same image.
-  // Reinstalls load their models again: 20 frames let them settle.
+  // Let each reinstall settle without moving the scene's clouds between shots.
   await dev(page).install(foliage.types, foliage.cullScale, true, true);
-  await steps(page, 20);
+  await steps(page, 20, 0);
   const bundled = await page.getByTestId("forge-canvas").screenshot();
   await dev(page).install(foliage.types, foliage.cullScale);
-  await steps(page, 20);
-  // Shots 6 frames apart differ a little anyway: the bundle is compared with the next direct shot,
-  // and allowed what two direct shots 6 frames apart differ by.
+  await steps(page, 20, 0);
+  // Use two direct shots at the same scene time to measure residual rendering noise.
   const direct = await page.getByTestId("forge-canvas").screenshot();
   const bundleDifference = await difference(page, bundled, direct);
-  await steps(page, 6);
+  await steps(page, 6, 0);
   const noise = await difference(page, direct, await page.getByTestId("forge-canvas").screenshot());
   console.log(`bundle difference ${bundleDifference.toFixed(3)}, direct reinstall ${noise.toFixed(3)}`);
   // WebGL2 has no bundles (the twin ignores the option); its frames also vary more between shots.

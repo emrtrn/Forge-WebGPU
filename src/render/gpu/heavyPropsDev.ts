@@ -45,13 +45,15 @@ export function createDevHeavyProps(host: () => RenderHost | null): DevHeavyProp
       const world = current?.world;
       if (!current || !world) throw new Error("heavy props: no world is drawn");
       geometry = new SphereGeometry(0.5, segments, Math.max(2, Math.floor(segments / 2)));
+      geometry.computeBoundingBox();
+      const bounds = geometry.boundingBox!;
       material = new MeshStandardNodeMaterial({ color: "#b07a4a", roughness: 0.6 });
       const scene = world.scene;
       const byZone = new Map<string | null, InstanceBatch>();
       const placement = new Matrix4();
       for (let i = 0; i * 16 < matrices.length; i += 1) {
         placement.fromArray(matrices, i * 16);
-        const zone = path === "instanced" ? placementZone(world.zones, placement) : null;
+        const zone = path === "instanced" ? placementZone(world.zones, placement, bounds) : null;
         let batch = byZone.get(zone);
         if (!batch) {
           batch = createInstanceBatch({
@@ -60,7 +62,7 @@ export function createDevHeavyProps(host: () => RenderHost | null): DevHeavyProp
             prepare: (objects, signal) => current.prepare(objects, scene, signal),
             ...(path === "instanced" ? {} : { triangles: current.triangles, staticPath: () => path }),
           });
-          batch.setParts([{ geometry, material, local: new Matrix4(), name: "sphere" }], undefined, 0.5);
+          batch.setParts([{ geometry, material, local: new Matrix4(), name: "sphere" }], undefined, 0.5, bounds);
           byZone.set(zone, batch);
           batches.push({ batch, untrack: zone !== null && world.zones ? world.zones.track(zone, batch) : null });
         }

@@ -10,10 +10,10 @@
 // any other is removed and added again. Cells (plan 5c R9a): with
 // `staticCellSize` above 0 a batch holds one world cell's shapes only.
 
-import { Matrix4 } from "three/webgpu";
+import { Box3, Matrix4, Vector3 } from "three/webgpu";
 import { parseComponentTypeTag, type WorldActor } from "../../core/index.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
-import type { ShapePrimitive } from "../../render/resources/shapes.ts";
+import { SHAPE_PLANE_SIZE, SHAPE_SOLID_SIZE, type ShapePrimitive } from "../../render/resources/shapes.ts";
 import { shapeMaterialKey } from "../../render/resources/worldResources.ts";
 import { cellSuffix, placementParts, placementZone, zoneSuffix } from "../../render/sync/batchCells.ts";
 import { shapeBoundingRadius } from "../../engine/procgen/shapePrimitives.ts";
@@ -24,6 +24,11 @@ import { Shape, type ShapeData } from "./schema.ts";
 
 /** The material every shape batch draws with; the shape's colour is per instance. */
 export const SHAPE_BASE_COLOR = "#ffffff";
+
+const solidHalf = SHAPE_SOLID_SIZE / 2, planeHalf = SHAPE_PLANE_SIZE / 2;
+const solidBounds = new Box3(new Vector3(-solidHalf, -solidHalf, -solidHalf), new Vector3(solidHalf, solidHalf, solidHalf));
+const planeBounds = new Box3(new Vector3(-planeHalf, 0, -planeHalf), new Vector3(planeHalf, 0, planeHalf));
+const shapeBounds = (primitive: ShapePrimitive): Box3 => primitive === "plane" ? planeBounds : solidBounds;
 
 interface Batch {
   readonly instances: InstanceBatch;
@@ -66,7 +71,7 @@ export default defineRenderBinding({
       void Promise.all([ctx.resources.shapeGeometry(primitive), ctx.resources.shapeMaterial(SHAPE_BASE_COLOR, doubleSided)]).then(
         ([geometry, material]) => {
           if (batch.disposed) return;
-          batch.instances.setParts([{ geometry, material, local: new Matrix4(), name: primitive }], undefined, shapeBoundingRadius(primitive));
+          batch.instances.setParts([{ geometry, material, local: new Matrix4(), name: primitive }], undefined, shapeBoundingRadius(primitive), shapeBounds(primitive));
         },
       );
       return batch;
@@ -84,7 +89,7 @@ export default defineRenderBinding({
     const add = (actor: WorldActor, key: string, data: ShapeData): void => {
       const id = `${actor.id}/${key}`;
       componentWorldMatrix(ctx.world, actor, key, matrix);
-      const zone = placementZone(ctx.zones, matrix);
+      const zone = placementZone(ctx.zones, matrix, shapeBounds(data.primitive));
       const batchKey = shapeBatchKey(data) + cellSuffix(matrix, cellSize()) + zoneSuffix(zone);
       placed.set(id, batchKey);
       batchFor(batchKey, data, zone).instances.set(id, matrix, data.color, actor.id);
@@ -116,7 +121,7 @@ export default defineRenderBinding({
         const data = component as unknown as ShapeData;
         componentWorldMatrix(ctx.world, actor, key, matrix);
         // Into another cell or zone: another batch (R9a cells, R9b zones); within one, in place.
-        if (shapeBatchKey(data) + cellSuffix(matrix, cellSize()) + zoneSuffix(placementZone(ctx.zones, matrix)) !== batchKey) { remove(id); add(actor, key, data); continue; }
+        if (shapeBatchKey(data) + cellSuffix(matrix, cellSize()) + zoneSuffix(placementZone(ctx.zones, matrix, shapeBounds(data.primitive))) !== batchKey) { remove(id); add(actor, key, data); continue; }
         batches.get(batchKey)?.instances.move(id, matrix);
       }
     };
@@ -130,7 +135,7 @@ export default defineRenderBinding({
         if (!actor || !component) continue;
         const data = component as unknown as ShapeData;
         componentWorldMatrix(ctx.world, actor, key, matrix);
-        if (shapeBatchKey(data) + cellSuffix(matrix, cellSize()) + zoneSuffix(placementZone(ctx.zones, matrix)) !== batchKey) { remove(id); add(actor, key, data); }
+        if (shapeBatchKey(data) + cellSuffix(matrix, cellSize()) + zoneSuffix(placementZone(ctx.zones, matrix, shapeBounds(data.primitive))) !== batchKey) { remove(id); add(actor, key, data); }
       }
     });
 

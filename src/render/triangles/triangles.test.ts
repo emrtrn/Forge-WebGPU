@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vitest";
-import { BoxGeometry, DoubleSide, Group, InstancedMesh, Matrix4, Mesh, MeshStandardNodeMaterial, PerspectiveCamera, Raycaster, SphereGeometry, Vector3, type WebGPURenderer } from "three/webgpu";
+import { Box3, BoxGeometry, DoubleSide, Group, InstancedMesh, Matrix4, Mesh, MeshStandardNodeMaterial, PerspectiveCamera, Raycaster, SphereGeometry, Vector3, type WebGPURenderer } from "three/webgpu";
 import { prepareTriangles } from "../../engine/geometry/prepareTriangles.ts";
 import { projectedLodStarts, triangleKey } from "../../engine/geometry/triangleData.ts";
 import { createGpuDriven } from "../gpu/gpuDriven.ts";
@@ -74,6 +74,24 @@ test("R7 batch readiness includes derivative compilation; cancellation retains i
   batch.dispose(); expect(released).toBe(false); expect(gpu.stats().batches).toBe(1);
   finish(); await vi.waitFor(() => expect(released).toBe(true));
   expect(parent.children).toHaveLength(0); expect(gpu.stats().batches).toBe(0);
+  triangles.dispose(); gpu.dispose(); geometry.dispose(); material.dispose();
+});
+
+test("automatic LOD assigns the whole model's world box, without adding the part's local offset", async () => {
+  const renderer = { backend: { isWebGPUBackend: false }, shadowMap: { enabled: false } } as unknown as WebGPURenderer;
+  const gpu = createGpuDriven(renderer), triangles = createTriangleDrawing(renderer, gpu, prepareTriangles);
+  const geometry = new BoxGeometry(), material = new MeshStandardNodeMaterial();
+  const source = new InstancedMesh(geometry, material, 1), root = new Group();
+  root.position.x = 4;
+  root.add(source);
+  const local = new Matrix4().makeTranslation(2, 0, 0);
+  source.setMatrixAt(0, new Matrix4().makeTranslation(7, 0, 0).multiply(local));
+  const modelBox = new Box3(new Vector3(-1, -2, -3), new Vector3(4, 5, 6));
+  const binding = await triangles.prepare(source, undefined, false, local, undefined, modelBox);
+  binding.activate();
+  const slotOf = vi.fn(() => 1);
+  triangles.update(new PerspectiveCamera(), 1, { slotOf, revision: 1 });
+  expect(slotOf).toHaveBeenCalledExactlyOnceWith({ min: [10, -2, -3], max: [15, 5, 6] });
   triangles.dispose(); gpu.dispose(); geometry.dispose(); material.dispose();
 });
 

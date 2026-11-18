@@ -54,6 +54,7 @@ import { StaticMesh, type StaticMeshData } from "./schema.ts";
 
 interface Batch {
   readonly instances: InstanceBatch;
+  readonly model: string;
   /** Cache keys this batch holds a use of. */
   readonly keys: string[];
   disposed: boolean;
@@ -91,6 +92,8 @@ export default defineRenderBinding({
     const batches = new Map<string, Batch>();
     /** Placement id -> its batch key. */
     const placed = new Map<string, string>();
+    const placementsByModel = new Map<string, Set<string>>();
+    const modelBounds = new Map<string, Box3>();
     const matrix = new Matrix4();
     const meshesOf = (actor: WorldActor) =>
       Object.entries(actor.components).filter(([, component]) => parseComponentTypeTag(component.type)?.name === StaticMesh.name);
@@ -99,6 +102,7 @@ export default defineRenderBinding({
       const existing = batches.get(key);
       if (existing) return existing;
       const batch: Batch = {
+        model,
         instances: createInstanceBatch({
           name: `staticMesh/${model}`, source: "staticMesh", parent: ctx.root, castShadow: data.castShadow,
           ...(ctx.prepare ? { prepare: ctx.prepare } : {}),
@@ -116,14 +120,17 @@ export default defineRenderBinding({
           if (batch.disposed) return;
           const materials = await materialsFor(ctx, batch, template, data.materials);
           if (batch.disposed) return;
-          const radius = new Box3().setFromObject(template.scene).getBoundingSphere(new Sphere()).radius;
+          const bounds = new Box3().setFromObject(template.scene);
+          const radius = bounds.getBoundingSphere(new Sphere()).radius;
           const parts = modelParts(template, materials);
-          batch.instances.setParts(parts, radius);
+          batch.instances.setParts(parts, radius, undefined, bounds);
+          if (!ctx.zones) return;
+          const boundsChanged = !modelBounds.get(model)?.equals(bounds);
+          modelBounds.set(model, bounds);
           // R9b: a model on the GPU path leaves the zone split (its zone batches merge into one).
-          if (zone !== null && ctx.triangles && !unsplit.has(model) && lodParts(ctx.staticPath?.() ?? "gpu", parts).some(Boolean)) {
-            unsplit.add(model);
-            rekey();
-          }
+          const usingGpu = ctx.triangles && !unsplit.has(model) && lodParts(ctx.staticPath?.() ?? "gpu", parts).some(Boolean);
+          if (usingGpu) unsplit.add(model);
+          if (boundsChanged || usingGpu) rekey(model);
         },
         () => {
           // Counted by the cache and reported by the host; the batch stays empty.
@@ -146,11 +153,14 @@ export default defineRenderBinding({
     /** Models whose batches draw GPU-driven: not split by zone (the instances carry their zone). */
     const unsplit = new Set<string>();
     const placementKey = (data: StaticMeshData, at: typeof matrix): { key: string; zone: string | null } => {
-      const zone = data.mesh !== null && unsplit.has(data.mesh) ? null : placementZone(ctx.zones, at);
+      const bounds = data.mesh !== null && !unsplit.has(data.mesh) ? modelBounds.get(data.mesh) : undefined;
+      const zone = placementZone(ctx.zones, at, bounds);
       return { key: staticMeshBatchKey(data) + cellSuffix(at, cellSize()) + zoneSuffix(zone), zone };
     };
-    const rekey = (): void => {
-      for (const [id, batchKey] of [...placed]) {
+    const rekey = (model?: string): void => {
+      const ids = model === undefined ? [...placed.keys()] : [...(placementsByModel.get(model) ?? [])];
+      for (const id of ids) {
+        const batchKey = placed.get(id);
         const [actorId, key] = placementParts(id);
         const actor = ctx.world.actor(actorId);
         const component = actor?.components[key];
@@ -166,6 +176,9 @@ export default defineRenderBinding({
       componentWorldMatrix(ctx.world, actor, key, matrix);
       const { key: batchKey, zone } = placementKey(data, matrix);
       placed.set(id, batchKey);
+      let ids = placementsByModel.get(data.mesh);
+      if (!ids) { ids = new Set(); placementsByModel.set(data.mesh, ids); }
+      ids.add(id);
       batchFor(batchKey, data.mesh, data, zone).instances.set(id, matrix, data.color, actor.id);
     };
 
@@ -175,6 +188,9 @@ export default defineRenderBinding({
       placed.delete(id);
       const batch = batches.get(batchKey);
       if (!batch) return;
+      const ids = placementsByModel.get(batch.model);
+      ids?.delete(id);
+      if (ids?.size === 0) placementsByModel.delete(batch.model);
       batch.instances.delete(id);
       if (batch.instances.size === 0) disposeBatch(batchKey, batch);
     };
@@ -223,6 +239,8 @@ export default defineRenderBinding({
         unsubscribe?.();
         for (const [key, batch] of [...batches]) disposeBatch(key, batch);
         placed.clear();
+        placementsByModel.clear();
+        modelBounds.clear();
       },
     };
   },

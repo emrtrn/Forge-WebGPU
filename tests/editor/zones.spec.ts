@@ -1,7 +1,7 @@
 // Zones in the editor (plan 5c R9b Z5): a Zone Volume and a Portal from Add
 // Actor's Volumes (their Details from the schema), and World Settings'
-// Generate Zones on two rooms of the synthetic interior: two zones and the
-// door's portal in one undo step. The level is written into this run's
+// Generate Zones on two rooms of the synthetic interior: the door and open
+// roofs get portals in one undo step. The level is written into this run's
 // temporary project copy (D14).
 
 import { expect, test, type Page } from "@playwright/test";
@@ -38,18 +38,20 @@ test("a Zone Volume and a Portal from Volumes: placed on the surface, Details fr
   expect(errors).toEqual([]);
 });
 
-test("Generate Zones: two rooms and their door in one undo step", async ({ page }) => {
+test("Generate Zones: two rooms, a door and open roofs in one undo step", async ({ page }) => {
   const errors = await openEditor(page, { level: LEVEL, drawn: true });
   await page.getByTestId("editor-main-menu").click();
   await page.getByTestId("main-menu-world-settings").click();
   await page.getByTestId("world-settings-generate-zones").click();
   const status = page.getByTestId("world-settings-zones-status");
   await expect(status).toHaveAttribute("data-zones", "2");
-  await expect(status).toHaveAttribute("data-portals", "1");
+  await expect(status).toHaveAttribute("data-portals", "3");
   await page.getByTestId("world-settings-close").click();
   await expect(named(page, "Zone 1")).toHaveCount(1);
   await expect(named(page, "Zone 2")).toHaveCount(1);
   await expect(named(page, "Portal 1")).toHaveCount(1);
+  await named(page, "Portal 2").click();
+  await expect(page.getByTestId("portal-sides")).toContainText("Outside");
   await page.getByTestId("editor-undo").click();
   await expect(named(page, "Zone 1")).toHaveCount(0);
   await expect(named(page, "Portal 1")).toHaveCount(0);

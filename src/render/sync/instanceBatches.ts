@@ -31,7 +31,7 @@
 // Geometry and materials are the batch owner's (cache uses); the batch owns
 // only its instanced meshes and their buffers.
 
-import { Color, InstancedBufferAttribute, InstancedMesh, Matrix4, Sphere, Vector3, type BufferGeometry, type Camera, type Material, type Object3D } from "three/webgpu";
+import { Color, InstancedBufferAttribute, InstancedMesh, Matrix4, Sphere, Vector3, type Box3, type BufferGeometry, type Camera, type Material, type Object3D } from "three/webgpu";
 import type { ActorId, WorldActor, WorldActorChange } from "../../core/index.ts";
 import { SCENE_SOURCE_KEY } from "../../engine/perf/sceneCost.ts";
 import { tagInstanceActors, tagPartSlots } from "./pickTags.ts";
@@ -63,7 +63,7 @@ export interface InstanceBatch {
   move(id: string, matrix: Matrix4): boolean;
   readonly size: number;
   /** The parts to draw; until set, placements wait and nothing is drawn. */
-  setParts(parts: readonly InstancePart[], detailRadius?: number, casterRadius?: number): void;
+  setParts(parts: readonly InstancePart[], detailRadius?: number, casterRadius?: number, placementBounds?: Box3): void;
   updateCulling(camera: Camera | null, qualityScale: number): void;
   /** Rebuilds the instanced meshes if anything changed since the last flush. */
   flush(): void;
@@ -115,6 +115,7 @@ const capacityFor = (count: number): number => {
 export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatch {
   const placements = new Map<string, { matrix: Matrix4; color: string | null; actor: ActorId }>();
   let parts: readonly InstancePart[] | null = null;
+  let placementBounds: Box3 | undefined;
   let meshes: InstancedMesh[] = [];
   let capacity = 0;
   let colored = false;
@@ -211,8 +212,9 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
     get size() {
       return placements.size;
     },
-    setParts(next, radius, shadowRadius = radius) {
+    setParts(next, radius, shadowRadius = radius, bounds) {
       parts = next;
+      placementBounds = bounds;
       detailRadius = radius;
       casterRadius = shadowRadius;
       cullDistance = radius === undefined ? null : detailCullDistance(radius);
@@ -327,13 +329,13 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         preparation = new AbortController();
         const ticket = generation, pending = [...meshes], lods = lodOf;
         const pendingBindings = triangleBindings, signal = preparation.signal;
-        const pendingCasterFade = casterFade;
+        const pendingCasterFade = casterFade, pendingBounds = placementBounds;
         const locals = parts!.map((part) => part.local.clone()), pieces = parts!.map((part) => part.lodPieces);
         preparationWork = anyLod ? (async () => {
           for (let i = 0; i < pending.length; i += 1) {
             if (!lods[i]) continue;
             try {
-              pendingBindings.push(await options.triangles!.prepare(pending[i]!, detailRadius, false, locals[i], pieces[i]));
+              pendingBindings.push(await options.triangles!.prepare(pending[i]!, detailRadius, false, locals[i], pieces[i], pendingBounds));
             } catch (error) {
               // R9.3: a part the LOD path cannot take draws instanced (unfaded) in the same batch.
               if (signal.aborted) return;
