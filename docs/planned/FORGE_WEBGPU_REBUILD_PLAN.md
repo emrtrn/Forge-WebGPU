@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.72 · 2026-11-18 — Kullanıcı kararı: GPU yolunda bölge, batch bölmesi yerine örnek başına bölge maskesiyle (Z3b `acb8e7f`); ağır iç mekânda GPU %50–60 düşer, gönderim artmaz. Z7 belgeleri yazıldı; Z6 kullanıcı görsel kabulü bekliyor.
+**Güncelleme:** v1.73 · 2026-11-18 — Kullanıcı kararları (foliage sırası): 5c adım 6 → 7 → Foliage paneli (tür listesi / düzenleme + kural düzenleme, 5d'den öne; boya / silme fırçası 5d'de kalır) → R10 → PG2–PG3 → adım 11. Referans projesine Derekavak, Island ve WbPilotValley foliage'la yeniden alınır (F0). Alt adımlar F0–F7 adım 11'in altında. Kod yok.
+
+**Önceki güncelleme:** v1.72 · 2026-11-18 — Kullanıcı kararı: GPU yolunda bölge, batch bölmesi yerine örnek başına bölge maskesiyle (Z3b `acb8e7f`); ağır iç mekânda GPU %50–60 düşer, gönderim artmaz. Z7 belgeleri yazıldı; Z6 kullanıcı görsel kabulü bekliyor.
 
 **Önceki güncelleme:** v1.71 · 2026-11-18 — R9b S1 ve Z0–Z5 uygulandı (`ed3ad1b` … `07d863b`), Z6 ölçümü (`4d1df67`): bölgeler iç mekânda GPU'yu ~%25 düşürüyor ama batch'in bölgeye göre bölünmesi GPU güdümlü ağır eşyada gönderimi büyütüyor (bölge dışından 0,56 → 13,6 ms). GPU yolunda bölge görünürlüğünün nasıl uygulanacağı kullanıcıya soruldu; Z6 kabulü ve Z7 bekliyor.
 
@@ -950,7 +952,8 @@ call'unun 260'ı foliage; foliage çizimleri toplanınca gönderim 3,9 → 2,2 m
    fark nedeniyle. Testler: saf 3 + içe aktarıcı fikstürü (bölünmüş hücreler, eksik
    tür, başka landscape; ikinci koşu aynı baytlar); geçici kopyada `--dry-run`:
    Derekavak 7 kural / 6 tür, Island ve WbPilotValley 7'şer kural, boyanmış örnek
-   yok. Referans projesi yeniden alınmadı (kullanıcıya sorulacak).
+   yok. Referans projesi yeniden alınmadı (kullanıcıya sorulacak; karar 2026-11-18:
+   Derekavak, Island, WbPilotValley yeniden alınır, F0).
 5. GPU güdümlü çizim: compute culling, indirect, kaskatlar, fade, rüzgâr — C.
    **Tasarım (2026-11-17, spike kararının uygulaması):** batch başına örnek
    storage buffer'ı (mat4 + fade / seed), görünüm başına compute culling (görüş
@@ -1007,7 +1010,8 @@ call'unun 260'ı foliage; foliage çizimleri toplanınca gönderim 3,9 → 2,2 m
    sayar (Derekavak P2: 9 mesh, 15 çizim; 5.1 kaydındaki +9 eksik sayımdı). Smoke iki
    arka uçta: ikisinde de 177 / 32 / 0 görünür, `?debug` +15. Birim testleri 9.
 6. Prosedürel halka + worker + uzak billboard — C (worker mesajlaşması X).
-7. Boyanmış hücreler ↔ WP akışı, residency, `?debug` satırları — C.
+   Alt adımlar F1–F3 aşağıda (foliage sırası, v1.73).
+7. Boyanmış hücreler ↔ WP akışı, residency, `?debug` satırları — C. Alt adım F4.
 8. PG0 sözleşmeleri + PG1 kaya — X saf çekirdek ve üretici / C materyal.
    **Saf çekirdek uygulandı (2026-11-17, Codex, Claude inceledi; `c03f40d`):**
    `engine/procgen/{random,noise,mesh,stats,convexHull,vector}.ts` ve
@@ -1021,6 +1025,25 @@ call'unun 260'ı foliage; foliage çizimleri toplanınca gönderim 3,9 → 2,2 m
 9. PG2 iki ağaç: aile, bileşen, WES tepkisi — X üretici / C TSL ve tepki.
 10. PG3 LOD / kart / impostor bake, PK7 — X rasterleyici / C.
 11. `measure:foliage`, PV-WES, kapı, belgeler, görsel kabul — C.
+
+**Foliage sırası (kullanıcı kararları, 2026-11-18; v1.73).** R9b bittikten sonra
+(R10 başlamadı) sıra: F0 → adım 6 (F1–F3) → adım 7 (F4) → Foliage paneli (F5–F6, 5d'den
+öne alındı) → R10 (F7, G6 gerçek foliage'la bir kez ölçülür) → adım 8–10 (PG1 kalanı,
+PG2, PG3) → adım 11. Panelin ilk sürümü tür listesi / düzenleme ve kural düzenlemedir;
+boya / silme fırçası (`engine/scene/foliagePaint.ts`) 5d'de kalır. Forge karşılıkları:
+`src/scene/proceduralFoliageRing.ts`, `foliageCellGenerator.ts`, `foliageCellStreaming.ts`,
+`foliageImpostorCache.ts`, `src/editor/panels/foliage/foliagePanel.ts`.
+
+| # | İş | Kapsam | Kapı |
+|---|---|---|---|
+| F0 | Referans projesine foliage | Derekavak, Island, WbPilotValley `npm run import:forge --force` (kullanıcı onayı bu karar); `--compare` kural / tür / örnek sayıları; foliage henüz çizilmediği için görüntü değişmez | `--compare` eşit, `verify:assets`, render smoke referansla geçer |
+| F1 | Halka, aynı iş parçacığı | `features/foliage/render.ts`: `forge.landscapeFoliage` bağlaması (oyunda ve editörde), tür asset'lerini yükler ve değişince tazeler; yüzey terrain görünümünün yerleşik tile'larından (`worldTerrainFoliageSurface`, datum çevirisi adım 3 notu); `planFoliageRing` + kare başına kurma bütçesi, hücreler R4 batch'lerine sahip anahtarıyla (`ring:<kural>:<x>_<z>`). Halka ana bilgisayarının saf kısmı (planı, bütçeyi, sırayı ve kaldırılacakları birleştiren adım) X | Saf testler; render smoke'ta Derekavak P2 foliage'ı halkadan (dev kancası yerine), iki arka uçta |
+| F2 | Worker | Hücre üretimi worker'da (`FoliageTerrainStore` aynası, sıralı tek worker, hata olursa aynı iş parçacığına düşer: Forge `foliageCellGenerator`); mesajlaşma X, havuz `render/resources` | Worker ve yedek yol aynı baytlar; ana iş parçacığı süresi ölçülür |
+| F3 | Uzak billboard ve ton | `far` alanından çalışma anı billboard'u (karar 6), bloklar global haritadan, hand-off'ta tile'dan yeniden kurulur; uzak ton terrain'e (`foliageFarTintMap`); atlas model başına bir kez (Forge `foliageImpostorCache`) | Hand-off'ta model ve billboard aynı yerde (test), çekim adayları |
+| F4 | Boyanmış hücreler (adım 7) | `foliage.json` + `FFOL` hücreleri WP akışıyla yüklenir / boşalır (önyükleme 1,5×, boşaltma 1,25× histerezis), okunamayan hücre boş + uyarı; residency; `?debug` satırları (halka hücre / kuyruk / örnek, boyanmış hücre durumu). Residency planının saf kısmı X | Saf testler; yükle / boşalt döngüsünde sızıntı yok; `?debug` smoke |
+| F5 | Foliage sekmesi: türler | Editörde Details'in yanında **Foliage** sekmesi; tür listesi (proje yazılır, motor / paket salt okunur), yeni tür (model seçerek), seçili tür şemadan form (editör parametre UI kuralları), kayıt asset kayıt servisinden; açık level'da halka canlı tazelenir | Editör smoke: sekme, tür ekle / düzenle → kaydet → yeniden aç |
+| F6 | Foliage sekmesi: kurallar | Seçili terrain'in `forge.landscapeFoliage` kuralları: ekle / sil / sırala / düzenle (tür, yoğunluk, bantlar; yükseklik kaydırıcıları terrain'in kendi aralığında), tek Undo; liste işlemleri saf X | Editör smoke: kural düzenle → undo / redo → kaydet → yeniden aç; halka değişikliği çiziyor |
+| F7 | R10 (G6) | Derekavak P2 60 Hz, gerçek foliage (halka + varsa boyanmış), R5 raporuyla; ağır içerikte de (Island, ×20 stres) | G6 sınırları; kayıt `render-refs/runs/` |
 
 **5c yeni sıra: üçgen ve draw call işi (kullanıcı, 2026-11-17, plan v1.46).**
 Kullanıcı 5.2'yi durdurdu; adım 5'in kalan alt adımları (5.2–5.6) ve sahne
@@ -1051,7 +1074,7 @@ işleyicisi (`clusterlod.h` portu) ve çatlak denetimi referanstır. Bütün ad�
 | R9 | 5.5 statiklerin geçişi (tamamlandı 2026-11-17: altyapı bağlı, statikler ölçüm kararıyla `instanced`; R9.0–R9.4 aşağıda) | 5.1 yolu + otomatik LOD; picking, detay fade, transform hızlı yolu, HLOD hazır olma, `compileAsync` korunur | Editör / render smoke'ları iki arka uçta |
 | R9a | GPU occlusion culling (**iptal**, kullanıcı 2026-11-18; adım 1 kamera görünümleri kalır, occlusion kodu R9b Z0'da kaldırılır) | İlk adım (tamamlandı 2026-11-17): ikincil kameralar (yansıma) kendi GPU culling görünümü ve sayacı. Sonra R10 öncesinde meshlet'ten bağımsız nesne / instance düzeyinde konservatif Hi-Z adayı: önce tasarım + açık alan / örtülü alan A/B ölçümü, sonra yararlıysa üretim. Ters derinlik, MRT, MSAA, kamera hareketi ve gölge doğruluğu | Yanlış gizleme yok; culling kapalı referansla doğruluk; CPU / GPU render + compute / bellek / görünür nesne / üçgen karşılaştırması; WebGL2 mevcut culling ile çalışır |
 | R9b | Bölge sistemi (yeni, kullanıcı 2026-11-18) | Otomatik bölge + portal üretimi, editörde elle düzenleme, çalışma anında portal üzerinden görünür bölgeler; Z0–Z7 aşağıda | Draw / gölge / GPU önce–sonra; açık dünya değişmez; smoke iki arka uçta |
-| R10 | 5.6 G6 ölçümü | Derekavak P2 60 Hz, R5 raporuyla; sonra 5c adım 6–11 eski sırayla | G6 sınırları |
+| R10 | 5.6 G6 ölçümü | Derekavak P2 60 Hz, R5 raporuyla. **v1.73:** adım 6–7 ve Foliage panelinden sonra, gerçek foliage'la (F7, foliage sırası adım 11'in altında) | G6 sınırları |
 
 Öneriyle ilerleyen kararlar (kullanıcı itiraz ederse değişir): foliage 5.1 yolunda
 kalır, sanal geometri yalnız statik mesh adayıdır; ön işleme çıktısı commit'lenmez,
@@ -1812,8 +1835,9 @@ GPU güdümlü yolunu bekler.
       kış / ara mevsim tutarlılığı; üretilmiş ormanda da G6; çevre geçişinde
       yeniden derleme / kaynak sızıntısı yok, en uzun kare, GPU süresi ve
       toplam / tepe bellek raporlanmış. Tam üretici paneli beklenmez.
-- [ ] **5d Editör araçları + World Builder:** sculpt, paint, foliage paint,
-      landscape spline; World Builder penceresi + `/__world-random` endpoint'i
+- [ ] **5d Editör araçları + World Builder:** sculpt, paint, foliage paint
+      (boya / silme fırçası; Foliage sekmesinin tür ve kural düzenlemesi 5c F5–F6'ya
+      alındı, v1.73), landscape spline; World Builder penceresi + `/__world-random` endpoint'i
       + önizleme worker'ı; PG5 tam tarif paneli, `generated` model kaynağı ve
       bitki ailesi yerleşimi. *Kapı:* araç başına editör smoke'u (düzenle → kaydet
       → yeniden aç); üretilen dünya Content Browser'da görünüyor; ertelenen
@@ -2131,6 +2155,7 @@ silinebilir.
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
+| 2026-11-18 | v1.73 | Foliage sırası (kullanıcı): adım 6 → 7 → Foliage paneli (türler + kurallar, 5d'den öne; fırça 5d'de) → R10 → PG2–PG3 → 11; referans projesine Derekavak / Island / WbPilotValley foliage'la yeniden alınır; alt adımlar F0–F7. Kod yok |
 | 2026-11-18 | v1.72 | Kullanıcı: GPU yolunda örnek başına bölge maskesi (Z3b `acb8e7f`), instanced bölme kalır; Z6 yeniden ölçüldü, Z7 belgeleri; Z6 görsel kabulü kullanıcıda |
 | 2026-11-18 | v1.71 | R9b S1 (`ed3ad1b`: `auto` varsayılan, parça > 5.000 üçgen GPU yolu), Z0 (`30483f8`), Z1 (`0cb8139`), Z2 (`d6bb043`), Z3 (`319404f`), Z4 (`24fce8e`), Z5 (`07d863b`), Z6 ölçümü (`4d1df67`); GPU yolunda bölge bölmesi gönderimi büyütüyor, karar kullanıcıda |
 | 2026-11-18 | v1.70 | R9b kararları (önerilerle): gizli bölge gölgesiz + bölge başına seçenek, önce yalnız görünürlük, S1 statiklerin varsayılan yolu `auto` (eşik ölçümle). Kod yok |
