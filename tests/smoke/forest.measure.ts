@@ -18,9 +18,9 @@
 // - `cycle`: five times away (6 km: every ring cell unloads) and back, in winter: GPU objects / bytes,
 //   three's geometries / textures and the ring's cells / instances back where they were, the season shown
 //   at once (no transition replayed: the WES state is not moving), the image the same (PV-WES-05);
-// - LOD shots (PV-WES-03): every batch forced to LOD 0 / 1 / 2 / impostor (`__forgeDev.foliageLod`) in
-//   summer / autumn / winter / winter with snow, the share of the image the forest covers against the
-//   level without it; candidates for the eye in render-refs/candidates/pg3-wes03-*.png.
+// - LOD shots (PV-WES-03; PV-WES-02: a single `forge.plant` of each family stands beside the group): every batch forced to LOD 0 / 1 / 2 / impostor (`__forgeDev.foliageLod`) in
+//   summer / autumn / winter / winter with snow, the share of the image the level's forest covers against
+//   the same LOD without it; candidates for the eye in render-refs/candidates/pg3-wes03-*.png.
 // GPU memory is counted at the WebGPU API (gpuMemory.ts): three counts a compressed texture as one byte.
 // The record goes to render-refs/runs/<stamp>-forest.json; it fails only on a non-WebGPU run, a boot error,
 // an unsettled ring or a page error, never on the numbers.
@@ -67,6 +67,8 @@ interface Dev {
   environmentState(): { season?: string; seasonProgress?: number } | null;
   foliageType(guid: string, patch: Record<string, unknown> | null): Promise<void>;
   foliageLod(lod: number | null): Promise<void>;
+  spawn(raw: unknown[]): string[];
+  terrainHeights(points: readonly (readonly [number, number])[]): Promise<(number | null)[]>;
   gpuDriven: {
     stats(): { batches: number; instances: number; draws: number; views: number } | null;
     level(): Promise<Ring | null>;
@@ -306,18 +308,30 @@ test("forest: G6, season changes, cell cycles and LOD shots on a generated fores
     const away = Math.hypot(centre[0] - x, centre[2] - z) || 1;
     const camera = [centre[0] + (x - centre[0]) / away * 45, centre[1] + 9, centre[2] + (z - centre[2]) / away * 45] as const;
     await evaluate(page, (d, arg) => { const [a, b, c, e, f, g] = arg as number[]; d.moveCamera(a!, b!, c!, [e!, f!, g!]); }, [...camera, centre[0], centre[1] + 5, centre[2]]);
+    // PV-WES-02: a single `forge.plant` of each family beside the group, 15 m in front of the camera.
+    const toward = [(centre[0] - camera[0]) / 45, (centre[2] - camera[2]) / 45] as const;
+    const spots = [-7, 7].map((side) => [camera[0] + toward[0] * 15 - toward[1] * side, camera[2] + toward[1] * 15 + toward[0] * side] as const);
+    await evaluate(page, (d) => d.resume());
+    await expect.poll(async () => (await evaluate(page, (d, arg) => d.terrainHeights(arg as [number, number][]), spots)).every((h) => h !== null), { timeout: 60_000 }).toBe(true);
+    const heights = await evaluate(page, (d, arg) => d.terrainHeights(arg as [number, number][]), spots);
+    await evaluate(page, (d, arg) => d.spawn(arg as unknown[]), [[BROADLEAF, 0], [CONIFER, 0]].map(([family, prototype], n) => ({
+      id: `act_${(0xf0000 + n).toString(16).padStart(32, "0")}`, name: `Single plant ${n}`, class: null, parent: null, spatiallyLoaded: true,
+      transform: { p: [spots[n]![0], heights[n]!, spots[n]![1]], r: [0, 0, 0, 1], s: [1, 1, 1] },
+      components: { plant: { type: "forge.plant@1", family, prototype, seed: 7 + n } },
+    })));
     await settle("lod pose");
     const coverage: Record<string, number[]> = {};
     for (const [season, snow] of [["summer", 0], ["autumn", 0], ["winter", 0], ["winter", 1]] as const) {
       const key = snow ? `${season}-snow` : season;
       await evaluate(page, (d, arg) => { const [s, c] = arg as [string, number]; d.setSeason(s); d.setSurface({ snowCoverage: c }); }, [season, snow]);
-      await evaluate(page, (d) => d.gpuDriven.levelVisible(false));
-      for (let i = 0; i < 8; i += 1) await step(page);
-      const empty = await shot();
-      await evaluate(page, (d) => d.gpuDriven.levelVisible(true));
       coverage[key] = [];
       for (const lod of [0, 1, 2, 3]) {
+        // The single plants draw the forced LOD too: the shot without the level's foliage at the same LOD.
         await evaluate(page, (d, arg) => d.foliageLod(arg as number), lod);
+        await evaluate(page, (d) => d.gpuDriven.levelVisible(false));
+        for (let i = 0; i < 8; i += 1) await step(page);
+        const empty = await shot();
+        await evaluate(page, (d) => d.gpuDriven.levelVisible(true));
         for (let i = 0; i < 8; i += 1) await step(page);
         const image = await shot();
         mkdirSync(join(RENDER_REFS, "candidates"), { recursive: true });
