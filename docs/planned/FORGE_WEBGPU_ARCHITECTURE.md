@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.70 · 2026-11-19 — §4.4 PG3: yüzey dokusu tarifi (kabuk, kaya) de KTX2; impostor bake'i üretilmiş yüzey dokusunu tarifinden yeniden bake eder.
+**Güncelleme:** v1.71 · 2026-11-19 — §4.7 Faz 6 kararları: alt fazlar 6a–6e, iskele / legacy faz kapısında silinir, birinci şahıs genel parçalarla (motorda FPS kipi yok), Player Start kalıcı katmanda, UI widget editörü şemalı JSON + HUD yerleşimi (K12 kapandı), karakter pilotu FPS Sandbox.
+
+**Önceki güncelleme:** v1.70 · 2026-11-19 — §4.4 PG3: yüzey dokusu tarifi (kabuk, kaya) de KTX2; impostor bake'i üretilmiş yüzey dokusunu tarifinden yeniden bake eder.
 
 **Önceki güncelleme:** v1.69 · 2026-11-19 — §4.4 / §4.9 PG3: üretilmiş atlaslar KTX2 (`forge generate`), impostor yuvasında `color`, mevsimsel uzak temsil odun / yaprak ayrımı (PK7 ölçümü); §4.5 bağımsız `.ktx2` doku asset'i; kapı ölçümü `measure:forest`.
 
@@ -561,7 +563,9 @@ features/height-fog/
   (`tools/import-forge-webgl`); `--compare` kaynak / hedef sayımı, `--pack` motor
   içerik paketine yalnız asset. Gözlem: Forge level dosyasının kendi yerleşimleri
   (Player Start) kalıcı level'daydı; yeni modelde aktör durduğu hücrededir
-  (Player Start'ın kalıcı katman kuralı Faz 6'da özelliğiyle).
+  (Player Start kalıcı katmanda: kullanıcı kararı 2026-11-19, §4.7 Faz 6
+  kararları; kural 6b'de özelliğiyle, içe aktarıcı ve World Builder kalıcı
+  katmana yazar).
 - Büyük ikili veri (terrain tile, global harita, foliage örnekleri) GUID'li
   asset sidecar'larında, ikili kanalla taşınır.
 - Level = kalıcı katman + hücreler. Hücre ataması aktörün konumundan türetilir;
@@ -1554,6 +1558,18 @@ düşen alan uyarı değil, **hatadır**.
     `actorsAdded` / `actorsRemoved` ve kare başına `sync` ile çalıştırır.
     Başsız açılışta (Node, `check:projects`) host yoktur, World render'sız
     koşar. Ayrıntı §4.9.
+  - *Faz 6 kararları (kullanıcı, 2026-11-19; plan Faz 6 dökümü):* alt fazlar
+    6a runtime temeli → 6b oyuncu → 6c sunum ∥ 6d araçlar, 6e AI ortamı ve
+    dağıtım. Taşınan alt sistemler World'e `defineSubsystem` ile bağlanırken
+    legacy okuyucuları şemalı bileşenlere geçer; `src/engine/testing/` ve
+    `src/engine/legacy/` faz kapısında silinir. Birinci şahıs için motor genel
+    parçalar verir (kapsül hareket sorgusu, birinci şahıs kamera kipi, view
+    model); türe özgü hareket / silah kuralları oyunda, motorda "FPS kipi" yok.
+    Player Start kalıcı katmandadır (hücre akışına girmez, doğuş hücreler
+    yüklenmeden çözülür). Oyun UI'ı `engine/ui` widget'ları; widget şemalı
+    JSON, genel veri editöründe önizleme + HUD yerleşimi (anchor / konum
+    sürükleme), tam görsel tasarımcı yok (K12'nin açık maddesi kapandı). Karakter
+    pilotu FPS Sandbox, araç pilotu Ridgebound (K8).
 
 ### 4.8 Oyun projesi modeli (Model 2, ikinci sürüm)
 

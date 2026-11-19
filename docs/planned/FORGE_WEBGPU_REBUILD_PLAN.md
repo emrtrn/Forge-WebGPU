@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.87 · 2026-11-19 — R9c kapandı. Bina akışı kabulü ve atlas A/B deneyi sonuçları [katmanlı çizim planında](LAYERED_DRAW_BUDGET_PLAN.md). Atlas performans ölçütlerini karşılamadı.
+**Güncelleme:** v1.88 · 2026-11-19 — Faz 6 dökümü ve kararları (kullanıcı, hepsi öneri olduğu gibi): alt fazlar 6a–6e, FPS Sandbox karakter pilotu, birinci şahıs genel parçalarla, Player Start kalıcı katmanda, UI widget editörü (K12) şemalı JSON + HUD yerleşimi, K4 / K11 6e'de. 6a başlamadı.
+
+**Önceki güncelleme:** v1.87 · 2026-11-19 — R9c kapandı. Bina akışı kabulü ve atlas A/B deneyi sonuçları [katmanlı çizim planında](LAYERED_DRAW_BUDGET_PLAN.md). Atlas performans ölçütlerini karşılamadı.
 
 **Önceki güncelleme:** v1.86 · 2026-11-19 — 5c kapandı: kullanıcı görsel kabulü (PG3 / PV-WES adayları); kabuk ve kaya dokuları da KTX2 (kullanıcı kararı, `a1a30c6`). Faz 5 bölümü 5d açık olduğu için arşive taşınmaz.
 
@@ -2013,6 +2015,56 @@ GPU güdümlü yolunu bekler.
 
 ### Faz 6 — Oyun runtime'ı ve araçlar
 
+**Faz 6 dökümü (2026-11-19).** Fazı 6 olan 59 envanter satırı (`PORT_LOG` §1),
+ertelenen 5 A (`npm run port:forge-tests`, TSV `deferred` `6`). Mevcut durum: alt
+sistemlerin three'siz kodu 2b'de taşındı (`src/engine` altında, test dışı satır:
+physics 8.755, behavior 2.077, movement 2.106, navigation 1.635, ui 1.516, audio
+1.515, vfx 1.190, persistence 573, input 299, perception 217, loading 212, camera
+152, animation 128, time 106), ama hiçbiri World'e bağlı değil; testleri
+iskeleyle (`src/engine/testing/`, 1.098 satır, 20 test dosyası import eder)
+tick'lenir, okudukları bileşenler eski biçimde (`src/engine/legacy/`, 984 satır,
+`src/engine` altında 89 dosya import eder: physics 23, terrain 15, worldbuilder
+20, environment 8, behavior 6, navigation 5, movement 3, ötekiler 9). `src/gameplay`
+yok (katman kuralı var). Hazır olan: `defineGameModule`, `defineSubsystem({
+inEditor })`, `spawnActors` / `destroyActors` (2a), `defineSaveState` (2b), terrain
+heightfield collider ve G8 eşleşmesi (5a). Kod satırları alt fazın dökümünde
+kesinleşir.
+
+| Alt faz | INV | Ertelenen A | Kapı |
+|---|---|---|---|
+| **6a Runtime temeli** | F12, D43, D06, E13, A17, F11, F31, F16, D48, F23 | — | Alt sistemler World'de `defineSubsystem` ile; Rapier World'de (statik çarpışma, terrain heightfield, `collision.convex`, ışın / şekil sorgusu); iskeleyle tick'lenen testler World'de yeşil; bağlanan alt sistemin legacy okuyucusu şemaya geçmiş |
+| **6b Oyuncu** | D25, D02, F13, D49, D52, D53, F05, F06, F09, D47, D26, D27, A19 | 4 (Player Start / varsayılan piyon) | `src/gameplay` açık; boot ve playflow smoke'ları; FPS Sandbox M1'in karakter kısmı (bakış, yürüme, zıplama, çömelme, hitscan) SDK'dan çalışıyor |
+| **6c Sunum** | E07, D41, E18, G23, C04–C06, F30, G22, D45, E19, C09, F17, E14, H21, F19, E22, D24, F22, F20 | 1 (starter kayıt arayüzü) | Skeletal mesh MRT / hız vektörü sözleşmesiyle; TSL partikül; 3B ses; oyun UI'ı ve HUD yerleşim editörü; checkpoint smoke'u |
+| **6d Araçlar** | D56, D57, D28, C16, E20, F27, F07 | — | Araç terrain üstünde sürülüyor (5a terrain'i); tekerlek görseli, motor sesi, yüzey tepkisi |
+| **6e AI ortamı ve dağıtım** | F14, D07, A18, B14, G28, F15, F10, H15, H16 | — | Recast / Detour + nav volume + önizleme; algı; `game-starter` (+ `samples/` altında rts örneği); oyun projesi build'i, `build-record`, `verify:build`, `verify:dist --strict`; K4 / K11 ölçümü ve kararı |
+
+Sıra: 6a → 6b; sonra 6c ∥ 6d (ayrı oturumlar); 6e'nin nav kısmı 6a'dan, AI
+karakter animasyonu (F15) 6c'den, build hattı 6a'dan sonra herhangi bir zamanda.
+5d bu fazla paralel yürür (plan §5). Faz kapısında `src/engine/testing/` ve
+`src/engine/legacy/` iki katman kuralıyla silinir; Ridgebound pilotu kapıdan
+sonra.
+
+**Faz 6 kararları (kullanıcı, 2026-11-19; hepsi öneri olduğu gibi; mimari v1.71
+§4.7):**
+
+1. *Bölme ve sıra:* yukarıdaki 6a–6e; her alt fazın ayrıntılı dökümü ve
+   kararları kendi başında alınır.
+2. *Pilotlar:* karakter / kamera / girdi / fizik kutularının pilotu FPS Sandbox
+   (`Games/FpsSandbox`, yerel listede kayıtlı; oyunun planında D1); araç
+   tarafının pilotu Ridgebound kalır (K8). Faz kapısı ikisini de görür.
+3. *Birinci şahıs:* motor genel parçaları verir (kapsül hareket sorgusu, birinci
+   şahıs kamera kipi, view model); FPS'e özgü hareket ve silah kuralları oyunda.
+   Motora hazır "FPS kipi" konmaz (oyunun planında D2).
+4. *Player Start:* kalıcı katmanda, hücre akışına girmez; doğuş hücreler
+   yüklenmeden çözülür. İçe aktarıcı ve World Builder Player Start'ı kalıcı
+   katmana yazar (özelliği 6b'de).
+5. *UI widget editörü (K12'nin açık maddesi):* widget'lar şemalı JSON kalır ve
+   genel veri editöründe önizlemeyle düzenlenir; önizlemede HUD yerleşimi
+   (anchor ve konum sürükleme) eklenir. Tam görsel tasarımcı yok. Oyun HUD'u ve
+   menüleri `engine/ui` widget'larıyla (oyunun planında D3). 6c'de.
+6. *K4 / K11:* WebGL2 fallback ve oyunun tarayıcı kapsamı 6e'de ölçülür;
+   kullanıcı kararı faz sonunda.
+
 - [ ] Runtime alt sistemleri (bugünkü capability modülleri), oyun çatısı
       (`gameplay` katmanı: bugünkü `src/game`'in yeniden kullanılabilir kısmı —
       TPS / araç / RTS modları, kamera yöneticisi, takip kamerası, spring arm),
@@ -2030,9 +2082,9 @@ GPU güdümlü yolunu bekler.
       `engine-testing-is-test-only` kuralı silinir (2b iskele kararı).
       Alt sistemler şemalı bileşenlerden okur; `src/engine/legacy/` ve
       `engine-legacy-stays-in-engine` kuralı silinir (2b geçiş kararı).
-- [ ] **UI widget editörü (açık karar, K12):** görsel widget düzenleyici
-      mimari §0.0'ın "istemsiz müdahale" ayağına uyar (HUD yerleşimi); Faz 6
-      başında kullanıcı kararı. O güne kadar widget'lar şemalı JSON.
+- [ ] **UI widget editörü (K12, karar 2026-11-19):** widget'lar şemalı JSON,
+      genel veri editöründe önizlemeyle; önizlemede HUD yerleşimi (anchor ve
+      konum sürükleme). Tam görsel tasarımcı yok (Faz 6 kararı 5, 6c).
 - [ ] Skeletal mesh ve animasyon: skinning'li mesh'in WebGPU'da çizimi (MRT /
       hız vektörü sözleşmesine uygun), klip oynatma, blend space
       (`engine/animation`). Faz 3 yalnız statik mesh'i kapsar; karakter görseli
@@ -2165,7 +2217,7 @@ modüle hata düzeltmesi yapılırsa buraya "port bekliyor" diye işlenir.
 | K9 | Referans donanım | Kullanıcının GPU'su; performans hedefleri Faz 0 baseline'ından sonra konur | **Kapandı** 2026-11-10: referans **R1** = NVIDIA GeForce RTX 3060 12 GB (sürücü 610.60, 2026-11-10) / Intel i5-11400F / 16 GB RAM / 1920×1080 60 Hz ekran. 1440p ölçümleri render çözünürlüğüyle (ekran dışı hedef / DPR) alınır ve kayıtta öyle yazılır. Hedef sayılar Faz 0 baseline'ından sonra; biçim: profil × çözünürlük başına medyan / p95 kare süresi + GPU süresi, 60 Hz bütçe 16,6 ms. Sürücü değişikliği ölçüm kaydına yazılır. İkinci (düşük) referans gerekip gerekmediği K4'ün Faz 6 kararıyla birlikte. Dış hedef sınıf, ölçülemediği için reddedildi |
 | K10 | Faz 1 NO-GO çıkarsa bu depo ve 2a iskeleti | 2a kapısına kadar tamamlanır (three'siz, renderer'dan bağımsız). Sonra iskelet korunur ve `render` katmanı Forge `render-three`'den (klasik `WebGLRenderer`) uyarlanır; mimari kazançlar (veri modeli, şema, kayıt, SDK) renderer'a bağlı değil. Bedeli: 2b'ye ~23.300 satırlık render uyarlaması eklenir ve iki depo dönemi uzar | **Kapandı** 2026-11-10: öneri olduğu gibi — NO-GO'da yeni iskelet + klasik `WebGLRenderer` katmanı. Depoyu dondurup Forge WebGL'de devam etmek 2a'nın mimari kazançlarını (veri modeli, şema, kayıt, SDK) Forge'a parça parça geri taşımayı gerektirdiği, kararı NO-GO anına bırakmak 2a'yı belirsiz hedefle yürüttüğü için reddedildi. `WebGPURenderer`'ın WebGL2 backend'i seçenek değil: NO-GO nedeni renderer'ın CPU maliyetiyse aynı maliyeti taşır |
 | K11 | Tarayıcı kapsamı | Editör: yalnız masaüstü Chromium (Chrome / Edge), R1'de. Oyun: başlangıçta aynı; Firefox / Safari kapsamı Faz 6'da K4 fallback ölçümüyle birlikte karara bağlanır. Kapsam dışı tarayıcıda boot hata ekranı açık mesaj verir | **Kapandı** 2026-11-10: öneri olduğu gibi — editör yalnız masaüstü Chromium; oyunun Firefox / Safari kapsamı Faz 6'da K4 ölçümüyle. Oyun için Firefox + Safari'yi ilk günden hedeflemek her fazın kabulüne iki tarayıcı daha eklediği için reddedildi |
-| K12 | Kapsam: hangi Forge özellikleri taşınmaz | Ürün tezinin ölçütüne göre (mimari §0.0); eski oyunların kullanımı ölçüt değil | **Kapandı** 2026-11-11 (kullanıcı, öneri olduğu gibi). **Taşınmaz:** diyalog (`engine/dialogue`, editör, asset'ler, rapor hattı); AI yazım yığını (`engine/ai`: controller, BT, State Tree, EQS, Blackboard, Smart Object ve editörleri; AI mantığı oyun kodunda); Actor Script'in betik yüzeyi (değişkenler, olay / mesaj bağlamaları, dispatcher, arayüz, referans, construction; sınıf parametreleri şemalı bileşen alanlarıyla); ragdoll ve kalkma karışımı, montage girişleri; Sound Cue editörü, ses bileşeni ve Ambient Sound; hareketli platform, spline takipçisi, level geçişi / portallar. **Taşınır:** ses ve UI kod kütüphaneleri, karakter hareketi, takip kamerası ve spring arm, Recast / Detour navigasyonu, algı, Player Start. **Yeni:** genel veri editörü (A13) ve ajan düzenleme komutları (A12), Faz 4. **Açık:** UI widget editörü, Faz 6 başında. Taşınmayan kod `forge-webgl-final` etiketinde durur; bir oyun isterse dikey özellik modülü olarak gelir. **Behavior (kullanıcı kararı 2026-11-12):** olay ve mesaj işleyicileri davranışın kod kaydında (`BehaviorDefinition`: `tick`, `events`, `messages`); aktör `Behavior` bileşeniyle (script + parametreler) davranışı seçer |
+| K12 | Kapsam: hangi Forge özellikleri taşınmaz | Ürün tezinin ölçütüne göre (mimari §0.0); eski oyunların kullanımı ölçüt değil | **Kapandı** 2026-11-11 (kullanıcı, öneri olduğu gibi). **Taşınmaz:** diyalog (`engine/dialogue`, editör, asset'ler, rapor hattı); AI yazım yığını (`engine/ai`: controller, BT, State Tree, EQS, Blackboard, Smart Object ve editörleri; AI mantığı oyun kodunda); Actor Script'in betik yüzeyi (değişkenler, olay / mesaj bağlamaları, dispatcher, arayüz, referans, construction; sınıf parametreleri şemalı bileşen alanlarıyla); ragdoll ve kalkma karışımı, montage girişleri; Sound Cue editörü, ses bileşeni ve Ambient Sound; hareketli platform, spline takipçisi, level geçişi / portallar. **Taşınır:** ses ve UI kod kütüphaneleri, karakter hareketi, takip kamerası ve spring arm, Recast / Detour navigasyonu, algı, Player Start. **Yeni:** genel veri editörü (A13) ve ajan düzenleme komutları (A12), Faz 4. **UI widget editörü (kullanıcı kararı 2026-11-19, Faz 6 kararı 5):** şemalı JSON + genel veri editöründe önizleme ve HUD yerleşimi (anchor / konum sürükleme); tam görsel tasarımcı yok. Taşınmayan kod `forge-webgl-final` etiketinde durur; bir oyun isterse dikey özellik modülü olarak gelir. **Behavior (kullanıcı kararı 2026-11-12):** olay ve mesaj işleyicileri davranışın kod kaydında (`BehaviorDefinition`: `tick`, `events`, `messages`); aktör `Behavior` bileşeniyle (script + parametreler) davranışı seçer |
 
 ## 9. v0.1'den korunanlar
 
@@ -2320,6 +2372,7 @@ silinebilir.
 | 2026-11-17 | v1.63 | R9a adım 1 (`ef12079`): kamera görünümleri (`gpuDriven.add`), görünüm rolü / katmanı (ana görünüm katman 9), yansıma = ana görünümün aynası (`mirrorCullView`); render smoke 29 / 29, yansıma görünümü iki arka uçta CPU referansıyla. Mimari v1.60 |
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
+| 2026-11-19 | v1.88 | Faz 6 dökümü (59 INV, ertelenen 5 A, iskele / legacy bağımlılığı) ve kararlar 1–6 (kullanıcı, öneriler): 6a–6e, FPS Sandbox karakter pilotu, birinci şahıs genel parçalar, Player Start kalıcı katman, UI widget editörü K12 kapandı, K4 / K11 6e. Kod yok |
 | 2026-11-19 | v1.83 | R9c Adım 5 kapandı. S12 ile üretimde mevcut `auto` ve S1 onaylandı. Şehir karşılaştırması ve iki arka uç doğrulaması ayrı plan §5.5’te. |
 | 2026-11-19 | v1.87 | R9c kapandı. Adım 4 bina akışı yürüyüş bütçesini karşıladı. Adım 6 atlas A/B deneyi draw azalttı, CPU ve GPU kabul ölçütlerini karşılamadı. Ayrı plan §5.4 ve §5.6. |
 | 2026-11-19 | v1.86 | 5c kapandı (kullanıcı görsel kabulü); `forge.surfaceTextureRecipe` çıktısı KTX2, impostor bake'i kabuğu tarifinden yeniden bake eder (`a1a30c6`); `measure:rock-material` kayaların çizilmesini bekler (önceki A / C sayıları yüklenmemiş kayalarla olabilir) |
