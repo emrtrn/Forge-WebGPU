@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.90 · 2026-11-19 — 5d adım 2 (`3074f3a`): Landscape sculpt editörde (Details'te Landscape bölümü, Forge'un 8 aracı ve değiştirici tuşları, terrain'e oturan halka), darbe dikdörtgeni GPU'ya, düzenlenen tile akışta sabit, darbe başına undo, tile + global harita + tanım tek kayıt işleminde okunan revizyonlarla. Kullanıcı görsel kabulü bekleniyor.
+**Güncelleme:** v1.91 · 2026-11-19 — 5d adım 2'nin görsel kabulü (kullanıcı, 2026-11-19). Sırada adım 3: katman boyama, Auto Paint, katman görünümü.
+
+**Önceki güncelleme:** v1.90 · 2026-11-19 — 5d adım 2 (`3074f3a`): Landscape sculpt editörde (Details'te Landscape bölümü, Forge'un 8 aracı ve değiştirici tuşları, terrain'e oturan halka), darbe dikdörtgeni GPU'ya, düzenlenen tile akışta sabit, darbe başına undo, tile + global harita + tanım tek kayıt işleminde okunan revizyonlarla. Kullanıcı görsel kabulü bekleniyor.
 
 **Önceki güncelleme:** v1.89 · 2026-11-19 — 5d dökümü ve kararları (kullanıcı, hepsi öneri olduğu gibi): araçlar yalnız editörde (fırça CLI'sı yok), sculpt CPU'da + bölge yüklemesi, darbe başına undo, Mesh Paint 5d'den çıktı, yol mesh'leri CPU'da bake, bitki tarafı (PG5) adım 9'da bitki akışıyla. Adım sırası 1–10; adım 2 başlamadı.
 
@@ -2052,7 +2054,7 @@ ilk darbenin yükseklikleri; yeniden aç) `forceWebGL`'de ve gerçek WebGPU'da g
 terrain'e dokunan editör spec'leri (foliage, addActor, streaming, world) 16 / 16.
 Sonraya: Ctrl + tekerlekle fırça boyutu, Play'e kaydedilmemiş terrain düzenlemesi
 (Play oturumu yalnız level dosyalarını taşır), foliage halkasının düzenlenen
-alanda yeniden büyümesi. Kullanıcı görsel kabulü bekleniyor.
+alanda yeniden büyümesi. Kullanıcı görsel kabulü 2026-11-19'da verildi.
 
 - [x] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
       Faz 3 karar 1) üretim kalitesine çıkar: morph,
@@ -2495,3 +2497,4 @@ silinebilir.
 | 2026-11-18 | v1.66 | R9a hücre batch'i ölçümü (`fab7066`, kapalı): iç mekân draw 4 → 63; query yolu bırakıldı. Üretim kararı (kullanıcı): örnek başına GPU occlusion O1–O5 (level ayarı, otomatik engelleyici ön geçişi, GPU Hi-Z, ana görünüm örnek ayıklaması, A/B) |
 | 2026-11-19 | v1.89 | 5d dökümü (B01–B06, B08–B10, B13, E26, G21; ertelenen 4 A `worldTerrainMove`; algoritmalar 2b'de taşınmış, editör araçlarının hiçbiri yok) ve kararlar 1–6 (kullanıcı, öneriler): fırça araçları yalnız editörde, sculpt CPU'da + bölge yüklemesi, darbe başına undo ve `worldTerrainSave` kaydı, Mesh Paint çıktı, yol mesh'leri CPU'da bake, PG5 adım 9'da. Adım sırası 1–10. Mimari v1.72. Kod yok |
 | 2026-11-19 | v1.90 | 5d adım 2 (`3074f3a`): Landscape sculpt — Details'te Landscape bölümü, Forge'un 8 aracı + değiştiricileri, araziye oturan halka; `TerrainEditingKey` + asset başına `TerrainEditSession` (akış sürer, düzenlenen tile `kept`), `TerrainView.updateTile`; level adımlarıyla birleşik undo (`pushStep`, `History.clearRedo`); kayıt katılımcısı tile + global harita + tanımı okunan revizyonlarla tek işlemde yazar. Editör smoke'u `landscape.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
+| 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
