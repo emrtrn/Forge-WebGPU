@@ -1,6 +1,6 @@
 {
   "schema": "forge.assetMeta/1",
-  "id": "ast_fc40b56929b787d55e1a1cec6a4be838",
+  "id": "ast_1168e5e7e8640002d17547a3b913ac8c",
   "type": "forge.texture@2",
   "license": "LicenseRef-forge-project",
   "source": {
@@ -9,13 +9,13 @@
     "url": ""
   },
   "import": {
-    "anisotropy": 4,
+    "anisotropy": 1,
     "mipmaps": true
   },
   "generated": {
     "recipe": "ast_fd4f39c78d58ef550273be682359d194",
     "generator": "tree",
-    "generatorVersion": 2,
-    "contentHash": "24c8d9f5da00297b9e9d505c538889233fb9b1f32c02214ba3c8acb6f41efd8b"
+    "generatorVersion": 3,
+    "contentHash": "d5ac74da40d395b4c8ec5b4f03b41adc730f5941f3feeb20e41c111c559f1bac"
   }
 }

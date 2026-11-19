@@ -248,7 +248,7 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
       wood: await materialLook(options, target, materials.wood ?? null, own, warnings),
       leaf: await materialLook(options, target, materials.leaf ?? null, own, warnings),
     };
-    outputs = treeOutputs(entry.id, doc, folder, stem, stats, looks);
+    outputs = await treeOutputs(entry.id, doc, folder, stem, stats, looks);
   } else if (entry.type === "forge.surfaceTextureRecipe") {
     generator = "surfaceTexture";
     outputs = surfaceTextureOutputs(entry.id, doc, folder, stem, stats);

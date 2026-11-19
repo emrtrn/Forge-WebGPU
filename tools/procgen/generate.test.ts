@@ -10,7 +10,6 @@ import { loadEngineRegistry } from "../assets/engineRegistry.ts";
 import { scanRoots } from "../assets/scan.ts";
 import { createProject } from "../project/create.ts";
 import { generateFromRecipe } from "./generate.ts";
-import { decodePng } from "./png.ts";
 
 const engineRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const RECIPE = "content/rocks/boulder.rockrecipe.json";
@@ -85,14 +84,19 @@ describe("forge generate (tree)", () => {
     const names = (await readdir(join(project, "content/rocks/oak"))).sort();
     expect(names).toEqual([
       "oak.plantfamily.json", "oak_2.foliagetype.json",
-      "oak_2_impostor_albedo.png", "oak_2_impostor_albedo.png.meta.json", "oak_2_impostor_normal.png", "oak_2_impostor_normal.png.meta.json",
+      "oak_2_impostor_albedo.ktx2", "oak_2_impostor_albedo.ktx2.meta.json", "oak_2_impostor_normal.ktx2", "oak_2_impostor_normal.ktx2.meta.json",
       "oak_2_lod0.glb", "oak_2_lod0.glb.meta.json", "oak_2_lod1.glb", "oak_2_lod1.glb.meta.json", "oak_2_lod2.glb", "oak_2_lod2.glb.meta.json",
-      "oak_leaf.png", "oak_leaf.png.meta.json",
+      "oak_leaf.ktx2", "oak_leaf.ktx2.meta.json",
     ]);
     // The leaf atlas: 4 × 4 tiles of the 256 px leaf card; the impostor 8 × 8 views of 128 px, wood and leaves side by side.
-    expect(decodePng(new Uint8Array(await readFile(join(project, "content/rocks/oak/oak_leaf.png"))))?.width).toBe(1024);
-    const impostor = decodePng(new Uint8Array(await readFile(join(project, "content/rocks/oak/oak_2_impostor_albedo.png"))))!;
-    expect([impostor.width, impostor.height]).toEqual([2048, 1024]);
+    // KTX2 (header: pixel size, level count, Zstandard = 2): UASTC with its mip chain.
+    const ktx2 = async (name: string): Promise<number[]> => {
+      const view = new DataView((await readFile(join(project, `content/rocks/oak/${name}`))).buffer);
+      return [20, 24, 40, 44].map((offset) => view.getUint32(offset, true));
+    };
+    expect(await ktx2("oak_leaf.ktx2")).toEqual([1024, 1024, 11, 2]);
+    expect(await ktx2("oak_2_impostor_albedo.ktx2")).toEqual([2048, 1024, 12, 2]);
+    expect(await ktx2("oak_2_impostor_normal.ktx2")).toEqual([2048, 1024, 12, 2]);
     const glb = readGlb(new Uint8Array(await readFile(join(project, "content/rocks/oak/oak_2_lod0.glb"))));
     const [wood, leaves] = glb.json.meshes[0].primitives;
     expect([wood.material, leaves.material]).toEqual([0, 1]);

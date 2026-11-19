@@ -1,6 +1,6 @@
 {
   "schema": "forge.assetMeta/1",
-  "id": "ast_f0b4b0a115c08c3d9711d2190352ff62",
+  "id": "ast_f690a1595c781e7b8ec6628f6387f79e",
   "type": "forge.texture@2",
   "license": "LicenseRef-forge-project",
   "source": {
@@ -13,9 +13,9 @@
     "mipmaps": true
   },
   "generated": {
-    "recipe": "ast_1cc830feab66656728f8bf965079b68a",
+    "recipe": "ast_fd4f39c78d58ef550273be682359d194",
     "generator": "tree",
-    "generatorVersion": 2,
-    "contentHash": "5ac180d554fec4539ea38860f997314c5f620e9fc8cdbfbdf52131a611d09d89"
+    "generatorVersion": 3,
+    "contentHash": "9dcc0c2d57c1b1e09168652f2b201668eea34f597398eb27a72c9f0b11d21e72"
   }
 }

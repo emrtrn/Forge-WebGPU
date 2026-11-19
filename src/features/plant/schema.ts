@@ -78,6 +78,7 @@ export const PlantFamilyFields = {
             normal: assetRef({ assetType: "forge.texture", hint: "Impostor atlasının normal + derinlik dokusu (PG3)." }),
             views: num({ min: 1, max: 32, default: 8, step: 1, hint: "Atlasın kenar başına görüş sayısı." }),
             screenSize: num({ min: 0, max: 1, default: 0.03, hint: "Impostor'a geçilen ekran boyu (yükseklik oranı)." }),
+            color: color({ default: null, hint: "Yaprak katmanının ortalama rengi (üretim aracı yazar); uzak ton bunu kullanır." }),
           },
           { hint: "Uzak temsil (PG3 doldurur); boşsa çalışma anı kartı." },
         ),

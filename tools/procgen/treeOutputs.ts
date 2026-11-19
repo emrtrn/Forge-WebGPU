@@ -1,21 +1,23 @@
 // `forge generate` for a `forge.treeRecipe` (vegetation plan PG2 / PG3, §5.2,
 // §6.4; user decision 2026-11-18: one GLB per LOD, wood and leaves two
 // material slots). Beside `<dir>/<stem>.treerecipe.json`, in `<dir>/<stem>/`:
-// - `<stem>_leaf.png`: the leaf atlas (engine/procgen/tree/treeCards.ts): the
+// - `<stem>_leaf.ktx2`: the leaf atlas (engine/procgen/tree/treeCards.ts): the
 //   leaf card (engine/procgen/texture/leafTexture.ts) and the species'
-//   branch-tip card library, baked from the first seed's tree;
+//   branch-tip card library, baked from the first seed's tree; stored for the
+//   leaf material's V flip (ktx2.ts);
 // - per seed and LOD `<stem>_<seed>_lod<i>.glb`: primitive 0 the wood (slot 0,
 //   bark UVs), primitive 1 the leaf cards or, on a `clusters` LOD, the
 //   branch-tip cards (slot 1, atlas UVs); both carry `_WIND` (trunk bend,
 //   branch sway, phase, flutter) and the leaves `_LEAF` (shedding threshold,
 //   colour variety), stable across LODs;
-// - per seed `<stem>_<seed>_impostor_{albedo,normal}.png`: the prototype's
+// - per seed `<stem>_<seed>_impostor_{albedo,normal}.ktx2`: the prototype's
 //   impostor (engine/procgen/tree/treeImpostor.ts: wood left, leaves right);
 // - `<stem>.plantfamily.json`: one prototype per seed (its LOD chain,
 //   impostor, height), the recipe's materials, collider and response profile;
 // - per seed `<stem>_<seed>.foliagetype.json`: the prototype as a foliage type
 //   (the family's, LOD0 and its LODs, its impostor, swaying from the vertex
 //   weights).
+// Textures are KTX2 (tools/procgen/ktx2.ts; PG3, user decision 2026-11-19).
 
 import type { JsonObject } from "../../src/core/index.ts";
 import type { BakeTexture } from "../../src/engine/procgen/bake/rasterizer.ts";
@@ -28,7 +30,7 @@ import { bakeTreeImpostor, type TreeImpostorSurface } from "../../src/engine/pro
 import { normalizeTreeParams } from "../../src/engine/procgen/tree/treeParams.ts";
 import { buildTreeSkeleton } from "../../src/engine/procgen/tree/treeSkeleton.ts";
 import { binaryWithMeta, documentOutput, GENERATED_MODEL_OPTIMIZE, GENERATOR_VERSIONS, outputId, round, srgbTriple, type Output } from "./outputs.ts";
-import { encodeRgbaPng } from "./png.ts";
+import { encodeRgbaKtx2 } from "./ktx2.ts";
 
 /** How a material looks to the bake (generate.ts reads it from the material document). */
 export interface MaterialLook {
@@ -41,6 +43,30 @@ export interface MaterialLook {
   readonly alphaTest: number;
 }
 
+const toLinear = (byte: number): number => { const c = byte / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+const toSrgbByte = (linear: number): number => {
+  const c = Math.min(1, Math.max(0, linear));
+  return Math.round(255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055));
+};
+
+/**
+ * The leaf layer's (the atlas's right half) coverage-weighted mean colour, averaged in linear light, as sRGB
+ * `#rrggbb`: the far tint's colour (render/foliage/farBillboards.ts; the run-time read of an uncompressed
+ * atlas, modelImpostor.ts `meanColor`, does the same). Null for an empty layer.
+ */
+function leafMeanHex(rgba: Uint8Array, width: number): string | null {
+  let r = 0, g = 0, b = 0, weight = 0;
+  for (let i = 0; i < rgba.length; i += 4) {
+    if ((i / 4) % width < width / 2) continue;
+    const alpha = rgba[i + 3]! / 255;
+    if (alpha <= 0) continue;
+    r += toLinear(rgba[i]!) * alpha; g += toLinear(rgba[i + 1]!) * alpha; b += toLinear(rgba[i + 2]!) * alpha;
+    weight += alpha;
+  }
+  if (weight <= 0) return null;
+  return `#${[r, g, b].map((c) => toSrgbByte(c / weight).toString(16).padStart(2, "0")).join("")}`;
+}
+
 /** The recipe's fields the tree generator reads. */
 function treeInput(data: JsonObject, seed: number): Record<string, unknown> {
   const leaves = data.leaves as JsonObject;
@@ -51,10 +77,10 @@ function treeInput(data: JsonObject, seed: number): Record<string, unknown> {
   };
 }
 
-export function treeOutputs(
+export async function treeOutputs(
   recipeId: string, data: JsonObject, folder: string, stem: string, stats: string[],
   looks: { readonly wood: MaterialLook | null; readonly leaf: MaterialLook | null } = { wood: null, leaf: null },
-): Output[] {
+): Promise<Output[]> {
   const outputs: Output[] = [];
   const version = GENERATOR_VERSIONS.tree;
   const generated = { recipe: recipeId, generator: "tree", generatorVersion: version };
@@ -75,10 +101,11 @@ export function treeOutputs(
   const firstSkeleton = buildTreeSkeleton(firstParams);
   if ("error" in firstSkeleton) throw new Error(`seed ${seeds[0]}: ${firstSkeleton.error}`);
   const leafAtlas = bakeLeafAtlas(firstParams, firstSkeleton, { width: leafTexture.size, height: leafTexture.size, rgba: leafTexture.rgba }, twigColor);
-  const leafBytes = encodeRgbaPng(leafAtlas.size, leafAtlas.size, leafAtlas.rgba);
+  // Stored for the leaf material's flip (without one the GLB's own "Leaf", drawn the generated way: flipped).
+  const leafBytes = await encodeRgbaKtx2(leafAtlas.size, leafAtlas.size, leafAtlas.rgba, { srgb: true, flipY: looks.leaf?.flipY ?? true });
   const leafTextureId = outputId(recipeId, "tree/leafTexture");
-  binaryWithMeta(outputs, `${folder}/${stem}_leaf.png`, leafTextureId, "forge.texture@2", leafBytes, { anisotropy: 4, mipmaps: true }, generated);
-  stats.push(`${stem}_leaf.png: ${leafAtlas.size} × ${leafAtlas.size} (leaf + ${leafAtlas.atlas.clusters.length} branch-tip cards), ${leafBytes.length} bytes, ${Math.round(performance.now() - leafStarted)} ms`);
+  binaryWithMeta(outputs, `${folder}/${stem}_leaf.ktx2`, leafTextureId, "forge.texture@2", leafBytes, { anisotropy: 4, mipmaps: true }, generated);
+  stats.push(`${stem}_leaf.ktx2: ${leafAtlas.size} × ${leafAtlas.size} (leaf + ${leafAtlas.atlas.clusters.length} branch-tip cards), ${leafBytes.length} bytes, ${Math.round(performance.now() - leafStarted)} ms`);
 
   const surfaceOf = (look: MaterialLook | null, fallback: readonly [number, number, number], alphaTest: number): TreeImpostorSurface => ({
     color: look?.color ?? fallback,
@@ -95,7 +122,7 @@ export function treeOutputs(
 
   const familyId = outputId(recipeId, "tree/family");
   const prototypes: JsonObject[] = [];
-  seeds.forEach((seed, prototype) => {
+  for (const [prototype, seed] of seeds.entries()) {
     const started = performance.now();
     const result = generateTree(treeInput(data, seed), { atlas: leafAtlas.atlas });
     if (!result.ok) throw new Error(`seed ${seed}: ${result.report.message}`);
@@ -126,18 +153,22 @@ export function treeOutputs(
     });
     stats.push(`seed ${seed}: ${result.stems} stems, ${result.clusters} leaf clusters, ${Math.round(performance.now() - started)} ms`);
 
-    let impostor: JsonObject = { albedo: null, normal: null, views: 8, screenSize: 0.03 };
+    let impostor: JsonObject = { albedo: null, normal: null, views: 8, screenSize: 0.03, color: null };
     if (impostorSettings.enabled) {
       const bakeStarted = performance.now();
       const baked = bakeTreeImpostor(result.lods[0]!, impostorLooks, { views: impostorSettings.views, frameSize: Number(impostorSettings.frameSize) });
       const ids = { albedo: outputId(recipeId, `tree/${seed}/impostor/albedo`), normal: outputId(recipeId, `tree/${seed}/impostor/normal`) };
       let bytes = 0;
       for (const slot of ["albedo", "normal"] as const) {
-        const png = encodeRgbaPng(baked.width, baked.height, baked[slot]);
-        bytes += png.length;
-        binaryWithMeta(outputs, `${folder}/${stem}_${seed}_impostor_${slot}.png`, ids[slot], "forge.texture@2", png, { anisotropy: 1, mipmaps: true }, generated);
+        // Read with the atlas's own coordinates (impostorMaterial.ts): stored as baked.
+        const ktx2 = await encodeRgbaKtx2(baked.width, baked.height, baked[slot], { srgb: slot === "albedo" });
+        bytes += ktx2.length;
+        binaryWithMeta(outputs, `${folder}/${stem}_${seed}_impostor_${slot}.ktx2`, ids[slot], "forge.texture@2", ktx2, { anisotropy: 1, mipmaps: true }, generated);
       }
-      impostor = { albedo: ids.albedo, normal: ids.normal, views: baked.views, screenSize: round(impostorSettings.screenSize) };
+      impostor = {
+        albedo: ids.albedo, normal: ids.normal, views: baked.views, screenSize: round(impostorSettings.screenSize),
+        color: leafMeanHex(baked.albedo, baked.width),
+      };
       stats.push(`seed ${seed} impostor: ${baked.views} × ${baked.views} views, ${baked.width} × ${baked.height} × 2 textures, ${bytes} bytes, ${Math.round(performance.now() - bakeStarted)} ms`);
     }
 
@@ -159,7 +190,7 @@ export function treeOutputs(
       lods: chain.slice(1),
       impostor,
     });
-  });
+  }
   documentOutput(outputs, `${folder}/${stem}.plantfamily.json`, {
     schema: "forge.plantFamily/1",
     id: familyId,

@@ -48,6 +48,7 @@
     "albedo": "ast_48c58913dfb85a101920180b94fe54fb",
     "normal": "ast_031ce36f9d4fdb62b20470e76b9e90dd",
     "views": 8,
-    "screenSize": 0.03
+    "screenSize": 0.03,
+    "color": "#436324"
   }
 }

@@ -71,6 +71,8 @@ export function slotMaterialsOf(settings: unknown): (string | null)[] {
 
 export function createGltfModelSource(renderer: WebGPURenderer, urls: AssetUrls): GltfModelSource {
   const ktx2 = new KTX2Loader(transcoderManager()).detectSupport(renderer);
+  // Texture assets in .ktx2 (textures.ts) go through this loader too: the dev server wants the header.
+  ktx2.setRequestHeader({ ...urls.headers });
   const loader = new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
   loader.setKTX2Loader(ktx2);

@@ -7,7 +7,7 @@ import { stableHex } from "../../src/engine/forgeImport/ids.ts";
 import { PROJECT_LICENSE } from "../import-forge-webgl/provenance.ts";
 
 /** Bumped with every change to a generator that alters its output (written to the recipe's outputs). */
-export const GENERATOR_VERSIONS = { rock: 1, surfaceTexture: 1, tree: 2 } as const;
+export const GENERATOR_VERSIONS = { rock: 1, surfaceTexture: 1, tree: 3 } as const;
 export type GeneratorName = keyof typeof GENERATOR_VERSIONS;
 
 export interface Output {

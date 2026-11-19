@@ -134,7 +134,8 @@ export function createFarBillboards(options: FarBillboardsOptions): FarBillboard
         const [albedo, normal] = await Promise.all([world.texture(ref.albedo, "srgb"), world.texture(ref.normal, "linear")]);
         if (entry.disposed) return;
         draw = { albedo, normal, views: ref.views, center: sphere.center.clone(), radius: sphere.radius };
-        const color = textureMeanColor(albedo, "right");
+        // The bake's colour; reading the atlas back works only for an uncompressed one.
+        const color = ref.color ?? textureMeanColor(albedo, "right");
         entry.look = color ? { color, radius: sphere.radius * CROWN_OF_SPHERE } : null;
       } else {
         const baked = await bakeModelImpostor(parts);
