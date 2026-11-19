@@ -93,10 +93,27 @@ describe("forge generate (rock)", () => {
 
 describe("forge generate (tree)", () => {
   const TREE = "content/rocks/oak.treerecipe.json";
+  test("a copied growth recipe publishes its own atlas material to the model and family", async () => {
+    const recipe = "content/rocks/sapling.treerecipe.json", folder = join(project, "content/rocks/sapling");
+    const source = JSON.parse(await readFile(join(engineRoot, "content/packs/starter/procgen/trees/Poplar.treerecipe.json"), "utf8"));
+    const doc = { ...source, id: "ast_00000000000000000000000000000aba",
+      variants: [2], growth: { ...source.growth, age: 12 }, impostor: { enabled: false } };
+    await writeFile(join(project, recipe), JSON.stringify(doc));
+    const result = await generateFromRecipe({ engineRoot, projectRoot: project, recipe });
+    expect(result.generatorVersion).toBe(4);
+    const read = async (name: string) => JSON.parse(await readFile(join(folder, name), "utf8"));
+    const leaf = await read("sapling_leaf.material.json"), atlas = await read("sapling_leaf.ktx2.meta.json");
+    const family = await read("sapling.plantfamily.json"), model = await read("sapling_2_lod0.glb.meta.json");
+    expect(leaf).toMatchObject({ baseColorTexture: atlas.id, alphaMode: "mask", side: "double" });
+    expect(family).toMatchObject({ generatorVersion: 4, materials: { leaf: leaf.id } });
+    expect(model.import.materials[1]).toBe(leaf.id);
+    expect(family.prototypes[0].height).toBeLessThan(9);
+  }, 60000);
   test("writes the leaf atlas, two-slot LOD models, impostors, the family and its foliage types; a rerun writes the same bytes", async () => {
     await writeFile(join(project, TREE), `${JSON.stringify({ schema: "forge.treeRecipe/1", id: "ast_00000000000000000000000000000def", variants: [2] })}\n`);
     const first = await generateFromRecipe({ engineRoot, projectRoot: project, recipe: TREE });
     expect(first.generator).toBe("tree");
+    expect(first.generatorVersion).toBe(3);
     const names = (await readdir(join(project, "content/rocks/oak"))).sort();
     expect(names).toEqual([
       "oak.plantfamily.json", "oak_2.foliagetype.json",

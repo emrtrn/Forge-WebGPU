@@ -8,6 +8,29 @@ import { meshTree } from "./treeMesh.ts";
 import { normalizeTreeParams, TREE_PRESETS } from "./treeParams.ts";
 import type { TreeParams } from "./treeParams.ts";
 import { buildTreeSkeleton } from "./treeSkeleton.ts";
+import { recipeTreeStructure, treeOutputVersion } from "./treeGrowth.ts";
+
+test("recipe versions pin historical geometry; growth changes proportions at a fixed seed", () => {
+  for (const version of [undefined, 1, 2, 3]) {
+    const { params, skeleton } = recipeTreeStructure({ seed: 2, generatorVersion: version, growth: { age: 1 } });
+    assert.equal(treeOutputVersion(version), 3);
+    assert.deepEqual(skeleton, buildTreeSkeleton(params));
+  }
+  assert.throws(() => treeOutputVersion(5), /Unsupported/);
+  const shape = (age: number, width: number, seed = 7) => {
+    const result = recipeTreeStructure({ generatorVersion: 4, seed, growth: { age, width } });
+    if ("error" in result.skeleton) assert.fail(result.skeleton.error);
+    const stems = result.skeleton.stems;
+    const radius = Math.max(...stems.flatMap(stem => stem.points.map(([x, , z]) => Math.hypot(x, z))));
+    return { height: result.params.height, diameter: stems[0]!.radii[0]! * 2, stems: stems.length, radius };
+  };
+  const young = shape(12, 1), mature = shape(60, 1);
+  assert.ok(young.height < mature.height && young.stems < mature.stems);
+  assert.ok(young.diameter / young.height < mature.diameter / mature.height);
+  assert.ok(shape(60, 0.28).radius < mature.radius * 0.6);
+  assert.deepEqual(mature, shape(60, 1));
+  assert.notEqual(mature.radius, shape(60, 1, 8).radius);
+});
 
 function success(result: TreeResult): Extract<TreeResult, { ok: true }> {
   if (!result.ok) assert.fail(result.report.message);

@@ -169,7 +169,16 @@ const treeLod = object(
 
 /** Defaults are the broadleaf preset's (engine/procgen/tree/treeParams.ts `TREE_PRESETS.broadleaf`). */
 export const TreeRecipeFields = {
-  generatorVersion: num({ min: 1, default: 1, step: 1, hint: "Üreticinin çıktıyı değiştiren sürümü; üretim aracı yazar." }),
+  // An omitted version also occurs in historical sparse recipes. New species opt in explicitly.
+  generatorVersion: num({ min: 1, default: 1, step: 1, hint: "Tarifin kullandığı üretici sürümü." }),
+  growth: object({
+    age: num({ min: 1, max: 400, default: 60, step: 1, hint: "Ağacın yaşı, yıl." }),
+    matureAge: num({ min: 1, max: 400, default: 60, step: 1, hint: "Ağacın tarifteki boy ve gövde kalınlığına ulaştığı yaş." }),
+    width: num({ min: 0.1, max: 1.6, default: 0.8, hint: "Ana dalların yatay yayılımı, ağaç boyuna oranla." }),
+    widestPoint: num({ min: 0.05, max: 0.95, default: 0.5, hint: "Tacın en geniş bölgesinin konumu, alttan tepeye." }),
+    fullness: num({ min: 0, max: 1, default: 0.78, hint: "Taç doluluğu, dal ve yaprak kümesi yoğunluğunu belirler." }),
+    leaderDominance: num({ min: 0, max: 1, default: 0.55, hint: "Ana gövdenin baskınlığı. Artırdıkça gövde dikleşir ve yan dallar incelir." }),
+  }, { label: "Growth", hint: "Yaş ve türe özgü taç biçimi." }),
   habit: enumOf(TREE_HABITS, { default: "broadleaf", labels: { broadleaf: "Broadleaf", conifer: "Conifer" }, hint: "Geniş yapraklı (yuvarlak taç) ya da iğne yapraklı (gövde tepeye kadar, katlı dallar)." }),
   variants: array(num({ min: 0, max: 4294967295, default: 1, step: 1, hint: "Bu tohum bir prototip üretir." }), { default: [1], hint: "Tohum listesi: her tohum ayrı bir ağaç prototipi." }),
   height: num({ min: 1, max: 60, default: 12, slider: [2, 40], hint: "Ağacın boyu, metre." }),
@@ -242,9 +251,13 @@ export const TreeRecipeFields = {
 
 export const TreeRecipeAssetType = defineJsonAssetType(
   "forge.treeRecipe",
-  1,
+  2,
   { suffix: ".treerecipe.json", fields: TreeRecipeFields },
-  { label: "Tree Recipe", hint: "Prosedürel ağaç tarifi: dallanma, yapraklar, LOD'lar, materyaller ve mevsim tepkisi; çıktısı yanındaki aile ve modeller." },
+  { label: "Tree Recipe", migrations: { 1: data => {
+    if (typeof data.generatorVersion === "number" && data.generatorVersion > 3) throw new Error("Unsupported generator in a version 1 tree recipe.");
+    return { ...data };
+  } },
+    hint: "Prosedürel ağaç tarifi: dallanma, yapraklar, LOD'lar, materyaller ve mevsim tepkisi; çıktısı yanındaki aile ve modeller." },
 );
 
 export type TreeRecipeData = FieldValues<typeof TreeRecipeFields>;

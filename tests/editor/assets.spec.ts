@@ -19,6 +19,8 @@ let temp: string, project: string, server: ViteDevServer | undefined, base: stri
 const disk = (path: string) => join(project, ...path.split("/"));
 const json = async (path: string) => JSON.parse(await readFile(disk(path), "utf8"));
 const write = (path: string, value: unknown) => writeFile(disk(path), JSON.stringify(value));
+const species = async (name: string) => JSON.parse(await readFile(join(REPO, "content/packs/starter/procgen/trees", `${name}.treerecipe.json`), "utf8"));
+const comparison = `${FOLDER}/comparison.treerecipe.json`, comparisonId = `ast_${"a".repeat(31)}6`;
 
 test.beforeAll(async () => {
   temp = await mkdtemp(join(tmpdir(), "forge-asset-editors-smoke-")); project = join(temp, "game");
@@ -32,6 +34,7 @@ export default defineGameModule({ id:'starter.assets', features:[defineFeature({
   await write(`${FOLDER}/surface.material.json`, { schema: "forge.material/1", id: MATERIAL, baseColor: "#aa2200", roughness: 0.5 });
   const tree = JSON.parse(await readFile(join(REPO, "content/packs/starter/procgen/trees/Broadleaf.treerecipe.json"), "utf8"));
   await write(`${FOLDER}/grove.treerecipe.json`, { ...tree, id: `ast_${"a".repeat(31)}5`, variants: [1], impostor: { ...tree.impostor, views: 4, frameSize: "64" } });
+  await write(comparison, { ...await species("Oak"), id: comparisonId });
   await write(`${FOLDER}/item.actor.json`, { schema: "forge.actorClass/1", id: CLASS, name: "Item", components: { shape: { type: "forge.shape@2", primitive: "cube", color: "#c8c8c8" } } });
   await write(`${FOLDER}/data.values.json`, { schema: "test.values/1", id: DATA, title: "Values", rows: Array.from({ length: 1000 }, (_, index) => ({ label: `Row ${index}`, value: index % 100 })) });
   await write(`${LEVEL}/level.json`, { schema: "forge.level/1", id: `lvl_${"c".repeat(32)}`, actors: [
@@ -130,6 +133,48 @@ test("tree recipe previews starter species, seeds and LODs in a read-only pack",
     await page.mouse.wheel(0, -850);
     await previewShot(page, `tree-${name}-branch-detail`, info);
     await page.getByTestId("asset-editor-focus").click();
+  }
+  await close(page); expect(errors).toEqual([]);
+});
+
+test("tree growth compares crown and age at a fixed camera across three seeds", async ({ page }) => {
+  test.setTimeout(180000);
+  const errors = await open(page);
+  await asset(page, "comparison.treerecipe.json");
+  const preview = page.getByTestId("asset-editor-preview"), surface = preview.locator(".tree-preview-surface");
+  const ready = () => expect(preview).toHaveAttribute("data-preview-ready", "1", { timeout: 35000 });
+  const capture = async (label: string) => {
+    await page.evaluate(() => new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
+    await page.screenshot({ clip: (await surface.boundingBox())!, path: join(REPO, ".forge-cache/vegetation-growth",
+      `${label}-${WEBGL_QUERY ? "webgl" : "webgpu"}.png`) });
+  };
+  await ready(); // Frame the mature oak once. Draft changes and disk reloads preserve the orbit.
+  for (const name of ["Oak", "Poplar", "Broadleaf"]) {
+    if (name !== "Oak") {
+      const recipe = await species(name);
+      await write(comparison, { ...recipe, id: comparisonId });
+      await page.getByTestId("asset-editor-reload").click();
+      await expect(page.getByTestId("asset-field-trunkRadius")).toHaveValue(String(recipe.trunkRadius));
+      if (name === "Broadleaf") await expect(page.getByTestId("asset-field-growth.age")).toHaveCount(0);
+      await ready();
+    }
+    for (const age of name === "Broadleaf" ? [0] : [60, 12]) {
+      if (age === 12) {
+        const field = page.getByTestId("asset-field-growth.age");
+        await field.fill(String(age)); await field.press("Tab"); await ready();
+      }
+      for (const seed of ["1", "2", "3"]) {
+        await preview.getByLabel("Seed").selectOption(seed); await ready();
+        const label = `${name}-${age || "legacy"}-seed${seed}`;
+        const wood = preview.getByLabel("Wood only");
+        await wood.uncheck(); await capture(`${label}-leaf`);
+        await wood.check(); await capture(`${label}-wood`);
+      }
+    }
+    if (name !== "Broadleaf") {
+      await page.getByTestId("asset-editor-undo").click();
+      await expect(page.getByTestId("asset-editor-save")).toBeDisabled();
+    }
   }
   await close(page); expect(errors).toEqual([]);
 });

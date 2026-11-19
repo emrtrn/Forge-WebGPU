@@ -23,10 +23,11 @@ import type { JsonObject } from "../../src/core/index.ts";
 import type { BakeTexture } from "../../src/engine/procgen/bake/rasterizer.ts";
 import { writeGlb, type GlbPrimitive } from "../../src/engine/procgen/glb.ts";
 import { meshBounds } from "../../src/engine/procgen/mesh.ts";
-import { treeRecipeAtlas } from "../../src/engine/procgen/tree/treeRecipe.ts";
+import { defaultTreeLeafMaterial, treeRecipeAtlas } from "../../src/engine/procgen/tree/treeRecipe.ts";
+import { treeOutputVersion } from "../../src/engine/procgen/tree/treeGrowth.ts";
 import { generateTree } from "../../src/engine/procgen/tree/treeGenerator.ts";
 import { bakeTreeImpostor, type TreeImpostorSurface } from "../../src/engine/procgen/tree/treeImpostor.ts";
-import { binaryWithMeta, documentOutput, GENERATED_MODEL_OPTIMIZE, GENERATOR_VERSIONS, outputId, round, type Output } from "./outputs.ts";
+import { binaryWithMeta, documentOutput, GENERATED_MODEL_OPTIMIZE, outputId, round, type Output } from "./outputs.ts";
 import { encodeRgbaKtx2 } from "./ktx2.ts";
 
 /** How a material looks to the bake (generate.ts reads it from the material document). */
@@ -69,9 +70,14 @@ export async function treeOutputs(
   looks: { readonly wood: MaterialLook | null; readonly leaf: MaterialLook | null } = { wood: null, leaf: null },
 ): Promise<Output[]> {
   const outputs: Output[] = [];
-  const version = GENERATOR_VERSIONS.tree;
+  const version = treeOutputVersion(data.generatorVersion);
   const generated = { recipe: recipeId, generator: "tree", generatorVersion: version };
-  const materials = data.materials as { wood: string | null; leaf: string | null };
+  const materials = { ...data.materials as { wood: string | null; leaf: string | null } };
+  const leaf = defaultTreeLeafMaterial(recipeId, version, materials.leaf);
+  if (leaf) {
+    documentOutput(outputs, `${folder}/${stem}_leaf.material.json`, leaf);
+    materials.leaf = leaf.id;
+  }
   const lods = data.lods as Array<JsonObject & { screenSize: number }>;
   const impostorSettings = (data.impostor ?? { enabled: false }) as { enabled: boolean; views: number; frameSize: string; screenSize: number };
   const seeds = [...new Set((data.variants as number[] | undefined) ?? [1])];
@@ -158,7 +164,7 @@ export async function treeOutputs(
       mesh: lodIds[0]!,
       family: familyId,
       prototype,
-      radius: round(Number(data.height) * 0.3),
+      radius: round(result.height * 0.3),
       scaleMin: 0.85,
       scaleMax: 1.15,
       alignToNormal: false,

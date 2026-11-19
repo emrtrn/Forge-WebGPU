@@ -5,6 +5,7 @@ import {
 } from "three/webgpu";
 import { normalizeJsonAsset, type AssetPreviewController, type JsonObject } from "../../core/index.ts";
 import { generatedOutputId } from "../../engine/procgen/recipeOutput.ts";
+import { defaultTreeLeafMaterial } from "../../engine/procgen/tree/treeRecipe.ts";
 import type { TreeLodMesh } from "../../engine/procgen/tree/treeMesh.ts";
 import { createSurfaceMaterial, surfaceTextureSlots, type SurfaceMaterialData } from "../materials/surfaceMaterial.ts";
 import type { AssetPreviewContext } from "./assetPreview.ts";
@@ -30,6 +31,8 @@ export function createTreePreview(ctx: AssetPreviewContext): AssetPreviewControl
     label.append(name, input); bar.append(label); return input;
   };
   const variants = select("Seed"), levels = select("LOD");
+  const woodOnly = doc.createElement("input"), woodLabel = doc.createElement("label");
+  woodOnly.type = "checkbox"; woodLabel.append(woodOnly, "Wood only"); bar.append(woodLabel);
   stats.dataset.testid = "tree-preview-stats";
   bar.append(stats); panel.append(surface, bar); ctx.container.append(panel);
   const scene = new Scene(), subject = new Group(), camera = new PerspectiveCamera(35, 1, 0.01, 1000);
@@ -59,7 +62,10 @@ export function createTreePreview(ctx: AssetPreviewContext): AssetPreviewControl
     if (!mesh) return;
     clearMeshes();
     subject.add(new Mesh(geometry(mesh.wood), current.wood));
-    if (mesh.leaves) subject.add(new Mesh(geometry(mesh.leaves), current.leaf));
+    if (mesh.leaves) {
+      const leaves = new Mesh(geometry(mesh.leaves), current.leaf);
+      leaves.name = "leaves"; leaves.visible = !woodOnly.checked; subject.add(leaves);
+    }
     if (!framed) { controls.frame(subject); framed = true; }
     stats.value = `${tree.triangles[index]!.toLocaleString()} triangles · ${tree.stems} stems · ${tree.clusters} leaf clusters · ${tree.milliseconds} ms CPU${quality}`;
   };
@@ -75,8 +81,10 @@ export function createTreePreview(ctx: AssetPreviewContext): AssetPreviewControl
         : new MeshStandardNodeMaterial({ color: new Color(0.35, 0.27, 0.2), roughness: 0.9 });
       if (typeof ids.wood !== "string") owned.push(wood);
       let leaf: Material;
-      if (typeof ids.leaf === "string" && ctx.materialType) {
-        const checked = normalizeJsonAsset(ctx.materialType, await resources.json(ids.leaf), { strict: true });
+      const generatedLeaf = defaultTreeLeafMaterial(ctx.guid, recipe.generatorVersion, ids.leaf);
+      if (ctx.materialType && (generatedLeaf || typeof ids.leaf === "string")) {
+        const document = generatedLeaf ?? await resources.json(String(ids.leaf));
+        const checked = normalizeJsonAsset(ctx.materialType, document, { strict: true });
         if (!checked.ok || !checked.value) throw new Error("Invalid leaf material.");
         const fields = checked.value as unknown as SurfaceMaterialData;
         const slots = new Map<string, Texture>(), ownAtlas = generatedOutputId(ctx.guid, "tree/leafTexture");
@@ -132,6 +140,10 @@ export function createTreePreview(ctx: AssetPreviewContext): AssetPreviewControl
   };
   variants.onchange = () => schedule(false);
   levels.onchange = showLod;
+  woodOnly.onchange = () => {
+    const leaves = subject.getObjectByName("leaves");
+    if (leaves) leaves.visible = !woodOnly.checked;
+  };
   return {
     async update(value) {
       const initial = !recipe;

@@ -1,6 +1,6 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.12 · 2026-11-19 (Vegetation 2.0 denetimi ve ağaç tarif editörünün ilk dilimi, §9.1).
+**Sürüm:** v0.13 · 2026-11-19 (tür ve yaşa bağlı taç üretimi, §9.2).
 Önceki: v0.11 · 2026-11-19 (kullanıcı PG3 / PV-WES görsel kabulünü verdi; kabuk / kaya
 dokuları da KTX2). Önceki: v0.10 (PG3 kapandı: KTX2 atlaslar, §8 ölçüldü, PK7 ölçümle odun /
 yaprak ayrımı, PV-WES-01–08 kanıtları). Önceki: v0.9 (PG0 ve PG2 kapandı: iki
@@ -718,7 +718,7 @@ hâlâ kaynak ağacın atlasına bağlıysa, kopyadaki yaprak doku ayarları yen
 atlasın piksellerini değiştirir ama o materyal kaynak atlası göstermeye devam
 eder. Aile onay ekranında materyal ve atlas sahipliği görünür olmalı.
 
-**Uyumluluk önerisi.** Starter tarifleri `forge.treeRecipe/1` ve
+**İlk denetimdeki uyumluluk önerisi (§9.2'de uygulandı).** Starter tarifleri `forge.treeRecipe/1` ve
 `generatorVersion: 1` taşıyor. Bugünkü CLI üreticisi aile ve meta dosyalarına
 3 yazıyor. Tarif değeri şu anda algoritma seçmiyor. Yeni morfolojiden önce
 mevcut tarifleri eski uygulamaya açıkça yönlendiren sürüm seçici gerekli.
@@ -750,6 +750,43 @@ var olan dosyalar ve sahne yerleşimleri geçişin ayrı kabul noktalarıdır.
 6. **F — 5d.** Var olan ground cover ve rol çözümlemesine tarif/aile başvurusu
    ile `generated` kaynağını ekle. Üretilen dünyada kaya rollerini, tekil
    bitkiyi ve foliage yerleşimini kaydet–yeniden aç üzerinden doğrula.
+
+### 9.2 Aşama C · tür ve yaş karşılaştırması
+
+Starter paketindeki `Oak.treerecipe.json` ve `Poplar.treerecipe.json`,
+`forge.treeRecipe/2` içinde açıkça üretici 4'ü seçer. **Growth** bölümünden
+yaş, olgunlaşma yaşı, taç genişliği, en geniş nokta, doluluk ve ana gövde
+baskınlığı düzenlenir. Yaş, boyun yanında gövde kalınlığını, taç başlangıcını,
+yan dal ve yaprak kümesi sayısını etkiler. Olgunlaşma yaşında büyüme durur.
+Tür farkı iki tarifteki sayısal parametrelerden gelir. Bu tarifleri projeye
+kopyalayıp **Generate & Save Family** ile üretince, boş yaprak slotu kopyanın
+kendi atlasına bağlı bir materyal alır. Önizleme de aynı atlası kullanır.
+
+Eski tariflerde eksik sürüm veya 1–3, tarihsel PG3 iskeletini ve çıktı
+damgası 3'ü seçer. Broadleaf ve Conifer için CLI dry-run'da 72/72 dosya aynı
+baytları verdi. Yeni iki tarif toplam 74 çıktı planladı. Her tarifte üç
+prototip, üç mesh LOD'u, impostor'lar ve bir ortak yaprak materyali var.
+
+| Tarif ve yaş | Sap sayısı | İskeletin X eksenindeki eni (m) | LOD0 üçgen | LOD1 üçgen | LOD2 üçgen |
+|---|---:|---:|---:|---:|---:|
+| Meşe, 12 | 41 | 4,7–6,3 | 1.892–1.971 | 436–449 | 88–94 |
+| Meşe, 60 | 189–203 | 13,9–17,4 | 14.089–15.075 | 3.127–3.321 | 684–697 |
+| Kavak, 12 | 61 | 1,2–1,7 | 1.932–1.967 | 304–310 | 76 |
+| Kavak, 60 | 305–319 | 4,4–4,9 | 16.653–17.403 | 2.338–2.464 | 529–551 |
+
+Aralıklar seed 1–3 üzerinden, en ölçümü LOD0 odun mesh'inin sınırlarından.
+İki tarifte ana gövde 12 yaşta 6,16 m, 60 yaşta 12 m. Sabit kamera ve
+ışıkla gerçek WebGPU editöründe LOD0'dan 30 kare alındı. Yerel karşılaştırma
+levhaları `.forge-cache/vegetation-growth/comparison-leaf.jpg` ve
+`comparison-wood.jpg`. **Wood only** aynı kadrajda yaprakları gizler.
+WES kışı ve kar ayrı bir sahne kontrolü gerektirir.
+
+Üç seed'de olgun meşenin ana dalları yana yayılırken kavak dar ve dik
+kalıyor. Genç kavaklarda tohum farkı bu ölçekte güç seçiliyor. Olgun
+meşede büyük yaprak demetleri dal uçlarında tekrarlanıyor ve iç taçta geniş
+boşluklar kalıyor. Sonraki görsel çalışma, bu meşe üzerinde dalcıkların
+yönünü ve taç içindeki dağılımını iyileştirip aynı kadrajla karşılaştırmak.
+Yakın planda dal birleşimleri, doğal LOD geçişleri ve rüzgâr kabulü açık.
 
 ---
 

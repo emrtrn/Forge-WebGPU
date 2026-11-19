@@ -97,10 +97,13 @@ export function createAssetEditor(options: AssetEditorOptions) {
       if (!preview) window.classList.add("is-data");
       const pickAsset = (type: string | null) => openPicker({ document: doc, host: fields, title: "Select Asset", testId: "asset-editor-picker", items: options.catalog.ofType(type).map((item) => ({ id: item.guid, label: item.name, note: item.file })) });
       const formOptions = { assetLabel: (id: string) => options.catalog.label(id), pickAsset, warn: status };
-      const visible = filterAssetFields(adapter.fields, presentation?.handledFields ?? []);
+      const fieldsForEditor = filterAssetFields(adapter.fields, presentation?.handledFields ?? []);
+      const legacyTree = () => key === "forge.treeRecipe" && opened.value().generatorVersion !== 4;
+      const legacyFields = fieldsForEditor.filter(field => field.key !== "growth");
+      let visible = legacyTree() ? legacyFields : fieldsForEditor;
       const uiState = key === "forge.treeRecipe" ? {
-        collapsed: new Map(visible.filter(field => field.kind === "array" || field.kind === "object")
-          .map(field => [`asset-field-section-${field.key}`, field.key !== "variants"])),
+        collapsed: new Map(fieldsForEditor.filter(field => field.kind === "array" || field.kind === "object")
+          .map(field => [`asset-field-section-${field.key}`, field.key !== "variants" && field.key !== "growth"])),
         linkedScales: new Set<string>(),
       } : undefined;
       let form: FormView | null = null, mode = arrayFields(visible).some((entry) => { const list = getAtPath(opened.value(), entry.path); return Array.isArray(list) && list.length > 50; }) ? "table" : "form";
@@ -196,6 +199,8 @@ export function createAssetEditor(options: AssetEditorOptions) {
       };
       let lastPreviewValue: Readonly<Record<string, unknown>> | null = null;
       const update = () => {
+        const nextFields = legacyTree() ? legacyFields : fieldsForEditor;
+        if (visible !== nextFields) { visible = nextFields; drawForm(); }
         title.textContent = `${asset.name}${opened.dirty() ? " *" : ""} · ${contentTypeLabel(asset.type)}${asset.writable ? "" : " · Read Only"}`;
         if (generate) generate.disabled = !asset.writable || opened.busy();
         save.disabled = !asset.writable || !opened.dirty() || opened.busy(); undo.disabled = !opened.canUndo(); redo.disabled = !opened.canRedo(); reload.disabled = opened.busy(); compare.disabled = !asset.writable || opened.busy(); fields.inert = opened.busy();

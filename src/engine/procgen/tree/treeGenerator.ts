@@ -3,9 +3,8 @@ import type { MeshStats } from "../stats.ts";
 import { clusterLibrary, leafAtlasOf } from "./treeCards.ts";
 import { buildTreeLod, planTreeLod } from "./treeMesh.ts";
 import type { LeafAtlas, TreeLodMesh } from "./treeMesh.ts";
-import { normalizeTreeParams } from "./treeParams.ts";
+import { recipeTreeStructure } from "./treeGrowth.ts";
 import type { TreeParams } from "./treeParams.ts";
-import { buildTreeSkeleton } from "./treeSkeleton.ts";
 
 export interface TreeReport {
   code: "budget" | "skeleton";
@@ -32,8 +31,7 @@ export function generateTree(
     atlas?: LeafAtlas;
   },
 ): TreeResult {
-  const params = normalizeTreeParams({ ...input });
-  const skeleton = buildTreeSkeleton(params);
+  const { params, skeleton } = recipeTreeStructure({ ...input });
   if ("error" in skeleton) return { ok: false, report: { code: "skeleton", message: skeleton.error } };
 
   const atlas = options?.atlas ?? (params.lods.some((lod) => lod.clusterCards)

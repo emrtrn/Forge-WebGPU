@@ -1,0 +1,77 @@
+{
+  "schema": "forge.treeRecipe/2",
+  "id": "ast_b34f6c4d22964b4eac98354e1d83a256",
+  "generatorVersion": 4,
+  "habit": "broadleaf",
+  "variants": [
+    1,
+    2,
+    3
+  ],
+  "height": 12,
+  "trunkRadius": 0.25,
+  "crownStart": 0.14,
+  "irregularity": 0.48,
+  "growth": {
+    "age": 60,
+    "matureAge": 60,
+    "width": 0.31,
+    "widestPoint": 0.38,
+    "fullness": 0.95,
+    "leaderDominance": 0.94
+  },
+  "levels": [
+    {
+      "count": 21,
+      "angle": 32,
+      "angleVariation": 10,
+      "lengthRatio": 0.51,
+      "start": 0.14,
+      "radiusRatio": 0.46,
+      "bend": 0.47,
+      "wobble": 0.18
+    },
+    {
+      "count": 4,
+      "angle": 34,
+      "angleVariation": 14,
+      "lengthRatio": 0.45,
+      "start": 0.25,
+      "radiusRatio": 0.48,
+      "bend": 0.37,
+      "wobble": 0.25
+    },
+    {
+      "count": 3,
+      "angle": 29,
+      "angleVariation": 11,
+      "lengthRatio": 0.45,
+      "start": 0.36,
+      "radiusRatio": 0.4,
+      "bend": 0.25,
+      "wobble": 0.19
+    }
+  ],
+  "leaves": {
+    "perStem": 6,
+    "size": [
+      0.64,
+      0.72
+    ],
+    "cards": 2,
+    "texture": {
+      "kind": "broad",
+      "count": 9,
+      "leafColor": "#618848"
+    }
+  },
+  "lods": [
+    {"radialSegments": 10, "ringsPerMeter": 2.5, "minRadius": 0, "leafFraction": 1, "leafCards": "leaves", "screenSize": 0.5},
+    {"radialSegments": 6, "ringsPerMeter": 1, "minRadius": 0.015, "leafFraction": 0.75, "leafCards": "clusters", "screenSize": 0.2},
+    {"radialSegments": 4, "ringsPerMeter": 0.55, "minRadius": 0.063, "leafFraction": 0.18, "leafCards": "clusters", "screenSize": 0.07}
+  ],
+  "materials": {
+    "wood": "ast_4b4adfbe01f0389bf3a0269a3533244c",
+    "leaf": null
+  }
+}

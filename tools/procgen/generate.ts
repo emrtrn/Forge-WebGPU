@@ -41,6 +41,8 @@ import { binaryWithMeta, GENERATED_MODEL_OPTIMIZE, GENERATOR_VERSIONS, outputId,
 import { decodePng } from "./png.ts";
 import { encodeRgbaKtx2 } from "./ktx2.ts";
 import { treeOutputs, type MaterialLook } from "./treeOutputs.ts";
+import { treeOutputVersion } from "../../src/engine/procgen/tree/treeGrowth.ts";
+import { defaultTreeLeafMaterial } from "../../src/engine/procgen/tree/treeRecipe.ts";
 
 export { GENERATOR_VERSIONS } from "./outputs.ts";
 
@@ -268,8 +270,8 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
   if (!def || !isJsonAssetType(def) || !doc) throw new Error(`${label} is not a readable recipe`);
   const draft = options.editorDraft;
   if (draft) {
-    if (entry.type !== "forge.treeRecipe" || draft.document.id !== entry.id || draft.document.generatorVersion !== doc.generatorVersion ||
-      Number(doc.generatorVersion) > GENERATOR_VERSIONS.tree) throw new Error("Unsupported tree recipe identity or generator version.");
+    if (entry.type !== "forge.treeRecipe" || draft.document.id !== entry.id || draft.document.generatorVersion !== doc.generatorVersion)
+      throw new Error("Unsupported tree recipe identity or generator version.");
     const checked = normalizeJsonAsset(def, draft.document, { strict: true });
     if (!checked.ok || !checked.value) throw new Error(checked.issues.map(issue => `${issue.path} ${issue.message}`).join("\n"));
     doc = checked.value as JsonObject;
@@ -316,7 +318,8 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
     const materials = (doc.materials ?? {}) as { wood?: string | null; leaf?: string | null };
     const looks = {
       wood: await materialLook(options, target, materials.wood ?? null, own, warnings),
-      leaf: await materialLook(options, target, materials.leaf ?? null, own, warnings),
+      leaf: defaultTreeLeafMaterial(entry.id, doc.generatorVersion, materials.leaf) ? null
+        : await materialLook(options, target, materials.leaf ?? null, own, warnings),
     };
     outputs = await treeOutputs(entry.id, doc, folder, stem, stats, looks);
   } else if (entry.type === "forge.surfaceTextureRecipe") {
@@ -328,6 +331,7 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
 
   /** A JSON output (no meta) of a seed the recipe no longer lists: its GUID is the derived one. */
   const ownsDocument = (path: string, id: string): boolean => {
+    if (generator === "tree" && path === `${folder}/${stem}_leaf.material.json` && id === outputId(entry.id, "tree/leafMaterial")) return true;
     const prefix = `${folder}/${stem}_`, suffix = ".foliagetype.json";
     const middle = path.startsWith(prefix) && path.endsWith(suffix) ? path.slice(prefix.length, -suffix.length) : "";
     const seed = /^\d+$/.test(middle) ? middle : undefined;
@@ -407,7 +411,7 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
       if (draft) publication = result;
     }
     return {
-      recipe: label, generator, generatorVersion: GENERATOR_VERSIONS[generator],
+      recipe: label, generator, generatorVersion: generator === "tree" ? treeOutputVersion(doc.generatorVersion) : GENERATOR_VERSIONS[generator],
       files, removed, stats, warnings, milliseconds: Math.round(performance.now() - started), ...(publication ? { publication } : {}),
     };
   } finally {
