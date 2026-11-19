@@ -989,8 +989,10 @@ features/height-fog/
     olanları ekler); WebGL2 ikizi aynı maskeyi CPU'da uygular. Bölme GPU yolunda gönderimi bölge
     sayısıyla büyüttüğü için (Z6 ölçümü, bina dışından 0,56 → 13,6 ms) maske kararı verildi; iç
     mekânda GPU %50–60 düşer, gönderim artmaz. Görünmeyen bölge gölge düşürmez (bölge başına
-    seçenek). Şimdilik yalnız görünürlük; bölgeye göre bellekten boşaltma ayrı karar. Otomatik
-    HLOD üretimi bölgeye tamamen sığan içerikleri hücre ve landmark proxy’lerinden çıkarır.
+    seçenek). R9c Adım 4'te Play, dış portallarıyla bağlı bina içlerini yaklaşırken hazırlar ve
+    uzaklaşınca çizim yerleşimlerini ve kaynak referanslarını bırakır. Aktör ve fizik yaşam
+    döngüsü World Partition'a bağlıdır. Otomatik HLOD üretimi bölgeye tamamen sığan
+    içerikleri hücre ve landmark proxy’lerinden çıkarır.
     Bölge veya portal düzenlemesi proxy kaynak hash’ini değiştirir.
     Otomatik üretim `engine/world/zoneGeneration.ts` (göz hizası dilimi, Öklid uzaklık dönüşümü, kapı
     yarı genişliğinden uzak çekirdekler, havza büyütme, sınırlardan portal) + `zoneLevel.ts`

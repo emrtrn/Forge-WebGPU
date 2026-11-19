@@ -1,0 +1,6765 @@
+{
+  "schema": 1,
+  "date": "2026-11-19T14:48:11.706Z",
+  "commit": "8168b265b940364ec2e6b24ae0a6622e41a448a6",
+  "status": "M docs/planned/LAYERED_DRAW_BUDGET_PLAN.md\n?? docs/reference/measurements/r9c-step6/",
+  "browser": "157.0.8103.79",
+  "gpuDevices": [
+    {
+      "vendorId": 4318,
+      "deviceId": 9476,
+      "subSysId": 545789866,
+      "revision": 161,
+      "vendorString": "",
+      "deviceString": "NVIDIA GeForce RTX 3060",
+      "driverVendor": "NVIDIA",
+      "driverVersion": "32.0.16.1060"
+    },
+    {
+      "vendorId": 5140,
+      "deviceId": 140,
+      "subSysId": 0,
+      "revision": 0,
+      "vendorString": "",
+      "deviceString": "Microsoft Basic Render Driver",
+      "driverVendor": "",
+      "driverVersion": "10.0.26100.9818"
+    }
+  ],
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "devicePixelRatio": 1,
+  "staticPath": "auto",
+  "buildingStreaming": true,
+  "shadows": true,
+  "frameMs": 16.666666666666668,
+  "hour": 12,
+  "warmFrames": 60,
+  "frames": 150,
+  "fixture": {
+    "level": "content/levels/forge-city",
+    "poses": [
+      {
+        "id": "street",
+        "position": [
+          389.5,
+          1.7,
+          48
+        ],
+        "target": [
+          389.5,
+          1.7,
+          768
+        ]
+      },
+      {
+        "id": "square",
+        "position": [
+          432,
+          1.7,
+          428
+        ],
+        "target": [
+          356,
+          24,
+          412
+        ]
+      },
+      {
+        "id": "inside",
+        "position": [
+          412,
+          1.7,
+          316
+        ],
+        "target": [
+          412,
+          1.7,
+          310
+        ]
+      },
+      {
+        "id": "threshold",
+        "position": [
+          412,
+          1.7,
+          306.75
+        ],
+        "target": [
+          412,
+          1.7,
+          316
+        ]
+      },
+      {
+        "id": "facade",
+        "position": [
+          418,
+          1.7,
+          292
+        ],
+        "target": [
+          418,
+          1.7,
+          307
+        ]
+      },
+      {
+        "id": "high",
+        "position": [
+          432,
+          120,
+          282
+        ],
+        "target": [
+          432,
+          60,
+          385.92304845413264
+        ]
+      }
+    ],
+    "walk": [
+      [
+        400,
+        1.7,
+        295
+      ],
+      [
+        412,
+        1.7,
+        295
+      ],
+      [
+        412,
+        1.7,
+        307
+      ],
+      [
+        412,
+        1.7,
+        316
+      ],
+      [
+        412,
+        1.7,
+        307
+      ],
+      [
+        412,
+        1.7,
+        295
+      ],
+      [
+        420,
+        1.7,
+        295
+      ]
+    ],
+    "settings": {
+      "cellSize": 128,
+      "loadRange": 384,
+      "viewDistance": 1500
+    },
+    "counts": {
+      "buildings": 252,
+      "indoorBuildings": 26,
+      "courtyards": 2,
+      "twoStorey": 2,
+      "landmarks": 1,
+      "furniture": 3024,
+      "heavyFurniture": 0,
+      "lamps": 1152,
+      "benches": 576,
+      "bins": 576,
+      "hydrants": 300,
+      "signals": 324,
+      "shelters": 60,
+      "smallObjects": 20000,
+      "trees": 2300,
+      "vehicles": 400,
+      "meshPlacements": 28964,
+      "modelSlots": 125
+    },
+    "options": {
+      "seed": 1,
+      "blocks": 8,
+      "heavy": false
+    },
+    "zones": {
+      "rooms": 252,
+      "portals": 674,
+      "floors": [
+        0,
+        3.2
+      ]
+    },
+    "hlod": {
+      "cells": 36,
+      "triangles": 1634058,
+      "skippedPlacements": 25458,
+      "warnings": [],
+      "buildMs": 20836,
+      "totalMs": 22953,
+      "clusters": 4,
+      "clusterTriangles": 407846,
+      "landmarkTriangles": 1714,
+      "dryRun": false
+    }
+  },
+  "methods": "A original GLB, B one primitive and one embedded 128x16 base-color atlas per archetype. ABBA per profile, every pose starts in a fresh page. Same Vite fixture and HLOD assets.",
+  "models": [
+    {
+      "name": "building-01",
+      "sourceSha256": "ffadd8f8ebc157b4b5d9cc3e065e94ce6a025b682b08520199269f681e6b0b72",
+      "atlasSha256": "187f023023a6b5c9da38af4f611186464ac01120ffab9e7bd56ce34dbac187cc",
+      "sourceBytes": 63968,
+      "atlasBytes": 74068,
+      "triangles": 2000,
+      "vertices": 1520,
+      "colors": [
+        {
+          "factor": [
+            0.42,
+            0.48,
+            0.27,
+            1
+          ],
+          "srgb": [
+            173,
+            184,
+            142
+          ]
+        },
+        {
+          "factor": [
+            0.18,
+            0.36,
+            0.46,
+            1
+          ],
+          "srgb": [
+            118,
+            162,
+            181
+          ]
+        },
+        {
+          "factor": [
+            0.31,
+            0.32,
+            0.34,
+            1
+          ],
+          "srgb": [
+            151,
+            153,
+            158
+          ]
+        },
+        {
+          "factor": [
+            0.77,
+            0.76,
+            0.69,
+            1
+          ],
+          "srgb": [
+            227,
+            226,
+            216
+          ]
+        },
+        {
+          "factor": [
+            0.24,
+            0.18,
+            0.13,
+            1
+          ],
+          "srgb": [
+            134,
+            118,
+            101
+          ]
+        }
+      ]
+    },
+    {
+      "name": "building-02",
+      "sourceSha256": "9cb9b1a224ad269295b0241369f870804f65c05fd07692b3338c9ba5d3127afc",
+      "atlasSha256": "9cbb5f4c0da7e580a060f2605c7ce58382bd93c689e6a29668cdf7dd3b313467",
+      "sourceBytes": 79120,
+      "atlasBytes": 92068,
+      "triangles": 2540,
+      "vertices": 1880,
+      "colors": [
+        {
+          "factor": [
+            0.445,
+            0.46199999999999997,
+            0.28900000000000003,
+            1
+          ],
+          "srgb": [
+            178,
+            181,
+            146
+          ]
+        },
+        {
+          "factor": [
+            0.18,
+            0.36,
+            0.46,
+            1
+          ],
+          "srgb": [
+            118,
+            162,
+            181
+          ]
+        },
+        {
+          "factor": [
+            0.31,
+            0.32,
+            0.34,
+            1
+          ],
+          "srgb": [
+            151,
+            153,
+            158
+          ]
+        },
+        {
+          "factor": [
+            0.77,
+            0.76,
+            0.69,
+            1
+          ],
+          "srgb": [
+            227,
+            226,
+            216
+          ]
+        },
+        {
+          "factor": [
+            0.24,
+            0.18,
+            0.13,
+            1
+          ],
+          "srgb": [
+            134,
+            118,
+            101
+          ]
+        }
+      ]
+    },
+    {
+      "name": "building-03",
+      "sourceSha256": "ccc7591c96f16e34304900d0f596279c2fc07b5e028a3ff578d4d89a96cc5dc8",
+      "atlasSha256": "fdf6f707fafb683034773274de6f17c9bc6d6c51aec0bacf8cc3a5151037d0f9",
+      "sourceBytes": 94212,
+      "atlasBytes": 110068,
+      "triangles": 3080,
+      "vertices": 2240,
+      "colors": [
+        {
+          "factor": [
+            0.47,
+            0.444,
+            0.308,
+            1
+          ],
+          "srgb": [
+            182,
+            178,
+            151
+          ]
+        },
+        {
+          "factor": [
+            0.18,
+            0.36,
+            0.46,
+            1
+          ],
+          "srgb": [
+            118,
+            162,
+            181
+          ]
+        },
+        {
+          "factor": [
+            0.31,
+            0.32,
+            0.34,
+            1
+          ],
+          "srgb": [
+            151,
+            153,
+            158
+          ]
+        },
+        {
+          "factor": [
+            0.77,
+            0.76,
+            0.69,
+            1
+          ],
+          "srgb": [
+            227,
+            226,
+            216
+          ]
+        },
+        {
+          "factor": [
+            0.24,
+            0.18,
+            0.13,
+            1
+          ],
+          "srgb": [
+            134,
+            118,
+            101
+          ]
+        }
+      ]
+    },
+    {
+      "name": "building-04",
+      "sourceSha256": "0fdff20c44dbf9e733542e9b684b82b634d00b775fcb1aec09ea66f576e026af",
+      "atlasSha256": "81b729d7c3c42f9af402cdac5042bc4ff3160b3b0989b9d792817f213df9b8f4",
+      "sourceBytes": 107416,
+      "atlasBytes": 125508,
+      "triangles": 3620,
+      "vertices": 2520,
+      "colors": [
+        {
+          "factor": [
+            0.495,
+            0.426,
+            0.327,
+            1
+          ],
+          "srgb": [
+            187,
+            175,
+            155
+          ]
+        },
+        {
+          "factor": [
+            0.18,
+            0.36,
+            0.46,
+            1
+          ],
+          "srgb": [
+            118,
+            162,
+            181
+          ]
+        },
+        {
+          "factor": [
+            0.31,
+            0.32,
+            0.34,
+            1
+          ],
+          "srgb": [
+            151,
+            153,
+            158
+          ]
+        },
+        {
+          "factor": [
+            0.77,
+            0.76,
+            0.69,
+            1
+          ],
+          "srgb": [
+            227,
+            226,
+            216
+          ]
+        },
+        {
+          "factor": [
+            0.24,
+            0.18,
+            0.13,
+            1
+          ],
+          "srgb": [
+            134,
+            118,
+            101
+          ]
+        }
+      ]
+    },
+    {
+      "name": "building-05",
+      "sourceSha256": "3b6dd2e5304a4c59a358596db2d254943b943a85772bb66e19baa5b458c27a3e",
+      "atlasSha256": "829b2de01124fc1667b17fa65d917a655611edeb5b9cf9deeb9f319f77542958",
+      "sourceBytes": 122548,
+      "atlasBytes": 143508,
+      "triangles": 4160,
+      "vertices": 2880,
+      "colors": [
+        {
+          "factor": [
+            0.52,
+            0.408,
+            0.34600000000000003,
+            1
+          ],
+          "srgb": [
+            191,
+            171,
+            159
+          ]
+        },
+        {
+          "factor": [
+            0.18,
+            0.36,
+            0.46,
+            1
+          ],
+          "srgb": [
+            118,
+            162,
+            181
+          ]
+        },
+        {
+          "factor": [
+            0.31,
+            0.32,
+            0.34,
+            1
+          ],
+          "srgb": [
+            151,
+            153,
+            158
+          ]
+        },
+        {
+          "factor": [
+            0.77,
+            0.76,
+            0.69,
+            1
+          ],
+          "srgb": [
+            227,
+            226,
+            216
+          ]
+        },
+        {
+          "factor": [
+            0.24,
+            0.18,
+            0.13,
+            1
+          ],
+          "srgb": [
+            134,
+            118,
+            101
+          ]
+        }
+      ]
+    },
+    {
+      "name": "building-06",
+      "sourceSha256": "90954c0e449fe795097f8121192a639c819f4b55ca5448fe6a9ebfb0fc77c350",
+      "atlasSha256": "ed15ba6154b6bb1a6c0271390fba12fad221b29b7ab9bd7ea5032641fe46ec1e",
+      "sourceBytes": 135276,
+      "atlasBytes": 158312,
+      "triangles": 4700,
+      "vertices": 3140,
+      "colors": [
+        {
+          "factor": [
+            0.5449999999999999,
+            0.39,
+            0.365,
+            1
+          ],
+          "srgb": [
+            195,
+            168,
+            163
+          ]
+        },
+        {
+          "factor": [
+            0.18,
+            0.36,
+            0.46,
+            1
+          ],
+          "srgb": [
+            118,
+            162,
+            181
+          ]
+        },
+        {
+          "factor": [
+            0.31,
+            0.32,
+            0.34,
+            1
+          ],
+          "srgb": [
+            151,
+            153,
+            158
+          ]
+        },
+        {
+          "factor": [
+            0.77,
+            0.76,
+            0.69,
+            1
+          ],
+          "srgb": [
+            227,
+            226,
+            216
+          ]
+        },
+        {
+          "factor": [
+            0.24,
+            0.18,
+            0.13,
+            1
+          ],
+          "srgb": [
+            134,
+            118,
+            101
+          ]
+        }
+      ]
+    }
+  ],
+  "results": [
+    {
+      "profile": "high",
+      "mode": "A",
+      "sequence": 0,
+      "pose": {
+        "id": "street",
+        "position": [
+          389.5,
+          1.7,
+          48
+        ],
+        "target": [
+          389.5,
+          1.7,
+          768
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.6640000000844397,
+          "p95": 6.100000001490116,
+          "p99": 8.100000001490116,
+          "max": 8.700000002980232
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 2.9906666667511064,
+          "p95": 5,
+          "p99": 7.100000001490116,
+          "max": 7.900000002235174
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 3.468602026666675,
+          "p95": 3.6044799999999997,
+          "p99": 3.60448,
+          "max": 3.6700159999999995
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 3.468602026666675,
+          "p95": 3.6044799999999997,
+          "p99": 3.60448,
+          "max": 3.6700159999999995
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 118,
+            "indirect": 0,
+            "directTriangles": 6641164,
+            "directInstanceDraws": 21843,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 118,
+            "drawnMeshes": 118,
+            "triangles": 6641164
+          },
+          "shadow-1": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 6051032
+          },
+          "shadow-2": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 6051032
+          },
+          "shadow-3": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 6051032
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 422,
+        "triangles": 24794261,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 2,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 360,
+            "ready": 360,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 234,
+          "shadowOnly": 0,
+          "hidden": 234,
+          "portalTests": 0,
+          "exteriorPortalTests": 20,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 22,
+            "loaded": 30,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 20141,
+            "bytes": 21784765,
+            "failures": 0,
+            "lastFrameMs": 0.30000000074505806
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 15
+          },
+          "cache": {
+            "entries": 48,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 133,
+            "textures": 9
+          },
+          "camera": [
+            389.5,
+            1.7,
+            48
+          ]
+        }
+      }
+    },
+    {
+      "profile": "high",
+      "mode": "A",
+      "sequence": 0,
+      "pose": {
+        "id": "square",
+        "position": [
+          432,
+          1.7,
+          428
+        ],
+        "target": [
+          356,
+          24,
+          412
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.173999999985099,
+          "p95": 4.100000001490116,
+          "p99": 7.800000000745058,
+          "max": 8.300000000745058
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 2.768666666770975,
+          "p95": 3.400000002235174,
+          "p99": 7.200000002980232,
+          "max": 7.599999997764826
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 4.532469759999993,
+          "p95": 4.784128,
+          "p99": 4.9152,
+          "max": 4.9152
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 4.532469759999993,
+          "p95": 4.784128,
+          "p99": 4.9152,
+          "max": 4.9152
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 105,
+            "indirect": 0,
+            "directTriangles": 9290512,
+            "directInstanceDraws": 33308,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 105,
+            "drawnMeshes": 105,
+            "triangles": 9290512
+          },
+          "shadow-1": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 33160,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 9234872
+          },
+          "shadow-2": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 33160,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 9234872
+          },
+          "shadow-3": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 33160,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 9234872
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 412,
+        "triangles": 36995129,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 0,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 0,
+            "ready": 0,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 0,
+          "shadowOnly": 0,
+          "hidden": 0,
+          "portalTests": 0,
+          "exteriorPortalTests": 0,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 35,
+            "loaded": 36,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 30603,
+            "bytes": 25856056,
+            "failures": 0,
+            "lastFrameMs": 0.09999999776482582
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 2
+          },
+          "cache": {
+            "entries": 33,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 120,
+            "textures": 9
+          },
+          "camera": [
+            432,
+            1.7,
+            428
+          ]
+        }
+      }
+    },
+    {
+      "profile": "high",
+      "mode": "A",
+      "sequence": 0,
+      "pose": {
+        "id": "high",
+        "position": [
+          432,
+          120,
+          282
+        ],
+        "target": [
+          432,
+          60,
+          385.92304845413264
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.3840000001341104,
+          "p95": 5.100000001490116,
+          "p99": 7.600000001490116,
+          "max": 9
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 2.9493333334475755,
+          "p95": 4.5,
+          "p99": 6.900000002235174,
+          "max": 8.600000001490116
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 4.512372053333323,
+          "p95": 4.849664,
+          "p99": 4.980736,
+          "max": 5.177344
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 4.512372053333323,
+          "p95": 4.849664,
+          "p99": 4.980736,
+          "max": 5.177344
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 107,
+            "indirect": 0,
+            "directTriangles": 8878812,
+            "directInstanceDraws": 31712,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 107,
+            "drawnMeshes": 107,
+            "triangles": 8878812
+          },
+          "shadow-1": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31560,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 8740018
+          },
+          "shadow-2": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31560,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 8740018
+          },
+          "shadow-3": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 8740274,
+            "directInstanceDraws": 31562,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 8740274
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 412,
+        "triangles": 35099123,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 0,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 0,
+            "ready": 0,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 0,
+          "shadowOnly": 0,
+          "hidden": 0,
+          "portalTests": 0,
+          "exteriorPortalTests": 0,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 33,
+            "loaded": 36,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 29435,
+            "bytes": 25856056,
+            "failures": 0,
+            "lastFrameMs": 0.19999999925494194
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 4
+          },
+          "cache": {
+            "entries": 33,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 122,
+            "textures": 9
+          },
+          "camera": [
+            432,
+            120,
+            282
+          ]
+        }
+      }
+    },
+    {
+      "profile": "high",
+      "mode": "B",
+      "sequence": 1,
+      "pose": {
+        "id": "street",
+        "position": [
+          389.5,
+          1.7,
+          48
+        ],
+        "target": [
+          389.5,
+          1.7,
+          768
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.01133333320419,
+          "p95": 4,
+          "p99": 5.899999998509884,
+          "max": 7.099999997764826
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 2.4593333332488934,
+          "p95": 3.199999999254942,
+          "p99": 5,
+          "max": 5.600000001490116
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 3.54593450666667,
+          "p95": 3.866624,
+          "p99": 3.9976959999999995,
+          "max": 4.128768
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 3.54593450666667,
+          "p95": 3.866624,
+          "p99": 3.9976959999999995,
+          "max": 4.128768
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 94,
+            "indirect": 0,
+            "directTriangles": 6641164,
+            "directInstanceDraws": 21519,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 94,
+            "drawnMeshes": 94,
+            "triangles": 6641164
+          },
+          "shadow-1": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21356,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 6051032
+          },
+          "shadow-2": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21356,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 6051032
+          },
+          "shadow-3": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21356,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 6051032
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 326,
+        "triangles": 24794261,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 2,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 360,
+            "ready": 360,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 234,
+          "shadowOnly": 0,
+          "hidden": 234,
+          "portalTests": 0,
+          "exteriorPortalTests": 20,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 22,
+            "loaded": 30,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 20141,
+            "bytes": 21784765,
+            "failures": 0,
+            "lastFrameMs": 0.09999999776482582
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 15
+          },
+          "cache": {
+            "entries": 48,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 109,
+            "textures": 15
+          },
+          "camera": [
+            389.5,
+            1.7,
+            48
+          ]
+        }
+      }
+    },
+    {
+      "profile": "high",
+      "mode": "B",
+      "sequence": 1,
+      "pose": {
+        "id": "square",
+        "position": [
+          432,
+          1.7,
+          428
+        ],
+        "target": [
+          356,
+          24,
+          412
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 2.9946666666368644,
+          "p95": 5.699999999254942,
+          "p99": 7.799999997019768,
+          "max": 10.100000001490116
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 2.5773333334177733,
+          "p95": 5.100000001490116,
+          "p99": 6.799999997019768,
+          "max": 8.900000002235174
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 4.633832106666659,
+          "p95": 4.980736,
+          "p99": 5.57056,
+          "max": 5.767168
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 4.633832106666659,
+          "p95": 4.980736,
+          "p99": 5.57056,
+          "max": 5.767168
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 81,
+            "indirect": 0,
+            "directTriangles": 9290512,
+            "directInstanceDraws": 32828,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 81,
+            "drawnMeshes": 81,
+            "triangles": 9290512
+          },
+          "shadow-1": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 32680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 9234872
+          },
+          "shadow-2": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 32680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 9234872
+          },
+          "shadow-3": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 32680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 9234872
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 316,
+        "triangles": 36995129,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 0,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 0,
+            "ready": 0,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 0,
+          "shadowOnly": 0,
+          "hidden": 0,
+          "portalTests": 0,
+          "exteriorPortalTests": 0,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 35,
+            "loaded": 36,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 30603,
+            "bytes": 25856056,
+            "failures": 0,
+            "lastFrameMs": 0.09999999776482582
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 2
+          },
+          "cache": {
+            "entries": 33,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 96,
+            "textures": 15
+          },
+          "camera": [
+            432,
+            1.7,
+            428
+          ]
+        }
+      }
+    },
+    {
+      "profile": "high",
+      "mode": "B",
+      "sequence": 1,
+      "pose": {
+        "id": "high",
+        "position": [
+          432,
+          120,
+          282
+        ],
+        "target": [
+          432,
+          60,
+          385.92304845413264
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.456666666592161,
+          "p95": 5.899999998509884,
+          "p99": 10.899999998509884,
+          "max": 23.199999999254942
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 3.0053333337108294,
+          "p95": 5.300000000745058,
+          "p99": 9.699999999254942,
+          "max": 20.199999999254942
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 4.75922432,
+          "p95": 5.636096,
+          "p99": 5.89824,
+          "max": 6.029312
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 4.75922432,
+          "p95": 5.636096,
+          "p99": 5.89824,
+          "max": 6.029312
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 83,
+            "indirect": 0,
+            "directTriangles": 8878812,
+            "directInstanceDraws": 31244,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 83,
+            "drawnMeshes": 83,
+            "triangles": 8878812
+          },
+          "shadow-1": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31092,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 8740018
+          },
+          "shadow-2": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31092,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 8740018
+          },
+          "shadow-3": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 8740274,
+            "directInstanceDraws": 31094,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 8740274
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 316,
+        "triangles": 35099123,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 0,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 0,
+            "ready": 0,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 0,
+          "shadowOnly": 0,
+          "hidden": 0,
+          "portalTests": 0,
+          "exteriorPortalTests": 0,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 33,
+            "loaded": 36,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 29435,
+            "bytes": 25856056,
+            "failures": 0,
+            "lastFrameMs": 0.10000000149011612
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 4
+          },
+          "cache": {
+            "entries": 33,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 98,
+            "textures": 15
+          },
+          "camera": [
+            432,
+            120,
+            282
+          ]
+        }
+      }
+    },
+    {
+      "profile": "high",
+      "mode": "B",
+      "sequence": 2,
+      "pose": {
+        "id": "street",
+        "position": [
+          389.5,
+          1.7,
+          48
+        ],
+        "target": [
+          389.5,
+          1.7,
+          768
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.6473333332687616,
+          "p95": 6.5,
+          "p99": 10.100000001490116,
+          "max": 11.5
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 2.987333333318432,
+          "p95": 5.699999999254942,
+          "p99": 7.600000001490116,
+          "max": 9.600000001490116
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 3.608849066666675,
+          "p95": 4.128768,
+          "p99": 4.194304,
+          "max": 4.25984
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 3.608849066666675,
+          "p95": 4.128768,
+          "p99": 4.194304,
+          "max": 4.25984
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 94,
+            "indirect": 0,
+            "directTriangles": 6641164,
+            "directInstanceDraws": 21519,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 94,
+            "drawnMeshes": 94,
+            "triangles": 6641164
+          },
+          "shadow-1": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21356,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 6051032
+          },
+          "shadow-2": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21356,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 6051032
+          },
+          "shadow-3": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21356,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 6051032
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 326,
+        "triangles": 24794261,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 2,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 360,
+            "ready": 360,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 234,
+          "shadowOnly": 0,
+          "hidden": 234,
+          "portalTests": 0,
+          "exteriorPortalTests": 20,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 22,
+            "loaded": 30,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 20141,
+            "bytes": 21784765,
+            "failures": 0,
+            "lastFrameMs": 0.19999999925494194
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 15
+          },
+          "cache": {
+            "entries": 48,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 109,
+            "textures": 15
+          },
+          "camera": [
+            389.5,
+            1.7,
+            48
+          ]
+        }
+      }
+    },
+    {
+      "profile": "high",
+      "mode": "B",
+      "sequence": 2,
+      "pose": {
+        "id": "square",
+        "position": [
+          432,
+          1.7,
+          428
+        ],
+        "target": [
+          356,
+          24,
+          412
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 4.000666666651766,
+          "p95": 7.600000001490116,
+          "p99": 11.400000002235174,
+          "max": 13.100000001490116
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 3.512666666507721,
+          "p95": 6.800000000745058,
+          "p99": 10.599999997764826,
+          "max": 12.399999998509884
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 4.681891839999998,
+          "p95": 5.373952,
+          "p99": 5.767168,
+          "max": 5.89824
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 4.681891839999998,
+          "p95": 5.373952,
+          "p99": 5.767168,
+          "max": 5.89824
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 81,
+            "indirect": 0,
+            "directTriangles": 9290512,
+            "directInstanceDraws": 32828,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 81,
+            "drawnMeshes": 81,
+            "triangles": 9290512
+          },
+          "shadow-1": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 32680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 9234872
+          },
+          "shadow-2": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 32680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 9234872
+          },
+          "shadow-3": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 32680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 9234872
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 316,
+        "triangles": 36995129,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 0,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 0,
+            "ready": 0,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 0,
+          "shadowOnly": 0,
+          "hidden": 0,
+          "portalTests": 0,
+          "exteriorPortalTests": 0,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 35,
+            "loaded": 36,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 30603,
+            "bytes": 25856056,
+            "failures": 0,
+            "lastFrameMs": 0.19999999925494194
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 2
+          },
+          "cache": {
+            "entries": 33,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 96,
+            "textures": 15
+          },
+          "camera": [
+            432,
+            1.7,
+            428
+          ]
+        }
+      }
+    },
+    {
+      "profile": "high",
+      "mode": "B",
+      "sequence": 2,
+      "pose": {
+        "id": "high",
+        "position": [
+          432,
+          120,
+          282
+        ],
+        "target": [
+          432,
+          60,
+          385.92304845413264
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.2926666668554145,
+          "p95": 5.5,
+          "p99": 9.199999999254942,
+          "max": 10.800000000745058
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 2.859333333323399,
+          "p95": 5.100000001490116,
+          "p99": 8.300000000745058,
+          "max": 9.799999997019768
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 4.756165973333333,
+          "p95": 5.373952,
+          "p99": 5.636096,
+          "max": 5.636096
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 4.756165973333333,
+          "p95": 5.373952,
+          "p99": 5.636096,
+          "max": 5.636096
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 83,
+            "indirect": 0,
+            "directTriangles": 8878812,
+            "directInstanceDraws": 31244,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 83,
+            "drawnMeshes": 83,
+            "triangles": 8878812
+          },
+          "shadow-1": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31092,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 8740018
+          },
+          "shadow-2": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31092,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 8740018
+          },
+          "shadow-3": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 8740274,
+            "directInstanceDraws": 31094,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 8740274
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 316,
+        "triangles": 35099123,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 0,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 0,
+            "ready": 0,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 0,
+          "shadowOnly": 0,
+          "hidden": 0,
+          "portalTests": 0,
+          "exteriorPortalTests": 0,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 33,
+            "loaded": 36,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 29435,
+            "bytes": 25856056,
+            "failures": 0,
+            "lastFrameMs": 0.10000000149011612
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 4
+          },
+          "cache": {
+            "entries": 33,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 98,
+            "textures": 15
+          },
+          "camera": [
+            432,
+            120,
+            282
+          ]
+        }
+      }
+    },
+    {
+      "profile": "high",
+      "mode": "A",
+      "sequence": 3,
+      "pose": {
+        "id": "street",
+        "position": [
+          389.5,
+          1.7,
+          48
+        ],
+        "target": [
+          389.5,
+          1.7,
+          768
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 4.267999999970198,
+          "p95": 6.699999999254942,
+          "p99": 8.900000002235174,
+          "max": 10.199999999254942
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 3.6479999998460215,
+          "p95": 5.800000000745058,
+          "p99": 8,
+          "max": 9.399999998509884
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 3.5476821333333364,
+          "p95": 3.997696,
+          "p99": 4.25984,
+          "max": 4.325376
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 3.5476821333333364,
+          "p95": 3.997696,
+          "p99": 4.25984,
+          "max": 4.325376
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 118,
+            "indirect": 0,
+            "directTriangles": 6641164,
+            "directInstanceDraws": 21843,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 118,
+            "drawnMeshes": 118,
+            "triangles": 6641164
+          },
+          "shadow-1": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 6051032
+          },
+          "shadow-2": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 6051032
+          },
+          "shadow-3": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 6051032
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 422,
+        "triangles": 24794261,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 2,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 360,
+            "ready": 360,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 234,
+          "shadowOnly": 0,
+          "hidden": 234,
+          "portalTests": 0,
+          "exteriorPortalTests": 20,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 22,
+            "loaded": 30,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 20141,
+            "bytes": 21784765,
+            "failures": 0,
+            "lastFrameMs": 0.19999999925494194
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 15
+          },
+          "cache": {
+            "entries": 48,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 133,
+            "textures": 9
+          },
+          "camera": [
+            389.5,
+            1.7,
+            48
+          ]
+        }
+      }
+    },
+    {
+      "profile": "high",
+      "mode": "A",
+      "sequence": 3,
+      "pose": {
+        "id": "square",
+        "position": [
+          432,
+          1.7,
+          428
+        ],
+        "target": [
+          356,
+          24,
+          412
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.159999999826153,
+          "p95": 3.899999998509884,
+          "p99": 6.800000000745058,
+          "max": 7.899999998509884
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 2.7646666665375235,
+          "p95": 3.399999998509884,
+          "p99": 6.200000002980232,
+          "max": 7.400000002235174
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 4.7037371733333355,
+          "p95": 4.980736,
+          "p99": 5.111808,
+          "max": 5.177344
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 4.7037371733333355,
+          "p95": 4.980736,
+          "p99": 5.111808,
+          "max": 5.177344
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 105,
+            "indirect": 0,
+            "directTriangles": 9290512,
+            "directInstanceDraws": 33308,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 105,
+            "drawnMeshes": 105,
+            "triangles": 9290512
+          },
+          "shadow-1": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 33160,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 9234872
+          },
+          "shadow-2": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 33160,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 9234872
+          },
+          "shadow-3": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 33160,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 9234872
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 412,
+        "triangles": 36995129,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 0,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 0,
+            "ready": 0,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 0,
+          "shadowOnly": 0,
+          "hidden": 0,
+          "portalTests": 0,
+          "exteriorPortalTests": 0,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 35,
+            "loaded": 36,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 30603,
+            "bytes": 25856056,
+            "failures": 0,
+            "lastFrameMs": 0.10000000149011612
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 2
+          },
+          "cache": {
+            "entries": 33,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 120,
+            "textures": 9
+          },
+          "camera": [
+            432,
+            1.7,
+            428
+          ]
+        }
+      }
+    },
+    {
+      "profile": "high",
+      "mode": "A",
+      "sequence": 3,
+      "pose": {
+        "id": "high",
+        "position": [
+          432,
+          120,
+          282
+        ],
+        "target": [
+          432,
+          60,
+          385.92304845413264
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.101999999905626,
+          "p95": 3.699999999254942,
+          "p99": 4.5,
+          "max": 7.899999998509884
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 2.70533333328863,
+          "p95": 3.2000000029802322,
+          "p99": 4,
+          "max": 7.5
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 4.519799466666658,
+          "p95": 4.849664,
+          "p99": 4.980736,
+          "max": 5.177344
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 4.519799466666658,
+          "p95": 4.849664,
+          "p99": 4.980736,
+          "max": 5.177344
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 107,
+            "indirect": 0,
+            "directTriangles": 8878812,
+            "directInstanceDraws": 31712,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 107,
+            "drawnMeshes": 107,
+            "triangles": 8878812
+          },
+          "shadow-1": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31560,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 8740018
+          },
+          "shadow-2": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31560,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 8740018
+          },
+          "shadow-3": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 8740274,
+            "directInstanceDraws": 31562,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 8740274
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 412,
+        "triangles": 35099123,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 0,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 0,
+            "ready": 0,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 0,
+          "shadowOnly": 0,
+          "hidden": 0,
+          "portalTests": 0,
+          "exteriorPortalTests": 0,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 33,
+            "loaded": 36,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 29435,
+            "bytes": 25856056,
+            "failures": 0,
+            "lastFrameMs": 0.19999999925494194
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 4
+          },
+          "cache": {
+            "entries": 33,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 122,
+            "textures": 9
+          },
+          "camera": [
+            432,
+            120,
+            282
+          ]
+        }
+      }
+    },
+    {
+      "profile": "ultra",
+      "mode": "A",
+      "sequence": 0,
+      "pose": {
+        "id": "street",
+        "position": [
+          389.5,
+          1.7,
+          48
+        ],
+        "target": [
+          389.5,
+          1.7,
+          768
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 4.380000000099341,
+          "p95": 6.399999998509884,
+          "p99": 10.899999998509884,
+          "max": 12.5
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 3.801333333179355,
+          "p95": 5.5,
+          "p99": 9.100000001490116,
+          "max": 11.800000000745058
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 4.227071999999996,
+          "p95": 4.521984,
+          "p99": 4.653056,
+          "max": 4.849664
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 4.227071999999996,
+          "p95": 4.521984,
+          "p99": 4.653056,
+          "max": 4.849664
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 118,
+            "indirect": 0,
+            "directTriangles": 6641164,
+            "directInstanceDraws": 21843,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 118,
+            "drawnMeshes": 118,
+            "triangles": 6641164
+          },
+          "shadow-1": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 6051032
+          },
+          "shadow-2": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 6051032
+          },
+          "shadow-3": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 6051032
+          },
+          "shadow-4": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 6051032
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 523,
+        "triangles": 30845293,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 2,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 360,
+            "ready": 360,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 234,
+          "shadowOnly": 0,
+          "hidden": 234,
+          "portalTests": 0,
+          "exteriorPortalTests": 20,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 22,
+            "loaded": 30,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 20141,
+            "bytes": 21784765,
+            "failures": 0,
+            "lastFrameMs": 0.10000000149011612
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 15
+          },
+          "cache": {
+            "entries": 48,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 133,
+            "textures": 11
+          },
+          "camera": [
+            389.5,
+            1.7,
+            48
+          ]
+        }
+      }
+    },
+    {
+      "profile": "ultra",
+      "mode": "A",
+      "sequence": 0,
+      "pose": {
+        "id": "square",
+        "position": [
+          432,
+          1.7,
+          428
+        ],
+        "target": [
+          356,
+          24,
+          412
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.555333333313465,
+          "p95": 4.200000002980232,
+          "p99": 4.400000002235174,
+          "max": 5.5
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 3.1713333333532017,
+          "p95": 3.800000000745058,
+          "p99": 4.100000001490116,
+          "max": 4.199999999254942
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 5.681097386666671,
+          "p95": 6.029312,
+          "p99": 6.094848,
+          "max": 6.553599999999999
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 5.681097386666671,
+          "p95": 6.029312,
+          "p99": 6.094848,
+          "max": 6.553599999999999
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 105,
+            "indirect": 0,
+            "directTriangles": 9290512,
+            "directInstanceDraws": 33308,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 105,
+            "drawnMeshes": 105,
+            "triangles": 9290512
+          },
+          "shadow-1": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 33160,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 9234872
+          },
+          "shadow-2": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 33160,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 9234872
+          },
+          "shadow-3": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 33160,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 9234872
+          },
+          "shadow-4": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 33160,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 9234872
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 514,
+        "triangles": 46230001,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 0,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 0,
+            "ready": 0,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 0,
+          "shadowOnly": 0,
+          "hidden": 0,
+          "portalTests": 0,
+          "exteriorPortalTests": 0,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 35,
+            "loaded": 36,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 30603,
+            "bytes": 25856056,
+            "failures": 0,
+            "lastFrameMs": 0.20000000298023224
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 2
+          },
+          "cache": {
+            "entries": 33,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 120,
+            "textures": 11
+          },
+          "camera": [
+            432,
+            1.7,
+            428
+          ]
+        }
+      }
+    },
+    {
+      "profile": "ultra",
+      "mode": "A",
+      "sequence": 0,
+      "pose": {
+        "id": "high",
+        "position": [
+          432,
+          120,
+          282
+        ],
+        "target": [
+          432,
+          60,
+          385.92304845413264
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.6613333332538605,
+          "p95": 4.300000000745058,
+          "p99": 5.100000001490116,
+          "max": 6.199999999254942
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 3.2646666668355464,
+          "p95": 3.900000002235174,
+          "p99": 4.699999999254942,
+          "max": 5.5
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 5.417642666666659,
+          "p95": 5.701632,
+          "p99": 6.029312000000001,
+          "max": 6.22592
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 5.417642666666659,
+          "p95": 5.701632,
+          "p99": 6.029312000000001,
+          "max": 6.22592
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 107,
+            "indirect": 0,
+            "directTriangles": 8878812,
+            "directInstanceDraws": 31712,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 107,
+            "drawnMeshes": 107,
+            "triangles": 8878812
+          },
+          "shadow-1": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31560,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 8740018
+          },
+          "shadow-2": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31560,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 8740018
+          },
+          "shadow-3": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31560,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 8740018
+          },
+          "shadow-4": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 8740274,
+            "directInstanceDraws": 31562,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 8740274
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 513,
+        "triangles": 43839141,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 0,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 0,
+            "ready": 0,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 0,
+          "shadowOnly": 0,
+          "hidden": 0,
+          "portalTests": 0,
+          "exteriorPortalTests": 0,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 33,
+            "loaded": 36,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 29435,
+            "bytes": 25856056,
+            "failures": 0,
+            "lastFrameMs": 0.10000000149011612
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 4
+          },
+          "cache": {
+            "entries": 33,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 122,
+            "textures": 11
+          },
+          "camera": [
+            432,
+            120,
+            282
+          ]
+        }
+      }
+    },
+    {
+      "profile": "ultra",
+      "mode": "B",
+      "sequence": 1,
+      "pose": {
+        "id": "street",
+        "position": [
+          389.5,
+          1.7,
+          48
+        ],
+        "target": [
+          389.5,
+          1.7,
+          768
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.2920000000546374,
+          "p95": 4,
+          "p99": 4.399999998509884,
+          "max": 5.799999997019768
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 2.777999999920527,
+          "p95": 3.2000000029802322,
+          "p99": 3.800000000745058,
+          "max": 5.199999999254942
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 4.121340586666662,
+          "p95": 4.390912,
+          "p99": 4.456448,
+          "max": 4.58752
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 4.121340586666662,
+          "p95": 4.390912,
+          "p99": 4.456448,
+          "max": 4.58752
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 94,
+            "indirect": 0,
+            "directTriangles": 6641164,
+            "directInstanceDraws": 21519,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 94,
+            "drawnMeshes": 94,
+            "triangles": 6641164
+          },
+          "shadow-1": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21356,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 6051032
+          },
+          "shadow-2": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21356,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 6051032
+          },
+          "shadow-3": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21356,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 6051032
+          },
+          "shadow-4": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21356,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 6051032
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 403,
+        "triangles": 30845293,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 2,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 360,
+            "ready": 360,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 234,
+          "shadowOnly": 0,
+          "hidden": 234,
+          "portalTests": 0,
+          "exteriorPortalTests": 20,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 22,
+            "loaded": 30,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 20141,
+            "bytes": 21784765,
+            "failures": 0,
+            "lastFrameMs": 0.10000000149011612
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 15
+          },
+          "cache": {
+            "entries": 48,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 109,
+            "textures": 17
+          },
+          "camera": [
+            389.5,
+            1.7,
+            48
+          ]
+        }
+      }
+    },
+    {
+      "profile": "ultra",
+      "mode": "B",
+      "sequence": 1,
+      "pose": {
+        "id": "square",
+        "position": [
+          432,
+          1.7,
+          428
+        ],
+        "target": [
+          356,
+          24,
+          412
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.206666666716337,
+          "p95": 4.100000001490116,
+          "p99": 5.5,
+          "max": 5.699999999254942
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 2.8133333332588277,
+          "p95": 3.599999997764826,
+          "p99": 5,
+          "max": 5.199999999254942
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 5.752750080000003,
+          "p95": 6.094848,
+          "p99": 6.356992,
+          "max": 6.684672
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 5.752750080000003,
+          "p95": 6.094848,
+          "p99": 6.356992,
+          "max": 6.684672
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 81,
+            "indirect": 0,
+            "directTriangles": 9290512,
+            "directInstanceDraws": 32828,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 81,
+            "drawnMeshes": 81,
+            "triangles": 9290512
+          },
+          "shadow-1": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 32680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 9234872
+          },
+          "shadow-2": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 32680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 9234872
+          },
+          "shadow-3": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 32680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 9234872
+          },
+          "shadow-4": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 32680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 9234872
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 394,
+        "triangles": 46230001,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 0,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 0,
+            "ready": 0,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 0,
+          "shadowOnly": 0,
+          "hidden": 0,
+          "portalTests": 0,
+          "exteriorPortalTests": 0,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 35,
+            "loaded": 36,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 30603,
+            "bytes": 25856056,
+            "failures": 0,
+            "lastFrameMs": 0.19999999925494194
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 2
+          },
+          "cache": {
+            "entries": 33,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 96,
+            "textures": 17
+          },
+          "camera": [
+            432,
+            1.7,
+            428
+          ]
+        }
+      }
+    },
+    {
+      "profile": "ultra",
+      "mode": "B",
+      "sequence": 1,
+      "pose": {
+        "id": "high",
+        "position": [
+          432,
+          120,
+          282
+        ],
+        "target": [
+          432,
+          60,
+          385.92304845413264
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.2920000000546374,
+          "p95": 4.399999998509884,
+          "p99": 8.300000000745058,
+          "max": 8.599999997764826
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 2.875333333313465,
+          "p95": 3.800000000745058,
+          "p99": 7.199999999254942,
+          "max": 7.399999998509884
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 5.6072601599999965,
+          "p95": 5.8982399999999995,
+          "p99": 6.5536,
+          "max": 6.946816
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 5.6072601599999965,
+          "p95": 5.8982399999999995,
+          "p99": 6.5536,
+          "max": 6.946816
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 83,
+            "indirect": 0,
+            "directTriangles": 8878812,
+            "directInstanceDraws": 31244,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 83,
+            "drawnMeshes": 83,
+            "triangles": 8878812
+          },
+          "shadow-1": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31092,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 8740018
+          },
+          "shadow-2": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31092,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 8740018
+          },
+          "shadow-3": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31092,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 8740018
+          },
+          "shadow-4": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 8740274,
+            "directInstanceDraws": 31094,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 8740274
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 393,
+        "triangles": 43839141,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 0,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 0,
+            "ready": 0,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 0,
+          "shadowOnly": 0,
+          "hidden": 0,
+          "portalTests": 0,
+          "exteriorPortalTests": 0,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 33,
+            "loaded": 36,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 29435,
+            "bytes": 25856056,
+            "failures": 0,
+            "lastFrameMs": 0.09999999776482582
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 4
+          },
+          "cache": {
+            "entries": 33,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 98,
+            "textures": 17
+          },
+          "camera": [
+            432,
+            120,
+            282
+          ]
+        }
+      }
+    },
+    {
+      "profile": "ultra",
+      "mode": "B",
+      "sequence": 2,
+      "pose": {
+        "id": "street",
+        "position": [
+          389.5,
+          1.7,
+          48
+        ],
+        "target": [
+          389.5,
+          1.7,
+          768
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.3866666666666667,
+          "p95": 4.300000000745058,
+          "p99": 6.199999999254942,
+          "max": 6.900000002235174
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 2.836666666790843,
+          "p95": 3.600000001490116,
+          "p99": 5,
+          "max": 6.299999997019768
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 4.194303999999997,
+          "p95": 4.521984,
+          "p99": 4.58752,
+          "max": 4.58752
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 4.194303999999997,
+          "p95": 4.521984,
+          "p99": 4.58752,
+          "max": 4.58752
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 94,
+            "indirect": 0,
+            "directTriangles": 6641164,
+            "directInstanceDraws": 21519,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 94,
+            "drawnMeshes": 94,
+            "triangles": 6641164
+          },
+          "shadow-1": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21356,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 6051032
+          },
+          "shadow-2": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21356,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 6051032
+          },
+          "shadow-3": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21356,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 6051032
+          },
+          "shadow-4": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21356,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 6051032
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 403,
+        "triangles": 30845293,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 2,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 360,
+            "ready": 360,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 234,
+          "shadowOnly": 0,
+          "hidden": 234,
+          "portalTests": 0,
+          "exteriorPortalTests": 20,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 22,
+            "loaded": 30,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 20141,
+            "bytes": 21784765,
+            "failures": 0,
+            "lastFrameMs": 0.10000000149011612
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 15
+          },
+          "cache": {
+            "entries": 48,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 109,
+            "textures": 17
+          },
+          "camera": [
+            389.5,
+            1.7,
+            48
+          ]
+        }
+      }
+    },
+    {
+      "profile": "ultra",
+      "mode": "B",
+      "sequence": 2,
+      "pose": {
+        "id": "square",
+        "position": [
+          432,
+          1.7,
+          428
+        ],
+        "target": [
+          356,
+          24,
+          412
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.0806666666020948,
+          "p95": 3.699999999254942,
+          "p99": 4,
+          "max": 4.099999997764826
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 2.693333333308498,
+          "p95": 3.2000000029802322,
+          "p99": 3.600000001490116,
+          "max": 3.7000000029802322
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 5.750565546666672,
+          "p95": 6.094848,
+          "p99": 6.291456,
+          "max": 6.619136
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 5.750565546666672,
+          "p95": 6.094848,
+          "p99": 6.291456,
+          "max": 6.619136
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 81,
+            "indirect": 0,
+            "directTriangles": 9290512,
+            "directInstanceDraws": 32828,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 81,
+            "drawnMeshes": 81,
+            "triangles": 9290512
+          },
+          "shadow-1": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 32680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 9234872
+          },
+          "shadow-2": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 32680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 9234872
+          },
+          "shadow-3": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 32680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 9234872
+          },
+          "shadow-4": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 32680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 9234872
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 394,
+        "triangles": 46230001,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 0,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 0,
+            "ready": 0,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 0,
+          "shadowOnly": 0,
+          "hidden": 0,
+          "portalTests": 0,
+          "exteriorPortalTests": 0,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 35,
+            "loaded": 36,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 30603,
+            "bytes": 25856056,
+            "failures": 0,
+            "lastFrameMs": 0.10000000149011612
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 2
+          },
+          "cache": {
+            "entries": 33,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 96,
+            "textures": 17
+          },
+          "camera": [
+            432,
+            1.7,
+            428
+          ]
+        }
+      }
+    },
+    {
+      "profile": "ultra",
+      "mode": "B",
+      "sequence": 2,
+      "pose": {
+        "id": "high",
+        "position": [
+          432,
+          120,
+          282
+        ],
+        "target": [
+          432,
+          60,
+          385.92304845413264
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.20466666671137,
+          "p95": 4,
+          "p99": 4.899999998509884,
+          "max": 5.5
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 2.8160000000397365,
+          "p95": 3.699999999254942,
+          "p99": 4.5,
+          "max": 5
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 5.609444693333328,
+          "p95": 6.029312,
+          "p99": 6.291456,
+          "max": 6.422528000000001
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 5.609444693333328,
+          "p95": 6.029312,
+          "p99": 6.291456,
+          "max": 6.422528000000001
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 83,
+            "indirect": 0,
+            "directTriangles": 8878812,
+            "directInstanceDraws": 31244,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 83,
+            "drawnMeshes": 83,
+            "triangles": 8878812
+          },
+          "shadow-1": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31092,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 8740018
+          },
+          "shadow-2": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31092,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 8740018
+          },
+          "shadow-3": {
+            "direct": 77,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31092,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 77,
+            "drawnMeshes": 77,
+            "triangles": 8740018
+          },
+          "shadow-4": {
+            "direct": 78,
+            "indirect": 0,
+            "directTriangles": 8740274,
+            "directInstanceDraws": 31094,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 78,
+            "drawnMeshes": 78,
+            "triangles": 8740274
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 393,
+        "triangles": 43839141,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 0,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 0,
+            "ready": 0,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 0,
+          "shadowOnly": 0,
+          "hidden": 0,
+          "portalTests": 0,
+          "exteriorPortalTests": 0,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 33,
+            "loaded": 36,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 29435,
+            "bytes": 25856056,
+            "failures": 0,
+            "lastFrameMs": 0.10000000149011612
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 4
+          },
+          "cache": {
+            "entries": 33,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 98,
+            "textures": 17
+          },
+          "camera": [
+            432,
+            120,
+            282
+          ]
+        }
+      }
+    },
+    {
+      "profile": "ultra",
+      "mode": "A",
+      "sequence": 3,
+      "pose": {
+        "id": "street",
+        "position": [
+          389.5,
+          1.7,
+          48
+        ],
+        "target": [
+          389.5,
+          1.7,
+          768
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 4.066666666641831,
+          "p95": 4.899999998509884,
+          "p99": 10.300000000745058,
+          "max": 11
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 3.4906666668256126,
+          "p95": 4.399999998509884,
+          "p99": 9.400000002235174,
+          "max": 10.100000001490116
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 4.169837226666663,
+          "p95": 4.456448,
+          "p99": 4.521984,
+          "max": 4.784128
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 4.169837226666663,
+          "p95": 4.456448,
+          "p99": 4.521984,
+          "max": 4.784128
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 118,
+            "indirect": 0,
+            "directTriangles": 6641164,
+            "directInstanceDraws": 21843,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 118,
+            "drawnMeshes": 118,
+            "triangles": 6641164
+          },
+          "shadow-1": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 6051032
+          },
+          "shadow-2": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 6051032
+          },
+          "shadow-3": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 6051032
+          },
+          "shadow-4": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 6051032,
+            "directInstanceDraws": 21680,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 6051032
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 523,
+        "triangles": 30845293,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 2,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 360,
+            "ready": 360,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 234,
+          "shadowOnly": 0,
+          "hidden": 234,
+          "portalTests": 0,
+          "exteriorPortalTests": 20,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 22,
+            "loaded": 30,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 20141,
+            "bytes": 21784765,
+            "failures": 0,
+            "lastFrameMs": 0.10000000149011612
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 15
+          },
+          "cache": {
+            "entries": 48,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 133,
+            "textures": 11
+          },
+          "camera": [
+            389.5,
+            1.7,
+            48
+          ]
+        }
+      }
+    },
+    {
+      "profile": "ultra",
+      "mode": "A",
+      "sequence": 3,
+      "pose": {
+        "id": "square",
+        "position": [
+          432,
+          1.7,
+          428
+        ],
+        "target": [
+          356,
+          24,
+          412
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.716666666790843,
+          "p95": 4.600000001490116,
+          "p99": 5.199999999254942,
+          "max": 5.699999999254942
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 3.3279999999701975,
+          "p95": 4.300000000745058,
+          "p99": 4.699999999254942,
+          "max": 4.800000000745058
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 5.534733653333323,
+          "p95": 5.89824,
+          "p99": 6.094848000000001,
+          "max": 6.22592
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 5.534733653333323,
+          "p95": 5.89824,
+          "p99": 6.094848000000001,
+          "max": 6.22592
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 105,
+            "indirect": 0,
+            "directTriangles": 9290512,
+            "directInstanceDraws": 33308,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 105,
+            "drawnMeshes": 105,
+            "triangles": 9290512
+          },
+          "shadow-1": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 33160,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 9234872
+          },
+          "shadow-2": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 33160,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 9234872
+          },
+          "shadow-3": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 33160,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 9234872
+          },
+          "shadow-4": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 9234872,
+            "directInstanceDraws": 33160,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 9234872
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 514,
+        "triangles": 46230001,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 0,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 0,
+            "ready": 0,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 0,
+          "shadowOnly": 0,
+          "hidden": 0,
+          "portalTests": 0,
+          "exteriorPortalTests": 0,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 35,
+            "loaded": 36,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 30603,
+            "bytes": 25856056,
+            "failures": 0,
+            "lastFrameMs": 0.19999999925494194
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 2
+          },
+          "cache": {
+            "entries": 33,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 120,
+            "textures": 11
+          },
+          "camera": [
+            432,
+            1.7,
+            428
+          ]
+        }
+      }
+    },
+    {
+      "profile": "ultra",
+      "mode": "A",
+      "sequence": 3,
+      "pose": {
+        "id": "high",
+        "position": [
+          432,
+          120,
+          282
+        ],
+        "target": [
+          432,
+          60,
+          385.92304845413264
+        ]
+      },
+      "proof": {
+        "isWebGPUBackend": true,
+        "backend": "webgpu",
+        "compatibilityMode": false,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "ampere",
+          "device": "",
+          "description": ""
+        },
+        "timestampQuery": true,
+        "features": [
+          "bgra8unorm-storage",
+          "clip-distances",
+          "core-features-and-limits",
+          "depth-clip-control",
+          "depth32float-stencil8",
+          "dual-source-blending",
+          "float32-blendable",
+          "float32-filterable",
+          "indirect-first-instance",
+          "rg11b10ufloat-renderable",
+          "shader-f16",
+          "subgroups",
+          "texture-compression-bc",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier1",
+          "texture-formats-tier2",
+          "timestamp-query"
+        ],
+        "limits": {
+          "maxTextureDimension2D": 8192,
+          "maxTextureArrayLayers": 256,
+          "maxBindGroups": 4,
+          "maxStorageBufferBindingSize": 134217728,
+          "maxBufferSize": 268435456,
+          "maxComputeWorkgroupStorageSize": 16384,
+          "maxComputeInvocationsPerWorkgroup": 256,
+          "maxColorAttachments": 8,
+          "maxColorAttachmentBytesPerSample": 32
+        },
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+        "fallback": false
+      },
+      "intercepted": [
+        "building-01",
+        "building-02",
+        "building-03",
+        "building-04",
+        "building-05",
+        "building-06"
+      ],
+      "timing": {
+        "cpuMs": {
+          "samples": 150,
+          "mean": 3.891999999905626,
+          "p95": 5.099999997764826,
+          "p99": 8.899999998509884,
+          "max": 9.399999998509884
+        },
+        "submitMs": {
+          "samples": 150,
+          "mean": 3.4873333332687615,
+          "p95": 4.5,
+          "p99": 7.699999999254942,
+          "max": 8.900000002235174
+        },
+        "gpuRenderMs": {
+          "samples": 150,
+          "mean": 5.414584319999996,
+          "p95": 5.701632,
+          "p99": 6.029312,
+          "max": 6.356992000000001
+        },
+        "gpuComputeMs": {
+          "samples": 150,
+          "mean": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "gpuTotalMs": {
+          "samples": 150,
+          "mean": 5.414584319999996,
+          "p95": 5.701632,
+          "p99": 6.029312,
+          "max": 6.356992000000001
+        }
+      },
+      "counters": {
+        "perView": {
+          "main": {
+            "direct": 107,
+            "indirect": 0,
+            "directTriangles": 8878812,
+            "directInstanceDraws": 31712,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 107,
+            "drawnMeshes": 107,
+            "triangles": 8878812
+          },
+          "shadow-1": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31560,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 8740018
+          },
+          "shadow-2": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31560,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 8740018
+          },
+          "shadow-3": {
+            "direct": 101,
+            "indirect": 0,
+            "directTriangles": 8740018,
+            "directInstanceDraws": 31560,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 101,
+            "drawnMeshes": 101,
+            "triangles": 8740018
+          },
+          "shadow-4": {
+            "direct": 102,
+            "indirect": 0,
+            "directTriangles": 8740274,
+            "directInstanceDraws": 31562,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 102,
+            "drawnMeshes": 102,
+            "triangles": 8740274
+          },
+          "other": {
+            "direct": 1,
+            "indirect": 0,
+            "directTriangles": 1,
+            "directInstanceDraws": 1,
+            "gpuInstances": 0,
+            "gpuTriangles": 0,
+            "draws": 1,
+            "drawnMeshes": 1,
+            "triangles": 1
+          }
+        },
+        "draws": 513,
+        "triangles": 43839141,
+        "dispatches": 0,
+        "gpu": {
+          "batches": 0,
+          "instances": 0,
+          "draws": 0,
+          "views": 0,
+          "bundleUpdates": 0
+        },
+        "zones": {
+          "streaming": {
+            "buildings": 28,
+            "active": 0,
+            "prefetched": 0,
+            "queued": 0,
+            "resident": 0,
+            "ready": 0,
+            "cameraBuilding": null
+          },
+          "zones": 252,
+          "portals": 674,
+          "cameraZone": null,
+          "visible": 0,
+          "tracked": 0,
+          "shadowOnly": 0,
+          "hidden": 0,
+          "portalTests": 0,
+          "exteriorPortalTests": 0,
+          "portalBudgetExceeded": false
+        },
+        "streaming": {
+          "cells": {
+            "cells": 36,
+            "active": 33,
+            "loaded": 36,
+            "fetching": 0,
+            "queued": 0,
+            "actors": 29435,
+            "bytes": 25856056,
+            "failures": 0,
+            "lastFrameMs": 0.19999999925494194
+          },
+          "hlod": {
+            "loaded": 37,
+            "visible": 4
+          },
+          "cache": {
+            "entries": 33,
+            "pending": 0,
+            "failed": 0,
+            "pendingEvict": 0,
+            "evicted": 0
+          },
+          "gpu": {
+            "geometries": 122,
+            "textures": 11
+          },
+          "camera": [
+            432,
+            120,
+            282
+          ]
+        }
+      }
+    }
+  ],
+  "comparison": [
+    {
+      "profile": "high",
+      "pose": "street",
+      "baselineSubmit": 3.319333333298564,
+      "candidateSubmit": 2.7233333332836627,
+      "submitDelta": 0.5960000000149013,
+      "submitPct": 17.955412734117623,
+      "gpuDelta": 0.06924970666666685,
+      "cpuDelta": 0.6366666667908429,
+      "deltas": [
+        {
+          "submit": 0.531333333502213,
+          "cpu": 0.6526666668802497,
+          "gpu": 0.07733247999999504,
+          "gpuP95": 0.26214400000000015,
+          "dispatches": 0,
+          "triangles": {
+            "main": 0,
+            "shadow-1": 0,
+            "shadow-2": 0,
+            "shadow-3": 0,
+            "other": 0
+          },
+          "draws": {
+            "main": 24,
+            "shadow-1": 24,
+            "shadow-2": 24,
+            "shadow-3": 24,
+            "other": 0
+          }
+        },
+        {
+          "submit": 0.6606666665275895,
+          "cpu": 0.6206666667014362,
+          "gpu": 0.06116693333333867,
+          "gpuP95": 0.13107200000000008,
+          "dispatches": 0,
+          "triangles": {
+            "main": 0,
+            "shadow-1": 0,
+            "shadow-2": 0,
+            "shadow-3": 0,
+            "other": 0
+          },
+          "draws": {
+            "main": 24,
+            "shadow-1": 24,
+            "shadow-2": 24,
+            "shadow-3": 24,
+            "other": 0
+          }
+        }
+      ]
+    },
+    {
+      "profile": "high",
+      "pose": "square",
+      "baselineSubmit": 2.766666666654249,
+      "candidateSubmit": 3.044999999962747,
+      "submitDelta": -0.27833333330849785,
+      "submitPct": -10.060240963002908,
+      "gpuDelta": 0.03975850666666414,
+      "cpuDelta": -0.33066666673868905,
+      "deltas": [
+        {
+          "submit": 0.19133333335320168,
+          "cpu": 0.17933333334823454,
+          "gpu": 0.10136234666666599,
+          "gpuP95": 0.19660800000000034,
+          "dispatches": 0,
+          "triangles": {
+            "main": 0,
+            "shadow-1": 0,
+            "shadow-2": 0,
+            "shadow-3": 0,
+            "other": 0
+          },
+          "draws": {
+            "main": 24,
+            "shadow-1": 24,
+            "shadow-2": 24,
+            "shadow-3": 24,
+            "other": 0
+          }
+        },
+        {
+          "submit": -0.7479999999701974,
+          "cpu": -0.8406666668256126,
+          "gpu": -0.021845333333337713,
+          "gpuP95": 0.3932159999999998,
+          "dispatches": 0,
+          "triangles": {
+            "main": 0,
+            "shadow-1": 0,
+            "shadow-2": 0,
+            "shadow-3": 0,
+            "other": 0
+          },
+          "draws": {
+            "main": 24,
+            "shadow-1": 24,
+            "shadow-2": 24,
+            "shadow-3": 24,
+            "other": 0
+          }
+        }
+      ]
+    },
+    {
+      "profile": "high",
+      "pose": "high",
+      "baselineSubmit": 2.8273333333681028,
+      "candidateSubmit": 2.9323333335171142,
+      "submitDelta": -0.10500000014901145,
+      "submitPct": -3.7137467630648504,
+      "gpuDelta": 0.24160938666667642,
+      "cpuDelta": -0.13166666670391947,
+      "deltas": [
+        {
+          "submit": -0.05600000026325391,
+          "cpu": -0.07266666645805042,
+          "gpu": 0.2468522666666777,
+          "gpuP95": 0.7864320000000005,
+          "dispatches": 0,
+          "triangles": {
+            "main": 0,
+            "shadow-1": 0,
+            "shadow-2": 0,
+            "shadow-3": 0,
+            "other": 0
+          },
+          "draws": {
+            "main": 24,
+            "shadow-1": 24,
+            "shadow-2": 24,
+            "shadow-3": 24,
+            "other": 0
+          }
+        },
+        {
+          "submit": -0.154000000034769,
+          "cpu": -0.1906666669497885,
+          "gpu": 0.23636650666667514,
+          "gpuP95": 0.5242880000000003,
+          "dispatches": 0,
+          "triangles": {
+            "main": 0,
+            "shadow-1": 0,
+            "shadow-2": 0,
+            "shadow-3": 0,
+            "other": 0
+          },
+          "draws": {
+            "main": 24,
+            "shadow-1": 24,
+            "shadow-2": 24,
+            "shadow-3": 24,
+            "other": 0
+          }
+        }
+      ]
+    },
+    {
+      "profile": "ultra",
+      "pose": "street",
+      "baselineSubmit": 3.6460000000024837,
+      "candidateSubmit": 2.807333333355685,
+      "submitDelta": 0.8386666666467986,
+      "submitPct": 23.002377033632126,
+      "gpuDelta": -0.04063231999999983,
+      "cpuDelta": 0.884000000009934,
+      "deltas": [
+        {
+          "submit": 1.0233333332588277,
+          "cpu": 1.0880000000447034,
+          "gpu": -0.10573141333333425,
+          "gpuP95": -0.13107199999999963,
+          "dispatches": 0,
+          "triangles": {
+            "main": 0,
+            "shadow-1": 0,
+            "shadow-2": 0,
+            "shadow-3": 0,
+            "shadow-4": 0,
+            "other": 0
+          },
+          "draws": {
+            "main": 24,
+            "shadow-1": 24,
+            "shadow-2": 24,
+            "shadow-3": 24,
+            "shadow-4": 24,
+            "other": 0
+          }
+        },
+        {
+          "submit": 0.6540000000347694,
+          "cpu": 0.6799999999751645,
+          "gpu": 0.02446677333333458,
+          "gpuP95": 0.06553599999999982,
+          "dispatches": 0,
+          "triangles": {
+            "main": 0,
+            "shadow-1": 0,
+            "shadow-2": 0,
+            "shadow-3": 0,
+            "shadow-4": 0,
+            "other": 0
+          },
+          "draws": {
+            "main": 24,
+            "shadow-1": 24,
+            "shadow-2": 24,
+            "shadow-3": 24,
+            "shadow-4": 24,
+            "other": 0
+          }
+        }
+      ]
+    },
+    {
+      "profile": "ultra",
+      "pose": "square",
+      "baselineSubmit": 3.2496666666616996,
+      "candidateSubmit": 2.753333333283663,
+      "submitDelta": 0.49633333337803665,
+      "submitPct": 15.273361371795936,
+      "gpuDelta": 0.14374229333334032,
+      "cpuDelta": 0.49233333339293806,
+      "deltas": [
+        {
+          "submit": 0.35800000009437394,
+          "cpu": 0.34866666659712786,
+          "gpu": 0.07165269333333146,
+          "gpuP95": 0.06553599999999982,
+          "dispatches": 0,
+          "triangles": {
+            "main": 0,
+            "shadow-1": 0,
+            "shadow-2": 0,
+            "shadow-3": 0,
+            "shadow-4": 0,
+            "other": 0
+          },
+          "draws": {
+            "main": 24,
+            "shadow-1": 24,
+            "shadow-2": 24,
+            "shadow-3": 24,
+            "shadow-4": 24,
+            "other": 0
+          }
+        },
+        {
+          "submit": 0.6346666666616994,
+          "cpu": 0.6360000001887482,
+          "gpu": 0.21583189333334918,
+          "gpuP95": 0.19660799999999945,
+          "dispatches": 0,
+          "triangles": {
+            "main": 0,
+            "shadow-1": 0,
+            "shadow-2": 0,
+            "shadow-3": 0,
+            "shadow-4": 0,
+            "other": 0
+          },
+          "draws": {
+            "main": 24,
+            "shadow-1": 24,
+            "shadow-2": 24,
+            "shadow-3": 24,
+            "shadow-4": 24,
+            "other": 0
+          }
+        }
+      ]
+    },
+    {
+      "profile": "ultra",
+      "pose": "high",
+      "baselineSubmit": 3.376000000052154,
+      "candidateSubmit": 2.8456666666766006,
+      "submitDelta": 0.5303333333755531,
+      "submitPct": 15.708925751402852,
+      "gpuDelta": 0.1922389333333352,
+      "cpuDelta": 0.5283333331967395,
+      "deltas": [
+        {
+          "submit": 0.3893333335220812,
+          "cpu": 0.369333333199223,
+          "gpu": 0.18961749333333788,
+          "gpuP95": 0.19660799999999945,
+          "dispatches": 0,
+          "triangles": {
+            "main": 0,
+            "shadow-1": 0,
+            "shadow-2": 0,
+            "shadow-3": 0,
+            "shadow-4": 0,
+            "other": 0
+          },
+          "draws": {
+            "main": 24,
+            "shadow-1": 24,
+            "shadow-2": 24,
+            "shadow-3": 24,
+            "shadow-4": 24,
+            "other": 0
+          }
+        },
+        {
+          "submit": 0.671333333229025,
+          "cpu": 0.6873333331942559,
+          "gpu": 0.1948603733333325,
+          "gpuP95": 0.32767999999999997,
+          "dispatches": 0,
+          "triangles": {
+            "main": 0,
+            "shadow-1": 0,
+            "shadow-2": 0,
+            "shadow-3": 0,
+            "shadow-4": 0,
+            "other": 0
+          },
+          "draws": {
+            "main": 24,
+            "shadow-1": 24,
+            "shadow-2": 24,
+            "shadow-3": 24,
+            "shadow-4": 24,
+            "other": 0
+          }
+        }
+      ]
+    }
+  ],
+  "visualComparison": {
+    "method": "RTX 3060 WebGPU high, same camera, ambient inspection fill and fixed sun angle; pair A vs B at each pose.",
+    "dayVsSunset": {
+      "mae": 4.753188175154321,
+      "over3Pct": 18.39482060185185,
+      "over12Pct": 14.463252314814815,
+      "max": 54
+    },
+    "scenes": [
+      {
+        "phase": "day",
+        "comparison": {
+          "mae": 0.031244695216049383,
+          "over3Pct": 0,
+          "over12Pct": 0,
+          "max": 1
+        },
+        "camera": [
+          432,
+          1.7,
+          428
+        ],
+        "sunDirection": [
+          0,
+          0.8660254037844386,
+          0.5000000000000001
+        ],
+        "hlod": {
+          "loaded": 37,
+          "visible": 2
+        }
+      },
+      {
+        "phase": "sunset",
+        "comparison": {
+          "mae": 0.0322559799382716,
+          "over3Pct": 0,
+          "over12Pct": 0,
+          "max": 1
+        },
+        "camera": [
+          432,
+          1.7,
+          428
+        ],
+        "sunDirection": [
+          0,
+          0.20791169081775931,
+          0.9781476007338057
+        ],
+        "hlod": {
+          "loaded": 37,
+          "visible": 2
+        }
+      },
+      {
+        "phase": "hlod-before",
+        "comparison": {
+          "mae": 0.00177099408436214,
+          "over3Pct": 0,
+          "over12Pct": 0,
+          "max": 1
+        },
+        "camera": [
+          389.5,
+          1.7,
+          48
+        ],
+        "sunDirection": [
+          0,
+          0.8660254037844386,
+          0.5000000000000001
+        ],
+        "hlod": {
+          "loaded": 37,
+          "visible": 15
+        }
+      },
+      {
+        "phase": "hlod-transition",
+        "comparison": {
+          "mae": 0.014326613940329217,
+          "over3Pct": 0,
+          "over12Pct": 0,
+          "max": 1
+        },
+        "camera": [
+          389.5,
+          1.7,
+          104
+        ],
+        "sunDirection": [
+          0,
+          0.8660254037844386,
+          0.5000000000000001
+        ],
+        "hlod": {
+          "loaded": 37,
+          "visible": 13
+        }
+      }
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 # Katmanlı çizim bütçesi planı (Faz 5c R9c)
 
-**Sürüm:** v0.4 · 2026-11-19 — Adım 5 kapandı. S12 kararıyla üretimde mevcut `auto` ve S1 kullanılır.
+**Sürüm:** v0.5 · 2026-11-19 — R9c kapandı. Adım 6 atlas deneyi performans ölçütlerini karşılamadı. Üretimde `auto` ve S1 geçerli.
 
 **Önceki sürüm:** v0.3 · 2026-11-18 — Adım 2 ve Adım 3 donanım doğrulaması ve kullanıcı
 görsel onayıyla kapandı. Adım 3 aynı zamanda R9b’nin yeni Z6 kabulünü tamamladı.
@@ -816,12 +816,139 @@ viewport smoke'ları her arka uçta 4'er test geçti.
 
 ### 5.6 Adım 6 — Ölçüme göre
 
-- **WP boyut sınıfı menzilleri (S13):** küçük nesneler daha kısa menzilde akar. Draw'ı detay cull
-  ve adım 5 zaten düşürür; bu iş yalnız bellek / yükleme ölçümü gerektirirse. Öneri: adım 1–5'in
-  ölçümünde bellek ya da hücre yükleme süresi sorun değilse yapılmaz.
-- **Materyal birleştirme / atlas:** farklı materyalleri tek dokuya (kayıplı; R8 kararında
-  "sonra"). Kalan draw'ın kaynağı arketip başına çok slot çıkarsa. Ayrı tasarım, ayrı karar.
-- **Kaskat iç içe kesimi** (S11) ve **dispatch birleştirme** (adım 5) ölçüme göre buraya gelir.
+**19 Kasım 2026 ölçümü.** Yerel `main` (`8168b26`), temiz çalışma ağacı.
+Yerel `origin/main` (`394fabb`) ile tek fark prosedürel bina planı belgesiydi.
+Aynı şehir tohumu (1), 8 × 8 blok, ağır eşya kapalı, Chrome 157, başlıklı RTX 3060
+WebGPU, timestamp-query açık, fallback kapalı, 1920 × 1080, DPR 1 ve `auto`.
+
+Standart `npm.cmd run measure:city` koşusu bina akışı kapalıyken `street`, `square`
+ve `high` pozlarında gölgeli/gölgesiz eşleri aldı. Her eşte 60 kare ısınma ve
+300 adımlı kare ölçüldü. Gölgeli toplam 412–523 draw, sıfır dispatch, 2,898–4,262 ms
+gönderim CPU, 5,035–7,335 ms kare CPU ve 2,952–5,058 ms GPU render görüldü.
+Gölgeler kapatılınca GPU render ortalaması 1,222–3,159 ms düştü. `street` ve
+`square` draw sayıları §5.5'in `auto` kayıtlarıyla eşleşti.
+[Ham standart şehir ölçümü](../reference/measurements/r9c-step6/main-8168b26-city.json).
+
+Üretim koşulu için bina akışı açıkken aynı pozlar ölçüldü. Tarayıcı kare sınırı
+kapalıydı, her motor adımı yeni bir tarayıcı karesinde 1/60 sn ilerledi.
+60 ısınma karesinden sonra 120 kare süreye, ayrı bir kare draw sayımına ve
+30 kare geçiş timestamp'lerine ayrıldı. Prob, güncel kareye ait sorguların
+sonucunu bekledi ve her karede geçiş toplamını render GPU süresiyle eşledi.
+Gönderim CPU, eleme ve render komutlarının gönderimini kapsar. Tablodaki süreler
+ortalamadır. Ana görünüm ve kaskatların dışında bir kompozit draw vardır.
+[Ham akış açık şehir ölçümü ve slot sayaçları](../reference/measurements/r9c-step6/main-8168b26-city-production.json).
+
+| Profil | Poz | Ana draw | Kaskat draw | Gönderim CPU (ms) | Kare CPU (ms) | GPU render (ms) | GPU compute (ms) | Dispatch |
+|---|---|---:|---|---:|---:|---:|---:|---:|
+| high | street | 118 | 101 / 101 / 101 | 2,782 | 3,382 | 3,434 | 0,000 | 0 |
+| high | square | 105 | 102 / 102 / 102 | 2,822 | 3,239 | 4,547 | 0,000 | 0 |
+| high | high | 107 | 101 / 101 / 102 | 2,786 | 3,193 | 4,594 | 0,000 | 0 |
+| ultra | street | 118 | 101 / 101 / 101 / 101 | 3,202 | 3,806 | 4,233 | 0,000 | 0 |
+| ultra | square | 105 | 102 / 102 / 102 / 102 | 3,354 | 3,758 | 5,625 | 0,000 | 0 |
+| ultra | high | 107 | 101 / 101 / 101 / 102 | 3,321 | 3,726 | 5,618 | 0,000 | 0 |
+
+| Profil | Poz | Ana GPU render (ms) | Kaskat GPU render (ms) | Kaskat 2 ve sonrası toplamı (ms) |
+|---|---|---:|---|---:|
+| high | street | 1,595 | 0,599 / 0,620 / 0,629 | 1,250 |
+| high | square | 1,802 | 0,885 / 0,898 / 0,928 | 1,826 |
+| high | high | 1,892 | 0,874 / 0,891 / 0,911 | 1,802 |
+| ultra | street | 1,647 | 0,599 / 0,603 / 0,612 / 0,688 | 1,903 |
+| ultra | square | 1,715 | 0,911 / 0,909 / 0,926 / 1,127 | 2,962 |
+| ultra | high | 1,761 | 0,869 / 0,893 / 0,942 / 1,118 | 2,953 |
+
+**Materyal birleştirme / atlas — deney adayı.** Her görünümde aynı
+arketip ve yerleşim grubuna ait çizilmiş benzersiz slotlar sayıldı. Grup başına
+ilk slotun üzerindeki draw toplamı her pozda ana görünümde 70 (%59–67),
+her kaskatta yine 70 (%69) oldu. Beş slotlu 12 bina kabuğu 60 draw'ın 48'ini,
+dört slotlu dört araç 16 draw'ın 12'sini bu fazlaya ekledi. Kalan 10 draw diğer
+çok slotlu arketiplerden geldi. Bu hesap birleştirme tavanını verir. Üçgenler
+aynı kalacağından GPU kazancı ve CPU süre düşüşü ayrıca ölçülmeli.
+
+En küçük deney, yalnız şehir kopyasında toplamı 5.000 üçgenin altında kalan
+altı bina kabuğunun opak slotlarını tek primitive ve tek atlas materyalinde
+birleştirmek. Bu grup her görünümde 24 ek draw üretiyor. Eşik seçimi S1'in
+instanced yolunu deneyde sabit tutar. Aynı yerleşim, geometri, HLOD kopyası ve
+pozda iki A/B çifti ters sırada alınır. Önerilen başarı ölçütü, iki profilde
+ana görünümde ve kaskat başına en az 20 draw düşüşü ve `square` gönderim CPU
+ortalamasında en az 0,4 ms ve %10 düşüş. `street` ve `high` GPU render p95'te
+0,2 ms'yi aşan tekrarlanabilir bir artış görülmemeli. Dispatch sıfır kalmalı.
+Görsel kabul gündüz ve gün batımında cephe renklerini, silüeti, kaskat sınırını
+ve HLOD geçişini kapsar. Sentetik GLB'ler opak ve düz renklidir. Sonuç olumlu
+çıkarsa gerçek materyallerin PBR kanalları, alfa, UV/mipmap ve slot geçersiz
+kılmaları için ayrı tasarım ve WebGPU/WebGL2 görsel kabul gerekir.
+
+**S11, kaskat iç içe kesimi — ertele.** GPU'da en büyük kalem gölge geçişleri
+(toplam 1,85–3,87 ms). Her uzak kaskatta 101–102 draw'ın 101–102'si en yakın
+kaskatta da gönderilen mesh'lerdi. Bu ortaklık uzak kaskat başına 6,05–9,23 milyon
+gönderilen üçgene karşılık geliyor. Geçiş süresi bütün uzak kaskat işinin
+maliyeti. Güvenle elenebilen bölüm ölçülmedi. Yakın haritanın düşürücüyü
+kapsaması, uzak bölmede gölge alan bir yüzeyin yakın haritayı örneklemesini
+sağlamaz. Gün batımında izdüşüm uzak bölmeye ulaşabilir, geçiş bandı da her iki
+haritadan örnek alabilir. S11 yeniden açılırsa önce düşürücünün ışık yönündeki
+gölge hacmi ve uzak bölmenin alıcı hacmiyle kesişimi ölçülmeli. Gün batımı,
+kaskat geçişi ve hareketli kamera görsel karşılaştırması gerekli.
+
+**S13, WP boyut sınıfı menzilleri — ertele.** Güncel `walk` tanısı, yerleşmiş
+başlangıçtan 8 m/s ve kare sınırı kapalı koşuda bir hazır hücrenin etkinleştiğini
+gösterdi. 704 aktör, ilk ve son katılım örnekleri arasında `high` için yaklaşık
+117 ms, `ultra` için 186 ms içinde karelere yayıldı. Yeni hücre veya model isteği
+gözlenmedi. WP çekirdek güncellemesi p99 iki profilde de 0,3 ms, en uzun örnek
+sırasıyla 7,0 ve 5,7 ms. Aktör katılımı ayrı ölçülür. CPU profilinde onun en
+uzun ardışık yığın örneği yaklaşık 3,6 ve 3,3 ms. Yürüyüş p99 / en uzun kare
+sırasıyla 9,7 / 31,2 ms ve 10,3 / 35,8 ms olup §5.4'teki 20 / 50 ms sınırlarını
+karşıladı. Başlangıçta 36 hücrenin yaklaşık 25,9 MB serileştirilmiş verisi
+bellekteydi. Yerleşik pozlarda GC sonrası JS heap 68–83 MiB, kart geneli anlık
+VRAM 1.300–1.436 / 12.288 MiB idi. §5.4'ün tekrar yürüyüşünde de cache ve
+geometri/doku sayaçları sabit kaldı. Bu rota ve donanım, yeni menzil sınıfı
+gerektirecek sürekli hücre maliyeti veya bellek baskısı göstermedi. Anlık
+VRAM ve hazır hücre rotası, soğuk I/O veya düşük VRAM kabulü sağlamaz.
+[Ham walk zaman çizelgesi ve CPU profilleri](../reference/measurements/r9c-step6/main-8168b26-walk.json) ·
+[Adım 4 tekrar yürüyüşü](../reference/measurements/r9c-step4/after-readiness-webgpu.json).
+
+**Dispatch birleştirme — ertele.** Güncel `auto` pozlarında birleştirilecek
+dispatch yok. §5.5'in eşli `s12-gpu` koşularında 444–555 dispatch ile
+1,355–1,723 ms GPU compute, `auto`ya göre 3,404–5,023 ms ek gönderim CPU
+ve 2,358–5,023 ms ek kare CPU ölçüldü. Aday, daha az üçgen çizerek render GPU
+süresini düşürüyordu. Gönderim farkı eleme, tampon ve komut işini birlikte
+içerir. Tek başına dispatch birleştirmenin geri kazanacağı süre ölçülmedi.
+Adım 5 kararı geçerli. Üretimde `auto` ve S1, geliştirmede `s12-gpu` ve
+`s12-cells` kullanılır. [Ham S12 karşılaştırması](../reference/measurements/2026-11-19T06-47-37-238Z-city-s12.json).
+
+#### Atlas deneyi ve kapanış
+
+`8168b26` üzerinde aynı şehir kopyasında `building-01`–`building-06` GLB'leri
+karşılaştırıldı. A, beş opak slotu kullanan kaynak GLB. B, konum, normal ve üçgen
+verisi korunarak tek primitive, tek materyal ve gömülü 128 × 16 taban rengi
+atlasına birleştirilen GLB. HLOD dosyaları iki koşuda ortaktı. RTX 3060 donanım
+WebGPU, 1080p, DPR 1, bina akışı ve gölgeler açık, `auto`. İki profilde ve üç
+pozda A–B–B–A sırası kullanıldı. Her ölçüm ayrı sayfada 60 ısınma ve 150
+ölçüm karesi aldı. Tablodaki CPU süreleri her kipin iki koşu ortalaması.
+GPU p95 farkları iki karşılaştırma için ayrı verildi (B − A).
+
+| Profil / poz | Toplam draw A → B | Gönderim CPU A → B (ms) | Kare CPU değişimi (ms, B − A) | GPU render p95 farkı (ms) |
+|---|---:|---:|---:|---:|
+| high / street | 422 → 326 | 3,319 → 2,723 | −0,637 | +0,262 / +0,131 |
+| high / square | 412 → 316 | 2,767 → 3,045 | +0,331 | +0,197 / +0,393 |
+| high / high | 412 → 316 | 2,827 → 2,932 | +0,132 | +0,786 / +0,524 |
+| ultra / street | 523 → 403 | 3,646 → 2,807 | −0,884 | −0,131 / +0,066 |
+| ultra / square | 514 → 394 | 3,250 → 2,753 | −0,492 | +0,066 / +0,197 |
+| ultra / high | 513 → 393 | 3,376 → 2,846 | −0,528 | +0,197 / +0,328 |
+
+Ana görünümde ve her kaskatta draw sayısı 24 azaldı. Görünüm başına üçgen sayıları eşleşti.
+Dispatch ve GPU compute sıfırdı. `square` CPU gönderimi `ultra` ortalamasında
+0,496 ms (%15,3) düştü, `high` ortalamasında 0,278 ms (%10,1) arttı. İki
+`high / high` eşinde GPU render p95 0,2 ms sınırını aştı.
+
+Görsel kontrolde güneş 60° ve 12°'ye sabitlendi. Meydanda cephe ve uzun gölgeler,
+sokakta HLOD geçişi karşılaştırıldı. Geçişte görünür proxy sayısı iki kipte de
+15'ten 13'e indi. Dört A/B görüntü çiftinde en büyük kanal farkı 8 bitte 1 idi.
+Bu kontrol, RTX 3060 WebGPU'daki opak, düz renkli sentetik kabukları kapsar.
+[Ham A/B ölçümü ve piksel karşılaştırması](../reference/measurements/r9c-step6/main-8168b26-atlas.json) ·
+[Görsel eşler, solda A ve sağda B](../reference/measurements/r9c-step6/atlas-visual.webp).
+
+**Karar.** Atlas adayı, iki profilde de gerekli gönderim kazancını ve GPU
+p95 koşulunu karşılayamadı. Üretim atlas tasarımı açılmadan Adım 6 ve R9c
+ölçümle kapandı. S11, S13 ve dispatch birleştirme ertelendi.
 
 ## 6. Paralel iş ve ortak dosyalar
 
@@ -902,3 +1029,4 @@ boşaltmayı ele alıyor.
 | 2026-11-18 | v0.3 | Kullanıcı Adım 3 görsellerini onayladı. Adım 3 ve R9b Z8–Z10, yeni Z6 kabulüyle kapandı. |
 | 2026-11-18 | v0.3 | S5–S8 onaylandı ve Adım 4 yerelde uygulandı. Görsel onay, WebGPU/WebGL2 kayıtları ve ilk yürüyüşte açık kalan p99 kabulü §5.4’te. |
 | 2026-11-19 | v0.4 | Adım 5 kapandı. Kullanıcı S12 için mevcut `auto` ve S1'i onayladı. Şehir karşılaştırması, iki arka uçtaki referans ve smoke sonuçları §5.5’te. |
+| 2026-11-19 | v0.5 | R9c kapandı. Altı bina kabuğunun atlasıyla ana görünüm ve kaskat başına draw sayısı 24 azaldı. CPU ve GPU kabul ölçütleri karşılanmadı (§5.6). |
