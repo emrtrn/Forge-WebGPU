@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.75 · 2026-11-20 — §4.4 5d adım 4: World Terrain asset olarak hemen yazılır, Expand oturumda tek undo (yeni / silinecek tile), taşıma tanımın origin'ini aktörle kaydırır (su Faz 7), heightmap içe / dışa yalnız editörde (kullanıcı kararları).
+**Güncelleme:** v1.76 · 2026-11-20 — §4.4 5d: bileşen sunumunda `details: "tool"` (SDK 0.1.14): aktörün Details'i ad, bileşenin eki, öteki bileşenler, en altta kapalı bileşen alanları; yerleşim denetimleri yok. World Terrain bunu kullanır (kullanıcı kararı).
+
+**Önceki güncelleme:** v1.75 · 2026-11-20 — §4.4 5d adım 4: World Terrain asset olarak hemen yazılır, Expand oturumda tek undo (yeni / silinecek tile), taşıma tanımın origin'ini aktörle kaydırır (su Faz 7), heightmap içe / dışa yalnız editörde (kullanıcı kararları).
 
 **Önceki güncelleme:** v1.74 · 2026-11-19 — §4.4 5d adım 3: katman boyama ve katman işlemleri (tek undo), `forge.landscapeAutoPaint` bileşeni (kullanıcı kararı), editöre özel terrain görünüm kipleri.
 
@@ -1115,6 +1117,10 @@ features/height-fog/
     listelemediği okunmuş dosya (Save'de silinir). Taşıma level'daki konum
     farkını izler (sürüklerken yalnız görünüm kayar), böylece undo / redo simetrik.
     Add Actor menüsüne editöre özel eylem (`AddActorAction`); SDK yüzeyi değişmez.
+  - *Terrain Details düzeni (kullanıcı kararı 2026-11-20):* `ComponentPresentation.details:
+    "tool"` (SDK 0.1.14): ad, bileşenin Details eki, öteki bileşenler, bileşenin
+    kendi alanları en altta kapalı; Class, transform, pivot / yerleşim, Remove,
+    Advanced ve Add Component yok. Konumu verisinden gelen aktörler içindir.
 - **Ölçek ölçümü (2a, 2026-11-10):** 50.000 aktörlük level R1'de eşik içinde
   (bütün level yükleme ~0,9 s, hücre yükleme p95 ~1,5 ms, tek aktör kaydı
   ~40 ms, tam kayıt ~2,2 s, heap ~58 MB; [Faz 2a arşivi](../archive/PHASE_2A.md)). Aşağıdaki çarelere

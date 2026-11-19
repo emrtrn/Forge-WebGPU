@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.94 · 2026-11-20 — 5d adım 4 (`4651b3b`): Add Actor > Terrain > World Terrain… (asset hemen yazılır, aktör tek undo), Expand (tek tile → ızgara, tek undo; Save yeni tile'ları yazar, geri alınanları siler), aktörle taşıma (`worldTerrainMove`: origin + dünya çerçeveli spline'lar; su Faz 7), heightmap içe / dışa aktarma (16-bit PNG / RAW). Kararlar kullanıcıda (öneriler gibi). `worldTerrainMove`'un 1 A'sı taşındı, su kullanan 3 A Faz 7'ye. Kullanıcı görsel kabulü bekleniyor.
+**Güncelleme:** v1.95 · 2026-11-20 — Terrain Details'i Forge'un Landscape düzeninde (`775da8b`, kullanıcı kararı): Name → Landscape Mode; Class, Transform, pivot / yerleşim yok; bileşen alanları en altta kapalı; araçlar düğme ızgarası, View fırçanın altında. SDK 0.1.14 (`details: "tool"`). Seçili terrain üstünde gizmo sürüklemesi düzeltildi.
+
+**Önceki güncelleme:** v1.94 · 2026-11-20 — 5d adım 4 (`4651b3b`): Add Actor > Terrain > World Terrain… (asset hemen yazılır, aktör tek undo), Expand (tek tile → ızgara, tek undo; Save yeni tile'ları yazar, geri alınanları siler), aktörle taşıma (`worldTerrainMove`: origin + dünya çerçeveli spline'lar; su Faz 7), heightmap içe / dışa aktarma (16-bit PNG / RAW). Kararlar kullanıcıda (öneriler gibi). `worldTerrainMove`'un 1 A'sı taşındı, su kullanan 3 A Faz 7'ye. Kullanıcı görsel kabulü bekleniyor.
 
 **Önceki güncelleme:** v1.93 · 2026-11-19 — 5d adım 3'ün görsel kabulü (kullanıcı, 2026-11-19). Sırada adım 4: World Terrain oluşturma / genişletme, taşıma, heightmap içe / dışa aktarma.
 
@@ -2135,6 +2137,18 @@ WebGL'de 19 / 19. Sonraya: çok tile'lı terrain'in genişletilmesi (Forge'da da
 terrain silinince asset'in temizlenmesi, ajanın `forge edit move`'unun tanımı
 taşıması (komut yalnız level'ı yazar). Kullanıcı görsel kabulü bekleniyor.
 
+*Terrain Details düzeni (2026-11-20, `775da8b`; kullanıcı kararları, öneriler gibi):*
+Forge'daki gibi Name ve hemen Landscape Mode; Class satırı, Transform, Edit Pivot /
+Snap / Movement, Remove, Advanced ve Add Component yok (konum tanımdan gelir,
+taşıma gizmo ile); terrain bileşeninin Data / Material alanları en altta kapalı
+bölümde. Araç seçimi dört sütunlu düğme ızgarası (seçili vurgulu), View fırçanın
+altında. Genel yol: bileşen sunumunda `details: "tool"` (SDK 0.1.14). Yolda bulunan
+hata: seçili terrain'in üstünde fırça halkası fare hareketini aldığı için gizmo
+sürüklemesi ilerlemiyordu (adım 2'den beri); sürükleme sürerken hareket gizmonun.
+Smoke'lar düğmelere ve gizmo ile taşımaya güncellendi; editör seti WebGL'de 91 / 91
+(`content.spec`'in geçici dosya yarışı tek başına yeniden koşuda geçti), landscape +
+authoring + addActor gerçek WebGPU'da 9 / 9.
+
 - [x] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
       Faz 3 karar 1) üretim kalitesine çıkar: morph,
       tile seam, 8 boya katmanı, su birikintisi (kıyı ıslaklığı ve kostik
@@ -2579,4 +2593,5 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-20 | v1.95 | Terrain Details Forge'un Landscape düzeninde (`775da8b`, kullanıcı kararı): `details: "tool"` sunumu (SDK 0.1.14), araç düğme ızgarası; seçili terrain üstünde gizmo sürüklemesi düzeltildi |
 | 2026-11-20 | v1.94 | 5d adım 4 (`4651b3b`): kararlar (kullanıcı, öneriler gibi: asset hemen yazılır, taşıma yalnız terrain, `worldTerrainMove` su kısmı Faz 7, heightmap yalnız editörde); World Terrain oluşturma, Expand, taşıma, heightmap içe / dışa; kayıtta global harita revizyonu ve geç olay düzeltmeleri. `worldTerrainMove` 1 A → **A 991 / 1.021**, 3 A Faz 7'ye. `landscapeWorld.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
