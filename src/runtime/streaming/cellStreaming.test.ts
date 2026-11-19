@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { defineComponent, defineFeature, num, type ActorDoc, type FeatureDef, type LevelId } from "../../core/index.ts";
 import { actorId, levelId } from "../../core/level/testKit.ts";
+import { RenderReadinessKey } from "../../engine/world/renderReadiness.ts";
 import { bootGame, type BootOptions, type BootRender, type RunningGame } from "../boot.ts";
 import type { CellSource } from "./cellStreaming.ts";
 import { CellStreamingKey } from "./cellStreaming.ts";
@@ -79,6 +80,41 @@ describe("cell streaming in the running game (phase 5b step 4)", () => {
     expect(ids(game)).toEqual(["a", "b"]);
     expect(h.holds()).toBe(0);
     expect(game.world.services.require(CellStreamingKey).snapshot()).toMatchObject({ cells: 2, active: 1, actors: 2 });
+    game.stop();
+  });
+
+  test("HLOD reuses ready cells until render readiness or cell residency changes", async () => {
+    const h = harness();
+    const game = (await bootGame(h.options))!;
+    const streaming = game.world.services.require(CellStreamingKey);
+    let revision = 0, checks = 0;
+    let ready = false;
+    game.world.services.provide(RenderReadinessKey, {
+      get revision() { return revision; },
+      isActorReady() { checks += 1; return ready; },
+    });
+    await h.run(5);
+    expect(streaming.isCellActive("0_0")).toBe(false);
+    ready = true;
+    expect(streaming.isCellActive("0_0")).toBe(true);
+    expect(streaming.isCellActive("0_0")).toBe(true);
+    expect(checks).toBe(3);
+
+    revision += 1;
+    ready = false;
+    expect(streaming.isCellActive("0_0")).toBe(false);
+    expect(checks).toBe(4);
+    ready = true;
+    expect(streaming.isCellActive("0_0")).toBe(true);
+
+    h.move(950, 10);
+    await h.run(5);
+    expect(streaming.isCellActive("0_0")).toBe(false);
+    h.move(0, 0);
+    await h.run(5);
+    ready = false;
+    expect(streaming.isCellActive("0_0")).toBe(false);
+    expect(checks).toBe(7);
     game.stop();
   });
 

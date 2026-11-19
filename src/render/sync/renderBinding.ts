@@ -85,6 +85,8 @@ export interface RenderBindingContext {
   readonly modelBounds?: (guid: string) => ZoneBox | null;
   /** Prepares detached batch parts against this world's actual scene / pass. */
   readonly prepare?: (objects: readonly Object3D[], signal?: AbortSignal) => Promise<void>;
+  /** Bindings call this when existing actors can become unready outside actor-change hooks. */
+  readonly invalidateReadiness?: () => void;
   /** The host's GPU-driven automatic LOD drawing (R9.4); absent where batches stay instanced. */
   readonly triangles?: TriangleDrawing;
   /** Which static batches take it (`render/triangles/staticPath.ts`). */

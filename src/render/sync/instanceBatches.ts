@@ -88,6 +88,7 @@ export interface InstanceBatchOptions {
   readonly parent: Object3D;
   readonly castShadow: boolean;
   readonly shadowCasters?: InstancedShadowCasters;
+  readonly invalidateReadiness?: () => void;
 }
 
 const WHITE = new Color(1, 1, 1);
@@ -176,6 +177,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
     preparation?.abort(); preparation = null;
     const wasPrepared = prepared;
     generation += 1; prepared = false; preparing = false;
+    if (wasPrepared && placements.size > 0) options.invalidateReadiness?.();
     const oldMeshes = meshes, oldFade = fade, oldTriangles = triangleBindings, oldPlacements = fadePlacements;
     const oldCasterFade = casterFade, untrackOldCaster = untrackCaster;
     untrackCaster = undefined;

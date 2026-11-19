@@ -108,6 +108,7 @@ export default defineRenderBinding({
       const batch: Batch = {
         instances: createInstanceBatch({
           name: `${key.includes("|s12") ? "s12-cell/" : ""}staticMesh/${model}`, source: "staticMesh", parent: ctx.root, castShadow: data.castShadow,
+          invalidateReadiness: () => { if (zone === null || !ctx.zones?.residency?.owns(zone)) ctx.invalidateReadiness?.(); },
           ...(ctx.prepare ? { prepare: ctx.prepare } : {}),
           ...(ctx.gpuDriven?.instancedCasters ? { shadowCasters: ctx.gpuDriven.instancedCasters } : {}),
           ...(ctx.triangles ? { triangles: ctx.triangles, ...(ctx.staticPath ? { staticPath: ctx.staticPath } : {}) } : {}),
@@ -179,7 +180,10 @@ export default defineRenderBinding({
         if (!actor || !component) continue;
         const data = component as unknown as StaticMeshData;
         componentWorldMatrix(ctx.world, actor, key, matrix);
-        if (!placements.matches(id, placementKey(data, matrix))) add(actor, key, data);
+        if (!placements.matches(id, placementKey(data, matrix))) {
+          ctx.invalidateReadiness?.();
+          add(actor, key, data);
+        }
       }
     };
     const add = (actor: WorldActor, key: string, data: StaticMeshData): void => {

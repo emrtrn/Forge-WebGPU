@@ -124,10 +124,12 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       const zones = createZoneDrawing(view, options.buildingStreaming ? options.viewDistanceMultiplier ?? (() => 1) : undefined);
       const cameraPosition = new Vector3();
       ctx.services.provide(PortalSidesKey, zones);
+      let readinessRevision = 0;
+      const invalidateReadiness = () => { readinessRevision += 1; };
       const instances: RenderBindingInstance[] = bindings.map((binding) =>
         binding.create({
           world: view, scene, root, resources, lighting, environment: environment.environment, output,
-          capture: options.capture ?? null, quality: effectiveQuality,
+          capture: options.capture ?? null, quality: effectiveQuality, invalidateReadiness,
           ...(options.prepare ? { prepare: (objects: readonly Object3D[], signal?: AbortSignal) => resources.track(options.prepare!(objects, scene, signal)) } : {}),
           ...(options.triangles ? { triangles: options.triangles } : {}),
           ...(options.staticPath ? { staticPath: options.staticPath } : {}),
@@ -139,7 +141,10 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
         }),
       );
       const readiness = instances.filter((instance) => instance.isActorReady !== undefined);
-      ctx.services.provide(RenderReadinessKey, { isActorReady: (id) => readiness.every((instance) => instance.isActorReady!(id)) });
+      ctx.services.provide(RenderReadinessKey, {
+        get revision() { return readinessRevision; },
+        isActorReady: (id) => readiness.every((instance) => instance.isActorReady!(id)),
+      });
       const world: RenderWorld = {
         name: options.name, scene, root, resources, output,
         get shadowsEnabled() { return sceneShadowsEnabled(view); },
@@ -155,16 +160,19 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       scene.add(hlodRoot);
       return {
         actorsAdded(actors) {
+          invalidateReadiness();
           lighting.refresh();
           zones.refresh(actors);
           for (const instance of instances) instance.actorsAdded?.(actors);
         },
         actorsRemoved(actors) {
+          invalidateReadiness();
           lighting.refresh();
           zones.refresh(actors);
           for (const instance of instances) instance.actorsRemoved?.(actors);
         },
         actorsChanged(changes) {
+          invalidateReadiness();
           lighting.refresh();
           const previous = changes.map((change) => change.previous);
           const actors = changes.map((change) => change.actor);

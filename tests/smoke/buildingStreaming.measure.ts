@@ -1,11 +1,12 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
 import type { writeCityLevel } from "../../tools/bench-city-level.ts";
 import { cityModels } from "../../tools/scenes/cityModels.ts";
 import type { ZoneDrawing } from "../../src/render/sync/zoneDrawing.ts";
 import { CITY_FRAME_MS, cityDraws, cityFrames, citySettle, distribution } from "./cityPage.ts";
+import type { buildingWalkTimeline } from "./fixtures/buildingWalkTimeline.ts";
 import { REPO_ROOT, SMOKE_VIEWPORT } from "./renderPaths.ts";
 import { isOptionalHlodMiss, openSmokeLevel } from "./smokePage.ts";
 
@@ -19,7 +20,8 @@ interface Checkpoint {
   building: BuildingStatus;
 }
 const SPEED = 8;
-const OUTPUT = join(REPO_ROOT, "docs/reference/measurements/r9c-step4");
+const OUTPUT = resolve(REPO_ROOT, process.env.FORGE_CITY_BUILDING_OUTPUT ?? "render-refs/runs/r9c-step4");
+const TIMELINE = process.env.FORGE_CITY_BUILDING_TIMELINE === "1";
 const furnitureKeys = cityModels(false).furniture.map(({ id }) => `model:${id}`);
 
 async function snapshot(page: Page, inside: Point) {
@@ -42,60 +44,68 @@ async function move(page: Page, position: Point, target: Point, frames = 2) {
   }, { position, target, frames, ms: CITY_FRAME_MS });
 }
 
-async function walk(page: Page, route: readonly Point[], inside: Point) {
-  const result = await page.evaluate(({ route, inside, speed }) => new Promise<{
-    intervals: number[];
-    checkpoints: Checkpoint[];
-  }>((resolve) => {
+async function walk(page: Page, route: readonly Point[], inside: Point, trace = false) {
+  const result = await page.evaluate(async ({ route, inside, speed, module }) => {
     const dev = window.__forgeDev;
-    const zones = dev.host()?.world?.zones;
-    const zone = zones?.zoneOf({ min: inside, max: inside });
-    const segments = route.slice(1).map((end, i) => {
-      const start = route[i]!;
-      return { start, end, length: Math.hypot(end[0] - start[0], end[2] - start[2]) };
-    });
-    const intervals: number[] = [];
-    const checkpoints: Checkpoint[] = [];
-    let started: number | undefined, previous: number | undefined;
-    let sample = 0;
-    const step = (now: number) => {
-      started ??= now;
-      if (previous !== undefined) intervals.push(now - previous);
-      previous = now;
-      const elapsed = now - started;
-      let distance = elapsed / 1000 * speed;
-      for (const { start, end, length } of segments) {
-        if (distance <= length) {
-          const t = distance / length;
-          const x = start[0] + (end[0] - start[0]) * t;
-          const z = start[2] + (end[2] - start[2]) * t;
-          if (elapsed >= sample && zone && zones?.residency) {
-            const cameraZone = zones.last?.cameraZone ?? null;
-            const position: Point = [x, start[1], z];
-            checkpoints.push({ elapsed, position, cameraZone, building: zones.residency.inspect(zone) });
-            sample = elapsed + 125;
+    const timeline = module ? ((await import(module)).buildingWalkTimeline as typeof buildingWalkTimeline)(dev) : null;
+    return new Promise<{
+      intervals: number[];
+      checkpoints: Checkpoint[];
+      timeline?: ReturnType<ReturnType<typeof buildingWalkTimeline>["finish"]>;
+    }>((resolve) => {
+      const zones = dev.host()?.world?.zones;
+      const zone = zones?.zoneOf({ min: inside, max: inside });
+      const segments = route.slice(1).map((end, i) => {
+        const start = route[i]!;
+        return { start, end, length: Math.hypot(end[0] - start[0], end[2] - start[2]) };
+      });
+      const intervals: number[] = [];
+      const checkpoints: Checkpoint[] = [];
+      let started: number | undefined, previous: number | undefined;
+      let sample = 0;
+      const step = (now: number) => {
+        timeline?.frame(now);
+        started ??= now;
+        if (previous !== undefined) intervals.push(now - previous);
+        previous = now;
+        const elapsed = now - started;
+        let distance = elapsed / 1000 * speed;
+        for (const { start, end, length } of segments) {
+          if (distance <= length) {
+            const t = distance / length;
+            const x = start[0] + (end[0] - start[0]) * t;
+            const z = start[2] + (end[2] - start[2]) * t;
+            if (elapsed >= sample && zone && zones?.residency) {
+              const cameraZone = zones.last?.cameraZone ?? null;
+              const position: Point = [x, start[1], z];
+              checkpoints.push({ elapsed, position, cameraZone, building: zones.residency.inspect(zone) });
+              sample = elapsed + 125;
+            }
+            dev.moveCamera(x, start[1], z, [x + end[0] - start[0], start[1], z + end[2] - start[2]]);
+            requestAnimationFrame(step);
+            return;
           }
-          dev.moveCamera(x, start[1], z, [x + end[0] - start[0], start[1], z + end[2] - start[2]]);
-          requestAnimationFrame(step);
-          return;
+          distance -= length;
         }
-        distance -= length;
-      }
-      const start = route[0]!, target = route[1]!;
-      dev.moveCamera(...start, target);
-      dev.pause();
-      resolve({ intervals, checkpoints });
-    };
-    dev.resume();
-    requestAnimationFrame(step);
-  }), { route, inside, speed: SPEED });
+        const start = route[0]!, target = route[1]!;
+        dev.moveCamera(...start, target);
+        dev.pause();
+        resolve({ intervals, checkpoints, ...(timeline ? { timeline: timeline.finish() } : {}) });
+      };
+      dev.resume();
+      requestAnimationFrame(step);
+    });
+  }, { route, inside, speed: SPEED, module: trace ? "/tests/smoke/fixtures/buildingWalkTimeline.ts" : null });
   return { ...result, frameMs: distribution(result.intervals) };
 }
 
 for (const backend of ["webgpu", "webgl2"] as const) {
-  test(`R9c building streaming on ${backend}`, async ({ context, browser }) => {
+  test(`R9c building streaming on ${backend}`, async ({ browser }, testInfo) => {
     test.skip(process.env.FORGE_CITY_BACKEND !== undefined && process.env.FORGE_CITY_BACKEND !== backend, "backend filter");
+    test.skip(TIMELINE && backend !== "webgpu", "timeline uses WebGPU");
     test.setTimeout(720_000);
+    const baseURL = testInfo.project.use.baseURL;
+    if (!baseURL) throw new Error("City measurement requires a base URL.");
     const file = join(process.env.FORGE_CITY_TEMP_PROJECT!, ".forge-cache", "city.json");
     const fixture = JSON.parse(await readFile(file, "utf8")) as Fixture;
     const facade = fixture.poses.find(({ id }) => id === "facade")!;
@@ -113,15 +123,15 @@ for (const backend of ["webgpu", "webgl2"] as const) {
     ], { encoding: "utf8" }).trim().split(/\r?\n/) : [];
     await mkdir(OUTPUT, { recursive: true });
     const results = [];
-    for (const profile of profiles) for (const enabled of backend === "webgpu" ? [false, true] : [true]) {
-      const page = await context.newPage();
+    for (const profile of profiles) for (const enabled of backend === "webgpu" && !TIMELINE ? [false, true] : [true]) {
+      const page = await browser.newPage({ baseURL, viewport: SMOKE_VIEWPORT, deviceScaleFactor: 1 });
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
       page.on("console", (message) => {
         if (message.type() === "error" && !isOptionalHlodMiss(message)) errors.push(message.text());
       });
       try {
-        const cdp = backend === "webgpu" ? await context.newCDPSession(page) : null;
+        const cdp = backend === "webgpu" ? await page.context().newCDPSession(page) : null;
         const heap = async () => {
           if (!cdp) return null;
           await cdp.send("HeapProfiler.collectGarbage");
@@ -129,12 +139,15 @@ for (const backend of ["webgpu", "webgl2"] as const) {
         };
         const query = `&staticPath=auto${backend === "webgl2" ? "&forceWebGL" : ""}${enabled ? "" : "&buildingStreaming=off"}`;
         await openSmokeLevel(page, fixture.level, { id: "walk", position: start, target: approach! }, query, profile);
-        const { proof, fallback } = await page.evaluate(() => {
+        const { proof, fallback, ratio, quality } = await page.evaluate(() => {
           const host = window.__forgeDev.host()!;
           const device = (host.renderer.backend as unknown as { device?: { adapterInfo?: { isFallbackAdapter?: boolean } } }).device;
-          return { proof: host.proof, fallback: device?.adapterInfo?.isFallbackAdapter ?? null };
+          return { proof: host.proof, fallback: device?.adapterInfo?.isFallbackAdapter ?? null,
+            ratio: host.renderer.getPixelRatio(), quality: host.quality.level };
         });
         expect(proof.backend).toBe(backend);
+        expect(ratio).toBe(1);
+        expect(quality).toBe(profile);
         if (backend === "webgpu") {
           const adapter = Object.values(proof.adapter ?? {}).join(" ");
           expect(adapter).toMatch(/nvidia/i);
@@ -145,7 +158,20 @@ for (const backend of ["webgpu", "webgl2"] as const) {
         }
         await citySettle(page);
         const before = { ...await snapshot(page, inside.position), heap: await heap() };
-        const first = await walk(page, route, inside.position);
+        if (TIMELINE && cdp) {
+          await cdp.send("Performance.enable");
+          await cdp.send("Profiler.enable");
+          await cdp.send("Profiler.start");
+        }
+        const first = await walk(page, route, inside.position, TIMELINE);
+        if (TIMELINE && cdp) {
+          const { profile: cpu } = await cdp.send("Profiler.stop");
+          const { metrics } = await cdp.send("Performance.getMetrics");
+          await writeFile(join(OUTPUT, `${profile}-timeline.json`), JSON.stringify({ profile, proof, fallback, route, before, first, errors }) + "\n");
+          await writeFile(join(OUTPUT, `${profile}-cpu.json`), JSON.stringify({ metrics, cpu }) + "\n");
+          expect.soft(errors).toEqual([]);
+          continue;
+        }
         await citySettle(page);
         const returned = { ...await snapshot(page, inside.position), heap: await heap() };
         const repeat = backend === "webgpu" ? await walk(page, route, inside.position) : null;
@@ -190,7 +216,7 @@ for (const backend of ["webgpu", "webgl2"] as const) {
             await page.getByTestId("forge-canvas").screenshot({ path: join(OUTPUT, captures[index]!.image!) });
           }
         }
-        results.push({ profile, enabled, proof, fallback, before, first, returned, repeat, evicted, captures, releaseProbe, errors });
+        results.push({ profile, enabled, proof, fallback, ratio, before, first, returned, repeat, evicted, captures, releaseProbe, errors });
         await writeFile(join(OUTPUT, `${backend}.json`), JSON.stringify({
           date: new Date().toISOString(), browser: browser.version(), gpuDevices: gpu.devices, nvidia,
           viewport: SMOKE_VIEWPORT, speed: SPEED, route, fixture: { counts: fixture.counts, zones: fixture.zones }, results,
@@ -221,9 +247,9 @@ for (const backend of ["webgpu", "webgl2"] as const) {
             expect.soft(evicted.gpu).toEqual(returned.gpu);
             expect.soft(evicted.cache?.entries).toBeLessThanOrEqual(returned.cache?.entries ?? 0);
             expect.soft(evicted.heap).toBeLessThanOrEqual((returned.heap ?? 0) * 1.05);
-            for (const run of [first, repeat!]) {
-              expect.soft(run.frameMs?.p99).toBeLessThanOrEqual(20);
-              expect.soft(run.frameMs?.max).toBeLessThanOrEqual(50);
+            for (const [pass, run] of [["first", first], ["repeat", repeat!]] as const) {
+              expect.soft(run.frameMs?.p99, `${profile} ${pass} walk p99 (ms)`).toBeLessThanOrEqual(20);
+              expect.soft(run.frameMs?.max, `${profile} ${pass} walk longest frame (ms)`).toBeLessThanOrEqual(50);
             }
           }
         }

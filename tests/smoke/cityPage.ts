@@ -17,6 +17,7 @@ interface CityDev {
   resume(): void;
   step(ms: number): Promise<FrameTiming>;
   moveCamera(x: number, y: number, z: number, target: readonly [number, number, number]): void;
+  streamingFrame(): { ms: number; active: number; actors: number; pending: number } | null;
   streaming(): {
     cells: { actors: number; active: number; fetching: number; queued: number } | null;
     cache: { entries: number; pending: number; pendingEvict: number; evicted: number } | null;

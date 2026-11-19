@@ -494,8 +494,10 @@ sayımları, aynı bayt.
 
 ### 5.4 Adım 4 — Bina akışı (c)
 
-**Durum:** Uygulandı. Kullanıcı görsel onayı 18 Kasım 2026'da alındı.
-Teknik kabul açık. İlk yürüyüşte iki profil de p99 eşiğini aştı.
+**Durum.** Teknik kabul 19 Kasım 2026'da kapandı. Akış açık ilk `walk` p99,
+donanım WebGPU'da `high` için 10,0 ms, `ultra` için 10,4 ms oldu. İki arka uçta
+da görüntüler 18 Kasım 2026'da onaylanan kayıtlarla eşleşti. Adım 4'te açık
+kabul maddesi kalmadı.
 
 **Karar ve kabul bütçesi (18 Kasım 2026).** Kullanıcı S5–S8 varsayılanlarını ve
 görsel kabulü onayladı. Donanım WebGPU'da RTX, 1080p, DPR 1 ve kare hızı sınırı
@@ -584,9 +586,90 @@ görülmedi. [WebGL2 kayıt dosyası](../reference/measurements/r9c-step4/webgl2
 [WebGL2 oda içi](../reference/measurements/r9c-step4/webgl2-inside.png),
 [WebGL2 cephe](../reference/measurements/r9c-step4/webgl2-facade.png).
 
-**Odaklı doğrulama.** Bina grafiği, kuyruk bütçesi, bölge/çizim bağları ve kaynak
-sahipliği testleri ile `typecheck` geçti. Starter üretim asset dizininde
-18 modelin 18'i yerel AABB içeriyor.
+**19 Kasım 2026 başlangıç koşusu (`main`, `66832fd`).** `FORGE_CITY_BUILDING_STREAMING=1`
+ile aynı 252 odalı, 674 portallı şehirde 8 m/s rota kullanıldı. Her senaryo yeni
+sayfada açıldı ve ilk yürüyüşten önce başlangıç pozunda yerleşti. Chrome 157,
+1920 × 1080, DPR 1, `auto`, kare hızı sınırı kapalı. Chrome'un GPU kaydı RTX 3060'ı,
+WebGPU adaptör kaydı NVIDIA Ampere'ı, `isFallbackAdapter=false` ve zaman damgası
+desteğini gösterdi. [Ham başlangıç ölçümü](../reference/measurements/r9c-step4/main-66832fd-webgpu.json).
+
+| Profil | Akış | İlk `walk` p99 / en uzun (ms) | Tekrar `walk` p99 / en uzun (ms) | `facade` GPU ort. (ms) | `facade` toplam draw |
+|---|---|---:|---:|---:|---:|
+| high | Kapalı | 45,5 / 69,0 | 52,6 / 91,3 | 4,317 | 1.008 |
+| high | Açık | **38,0 / 85,8** | **28,4 / 52,0** | 4,502 | 1.008 |
+| ultra | Kapalı | 36,5 / 52,4 | 36,4 / 67,7 | 5,682 | 1.341 |
+| ultra | Açık | **32,2** / 49,4 | **30,5** / 47,1 | 5,461 | 1.341 |
+
+Akış açık iki profilde de kapı eşiğinde ve odada 180/180 yerleşim hazırdı.
+Uzaklaşınca hedef bina sıfır yerleşime döndü. Kaynak bırakma kontrolünde mobilya
+modeli kullanımı 108'den sıfıra indi. İlk ve ikinci dönüşte 34 etkin hücre,
+48 cache girdisi ve aynı geometri/doku sayaçları görüldü (`high` 145/9, `ultra`
+145/11). 31 sn tahliye beklemesinden sonra bekleyen tahliye sıfırdı. GC sonrası
+heap artışı sırasıyla %0,29 ve %0,27 oldu.
+
+**19 Kasım WebGL2 smoke geçti.** `high` profilinde eşik ve oda içinde 180/180
+yerleşim hazırdı. Çıkışta hedef binanın yerleşimleri sıfıra indi. 34 etkin hücreyle
+mobilya modeli kullanımı 108'den sıfıra düştü ve 15 model tahliye kuyruğuna girdi.
+Tarayıcı hatası görülmedi. İki arka uçtaki altı görsel, onaylanmış dosyalarla bayt
+düzeyinde aynı çıktı. [Ham WebGL2 smoke kaydı](../reference/measurements/r9c-step4/main-66832fd-webgl2.json).
+
+**İlk yürüyüşün zaman çizelgesi.** `FORGE_CITY_BUILDING_TIMELINE=1` ile ayrı
+tanı koşusunda p99 `high` için
+28,1 ms, `ultra` için 33,1 ms oldu. 20 ms'yi aşan 32 `high` ve 74 `ultra` aralığında
+World Partition çekirdek güncellemesi 1 ms'nin altında kaldı. Aktör katılımı
+dahil hücre akışı CPU örneklerinde yavaş bir aralığa sırasıyla 4,6 ve 4,8 ms'ye
+kadar katkı verdi. Bina yerleşim güncellemesi her profilde yalnız bir yavaş
+aralıkta 1 ms'yi geçti. Rota boyunca yeni kaynak yükü kaydedilmedi. Profil başına
+234 `compileAsync` çağrısında ana iş parçacığındaki en uzun çağrı 0,3 ms,
+en uzun tamamlanma süresi 0,4 ms oldu. Tanı araçları açıkken ölçülen p99
+değerleri kabul tablosundan ayrı tutuldu.
+[High zaman çizelgesi](../reference/measurements/r9c-step4/high-timeline.json),
+[ultra zaman çizelgesi](../reference/measurements/r9c-step4/ultra-timeline.json),
+[high CPU profili](../reference/measurements/r9c-step4/high-cpu.json),
+[ultra CPU profili](../reference/measurements/r9c-step4/ultra-cpu.json).
+
+CPU profilleri, hücreler yerleştikten sonra HLOD'un yaklaşık 30.000 aktörün
+çizime hazırlığını her karede tekrar sorguladığını gösterdi. Hücreler hazır
+sonucunu çizim hazırlığı revizyonu değişene veya hücre çıkana kadar saklar.
+Bekleyen hücrelerin hazırlığı sorgulanmaya devam eder. Aktör ekleme, çıkarma,
+değiştirme, geç yerleşim ataması ve bir dış batch'in yeniden hazırlanması önceki
+sonucu geçersiz kılar. Bina içlerinin hazırlanması dış HLOD geçişini bekletmez.
+
+**Hazırlık düzeltmesinden sonra, 19 Kasım 2026.** Aynı şehir ve rota korundu.
+Her senaryo ayrı Chrome bağlamında açıldı. Ölçümde tanı araçları kapalıydı.
+RTX 3060, donanım WebGPU ve DPR 1 yeniden doğrulandı.
+[Ham WebGPU karşılaştırması](../reference/measurements/r9c-step4/after-readiness-webgpu.json).
+
+| Profil | Akış | İlk `walk` p99 / en uzun (ms) | Tekrar `walk` p99 / en uzun (ms) | `facade` GPU ort. (ms) | `facade` toplam draw |
+|---|---|---:|---:|---:|---:|
+| high | Kapalı | 26,5 / 48,5 | 19,0 / 35,5 | 4,537 | 1.008 |
+| high | Açık | **10,0 / 33,1** | 8,7 / 27,3 | 3,887 | 1.008 |
+| ultra | Kapalı | 27,1 / 35,5 | 18,1 / 37,4 | 5,352 | 1.341 |
+| ultra | Açık | **10,4 / 32,5** | 11,6 / 29,8 | 4,333 | 1.341 |
+
+Akış açıkken ilk ve tekrar yürüyüşleri iki profilde de 20 ms p99 ve 50 ms
+en uzun kare sınırlarını karşıladı. Hedef bina yaklaşık 59,3 m'de önyükleme
+evresindeydi ve yaklaşık 55,3 m'de 180/180 yerleşim hazırdı. Eşik ve oda içinde
+180/180 hazır kaldı. 79,3 m'ye dönüldüğünde hedef binanın yerleşimleri sıfıra
+indi. Kaynak bırakma kontrolünde 34 WP hücresi etkin kalırken mobilya modeli
+kullanımı 108'den sıfıra düştü. İlk ve ikinci dönüşte cache 48 girdide, geometri/doku
+sayıları `high` için 145/9, `ultra` için 145/11'de kaldı. 31 sn sonra tahliye
+kuyruğu boştu. GC sonrası heap farkı %0,24 ve %0,18 oldu.
+
+**Düzeltme sonrası WebGL2 bina akışı smoke geçti.** Eşik ve oda içinde 180/180
+yerleşim hazır kaldı. Dönüşte hedef binanın yerleşimleri sıfıra indi. Kaynak
+kontrolünde 34 WP hücresi etkin kalırken mobilya modeli kullanımı 108'den sıfıra
+indi ve 15 model tahliye kuyruğuna girdi. Tarayıcı hatası görülmedi. Bu işlevsel
+koşuda ilk yürüyüş p99 10,9 ms, ölçülen en uzun kare 247,2 ms idi. 20/50 ms
+kabul eşikleri donanım WebGPU koşusuna uygulanır. Düzeltme sonrası iki arka
+uçtaki altı görsel, 18 Kasım'da onaylanan görüntülerle bayt düzeyinde eşleşti.
+[Ham WebGL2 smoke kaydı](../reference/measurements/r9c-step4/after-readiness-webgl2.json).
+
+**Odaklı doğrulama.** İlk uygulamada bina grafiği, kuyruk bütçesi, bölge/çizim
+bağları ve kaynak sahipliği testleri geçti. Starter üretim asset dizininde
+18 modelin 18'i yerel AABB içeriyordu. Hazırlık düzeltmesinden sonra 9 dosyada
+72 birim testi ve TypeScript denetimleri geçti. `zones.smoke.ts` ve
+`triangles.smoke.ts` WebGPU ve WebGL2'de ayrı ayrı geçti (4/4).
 
 **Codex (X):** `buildingStreaming.ts`: `buildingsOf(set: ZoneSet): Building[]` (bileşen, dış
 portallar, sınır kutusu); `planBuildingResidency(buildings, camera: ZoneVec3, state:

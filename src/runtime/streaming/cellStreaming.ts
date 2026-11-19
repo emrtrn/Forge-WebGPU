@@ -44,7 +44,7 @@ import { createServiceKey } from "../../core/world/services.ts";
 import type { StreamingSource } from "../../engine/world/streamingPolicy.ts";
 import { WorldStreamingSubsystem, type WorldCellState, type WorldStreamingStats } from "../../engine/world/worldStreamingSubsystem.ts";
 import { assembleActors } from "../assembler.ts";
-import { RenderReadinessKey } from "../../engine/world/renderReadiness.ts";
+import { RenderReadinessKey, type RenderReadiness } from "../../engine/world/renderReadiness.ts";
 import type { World } from "../world.ts";
 
 /** Cells are fetched this far beyond the load range, so they are in memory before they activate (Forge's prefetch factor). */
@@ -214,7 +214,11 @@ export function createCellStreaming(options: CellStreamingOptions): CellStreamin
     }
   };
 
+  const renderReady = new Set<string>();
+  let lastReadiness: RenderReadiness | undefined;
+  let lastRevision: number | undefined;
   const deactivate = (key: string): void => {
+    renderReady.delete(key);
     for (const doc of joining.get(key) ?? []) authored.delete(doc.id);
     joining.delete(key);
     const ids = live.get(key) ?? [];
@@ -295,7 +299,21 @@ export function createCellStreaming(options: CellStreamingOptions): CellStreamin
         lastFrameMs: stats.lastFrameMs,
       };
     },
-    isCellActive: (key) => live.has(key) && !joining.has(key) && (live.get(key) ?? []).every((id) => world.services.get(RenderReadinessKey)?.isActorReady(id) ?? true),
+    isCellActive(key) {
+      const ids = live.get(key);
+      if (!ids || joining.has(key)) return false;
+      const readiness = world.services.get(RenderReadinessKey);
+      const revision = readiness?.revision;
+      if (lastReadiness !== readiness || lastRevision !== revision) {
+        renderReady.clear();
+        lastReadiness = readiness;
+        lastRevision = revision;
+      }
+      if (!readiness || renderReady.has(key)) return true;
+      if (!ids.every((id) => readiness.isActorReady(id))) return false;
+      if (revision !== undefined) renderReady.add(key);
+      return true;
+    },
     forEachCell: (visit) => subsystem.forEachCell(visit),
     waitForArea: (position, radius) => subsystem.waitForArea(position, radius),
     dispose() {

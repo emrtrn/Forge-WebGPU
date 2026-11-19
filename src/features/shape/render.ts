@@ -59,6 +59,7 @@ export default defineRenderBinding({
       const batch: Batch = {
         instances: createInstanceBatch({
           name: `shape/${primitive}`, source: "shape", parent: ctx.root, castShadow: data.castShadow,
+          invalidateReadiness: () => { if (zone === null || !ctx.zones?.residency?.owns(zone)) ctx.invalidateReadiness?.(); },
           ...(ctx.prepare ? { prepare: ctx.prepare } : {}),
           ...(ctx.gpuDriven?.instancedCasters ? { shadowCasters: ctx.gpuDriven.instancedCasters } : {}),
           ...(ctx.triangles ? { triangles: ctx.triangles, ...(ctx.staticPath ? { staticPath: ctx.staticPath } : {}) } : {}),
