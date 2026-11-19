@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.91 · 2026-11-19 — 5d adım 2'nin görsel kabulü (kullanıcı, 2026-11-19). Sırada adım 3: katman boyama, Auto Paint, katman görünümü.
+**Güncelleme:** v1.92 · 2026-11-19 — 5d adım 3 (`30fe244`): Landscape Paint kipi (Paint / Erase / Weights, vuruş boyunca biriken ağırlık), katman listesi (Add / Remove / materyal, Fill Layer; her biri tek undo), terrain aktöründe `forge.landscapeAutoPaint` + Apply Auto Paint, yalnız editörde derlenen lit / height / slope / layer görünümü. Kararlar kullanıcıda (2026-11-19, öneriler gibi). Kullanıcı görsel kabulü bekleniyor.
+
+**Önceki güncelleme:** v1.91 · 2026-11-19 — 5d adım 2'nin görsel kabulü (kullanıcı, 2026-11-19). Sırada adım 3: katman boyama, Auto Paint, katman görünümü.
 
 **Önceki güncelleme:** v1.90 · 2026-11-19 — 5d adım 2 (`3074f3a`): Landscape sculpt editörde (Details'te Landscape bölümü, Forge'un 8 aracı ve değiştirici tuşları, terrain'e oturan halka), darbe dikdörtgeni GPU'ya, düzenlenen tile akışta sabit, darbe başına undo, tile + global harita + tanım tek kayıt işleminde okunan revizyonlarla. Kullanıcı görsel kabulü bekleniyor.
 
@@ -2056,6 +2058,43 @@ Sonraya: Ctrl + tekerlekle fırça boyutu, Play'e kaydedilmemiş terrain düzenl
 (Play oturumu yalnız level dosyalarını taşır), foliage halkasının düzenlenen
 alanda yeniden büyümesi. Kullanıcı görsel kabulü 2026-11-19'da verildi.
 
+*Adım 3 kararları (kullanıcı, 2026-11-19, öneriler gibi):* katman ekleme / silme ve
+katmana materyal atama B04'e dahil (fiziksel materyal Faz 8'e); Auto Paint
+kuralları terrain aktöründe şemalı `forge.landscapeAutoPaint` bileşeni (level'la
+kaydedilir, ajan `forge edit set` ile yazar; Forge'da yalnız oturumdaydı);
+uygulama şimdilik yalnız editörde (CLI gerekirse ayrı küçük adım); görünüm kipi
+Landscape ayarlarında (`LandscapeSettings.viewMode`, sayfanın), level'a ve
+Play'e geçmez.
+
+*Adım 3 (2026-11-19, `30fe244`):* Landscape Paint. Details'teki Landscape
+bölümünde Mode (Sculpt / Paint) ve View (Lit / Height / Slope / Layer). Paint:
+Forge'un üç aracı (Paint, Erase, Weights) ve fırçası; terrain'in katmanları
+(etkin katman seçimi, katman başına materyal alanı, Remove), + Add Layer ve Fill
+Layer. Fırça (`landscapeTool.ts`) aynı darbe / akış / undo yolunu kullanır;
+vuruş `TerrainPaintAccumulator` ile nicemlenmemiş ağırlık biriktirir.
+**İşlemler** (`editor/landscape/landscapeLayers.ts`, editör World'ünde
+`LandscapeLayersKey`): Fill Layer, Auto Paint, Add / Remove Layer önce bütün
+tile'ları yükler (akan terrain her tile'ı ister ve bekler; okunamayan tile işi
+durdurur), her biri tek undo adımı (`pushStep`; yama adımları ortak
+`landscapeSteps.ts`). Add / Remove tanımı ve her tile'ın ağırlık bloklarını
+değiştirir (`engine/terrain/terrainLayers.ts`), tanım + bütün tile'lar kirli;
+materyal yalnız tanımı. **Çizim:** oturumun katmanları önbelleğinkinden farklıysa
+bağlama `TerrainData.layersFor(def)` ile çözer; `EditableTerrain.layersChanged`
+global haritayı tile'lardan yeniden kurar ve görünümü yeni katmanlarla yeniden
+kurar. Görünüm kipi terrain materyalinde yalnız `editorViews` ile derlenir (oyun
+materyalinde dal ve uniform yok); renkler Forge'unki. **Auto Paint:** terrain
+aktöründe `forge.landscapeAutoPaint@1` (baseLayer, seed, kurallar: katman,
+açık, güç, yükseklik / eğim bandı ve geçişi, gürültü); bileşenin Details'inde
+katman kimlikleri ve Apply Auto Paint; Landscape bölümünde bileşen yoksa
++ Auto Paint Rules. **Kanıt:** `landscapeLayers.test.ts` (Add / Fill / materyal /
+Remove, undo ve kirli kayıt); editör smoke'u `tests/editor/landscapePaint.spec.ts`
+(2 × 2 akan terrain: dirt boya → kaydet; Auto Paint → 4 tile, kar her yerde;
+Add Layer + Fill + undo / redo → kaydet, tanımda 5 katman; görünüm kipleri
+level'a yazılmaz; yeniden aç) `forceWebGL`'de ve gerçek WebGPU'da geçti; editör
+seti forceWebGL'de 90 / 90. Sonraya: Auto Paint'in ajan komutu (karar gereği
+ayrı adım), katman adı / rengi düzenleme, fiziksel materyal (Faz 8), Play'e
+kaydedilmemiş boya (adım 2'deki gibi). Kullanıcı görsel kabulü bekleniyor.
+
 - [x] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
       Faz 3 karar 1) üretim kalitesine çıkar: morph,
       tile seam, 8 boya katmanı, su birikintisi (kıyı ıslaklığı ve kostik
@@ -2498,3 +2537,4 @@ silinebilir.
 | 2026-11-19 | v1.89 | 5d dökümü (B01–B06, B08–B10, B13, E26, G21; ertelenen 4 A `worldTerrainMove`; algoritmalar 2b'de taşınmış, editör araçlarının hiçbiri yok) ve kararlar 1–6 (kullanıcı, öneriler): fırça araçları yalnız editörde, sculpt CPU'da + bölge yüklemesi, darbe başına undo ve `worldTerrainSave` kaydı, Mesh Paint çıktı, yol mesh'leri CPU'da bake, PG5 adım 9'da. Adım sırası 1–10. Mimari v1.72. Kod yok |
 | 2026-11-19 | v1.90 | 5d adım 2 (`3074f3a`): Landscape sculpt — Details'te Landscape bölümü, Forge'un 8 aracı + değiştiricileri, araziye oturan halka; `TerrainEditingKey` + asset başına `TerrainEditSession` (akış sürer, düzenlenen tile `kept`), `TerrainView.updateTile`; level adımlarıyla birleşik undo (`pushStep`, `History.clearRedo`); kayıt katılımcısı tile + global harita + tanımı okunan revizyonlarla tek işlemde yazar. Editör smoke'u `landscape.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
+| 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |

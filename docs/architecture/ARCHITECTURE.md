@@ -135,7 +135,10 @@ geliştirme sunucusunda ayrı bir Node worker'ından aynı CLI üreticisine gide
   `editor/landscape/landscapeTool.ts` (saf `terrainEdit`), görünüm
   `TerrainView.updateTile`; undo editör oturumunun level dışı adımı (`pushStep`),
   kayıt oturum katılımcısı `landscapeSave.ts` (tile'lar + global harita + tanım tek
-  kayıt işlemi, okunan revizyonlarla).
+  kayıt işlemi, okunan revizyonlarla). Boyama ve katman işlemleri (Fill, Add /
+  Remove, materyal, Auto Paint) `landscapeLayers.ts` (`LandscapeLayersKey`); Auto
+  Paint kuralları aktörde `forge.landscapeAutoPaint`; görünüm kipi yalnız editör
+  terrain materyalinde (`editorViews`).
 - Kayıt oyunu `forge.saveGame/1` (`src/core/save/`): her şey GUID'le, bileşen
   alanının `persist` bayrağı, bileşenin `state` bölümü, `defineSaveState`;
   yüklenmemiş hücrelerin durumu `SaveLedger`'da. Slot deposu
