@@ -1,7 +1,8 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.10 · 2026-11-19 (PG3 kapandı: KTX2 atlaslar, §8 ölçüldü, PK7 ölçümle odun /
-yaprak ayrımı, PV-WES-01–08 kanıtları; görsel kabul kullanıcıda). Önceki: v0.9 (PG0 ve PG2 kapandı: iki
+**Sürüm:** v0.11 · 2026-11-19 (kullanıcı PG3 / PV-WES görsel kabulünü verdi; kabuk / kaya
+dokuları da KTX2). Önceki: v0.10 (PG3 kapandı: KTX2 atlaslar, §8 ölçüldü, PK7 ölçümle odun /
+yaprak ayrımı, PV-WES-01–08 kanıtları). Önceki: v0.9 (PG0 ve PG2 kapandı: iki
 ağaç, ortak WES tepkisi, foliage rüzgârı). v0.8 (PG1 kapandı: kaya GLB çıktısı, `forge generate`,
 taş doku tarifi, triplanar + `variation`, A / C ölçümü).
 
@@ -608,7 +609,7 @@ three sıkıştırılmış dokuyu 1 bayt sayar). Doku belleği 1 B/texel sınıf
 | Impostor atlası, prototip başına | 5,33 MiB | 5,33 MiB | ≈ 2,7 MiB |
 | Tür başına doku belleği (3 prototip + kart) | **17,3 MiB** | **17,3 MiB** | ≈ 16 MiB (2 prototip) |
 | Aynısı RGBA8 (KTX2'siz, PG3 öncesi) | 69,3 MiB | 69,3 MiB | |
-| Kabuk karosu (ortak, 3 × 512² PNG, sıkıştırılmamış) | 4 MiB | ortak | 2,7–4 MiB |
+| Kabuk karosu (ortak, 3 × 512² KTX2) | 1 MiB (PNG'yle 4) | ortak | 2,7–4 MiB |
 | İndirme (3 prototip: LOD GLB'leri + KTX2) | 8,4 MB (GLB 4,6 + impostor 3,5 + kart 0,3) | 7,7 MB (4,0 + 3,4 + 0,3) | |
 | Aynısı PNG'yle (PG3 öncesi) | 10,5 MB | 9,5 MB | |
 | Bake: kart atlası / prototip impostor'u / KTX2 kodlama (prototip) | 1,7–2,6 s / 1,9–2,0 s / 2,3–2,6 s | aynı aralık | "saniyeler" |
@@ -623,8 +624,10 @@ three sıkıştırılmış dokuyu 1 bayt sayar). Doku belleği 1 B/texel sınıf
   (`GENERATED_MODEL_OPTIMIZE`); açmak ayrı karar.
 - **CPU bake** (§6.7) kullanılabilir hızda: GPU yoluna geçme gerekçesi yok.
   İçe aktarılan GLB türünün çalışma anı bake'i (5c F3) worker'da, hazır ≈ 5 s.
-- **Açık:** kabuk / kaya karoları (`forge.surfaceTextureRecipe`) hâlâ PNG; KTX2
-  bu adımda yalnız ağaç atlaslarında (kullanıcı isteği).
+- **Kabuk / kaya karoları** (`forge.surfaceTextureRecipe`, kullanıcı kararı
+  2026-11-19): KTX2, bake edildiği gibi (triplanar M_Rock ve çevirmeyen M_Bark
+  aynı görünür); doku başına 1,33 → 0,33 MiB. Ağaç impostor bake'i kabuğu
+  tarifinden yeniden bake eder; starter ağaçları bayt bayt aynı kaldı.
 
 ---
 
@@ -781,7 +784,7 @@ panel ve World Builder bağlantısı PG5'te 5d ile gelir. PG4–PG7 genişlemele
       `render-refs/candidates/pg3-wes03-*.png`, `derekavak-p2-far-*-family*.png`, `pk7-*.png`.
       *Bulunan hata (`6a8a612`):* statik batch yeniden kurulunca detay / gölge fade'inin örnek attribute'u
       dispose edilmiyordu (hücre döngüsü başına bir GPU buffer'ı GC'ye kalıyordu; foliage'sız da); WebGL2
-      ikizinde de aynısı.
+      ikizinde de aynısı. **Görsel kabul:** kullanıcı, 2026-11-19.
 
 **PK7 ölçümü (2026-11-19; spike kodu commit'lenmedi, kullanıcı kararı).** Bugünkü odun / yaprak ayrımı
 (tek atlas iki katman, yaprak katmanında dökülme eşiği) ile sınırlı mevsim atlası (yaz bileşiği + kış çıplak,
@@ -884,7 +887,7 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 | Tarif asset türü | Üretici başına bir şemalı tür (`forge.rockRecipe`, `forge.treeRecipe`, …); ortak alanlar aynı adlarla (kullanıcı, 2026-11-18) |
 | Bitki LOD çıktısı | LOD başına tek GLB; odun ve yaprak iki primitive / materyal slotu; yaprak küme kimliği ve dökülme eşiği köşe niteliğinde (kullanıcı, 2026-11-18) |
 | Mevsimsel uzak temsil (eski PK7) | Odun / yaprak ayrımı: impostor atlasında iki katman, yaprak katmanında dökülme eşiği; ek mevsim atlası yok. Sınırlı mevsim atlası ölçümde bellek ve GPU'da kazanç göstermedi, ara mevsimi ve odun / yaprak tonunu kaybetti (ölçüm 2026-11-19, §10 PG3) |
-| Üretilmiş atlasların sıkıştırması | `forge generate` doğrudan KTX2 (UASTC + Zstd, mip'li) yazar; PNG yok (kullanıcı, 2026-11-19). Çalışma anında bake edilen GLB atlası RGBA8 kalır |
+| Üretilmiş dokuların sıkıştırması | `forge generate` ağaç atlaslarını ve yüzey dokusu tariflerini (kabuk, kaya) doğrudan KTX2 (UASTC + Zstd, mip'li) yazar; PNG yok (kullanıcı, 2026-11-19). Çalışma anında bake edilen GLB atlası RGBA8 kalır |
 
 **Açık:** yok (PK7 PG3'te ölçümle kapandı).
 
@@ -964,6 +967,7 @@ kurallarına göre yeniden yazılır.
 | 2026-11-11 | v0.3 | Bake CPU'da (PK3 kapandı). Dokular da prosedürel (kullanıcı kararı): §6.6 materyal tarifi, dört yol, öneri karma; PK4 yeniden yazıldı, açık |
 | 2026-11-11 | v0.4 | Doku yolu karma (C), yedek kaynaklar Codex ve Poly Haven (kullanıcı kararı; PK4 kapandı). Poly Haven lisansı ve API koşulları aynı gün sitesinden doğrulandı |
 | 2026-11-11 | v0.5 | İnsan yapımı prop'lar kapsam dışı (kullanıcı kararı; PK5 kapandı); "Basit biçim" üreticisi yalnız mantara indi |
+| 2026-11-19 | v0.11 | Kullanıcı görsel kabulü (PG3, PV-WES). Yüzey dokusu tarifi KTX2 (`a1a30c6`); `measure:rock-material` kayaların materyaliyle çizilmesini bekliyor: C yakın / tarla 1,16 / 0,88 ms (dokusuz 1,07 / 0,65), A 4,23 / 4,40 ms; PG1 kaydındaki A / C sayıları kayalar henüz yüklenmemişken alınmış olabilir (kayıt `2026-11-19T10-52-22-240Z-rock-material.json`) |
 | 2026-11-19 | v0.10 | PG3 kapandı (`3253c3a` `a9d75fc` `0ffdcf5` `e603b87` `bd09bdf` `078dcfd`): KTX2 atlaslar (kullanıcı kararı), impostor `color`, §8 ölçüldü ve güncellendi, PK7 ölçümle (spike) odun / yaprak ayrımı, PV-WES-01–08 kanıtları `measure:forest` ile; statik batch attribute sızıntısı düzeltildi (`6a8a612`). Görsel kabul kullanıcıda |
 | 2026-11-18 | v0.9 | PG0 ve PG2 kapandı (`fa11eb2` `b9608c8` `bc05121` `3a8dd57`): foliage rüzgârı, ortak tepki + WES mevsim geçişi, dallanan üretici + `forge.treeRecipe`, aile `sway`, tekil bitki ve aileli foliage aynı yol |
 | 2026-11-18 | v0.8 | PG1 kapandı (`eea639f`): kaya GLB çıktısı + `forge generate`, `forge.surfaceTextureRecipe`, materyal `projection` / `variation`, model `collision`, meta `generated`, starter ön ayarları; A / C ölçüldü (A ~2×) |

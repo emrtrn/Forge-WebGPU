@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.85 · 2026-11-19 — 5c adım 10–11: PG3 kapandı (KTX2 atlaslar, kullanıcı kararı; §8 ölçüldü; PK7 ölçümle odun / yaprak ayrımı), `npm run measure:forest` ile üretilmiş ormanda G6, PV-WES-01–08, mevsim geçişinde pipeline +0, hücre döngüsünde sızıntı yok (bulunan statik batch sızıntısı düzeltildi). 5c teknik kapısı geçti; görsel kabul kullanıcıda, kutu açık.
+**Güncelleme:** v1.86 · 2026-11-19 — 5c kapandı: kullanıcı görsel kabulü (PG3 / PV-WES adayları); kabuk ve kaya dokuları da KTX2 (kullanıcı kararı, `a1a30c6`). Faz 5 bölümü 5d açık olduğu için arşive taşınmaz.
+
+**Önceki güncelleme:** v1.85 · 2026-11-19 — 5c adım 10–11: PG3 kapandı (KTX2 atlaslar, kullanıcı kararı; §8 ölçüldü; PK7 ölçümle odun / yaprak ayrımı), `npm run measure:forest` ile üretilmiş ormanda G6, PV-WES-01–08, mevsim geçişinde pipeline +0, hücre döngüsünde sızıntı yok (bulunan statik batch sızıntısı düzeltildi). 5c teknik kapısı geçti; görsel kabul kullanıcıda, kutu açık.
 
 **Önceki güncelleme:** v1.84 · 2026-11-19 — 5c F3 (`0ffdcf5`): uzak billboard'lar ve uzak ton. Kullanıcı kararı: bütün uzak billboard'lar PG3 impostor biçiminde (karar 6 güncellendi); içe aktarılan GLB türü çalışma anında CPU rasterleyiciyle worker'da bake edilir. Smoke'ta billboard bloklarının %99'u modellerin üstünde.
 
@@ -1976,7 +1978,7 @@ GPU güdümlü yolunu bekler.
       **2026-11-17:** teknik kapı ve streaming ölçümü geçti; kullanıcı HLOD /
       detay fade görsel kabulünü onayladı. Hücre batch bölmesi kullanıcı onayıyla
       5c öncesi G6 / meshlet spike'ına bırakıldı.
-- [ ] **5c Foliage:** instancing + compute culling + indirect draw; impostor /
+- [x] **5c Foliage:** instancing + compute culling + indirect draw; impostor /
       billboard, rüzgâr, fade; foliage hücreleri; PG0–PG3 ile ortak bitki
       ailesi ve WES tepkisi: tekil aktör / foliage eşitliği, kademeli renk /
       yapraklılık, kar / ıslaklık ve güncel mevsimle hücre yükleme. GPU güdümlü
@@ -1991,7 +1993,8 @@ GPU güdümlü yolunu bekler.
       yeniden derleme / kaynak sızıntısı yok, en uzun kare, GPU süresi ve
       toplam / tepe bellek raporlanmış. Tam üretici paneli beklenmez.
       **2026-11-19:** teknik kapı geçti (5c adım 11 kaydı; bitki planı v0.10 PG3); kullanıcı görsel kabulü
-      bekleniyor, kutu kapatılmadı. Faz 5 bölümü 5d açık olduğu için arşive taşınmaz.
+      verdi (aynı gün). Kabuk ve kaya dokuları da KTX2 (kullanıcı kararı). 5c tamamlandı; Faz 5 bölümü
+      5d açık olduğu için arşive taşınmaz.
 - [ ] **5d Editör araçları + World Builder:** sculpt, paint, foliage paint
       (boya / silme fırçası; Foliage sekmesinin tür ve kural düzenlemesi 5c F5–F6'ya
       alındı, v1.73), landscape spline; World Builder penceresi + `/__world-random` endpoint'i
@@ -2313,6 +2316,7 @@ silinebilir.
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
 | 2026-11-19 | v1.83 | R9c Adım 5 kapandı. S12 ile üretimde mevcut `auto` ve S1 onaylandı. Şehir karşılaştırması ve iki arka uç doğrulaması ayrı plan §5.5’te. |
+| 2026-11-19 | v1.86 | 5c kapandı (kullanıcı görsel kabulü); `forge.surfaceTextureRecipe` çıktısı KTX2, impostor bake'i kabuğu tarifinden yeniden bake eder (`a1a30c6`); `measure:rock-material` kayaların çizilmesini bekler (önceki A / C sayıları yüklenmemiş kayalarla olabilir) |
 | 2026-11-19 | v1.85 | 5c adım 10–11: PG3 (KTX2 `e603b87`, kullanıcı kararı; PK7 spike: odun / yaprak ayrımı kalır), `measure:forest` (`bd09bdf` `078dcfd`): üretilmiş ormanda G6, PV-WES-01–08, geçişte pipeline +0, hücre döngüsünde sızıntı yok; statik batch attribute sızıntısı düzeltildi (`6a8a612`). 5c teknik kapısı geçti, görsel kabul bekleniyor |
 | 2026-11-19 | v1.84 | 5c F3 (`0ffdcf5`): uzak billboard blokları ve uzak ton; kullanıcı: bütün uzak billboard'lar PG3 impostor biçiminde, GLB türü çalışma anında CPU bake (worker). Hand-off testi; Derekavak P2 smoke'unda billboard bloklarının %99'u modellerin üstünde, iki arka uç |
 | 2026-11-18 | v1.83 | 5c adım 9 = PG2 (`fa11eb2` `b9608c8` `bc05121` `3a8dd57`): foliage rüzgârı (iki yol, gölge dahil), ortak bitki tepkisi + WES mevsim geçişi, dallanan üretici + `forge.treeRecipe`, tekil `forge.plant` ve aileli foliage aynı batch yolu ve kancası. Kullanıcı: PG2–PG3 5c içinde |

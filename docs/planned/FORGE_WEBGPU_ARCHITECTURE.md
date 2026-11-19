@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.69 · 2026-11-19 — §4.4 / §4.9 PG3: üretilmiş atlaslar KTX2 (`forge generate`), impostor yuvasında `color`, mevsimsel uzak temsil odun / yaprak ayrımı (PK7 ölçümü); §4.5 bağımsız `.ktx2` doku asset'i; kapı ölçümü `measure:forest`.
+**Güncelleme:** v1.70 · 2026-11-19 — §4.4 PG3: yüzey dokusu tarifi (kabuk, kaya) de KTX2; impostor bake'i üretilmiş yüzey dokusunu tarifinden yeniden bake eder.
+
+**Önceki güncelleme:** v1.69 · 2026-11-19 — §4.4 / §4.9 PG3: üretilmiş atlaslar KTX2 (`forge generate`), impostor yuvasında `color`, mevsimsel uzak temsil odun / yaprak ayrımı (PK7 ölçümü); §4.5 bağımsız `.ktx2` doku asset'i; kapı ölçümü `measure:forest`.
 
 **Önceki güncelleme:** v1.68 · 2026-11-19 — §4.4 uzak foliage (5c F3): blok host'u, tür başına PG3 impostor batch'i, GLB türü için çalışma anı CPU bake'i, terrain'e uzak ton; uzak temsil kararı PG3 biçimine güncellendi (kullanıcı).
 
@@ -827,6 +829,9 @@ features/height-fog/
     olduğu gibi. Impostor yuvası (`forge.plantFamily` prototipi, `forge.foliageType`) `color` taşır: yaprak
     katmanının ortalaması, uzak ton bundan okunur (sıkıştırılmış atlas çalışma anında okunamaz; yalnız
     sıkıştırılmamış atlas geri okunur). Çalışma anında bake edilen GLB atlası RGBA8 kalır.
+    `forge.surfaceTextureRecipe` çıktısı da KTX2, bake edildiği gibi (triplanar ve çevirmeyen UV
+    materyali aynı görür); ağaç impostor bake'i bir materyalin üretilmiş temel renk dokusunu tarifinden
+    yeniden bake eder (Node'da KTX2 çözülmez), elle konmuş PNG'yi çözer.
   - *İçe aktarıcı:* foliage type, landscape kuralları ve boyanmış gruplar
     çevrilir; referans projesi yeniden alınmadan önce kullanıcıya sorulur.
   - *Kapı ölçümü:* `npm run measure:foliage` (başlıklı gerçek WebGPU):
