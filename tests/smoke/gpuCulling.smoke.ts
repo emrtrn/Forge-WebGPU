@@ -196,7 +196,7 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
   const bundleDifference = await difference(page, bundled, direct);
   await steps(page, 6, 0);
   const noise = await difference(page, direct, await page.getByTestId("forge-canvas").screenshot());
-  await overlays.evaluate((tag) => tag.remove());
+  await overlays.evaluate((tag) => (tag as Element).remove());
   console.log(`bundle difference ${bundleDifference.toFixed(3)}, direct reinstall ${noise.toFixed(3)}`);
   // WebGL2 has no bundles (the twin ignores the option); its frames also vary more between shots.
   if (!webgl) expect(bundleDifference, "the bundled batches draw what the direct ones do").toBeLessThan(noise + 0.05);
