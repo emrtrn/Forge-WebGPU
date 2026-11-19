@@ -312,7 +312,7 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
     return { transform: preview?.transform ?? target.doc.transform, pivot: preview?.pivot ?? target.doc.pivot ?? ([0, 0, 0] satisfies Vec3) };
   };
 
-  const header = (now: readonly DetailsTarget[], tool: boolean): HTMLElement => {
+  const header = (now: readonly DetailsTarget[]): HTMLElement => {
     const box = el("div", "details-header");
     const icon = el("div", "details-actor-icon");
     const look = options.catalog.present(now[0]!.components, false);
@@ -339,10 +339,6 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
     });
     nameRow.append(name);
     box.append(nameRow);
-    if (tool) {
-      box.append(el("div", "details-actor-kind", look.kind));
-      return box;
-    }
     const info = el("div", "detail-row");
     if (now.length === 1) {
       const target = now[0]!;
@@ -364,6 +360,7 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
     const lead: HTMLElement[] = [];
     const tail: HTMLElement[] = [];
     for (const section of componentSections(now, registry)) {
+      if (tool !== null && options.catalog.embedded(section.def.name)) continue;
       const isTool = section.def.name === tool;
       const { section: box, heading, toggle, body } = createSection(doc, section.def.label, { testId: `detail-component-${section.id}`, collapsed: isTool });
       if (section.def.hint) toggle.title = section.def.hint;
@@ -540,7 +537,8 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
       onChange: (change) => apply(`Edit ${pathKey(change.path)} of ${what(now)}`, change.phase, pathKey(change.path), ({ doc: actor }) => editActor(actor, change.path, change.value)),
     }) : null;
     renderActions(now);
-    const parts: HTMLElement[] = [header(now, tool !== null)];
+    // A tool actor (Forge's Landscape) starts with its tool: no name or kind.
+    const parts: HTMLElement[] = tool !== null ? [] : [header(now)];
     if (actorView && general) parts.push(actorView.element, actions);
     parts.push(...componentBlock(now, tool));
     if (general) {

@@ -26,6 +26,8 @@ export interface EditorCatalog {
   details(component: string): DetailsExtension | undefined;
   /** The name of the component that leads these components' Details as a tool (`details: "tool"`); null for none. */
   toolComponent(components: ComponentMap): string | null;
+  /** The component is edited inside a tool's section (`details: "embedded"`). */
+  embedded(component: string): boolean;
 }
 
 const GROUP: ActorPresentation = { icon: "group", type: "gameplay", kind: "Group" };
@@ -48,6 +50,7 @@ export function createEditorCatalog(editors: readonly FeatureEditorDef[], regist
   return {
     editors,
     details: (component) => extensions.get(component),
+    embedded: (component) => byComponent.get(component)?.details === "embedded",
     toolComponent(components) {
       for (const component of Object.values(components)) {
         const name = COMPONENT_TYPE.exec(component.type)?.[1];

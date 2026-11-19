@@ -90,7 +90,10 @@ test("Landscape paint: paint, Auto Paint, add and fill a layer, view modes, save
   const errors = await openEditor(page, { level: LEVEL, drawn: true });
   await named(page, "Ground").click();
   await expect(page.getByTestId("landscape-panel")).toBeVisible();
+  // A tool actor's Details start with Landscape Mode: no name (Forge).
+  await expect(page.getByTestId("detail-name")).toHaveCount(0);
   await page.getByTestId("landscape-mode").selectOption("paint");
+  await expect(page.getByTestId("landscape-paint-panel-brush")).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("landscape-tool-paint")).toHaveAttribute("aria-pressed", "true");
   await page.getByTestId("landscape-tool-erase").click();
   await expect(page.getByTestId("landscape-tool-erase")).toHaveAttribute("aria-pressed", "true");
@@ -106,14 +109,22 @@ test("Landscape paint: paint, Auto Paint, add and fill a layer, view modes, save
   await save(page);
   expect(savedWeights(1).max).toBeGreaterThan(0.05);
 
-  // Auto Paint from the actor's rules: snow everywhere over the grass base.
+  // Auto Paint tab: the actor's rules (snow everywhere over the grass base). Add Rule adds a card (a level edit), Remove takes it away.
+  await page.getByTestId("landscape-paint-panel-auto").click();
+  await expect(page.getByTestId("landscape-auto-rule-0")).toBeVisible();
+  await expect(page.getByTestId("landscape-tool-paint")).toHaveCount(0);
+  await page.getByTestId("landscape-auto-rule-add").click();
+  await expect(page.getByTestId("landscape-auto-rule-1")).toBeVisible();
+  await page.getByTestId("landscape-auto-rule-1-remove").click();
+  await expect(page.getByTestId("landscape-auto-rule-1")).toHaveCount(0);
   await page.getByTestId("landscape-auto-paint-apply").click();
   await expect(page.getByTestId("editor-status")).toHaveText(/^Auto Paint applied to 4 tiles\.$/);
   await expect(page.getByTestId("landscape-unsaved-tiles")).toHaveText("4");
   await save(page);
   expect(savedWeights(3).min).toBe(1);
 
-  // Add Layer, then fill it: one undo step each.
+  // Back to Brush: Add Layer, then fill it: one undo step each.
+  await page.getByTestId("landscape-paint-panel-brush").click();
   await page.getByTestId("landscape-layer-add").click();
   await expect(page.getByTestId("landscape-layer-layer-1-select")).toHaveAttribute("aria-pressed", "true");
   await page.getByTestId("landscape-fill-layer").click();

@@ -33,6 +33,9 @@ export type LandscapeEditMode = "sculpt" | "paint";
 export type LandscapePaintTool = LandscapeWeightBrushMode;
 export const LANDSCAPE_PAINT_TOOLS: readonly LandscapePaintTool[] = ["paint", "erase", "smoothWeights"];
 
+/** Paint mode's tab (Forge's LandscapePaintPanel): the brush, or the one-shot Auto Paint rules (no brush in the viewport). */
+export type LandscapePaintPanel = "brush" | "auto";
+
 /** Forge's LandscapeViewMode: the lit look, or a height / slope / active layer preview. */
 export type LandscapeViewMode = "lit" | "height" | "slope" | "layer";
 export const LANDSCAPE_VIEW_MODES: readonly LandscapeViewMode[] = ["lit", "height", "slope", "layer"];
@@ -42,6 +45,7 @@ export interface LandscapeSettings extends TerrainSculptSettings {
   readonly mode: LandscapeEditMode;
   readonly tool: TerrainSculptTool;
   readonly paintTool: LandscapePaintTool;
+  readonly paintPanel: LandscapePaintPanel;
   /** The paint layer's id; one a terrain does not have paints nothing (the panel picks the terrain's first). */
   readonly activeLayerId: string;
   readonly viewMode: LandscapeViewMode;
@@ -61,6 +65,7 @@ export const DEFAULT_LANDSCAPE_SETTINGS: Readonly<LandscapeSettings> = {
   mode: "sculpt",
   tool: "raise",
   paintTool: "paint",
+  paintPanel: "brush",
   activeLayerId: "",
   viewMode: "lit",
   brushSize: 6,

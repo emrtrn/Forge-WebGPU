@@ -253,7 +253,8 @@ export function createShell(options: ShellOptions): EditorShell {
 
   const outliner = el("aside", "editor-panel editor-outliner");
   const outlinerHeading = el("div", "editor-panel-heading");
-  outlinerHeading.append(el("span", "", "Outliner"));
+  // Forge's panel names (user decision 2026-11-20): Scene Outliner / World Partition, Details / Foliage.
+  outlinerHeading.append(el("span", "", "Scene Outliner"));
   outliner.append(outlinerHeading);
   const partitionHost = el("div", "outliner-pane");
   partitionHost.hidden = true;
@@ -272,7 +273,7 @@ export function createShell(options: ShellOptions): EditorShell {
     }
   };
   const addDetailsTab = (label: string, testId: string, pane: HTMLElement): void => {
-    const button = el("button", "forge-btn-ghost", label);
+    const button = el("button", "forge-btn-ghost inspector-tab", label);
     button.type = "button";
     button.setAttribute("role", "tab");
     button.dataset.testid = testId;
@@ -388,6 +389,7 @@ export function createShell(options: ShellOptions): EditorShell {
         list.setAttribute("role", "tablist");
         detailsTabs = { list, tabs: [] };
         detailsHeading.replaceChildren(list);
+        detailsHeading.classList.add("inspector-tabs");
         addDetailsTab("Details", "details-tab", detailsBody);
       }
       const pane = el("div", "details-scroll");
@@ -422,8 +424,8 @@ export function createShell(options: ShellOptions): EditorShell {
       if (editor.streaming) {
         const tabs = el("div", "forge-tab-list");
         tabs.setAttribute("role", "tablist");
-        const actorTab = el("button", "forge-btn-ghost", "Actors");
-        const worldTab = el("button", "forge-btn-ghost", "World Partition");
+        const actorTab = el("button", "forge-btn-ghost inspector-tab", "Scene Outliner");
+        const worldTab = el("button", "forge-btn-ghost inspector-tab", "World Partition");
         actorTab.dataset.testid = "outliner-actors-tab"; worldTab.dataset.testid = "outliner-wp-tab";
         for (const tab of [actorTab, worldTab]) { tab.type = "button"; tab.setAttribute("role", "tab"); }
         const show = (partition: boolean): void => {
@@ -431,7 +433,7 @@ export function createShell(options: ShellOptions): EditorShell {
           actorTab.setAttribute("aria-selected", String(!partition)); worldTab.setAttribute("aria-selected", String(partition));
         };
         actorTab.onclick = () => show(false); worldTab.onclick = () => show(true);
-        tabs.append(actorTab, worldTab); outlinerHeading.replaceChildren(tabs); show(false);
+        tabs.append(actorTab, worldTab); outlinerHeading.replaceChildren(tabs); outlinerHeading.classList.add("inspector-tabs"); show(false);
       }
       detailsPanel = createDetailsPanel({
         document: doc,

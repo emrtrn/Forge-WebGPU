@@ -264,7 +264,7 @@ interface AssetPreviewInfo
 type AssetPublisher = (path: string, base: string, document: Readonly<Record<string, unknown>>) => Promise<SaveResponseBody>
 
 interface ComponentPresentation
-  readonly details?: "tool" | undefined
+  readonly details?: "tool" | "embedded" | undefined
   readonly icon: "mesh" | "character" | "light" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic" | ((data: Readonly<Record<string, unknown>>) => ActorTypeIcon)
   readonly outliner: "mesh" | "character" | "light" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
 

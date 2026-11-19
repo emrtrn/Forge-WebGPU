@@ -22,7 +22,7 @@ import { parseComponentTypeTag } from "../../core/index.ts";
 import { createServiceKey } from "../../core/world/services.ts";
 import type { ActorId } from "../../core/id.ts";
 import { addComponent } from "../../engine/edit/actorFields.ts";
-import { LandscapeAutoPaint } from "../../features/terrain/schema.ts";
+import { LandscapeAutoPaint, type LandscapeAutoPaintData } from "../../features/terrain/schema.ts";
 import { createTerrainAutoPaintPatches, type TerrainAutoPaintSettings } from "../../engine/terrain/terrainAutoPaint.ts";
 import { createTerrainLayerFillPatches } from "../../engine/terrain/terrainEdit.ts";
 import type { EditableTerrain, TerrainEditing } from "../../engine/terrain/terrainEditing.ts";
@@ -49,6 +49,15 @@ export interface LandscapeLayers {
   hasAutoPaint(actor: ActorId): boolean;
   /** Adds empty Auto Paint rules to the actor (a level edit, one undo step). */
   addAutoPaint(actor: ActorId): void;
+  /** The actor's Auto Paint rules (its `forge.landscapeAutoPaint`); null when it has none. */
+  autoPaintData(actor: ActorId): LandscapeAutoPaintData | null;
+  /**
+   * Writes the actor's Auto Paint rules (the component is added when missing):
+   * a level edit; `input` steps coalesce, `commit` ends the undo step.
+   */
+  editAutoPaint(actor: ActorId, data: LandscapeAutoPaintData, phase: "input" | "commit"): void;
+  /** The project's `forge.material` assets, for a layer's material. */
+  materials(): readonly { readonly guid: string; readonly label: string }[];
   /** An action is loading tiles or applying. */
   readonly busy: boolean;
   /** For the layer material field (the Details' asset widgets). */
@@ -64,6 +73,7 @@ export interface LandscapeLayersOptions {
   readonly status: (message: string, tone?: "info" | "warning" | "error") => void;
   readonly assetLabel: (guid: string) => string | null;
   readonly pickAsset: (assetType: string | null) => Promise<string | null>;
+  readonly materials?: () => readonly { readonly guid: string; readonly label: string }[];
 }
 
 export function createLandscapeLayers(options: LandscapeLayersOptions): LandscapeLayers {
@@ -126,6 +136,29 @@ export function createLandscapeLayers(options: LandscapeLayersOptions): Landscap
     },
     assetLabel: options.assetLabel,
     pickAsset: options.pickAsset,
+    materials: () => options.materials?.() ?? [],
+    autoPaintData(actor) {
+      const doc = editor.level.actor(actor);
+      if (!doc || doc.class !== null) return null;
+      const component = Object.values(doc.components).find((entry) => parseComponentTypeTag(entry.type)?.name === LandscapeAutoPaint.name);
+      return component ? (component as unknown as LandscapeAutoPaintData) : null;
+    },
+    editAutoPaint(actor, data, phase) {
+      const found = editor.level.actor(actor);
+      if (!found || found.locked || found.class !== null) return;
+      const isRules = (type: string): boolean => parseComponentTypeTag(type)?.name === LandscapeAutoPaint.name;
+      let doc = found;
+      if (!Object.values(doc.components).some((entry) => isRules(entry.type))) {
+        const added = addComponent(doc, LandscapeAutoPaint);
+        if (added.class !== null) return;
+        doc = added;
+      }
+      const components = doc.components;
+      const key = Object.keys(components).find((name) => isRules(components[name]!.type))!;
+      const next = { ...doc, components: { ...doc.components, [key]: { ...doc.components[key]!, baseLayer: data.baseLayer, seed: data.seed, rules: data.rules } } };
+      editor.edit("Edit Landscape Auto Paint", (tx) => tx.setActor(next), { coalesce: `landscape-auto-paint:${actor}` });
+      if (phase === "commit") editor.level.history.seal();
+    },
     hasAutoPaint(actor) {
       const doc = editor.level.actor(actor);
       return doc !== undefined && doc.class === null

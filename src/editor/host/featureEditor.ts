@@ -59,13 +59,14 @@ export interface ComponentPresentation {
   /** The Outliner's type filter group. */
   readonly outliner: OutlinerType;
   /**
-   * `tool` (Forge's Landscape): the actor's Details are its name, then this
-   * component's Details extension, the other components, and this component's
-   * own fields last in a closed section. No Class row, transform, pivot,
-   * placement, Remove, Advanced or Add Component: the actor is placed by its
-   * data, not its transform.
+   * `tool` (Forge's Landscape): the actor's Details are this component's
+   * Details extension, the other components, and this component's own fields
+   * last in a closed section. No name, Class row, transform, pivot, placement,
+   * Remove, Advanced or Add Component: the actor is placed by its data, not its
+   * transform. `embedded`: on a tool actor this component has no section of its
+   * own; the tool's extension edits it.
    */
-  readonly details?: "tool";
+  readonly details?: "tool" | "embedded";
 }
 
 /** Forge's Add Actor categories, in its order; a game's own categories come after them. */
@@ -204,7 +205,7 @@ export function defineFeatureEditor(options: FeatureEditorOptions): FeatureEdito
     if (typeof presentation.icon !== "string" && typeof presentation.icon !== "function") {
       throw new SchemaDefinitionError(`${where}: the icon is an icon name or a function.`);
     }
-    if (presentation.details !== undefined && presentation.details !== "tool") {
+    if (presentation.details !== undefined && presentation.details !== "tool" && presentation.details !== "embedded") {
       throw new SchemaDefinitionError(`${where}: no Details layout "${String(presentation.details)}".`);
     }
     if (!OUTLINER_TYPE_SET.has(presentation.outliner)) {

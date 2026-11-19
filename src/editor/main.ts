@@ -457,6 +457,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     // Paint layers, Fill Layer and Auto Paint (plan 5d step 3), for the Landscape Details.
     world.services.provide(LandscapeLayersKey, createLandscapeLayers({
       editor: session, editing: terrainEditing, status: (message, tone) => shell.status(message, tone), assetLabel: (guid) => assets.label(guid),
+      materials: () => assets.ofType("forge.material").map((item) => ({ guid: item.guid, label: item.name })),
       pickAsset: (type) => openPicker({ document: doc, host: shell.root, title: "Select Asset", testId: "asset-picker", items: assets.ofType(type).map((item) => ({ id: item.guid, label: item.name, note: item.file })) }),
     }));
     // World Terrains: New (asset at once), Expand, heightmap files, moving with the actor (plan 5d step 4).

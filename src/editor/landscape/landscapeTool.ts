@@ -128,6 +128,8 @@ export function createLandscapeTool(options: LandscapeToolOptions): LandscapeToo
   /** The terrain the tool works on now: the primary selection's, when it is editable (Sculpt or Paint). */
   const target = (): EditableTerrain | null => {
     if (editing.settings.mode !== "sculpt" && editing.settings.mode !== "paint") return null;
+    // Paint's Auto Paint tab has no brush (Forge).
+    if (editing.settings.mode === "paint" && editing.settings.paintPanel === "auto") return null;
     const primary = editor.selection.primary();
     if (primary === null) return null;
     const actor = editor.level.actor(primary);

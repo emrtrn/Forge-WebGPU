@@ -459,6 +459,47 @@ html, body {
   font-weight: 600;
 }
 
+/* Forge's panel tabs (editorUi.css .inspector-tabs / .inspector-tab): text tabs, the selected one underlined. */
+.editor-panel-heading.inspector-tabs {
+  align-items: flex-end;
+  min-height: 44px;
+  padding: 0 10px;
+  background: #121922;
+}
+.editor-panel-heading.inspector-tabs .forge-tab-list {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+}
+.editor-shell .inspector-tab {
+  position: relative;
+  height: 44px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #98a4b2;
+  padding: 0 12px;
+  font-size: 12px;
+}
+.editor-shell .inspector-tab:hover {
+  color: #e8edf2;
+  background: transparent;
+}
+.editor-shell .inspector-tab[aria-selected="true"] {
+  color: #f5f8fb;
+  background: transparent;
+}
+.editor-shell .inspector-tab[aria-selected="true"]::after {
+  position: absolute;
+  right: 10px;
+  bottom: -1px;
+  left: 10px;
+  height: 2px;
+  content: "";
+  border-radius: 2px 2px 0 0;
+  background: var(--forge-accent);
+}
+
 .editor-panel-heading small {
   color: var(--forge-text-dim);
   font-weight: 400;

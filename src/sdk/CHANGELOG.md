@@ -10,13 +10,15 @@ the engine's major.minor (architecture §4.8, A8).
 
 ## 0.1.14
 
-API: e8c130b39adaed4d
+API: adbd54da1880bca0
 
 A component's editor presentation may set `details: "tool"` (plan 5d,
-Forge's Landscape layout): the actor's Details show its name, then the
-component's Details extension, the other components, and the component's own
-fields last in a closed section, with no Class row, transform, pivot,
-placement, Remove, Advanced or Add Component. The World Terrain uses it.
+Forge's Landscape layout): the actor's Details show the component's Details
+extension, the other components, and the component's own fields last in a
+closed section, with no name, Class row, transform, pivot, placement, Remove,
+Advanced or Add Component. `details: "embedded"` gives a component no section of
+its own on such an actor (the tool edits it). The World Terrain uses both
+(its Auto Paint rules are embedded).
 
 ## 0.1.13
 
