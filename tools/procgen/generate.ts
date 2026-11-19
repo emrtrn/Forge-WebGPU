@@ -38,7 +38,8 @@ import { createSaveService, type SaveDelete, type SaveWrite } from "../save/tran
 import { createWritePolicy } from "../server/projectPaths.ts";
 import { openWorldProject } from "../world/worldProject.ts";
 import { binaryWithMeta, GENERATED_MODEL_OPTIMIZE, GENERATOR_VERSIONS, outputId, round, srgbTriple, type GeneratorName, type Output } from "./outputs.ts";
-import { decodePng, encodeRgbaPng } from "./png.ts";
+import { decodePng } from "./png.ts";
+import { encodeRgbaKtx2 } from "./ktx2.ts";
 import { treeOutputs, type MaterialLook } from "./treeOutputs.ts";
 
 export { GENERATOR_VERSIONS } from "./outputs.ts";
@@ -146,11 +147,9 @@ function rockOutputs(recipeId: string, data: JsonObject, folder: string, stem: s
   return outputs;
 }
 
-function surfaceTextureOutputs(recipeId: string, data: JsonObject, folder: string, stem: string, stats: string[]): Output[] {
-  const outputs: Output[] = [];
-  const generated = { recipe: recipeId, generator: "surfaceTexture", generatorVersion: GENERATOR_VERSIONS.surfaceTexture };
-  const started = performance.now();
-  const baked = bakeSurfaceTexture({
+/** A `forge.surfaceTextureRecipe` baked (the same call for its outputs and for an impostor bake reading them). */
+function bakeSurfaceRecipe(data: JsonObject): ReturnType<typeof bakeSurfaceTexture> {
+  return bakeSurfaceTexture({
     seed: data.seed,
     size: Number(data.size),
     layers: data.layers,
@@ -160,10 +159,22 @@ function surfaceTextureOutputs(recipeId: string, data: JsonObject, folder: strin
     aoStrength: data.aoStrength,
     metalness: data.metalness,
   });
+}
+
+/**
+ * Base colour (sRGB), normal and ORM (linear) as KTX2 (ktx2.ts; user decision 2026-11-19, as the tree
+ * atlases). Stored as baked: a tiling texture is read by triplanar projection or by a UV material that does
+ * not flip (the starter's M_Rock, M_Bark); a flipping UV material would see it mirrored in V.
+ */
+async function surfaceTextureOutputs(recipeId: string, data: JsonObject, folder: string, stem: string, stats: string[]): Promise<Output[]> {
+  const outputs: Output[] = [];
+  const generated = { recipe: recipeId, generator: "surfaceTexture", generatorVersion: GENERATOR_VERSIONS.surfaceTexture };
+  const started = performance.now();
+  const baked = bakeSurfaceRecipe(data);
   const bakeMs = performance.now() - started;
   for (const [slot, pixels] of [["basecolor", baked.baseColor], ["normal", baked.normal], ["orm", baked.orm]] as const) {
-    const bytes = encodeRgbaPng(baked.size, baked.size, pixels);
-    const name = `${stem}_${slot}.png`;
+    const bytes = await encodeRgbaKtx2(baked.size, baked.size, pixels, { srgb: slot === "basecolor" });
+    const name = `${stem}_${slot}.ktx2`;
     binaryWithMeta(outputs, `${folder}/${name}`, outputId(recipeId, `surface/${slot}`), "forge.texture@2", bytes, { anisotropy: 8, mipmaps: true }, generated);
     stats.push(`${name}: ${baked.size} × ${baked.size}, ${bytes.length} bytes`);
   }
@@ -190,7 +201,11 @@ function canonicalText(registry: SchemaRegistry, path: string, text: string): st
 const labelPath = (options: GenerateOptions, target: Target, label: string): string =>
   label.startsWith("engine:") ? join(options.engineRoot, label.slice("engine:".length)) : join(target.root, label);
 
-/** A material as the impostor bake sees it: colour, base colour texture (decoded PNG), tiling, flip, cut. */
+/**
+ * A material as the impostor bake sees it: colour, base colour texture, tiling, flip, cut. The texture is
+ * baked again from its `forge.surfaceTextureRecipe` when it is one's output (its file is KTX2, which Node
+ * does not decode here), otherwise decoded from a PNG.
+ */
 async function materialLook(options: GenerateOptions, target: Target, guid: string | null, ownTexture: string, warnings: string[]): Promise<MaterialLook | null> {
   if (guid === null) return null;
   const doc = target.index.jsonAssets.get(guid) as JsonObject | undefined;
@@ -201,10 +216,18 @@ async function materialLook(options: GenerateOptions, target: Target, guid: stri
     texture = "leafAtlas";
   } else if (textureId) {
     const entry = target.index.entries.get(textureId);
-    const bytes = entry ? await readOrNull(labelPath(options, target, fileLabel(entry.root, entry.path))) : null;
-    const decoded = bytes ? decodePng(bytes) : null;
-    if (decoded) texture = decoded;
-    else warnings.push(`texture ${textureId} of material ${guid} is not a readable PNG: the impostor uses its colour`);
+    const meta = entry?.meta ? await readOrNull(labelPath(options, target, fileLabel(entry.root, entry.meta))) : null;
+    const recipeId = meta ? (JSON.parse(new TextDecoder().decode(meta)) as { generated?: { recipe?: string; generator?: string } }).generated : undefined;
+    const recipe = recipeId?.generator === "surfaceTexture" && recipeId.recipe ? target.index.jsonAssets.get(recipeId.recipe) as JsonObject | undefined : undefined;
+    if (recipe && textureId === outputId(recipeId!.recipe!, "surface/basecolor")) {
+      const baked = bakeSurfaceRecipe(recipe);
+      texture = { width: baked.size, height: baked.size, rgba: baked.baseColor };
+    } else {
+      const bytes = entry ? await readOrNull(labelPath(options, target, fileLabel(entry.root, entry.path))) : null;
+      const decoded = bytes ? decodePng(bytes) : null;
+      if (decoded) texture = decoded;
+      else warnings.push(`texture ${textureId} of material ${guid} is not a generated surface texture or a readable PNG: the impostor uses its colour`);
+    }
   }
   const tiling = Array.isArray(doc.uvTiling) ? doc.uvTiling as [number, number] : [1, 1] as const;
   return {
@@ -251,7 +274,7 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
     outputs = await treeOutputs(entry.id, doc, folder, stem, stats, looks);
   } else if (entry.type === "forge.surfaceTextureRecipe") {
     generator = "surfaceTexture";
-    outputs = surfaceTextureOutputs(entry.id, doc, folder, stem, stats);
+    outputs = await surfaceTextureOutputs(entry.id, doc, folder, stem, stats);
   } else {
     throw new Error(`${label}: ${entry.type} is not a recipe type with a generator`);
   }

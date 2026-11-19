@@ -15,7 +15,7 @@
   "generated": {
     "recipe": "ast_9d307c885cd46c2fdff9c53ce68a9472",
     "generator": "surfaceTexture",
-    "generatorVersion": 1,
-    "contentHash": "bcae917c0c96af975380b1a3bcd11ec2b78d4c729a6b2a1f215651114d72f08a"
+    "generatorVersion": 2,
+    "contentHash": "0c1f6ef6db6d1add6c9fbf02eadd8604d1efa5c75a037712de33d3603a622cc8"
   }
 }

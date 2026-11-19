@@ -24,6 +24,7 @@ interface Dev {
   moveCamera(x: number, y: number, z: number, look?: readonly [number, number, number]): void;
   spawn(raw: unknown[]): string[];
   proceduralStone(guid: string, metersPerRepeat?: number): Promise<number>;
+  host(): { world: { scene: { traverse(visit: (object: { material?: { name: string } | { name: string }[] }) => void): void } } | null } | null;
 }
 const forge = <T>(page: Page, run: string, arg?: unknown): Promise<T> =>
   page.evaluate(([source, value]) => (new Function("dev", "arg", `return (${source})(dev, arg);`) as (dev: Dev, arg: unknown) => unknown)(
@@ -89,7 +90,20 @@ test("stone material: path A vs path C", async ({ page }) => {
       await page.waitForTimeout(800);
       await forge(page, "(d) => d.pause()");
       await forge(page, "(d, a) => d.spawn(a)", rockActors(models, mode === "plain" ? WHITE : null));
-      await steps(page, 120);
+      // Stepping until the rocks draw with their material: its textures (KTX2, transcoded in a worker) come in
+      // after the models; a fixed frame count measured empty rocks.
+      const material = mode === "plain" ? WHITE : ROCK_MATERIAL;
+      const drawn = () => forge<number>(page, `(d, guid) => { let n = 0; d.host()?.world?.scene.traverse((o) => {
+        const m = o.material; for (const one of Array.isArray(m) ? m : m ? [m] : []) if (one.name === guid) n += 1; }); return n; }`, material);
+      let last = -1, same = 0;
+      for (let frame = 0; frame < 3000 && same < 30; frame += 1) {
+        await forge(page, "(d) => d.step(1000 / 60)");
+        const n = await drawn();
+        same = n > 0 && n === last ? same + 1 : 0;
+        last = n;
+      }
+      expect(last, `${mode}: the rocks draw with their material`).toBeGreaterThan(0);
+      await steps(page, 60);
       if (mode === "A") expect(await forge<number>(page, "(d, a) => d.proceduralStone(a)", ROCK_MATERIAL)).toBeGreaterThan(0);
       for (const pose of POSES) {
         await forge(page, "(d, a) => d.moveCamera(a[0][0], a[0][1], a[0][2], a[1])", [pose.position, pose.target]);
