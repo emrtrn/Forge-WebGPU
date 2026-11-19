@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.89 · 2026-11-19 — 5d dökümü ve kararları (kullanıcı, hepsi öneri olduğu gibi): araçlar yalnız editörde (fırça CLI'sı yok), sculpt CPU'da + bölge yüklemesi, darbe başına undo, Mesh Paint 5d'den çıktı, yol mesh'leri CPU'da bake, bitki tarafı (PG5) adım 9'da bitki akışıyla. Adım sırası 1–10; adım 2 başlamadı.
+**Güncelleme:** v1.90 · 2026-11-19 — 5d adım 2 (`3074f3a`): Landscape sculpt editörde (Details'te Landscape bölümü, Forge'un 8 aracı ve değiştirici tuşları, terrain'e oturan halka), darbe dikdörtgeni GPU'ya, düzenlenen tile akışta sabit, darbe başına undo, tile + global harita + tanım tek kayıt işleminde okunan revizyonlarla. Kullanıcı görsel kabulü bekleniyor.
+
+**Önceki güncelleme:** v1.89 · 2026-11-19 — 5d dökümü ve kararları (kullanıcı, hepsi öneri olduğu gibi): araçlar yalnız editörde (fırça CLI'sı yok), sculpt CPU'da + bölge yüklemesi, darbe başına undo, Mesh Paint 5d'den çıktı, yol mesh'leri CPU'da bake, bitki tarafı (PG5) adım 9'da bitki akışıyla. Adım sırası 1–10; adım 2 başlamadı.
 
 **Önceki güncelleme:** v1.88 · 2026-11-19 — Faz 6 dökümü ve kararları (kullanıcı, hepsi öneri olduğu gibi): alt fazlar 6a–6e, FPS Sandbox karakter pilotu, birinci şahıs genel parçalarla, Player Start kalıcı katmanda, UI widget editörü (K12) şemalı JSON + HUD yerleşimi, K4 / K11 6e'de. 6a başlamadı.
 
@@ -2019,6 +2021,39 @@ A–F sırasıyla yürür; ağaç tarifi editörü (`ff7ce85`) ve sürümlü bü
     4 A yeşil, Faz 5 toplu görsel + performans kabulü (kullanıcı), ardından Faz 5
     bölümünün arşivi.
 
+*Adım 2 (2026-11-19, `3074f3a`):* Landscape sculpt. Terrain seçilince Details'te
+Landscape bölümü (`editor/landscape/landscapePanel.ts`): Forge'un 8 aracı, araç
+başına alanları ve sınırları (kit formu), tile bilgisi (bellekte / kaydedilmemiş).
+Fırça (`landscapeTool.ts`, three'siz): seçili terrain'e basış (önünde başka çizim
+yoksa; gizmo tutamacı önce) darbe başlatır, Forge'un değiştiricileri darbe başına
+(Alt Flatten, Ctrl Smooth, Shift Raise / Lower, Ctrl+Alt tıklanan yükseklik), Ramp
+sürüklenip bırakılır (yol çerçevesi önizlenir). Halka araziye oturur
+(`render/editor/brushCursor.ts`). **Veri:** editör World'üne `TerrainEditingKey`
+(`engine/terrain/terrainEditing.ts`); terrain bağlaması onu bulunca asset başına
+`TerrainEditSession`'dan çizer (Forge'un `WorldTerrainEditSession`'ı, IO'suz:
+okunan biçim / revizyon, tile başına düzenleme sayacı, onay). Akış sürer;
+editör okuyucusu dosyayı revizyonuyla okur, oturumun tanımıyla doğrular,
+düzenlenmiş tile'ı diskten değil oturumdan verir; düzenlenen ve fırçanın beklediği
+tile'lar `kept`. Okunamayıp düz yer tutucuyla gelen tile oyulmaz / yazılmaz.
+`TerrainView.updateTile` Forge'un kuralı (dikdörtgen CPU yazımı, komşu dikiş
+normalleri, global harita + delik doldurma, düğüm sınırları; yükleme katman başına).
+**Undo:** editör oturumunda level dışı adım (`pushStep`): level adımlarıyla tek
+sıra (adım kendinden önceki level adımını kimliğiyle tutar); yeni adım iki redo
+yığınını da düşürür (çekirdeğe `History.clearRedo`). **Kayıt:** oturum katılımcısı
+(`landscapeSave.ts`): level'dan sonra kirli tile'lar (kendi biçimiyle), aralık
+genişlerse diskteki tile'ların yeniden kodlanması, global harita ve tanım tek kayıt
+işleminde okunan revizyonlarla; 409'da hiçbir şey yazılmaz, düzenlemeler kalır;
+motor içeriği / paket salt okunur. Başka yazarın değişikliği temiz oturumu düşürür,
+terrain diskten yeniden okunur; kendi kaydı bir şey değiştirmez. **Kanıt:** birim
+testleri (birleşik undo sırası, katılımcı, kayıt isteği / revizyonlar / çakışma /
+yer tutucu / disk olayı); editör smoke'u `tests/editor/landscape.spec.ts` (2 × 2
+akan terrain: yükselt → kaydet → diskte tepe 1,25 m; ikinci darbe + undo + kaydet →
+ilk darbenin yükseklikleri; yeniden aç) `forceWebGL`'de ve gerçek WebGPU'da geçti;
+terrain'e dokunan editör spec'leri (foliage, addActor, streaming, world) 16 / 16.
+Sonraya: Ctrl + tekerlekle fırça boyutu, Play'e kaydedilmemiş terrain düzenlemesi
+(Play oturumu yalnız level dosyalarını taşır), foliage halkasının düzenlenen
+alanda yeniden büyümesi. Kullanıcı görsel kabulü bekleniyor.
+
 - [x] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
       Faz 3 karar 1) üretim kalitesine çıkar: morph,
       tile seam, 8 boya katmanı, su birikintisi (kıyı ıslaklığı ve kostik
@@ -2459,3 +2494,4 @@ silinebilir.
 | 2026-11-18 | v1.67 | R9a O1 (`5f1ab63`) ve O2–O4 (`6510965`): occlusion level ayarı, otomatik engelleyici ön geçişi, GPU Hi-Z (Codex `gpt-6.2-sol` paket düzeni), ana görünüm örnek ayıklaması; doğru (piramit 0 fark, yanlış gizleme yok), iç mekânda %50–90 örnek gizli; sentetik sahnede GPU süresi değişmedi, gönderim arttı. Varsayılan kapalı |
 | 2026-11-18 | v1.66 | R9a hücre batch'i ölçümü (`fab7066`, kapalı): iç mekân draw 4 → 63; query yolu bırakıldı. Üretim kararı (kullanıcı): örnek başına GPU occlusion O1–O5 (level ayarı, otomatik engelleyici ön geçişi, GPU Hi-Z, ana görünüm örnek ayıklaması, A/B) |
 | 2026-11-19 | v1.89 | 5d dökümü (B01–B06, B08–B10, B13, E26, G21; ertelenen 4 A `worldTerrainMove`; algoritmalar 2b'de taşınmış, editör araçlarının hiçbiri yok) ve kararlar 1–6 (kullanıcı, öneriler): fırça araçları yalnız editörde, sculpt CPU'da + bölge yüklemesi, darbe başına undo ve `worldTerrainSave` kaydı, Mesh Paint çıktı, yol mesh'leri CPU'da bake, PG5 adım 9'da. Adım sırası 1–10. Mimari v1.72. Kod yok |
+| 2026-11-19 | v1.90 | 5d adım 2 (`3074f3a`): Landscape sculpt — Details'te Landscape bölümü, Forge'un 8 aracı + değiştiricileri, araziye oturan halka; `TerrainEditingKey` + asset başına `TerrainEditSession` (akış sürer, düzenlenen tile `kept`), `TerrainView.updateTile`; level adımlarıyla birleşik undo (`pushStep`, `History.clearRedo`); kayıt katılımcısı tile + global harita + tanımı okunan revizyonlarla tek işlemde yazar. Editör smoke'u `landscape.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |

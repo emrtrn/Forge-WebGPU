@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.72 · 2026-11-19 — §4.4 5d kararları: fırça araçları yalnız editörde (ajan veri yüzeyleriyle), sculpt / paint CPU'da + bölge yüklemesi, darbe başına undo, Mesh Paint kapsam dışı, yol mesh'leri CPU'da bake, PG5 son araç adımı.
+**Güncelleme:** v1.73 · 2026-11-19 — §4.4 5d uygulaması (adım 2): `TerrainEditingKey` + asset başına `TerrainEditSession`, editör oturumunda level dışı undo adımı ve kayıt katılımcısı.
+
+**Önceki güncelleme:** v1.72 · 2026-11-19 — §4.4 5d kararları: fırça araçları yalnız editörde (ajan veri yüzeyleriyle), sculpt / paint CPU'da + bölge yüklemesi, darbe başına undo, Mesh Paint kapsam dışı, yol mesh'leri CPU'da bake, PG5 son araç adımı.
 
 **Önceki güncelleme:** v1.71 · 2026-11-19 — §4.7 Faz 6 kararları: alt fazlar 6a–6e, iskele / legacy faz kapısında silinir, birinci şahıs genel parçalarla (motorda FPS kipi yok), Player Start kalıcı katmanda, UI widget editörü şemalı JSON + HUD yerleşimi (K12 kapandı), karakter pilotu FPS Sandbox.
 
@@ -1073,6 +1075,14 @@ features/height-fog/
   - *Bitki tarafı:* `generated` model kaynağı ve aile yerleşimi (§4.9 bitki
     sözleşmesi, bitki planı PG5) 5d'nin son araç adımıdır, bitki akışının
     tür / editör aşamalarından sonra.
+  - *Uygulama (adım 2, `3074f3a`):* editör World'üne `TerrainEditingKey`
+    (`engine/terrain/terrainEditing.ts`: asset başına düzenleme oturumu, çizilen
+    terrain'lerin kaydı, sayfanın Landscape ayarları); oyun bu servisi vermez,
+    terrain bağlaması eskisi gibi çizer. Oturum (`terrainEditSession.ts`) bağlamadan
+    uzun yaşar: tile haritası görünüm ve akışla ortak, okunan biçim / revizyon,
+    düzenlenen tile'ın verisi. Level dışı undo adımı ve kayıt katılımcısı editör
+    oturumunun genel yüzeyidir (`pushStep`, `addParticipant`); sonraki boyama /
+    spline / foliage fırçası adımları aynı yolu kullanır.
 - **Ölçek ölçümü (2a, 2026-11-10):** 50.000 aktörlük level R1'de eşik içinde
   (bütün level yükleme ~0,9 s, hücre yükleme p95 ~1,5 ms, tek aktör kaydı
   ~40 ms, tam kayıt ~2,2 s, heap ~58 MB; [Faz 2a arşivi](../archive/PHASE_2A.md)). Aşağıdaki çarelere
