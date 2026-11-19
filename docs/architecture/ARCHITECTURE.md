@@ -64,12 +64,16 @@ geçici alır, özel taslak kaynakları kapanışta bırakır. Başarılı kayı
 kullanıcılarını tazeler; kirli level yazılmaz. Sunucu sınıf / instance
 override uyumsuzluğunu kayıtta reddeder (rapor §4.11).
 
+Ağaç tarifinin aynı pencerede seed ve LOD seçilebilen bir görünümü vardır.
+`render/editor/treePreview.worker` saf üreticiyi çalıştırır. Kalıcı aile üretimi
+geliştirme sunucusunda ayrı bir Node worker'ından aynı CLI üreticisine gider.
+
 ## Veri modeli
 
 - **Planlanan WES / bitki birleşimi (2026-11-14):** bitki ailesi ve tekil
   aktör / kompakt foliage'ın ortak çevre tepkisi için [mimari rapor §4.9](../planned/FORGE_WEBGPU_ARCHITECTURE.md)
   ve [üretici planı](../planned/PROCEDURAL_VEGETATION_AND_PROPS_PLAN.md) geçerlidir.
-  Küçük üretim dilimi 5c, tam araçlar 5d ile ilerler; henüz uygulanmadı.
+  PG0–PG3 ve iki starter aile 5c'de kabul edildi. Tam araçlar 5d'de sürüyor.
 - Level'da her şey bir aktördür: kalıcı GUID, transform, `parent`, şemalı
   bileşenler (aktör içinde yerel kimlikli, uzamsal olanlar hiyerarşili). Aktör
   sınıfı (`forge.actorClass/1`) prefab'dır; level'daki örnek yalnız sürüm

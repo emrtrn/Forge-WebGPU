@@ -2005,6 +2005,9 @@ GPU güdümlü yolunu bekler.
       → yeniden aç); üretilen dünya Content Browser'da görünüyor; ertelenen
       4 A yeşil (`worldTerrainMove`, su tipleri Faz 7'yle); üretilen bitki
       yerleşimleri aileyi kullanıyor, aile / mevsim önizlemesi çalışıyor.
+      **19 Kasım 2026:** Ağaç tarifinde canlı worker önizlemesi, seed / mesh LOD
+      seçimi ve aile üretimi için ilk editör dilimi. Görsel bulgular, uyumluluk
+      önerisi ve A–F sırası [bitki planı §9.1](PROCEDURAL_VEGETATION_AND_PROPS_PLAN.md#91-vegetation-20-denetimi-ve-ilk-editör-dilimi).
 - [ ] Faz kapısı: referans açık dünya sahnelerinde görsel + performans kabulü;
       terrain collider ile eşleşiyor.
 

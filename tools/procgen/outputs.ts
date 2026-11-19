@@ -3,7 +3,7 @@
 
 import { createHash } from "node:crypto";
 import { ASSET_META_SCHEMA, stringifyDocument, type JsonObject } from "../../src/core/index.ts";
-import { stableHex } from "../../src/engine/forgeImport/ids.ts";
+export { generatedOutputId as outputId, srgbTriple } from "../../src/engine/procgen/recipeOutput.ts";
 import { PROJECT_LICENSE } from "../import-forge-webgl/provenance.ts";
 
 /** Bumped with every change to a generator that alters its output (written to the recipe's outputs). */
@@ -23,14 +23,7 @@ export interface GeneratedRecord { readonly recipe: string; readonly generator: 
 export const GENERATED_MODEL_OPTIMIZE = { enabled: false, maxTextureSize: 1024, keepNormals: true, meshopt: false, stripTextures: false } as const;
 
 export const sha256 = (bytes: Uint8Array | string): string => createHash("sha256").update(bytes).digest("hex");
-/** An output's GUID: the recipe's GUID and the output's role, never its path. */
-export const outputId = (recipe: string, role: string): string => `ast_${stableHex(`procgen/${recipe}/${role}`)}`;
 export const round = (value: number): number => Math.round(value * 1e5) / 1e5;
-
-export function srgbTriple(hex: string): [number, number, number] {
-  const value = Number.parseInt(hex.slice(1), 16);
-  return [((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255];
-}
 
 export function binaryWithMeta(
   outputs: Output[], path: string, id: string, type: string, bytes: Uint8Array,

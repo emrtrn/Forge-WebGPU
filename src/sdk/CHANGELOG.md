@@ -8,6 +8,15 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.13
+
+API: 99e95314c9991702
+
+An asset editor can register a labelled `publish` action. Its callback receives
+the validated draft, file path and base revision. The shared window owns the
+busy state, conflict handling and reload after publication. The tree recipe
+uses it to save the draft and generated family together.
+
 ## 0.1.12
 
 API: 188fc6a99722ea29

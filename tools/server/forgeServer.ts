@@ -56,6 +56,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
+import { Worker } from "node:worker_threads";
+import type { GenerateOptions } from "../procgen/generate.ts";
 import { DATA_DOCUMENT_TYPES, type AssetIndex, type JsonObject } from "../../src/core/index.ts";
 import { buildContentListing } from "../assets/contentListing.ts";
 import { planContentOp, type ContentOp, type ContentPlan } from "../assets/contentOps.ts";
@@ -218,6 +220,46 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
   });
   // Uploads do not outlive the server: a save names them within one session.
   await rm(stagingDir, { recursive: true, force: true });
+
+  let bakingTree = false;
+  const bakeTree = async (req: IncomingMessage, res: ServerResponse) => {
+    let input;
+    try { input = JSON.parse((await readBody(req, 256 * 1024)).toString("utf8")); }
+    catch (error) { send(res, error instanceof BodyTooLarge ? 413 : 400, { message: "Invalid tree bake request." }); return; }
+    const { document, base, path } = input ?? {};
+    if (typeof path !== "string" || typeof base !== "string" || !THUMBNAIL_REVISION.test(base) || typeof document?.id !== "string") {
+      send(res, 400, { message: "Expected a tree recipe, path and saved revision." }); return;
+    }
+    const entry = (await current()).index.entries.get(document.id);
+    if (!entry || entry.type !== "forge.treeRecipe" || `${entry.root}/${entry.path}` !== path) {
+      send(res, 404, { message: "Tree recipe no longer exists at this path." }); return;
+    }
+    if (!writableLabel(entry.root)) { send(res, 403, { message: "This recipe is read-only." }); return; }
+    const codeRoot = options.engineRoot ?? resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+    let target: GenerateOptions;
+    if (path.startsWith(ENGINE_LABEL_PREFIX)) {
+      const pack = /^engine:content\/packs\/([a-z][a-z0-9-]*)$/.exec(entry.root)?.[1];
+      if (!pack || !engine || !options.engineContent) { send(res, 403, { message: "Generate into a writable content pack or project." }); return; }
+      const recipe = engine.request({ writes: [{ path, base, text: "" }] }).writes![0]!.path;
+      target = { engineRoot: options.engineContent.root, pack, recipe };
+    } else {
+      target = { engineRoot: codeRoot, projectRoot: policy.root, recipe: resolveWritablePath(policy, path).relative };
+    }
+    if (bakingTree) { send(res, 409, { message: "Another tree family is being generated." }); return; }
+    bakingTree = true;
+    try {
+      const result = await new Promise<SaveResult>((accept, reject) => {
+        const worker = new Worker(join(codeRoot, "tools/procgen/editorBakeWorker.ts"), {
+          execArgv: [], workerData: { ...target, force: true, editorDraft: { document, base } },
+        });
+        worker.once("message", accept);
+        worker.once("error", reject);
+        worker.once("exit", code => reject(new Error(`Tree bake ended before replying (${code}).`)));
+      });
+      if (result.status === "saved") await authoring.rescan();
+      send(res, STATUS_OF[result.status], target.pack ? engineContentResult(result) : result);
+    } finally { bakingTree = false; }
+  };
 
   const hlod = async (req: IncomingMessage, url: URL, res: ServerResponse): Promise<void> => {
     if (options.readOnly) {
@@ -540,6 +582,7 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
     const route = `${req.method ?? "GET"} ${url.pathname}`;
     const routes: Readonly<Record<string, () => Promise<void>>> = {
       "POST /__forge/save": () => save(req, res),
+      "POST /__forge/tree-bake": () => bakeTree(req, res),
       "POST /__forge/hlod": () => hlod(req, url, res),
       "GET /__forge/hlod": () => hlod(req, url, res),
       "POST /__forge/stage-binary": () => stage(req, res),

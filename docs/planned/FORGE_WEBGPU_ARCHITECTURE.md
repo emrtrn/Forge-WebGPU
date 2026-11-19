@@ -1258,6 +1258,11 @@ düşen alan uyarı değil, **hatadır**.
     (üretici başına tür); `npm run forge -- generate` çıktıyı tarifin yanına
     kalıcı asset olarak kayıt servisinden yazar; GUID tarif GUID'i + rolden
     türer, yeniden üretim aynı baytları yazar, var olan çıktı `--force` ister.
+    Ağaç tarifinin editör önizlemesi ortak canvas'ta tarayıcı worker'ının ürettiği
+    geometriyi ve tarif materyallerini kullanır. `Save` yalnız tarif belgesini yazar.
+    `Generate & Save Family` geliştirme sunucusunda kayıt revizyonunu taşıyan taslağı
+    ve aile çıktısını aynı işlemde yayımlar. Bu işlemi editör SDK'sındaki isteğe
+    bağlı `AssetEditorPresentation.publish` sağlar (0.1.13).
   - *İçe aktarılan asset'lerin kökeni (kullanıcı kararı 2026-11-12):* lisans
     sorumluluğu kullanıcıdadır; lisansı bilinmeyen Forge asset'i de alınır,
     oyun projesine girmez (kullanıcı kendi varlıklarını üretene kadar durur;

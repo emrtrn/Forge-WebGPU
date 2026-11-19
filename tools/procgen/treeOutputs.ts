@@ -23,13 +23,10 @@ import type { JsonObject } from "../../src/core/index.ts";
 import type { BakeTexture } from "../../src/engine/procgen/bake/rasterizer.ts";
 import { writeGlb, type GlbPrimitive } from "../../src/engine/procgen/glb.ts";
 import { meshBounds } from "../../src/engine/procgen/mesh.ts";
-import { bakeLeafTexture } from "../../src/engine/procgen/texture/leafTexture.ts";
-import { bakeLeafAtlas } from "../../src/engine/procgen/tree/treeCards.ts";
+import { treeRecipeAtlas } from "../../src/engine/procgen/tree/treeRecipe.ts";
 import { generateTree } from "../../src/engine/procgen/tree/treeGenerator.ts";
 import { bakeTreeImpostor, type TreeImpostorSurface } from "../../src/engine/procgen/tree/treeImpostor.ts";
-import { normalizeTreeParams } from "../../src/engine/procgen/tree/treeParams.ts";
-import { buildTreeSkeleton } from "../../src/engine/procgen/tree/treeSkeleton.ts";
-import { binaryWithMeta, documentOutput, GENERATED_MODEL_OPTIMIZE, GENERATOR_VERSIONS, outputId, round, srgbTriple, type Output } from "./outputs.ts";
+import { binaryWithMeta, documentOutput, GENERATED_MODEL_OPTIMIZE, GENERATOR_VERSIONS, outputId, round, type Output } from "./outputs.ts";
 import { encodeRgbaKtx2 } from "./ktx2.ts";
 
 /** How a material looks to the bake (generate.ts reads it from the material document). */
@@ -67,16 +64,6 @@ function leafMeanHex(rgba: Uint8Array, width: number): string | null {
   return `#${[r, g, b].map((c) => toSrgbByte(c / weight).toString(16).padStart(2, "0")).join("")}`;
 }
 
-/** The recipe's fields the tree generator reads. */
-function treeInput(data: JsonObject, seed: number): Record<string, unknown> {
-  const leaves = data.leaves as JsonObject;
-  return {
-    seed, habit: data.habit, height: data.height, trunkRadius: data.trunkRadius, taper: data.taper, flare: data.flare,
-    crownStart: data.crownStart, irregularity: data.irregularity, levels: data.levels,
-    leaves: { perStem: leaves.perStem, size: leaves.size, cards: leaves.cards, clusters: leaves.clusters }, lods: data.lods,
-  };
-}
-
 export async function treeOutputs(
   recipeId: string, data: JsonObject, folder: string, stem: string, stats: string[],
   looks: { readonly wood: MaterialLook | null; readonly leaf: MaterialLook | null } = { wood: null, leaf: null },
@@ -84,23 +71,13 @@ export async function treeOutputs(
   const outputs: Output[] = [];
   const version = GENERATOR_VERSIONS.tree;
   const generated = { recipe: recipeId, generator: "tree", generatorVersion: version };
-  const leaves = data.leaves as JsonObject;
-  const card = leaves.texture as JsonObject;
   const materials = data.materials as { wood: string | null; leaf: string | null };
   const lods = data.lods as Array<JsonObject & { screenSize: number }>;
   const impostorSettings = (data.impostor ?? { enabled: false }) as { enabled: boolean; views: number; frameSize: string; screenSize: number };
   const seeds = [...new Set((data.variants as number[] | undefined) ?? [1])];
 
   const leafStarted = performance.now();
-  const twigColor = srgbTriple(String(card.twigColor));
-  const leafTexture = bakeLeafTexture({
-    seed: seeds[0] ?? 1, kind: card.kind, size: Number(card.size), count: card.count,
-    leafColor: srgbTriple(String(card.leafColor)), twigColor,
-  });
-  const firstParams = normalizeTreeParams(treeInput(data, seeds[0] ?? 1));
-  const firstSkeleton = buildTreeSkeleton(firstParams);
-  if ("error" in firstSkeleton) throw new Error(`seed ${seeds[0]}: ${firstSkeleton.error}`);
-  const leafAtlas = bakeLeafAtlas(firstParams, firstSkeleton, { width: leafTexture.size, height: leafTexture.size, rgba: leafTexture.rgba }, twigColor);
+  const leafAtlas = treeRecipeAtlas(data);
   // Stored for the leaf material's flip (without one the GLB's own "Leaf", drawn the generated way: flipped).
   const leafBytes = await encodeRgbaKtx2(leafAtlas.size, leafAtlas.size, leafAtlas.rgba, { srgb: true, flipY: looks.leaf?.flipY ?? true });
   const leafTextureId = outputId(recipeId, "tree/leafTexture");
@@ -124,7 +101,7 @@ export async function treeOutputs(
   const prototypes: JsonObject[] = [];
   for (const [prototype, seed] of seeds.entries()) {
     const started = performance.now();
-    const result = generateTree(treeInput(data, seed), { atlas: leafAtlas.atlas });
+    const result = generateTree({ ...data, seed }, { atlas: leafAtlas.atlas });
     if (!result.ok) throw new Error(`seed ${seed}: ${result.report.message}`);
     const lodIds: string[] = [];
     let height = 0;

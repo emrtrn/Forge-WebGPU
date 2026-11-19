@@ -30,6 +30,8 @@ export default defineGameModule({ id:'starter.assets', features:[defineFeature({
   await writeFile(disk(`${FOLDER}/cube.glb`), cubeGlb());
   await write(`${FOLDER}/cube.glb.meta.json`, { schema: "forge.assetMeta/1", id: MODEL, type: "forge.model@2", license: "CC0-1.0", source: { origin: "asset editor smoke" }, import: { materials: [MATERIAL] } });
   await write(`${FOLDER}/surface.material.json`, { schema: "forge.material/1", id: MATERIAL, baseColor: "#aa2200", roughness: 0.5 });
+  const tree = JSON.parse(await readFile(join(REPO, "content/packs/starter/procgen/trees/Broadleaf.treerecipe.json"), "utf8"));
+  await write(`${FOLDER}/grove.treerecipe.json`, { ...tree, id: `ast_${"a".repeat(31)}5`, variants: [1], impostor: { ...tree.impostor, views: 4, frameSize: "64" } });
   await write(`${FOLDER}/item.actor.json`, { schema: "forge.actorClass/1", id: CLASS, name: "Item", components: { shape: { type: "forge.shape@2", primitive: "cube", color: "#c8c8c8" } } });
   await write(`${FOLDER}/data.values.json`, { schema: "test.values/1", id: DATA, title: "Values", rows: Array.from({ length: 1000 }, (_, index) => ({ label: `Row ${index}`, value: index % 100 })) });
   await write(`${LEVEL}/level.json`, { schema: "forge.level/1", id: `lvl_${"c".repeat(32)}`, actors: [
@@ -80,6 +82,57 @@ async function previewShot(page: Page, name: string, info: TestInfo) {
   await page.screenshot({ path: join(REPO, ".forge-cache/asset-editor-visual", `${name}-window-${WEBGL_QUERY ? "webgl" : "webgpu"}.png`) });
   await info.attach(`${name}-preview`, { body: shot, contentType: "image/png" });
 }
+
+test("tree recipe edits the live variant, publishes a family and reopens the saved draft", async ({ page }, info) => {
+  const errors = await open(page);
+  await asset(page, "grove.treerecipe.json");
+  const preview = page.getByTestId("asset-editor-preview");
+  const ready = () => expect(preview).toHaveAttribute("data-preview-ready", "1", { timeout: 35000 });
+  const height = page.getByTestId("asset-field-height");
+  await height.fill("10"); await height.press("Tab");
+  await height.fill("11"); await height.press("Tab");
+  const variant = page.getByTestId("asset-field-variants[0]");
+  await variant.fill("7"); await variant.press("Tab");
+  await ready(); await expect(preview.getByLabel("Seed")).toHaveValue("7");
+  await expect(page.getByTestId("tree-preview-stats")).toContainText("triangles");
+  await previewShot(page, "tree-broadleaf-seed7", info);
+  await preview.getByLabel("LOD").selectOption("2");
+  const triangles = Number((await page.getByTestId("tree-preview-stats").innerText()).split(" ")[0]!.replaceAll(",", ""));
+  expect(triangles).toBeLessThanOrEqual(800);
+  expect((await json(`${FOLDER}/grove.treerecipe.json`)).height).toBe(12);
+  await page.getByTestId("asset-editor-generate").click();
+  await expect(page.getByTestId("asset-editor-status")).toContainText("Generated and saved", { timeout: 60000 });
+  const family = await json(`${FOLDER}/grove/grove.plantfamily.json`);
+  expect(family.prototypes.map((p: {seed: number}) => p.seed)).toEqual([7]);
+  expect(family.prototypes[0].lods).toHaveLength(3);
+  expect((await json(`${FOLDER}/grove/grove_7.foliagetype.json`)).family).toBe(family.id);
+  await close(page); await asset(page, "grove.treerecipe.json");
+  await ready(); await expect(height).toHaveValue("11");
+  await expect(preview.getByLabel("Seed")).toHaveValue("7"); expect(errors).toEqual([]);
+});
+
+test("tree recipe previews starter species, seeds and LODs in a read-only pack", async ({ page }, info) => {
+  const errors = await open(page);
+  await asset(page, "grove.treerecipe.json");
+  for (const [name, id] of [["broadleaf", "ast_1cc830feab66656728f8bf965079b68a"], ["conifer", "ast_fd4f39c78d58ef550273be682359d194"]] as const) {
+    await page.getByTestId("asset-editor-open").click();
+    await page.locator(`[data-testid="asset-open-picker-item"][data-id="${id}"]`).click();
+    await expect(page.getByTestId("asset-editor")).toHaveAttribute("data-asset-id", id);
+    await expect(page.getByTestId("asset-editor-generate")).toBeDisabled();
+    const preview = page.getByTestId("asset-editor-preview");
+    for (const seed of ["1", "3"]) {
+      await preview.getByLabel("Seed").selectOption(seed);
+      await expect(preview).toHaveAttribute("data-preview-ready", "1", { timeout: 35000 });
+      await previewShot(page, `tree-${name}-seed${seed}`, info);
+    }
+    const bounds = (await preview.boundingBox())!;
+    await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    await page.mouse.wheel(0, -850);
+    await previewShot(page, `tree-${name}-branch-detail`, info);
+    await page.getByTestId("asset-editor-focus").click();
+  }
+  await close(page); expect(errors).toEqual([]);
+});
 
 test("game JSON data: virtual table, compound row form, undo, canonical save and reopen", async ({ page }) => {
   const errors = await open(page); await asset(page, "data.values.json");

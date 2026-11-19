@@ -1,8 +1,11 @@
 // Public editor extension contracts deliberately contain no three types.
 import type { FormField, SchemaRegistry } from "../../core/index.ts";
 import type { AssetCatalog } from "../assets/assetCatalog.ts";
+import type { SaveResponseBody } from "../../core/index.ts";
 import type { AssetPreviewController } from "../../core/index.ts";
 export type { AssetPreviewController, AssetPreviewInfo } from "../../core/index.ts";
+/** Publishes the checked draft and its derived assets in one revision-checked transaction. */
+export type AssetPublisher = (path: string, base: string, document: Readonly<Record<string, unknown>>) => Promise<SaveResponseBody>;
 export interface AssetEditorExtensionContext {
   readonly document: Document;
   readonly registry: SchemaRegistry;
@@ -24,6 +27,7 @@ export interface AssetEditorPresentation {
   readonly assetType: string;
   /** A key registered by an editorRender module, never a renderer in the DOM SDK. */
   readonly preview?: string;
+  readonly publish?: { readonly label: string; readonly run: AssetPublisher };
   /** Field paths handled by tools instead of the generated form (large vertex arrays). */
   readonly handledFields?: readonly string[];
   readonly tools?: (context: AssetEditorExtensionContext) => AssetEditorExtension;

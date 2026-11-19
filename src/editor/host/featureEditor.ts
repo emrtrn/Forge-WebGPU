@@ -238,6 +238,7 @@ export function defineFeatureEditor(options: FeatureEditorOptions): FeatureEdito
     if (!COMPONENT_NAME_PATTERN.test(editor.assetType)) throw new SchemaDefinitionError("Asset editor needs a namespaced asset type.");
     if (editor.preview !== undefined && !COMPONENT_NAME_PATTERN.test(editor.preview)) throw new SchemaDefinitionError("Asset preview needs a namespaced key.");
     if (editor.tools !== undefined && typeof editor.tools !== "function") throw new SchemaDefinitionError("Asset tools must be a function.");
+    if (editor.publish && (!editor.publish.label?.trim() || typeof editor.publish.run !== "function")) throw new SchemaDefinitionError("Asset publication requires a label and a callback.");
   }
   return Object.freeze({
     kind: "featureEditor",

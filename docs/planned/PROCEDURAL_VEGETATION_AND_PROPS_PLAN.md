@@ -1,6 +1,7 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.11 · 2026-11-19 (kullanıcı PG3 / PV-WES görsel kabulünü verdi; kabuk / kaya
+**Sürüm:** v0.12 · 2026-11-19 (Vegetation 2.0 denetimi ve ağaç tarif editörünün ilk dilimi, §9.1).
+Önceki: v0.11 · 2026-11-19 (kullanıcı PG3 / PV-WES görsel kabulünü verdi; kabuk / kaya
 dokuları da KTX2). Önceki: v0.10 (PG3 kapandı: KTX2 atlaslar, §8 ölçüldü, PK7 ölçümle odun /
 yaprak ayrımı, PV-WES-01–08 kanıtları). Önceki: v0.9 (PG0 ve PG2 kapandı: iki
 ağaç, ortak WES tepkisi, foliage rüzgârı). v0.8 (PG1 kapandı: kaya GLB çıktısı, `forge generate`,
@@ -8,7 +9,7 @@ taş doku tarifi, triplanar + `variation`, A / C ölçümü).
 
 **Önceki sürüm:** v0.6 · 2026-11-14 (WES ile birleşik bitki ailesi, ortak çalışma
 zamanı davranışı ve 5c ile birlikte ilerleyen üretim dilimi; kullanıcı kararı).
-**Durum:** PG0–PG3 uygulandı (5c ile, 2026-11-17 – 2026-11-19); PG4–PG7 bekliyor.
+**Durum:** PG0–PG3 uygulandı (5c ile, 2026-11-17 – 2026-11-19). PG5'in ağaç tarif editörüne başlandı. PG4 ve PG5 kapıları açık. PG6–PG7 ileride.
 Başlama koşulu §2'de.
 **İlgili belgeler:** [yeniden inşa planı](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
 sırası; küçük üretim dilimi 5c ile birlikte, tam araçlar 5d ile ilerler),
@@ -654,6 +655,101 @@ three sıkıştırılmış dokuyu 1 bayt sayar). Doku belleği 1 B/texel sınıf
   yazılan dosyalar).
 - Tarif alanları JSON Schema ile doğrulanır; hata alan yolunu gösterir.
 - Önizleme sayfası (§7.3) aynı CPU rasterleyiciyle Node'da üretilebilir.
+
+### 9.1 Vegetation 2.0 denetimi ve ilk editör dilimi
+
+**19 Kasım 2026.** Ağaç biçiminde darboğaz iskeletin üretim kuralı.
+Broadleaf'te ana dal uzunluğu ortada en geniş olan tek bir eğriye bağlı.
+Conifer'de gövde düz, ana dallar dört dalda bir aynı yükseklikten çıkıyor.
+Her ebeveyn aynı seviyenin sabit sayıda çocuğunu üretiyor. Seed dal açısını,
+uzunluğunu, eğriliğini ve yaprak yerleşimini değiştiriyor. Türün büyüdükçe
+çatallanmasını, bağımsız taç genişliğini, en geniş noktasını veya doluluğunu
+tarifle yönetmek bugün mümkün değil. `crownStart` yalnız başlangıcı belirliyor.
+
+| Parça | Karar | Dayanak ve sonraki değişiklik |
+|---|---|---|
+| `treeParams`, `treeSkeleton` | Yeniden tasarla | Sap kimliği, ebeveyn, eğri ve yarıçap çıktısını koru. Yeni sürümde türün dallanma düzeni, taç zarfı, sap sayısı ve yaşa göre oranlar veriyle seçilebilsin. |
+| `treeMesh` | İyileştir | Yay uzunluğu, taşınan kesit çerçevesi, UV ve rüzgâr ağırlıkları kullanılabilir. Tüpler kesişiyor. Ana dal birleşiminde yaka geometrisini çıplak yakın planda dene. |
+| `leafTexture`, `treeCards` | İyileştir | İki yaprak çizim kuralı ve ilk seed'in terminal dallarından paylaşılan atlas var. Tür bazlı yaprak/dalcık biçimi, kümelerin açısı ve alfa mip örtüsünü karşılaştır. |
+| `treeGenerator`, LOD planlayıcı, `bake`, `treeImpostor` | Koru | Ortak iskelet, kararlı küme kimliği, mesh üretiminden önce üçgen sınırı, ayrı odun/yaprak atlasları ve çok açılı bake var. Azalan LOD'ların taç örtüsü ayrıca kabul edilmeli. |
+| `surfaceTexture`, GLB/KTX2, kaya üretimi | Koru | Kabukta renk/normal/ORM ayrı üretiliyor. Rounded ve Angular kaya tarifleri kendi topolojisi ve collider'ıyla aynı kayıt zincirini kullanıyor. Yakın plan kabuk ayrıntısı malzeme çalışması gerektiriyor. |
+| `features/plant`, `features/procgen`, `render/plant`, `render/foliage` | Koru | Tarif, aile ve örnek ayrı. Tekil bitki ve foliage aynı aileyi, batch ve WES tepkisini kullanıyor. Yeni türler paket/proje tarifi olabilir. |
+| `tools/procgen` ve asset editörü | İyileştir | Aynı saf üretici Node ve worker'da çalışıyor. Şema formu, belge geçmişi, revizyonlu kayıt, Content Browser ve GPU host'u ilk dilimi taşıyor. Aile onayı ve World Builder çözümlemesi açık. |
+
+**Görsel baz çizgisi.** Yerel video paketinde kare 0000 kaynak / LOD / impostor
+karşılaştırmasını, panel kesitlerinde tür, yaş, genişlik, doluluk ve sayaçlar
+görülüyor (Ek A). Forge'da Derekavak'ın mevcut 16 WebGPU karesi aynı kamerada
+yaz, sonbahar, kış ve karlı kışı dört temsilde gösteriyor. Yazın Broadleaf
+LOD0'da küçük ve aralıklı yaprak kümeleri var. LOD1'de kümeler belirgin
+koyulaşıyor, LOD2'de taçta boşluklar büyüyor. Kışın ön plandaki çıplak dallar
+okunuyor. Aynı yakın kamerada impostor odunu kalın ve kesintili çiziyor.
+Zorlanmış LOD görüntüsünden doğal geçiş mesafesinde sıçrama veya rüzgârın
+hareket kalitesi hakkında karar verilemez. Asıl kareler referans projesinin
+`render-refs/candidates/pg3-wes03-*.png` dizininde. §8'deki orman ölçümü
+önceki PG3 koşusuna ait.
+
+Editördeki yeni WebGPU çekimlerinde Broadleaf 1 ve 3'ün dal yönleri ve boşlukları
+değişiyor, taç profilleri birbirine yakın kalıyor. Yakın planda aynı biçimli
+yaprak demetleri ve ana dalların gövdeye keskin girişleri seçiliyor. Conifer'in
+iğneleri tam ağaç kadrajında zayıf okunuyor. Yakınlaşınca ince iğne kümeleri ve
+gövde etrafındaki düzenli katlar görülüyor. İlk kalite denemesinde dal yaka
+profilini, tacın iç/dış yoğunluğunu ve iğne atlasının mip düzeylerindeki
+örtüsünü ayrı ayrı karşılaştır. Editör, WES'siz denetim ışığı kullanıyor.
+
+| Starter, seed 1 / 2 / 3 | Sap | Yaprak kümesi | LOD0 üçgen | LOD1 üçgen | LOD2 üçgen |
+|---|---:|---:|---|---|---|
+| Broadleaf | 295 | 840 | 17.529 / 17.667 / 17.419 | 3.437 / 3.437 / 3.431 | 705 / 711 / 693 |
+| Conifer | 193 | 800 | 14.097 / 14.115 / 14.057 | 3.156 / 3.180 / 3.162 | 648 / 636 / 636 |
+
+**İlk dilimin kanıtı.** `tests/editor/assets.spec.ts` içindeki iki
+`tree recipe` senaryosu gerçek WebGPU'da ve `forceWebGL` ile geçti.
+Yazılabilir proje tarifinde yükseklik ve seed değişti, üç LOD'lu aile kaydedilip
+yeniden açıldı. Salt okunur pakette iki tür ve iki seed gösterildi. Yeni
+çekimler `.forge-cache/asset-editor-visual/tree-*-webgpu.png` altında.
+WebGPU'da tam atlaslı ilk seed için worker sayacı yaklaşık 2 saniye, aynı
+atlasla seed 3 için Broadleaf'te 50 ms ve Conifer'de 32 ms gösterdi. Bunlar
+tek koşunun worker süreleri. Girişten ekrana gecikme ve GPU süresi ayrıca
+ölçülmeli. İki starter tarifinin 36'şar mevcut çıktısı CLI dry-run'da aynı
+baytları verdi. Revizyon çakışması ve sap bütçesini aşan taslak için üretimin
+tarifi koruduğu ve aile yazmadığı odaklı testte doğrulandı.
+
+Bir tarif kopyalandığında materyal GUID'leri korunur. Kopyanın yaprak materyali
+hâlâ kaynak ağacın atlasına bağlıysa, kopyadaki yaprak doku ayarları yeni
+atlasın piksellerini değiştirir ama o materyal kaynak atlası göstermeye devam
+eder. Aile onay ekranında materyal ve atlas sahipliği görünür olmalı.
+
+**Uyumluluk önerisi.** Starter tarifleri `forge.treeRecipe/1` ve
+`generatorVersion: 1` taşıyor. Bugünkü CLI üreticisi aile ve meta dosyalarına
+3 yazıyor. Tarif değeri şu anda algoritma seçmiyor. Yeni morfolojiden önce
+mevcut tarifleri eski uygulamaya açıkça yönlendiren sürüm seçici gerekli.
+Yeni kontroller yalnız yeni sürümün şemasında açılmalı. Bir tarifin kopyasında
+aynı seed, ışık, kamera ve LOD ile iki üreticiyi karşılaştır. Kullanıcı görsel
+onayından sonra isteğe bağlı geçiş sun. Aile/prototip sırası, çıktı GUID'leri,
+var olan dosyalar ve sahne yerleşimleri geçişin ayrı kabul noktalarıdır.
+
+**Uygulama sırası**
+
+1. **A — Baz çizgisi.** Derekavak matrisi ve iki starter türün tekil seed
+   çekimleri. Kışın yakın dal birleşimi, doğal uzaklaşma ve hareketli rüzgâr
+   için ayrı inceleme gerekiyor.
+2. **B — Ağaç tarifi.** Content Browser'da tarifi aç, yüksekliği veya varyant
+   tohumunu değiştir. Alttan seed ve mesh LOD'unu seç. Kamera sürüklemeyle
+   döner, tekerlek yaklaşır, Shift+sürükleme kaydırır, Focus yeniden çerçeveler.
+   Worker kısa bir düzenleme aralığından sonra düşük çözünürlüklü atlası,
+   ardından tarif çözünürlüğünü verir. Sayaçtaki süre worker CPU süresidir.
+   Save tarifi, Generate & Save Family ise tarifi ve ailesini birlikte kaydeder.
+   Salt okunur pakette önizleme kullanılabilir. Kalıcı üretim proje kopyasında
+   veya açıkça açılan paket düzenleme kipinde yapılır. CLI ile aynı GLB/KTX2
+   üreticisi kullanılır. Alan hatası ve revizyon çakışmasında taslak korunur.
+3. **C — Tür ve yaş.** İki farklı türde genç/olgun, yaz/çıplak ve en az üç seed
+   ile dallanma, birleşim, taç örtüsü ve materyal çalışmasını karşılaştır.
+4. **D — PG4.** Çok saplı çalı ve şerit/demet ot ayrı üreticilerden aynı editöre
+   bağlanır. §8 bütçeleriyle başla, otun seyrelmesini hareketli kamerada ölç.
+5. **E — PG5 editörü.** Yan yana Source/LOD/impostor, galeri, WES, bellek,
+   aile onayı ve çalı/ot/kaya sunumlarını tamamla.
+6. **F — 5d.** Var olan ground cover ve rol çözümlemesine tarif/aile başvurusu
+   ile `generated` kaynağını ekle. Üretilen dünyada kaya rollerini, tekil
+   bitkiyi ve foliage yerleşimini kaydet–yeniden aç üzerinden doğrula.
 
 ---
 

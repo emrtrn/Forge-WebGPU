@@ -29,12 +29,12 @@ import {
 import { writeGlb } from "../../src/engine/procgen/glb.ts";
 import { generateRock } from "../../src/engine/procgen/rock/rockGenerator.ts";
 import { bakeSurfaceTexture } from "../../src/engine/procgen/texture/surfaceTexture.ts";
-import { engineContentRoots } from "../assets/engineContent.ts";
+import { engineContentRoots, packWithRequired } from "../assets/engineContent.ts";
 import { loadEngineRegistry } from "../assets/engineRegistry.ts";
 import { fileRevision } from "../assets/revision.ts";
 import { scanRoots } from "../assets/scan.ts";
 import { createClassStore, createDocumentCheck } from "../save/documentCheck.ts";
-import { createSaveService, type SaveDelete, type SaveWrite } from "../save/transaction.ts";
+import { createSaveService, type SaveDelete, type SaveWrite, type SaveResult } from "../save/transaction.ts";
 import { createWritePolicy } from "../server/projectPaths.ts";
 import { openWorldProject } from "../world/worldProject.ts";
 import { binaryWithMeta, GENERATED_MODEL_OPTIMIZE, GENERATOR_VERSIONS, outputId, round, srgbTriple, type GeneratorName, type Output } from "./outputs.ts";
@@ -57,11 +57,14 @@ export interface GenerateOptions {
   readonly recipe: string;
   readonly force?: boolean;
   readonly dryRun?: boolean;
+  /** Editor publication saves this draft and its outputs under the same revision lock. */
+  readonly editorDraft?: { readonly base: string; readonly document: JsonObject };
 }
 
 export interface GeneratedFileReport { readonly path: string; readonly status: "new" | "changed" | "unchanged" }
 
 export interface GenerateResult {
+  readonly publication?: Extract<SaveResult, { status: "saved" }>;
   readonly recipe: string;
   readonly generator: GeneratorName;
   readonly generatorVersion: number;
@@ -71,6 +74,14 @@ export interface GenerateResult {
   readonly stats: readonly string[];
   readonly warnings: readonly string[];
   readonly milliseconds: number;
+}
+
+export class RecipeSaveConflict extends Error {
+  readonly response: Extract<SaveResult, { status: "conflict" }>;
+  constructor(conflicts: Extract<SaveResult, { status: "conflict" }>["conflicts"]) {
+    super(`Files changed meanwhile: ${conflicts.map(conflict => conflict.path).join(", ")}`);
+    this.response = { status: "conflict", conflicts };
+  }
 }
 
 interface Target {
@@ -88,7 +99,8 @@ async function openTarget(options: GenerateOptions): Promise<Target> {
     if (!PACK_ID.test(options.pack)) throw new Error(`not a content pack id: ${options.pack}`);
     const folder = `content/packs/${options.pack}`;
     const registry = await loadEngineRegistry(options.engineRoot);
-    const roots = [...engineContentRoots(options.engineRoot, []), { label: folder, dir: join(options.engineRoot, folder) }];
+    const required = (await packWithRequired(options.engineRoot, options.pack)).slice(1);
+    const roots = [...engineContentRoots(options.engineRoot, required), { label: folder, dir: join(options.engineRoot, folder) }];
     const index = buildAssetIndex((await scanRoots(roots)).files, { strict: true, registry });
     return { root: options.engineRoot, writableRoots: [folder], registry, index };
   }
@@ -252,11 +264,46 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
   if (!entry) throw new Error(`no asset at ${label}`);
   if (!target.writableRoots.some((root) => label.startsWith(`${root}/`))) throw new Error(`${label} is not in a writable content root of the target`);
   const def = target.registry.getAssetType(entry.type);
-  const doc = target.index.jsonAssets.get(entry.id) as JsonObject | undefined;
+  let doc = target.index.jsonAssets.get(entry.id) as JsonObject | undefined;
   if (!def || !isJsonAssetType(def) || !doc) throw new Error(`${label} is not a readable recipe`);
+  const draft = options.editorDraft;
+  if (draft) {
+    if (entry.type !== "forge.treeRecipe" || draft.document.id !== entry.id || draft.document.generatorVersion !== doc.generatorVersion ||
+      Number(doc.generatorVersion) > GENERATOR_VERSIONS.tree) throw new Error("Unsupported tree recipe identity or generator version.");
+    const checked = normalizeJsonAsset(def, draft.document, { strict: true });
+    if (!checked.ok || !checked.value) throw new Error(checked.issues.map(issue => `${issue.path} ${issue.message}`).join("\n"));
+    doc = checked.value as JsonObject;
+    const saved = await readFile(join(target.root, label));
+    const revision = fileRevision(saved);
+    if (revision !== draft.base) throw new RecipeSaveConflict([{ path: label, base: draft.base, current: revision }]);
+    const materials = doc.materials as JsonObject;
+    for (const guid of [materials.wood, materials.leaf]) {
+      if (typeof guid === "string" && target.index.entries.get(guid)?.type !== "forge.material") throw new Error(`Missing tree material ${guid}`);
+    }
+    // A directly placed family can name a prototype by index. Generated foliage types are updated in this transaction.
+    const familyId = outputId(entry.id, "tree/family");
+    const family = target.index.jsonAssets.get(familyId) as JsonObject | undefined;
+    const published = (family?.prototypes as JsonObject[] | undefined) ?? [];
+    const types = new Set(published.map(p => outputId(entry.id, `tree/${p.seed}/foliageType`)));
+    const seeds = [...new Set(doc.variants as number[])];
+    if (published.some((prototype, i) => prototype.seed !== seeds[i]) && target.index.referrersOf(familyId).some(ref => !types.has(ref.from))) {
+      throw new Error("An asset uses this family by prototype index. Keep the published seed order or generate a new recipe.");
+    }
+  }
   const suffix = def.json.suffix;
   const dir = posix.dirname(label), stem = posix.basename(label).slice(0, -suffix.length);
   const folder = `${dir}/${stem}`;
+  const bases = new Map<string, string>();
+  if (draft) {
+    for (const asset of target.index.entries.values()) {
+      const path = fileLabel(asset.root, asset.path);
+      if (!path.startsWith(`${folder}/`)) continue;
+      for (const file of asset.meta ? [path, fileLabel(asset.root, asset.meta)] : [path]) {
+        const bytes = await readOrNull(join(target.root, file));
+        if (bytes) bases.set(file, fileRevision(bytes));
+      }
+    }
+  }
   const stats: string[] = [], warnings: string[] = [];
   let generator: GeneratorName;
   let outputs: Output[];
@@ -313,17 +360,20 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
   }
 
   const files: GeneratedFileReport[] = [];
-  const writes: SaveWrite[] = [];
+  const writes: SaveWrite[] = draft ? [{ path: label, base: draft.base, text: stringifyDocument(doc) }] : [];
   const staging = options.dryRun ? null : await mkdtemp(join(target.root, ".forge-staging-generate-"));
+  let publication: GenerateResult["publication"];
   try {
     let staged = 0;
     for (const output of outputs) {
       const current = await readOrNull(join(target.root, output.path));
+      if (draft && current && !owned.has(output.path)) throw new Error(`Cannot replace unowned output ${output.path}`);
+      const base = current === null ? null : fileRevision(current);
+      if (draft && base !== (bases.get(output.path) ?? null)) throw new Error(`Output changed during generation: ${output.path}`);
       const next = output.bytes ?? new TextEncoder().encode(output.text!);
       const same = current !== null && current.length === next.length && current.every((byte, i) => byte === next[i]);
       files.push({ path: output.path, status: current === null ? "new" : same ? "unchanged" : "changed" });
       if (same || !staging) continue;
-      const base = current === null ? null : fileRevision(current);
       if (output.bytes) {
         const file = join(staging, `${(staged += 1)}.bin`);
         await writeFile(file, output.bytes);
@@ -333,25 +383,32 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
       }
     }
     const removed = [...owned.keys()].filter((path) => !planned.has(path)).sort();
+    if (draft) for (const path of removed) {
+      if (!path.startsWith(`${folder}/`)) throw new Error(`Generated asset moved outside the family folder: ${path}`);
+      if (target.index.referrersOf(owned.get(path)!).some(ref => !owned.has(ref.file))) {
+        throw new Error(`${path} is still referenced outside the generated family.`);
+      }
+    }
     if (staging && (writes.length > 0 || removed.length > 0)) {
       const deletes: SaveDelete[] = [];
       for (const path of removed) {
         const bytes = await readOrNull(join(target.root, path));
-        if (bytes) deletes.push({ path, base: fileRevision(bytes) });
+        if (bytes) deletes.push({ path, base: draft ? (bases.get(path) ?? "") : fileRevision(bytes) });
       }
       const service = createSaveService({
         policy: createWritePolicy(target.root, target.writableRoots),
         check: createDocumentCheck(target.registry, createClassStore(target.root, target.registry, target.index)),
       });
       const result = await service.commit({ writes, deletes });
-      if (result.status === "conflict") throw new Error(`files changed meanwhile: ${result.conflicts.map((conflict) => conflict.path).join(", ")}`);
+      if (result.status === "conflict") throw new RecipeSaveConflict(result.conflicts);
       if (result.status === "rejected") {
         throw new Error(`the save refused it (${result.reason}): ${result.issues.map((issue) => `${issue.file} ${issue.path} ${issue.message}`.trim()).join("; ")}`);
       }
+      if (draft) publication = result;
     }
     return {
       recipe: label, generator, generatorVersion: GENERATOR_VERSIONS[generator],
-      files, removed, stats, warnings, milliseconds: Math.round(performance.now() - started),
+      files, removed, stats, warnings, milliseconds: Math.round(performance.now() - started), ...(publication ? { publication } : {}),
     };
   } finally {
     if (staging) await rm(staging, { recursive: true, force: true });

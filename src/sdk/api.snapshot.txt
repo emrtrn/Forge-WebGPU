@@ -78,7 +78,7 @@ interface JsonAssetTypeDef<M>
 
 type LevelId = `lvl_${string}`
 
-const SDK_VERSION: "0.1.12"
+const SDK_VERSION: "0.1.13"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -240,6 +240,7 @@ interface AssetEditorPresentation
   readonly assetType: string
   readonly handledFields?: ReadonlyArray<string> | undefined
   readonly preview?: string | undefined
+  readonly publish?: { readonly label: string; readonly run: AssetPublisher; } | undefined
   readonly tools?: ((context: AssetEditorExtensionContext) => AssetEditorExtension) | undefined
 
 interface AssetPlacement
@@ -259,6 +260,8 @@ interface AssetPreviewController
 interface AssetPreviewInfo
   readonly meshes: ReadonlyArray<{ readonly meshName: string; readonly primitiveIndex: number; readonly vertexCount: number; }>
   readonly slots: ReadonlyArray<string>
+
+type AssetPublisher = (path: string, base: string, document: Readonly<Record<string, unknown>>) => Promise<SaveResponseBody>
 
 interface ComponentPresentation
   readonly icon: "mesh" | "character" | "light" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic" | ((data: Readonly<Record<string, unknown>>) => ActorTypeIcon)
@@ -308,7 +311,7 @@ const OUTLINER_TYPES: readonly [{ readonly type: "mesh"; readonly label: "Meshes
 
 type OutlinerType = "mesh" | "character" | "light" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
 
-const SDK_VERSION: "0.1.12"
+const SDK_VERSION: "0.1.13"
 
 function defineFeatureEditor(options: FeatureEditorOptions): FeatureEditorDef
 
@@ -545,6 +548,15 @@ interface ObjectFormField  // src/core/schema/form.ts
   readonly kind: "object"
   readonly label: string
   readonly path: string
+
+interface SaveIssueBody  // src/core/edit/saveProtocol.ts
+  readonly code: string
+  readonly file: string
+  readonly message: string
+  readonly path: string
+  readonly severity: "error" | "warning"
+
+type SaveResponseBody = { readonly status: "saved"; readonly files: readonly { readonly path: string; readonly revision: string | null; }[]; readonly warnings: readonly SaveIssueBody[]; } | { readonly status: "conflict"; readonly conflicts: readonly { readonly path: string; readonly base: string | null; readonly current: string | null; }[]; } | { readonly status: "rejected"; readonly reason: string; readonly issues?: readonly SaveIssueBody[]; readonly message?: string; }  // src/core/edit/saveProtocol.ts
 
 interface SaveStateOptions  // src/core/save/saveState.ts
   readonly hint?: string | undefined

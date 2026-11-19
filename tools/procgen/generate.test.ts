@@ -10,6 +10,7 @@ import { loadEngineRegistry } from "../assets/engineRegistry.ts";
 import { scanRoots } from "../assets/scan.ts";
 import { createProject } from "../project/create.ts";
 import { generateFromRecipe } from "./generate.ts";
+import { fileRevision } from "../assets/revision.ts";
 
 const engineRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const RECIPE = "content/rocks/boulder.rockrecipe.json";
@@ -19,6 +20,21 @@ let base = "", project = "";
 const writeRecipe = (variants: number[]) => writeFile(join(project, RECIPE), `${JSON.stringify({ schema: "forge.rockRecipe/1", id: RECIPE_ID, variants, lods: [2, 1] })}\n`);
 const run = (extra: { force?: boolean; dryRun?: boolean } = {}) => generateFromRecipe({ engineRoot, projectRoot: project, recipe: RECIPE, ...extra });
 const exists = (path: string) => access(join(project, path)).then(() => true, () => false);
+
+test("an editor conflict or an over-budget tree preserves the recipe and publishes no family", async () => {
+  const recipe = "content/rocks/draft.treerecipe.json";
+  const document = { schema: "forge.treeRecipe/1", id: "ast_00000000000000000000000000000ace", generatorVersion: 1 };
+  const original = JSON.stringify(document);
+  await writeFile(join(project, recipe), original);
+  const target = { engineRoot, projectRoot: project, recipe, force: true };
+  await expect(generateFromRecipe({ ...target, editorDraft: { base: "0000000000000000", document } }))
+    .rejects.toMatchObject({ response: { status: "conflict" } });
+  const levels = [{ count: 64 }, { count: 64 }];
+  await expect(generateFromRecipe({ ...target, editorDraft: { base: fileRevision(original), document: { ...document, levels } } }))
+    .rejects.toThrow(/Stem cap/);
+  expect(await readFile(join(project, recipe), "utf8")).toBe(original);
+  expect(await exists("content/rocks/draft")).toBe(false);
+});
 
 beforeAll(async () => {
   base = await mkdtemp(join(tmpdir(), "forge-generate-"));
