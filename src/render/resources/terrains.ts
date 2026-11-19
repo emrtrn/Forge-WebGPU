@@ -20,7 +20,8 @@
 // revision the dev server reports (`X-Forge-Revision`) for the document, the
 // far map and each tile read at once (`revisions`), and a tile's raw bytes
 // with theirs (`readTile`), decoded by the editor against its own, possibly
-// wider, definition.
+// wider, definition. Its paint layers may change (5d step 3: added, removed, a
+// material assigned): `layersFor` resolves the inputs of a changed definition.
 
 import { normalizeWorldTerrain } from "../../engine/terrain/terrainDefinition.ts";
 import { validateTerrainGlobalMap } from "../../engine/terrain/terrainGlobalMapFile.ts";
@@ -95,6 +96,8 @@ export interface TerrainData {
   };
   /** One tile's file as it is now, undecoded (the editor's reads). */
   readTile(key: string, signal?: AbortSignal): Promise<TerrainFileRead>;
+  /** The layer inputs of `def`'s paint layers (an edited definition; the editor's). */
+  layersFor(def: WorldTerrainDef): Promise<readonly TerrainLayerInput[]>;
 }
 
 export interface TerrainSource {
@@ -215,9 +218,10 @@ export function createTerrainSource(options: TerrainSourceOptions): TerrainSourc
           },
         };
       };
-      const width = worldTerrainExtent(def)[0];
-      const layers = await Promise.all(
-        def.layers.slice(0, TERRAIN_RENDER_LAYERS).map(async (layer): Promise<TerrainLayerInput> => {
+      const resolveLayers = (target: WorldTerrainDef): Promise<TerrainLayerInput[]> => {
+        const width = worldTerrainExtent(target)[0];
+        return Promise.all(
+        target.layers.slice(0, TERRAIN_RENDER_LAYERS).map(async (layer): Promise<TerrainLayerInput> => {
           const own = layer.color ?? "#808080";
           const plain: TerrainLayerInput = { color: own, texture: null, scale: terrainLayerScale(width, 0, [1, 1]), roughness: 1, flipY: false, normalTexture: null, roughnessTexture: null, detail: null };
           if (!layer.material || options.materials === null) return plain;
@@ -240,11 +244,14 @@ export function createTerrainSource(options: TerrainSourceOptions): TerrainSourc
             return plain;
           }
         }),
-      );
+        );
+      };
+      const layers = await resolveLayers(def);
       return {
         def, global, tiles, layers, openTiles,
         revisions: { document: fetched.revision, global: globalRevision, tiles: tileFiles },
         readTile: (key, signal) => fetchRead(tileUrl(key), urls.headers, signal),
+        layersFor: resolveLayers,
       };
     },
   };

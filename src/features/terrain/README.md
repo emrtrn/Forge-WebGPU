@@ -7,8 +7,15 @@ Yükseklik haritalı arazi (Forge WebGL'deki Landscape aktörü).
   `forge.terrain` veri belgesi (`<ad>.terrain.json`). Tile'lar
   (`<ad>.tiles/<x>_<z>.tile.bin`) ve global harita (`<ad>.global.bin`) belgenin
   metasız parçalarıdır (`src/core/assets/dataDocument.ts`).
-- `feature.ts`: yalnız bileşeni kurar.
-- `editor.ts`: editördeki görünüşü (`defineFeatureEditor`): Forge'un Outliner ikonu ve tür grubu.
+  `forge.landscapeAutoPaint@1` (5d adım 3): terrain aktöründe Auto Paint
+  kuralları (yükseklik / eğim / gürültü bandı, `engine/terrain/terrainAutoPaint.ts`);
+  level'la kaydedilir, ajan `forge edit set` ile yazar. Kurallar kendiliğinden
+  boyamaz; uygulama editörde tek seferlik, tek Undo.
+- `feature.ts`: iki bileşeni kurar.
+- `editor.ts`: editördeki görünüşü (`defineFeatureEditor`): Forge'un Outliner
+  ikonu ve tür grubu; terrain Details'inin altında Landscape bölümü (Sculpt /
+  Paint, görünüm kipi, katmanlar; `src/editor/landscape/`), Auto Paint
+  bileşeninin altında Apply Auto Paint.
 - Arazi hücreden büyük olduğu için aktörü kalıcı katmandadır
   (`spatiallyLoaded: false`).
 - `render.ts`: çizim (Faz 3 adım 8, spike S2'nin TSL CDLOD'u,

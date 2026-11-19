@@ -9,26 +9,42 @@
 // - A drawn editable terrain registers a handle: the actor and component, its
 //   session, and the binding's hooks (tiles changed -> the view re-reads them;
 //   tiles a stroke needs -> the stream keeps them resident).
-// - The Landscape settings (Forge's LandscapeSculptSettings: mode, tool, brush)
-//   are the page's, shared by the Details section and the viewport tool.
+// - The Landscape settings (Forge's LandscapeSculptSettings: mode, tool, brush;
+//   step 3: the paint tool, the active layer and the view mode) are the page's,
+//   shared by the Details section and the viewport tool. The view mode is an
+//   editor preview of the drawn terrain only: never in the level, never in Play
+//   (the game has no editing service).
 //
 // DOM-free and three-free: the editor and the render binding both read it.
 
 import type { ActorId } from "../../core/id.ts";
 import { createServiceKey } from "../../core/world/services.ts";
 import type { TerrainDirtyRect } from "./terrainEdit.ts";
+import type { LandscapeWeightBrushMode } from "./landscapeBrush.ts";
 import type { TerrainEditSession } from "./terrainEditSession.ts";
 import { DEFAULT_TERRAIN_SCULPT_SETTINGS, type TerrainSculptSettings, type TerrainSculptTool } from "./terrainSculpt.ts";
 
 /** Forge's World Terrain sculpt tools, in its order. */
 export const LANDSCAPE_SCULPT_TOOLS: readonly TerrainSculptTool[] = ["raise", "lower", "smooth", "flatten", "noise", "ramp", "terrace", "erosion"];
 
-export type LandscapeEditMode = "sculpt";
+export type LandscapeEditMode = "sculpt" | "paint";
 
-/** Forge's LandscapeSculptSettings (sculpt part); paint joins in 5d step 3. */
+/** Forge's paint tools: lay the active layer, take it away, even out the weights. */
+export type LandscapePaintTool = LandscapeWeightBrushMode;
+export const LANDSCAPE_PAINT_TOOLS: readonly LandscapePaintTool[] = ["paint", "erase", "smoothWeights"];
+
+/** Forge's LandscapeViewMode: the lit look, or a height / slope / active layer preview. */
+export type LandscapeViewMode = "lit" | "height" | "slope" | "layer";
+export const LANDSCAPE_VIEW_MODES: readonly LandscapeViewMode[] = ["lit", "height", "slope", "layer"];
+
+/** Forge's LandscapeSculptSettings (sculpt and paint). */
 export interface LandscapeSettings extends TerrainSculptSettings {
   readonly mode: LandscapeEditMode;
   readonly tool: TerrainSculptTool;
+  readonly paintTool: LandscapePaintTool;
+  /** The paint layer's id; one a terrain does not have paints nothing (the panel picks the terrain's first). */
+  readonly activeLayerId: string;
+  readonly viewMode: LandscapeViewMode;
   /** Radius in metres. */
   readonly brushSize: number;
   readonly strength: number;
@@ -44,6 +60,9 @@ export const DEFAULT_LANDSCAPE_SETTINGS: Readonly<LandscapeSettings> = {
   ...DEFAULT_TERRAIN_SCULPT_SETTINGS,
   mode: "sculpt",
   tool: "raise",
+  paintTool: "paint",
+  activeLayerId: "",
+  viewMode: "lit",
   brushSize: 6,
   strength: 0.25,
   falloff: 2,
@@ -63,6 +82,12 @@ export interface EditableTerrain {
   readonly streams: boolean;
   /** Tiles changed in the session's world: the view re-reads these rectangles (slots, normals, far map, picking). */
   changed(dirty: ReadonlyMap<string, TerrainDirtyRect>): void;
+  /**
+   * The definition's paint layers changed (added, removed, a material): the
+   * session's far map is rebuilt from its tiles (all resident) and the terrain
+   * is drawn again with the new layers. Resolves when it is.
+   */
+  layersChanged(): Promise<void>;
   /** Keeps `keys` resident until released; resolves when every declared one is in the world as read, rejects when one fails to read. */
   demand(keys: Iterable<string>): Promise<void>;
   release(keys: Iterable<string>): void;

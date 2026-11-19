@@ -1,11 +1,11 @@
-// The Landscape sculpt tool in the viewport (plan 5d step 2, INV-B03; Forge
+// The Landscape sculpt and paint tool in the viewport (plan 5d steps 2–3, INV-B03 / B04; Forge
 // WebGL SceneApp's terrain stroke @ forge-webgl-final: beginTerrainStroke,
 // applyTerrainStrokeDab, endTerrainStroke, completeTerrainStroke). Three-free:
 // the terrain is read and written through the editing service (engine
 // terrainEditing.ts), the viewport answers rays and draws the ring.
 //
 // - Active while the primary selected actor is a drawn, editable terrain (not
-//   locked) and the Landscape mode is Sculpt. A left press on that terrain
+//   locked) and the Landscape mode is Sculpt or Paint. A left press on that terrain
 //   (nothing else drawn in front of it) starts a stroke; elsewhere the press
 //   selects as usual. Alt + left is a temporary Flatten, so it does not orbit.
 // - Every pointer move is a dab (`applyTerrainBrush`) at the terrain under the
@@ -14,6 +14,10 @@
 //   the height under the first dab. Ramp: press, drag (the road's outline
 //   follows, at the two ends' heights plus their offsets) and release lay one
 //   ramp between the two points; a click alone changes nothing.
+// - Paint (step 3): each dab lays, erases or evens out the active layer
+//   (Forge's paint tools, no modifiers). A stroke accumulates unquantized
+//   weights (`TerrainPaintAccumulator`), so slow dabs do not round away. A
+//   terrain without the active layer is not painted (a warning).
 // - A streaming terrain loads the tiles under a dab first: the dab waits (the
 //   last waiting dab is applied once they are in), the tiles stay held until
 //   the stroke ends. A tile that could not be read is never written.
@@ -24,9 +28,7 @@
 import type { ActorId, Vec3 } from "../../core/index.ts";
 import {
   applyTerrainBrush,
-  applyTerrainUndoPatches,
   createTerrainPaintAccumulator,
-  revertTerrainUndoPatches,
   type TerrainBrush,
   type TerrainDirtyRect,
   type TerrainPaintAccumulator,
@@ -39,6 +41,7 @@ import { raycastTerrain, terrainHeightAt } from "../../engine/terrain/terrainHei
 import type { TerrainRamp, TerrainSculptTool } from "../../engine/terrain/terrainSculpt.ts";
 import type { Ray } from "../../engine/gizmo/transformDrag.ts";
 import type { EditorSession } from "../session/editorSession.ts";
+import { pushTerrainPatchStep, restoreEdited } from "./landscapeSteps.ts";
 
 /** Points of the brush ring. */
 const RING_POINTS = 96;
@@ -88,8 +91,12 @@ interface Stroke {
   readonly pointerId: number;
   readonly terrain: EditableTerrain;
   readonly session: TerrainEditSession;
-  /** The tool the press resolved; Ramp waits for the release. */
-  readonly tool: TerrainSculptTool;
+  /** The sculpt tool the press resolved (Ramp waits for the release); null while painting. */
+  readonly tool: TerrainSculptTool | null;
+  /** The undo step's label. */
+  readonly label: string;
+  /** Painting: the active layer's index in the terrain's layers. */
+  readonly layer: number;
   /** Height under the first dab, relative to the datum (Ctrl+Alt, Use Clicked Height). */
   readonly sampleHeight: number;
   rampStart: Vec3 | null;
@@ -113,19 +120,14 @@ export function landscapeFlattenTarget(settings: Pick<LandscapeSettings, "flatte
   return settings.flattenUseClickedHeight || (event.ctrlKey && event.altKey) ? sampleHeight : settings.flattenTargetHeight;
 }
 
-/** Puts the session's edited tiles back into its world if a rebuilt stream let them go (they are the same objects). */
-function restoreEdited(session: TerrainEditSession): void {
-  for (const [key, tile] of session.edited) if (!session.world.tiles.has(key)) session.world.tiles.set(key, tile);
-}
-
 export function createLandscapeTool(options: LandscapeToolOptions): LandscapeTool {
   const { editor, editing, viewport, status } = options;
   let stroke: Stroke | null = null;
   let finishing = false;
 
-  /** The terrain the tool works on now: the primary selection's, when it is editable and Sculpt is on. */
+  /** The terrain the tool works on now: the primary selection's, when it is editable (Sculpt or Paint). */
   const target = (): EditableTerrain | null => {
-    if (editing.settings.mode !== "sculpt") return null;
+    if (editing.settings.mode !== "sculpt" && editing.settings.mode !== "paint") return null;
     const primary = editor.selection.primary();
     if (primary === null) return null;
     const actor = editor.level.actor(primary);
@@ -213,15 +215,18 @@ export function createLandscapeTool(options: LandscapeToolOptions): LandscapeToo
     const { world } = current.session;
     current.pending = null;
     const rampValue = end ? ramp(current, end) : undefined;
-    const brush: TerrainBrush = {
-      ...settings,
-      x: point[0], z: point[2], radius: settings.brushSize, strength: settings.strength, falloff: settings.falloff,
-      mode: rampValue ? "ramp" : landscapeSculptTool(settings.tool, event),
-      ...(rampValue ? { ramp: rampValue } : {}),
-      // Heights are relative to the datum (origin Y).
-      hitHeight: point[1] - world.def.origin[1],
-      flattenTargetHeight: landscapeFlattenTarget(settings, current.sampleHeight, event),
-    };
+    const base = { x: point[0], z: point[2], radius: settings.brushSize, strength: settings.strength, falloff: settings.falloff };
+    const brush: TerrainBrush = current.tool === null
+      ? { ...base, mode: settings.paintTool, layer: current.layer }
+      : {
+          ...settings,
+          ...base,
+          mode: rampValue ? "ramp" : landscapeSculptTool(settings.tool, event),
+          ...(rampValue ? { ramp: rampValue } : {}),
+          // Heights are relative to the datum (origin Y).
+          hitHeight: point[1] - world.def.origin[1],
+          flattenTargetHeight: landscapeFlattenTarget(settings, current.sampleHeight, event),
+        };
     const keys = terrainBrushTileKeys(world.def, point[0], point[2], settings.brushSize, rampValue, settings.rampShoulder);
     const fresh = keys.filter((key) => !current.demanded.has(key));
     for (const key of fresh) current.demanded.add(key);
@@ -231,7 +236,7 @@ export function createLandscapeTool(options: LandscapeToolOptions): LandscapeToo
     if (missing.length > 0) {
       const failed = missing.find((key) => current.session.world.tiles.has(key));
       if (failed) {
-        status(`Terrain tile ${failed} could not be read; it is not sculpted.`, "warning");
+        status(`Terrain tile ${failed} could not be read; it is not edited.`, "warning");
         return;
       }
       // Loading: this dab waits (the latest one is applied when the stroke ends, if the tiles are in by then).
@@ -259,18 +264,7 @@ export function createLandscapeTool(options: LandscapeToolOptions): LandscapeToo
       finishing = false;
     }
     if (current.patches.length === 0) return;
-    const patches = current.patches;
-    const { actor } = current.terrain;
-    const { session } = current;
-    const restore = (side: "before" | "after"): void => {
-      restoreEdited(session);
-      const dirty = (side === "after" ? applyTerrainUndoPatches : revertTerrainUndoPatches)(session.world, patches);
-      session.markTiles(dirty.keys());
-      // The terrain may have been drawn again since (a rebuilt binding): its current handle re-reads the tiles.
-      const terrain = editing.find(actor);
-      if (terrain?.session === session) terrain.changed(dirty);
-    };
-    editor.pushStep({ label: `Landscape ${current.tool}`, undo: () => restore("before"), redo: () => restore("after") });
+    pushTerrainPatchStep(editor, editing, current.terrain, current.label, current.patches);
   };
 
   const end = (event: LandscapeToolPointer | null): void => {
@@ -304,9 +298,17 @@ export function createLandscapeTool(options: LandscapeToolOptions): LandscapeToo
       const point = terrainHit(terrain, event.clientX, event.clientY);
       if (!point) return false;
       const { session } = terrain;
-      const tool = landscapeSculptTool(editing.settings.tool, event);
+      const settings = editing.settings;
+      const painting = settings.mode === "paint";
+      const layer = session.world.def.layers.findIndex((entry) => entry.id === settings.activeLayerId);
+      if (painting && layer < 0) {
+        status("The active paint layer is not one of this terrain's layers.", "warning");
+        return false;
+      }
+      const tool = painting ? null : landscapeSculptTool(settings.tool, event);
       stroke = {
-        pointerId: event.pointerId, terrain, session, tool,
+        pointerId: event.pointerId, terrain, session, tool, layer,
+        label: `Landscape ${painting ? settings.paintTool : tool}`,
         sampleHeight: point[1] - session.world.def.origin[1],
         rampStart: tool === "ramp" ? point : null,
         pending: null, patches: [], demanded: new Set(), paint: createTerrainPaintAccumulator(),

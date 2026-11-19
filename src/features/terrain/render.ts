@@ -40,6 +40,13 @@
 //   Edited tiles and those a stroke demands stay resident (`kept`). The
 //   binding registers the terrain with the editing service: the Landscape
 //   tool writes tiles and calls `changed`, the view re-reads them.
+// - Paint layers (5d step 3): the session's definition may differ from the
+//   cache's (a layer added, removed, a material assigned, saved or not); the
+//   terrain draws with the session's layers. `layersChanged` rebuilds the far
+//   map from the tiles (all resident then) and draws the terrain again. The
+//   Landscape view mode (lit / height / slope / layer) is the editing
+//   service's setting, passed to the view each frame; only an editor view has
+//   it compiled in.
 //
 // A terrain whose data fails to load draws nothing; the cache counts it and
 // the host reports it.
@@ -53,14 +60,14 @@ import { createTerrainEditWorld } from "../../engine/terrain/terrainEdit.ts";
 import { TerrainEditingKey, type EditableTerrain } from "../../engine/terrain/terrainEditing.ts";
 import { TerrainEditSession } from "../../engine/terrain/terrainEditSession.ts";
 import { validateTerrainTile } from "../../engine/terrain/terrainLoader.ts";
-import type { TerrainGlobalAttributes } from "../../engine/terrain/terrainRenderSource.ts";
+import { buildTerrainGlobalAttributes, worldTerrainRenderSource, type TerrainGlobalAttributes } from "../../engine/terrain/terrainRenderSource.ts";
 import { TerrainRuntimeStreaming } from "../../engine/terrain/terrainRuntimeStreaming.ts";
 import { parseTileKey, terrainTileWorldSize, type TerrainTileData } from "../../engine/terrain/terrainTypes.ts";
 import { KeptRegionsKey } from "../../engine/world/keptRegions.ts";
 import type { StreamingSource } from "../../engine/world/streamingPolicy.ts";
 import { worldTerrainExtent } from "../../engine/terrain/worldTerrainActor.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
-import type { TerrainData as LoadedTerrain, TerrainTileReader } from "../../render/resources/terrains.ts";
+import type { TerrainData as LoadedTerrain, TerrainLayerInput, TerrainTileReader } from "../../render/resources/terrains.ts";
 import { defineRenderBinding } from "../../render/sync/renderBinding.ts";
 import { tagTerrainStreaming, tagTerrainView } from "../../render/sync/debugTags.ts";
 import { tagActorObject, tagPickSurface, type PickSurface } from "../../render/sync/pickTags.ts";
@@ -110,9 +117,17 @@ interface Placed {
   /** Editor only: the edit session drawn, the registration's end, the tiles a stroke holds and who waits for them. */
   session: TerrainEditSession | null;
   unregister: (() => void) | null;
+  /** Bumped by each rebuild for new layers: a slower, older one gives way. */
+  generation: number;
   readonly held: Map<string, number>;
   readonly demands: { readonly keys: readonly string[]; resolve(): void; reject(error: Error): void }[];
 }
+
+/** The layers' drawn inputs are the same (id, material, colour): the cache's inputs serve. */
+function sameLayers(a: WorldTerrainLayers, b: WorldTerrainLayers): boolean {
+  return a.length === b.length && a.every((layer, i) => layer.id === b[i]!.id && (layer.material ?? null) === (b[i]!.material ?? null) && layer.color === b[i]!.color);
+}
+type WorldTerrainLayers = LoadedTerrain["def"]["layers"];
 
 /** A far map of one's own: the editor writes it per dab, the cache's stays as read. */
 function cloneGlobal(global: TerrainGlobalAttributes): TerrainGlobalAttributes {
@@ -152,8 +167,11 @@ export default defineRenderBinding({
       return session;
     };
 
-    const show = (actor: WorldActor, key: string, entry: Placed, terrain: LoadedTerrain, guid: string): void => {
-      const session = editSession(guid, terrain);
+    /** The layers to draw: the session's definition when it changed them, else the cache's. */
+    const layersOf = async (terrain: LoadedTerrain, session: TerrainEditSession | null): Promise<readonly TerrainLayerInput[]> =>
+      session && !sameLayers(session.world.def.layers, terrain.def.layers) ? terrain.layersFor(session.world.def) : terrain.layers;
+
+    const show = (actor: WorldActor, key: string, entry: Placed, terrain: LoadedTerrain, guid: string, session: TerrainEditSession | null, layers: readonly TerrainLayerInput[]): void => {
       entry.session = session;
       const def = session?.world.def ?? terrain.def;
       const global = session?.global ?? terrain.global;
@@ -163,9 +181,10 @@ export default defineRenderBinding({
         def,
         global,
         tiles: session ? session.world.tiles : (terrain.tiles ?? document.tiles),
-        layers: terrain.layers,
+        layers,
         selfShadow: quality.terrainSelfShadow,
         farTiling: quality.terrainFarTiling,
+        editorViews: session !== null,
       });
       if (terrain.tiles === null) {
         const reader = terrain.openTiles();
@@ -218,6 +237,17 @@ export default defineRenderBinding({
           changed: (dirty) => {
             for (const [tileKey, rect] of dirty) view.updateTile(tileKey, rect);
           },
+          layersChanged: async () => {
+            const generation = ++entry.generation;
+            const { world } = session;
+            if (world.def.tiles.every(({ key: tileKey }) => world.tiles.has(tileKey))) {
+              session.global = buildTerrainGlobalAttributes(worldTerrainRenderSource(world.def, world.tiles));
+            }
+            const next = await terrain.layersFor(world.def);
+            if (entry.removed || entry.session !== session || entry.generation !== generation) return;
+            hide(entry);
+            show(actor, key, entry, terrain, guid, session, next);
+          },
           demand: (keys) => {
             const declared = new Set(def.tiles.map((tile) => tile.key));
             const wanted = [...keys].filter((tileKey) => declared.has(tileKey));
@@ -255,20 +285,36 @@ export default defineRenderBinding({
       }
     };
 
+    /** Takes the drawn terrain down, keeping the placement, its session and the strokes' waits (a rebuild for new layers). */
+    const hide = (entry: Placed): void => {
+      entry.unregister?.();
+      entry.unregister = null;
+      if (entry.view && terrainSurface(ctx.scene, entry.actor)?.tiles === entry.view.source) withdrawTerrainSurface(ctx.scene, entry.actor);
+      entry.stream?.dispose();
+      entry.reader?.dispose();
+      entry.view?.dispose();
+      entry.stream = null;
+      entry.reader = null;
+      entry.view = null;
+    };
+
     const add = (actor: WorldActor, key: string, data: TerrainData): void => {
       const id = `${actor.id}/${key}`;
       const entry: Placed = {
         actor: actor.id, view: null, stream: null, reader: null, sources: [], busy: null, settled: false, removed: false,
         key: data.data === null ? null : resourceKey.terrain(data.data),
-        session: null, unregister: null, held: new Map(), demands: [],
+        session: null, unregister: null, generation: 0, held: new Map(), demands: [],
       };
       placed.set(id, entry);
       const guid = data.data;
       if (guid === null) return;
       entry.busy = ctx.resources.busy();
       ctx.resources.terrain(guid).then(
-        (terrain) => {
-          if (!entry.removed) show(actor, key, entry, terrain, guid);
+        async (terrain) => {
+          if (entry.removed) return;
+          const session = editSession(guid, terrain);
+          const layers = await layersOf(terrain, session);
+          if (!entry.removed) show(actor, key, entry, terrain, guid, session, layers);
         },
         () => {
           // Counted by the cache and reported by the host; nothing is drawn.
@@ -283,12 +329,8 @@ export default defineRenderBinding({
       if (!entry) return;
       placed.delete(id);
       entry.removed = true;
-      entry.unregister?.();
       for (const demand of entry.demands.splice(0)) demand.reject(new Error("the terrain left the world"));
-      if (entry.view && terrainSurface(ctx.scene, entry.actor)?.tiles === entry.view.source) withdrawTerrainSurface(ctx.scene, entry.actor);
-      entry.stream?.dispose();
-      entry.reader?.dispose();
-      entry.view?.dispose();
+      hide(entry);
       entry.busy?.();
       entry.busy = null;
       if (entry.key !== null) ctx.resources.release(entry.key);
@@ -321,12 +363,17 @@ export default defineRenderBinding({
         const runtime = ctx.world.services.get(WorldEnvironmentKey);
         const state = runtime?.controller.current();
         const cover = state && runtime?.environment ? { state: state.surface, settings: runtime.environment.surface } : null;
+        const landscape = ctx.world.services.get(TerrainEditingKey)?.settings;
         for (const entry of placed.values()) {
           const { view, stream } = entry;
           if (!view) continue;
           view.setSelfShadow(quality.terrainSelfShadow);
           view.setFarTiling(quality.terrainFarTiling);
           view.setSurfaceCover(cover);
+          if (entry.session && landscape) {
+            const layers = entry.session.world.def.layers;
+            view.setEditorView(landscape.viewMode, Math.max(0, layers.findIndex((layer) => layer.id === landscape.activeLayerId)));
+          }
           if (stream) {
             entry.sources = [{ position: [camera.x, camera.z] }];
             const regions = ctx.world.services.get(KeptRegionsKey)?.regions() ?? [];

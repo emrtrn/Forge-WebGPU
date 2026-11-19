@@ -12,8 +12,12 @@
 //
 // The textures, the instanced patch and its node attributes are the view's
 // (sync/terrainView.ts: tile slots, residency, culling, selection). Puddles
-// are phase 5a step 6; shore and caustics phase 7; tracks phase 8; the debug
-// views and the far foliage tint come with their tools (5d, 5c).
+// are phase 5a step 6; shore and caustics phase 7; tracks phase 8; the far
+// foliage tint 5c.
+//
+// The Landscape view modes (5d step 3, Forge's uTerrainView): height, slope and
+// the active layer's weight replace the albedo. Compiled only into an editor
+// terrain (`editorViews`); a game's material has no branch and no uniform.
 //
 // The height probe (phase 5a step 5, G8): the same vertex stage and hole cut,
 // each pixel carrying its world position for a float readback
@@ -196,6 +200,21 @@ export interface TerrainMaterialInput {
   readonly layerTextures: TerrainLayerTextures;
   /** Forge's quality-gated far tiling break (`terrainFarTiling`). */
   readonly farTiling: boolean;
+  /** Compile the Landscape view modes in (the editor's terrains only). */
+  readonly editorViews?: boolean;
+}
+
+/** Forge's LandscapeViewMode as the shader's index: lit 0, height 1, slope 2, layer 3. */
+export const TERRAIN_VIEW_MODE_INDEX = { lit: 0, height: 1, slope: 2, layer: 3 } as const;
+
+/** What a Landscape view mode shows (`setEditorView`). */
+export interface TerrainEditorView {
+  readonly mode: keyof typeof TERRAIN_VIEW_MODE_INDEX;
+  /** Index of the layer the layer view shows; -1 for none. */
+  readonly layer: number;
+  /** Terrain-local height range the height view spans (relative to the datum). */
+  readonly heightMin: number;
+  readonly heightMax: number;
 }
 
 /** The far foliage tint (plan 5c F3): coverage sits in the far map normals' alpha; colour linear RGB. */
@@ -214,6 +233,8 @@ export interface TerrainMaterial {
   setLodCamera(x: number, y: number, z: number): void;
   /** The height probe: this material's vertex stage and hole cut, world Y / X / Z (+ the offset) per pixel; built on first use. */
   heightProbe(): THREE.MeshBasicNodeMaterial;
+  /** The Landscape view mode; ignored by a material built without `editorViews`. */
+  setEditorView(view: TerrainEditorView): void;
 }
 
 export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMaterial {
@@ -269,6 +290,8 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
 
   const vLocal = varyingProperty("vec2", "vTerrainLocal");
   const vTile = varyingProperty("vec3", "vTerrainTile"); // slot, tile origin x / z
+  const editorViews = input.editorViews === true;
+  const vHeight = editorViews ? varyingProperty("float", "vTerrainHeight") : null;
 
   const position = Fn(() => {
     const slotF = floor(nodeA.w.add(0.5));
@@ -286,6 +309,7 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
     h.assign(select(skirt, h.sub(nodeA.z.mul(uSkirtRatio)), h));
     vLocal.assign(localXZ);
     vTile.assign(vec3(nodeA.w, nodeB.xy));
+    if (vHeight) vHeight.assign(h);
     return uOrigin.add(vec3(localXZ.x, h, localXZ.y));
   })();
 
@@ -386,10 +410,33 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
     worldNormal = normalize(tangent.mul(layerNormal.x).add(bitangent.mul(layerNormal.y)).add(base.mul(max(layerNormal.z, float(0.05)))));
   }
 
+  // Landscape view modes (Forge's terrain fragment): height bands from dark to
+  // light over the range, slope green to red, the active layer's colour by its
+  // weight. Forge's colours, unchanged.
+  const uView = uniform(0);
+  const uViewLayer = uniform(-1);
+  const uHeightRange = uniform(new THREE.Vector2(0, 1));
+  let shown: AnyNode = albedo;
+  if (vHeight) {
+    const t = clamp(vHeight.sub(uHeightRange.x).div(max(uHeightRange.y.sub(uHeightRange.x), float(0.0001))), 0, 1);
+    const heightColor = vec3(t.mul(0.62).add(0.16), t.mul(0.5).add(0.28), t.mul(0.68).add(0.2));
+    const slope = clamp(float(1).sub(base.y), 0, 1);
+    const slopeColor = vec3(slope.mul(0.75).add(0.15), float(0.62).sub(slope.mul(0.34)), slope.mul(0.32).add(0.22));
+    let layerWeight: AnyNode = float(0);
+    let layerColor: AnyNode = vec3(0.5, 0.5, 0.5);
+    input.layers.slice(0, TERRAIN_RENDER_LAYERS).forEach((layer, i) => {
+      const active = uViewLayer.equal(i);
+      layerWeight = select(active, weightsOf(i), layerWeight);
+      layerColor = select(active, vec3(uniform(new THREE.Color(layer.color))), layerColor);
+    });
+    const layerShown = layerColor.mul(clamp(layerWeight, 0, 1).mul(0.8).add(0.2));
+    shown = select(uView.lessThan(0.5), albedo, select(uView.lessThan(1.5), heightColor, select(uView.lessThan(2.5), slopeColor, layerShown)));
+  }
+
   const material = new THREE.MeshStandardNodeMaterial({ metalness: 0 });
   material.name = "terrain";
   material.positionNode = position;
-  material.colorNode = vec4(albedo, 1);
+  material.colorNode = vec4(shown, 1);
   material.roughnessNode = select(painted, rough.div(total), float(1));
   material.normalNode = transformNormalToView(worldNormal);
   // A hole in the far map (no tile covers the sample) is cut, in every pass.
@@ -406,6 +453,12 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
     },
     setLodCamera(x, y, z) {
       (uLodCamera.value as THREE.Vector3).set(x, y, z);
+    },
+    setEditorView(view) {
+      if (!editorViews) return;
+      uView.value = TERRAIN_VIEW_MODE_INDEX[view.mode];
+      uViewLayer.value = view.layer;
+      (uHeightRange.value as THREE.Vector2).set(view.heightMin, view.heightMax);
     },
     heightProbe() {
       if (probe) return probe;

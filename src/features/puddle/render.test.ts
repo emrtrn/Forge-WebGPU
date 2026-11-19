@@ -46,6 +46,7 @@ function bowl(streams: boolean) {
     layers: [],
     revisions: { document: null, global: null, tiles: new Map() },
     readTile: async () => { throw new Error("the game binding reads tiles through openTiles"); },
+    layersFor: async () => [],
     openTiles(): TerrainTileReader {
       return { read: async (key) => (reads.push(key), tiles.get(key)!), dispose: () => {} };
     },

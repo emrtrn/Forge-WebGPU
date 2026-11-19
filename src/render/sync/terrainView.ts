@@ -60,6 +60,7 @@ import {
   setTerrainInstanceCapacity,
   type TerrainFarTint,
   type TerrainLayerTextures,
+  type TerrainEditorView,
   type TerrainMaterial,
   type TerrainMaterialInput,
 } from "../materials/terrain.ts";
@@ -162,6 +163,8 @@ export interface TerrainViewOptions {
   /** Forge's quality hooks (`terrainSelfShadow`, `terrainFarTiling`); both on by default. */
   readonly selfShadow?: boolean;
   readonly farTiling?: boolean;
+  /** An editor terrain: the Landscape view modes are compiled in (`setEditorView`, 5d step 3). */
+  readonly editorViews?: boolean;
 }
 
 export interface TerrainSelection {
@@ -173,6 +176,7 @@ export interface TerrainSelection {
 export class TerrainView {
   private cover: SurfaceCoverInput | null = null;
   private farTint: TerrainFarTint | null = null;
+  private editorView: { mode: TerrainEditorView["mode"]; layer: number } = { mode: "lit", layer: -1 };
   setSurfaceCover(input: SurfaceCoverInput | null): void {
     this.cover = input;
     this.terrainMaterial.setSurfaceCover(input);
@@ -307,6 +311,7 @@ export class TerrainView {
       patchQuads: TERRAIN_PATCH_QUADS,
       layers: options.layers,
       layerTextures: this.layerTextures,
+      editorViews: options.editorViews === true,
     };
     const material = createTerrainMaterial({ ...this.materialInput, farTiling: this.farTiling });
     this.terrainMaterial = material;
@@ -391,9 +396,26 @@ export class TerrainView {
     this.terrainMaterial = material;
     material.setSurfaceCover(this.cover);
     material.setFarTint(this.farTint);
+    this.applyEditorView();
     this.mesh.material = material.material;
     previous.dispose();
     this.selectionDirty = true;
+  }
+
+  /**
+   * The Landscape view mode (Forge's setAppearance): lit, or the height / slope /
+   * layer `layer` preview. Only a view built with `editorViews` shows it; the
+   * height view spans the terrain's current height range.
+   */
+  setEditorView(mode: TerrainEditorView["mode"], layer: number): void {
+    if (this.editorView.mode === mode && this.editorView.layer === layer) return;
+    this.editorView = { mode, layer };
+    this.applyEditorView();
+  }
+
+  private applyEditorView(): void {
+    const { min, max } = this.bounds.range();
+    this.terrainMaterial.setEditorView({ ...this.editorView, heightMin: min, heightMax: max });
   }
 
   /** Streaming changed tile `key`'s residency; the global map never changes (Forge's refreshTile). */
@@ -446,6 +468,7 @@ export class TerrainView {
     }
     const globalRect = updateTerrainGlobalAttributes(this.global, this.source, key, rect);
     if (globalRect) this.writeGlobalTextures(globalRect);
+    if (this.editorView.mode === "height") this.applyEditorView();
     this.selectionDirty = true;
   }
 

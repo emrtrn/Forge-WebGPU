@@ -100,6 +100,7 @@ import { installShellStyle } from "./shell/shellStyle.ts";
 import { installKitStyle } from "./ui/kitStyle.ts";
 import { createViewportControls } from "./viewportControls.ts";
 import { createTerrainEditing, TerrainEditingKey } from "../engine/terrain/terrainEditing.ts";
+import { createLandscapeLayers, LandscapeLayersKey } from "./landscape/landscapeLayers.ts";
 import { resourceKey } from "../render/resources/resourceCache.ts";
 import { createLandscapeTool, type LandscapeTool } from "./landscape/landscapeTool.ts";
 import { createLandscapeSave } from "./landscape/landscapeSave.ts";
@@ -451,6 +452,11 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       },
     });
     session.addParticipant(landscapeSave);
+    // Paint layers, Fill Layer and Auto Paint (plan 5d step 3), for the Landscape Details.
+    world.services.provide(LandscapeLayersKey, createLandscapeLayers({
+      editor: session, editing: terrainEditing, status: (message, tone) => shell.status(message, tone), assetLabel: (guid) => assets.label(guid),
+      pickAsset: (type) => openPicker({ document: doc, host: shell.root, title: "Select Asset", testId: "asset-picker", items: assets.ofType(type).map((item) => ({ id: item.guid, label: item.name, note: item.file })) }),
+    }));
     tools = createTransformTools({ editor: session, viewport, storage: pageStorage(doc), status: (message, tone) => shell.status(message, tone), duplicate: (coalesce) => editCommands.duplicateForDrag(coalesce) });
     shell.attachTools(tools, () => viewport.camera.navigating);
     const play = createEditorPlay({
