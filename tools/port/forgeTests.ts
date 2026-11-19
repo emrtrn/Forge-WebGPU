@@ -659,7 +659,7 @@ export const DEFERRED_CHECKS: ReadonlyArray<{ readonly file: string; readonly la
   { file: "tests/engine/terrainPuddle.test.ts", phase: "5a", why: "puddles (INV-D21)" },
   { file: "tests/engine/terrainOrphans.test.ts", phase: "5a", why: "terrain repair / orphan cleanup (INV-H11)" },
   { file: "tests/engine/terrainRuntimeStreaming.test.ts", phase: "5b", why: "runtime terrain streaming (A11)" },
-  { file: "tests/engine/worldTerrainMove.test.ts", phase: "5d", why: "moving a World Terrain shifts the water types too (5d / 7)" },
+  { file: "tests/engine/worldTerrainMove.test.ts", phase: "7", why: "the lakes and River Waters a World Terrain move shifts are phase 7 (5d step 4 moves origin and splines, user decision 2026-11-19)" },
   ...["terrainLakeWater", "terrainLakeBed", "lakeInteraction", "lakeQuality", "oceanWater", "waterWheelInteraction", "waterFoam"].map((name) => ({
     file: `tests/engine/${name}.test.ts`,
     phase: "7",

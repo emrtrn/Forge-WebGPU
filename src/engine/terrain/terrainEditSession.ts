@@ -15,6 +15,10 @@
 //   only the tiles not edited again while it was writing.
 // - A tile the stream filled in after a failed read (a flat stand-in) is not
 //   the one on disk: `readable` refuses it, so it is never sculpted or saved.
+// - The grid may change (5d step 4, Expand and its undo): `replaceTerrain`
+//   swaps the definition and every tile. A tile with no file yet is `created`
+//   (a save writes it as new); a file the session read whose tile the
+//   definition no longer lists is stale (a save deletes it).
 
 import type { TerrainEditWorld } from "./terrainEdit.ts";
 import type { TerrainGlobalAttributes } from "./terrainRenderSource.ts";
@@ -28,7 +32,9 @@ export interface TerrainTileFile {
   /** The revision the file had when read; null when the reader could not tell (then a save is refused). */
   revision: string | null;
   /** The object read: a different one in the world is a stand-in, not this file. */
-  readonly tile: TerrainTileData;
+  tile: TerrainTileData;
+  /** Made here, not on disk yet: a save writes it as a new file. */
+  created?: boolean;
 }
 
 /** What one save writes, captured before any await. */
@@ -37,6 +43,8 @@ export interface TerrainSaveCapture {
   /** Tile key -> its edit revision at capture. */
   readonly tiles: ReadonlyMap<string, number>;
   readonly definition: number;
+  /** Files on disk whose tiles the definition no longer lists (an undone Expand): key -> revision read. */
+  readonly deletes: ReadonlyMap<string, string>;
 }
 
 export class TerrainEditSession {
@@ -67,6 +75,33 @@ export class TerrainEditSession {
     this.files.set(key, { format, revision, tile });
   }
 
+  /**
+   * Replaces the definition and every tile (Expand, its undo / redo): all of
+   * them become edited, dirty and pinned; a tile with no file is recorded as
+   * created in `format`. Files the session read keep their revisions.
+   */
+  replaceTerrain(def: TerrainEditWorld["def"], tiles: ReadonlyMap<string, TerrainTileData>, format: TerrainHeightFormat): void {
+    this.world.def = def;
+    this.world.tiles.clear();
+    this.edited.clear();
+    for (const [key, tile] of tiles) {
+      this.world.tiles.set(key, tile);
+      const file = this.files.get(key);
+      if (!file) this.files.set(key, { format, revision: null, tile, created: true });
+      else file.tile = tile;
+    }
+    this.markTiles(tiles.keys());
+    this.markDefinitionDirty();
+  }
+
+  /** Files the definition no longer lists, on disk: key -> revision read. */
+  staleFiles(): Map<string, string> {
+    const listed = new Set(this.world.def.tiles.map((tile) => tile.key));
+    const stale = new Map<string, string>();
+    for (const [key, file] of this.files) if (!listed.has(key) && !file.created && file.revision !== null) stale.set(key, file.revision);
+    return stale;
+  }
+
   /** The tile in the world is the one read from disk, or one edited here: it may be sculpted and saved. */
   readable(key: string): boolean {
     const tile = this.world.tiles.get(key);
@@ -92,12 +127,14 @@ export class TerrainEditSession {
     this.definitionRevision += 1;
   }
 
+  /** Edited tiles not saved since, among those the definition lists. */
   dirtyKeys(): string[] {
-    return [...this.revisions].filter(([key, revision]) => this.saved.get(key) !== revision).map(([key]) => key);
+    const listed = new Set(this.world.def.tiles.map((tile) => tile.key));
+    return [...this.revisions].filter(([key, revision]) => listed.has(key) && this.saved.get(key) !== revision).map(([key]) => key);
   }
 
   get dirty(): boolean {
-    return this.definitionRevision !== this.savedDefinitionRevision || this.dirtyKeys().length > 0;
+    return this.definitionRevision !== this.savedDefinitionRevision || this.dirtyKeys().length > 0 || this.staleFiles().size > 0;
   }
 
   /** Height formats of the tiles read (a save keeps each tile's own). */
@@ -108,9 +145,10 @@ export class TerrainEditSession {
   /** Snapshot now (before any await): the dirty tiles, the far map and the definition; null when clean. */
   capture(): TerrainSaveCapture | null {
     const keys = this.dirtyKeys();
-    if (keys.length === 0 && this.definitionRevision === this.savedDefinitionRevision) return null;
+    const deletes = this.staleFiles();
+    if (keys.length === 0 && deletes.size === 0 && this.definitionRevision === this.savedDefinitionRevision) return null;
     const snapshot = captureWorldTerrainSave(this.world, keys, this.formats(), this.global ?? undefined);
-    return { snapshot, tiles: new Map(keys.map((key) => [key, this.revisions.get(key)!] as const)), definition: this.definitionRevision };
+    return { snapshot, tiles: new Map(keys.map((key) => [key, this.revisions.get(key)!] as const)), definition: this.definitionRevision, deletes };
   }
 
   /**
@@ -125,8 +163,12 @@ export class TerrainEditSession {
     if (revisions.global !== undefined) this.globalRevision = revisions.global;
     for (const [key, revision] of revisions.tiles ?? []) {
       const file = this.files.get(key);
-      if (file) file.revision = revision;
+      if (file) {
+        file.revision = revision;
+        delete file.created;
+      }
     }
+    for (const key of capture.deletes.keys()) this.files.delete(key);
     if (this.definitionRevision === capture.definition) this.savedDefinitionRevision = capture.definition;
     for (const [key, revision] of capture.tiles) {
       if (this.revisions.get(key) === revision) this.saved.set(key, revision);

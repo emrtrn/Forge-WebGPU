@@ -83,11 +83,12 @@ export interface EditableTerrain {
   /** Tiles changed in the session's world: the view re-reads these rectangles (slots, normals, far map, picking). */
   changed(dirty: ReadonlyMap<string, TerrainDirtyRect>): void;
   /**
-   * The definition's paint layers changed (added, removed, a material): the
-   * session's far map is rebuilt from its tiles (all resident) and the terrain
-   * is drawn again with the new layers. Resolves when it is.
+   * The session's definition changed beyond tile data (paint layers added,
+   * removed, a material; a move; an Expand's new grid): the far map is rebuilt
+   * from the tiles when every one is resident, and the terrain is drawn again
+   * from the session. Resolves when it is.
    */
-  layersChanged(): Promise<void>;
+  definitionChanged(): Promise<void>;
   /** Keeps `keys` resident until released; resolves when every declared one is in the world as read, rejects when one fails to read. */
   demand(keys: Iterable<string>): Promise<void>;
   release(keys: Iterable<string>): void;
@@ -101,6 +102,8 @@ export interface TerrainEditing {
   /** Forgets a session without unsaved edits (its files changed on disk); false when it has some or none exists. */
   drop(guid: string): boolean;
   register(terrain: EditableTerrain): () => void;
+  /** Every drawn editable terrain. */
+  list(): readonly EditableTerrain[];
   /** The drawn editable terrain of an actor (its first terrain component unless `component` is named). */
   find(actor: ActorId, component?: string): EditableTerrain | undefined;
   readonly settings: Readonly<LandscapeSettings>;
@@ -138,6 +141,7 @@ export function createTerrainEditing(settings: Partial<LandscapeSettings> = {}):
         if (terrains.delete(terrain)) notify();
       };
     },
+    list: () => [...terrains],
     find(actor, component) {
       for (const terrain of terrains) if (terrain.actor === actor && (component === undefined || terrain.component === component)) return terrain;
       return undefined;

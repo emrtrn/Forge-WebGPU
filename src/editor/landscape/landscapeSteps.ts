@@ -15,6 +15,30 @@ export function restoreEdited(session: TerrainEditSession): void {
 }
 
 /**
+ * Loads and holds every tile of `terrain` (Forge's loadWholeWorldTerrain): a
+ * streaming terrain demands them all and waits. Resolves to the release once
+ * every tile is in as read; rejects (after releasing) when one could not be
+ * read: nothing may then be written over the whole grid.
+ */
+export async function holdWholeTerrain(terrain: EditableTerrain, why: string, status: (message: string) => void): Promise<() => void> {
+  const keys = terrain.session.world.def.tiles.map((tile) => tile.key);
+  const release = (): void => terrain.release(keys);
+  try {
+    restoreEdited(terrain.session);
+    const missing = keys.filter((key) => !terrain.session.world.tiles.has(key)).length;
+    if (missing > 0) status(`Loading ${missing} terrain tile(s) to ${why}…`);
+    await terrain.demand(keys);
+    restoreEdited(terrain.session);
+    const unread = keys.find((key) => !terrain.session.readable(key));
+    if (unread) throw new Error(`terrain tile ${unread} could not be read`);
+    return release;
+  } catch (error) {
+    release();
+    throw error;
+  }
+}
+
+/**
  * Records `patches` on `terrain` as one undo step labelled `label`. With
  * `apply`, their after side is written first (patches computed but not
  * applied: Fill Layer, Auto Paint); a stroke has already written its dabs.

@@ -29,7 +29,7 @@ import type { EditableTerrain, TerrainEditing } from "../../engine/terrain/terra
 import { applyTerrainLayerState, createTerrainLayerAddition, createTerrainLayerRemoval, type TerrainLayerState } from "../../engine/terrain/terrainLayers.ts";
 import { TERRAIN_MAX_LAYERS } from "../../engine/terrain/terrainTypes.ts";
 import type { EditorSession } from "../session/editorSession.ts";
-import { pushTerrainPatchStep, restoreEdited } from "./landscapeSteps.ts";
+import { holdWholeTerrain, pushTerrainPatchStep, restoreEdited } from "./landscapeSteps.ts";
 
 /** Forge's colour for a new layer. */
 const NEW_LAYER_COLOR = "#55493b";
@@ -89,26 +89,17 @@ export function createLandscapeLayers(options: LandscapeLayersOptions): Landscap
     }
     const terrain = terrainOf(actor);
     if (!terrain) return false;
-    const keys = terrain.session.world.def.tiles.map((tile) => tile.key);
     busy = true;
+    let release = (): void => {};
     try {
-      restoreEdited(terrain.session);
-      const missing = keys.filter((key) => !terrain.session.world.tiles.has(key)).length;
-      if (missing > 0) status(`Loading ${missing} terrain tile(s) to ${why}…`);
-      await terrain.demand(keys);
-      restoreEdited(terrain.session);
+      release = await holdWholeTerrain(terrain, why, status);
       if (terrainOf(actor) !== terrain) return false;
-      const unread = keys.find((key) => !terrain.session.readable(key));
-      if (unread) {
-        status(`Terrain tile ${unread} could not be read; cannot ${why}.`, "warning");
-        return false;
-      }
       return work(terrain);
     } catch (error) {
       status(`Cannot ${why}: ${error instanceof Error ? error.message : String(error)}`, "error");
       return false;
     } finally {
-      terrain.release(keys);
+      release();
       busy = false;
     }
   };
@@ -123,7 +114,7 @@ export function createLandscapeLayers(options: LandscapeLayersOptions): Landscap
       session.markDefinitionDirty();
       editing.update({ activeLayerId });
       const drawn = editing.find(actor);
-      if (drawn?.session === session) void drawn.layersChanged();
+      if (drawn?.session === session) void drawn.definitionChanged();
     };
     apply(change.after, active.after);
     editor.pushStep({ label, undo: () => apply(change.before, active.before), redo: () => apply(change.after, active.after) });
@@ -213,7 +204,7 @@ export function createLandscapeLayers(options: LandscapeLayersOptions): Landscap
         else target.material = value;
         session.markDefinitionDirty();
         const drawn = editing.find(actor);
-        if (drawn?.session === session) void drawn.layersChanged();
+        if (drawn?.session === session) void drawn.definitionChanged();
       };
       apply(next);
       editor.pushStep({

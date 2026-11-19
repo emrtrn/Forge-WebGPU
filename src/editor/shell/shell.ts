@@ -32,7 +32,7 @@ import type { EditCommands } from "../edit/editCommands.ts";
 import type { EditorCatalog } from "../host/editorCatalog.ts";
 import { IN_FIELDS, isEditableTarget, shortcutOf, type ShortcutId } from "../input/shortcuts.ts";
 import type { ActorPlacer } from "../place/actorPlacer.ts";
-import { createAddActorMenu } from "../place/addActorMenu.ts";
+import { createAddActorMenu, type AddActorAction } from "../place/addActorMenu.ts";
 import { openContextMenu } from "../ui/contextMenu.ts";
 import { UI_ICONS } from "../ui/icons.ts";
 import { createWorldSettings } from "../world/worldSettingsPanel.ts";
@@ -116,7 +116,7 @@ export interface EditorShell {
   /** Binds the view controls to the viewport. */
   attachViewport(menus: ViewportMenus): void;
   /** Adds Forge's "+ Add Actor" menu at the start of the work bar; its drags end in the viewport (step 5d). */
-  attachPlacer(placer: ActorPlacer): void;
+  attachPlacer(placer: ActorPlacer, actions?: readonly AddActorAction[]): void;
   /** Static meshes' model bounds for World Settings' Generate Zones (plan 5c R9b). */
   attachModelBounds(read: ModelBounds): void;
   /** Adds the transform toolbar and Details' pivot and placement actions; `navigating` is true while the camera flies. */
@@ -351,9 +351,9 @@ export function createShell(options: ShellOptions): EditorShell {
     attachModelBounds(read) {
       modelBoundsNow = read;
     },
-    attachPlacer(placer) {
+    attachPlacer(placer, actions = []) {
       placerNow = placer;
-      workbar.prepend(createAddActorMenu({ document: doc, placer, viewport, status }));
+      workbar.prepend(createAddActorMenu({ document: doc, placer, viewport, status, actions }));
     },
     save: () => saveNow(),
     diskChanged: (files) => live?.handle(files) ?? Promise.resolve(),

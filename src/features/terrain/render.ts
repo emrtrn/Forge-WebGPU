@@ -42,8 +42,12 @@
 //   tool writes tiles and calls `changed`, the view re-reads them.
 // - Paint layers (5d step 3): the session's definition may differ from the
 //   cache's (a layer added, removed, a material assigned, saved or not); the
-//   terrain draws with the session's layers. `layersChanged` rebuilds the far
-//   map from the tiles (all resident then) and draws the terrain again. The
+//   terrain draws with the session's layers. `definitionChanged` (layers, a
+//   move, an Expand's grid, step 4) rebuilds the far map from the tiles when
+//   all are resident and draws the terrain again from the session. While the
+//   gizmo drags an editable terrain's actor, its mesh follows by the actor's
+//   offset from where it was drawn; the editor moves the definition when the
+//   move lands (landscapeTerrain.ts), which draws it again. The
 //   Landscape view mode (lit / height / slope / layer) is the editing
 //   service's setting, passed to the view each frame; only an editor view has
 //   it compiled in.
@@ -117,8 +121,11 @@ interface Placed {
   /** Editor only: the edit session drawn, the registration's end, the tiles a stroke holds and who waits for them. */
   session: TerrainEditSession | null;
   unregister: (() => void) | null;
-  /** Bumped by each rebuild for new layers: a slower, older one gives way. */
+  /** Bumped by each rebuild for a changed definition: a slower, older one gives way. */
   generation: number;
+  /** The actor as this world has it now, and its position when the terrain was drawn (the drag offset's zero). */
+  latest: WorldActor;
+  placedAt: readonly [number, number, number];
   readonly held: Map<string, number>;
   readonly demands: { readonly keys: readonly string[]; resolve(): void; reject(error: Error): void }[];
 }
@@ -173,6 +180,7 @@ export default defineRenderBinding({
 
     const show = (actor: WorldActor, key: string, entry: Placed, terrain: LoadedTerrain, guid: string, session: TerrainEditSession | null, layers: readonly TerrainLayerInput[]): void => {
       entry.session = session;
+      entry.placedAt = [...actor.transform.p] as [number, number, number];
       const def = session?.world.def ?? terrain.def;
       const global = session?.global ?? terrain.global;
       const document = { def, tiles: session?.world.tiles ?? new Map<string, TerrainTileData>(), globalAttributes: global };
@@ -237,7 +245,7 @@ export default defineRenderBinding({
           changed: (dirty) => {
             for (const [tileKey, rect] of dirty) view.updateTile(tileKey, rect);
           },
-          layersChanged: async () => {
+          definitionChanged: async () => {
             const generation = ++entry.generation;
             const { world } = session;
             if (world.def.tiles.every(({ key: tileKey }) => world.tiles.has(tileKey))) {
@@ -246,7 +254,9 @@ export default defineRenderBinding({
             const next = await terrain.layersFor(world.def);
             if (entry.removed || entry.session !== session || entry.generation !== generation) return;
             hide(entry);
-            show(actor, key, entry, terrain, guid, session, next);
+            // What this stream left is read again by the next one; edited tiles stay.
+            for (const tileKey of [...world.tiles.keys()]) if (!session.edited.has(tileKey)) world.tiles.delete(tileKey);
+            show(entry.latest, key, entry, terrain, guid, session, next);
           },
           demand: (keys) => {
             const declared = new Set(def.tiles.map((tile) => tile.key));
@@ -304,6 +314,7 @@ export default defineRenderBinding({
         actor: actor.id, view: null, stream: null, reader: null, sources: [], busy: null, settled: false, removed: false,
         key: data.data === null ? null : resourceKey.terrain(data.data),
         session: null, unregister: null, generation: 0, held: new Map(), demands: [],
+        latest: actor, placedAt: [...actor.transform.p] as [number, number, number],
       };
       placed.set(id, entry);
       const guid = data.data;
@@ -314,7 +325,7 @@ export default defineRenderBinding({
           if (entry.removed) return;
           const session = editSession(guid, terrain);
           const layers = await layersOf(terrain, session);
-          if (!entry.removed) show(actor, key, entry, terrain, guid, session, layers);
+          if (!entry.removed) show(entry.latest, key, entry, terrain, guid, session, layers);
         },
         () => {
           // Counted by the cache and reported by the host; nothing is drawn.
@@ -349,7 +360,19 @@ export default defineRenderBinding({
       // the drawn terrain and its stream; only a changed terrain component builds it again.
       actorsChanged(changes) {
         for (const { actor, previous } of changes) {
-          if (JSON.stringify(terrainsOf(previous)) === JSON.stringify(terrainsOf(actor))) continue;
+          if (JSON.stringify(terrainsOf(previous)) === JSON.stringify(terrainsOf(actor))) {
+            // A moved editable terrain follows its actor until the editor moves its definition (then it is drawn again).
+            for (const [key] of terrainsOf(actor)) {
+              const entry = placed.get(`${actor.id}/${key}`);
+              if (!entry) continue;
+              entry.latest = actor;
+              if (entry.session && entry.view) {
+                const [x, y, z] = actor.transform.p;
+                entry.view.mesh.position.set(x - entry.placedAt[0], y - entry.placedAt[1], z - entry.placedAt[2]);
+              }
+            }
+            continue;
+          }
           for (const [key] of terrainsOf(previous)) remove(`${previous.id}/${key}`);
           for (const [key, component] of terrainsOf(actor)) add(actor, key, component as unknown as TerrainData);
         }

@@ -101,6 +101,7 @@ import { installKitStyle } from "./ui/kitStyle.ts";
 import { createViewportControls } from "./viewportControls.ts";
 import { createTerrainEditing, TerrainEditingKey } from "../engine/terrain/terrainEditing.ts";
 import { createLandscapeLayers, LandscapeLayersKey } from "./landscape/landscapeLayers.ts";
+import { createLandscapeTerrain, LandscapeTerrainKey } from "./landscape/landscapeTerrain.ts";
 import { resourceKey } from "../render/resources/resourceCache.ts";
 import { createLandscapeTool, type LandscapeTool } from "./landscape/landscapeTool.ts";
 import { createLandscapeSave } from "./landscape/landscapeSave.ts";
@@ -457,6 +458,20 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       editor: session, editing: terrainEditing, status: (message, tone) => shell.status(message, tone), assetLabel: (guid) => assets.label(guid),
       pickAsset: (type) => openPicker({ document: doc, host: shell.root, title: "Select Asset", testId: "asset-picker", items: assets.ofType(type).map((item) => ({ id: item.guid, label: item.name, note: item.file })) }),
     }));
+    // World Terrains: New (asset at once), Expand, heightmap files, moving with the actor (plan 5d step 4).
+    const landscapeTerrain = createLandscapeTerrain({
+      editor: session, editing: terrainEditing, client: options.client, status: (message, tone) => shell.status(message, tone),
+      exists: (path) => content.index().byFile(path) !== undefined, refresh: async () => { await content.refresh(true); await refreshAssetUrls(); },
+      download: (name, bytes) => {
+        const link = doc.createElement("a");
+        link.href = URL.createObjectURL(new Blob([bytes as BlobPart]));
+        link.download = name;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 0);
+      },
+      document: doc, dialogHost: shell.root,
+    });
+    world.services.provide(LandscapeTerrainKey, landscapeTerrain);
     tools = createTransformTools({ editor: session, viewport, storage: pageStorage(doc), status: (message, tone) => shell.status(message, tone), duplicate: (coalesce) => editCommands.duplicateForDrag(coalesce) });
     shell.attachTools(tools, () => viewport.camera.navigating);
     const play = createEditorPlay({
@@ -517,7 +532,10 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
           };
         },
       });
-    shell.attachPlacer(placer);
+    shell.attachPlacer(placer, [{
+      key: "forge.worldTerrain", label: "World Terrain…", category: "Terrain", icon: "terrain",
+      title: "Yeni World Terrain: asset hemen yazılır, aktör level'a eklenir", run: () => void landscapeTerrain.openCreate(),
+    }]);
     shell.attachModelBounds(createModelBounds(() => viewport.host));
     assetDrop = createAssetDrop({
       host: shell.viewport,

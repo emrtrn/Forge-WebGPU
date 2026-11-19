@@ -6,6 +6,8 @@
 // level drags into the viewport, which shows it under the pointer and places
 // it on the drop. `data-testid="add-shape-cube"` is Forge's.
 // Text is set with textContent; the only markup is the kit's static icons.
+// The editor may add actions (plan 5d step 4: Terrain > World Terrain…, a
+// dialog): listed with the entries, clicked only.
 
 import { ADD_ACTOR_CATEGORIES } from "../host/featureEditor.ts";
 import { ACTOR_TYPE_ICONS, UI_ICONS, type ActorTypeIcon } from "../ui/icons.ts";
@@ -17,16 +19,27 @@ export const ADD_ACTOR_MIME = "application/x-forge-add-actor";
 const MENU_CHEVRON =
   '<svg class="menu-chevron" viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5L6 7.5 9 4.5"/></svg>';
 
+/** An editor action listed in the menu (a dialog that makes the actor). */
+export interface AddActorAction {
+  readonly key: string;
+  readonly label: string;
+  readonly category: string;
+  readonly icon: ActorTypeIcon;
+  readonly title: string;
+  run(): void;
+}
+
 export interface AddActorMenuOptions {
   readonly document: Document;
   readonly placer: ActorPlacer;
+  readonly actions?: readonly AddActorAction[];
   /** The viewport panel: drags end there. */
   readonly viewport: HTMLElement;
   readonly status: (message: string, tone?: "info" | "warning" | "error") => void;
 }
 
 /** Categories in Forge's order, a game's after them, Classes last; only those with entries. */
-export function menuCategories(entries: readonly PlacerEntry[]): { label: string; icon: ActorTypeIcon }[] {
+export function menuCategories(entries: readonly Pick<PlacerEntry, "category" | "icon">[]): { label: string; icon: ActorTypeIcon }[] {
   const known: { label: string; icon: ActorTypeIcon }[] = [...ADD_ACTOR_CATEGORIES];
   const used = new Set(entries.map((entry) => entry.category));
   for (const entry of entries) {
@@ -38,6 +51,7 @@ export function menuCategories(entries: readonly PlacerEntry[]): { label: string
 
 export function createAddActorMenu(options: AddActorMenuOptions): HTMLElement {
   const { document: doc, placer, status } = options;
+  const actions = options.actions ?? [];
   const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className = "", text?: string): HTMLElementTagNameMap[K] => {
     const node = doc.createElement(tag);
     if (className) node.className = className;
@@ -108,17 +122,36 @@ export function createAddActorMenu(options: AddActorMenuOptions): HTMLElement {
     return row;
   };
 
+  const actionItem = (action: AddActorAction, showCategory: boolean): HTMLButtonElement => {
+    const row = el("button", "add-actor-item");
+    row.type = "button";
+    row.dataset.addKey = action.key;
+    row.dataset.testid = `add-action-${action.key}`;
+    row.innerHTML = ACTOR_TYPE_ICONS[action.icon]; // The kit's static SVG.
+    row.append(el("span", "add-actor-item-label", action.label));
+    if (showCategory) row.append(el("span", "add-actor-item-cat", action.category));
+    row.title = action.title;
+    row.addEventListener("click", () => {
+      menu.classList.add("force-closed");
+      action.run();
+    });
+    return row;
+  };
+
   const draw = (): void => {
     const entries = placer.entries();
     categories.replaceChildren(
-      ...menuCategories(entries).map((category) => {
+      ...menuCategories([...entries, ...actions]).map((category) => {
         const box = el("div", "add-actor-category");
         const label = el("button", "add-actor-category-label");
         label.type = "button";
         label.innerHTML = ACTOR_TYPE_ICONS[category.icon]; // The kit's static SVG.
         label.append(el("span", "", category.label));
         const submenu = el("div", "add-actor-submenu");
-        submenu.append(...entries.filter((entry) => entry.category === category.label).map((entry) => item(entry, false)));
+        submenu.append(
+          ...entries.filter((entry) => entry.category === category.label).map((entry) => item(entry, false)),
+          ...actions.filter((action) => action.category === category.label).map((action) => actionItem(action, false)),
+        );
         box.append(label, submenu);
         return box;
       }),
@@ -131,7 +164,10 @@ export function createAddActorMenu(options: AddActorMenuOptions): HTMLElement {
       return;
     }
     const matches = entries.filter((entry) => entry.label.toLowerCase().includes(query) || entry.category.toLowerCase().includes(query));
-    results.replaceChildren(...(matches.length === 0 ? [el("div", "add-actor-empty", `“${search.value.trim()}” ile eşleşen aktör yok`)] : matches.map((entry) => item(entry, true))));
+    const matchedActions = actions.filter((action) => action.label.toLowerCase().includes(query) || action.category.toLowerCase().includes(query));
+    results.replaceChildren(...(matches.length + matchedActions.length === 0
+      ? [el("div", "add-actor-empty", `“${search.value.trim()}” ile eşleşen aktör yok`)]
+      : [...matches.map((entry) => item(entry, true)), ...matchedActions.map((action) => actionItem(action, true))]));
   };
   search.addEventListener("input", draw);
   search.addEventListener("keydown", (event) => {

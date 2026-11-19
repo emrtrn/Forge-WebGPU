@@ -9,6 +9,8 @@
 // (`captureWorldTerrainSave`). Every write names the revision it was read
 // with: a file another writer changed since is a conflict (409) and nothing is
 // written; the edits stay. Tiles edited again while the save ran stay dirty.
+// A tile made here (Expand, 5d step 4) is written as a new file; a tile file
+// the definition no longer lists (an undone Expand) is deleted.
 //
 // A terrain in engine content or a pack is read only (A9): Save refuses it.
 //
@@ -16,7 +18,9 @@
 // someone else, a clean session is dropped (the terrain draws from disk
 // again); one with unsaved edits is kept and its next Save reports the
 // conflict. The editor's own writes come back with the revisions it already
-// holds and change nothing.
+// holds and change nothing; so does a late event of an earlier own save (a
+// tile written, then deleted by the next save): every path and revision this
+// editor wrote or deleted is remembered.
 
 import { dataDocument, stringifyDocument, TerrainAssetType, type AssetId, type ChangedFileBody, type SaveClient, type SaveRequestBody } from "../../core/index.ts";
 import type { TerrainEditing } from "../../engine/terrain/terrainEditing.ts";
@@ -58,6 +62,8 @@ function dirtyCount(session: TerrainEditSession): number {
 
 export function createLandscapeSave(options: LandscapeSaveOptions): LandscapeSave {
   const { editing, client } = options;
+  /** `path@revision` of every file this editor wrote, `path@` of every one it deleted. */
+  const own = new Set<string>();
 
   const saveOne = async (guid: string, session: TerrainEditSession): Promise<{ ok: boolean; message: string; files: number; conflict?: true }> => {
     const path = options.documentPath(guid);
@@ -70,8 +76,8 @@ export function createLandscapeSave(options: LandscapeSaveOptions): LandscapeSav
     const writes: { path: string; base: string | null; text?: string; staged?: string }[] = [];
     for (const tile of snapshot.tiles) {
       const file = session.files.get(tile.key);
-      if (!file || file.revision === null) return { ok: false, message: `Terrain tile ${tile.key}: its revision is unknown; reload the page before saving`, files: 0 };
-      writes.push({ path: parts.tile(tile.key), base: file.revision, staged: (await client.stageBinary(tile.bytes)).id });
+      if (!file || (file.revision === null && !file.created)) return { ok: false, message: `Terrain tile ${tile.key}: its revision is unknown; reload the page before saving`, files: 0 };
+      writes.push({ path: parts.tile(tile.key), base: file.created ? null : file.revision, staged: (await client.stageBinary(tile.bytes)).id });
     }
     // Tiles never loaded here, rewritten for the wider range: the disk copy is current.
     for (const key of snapshot.reencode) {
@@ -80,11 +86,16 @@ export function createLandscapeSave(options: LandscapeSaveOptions): LandscapeSav
       const bytes = reencodeTerrainTileRange(key, read.bytes, snapshot.def.heightMin, snapshot.def.heightMax);
       writes.push({ path: parts.tile(key), base: read.revision, staged: (await client.stageBinary(bytes)).id });
     }
-    writes.push({ path: parts.global, base: session.globalRevision, staged: (await client.stageBinary(snapshot.global)).id });
+    // A terrain loaded at once never read its far map (a single tile): the map is derived from the tiles, so the one on disk is replaced as it is now.
+    const globalBase = session.globalRevision ?? (await options.readFile(parts.global))?.revision ?? null;
+    writes.push({ path: parts.global, base: globalBase, staged: (await client.stageBinary(snapshot.global)).id });
     writes.push({ path, base: session.documentRevision, text: stringifyDocument(dataDocument(TerrainAssetType, guid as AssetId, snapshot.def as unknown as Record<string, unknown>)) });
-    const request: SaveRequestBody = { writes, deletes: [] };
+    const deletes = [...capture.deletes].map(([key, base]) => ({ path: parts.tile(key), base }));
+    const request: SaveRequestBody = { writes, deletes };
     const response = await client.save(request);
     if (response.status === "saved") {
+      for (const file of response.files) own.add(`${file.path}@${file.revision}`);
+      for (const removed of deletes) own.add(`${removed.path}@`);
       const revision = new Map(response.files.map((file) => [file.path, file.revision] as const));
       const tiles = new Map<string, string | null>();
       for (const key of [...snapshot.tiles.map((tile) => tile.key), ...snapshot.reencode]) {
@@ -96,7 +107,7 @@ export function createLandscapeSave(options: LandscapeSaveOptions): LandscapeSav
         ...(revision.has(parts.global) ? { global: revision.get(parts.global)! } : {}),
         tiles,
       });
-      return { ok: true, message: "Saved", files: writes.length };
+      return { ok: true, message: "Saved", files: writes.length + deletes.length };
     }
     if (response.status === "conflict") {
       const names = response.conflicts.map((conflict) => conflict.path.slice(conflict.path.lastIndexOf("/") + 1));
@@ -130,6 +141,7 @@ export function createLandscapeSave(options: LandscapeSaveOptions): LandscapeSav
         const parts = terrainPartPaths(path);
         // A file this session read and still holds at that revision (its own save included); a tile it never read does not matter.
         const known = (file: ChangedFileBody): boolean => {
+          if (own.has(`${file.path}@${file.revision ?? ""}`)) return true;
           if (file.path === path) return file.revision === session.documentRevision;
           if (file.path === parts.global) return file.revision === session.globalRevision;
           if (!file.path.startsWith(parts.tiles) || !file.path.endsWith(".tile.bin")) return true;

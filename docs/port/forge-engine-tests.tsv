@@ -1674,10 +1674,10 @@ tests/engine/worldTerrainExpandSingle.test.ts	61	check	A	yes		engine/terrain	bou
 tests/engine/worldTerrainExpandSingle.test.ts	71	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/worldTerrainExpandSingle.test.ts	world terrain expand: every height extends the nearest original edge/corner and new paint is layer zero	
 tests/engine/worldTerrainExpandSingle.test.ts	92	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/worldTerrainExpandSingle.test.ts	world terrain expand: every duplicated seam has identical heights and paint, including four-tile corners	
 tests/engine/worldTerrainExpandSingle.test.ts	110	check	M			engine/terrain,tools/terrainSaveValidator	level-data:layouts/test.terrain.json,model:tools/terrainSaveValidator		world terrain expand codec: validator rejects nonfinite heights; codec rejects truncated data and unsupported flags	
-tests/engine/worldTerrainMove.test.ts	28	check	A	yes		engine/terrain	boundary-model:engine/terrain		world terrain move: the delta is the actor's offset from the definition centre	5d
-tests/engine/worldTerrainMove.test.ts	37	check	A	yes		engine/terrain	boundary-model:engine/terrain		world terrain move: origin, world-frame splines and this terrain's lakes shift; nothing else does	5d
-tests/engine/worldTerrainMove.test.ts	56	check	A	yes		engine/terrain	boundary-model:engine/terrain		world terrain move: this terrain's world-frame River Waters shift surface height; local ones follow by themselves	5d
-tests/engine/worldTerrainMove.test.ts	68	check	A	yes		engine/terrain	boundary-model:engine/terrain		world terrain move: moving back restores the exact values without float noise	5d
+tests/engine/worldTerrainMove.test.ts	28	check	A	yes		engine/terrain	boundary-model:engine/terrain	src/engine/terrain/worldTerrainMove.test.ts	world terrain move: the delta is the actor's offset from the definition centre	
+tests/engine/worldTerrainMove.test.ts	37	check	A	yes		engine/terrain	boundary-model:engine/terrain		world terrain move: origin, world-frame splines and this terrain's lakes shift; nothing else does	7
+tests/engine/worldTerrainMove.test.ts	56	check	A	yes		engine/terrain	boundary-model:engine/terrain		world terrain move: this terrain's world-frame River Waters shift surface height; local ones follow by themselves	7
+tests/engine/worldTerrainMove.test.ts	68	check	A	yes		engine/terrain	boundary-model:engine/terrain		world terrain move: moving back restores the exact values without float noise	7
 tools/engine-tests.ts	1469	check	M			editor,engine/scene	model:editor,model:engine/scene		instance id matches selectionId	
 tools/engine-tests.ts	1475	check	M			editor,engine/scene	model:editor,model:engine/scene		instance id encodes special chars like selectionId	
 tools/engine-tests.ts	1482	check	M			editor,engine/scene	model:editor,model:engine/scene		character id matches selectionId	

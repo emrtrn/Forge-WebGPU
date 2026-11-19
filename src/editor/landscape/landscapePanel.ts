@@ -11,6 +11,9 @@
 // Auto Paint rules' place (`forge.landscapeAutoPaint` on this actor). Layer
 // actions are the editor's (landscapeLayers.ts), each one undo step.
 //
+// Tiles (step 4): Expand… (a single tile into a grid), Import Heightmap… and
+// Export PNG / RAW (landscapeTerrain.ts). Moving the terrain is the gizmo's.
+//
 // Forge's per-tool fields: Ramp shows its width (twice the brush radius) and
 // its offsets instead of size and strength; Noise its scale and seed; Terrace
 // its step; Erosion its type and the type's parameters; Flatten its target or
@@ -26,6 +29,7 @@ import { terrainTileWorldSize } from "../../engine/terrain/terrainTypes.ts";
 import type { DetailsExtensionContext } from "../host/featureEditor.ts";
 import { createFormView, createSection, type FormView } from "../ui/formView.ts";
 import { LandscapeLayersKey, type LandscapeLayers } from "./landscapeLayers.ts";
+import { LandscapeTerrainKey } from "./landscapeTerrain.ts";
 
 const TOOL_LABELS: Record<TerrainSculptTool, string> = {
   raise: "Raise", lower: "Lower", smooth: "Smooth", flatten: "Flatten", noise: "Noise", ramp: "Ramp", terrace: "Terrace", erosion: "Erosion",
@@ -269,7 +273,23 @@ export function createLandscapeDetails(ctx: DetailsExtensionContext): { element:
   };
 
   const rows = doc.createElement("div");
-  tiles.body.append(rows);
+  const terrainOps = ctx.service(LandscapeTerrainKey);
+  const actions = doc.createElement("div");
+  actions.className = "detail-row";
+  const onTarget = (run: (actor: ActorId) => void) => () => {
+    const actor = ctx.target()?.actor;
+    if (actor) run(actor);
+  };
+  const expand = button(doc, "Expand…", "landscape-expand", "Tek tile'lı terrain'i tile ızgarasına genişletir (tek Undo).", onTarget((actor) => void terrainOps?.openExpand(actor)));
+  const importMap = button(doc, "Import Heightmap…", "landscape-heightmap-import", "16-bit PNG ya da RAW'dan bütün yükseklikleri alır (tek Undo).", onTarget((actor) => void terrainOps?.openImport(actor)));
+  const exportPng = button(doc, "Export PNG", "landscape-heightmap-export-png", "Bütün ızgarayı 16-bit gri PNG olarak indirir.", onTarget((actor) => void terrainOps?.exportHeightmap(actor, "png")));
+  const exportRaw = button(doc, "Export RAW", "landscape-heightmap-export-raw", "Bütün ızgarayı 16-bit RAW (little-endian) olarak indirir.", onTarget((actor) => void terrainOps?.exportHeightmap(actor, "raw")));
+  actions.append(expand, importMap, exportPng, exportRaw);
+  const moveHint = doc.createElement("div");
+  moveHint.className = "detail-hint";
+  moveHint.textContent = "Terrain'i taşımak için gizmo ya da Transform: tanımın orijini ve dünya çerçeveli spline'ları birlikte kayar, tile'lar değişmez. Döndürme ve ölçek uygulanmaz.";
+  tiles.body.append(rows, actions, moveHint);
+  if (!terrainOps) actions.hidden = true;
   let shownTiles = "";
   const drawTiles = (): void => {
     const { terrain } = terrainNow();
@@ -290,6 +310,10 @@ export function createLandscapeDetails(ctx: DetailsExtensionContext): { element:
         ["Unsaved Tiles", String(terrain.session.dirtyKeys().length)],
       );
     }
+    const single = terrain !== undefined && terrain.session.world.def.tilesX * terrain.session.world.def.tilesZ === 1;
+    const busy = terrainOps?.busy ?? true;
+    expand.disabled = !single || busy;
+    importMap.disabled = exportPng.disabled = exportRaw.disabled = !terrain || busy;
     const text = JSON.stringify(lines);
     if (text === shownTiles) return;
     shownTiles = text;

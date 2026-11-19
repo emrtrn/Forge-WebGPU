@@ -10,7 +10,7 @@ import { createLandscapeLayers } from "./landscapeLayers.ts";
 
 const ACTOR = "act_00000000000000000000000000000001" as ActorId;
 
-/** A 2 Ã— 1 terrain read from "disk", drawn in a fake editor: the steps and the binding's calls are recorded. */
+/** A 2 × 1 terrain read from "disk", drawn in a fake editor: the steps and the binding's calls are recorded. */
 function setup() {
   const flat = createFlatWorldTerrain({ name: "hill", tilesX: 2, tilesZ: 1, tileQuads: 64, spacing: 1, baseHeight: 0 });
   const world = createTerrainEditWorld(flat.def, []);
@@ -24,7 +24,7 @@ function setup() {
   const terrain: EditableTerrain = {
     actor: ACTOR, component: "terrain", guid: "g", session, streams: false,
     changed: () => { calls.changed += 1; },
-    layersChanged: async () => { calls.layers += 1; },
+    definitionChanged: async () => { calls.layers += 1; },
     demand: async () => {},
     release: () => {},
   };
