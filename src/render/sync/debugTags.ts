@@ -62,6 +62,8 @@ export function terrainStreamingProbes(root: Object3D): TerrainStreamingProbe[] 
 export interface FoliageProbe {
   /** Every placement's ring summed. */
   ring(): { readonly rings: number; readonly cells: number; readonly instances: number; readonly pending: number };
+  /** Every placement's far billboard blocks summed (plan 5c F3). */
+  far(): { readonly blocks: number; readonly instances: number };
   /** The foliage batches built so far (one per Foliage Type). */
   batches(): readonly GpuDrivenBatch[];
   /** Stops (false) or resumes the binding's per-frame work: the ring's plan and the painted streaming (a measurement's baseline). */

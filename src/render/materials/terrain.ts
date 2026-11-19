@@ -198,8 +198,17 @@ export interface TerrainMaterialInput {
   readonly farTiling: boolean;
 }
 
+/** The far foliage tint (plan 5c F3): coverage sits in the far map normals' alpha; colour linear RGB. */
+export interface TerrainFarTint {
+  readonly start: number;
+  readonly end: number;
+  readonly color: readonly [number, number, number];
+}
+
 export interface TerrainMaterial {
   setSurfaceCover(input: SurfaceCoverInput | null): void;
+  /** Blends the ground toward the plants' colour past `start` (fully by `end`) where the far map's alpha says; null: off. */
+  setFarTint(tint: TerrainFarTint | null): void;
   readonly material: THREE.MeshStandardNodeMaterial;
   /** Sets the terrain-local camera position the morph reads (the view, on each selection). */
   setLodCamera(x: number, y: number, z: number): void;
@@ -359,7 +368,14 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
   });
   const painted = total.greaterThan(0.0001);
   const fallback = vec3(uniform(new THREE.Color(input.layers[0]?.color ?? "#808080")));
-  const albedo = select(painted, sum.div(total), fallback);
+  const paintedAlbedo = select(painted, sum.div(total), fallback);
+  // Far foliage tint (Forge's FAR_TINT, plan 5c F3): the far map normals' spare alpha holds how much ground
+  // the plants hide; past the start the ground blends toward their colour, fully by the end. Off while end is 0.
+  const uFarTint = uniform(new THREE.Vector2(0, 0));
+  const uFarTintColor = uniform(new THREE.Color(0, 0, 0));
+  const tintFade = smoothstep(uFarTint.x, uFarTint.y, length(positionView));
+  const tinted = mix(paintedAlbedo, uFarTintColor, clamp(globalNormal.a, 0, 1).mul(tintFade));
+  const albedo = select(uFarTint.y.greaterThan(0), tinted, paintedAlbedo);
 
   // Layer normals in the terrain normal's tangent space (Forge's normal block).
   let worldNormal: AnyNode = base;
@@ -384,6 +400,10 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
   return {
     material,
     setSurfaceCover: (input) => surfaceCover.update(input),
+    setFarTint(tint) {
+      (uFarTint.value as THREE.Vector2).set(tint?.start ?? 0, tint ? Math.max(tint.end, tint.start + 1) : 0);
+      (uFarTintColor.value as THREE.Color).setRGB(...(tint?.color ?? [0, 0, 0]), THREE.LinearSRGBColorSpace);
+    },
     setLodCamera(x, y, z) {
       (uLodCamera.value as THREE.Vector3).set(x, y, z);
     },

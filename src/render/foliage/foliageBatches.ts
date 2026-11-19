@@ -113,6 +113,22 @@ const sameType = (a: FoliageTypeDraw, b: FoliageTypeDraw): boolean =>
   sameSway(a.sway, b.sway) && JSON.stringify(a.plant ?? null) === JSON.stringify(b.plant ?? null) && JSON.stringify(a.impostor ?? null) === JSON.stringify(b.impostor ?? null) && a.mesh === b.mesh && a.castShadow === b.castShadow && a.cullStart === b.cullStart && a.cullEnd === b.cullEnd
   && a.lods.length === b.lods.length && a.lods.every((lod, index) => lod.mesh === b.lods[index]!.mesh && lod.screenSize === b.lods[index]!.screenSize);
 
+/**
+ * A model's parts with its slot materials, and LOD 0's bounding sphere (three's Box3 → sphere, what an impostor's
+ * frames span). The resource keys it acquires go to `keys`, released by the caller.
+ */
+export async function loadModelParts(world: WorldResources, guid: string, keys: string[]): Promise<{ parts: GpuBatchPart[]; sphere: Sphere }> {
+  keys.push(resourceKey.model(guid));
+  const template = await world.model(guid);
+  const materials = await Promise.all(template.slots.map(async (own, slot) => {
+    const material = template.slotMaterials[slot] ?? null;
+    if (material === null) return own;
+    keys.push(world.materialKey(material));
+    return world.material(material).catch(() => own);
+  }));
+  return { parts: modelParts(template, materials), sphere: new Box3().setFromObject(template.scene).getBoundingSphere(new Sphere()) };
+}
+
 /** Development: the LOD every foliage batch draws at any distance (`__forgeDev.foliageLod`); null: by screen size. */
 let lodOverride: number | null = null;
 const liveBatches = new Set<() => void>();
@@ -161,17 +177,7 @@ export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBat
 
   const load = async (entry: TypeEntry): Promise<void> => {
     const world = options.resources;
-    const lodParts = async (guid: string): Promise<{ parts: GpuBatchPart[]; sphere: Sphere }> => {
-      entry.keys.push(resourceKey.model(guid));
-      const template = await world.model(guid);
-      const materials = await Promise.all(template.slots.map(async (own, slot) => {
-        const material = template.slotMaterials[slot] ?? null;
-        if (material === null) return own;
-        entry.keys.push(world.materialKey(material));
-        return world.material(material).catch(() => own);
-      }));
-      return { parts: modelParts(template, materials), sphere: new Box3().setFromObject(template.scene).getBoundingSphere(new Sphere()) };
-    };
+    const lodParts = (guid: string) => loadModelParts(world, guid, entry.keys);
     try {
       const lods = await Promise.all([entry.type.mesh, ...entry.type.lods.map((lod) => lod.mesh)].map(lodParts));
       if (entry.disposed) return;

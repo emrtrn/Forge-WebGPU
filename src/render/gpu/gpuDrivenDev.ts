@@ -54,6 +54,8 @@ export interface DevGpuDriven {
   check(): Promise<DevGpuCheck[]>;
   /** The level's procedural foliage ring (plan 5c F1), every placement summed; null without a world or foliage. */
   level(): { rings: number; cells: number; instances: number; pending: number } | null;
+  /** The level's far billboard blocks (plan 5c F3), every placement summed; null without a world or foliage. */
+  levelFar(): { blocks: number; instances: number } | null;
   /** Shows or hides the level's foliage (the smoke's image without it). */
   levelVisible(visible: boolean): void;
   /** Stops or resumes the level foliage binding's per-frame work (a measurement's baseline). */
@@ -136,6 +138,10 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
     level() {
       const scene = host()?.world?.scene;
       return scene ? foliageProbe(scene)?.ring() ?? null : null;
+    },
+    levelFar() {
+      const scene = host()?.world?.scene;
+      return scene ? foliageProbe(scene)?.far() ?? null : null;
     },
     levelActive(active) {
       const scene = host()?.world?.scene;

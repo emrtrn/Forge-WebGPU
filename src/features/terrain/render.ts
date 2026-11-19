@@ -138,6 +138,7 @@ export default defineRenderBinding({
       publishTerrainSurface(ctx.scene, actor.id, {
         def: terrain.def, tiles: view.source, existingTiles: new Set(terrain.def.tiles.map((tile) => tile.key)), global: terrain.global,
         settled: () => entry.settled,
+        setFarTint: (tint) => view.setFarTint(tint),
       });
     };
 

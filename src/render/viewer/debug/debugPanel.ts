@@ -129,12 +129,14 @@ export function formatZones(zones: ZoneDrawingStats): string[] {
   ];
 }
 
-/** Foliage (plan 5c F1 / F4): the ring's cells and instances, and the painted cells streamed. */
+/** Foliage (plan 5c F1 / F3 / F4): the ring's cells and instances, the far billboard blocks, and the painted cells streamed. */
 export function formatFoliage(probe: FoliageProbe): string[] {
   const ring = probe.ring();
   const painted = probe.painted();
   const lines: string[] = [];
   if (ring.rings > 0) lines.push(`foliage ring ${ring.rings}: ${groupThousands(ring.cells)} cells, ${groupThousands(ring.instances)} instances, ${ring.pending} pending`);
+  const far = probe.far();
+  if (far.blocks > 0) lines.push(`foliage far: ${far.blocks} blocks, ${groupThousands(far.instances)} billboards`);
   if (painted) {
     lines.push(`foliage painted: ${painted.activeCells} / ${painted.totalCells} cells active, ${painted.fetchedCells} fetched, ${painted.fetching} fetching, ${groupThousands(painted.instances)} instances`);
   }

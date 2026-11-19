@@ -49,6 +49,7 @@ import {
   createTerrainMaterial,
   createTerrainPatchGeometry,
   setTerrainInstanceCapacity,
+  type TerrainFarTint,
   type TerrainLayerTextures,
   type TerrainMaterial,
   type TerrainMaterialInput,
@@ -162,9 +163,25 @@ export interface TerrainSelection {
 
 export class TerrainView {
   private cover: SurfaceCoverInput | null = null;
+  private farTint: TerrainFarTint | null = null;
   setSurfaceCover(input: SurfaceCoverInput | null): void {
     this.cover = input;
     this.terrainMaterial.setSurfaceCover(input);
+  }
+
+  /**
+   * The far foliage tint (plan 5c F3, Forge's TerrainRenderer.setFarTint): coverage per far map sample into
+   * the far map normals' spare alpha, start / end / colour into the material; null clears it.
+   */
+  setFarTint(tint: (TerrainFarTint & { readonly coverage: Float32Array }) | null): void {
+    const texture = this.globalTextures[1]!;
+    const { width, height } = texture.image as { width: number; height: number };
+    if (tint && tint.coverage.length !== width * height) throw new Error("terrain: far tint does not match the far map");
+    const halves = (texture.image as { data: Uint16Array }).data;
+    for (let i = 0; i < width * height; i += 1) halves[i * 4 + 3] = THREE.DataUtils.toHalfFloat(tint ? tint.coverage[i]! : 0);
+    texture.needsUpdate = true;
+    this.farTint = tint ? { start: tint.start, end: tint.end, color: tint.color } : null;
+    this.terrainMaterial.setFarTint(this.farTint);
   }
   readonly mesh: THREE.Mesh<THREE.InstancedBufferGeometry, THREE.MeshStandardNodeMaterial>;
   /** World position of terrain-local 0. */
@@ -361,6 +378,7 @@ export class TerrainView {
     const material = createTerrainMaterial({ ...this.materialInput, farTiling: enabled });
     this.terrainMaterial = material;
     material.setSurfaceCover(this.cover);
+    material.setFarTint(this.farTint);
     this.mesh.material = material.material;
     previous.dispose();
     this.selectionDirty = true;

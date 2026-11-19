@@ -17,6 +17,10 @@
 // tint, snow on up-facing leaves / wood and the wet darkening. Without one
 // (a plain foliage type) the summer look.
 //
+// A one-layer atlas (an imported model's, baked at run time for its far
+// billboards, plan 5c F3: render/plant/modelImpostor.ts) is drawn as leaves
+// that never shed.
+//
 // Bounds: the atlas frames span the sphere three's Box3.getBoundingSphere
 // gives for LOD 0 (the bake's AABB centre and half diagonal), so the quad
 // matches the frames.
@@ -44,6 +48,11 @@ export interface ImpostorAtlasDraw {
   /** LOD 0's bounding sphere in template space. */
   readonly center: Vector3;
   readonly radius: number;
+  /**
+   * 2 (default): wood left half, leaves right half (a generated plant). 1: one layer over the whole atlas,
+   * drawn as leaves that never shed (an imported model baked at run time, plan 5c F3).
+   */
+  readonly layers?: 1 | 2;
 }
 
 /** A plant's live appearance (plantDrawing.ts uniforms). */
@@ -157,18 +166,24 @@ export function applyImpostor(
   let woodCover: Node<"float"> = float(0), leafCover: Node<"float"> = float(0);
   let woodRgb: V3 = vec3(0, 0, 0), leafRgb: V3 = vec3(0, 0, 0);
   let woodOct: V2 = vec2(0, 0), leafOct: V2 = vec2(0, 0);
+  const single = atlas.layers === 1;
   frameUv.forEach((entry, k) => {
     const w = [blend.x, blend.y, blend.z][k]!;
     const inFrame = select(entry.z.greaterThanEqual(0).and(entry.z.lessThanEqual(1)).and(entry.w.greaterThanEqual(0)).and(entry.w.lessThanEqual(1)), float(1), float(0));
-    const at = (half: number) => entry.xy.add(clamp(entry.zw, 0, 1)).div(views).mul(vec2(0.5, 1)).add(vec2(half * 0.5, 0));
-    const wood = { color: texture(atlas.albedo, at(0)), normal: texture(atlas.normal, at(0)) };
+    const frameAt = entry.xy.add(clamp(entry.zw, 0, 1)).div(views);
+    const at = (half: number) => (single ? frameAt : frameAt.mul(vec2(0.5, 1)).add(vec2(half * 0.5, 0)));
     const leaf = { color: texture(atlas.albedo, at(1)), normal: texture(atlas.normal, at(1)) };
-    const kept = look ? select(clamp(leaf.normal.w.add(jitter), 0.001, 0.999).lessThan(look.foliage), float(1), float(0)) : float(1);
-    const cw = w.mul(inFrame).mul(wood.color.w);
+    const kept = look && !single ? select(clamp(leaf.normal.w.add(jitter), 0.001, 0.999).lessThan(look.foliage), float(1), float(0)) : float(1);
     const cl = w.mul(inFrame).mul(leaf.color.w).mul(kept);
-    woodCover = woodCover.add(cw); leafCover = leafCover.add(cl);
-    woodRgb = woodRgb.add(wood.color.xyz.mul(cw)); leafRgb = leafRgb.add(leaf.color.xyz.mul(cl));
-    woodOct = woodOct.add(wood.normal.xy.mul(cw)); leafOct = leafOct.add(leaf.normal.xy.mul(cl));
+    leafCover = leafCover.add(cl);
+    leafRgb = leafRgb.add(leaf.color.xyz.mul(cl));
+    leafOct = leafOct.add(leaf.normal.xy.mul(cl));
+    if (single) return;
+    const wood = { color: texture(atlas.albedo, at(0)), normal: texture(atlas.normal, at(0)) };
+    const cw = w.mul(inFrame).mul(wood.color.w);
+    woodCover = woodCover.add(cw);
+    woodRgb = woodRgb.add(wood.color.xyz.mul(cw));
+    woodOct = woodOct.add(wood.normal.xy.mul(cw));
   });
   // Thin twigs bake to partial coverage: the wood keeps a lower cut than the leaves.
   const isLeaf = leafCover.greaterThan(0.3);

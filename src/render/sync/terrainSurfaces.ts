@@ -13,6 +13,7 @@ import type { ActorId } from "../../core/index.ts";
 import type { TerrainGlobalAttributes } from "../../engine/terrain/terrainRenderSource.ts";
 import type { TerrainTileLookup } from "../../engine/terrain/terrainHeightQuery.ts";
 import type { WorldTerrainDef } from "../../engine/terrain/terrainTypes.ts";
+import type { TerrainFarTint } from "../materials/terrain.ts";
 
 export interface TerrainSurface {
   readonly def: WorldTerrainDef;
@@ -28,6 +29,8 @@ export interface TerrainSurface {
    * readiness while this is false, since tiles still arrive.
    */
   settled(): boolean;
+  /** Sets (null: clears) the far foliage tint on this terrain's view (plan 5c F3). */
+  setFarTint(tint: (TerrainFarTint & { readonly coverage: Float32Array }) | null): void;
   readonly version: number;
 }
 

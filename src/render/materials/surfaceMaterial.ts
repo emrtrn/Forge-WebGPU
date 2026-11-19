@@ -207,6 +207,24 @@ function applyVariation(colorRgb: Vec3Node, variation: NonNullable<SurfaceMateri
   return out;
 }
 
+/**
+ * What a CPU bake reads of a surface material (plan 5c F3: an imported model's far billboard,
+ * render/plant/modelImpostor.ts): its base colour map as the material samples it, UV × tiling, V flipped when
+ * `flipV`. The colour, alpha test and side are the material's own properties.
+ */
+export interface SurfaceBakeSource {
+  readonly map: Texture;
+  readonly tiling: Pair;
+  readonly flipV: boolean;
+}
+
+const bakeSources = new WeakMap<object, SurfaceBakeSource>();
+
+/** The bake source of a material made here (UV-mapped base colour only); null otherwise. */
+export function surfaceBakeSource(material: object): SurfaceBakeSource | null {
+  return bakeSources.get(material) ?? null;
+}
+
 export function createSurfaceMaterial(
   data: SurfaceMaterialData,
   textures: SurfaceTextures,
@@ -235,6 +253,9 @@ export function createSurfaceMaterial(
   };
   const material = data.materialType === "basic" ? new MeshBasicNodeMaterial(shared) : new MeshStandardNodeMaterial(shared);
   material.color = new Color(data.baseColor);
+  if (baseMap && !triplanar) {
+    bakeSources.set(material, { map: baseMap, tiling: data.uvTiling, flipV: data.flipY && (baseMap as Texture & { isCompressedTexture?: boolean }).isCompressedTexture !== true });
+  }
 
   // Base colour: the material's colour times the map; the map's alpha goes into opacity (three's rule).
   const baseSample = baseMap ? sample(baseMap, data.uvTiling) : null;

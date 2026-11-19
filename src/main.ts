@@ -325,6 +325,7 @@ async function start(): Promise<void> {
         install: async (types: Parameters<DevGpuDriven["install"]>[0], cullScale: number, castShadow?: boolean, bundle?: boolean) => (await devGpuDriven()).install(types, cullScale, castShadow, bundle),
         check: async () => (await devGpuDriven()).check(),
         level: async () => (await devGpuDriven()).level(),
+        levelFar: async () => (await devGpuDriven()).levelFar(),
         levelVisible: async (visible: boolean) => (await devGpuDriven()).levelVisible(visible),
         levelActive: async (active: boolean) => (await devGpuDriven()).levelActive(active),
         stats: () => viewer.host?.gpuDriven.stats() ?? null,
@@ -354,6 +355,11 @@ async function start(): Promise<void> {
       async foliageLod(lod: number | null) {
         const { setFoliageLodOverride } = await import("./render/foliage/foliageBatches.ts");
         setFoliageLodOverride(lod);
+      },
+      /** Plan 5c F3: fields laid over a Foliage Type as it is read (e.g. `far`, `family`); null removes them. The level's foliage grows again. */
+      async foliageType(guid: string, patch: Record<string, unknown> | null) {
+        const { setFoliageTypeOverride } = await import("./features/foliage/render.ts");
+        setFoliageTypeOverride(guid, patch);
       },
     };
   }
