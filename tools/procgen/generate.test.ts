@@ -115,5 +115,5 @@ describe("forge generate (tree)", () => {
     expect(index.issues.filter((issue) => !issue.file.endsWith("notes.txt"))).toEqual([]);
     const again = await generateFromRecipe({ engineRoot, projectRoot: project, recipe: TREE, force: true });
     expect(again.files.every((file) => file.status === "unchanged")).toBe(true);
-  });
+  }, 120_000); // Two full runs, each with its KTX2 encodes (about 2 s an atlas alone, longer under the gate's load).
 });
