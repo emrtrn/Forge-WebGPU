@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.71 · 2026-11-19 — §4.7 Faz 6 kararları: alt fazlar 6a–6e, iskele / legacy faz kapısında silinir, birinci şahıs genel parçalarla (motorda FPS kipi yok), Player Start kalıcı katmanda, UI widget editörü şemalı JSON + HUD yerleşimi (K12 kapandı), karakter pilotu FPS Sandbox.
+**Güncelleme:** v1.72 · 2026-11-19 — §4.4 5d kararları: fırça araçları yalnız editörde (ajan veri yüzeyleriyle), sculpt / paint CPU'da + bölge yüklemesi, darbe başına undo, Mesh Paint kapsam dışı, yol mesh'leri CPU'da bake, PG5 son araç adımı.
+
+**Önceki güncelleme:** v1.71 · 2026-11-19 — §4.7 Faz 6 kararları: alt fazlar 6a–6e, iskele / legacy faz kapısında silinir, birinci şahıs genel parçalarla (motorda FPS kipi yok), Player Start kalıcı katmanda, UI widget editörü şemalı JSON + HUD yerleşimi (K12 kapandı), karakter pilotu FPS Sandbox.
 
 **Önceki güncelleme:** v1.70 · 2026-11-19 — §4.4 PG3: yüzey dokusu tarifi (kabuk, kaya) de KTX2; impostor bake'i üretilmiş yüzey dokusunu tarifinden yeniden bake eder.
 
@@ -1053,6 +1055,24 @@ features/height-fog/
   - *Uygulama başı (2026-11-17):* `engine/world/foliageRing` (8 A, A 990 /
     1.021) ve `engine/foliage/{foliageTypeParams,foliageRoll,proceduralFoliage}`
     Forge algoritmalarıyla taşındı; boya / silme fırçası 5d'de.
+- **5d kararları (kullanıcı, 2026-11-19; hepsi öneri gibi; ayrıntı plan Faz 5d dökümü):**
+  - *Ajan yüzeyi:* sculpt, katman boyama, landscape spline ve foliage fırçası
+    yalnız editör araçlarıdır; fırça darbesi için CLI yok. Ajan terrain'i veri
+    yüzeyleriyle yönetir: World Builder brief'i, auto paint ve
+    `forge.landscapeFoliage` kuralları (`forge edit set`).
+  - *Sculpt / paint CPU'da:* `engine/terrain`'in taşınmış algoritmaları tile
+    verisini değiştirir; render bağlaması yalnız değişen bölgeyi slotun GPU
+    dokusuna yükler. GPU compute ile düzenleme yok.
+  - *Undo ve kayıt:* fırça darbesi tek undo adımı; adım değişen tile
+    bölgelerinin önceki / sonraki kopyasını tutar. Kayıt `worldTerrainSave` ile
+    kayıt servisinden; düzenlenen tile akışta tutulur (INV-B12).
+  - *Mesh Paint (INV-B10, E26) kapsam dışı:* yalnız insan yüzeyine hizmet eder
+    (§0.0 ölçütü); gerekirse ayrı karar.
+  - *Yol mesh'leri (INV-G21):* spline boyunca CPU'da bükülüp bake edilen statik
+    geometri; statik batch ve HLOD yolunu kullanır, TSL köşe bükmesi yok.
+  - *Bitki tarafı:* `generated` model kaynağı ve aile yerleşimi (§4.9 bitki
+    sözleşmesi, bitki planı PG5) 5d'nin son araç adımıdır, bitki akışının
+    tür / editör aşamalarından sonra.
 - **Ölçek ölçümü (2a, 2026-11-10):** 50.000 aktörlük level R1'de eşik içinde
   (bütün level yükleme ~0,9 s, hücre yükleme p95 ~1,5 ms, tek aktör kaydı
   ~40 ms, tam kayıt ~2,2 s, heap ~58 MB; [Faz 2a arşivi](../archive/PHASE_2A.md)). Aşağıdaki çarelere

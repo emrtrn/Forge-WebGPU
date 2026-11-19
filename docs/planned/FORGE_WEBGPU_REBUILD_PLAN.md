@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.88 · 2026-11-19 — Faz 6 dökümü ve kararları (kullanıcı, hepsi öneri olduğu gibi): alt fazlar 6a–6e, FPS Sandbox karakter pilotu, birinci şahıs genel parçalarla, Player Start kalıcı katmanda, UI widget editörü (K12) şemalı JSON + HUD yerleşimi, K4 / K11 6e'de. 6a başlamadı.
+**Güncelleme:** v1.89 · 2026-11-19 — 5d dökümü ve kararları (kullanıcı, hepsi öneri olduğu gibi): araçlar yalnız editörde (fırça CLI'sı yok), sculpt CPU'da + bölge yüklemesi, darbe başına undo, Mesh Paint 5d'den çıktı, yol mesh'leri CPU'da bake, bitki tarafı (PG5) adım 9'da bitki akışıyla. Adım sırası 1–10; adım 2 başlamadı.
+
+**Önceki güncelleme:** v1.88 · 2026-11-19 — Faz 6 dökümü ve kararları (kullanıcı, hepsi öneri olduğu gibi): alt fazlar 6a–6e, FPS Sandbox karakter pilotu, birinci şahıs genel parçalarla, Player Start kalıcı katmanda, UI widget editörü (K12) şemalı JSON + HUD yerleşimi, K4 / K11 6e'de. 6a başlamadı.
 
 **Önceki güncelleme:** v1.87 · 2026-11-19 — R9c kapandı. Bina akışı kabulü ve atlas A/B deneyi sonuçları [katmanlı çizim planında](LAYERED_DRAW_BUDGET_PLAN.md). Atlas performans ölçütlerini karşılamadı.
 
@@ -1959,6 +1961,64 @@ sorunu bu seçimle kapanmaz; R8 / R9 ve son G6 hâlâ açık. **R7'ye başlanmad
 kendi batch'ini kurar), kalite profilleri, `?debug` satırları. Çakışmada adım 8 5c'nin
 GPU güdümlü yolunu bekler.
 
+**5d başlangıç dökümü (2026-11-19).** INV-B01 / B02 (World Terrain oluşturma ve
+genişletme diyalogları), B03 (sculpt), B04 (katman boyama), B05 (Auto Paint), B06
+(landscape spline), B08 (heightmap içe / dışa aktarma), B09 (Foliage Mode fırçası),
+B10 + E26 (Mesh Paint), B13 (World Builder penceresi), G21 (spline mesh
+deformasyonu, yol mesh'leri). Ertelenen **4 A** (`worldTerrainMove`). Bitki
+tarafı (PG5) [bitki planı §9.1](PROCEDURAL_VEGETATION_AND_PROPS_PLAN.md#91-vegetation-20-denetimi-ve-ilk-editör-dilimi)'in
+A–F sırasıyla yürür; ağaç tarifi editörü (`ff7ce85`) ve sürümlü büyüme
+(`31006ca`) commit'li.
+
+| Var (2b / 5a / 5c) | Eksik (5d) |
+|---|---|
+| Sculpt / erosion / terrace / auto paint algoritmaları (`engine/terrain/{terrainSculpt,landscapeBrush,terrainEdit,terrainErosion,terrainAutoPaint}`, `engine/worldbuilder/terraces`) | Editörde landscape kipi: fırça imleci, sculpt / paint araçları, darbe → slot tazeleme, pick ışınının güncellenmesi (5a adım 4'ten), undo, kayıt. Forge'da bu bağ `SceneApp`'e dağılmıştı; yeniden yazılır |
+| World Terrain oluşturma / genişletme / kayıt (`worldTerrain{Create,Expand,Save,Actor}`), heightmap PNG ve içe aktarma | Oluşturma / genişletme diyalogları, terrain taşıma (`worldTerrainMove`, 4 A), heightmap dosya akışı editörde |
+| Düzenlenen tile'ı akışta tutma (`terrainEditorStreaming`, B12'nin saf kısmı) | Akışa bağlanması (5a adım 2'de 5d'ye bırakıldı) |
+| Spline verisi ve düzenleme (`engine/spline/{spline,splineCurve}`, `engine/terrain/terrainSpline*`) | Spline aktörü / editör aracı, yol mesh üreticisi (Forge `splineGenerator` 792 + `splineDeformMesh` 304 satır), yol süslemeleri |
+| Foliage hücreleri, boyanmış örnek biçimi, Foliage sekmesinin tür / kural düzenlemesi (5c, F5–F6) | Boya / silme fırçası (Forge `foliagePaint` 200 satır): paint, erase, single, fill, lasso, remove, yüzey filtreleri |
+| World Builder çekirdeği, `groundCover`, önizleme worker'ı (`runtime/worldbuilder/randomWorldPreviewWorker.ts`), `/__world-random` istek izin listesi ve CLI kipi | Pencere (Forge `randomWorldPanel` 721 + `worldBuilderWindow` 263 satır), dev server uç noktası, üretilen level'ın Content Browser'da açılması |
+| Terrain katman dizisi (5a adım 3) | Katman görünümü / hata ayıklama görünümleri (5a adım 3'ten) |
+
+**5d kararları (kullanıcı, 2026-11-19, "önerilerin hepsini onaylıyorum"; ayrıntı mimari v1.72 §4.4):**
+
+1. *Ajan yüzeyi:* sculpt, paint, spline ve foliage fırçası yalnız editörde; fırça
+   darbesi için CLI komutu yok. Ajan terrain'e veri yüzeyleriyle erişir: World
+   Builder brief'i (`world:random` / `world:brief`), auto paint ve landscape
+   foliage kuralları (`forge edit set`).
+2. *Sculpt CPU'da:* `engine`'in taşınmış algoritmalarıyla; yalnız değişen bölge
+   tile slotunun GPU dokusuna yüklenir. GPU compute ile sculpt kapsam dışı.
+3. *Undo ve kayıt:* fırça darbesi tek undo adımı; adım değişen tile bölgelerinin
+   önceki / sonraki kopyasını tutar. Kayıt `worldTerrainSave` ile kayıt
+   servisinden; düzenlenen tile akışta tutulur (B12).
+4. *Mesh Paint (B10, E26) 5d'den çıkar:* yalnız insan yüzeyine hizmet eder, Faz 4
+   adım 6'da da kapsam dışıydı; gerekirse ileride ayrı karar (K12 ölçütü).
+5. *Yol mesh'leri:* spline boyunca CPU'da bükülüp bake edilen statik geometri;
+   statik batch ve HLOD yolunu olduğu gibi kullanır. TSL'de köşe bükme yok.
+6. *Bitki tarafı:* PG5 ve §9.1'in F aşaması (`generated` model kaynağı, aile
+   yerleşimi, aile / mevsim önizlemesi) adım 9'da, bitki akışının C–E
+   aşamalarından sonra. Adım 2–8 o akışın dosyalarına dokunmaz.
+
+**5d adım sırası** (C: Claude, X: Codex; X'in diff'ini Claude inceler, kapıları
+çalıştırır, commit'i atar):
+
+1. Döküm ve kararlar — C (bu docs güncellemesi).
+2. Landscape kipinin iskeleti (kip geçişi, fırça imleci, düzenlenen tile'ı tutma,
+   bölge yüklemesi, pick ışını, undo, kayıt) ve sculpt araçları (raise / lower /
+   smooth / flatten / noise / ramp / terrace / erosion) — C. B03, B12.
+3. Katman boyama / silme / ağırlık yumuşatma, Auto Paint, katman görünümü — C. B04, B05.
+4. World Terrain oluşturma / genişletme diyalogları, taşıma, heightmap içe / dışa
+   aktarma — C; `worldTerrainMove` ve 4 A — X. B01, B02, B08.
+5. Landscape spline aracı ve yol mesh'leri — saf üretici X, editör ve render C. B06, G21.
+6. Foliage fırçası — saf kısım X, editör C. B09.
+7. ~~Mesh Paint~~ (karar 4: çıkarıldı).
+8. World Builder penceresi, `/__world-random` uç noktası, önizleme worker'ının
+   bağlanması; üretilen level Content Browser'da — C. B13.
+9. Bitki tarafı (karar 6) — bitki planının akışıyla.
+10. Kapı: araç başına editör smoke'u (düzenle → kaydet → yeniden aç), ertelenen
+    4 A yeşil, Faz 5 toplu görsel + performans kabulü (kullanıcı), ardından Faz 5
+    bölümünün arşivi.
+
 - [x] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
       Faz 3 karar 1) üretim kalitesine çıkar: morph,
       tile seam, 8 boya katmanı, su birikintisi (kıyı ıslaklığı ve kostik
@@ -2010,6 +2070,8 @@ GPU güdümlü yolunu bekler.
       **19 Kasım 2026:** Ağaç tarifinde canlı worker önizlemesi, seed / mesh LOD
       seçimi ve aile üretimi için ilk editör dilimi. Görsel bulgular, uyumluluk
       önerisi ve A–F sırası [bitki planı §9.1](PROCEDURAL_VEGETATION_AND_PROPS_PLAN.md#91-vegetation-20-denetimi-ve-ilk-editör-dilimi).
+      **19 Kasım 2026 (v1.89):** döküm, kararlar 1–6 ve adım sırası yukarıda
+      (5d başlangıç dökümü); Mesh Paint (B10, E26) kapsamdan çıktı.
 - [ ] Faz kapısı: referans açık dünya sahnelerinde görsel + performans kabulü;
       terrain collider ile eşleşiyor.
 
@@ -2396,3 +2458,4 @@ silinebilir.
 | 2026-11-18 | v1.68 | R9a O5 ağır mesh (`994c3b1`): instanced 19–20,5 ms → GPU yolu + otomatik LOD 1,75–2,1 ms → + occlusion 1,73–1,85 ms; kazanç LOD'dan, occlusion farkı gürültüde. Statik yol varsayılanı ve bölge / PVS kararı açık |
 | 2026-11-18 | v1.67 | R9a O1 (`5f1ab63`) ve O2–O4 (`6510965`): occlusion level ayarı, otomatik engelleyici ön geçişi, GPU Hi-Z (Codex `gpt-6.2-sol` paket düzeni), ana görünüm örnek ayıklaması; doğru (piramit 0 fark, yanlış gizleme yok), iç mekânda %50–90 örnek gizli; sentetik sahnede GPU süresi değişmedi, gönderim arttı. Varsayılan kapalı |
 | 2026-11-18 | v1.66 | R9a hücre batch'i ölçümü (`fab7066`, kapalı): iç mekân draw 4 → 63; query yolu bırakıldı. Üretim kararı (kullanıcı): örnek başına GPU occlusion O1–O5 (level ayarı, otomatik engelleyici ön geçişi, GPU Hi-Z, ana görünüm örnek ayıklaması, A/B) |
+| 2026-11-19 | v1.89 | 5d dökümü (B01–B06, B08–B10, B13, E26, G21; ertelenen 4 A `worldTerrainMove`; algoritmalar 2b'de taşınmış, editör araçlarının hiçbiri yok) ve kararlar 1–6 (kullanıcı, öneriler): fırça araçları yalnız editörde, sculpt CPU'da + bölge yüklemesi, darbe başına undo ve `worldTerrainSave` kaydı, Mesh Paint çıktı, yol mesh'leri CPU'da bake, PG5 adım 9'da. Adım sırası 1–10. Mimari v1.72. Kod yok |

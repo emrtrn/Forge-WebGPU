@@ -92,7 +92,7 @@ Paneller vanilla DOM olarak uyarlanır, redesign yok (K7); ilk iş UI kiti.
 | INV-B07 | Landscape su modu: nehir / göl yazımı, radyal köpük noktaları | `SceneApp` (`LandscapeEditMode` "water") | 7 | uyarla | terrain-water, terrain-lake-editor | | |
 | INV-B08 | Heightmap içe / dışa aktarma | `engine/terrain` (heightmap PNG, import) | 5d | taşı | terrain-heightmap, e:heightmapPng, e:terrainImport | | |
 | INV-B09 | Foliage Mode: select, lasso, paint, erase, single, fill, remove; yüzey filtreleri | `panels/foliage/foliagePanel.ts`, `engine/scene/foliagePaint.ts` | 5d | uyarla | foliage-type-save, foliage-cells | | |
-| INV-B10 | Mesh Paint (yerleştirilmiş örneklere vertex color) | `src/editor/meshPaintStore.ts`, `engine/scene/meshPaint.ts` | 5d | uyarla | — | Inspector'da ayrı sekme | |
+| INV-B10 | Mesh Paint (yerleştirilmiş örneklere vertex color) | `src/editor/meshPaintStore.ts`, `engine/scene/meshPaint.ts` | — | taşınmaz | — | 5d kararı 4 (2026-11-19): yalnız insan yüzeyi, §0.0 ölçütü; gerekirse ayrı karar | |
 | INV-B11 | World Partition paneli: hücre ızgarası, yükle / boşalt, residency | `panels/world/worldPartitionPanel.ts` | 5b | uyarla | world-partition-panel, world-partition-persistence, world-partition-residency | Editör de akışla çalışır (A11) | |
 | INV-B12 | Editör terrain akışı (kamera çevresi tile'lar, düzenlenen tile sabit) | `editor/scene/keptTerrainTiles.ts` | 5a | uyarla | terrain-editor-streaming, e:keptTerrainTiles, e:terrainEditorStreaming | | Editör oyunla aynı akışla çizer (5a adım 2); düzenlenen tile'ın sabitlenmesi düzenleme araçlarıyla (5d), tutulan bölgeler World Partition paneliyle (B11, 5b) |
 | INV-B13 | World Builder penceresi: rastgele dünya, önizleme worker'ı | `panels/world/{randomWorldPanel,worldBuilderWindow}.ts` | 5d | uyarla | world-builder-random, e:randomWorld* | Algoritmalar ve CLI 2b; üretilen level Content Browser'da | |
@@ -219,7 +219,7 @@ kaydedildiği / kullanıldığı fazdır.
 | INV-E23 | Fracture | `*.fracture.json` | 8 | yeniden tasarla | e:fractureAsset | | |
 | INV-E24 | Deformable | `*.deformable.json` | 8 | yeniden tasarla | e:deformableAsset | | |
 | INV-E25 | Terrain: belge, tile'lar, global harita | `*.terrain.json`, `*.tile.bin`, `*.global.bin` | 5a | uyarla | terrain-endpoints, e:terrainDocument, e:terrainGlobalMapFile | İkili tile'lar olduğu gibi (plan §2.7) | |
-| INV-E26 | Mesh paint verisi | `<level>.meshpaint.json` | 5d | yeniden tasarla | — | INV-B10 ile | |
+| INV-E26 | Mesh paint verisi | `<level>.meshpaint.json` | — | taşınmaz | — | INV-B10 ile (5d kararı 4) | |
 | INV-E27 | World Builder girdileri: recipe, world brief, ground cover, referans görsel | `*.worldrecipe.json`, `*.worldbrief.json`, `*.cover.json`, `*.reference.png` | 2b | uyarla | world-brief, e:worldRecipe, e:worldBrief* | Recipe ve referans görsel level'ın yanında (plan 2b) | |
 | INV-E28 | Bölge profili | `*.regionprofile.json` | 2b | uyarla | e:regionProfile | Oyun verisi; motor deposuna girmez, türü motorda (plan 2b) | |
 | INV-E29 | Eski `model` asset türü | `LegacyAssetType` | — | taşınmaz | — | İçe aktarıcı güncel türe çevirir | |
@@ -344,7 +344,7 @@ girmez, plan Faz 3 ve 9'dadır.
 | Konu | Satırlar | Karar |
 |---|---|---|
 | Asset editörleri | INV-C01, C04–C08, C10–C16 | İlgili alt sistemin fazı: Static Mesh 4, Material 3 / 4, Actor Script 4 / 6, geri kalanı 6 |
-| Mesh Paint | INV-B10, E26 | 5d (öteki boyama araçlarıyla) |
+| Mesh Paint | INV-B10, E26 | taşınmaz (5d kararı 4, 2026-11-19) |
 | Asset UVW ve vertex color | INV-E11, E12 | 3 (materyal sistemiyle) |
 | World mask yaması | INV-G26 | 3 (materyal bileşimi) |
 | Yükleme grupları | INV-D33 | Taşınmaz; hücre akışıyla yer değiştirir |
