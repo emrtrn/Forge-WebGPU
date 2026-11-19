@@ -3,6 +3,10 @@
 // draws (`mode: "editor"`), the selection, and the services the shell calls:
 //
 // - TransactionService: `edit(label, build, { coalesce })`, `undo`, `redo`.
+//   Steps outside the level (a terrain stroke, plan 5d step 2) join the same
+//   history with `pushStep`: one undo order across both. Each remembers the
+//   level step it came after (by identity), so undo takes the level's newer
+//   steps first; a new step of either kind drops both redo stacks.
 //   Every change the session applies (edit, undo, redo) is mirrored into the
 //   world: added actors, then updated ones (`World.updateActors`, so
 //   subsystems and render bindings hear `actorsChanged`), then removed ones.
@@ -15,6 +19,8 @@
 //   it is on disk now and `rebase(disk, how)` takes it (Reload drops this
 //   session's changes, merge keeps them over the disk's; conflictUi.ts asks).
 //   The world follows the changed actors; the undo history is cleared.
+//   Participants (the terrain's edit sessions, 5d) save after the level in
+//   the same Save and count in `dirty()`.
 // - Selection: the selected actor ids, the first is the primary; actors that
 //   leave the level leave the selection.
 // - Visibility (step 5a, user decision 2026-11-14): Forge's Hide / Show
@@ -41,6 +47,7 @@ import {
   type EditTx,
   type LevelSession,
   type SaveClient,
+  type Transaction,
 } from "../../core/index.ts";
 import type { World } from "../../runtime/world.ts";
 import type { EditorCellStreaming } from "./cellStreaming.ts";
@@ -53,6 +60,21 @@ export interface SaveReport {
   readonly conflict?: true;
 }
 
+/** An undo step outside the level: applying it again and taking it back. */
+export interface SessionStep {
+  readonly label: string;
+  undo(): void;
+  redo(): void;
+}
+
+/** Something saved with the level that is not in it (a terrain's tiles). */
+export interface SessionParticipant {
+  /** Unsaved items (tiles, documents). */
+  dirty(): number;
+  /** Writes what is unsaved; `files` is how many were written. */
+  save(): Promise<{ readonly ok: boolean; readonly message: string; readonly files: number; readonly conflict?: true }>;
+}
+
 export interface EditorSession {
   /** Attached by the editor host after the session opens. */
   streaming?: EditorCellStreaming;
@@ -63,7 +85,11 @@ export interface EditorSession {
   redo(): boolean;
   canUndo(): boolean;
   canRedo(): boolean;
-  /** Unsaved actors, plus one for unsaved level settings. */
+  /** Records a step already applied outside the level (one undo step); the history's redo is dropped. */
+  pushStep(step: SessionStep): void;
+  /** Saves with the level from now on; returns the removal. */
+  addParticipant(participant: SessionParticipant): () => void;
+  /** Unsaved actors, plus one for unsaved level settings, plus the participants' unsaved items. */
   dirty(): number;
   save(): Promise<SaveReport>;
   /** Resolves when no save is running (a file event waits for the save that wrote it, step 9f). */
@@ -253,6 +279,29 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
 
   let saving = false;
   let saved: Promise<void> = Promise.resolve();
+  const participants = new Set<SessionParticipant>();
+  /** Steps outside the level, each with the level step it came after (undo) / the level redo step it was undone over (redo). */
+  const outside: { readonly step: SessionStep; readonly after: Transaction | undefined }[] = [];
+  const outsideRedo: { readonly step: SessionStep; readonly over: Transaction | undefined }[] = [];
+  const levelUndo = (): Transaction | undefined => level.history.undoStack.at(-1);
+  const levelRedo = (): Transaction | undefined => level.history.redoStack.at(-1);
+
+  /** Saves the participants after the level; a level that did not save leaves them alone. */
+  const saveParticipants = async (level: SaveReport, levelFiles: number): Promise<SaveReport> => {
+    if (!level.ok || participants.size === 0) return level;
+    let files = levelFiles;
+    const failures: SaveReport[] = [];
+    for (const participant of [...participants]) {
+      if (participant.dirty() === 0) continue;
+      const report = await participant.save();
+      files += report.files;
+      if (!report.ok) failures.push({ ok: false, message: report.message, ...(report.conflict ? { conflict: true as const } : {}) });
+    }
+    if (failures.length > 0) return failures[0]!;
+    if (files === levelFiles) return level;
+    options.onSaved?.();
+    return { ok: true, message: `Saved ${files} file${files === 1 ? "" : "s"}` };
+  };
 
   return {
     level,
@@ -273,12 +322,51 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
       syncWorld(there, new Set());
       notify();
     },
-    edit: (label, build, editOptions) => level.edit(label, build, editOptions),
-    undo: () => level.undo(),
-    redo: () => level.redo(),
-    canUndo: () => level.history.undoStack.length > 0,
-    canRedo: () => level.history.redoStack.length > 0,
-    dirty: () => level.dirtyActors().length + (level.settingsDirty() ? 1 : 0),
+    edit: (label, build, editOptions) => {
+      const result = level.edit(label, build, editOptions);
+      // A new level step drops the redo of steps outside the level too.
+      if (level.history.redoStack.length === 0 && outsideRedo.length > 0) {
+        outsideRedo.length = 0;
+        notify();
+      }
+      return result;
+    },
+    undo: () => {
+      const top = outside.at(-1);
+      if (top && (levelUndo() === undefined || levelUndo() === top.after)) {
+        outside.pop();
+        top.step.undo();
+        outsideRedo.push({ step: top.step, over: levelRedo() });
+        notify();
+        return true;
+      }
+      return level.undo();
+    },
+    redo: () => {
+      const top = outsideRedo.at(-1);
+      if (top && levelRedo() === top.over) {
+        outsideRedo.pop();
+        top.step.redo();
+        outside.push({ step: top.step, after: levelUndo() });
+        notify();
+        return true;
+      }
+      return level.redo();
+    },
+    canUndo: () => outside.length > 0 || level.history.undoStack.length > 0,
+    canRedo: () => outsideRedo.length > 0 || level.history.redoStack.length > 0,
+    pushStep(step) {
+      // The level's next edit starts its own step, and its redo no longer follows.
+      level.history.clearRedo();
+      outsideRedo.length = 0;
+      outside.push({ step, after: levelUndo() });
+      notify();
+    },
+    addParticipant(participant) {
+      participants.add(participant);
+      return () => void participants.delete(participant);
+    },
+    dirty: () => level.dirtyActors().length + (level.settingsDirty() ? 1 : 0) + [...participants].reduce((sum, participant) => sum + participant.dirty(), 0),
     async save() {
       if (saving) return { ok: false, message: "A save is already running" };
       saving = true;
@@ -286,13 +374,20 @@ export function createEditorSession(options: EditorSessionOptions): EditorSessio
       saved = new Promise<void>((resolve) => (done = resolve));
       try {
         const outcome = await saveLevelSession(level, client);
-        if (outcome.status === "clean") { options.onSaved?.(); return { ok: true, message: "Nothing to save" }; }
+        if (outcome.status === "clean") {
+          const report = await saveParticipants({ ok: true, message: "Nothing to save" }, 0);
+          if (report.message === "Nothing to save") options.onSaved?.();
+          return report;
+        }
         if (outcome.status === "needs-load") return { ok: false, message: `Load cells ${outcome.cells.join(", ")} before saving` };
         const response = outcome.response;
         if (response.status === "saved") {
           const files = response.files.length;
-          options.onSaved?.();
-          return { ok: true, message: `Saved ${files} file${files === 1 ? "" : "s"}` };
+          if (participants.size === 0) {
+            options.onSaved?.();
+            return { ok: true, message: `Saved ${files} file${files === 1 ? "" : "s"}` };
+          }
+          return await saveParticipants({ ok: true, message: `Saved ${files} file${files === 1 ? "" : "s"}` }, files);
         }
         if (response.status === "conflict") {
           const files = response.conflicts.map((conflict) => conflict.path.slice(conflict.path.lastIndexOf("/") + 1));

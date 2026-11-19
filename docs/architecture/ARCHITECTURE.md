@@ -128,6 +128,14 @@ geliştirme sunucusunda ayrı bir Node worker'ından aynı CLI üreticisine gide
   terrain'e uzak ton `engine/foliage/foliageFarHost.ts` + `render/foliage/farBillboards.ts`
   (PG3 impostor'u; GLB türü çalışma anında bake); terrain'in yerleşik
   tile'ları `render/sync/terrainSurfaces.ts`'ten, foliage türü `WorldResources.json`'dan.
+- Terrain düzenleme (5d): editör World'üne `TerrainEditingKey` verir
+  (`engine/terrain/terrainEditing.ts`); terrain bağlaması onu bulunca asset başına
+  `TerrainEditSession`'dan çizer (tile'lar, okunan revizyon / biçim, kirli kayıt;
+  bağlamadan uzun yaşar), akış sürer, düzenlenen tile `kept`. Fırça
+  `editor/landscape/landscapeTool.ts` (saf `terrainEdit`), görünüm
+  `TerrainView.updateTile`; undo editör oturumunun level dışı adımı (`pushStep`),
+  kayıt oturum katılımcısı `landscapeSave.ts` (tile'lar + global harita + tanım tek
+  kayıt işlemi, okunan revizyonlarla).
 - Kayıt oyunu `forge.saveGame/1` (`src/core/save/`): her şey GUID'le, bileşen
   alanının `persist` bayrağı, bileşenin `state` bölümü, `defineSaveState`;
   yüklenmemiş hücrelerin durumu `SaveLedger`'da. Slot deposu

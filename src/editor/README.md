@@ -23,7 +23,12 @@ feature's helper drawing in `features/*/editorRender.ts` (phase 4 decision 1).
   virtualised card grid, the drawer (`contentPanel.ts`); Details' asset
   catalog reads the same listing (`assets/assetCatalog.ts`).
 - `session/`: the editor session (level session, the editor's world kept in
-  step, selection, save).
+  step, selection, save). Steps outside the level (a terrain stroke) share its
+  undo order (`pushStep`); participants save with the level (`addParticipant`).
+- `landscape/` (plan 5d): the Landscape sculpt tool in the viewport
+  (`landscapeTool.ts`; three-free, through the engine's `TerrainEditingKey`), the
+  terrain's Details section (`landscapePanel.ts`, `features/terrain/editor.ts`
+  shows it) and saving edited terrains in place (`landscapeSave.ts`).
 - `assets/`: the shared asset editor (phase 4 / 7): document adapters and
   revisioned sessions with independent undo/redo, a virtual schema table,
   model tools and the actor-class tree. Content Browser double click/Open

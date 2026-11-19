@@ -44,6 +44,8 @@ function bowl(streams: boolean) {
     global: buildTerrainGlobalAttributes(worldTerrainRenderSource(def, tiles)),
     tiles: streams ? null : tiles,
     layers: [],
+    revisions: { document: null, global: null, tiles: new Map() },
+    readTile: async () => { throw new Error("the game binding reads tiles through openTiles"); },
     openTiles(): TerrainTileReader {
       return { read: async (key) => (reads.push(key), tiles.get(key)!), dispose: () => {} };
     },

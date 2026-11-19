@@ -217,3 +217,61 @@ describe("reload (a reimported model, step 6e)", () => {
     expect([editor.canUndo(), editor.dirty()]).toEqual([false, 0]);
   });
 });
+
+describe("steps outside the level share the undo order (plan 5d)", () => {
+  const move = (editor: ReturnType<typeof open>, seed: string, x: number): void => {
+    const moved = doc(editor, seed);
+    moved.transform = { ...moved.transform, p: [x, 0, 0] };
+    expect(editor.edit(`Move ${seed}`, (tx) => tx.setActor(moved)).ok).toBe(true);
+  };
+  const xOf = (editor: ReturnType<typeof open>, seed: string): number => editor.level.actor(actorId(seed))!.transform.p[0];
+
+  test("undo takes the newer level step first; redo replays in the original order", () => {
+    const editor = open();
+    const log: string[] = [];
+    let stroke = 0;
+    move(editor, "a", 5);
+    editor.pushStep({ label: "Landscape raise", undo: () => { stroke -= 1; log.push("undo stroke"); }, redo: () => { stroke += 1; log.push("redo stroke"); } });
+    stroke = 1;
+    move(editor, "a", 9);
+    expect(editor.undo()).toBe(true); expect([xOf(editor, "a"), stroke]).toEqual([5, 1]);
+    expect(editor.undo()).toBe(true); expect([xOf(editor, "a"), stroke]).toEqual([5, 0]);
+    expect(editor.undo()).toBe(true); expect([xOf(editor, "a"), stroke]).toEqual([1, 0]);
+    expect(editor.canUndo()).toBe(false);
+    expect(editor.redo()).toBe(true); expect([xOf(editor, "a"), stroke]).toEqual([5, 0]);
+    expect(editor.redo()).toBe(true); expect([xOf(editor, "a"), stroke]).toEqual([5, 1]);
+    expect(editor.redo()).toBe(true); expect([xOf(editor, "a"), stroke]).toEqual([9, 1]);
+    expect(editor.canRedo()).toBe(false);
+    expect(log).toEqual(["undo stroke", "redo stroke"]);
+    editor.dispose(); editor.world.dispose();
+  });
+
+  test("a new step of either kind drops both redo stacks", () => {
+    const editor = open();
+    move(editor, "a", 5);
+    editor.pushStep({ label: "stroke", undo: () => {}, redo: () => {} });
+    editor.undo(); editor.undo();
+    expect(editor.canRedo()).toBe(true);
+    editor.pushStep({ label: "another stroke", undo: () => {}, redo: () => {} });
+    expect(editor.canRedo()).toBe(false);
+    expect(editor.redo()).toBe(false);
+    editor.undo();
+    move(editor, "b", 7);
+    expect(editor.canRedo()).toBe(false);
+    editor.dispose(); editor.world.dispose();
+  });
+
+  test("a participant saves after the level and counts as unsaved", async () => {
+    const saves: SaveRequestBody[] = [];
+    const editor = open(saves);
+    let pending = 2;
+    editor.addParticipant({ dirty: () => pending, save: async () => { pending = 0; return { ok: true, message: "Saved", files: 3 }; } });
+    expect(editor.dirty()).toBe(2);
+    expect(await editor.save()).toEqual({ ok: true, message: "Saved 3 files" });
+    expect([editor.dirty(), saves.length]).toEqual([0, 0]);
+    move(editor, "a", 4);
+    pending = 1;
+    expect((await editor.save()).message).toBe(`Saved ${saves[0]!.writes.length + 3} files`);
+    editor.dispose(); editor.world.dispose();
+  });
+});

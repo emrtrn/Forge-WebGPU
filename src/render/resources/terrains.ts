@@ -15,6 +15,12 @@
 // them, as before. Tiles are checked against the definition either way
 // (header, bounds, summary). A layer whose material fails paints with its
 // colour, as Forge drew one.
+//
+// The editor (plan 5d step 2) also needs what a file was read as: the
+// revision the dev server reports (`X-Forge-Revision`) for the document, the
+// far map and each tile read at once (`revisions`), and a tile's raw bytes
+// with theirs (`readTile`), decoded by the editor against its own, possibly
+// wider, definition.
 
 import { normalizeWorldTerrain } from "../../engine/terrain/terrainDefinition.ts";
 import { validateTerrainGlobalMap } from "../../engine/terrain/terrainGlobalMapFile.ts";
@@ -22,6 +28,7 @@ import { validateTerrainTile } from "../../engine/terrain/terrainLoader.ts";
 import { buildTerrainGlobalAttributes, worldTerrainRenderSource, type TerrainGlobalAttributes } from "../../engine/terrain/terrainRenderSource.ts";
 import { TERRAIN_RENDER_LAYERS } from "../../engine/terrain/terrainRenderData.ts";
 import { decodeTerrainTileForStreaming, type StreamingTerrainTile } from "../../engine/terrain/terrainTileStreaming.ts";
+import type { TerrainHeightFormat } from "../../engine/terrain/terrainTileCodec.ts";
 import { parseTileKey, type TerrainTileData, type WorldTerrainDef } from "../../engine/terrain/terrainTypes.ts";
 import { isMultiTileTerrain, worldTerrainExtent } from "../../engine/terrain/worldTerrainActor.ts";
 import type { Texture } from "three/webgpu";
@@ -59,6 +66,12 @@ export interface TerrainLayerInput {
   readonly detail: TerrainLayerDetail | null;
 }
 
+/** A file's bytes and the revision the server reported (null where it reports none). */
+export interface TerrainFileRead {
+  readonly bytes: Uint8Array;
+  readonly revision: string | null;
+}
+
 /** Reads streamed tiles of one terrain; dispose ends its workers and fails what is in flight. */
 export interface TerrainTileReader {
   read(key: string, signal: AbortSignal): Promise<TerrainTileData>;
@@ -74,6 +87,14 @@ export interface TerrainData {
   readonly layers: readonly TerrainLayerInput[];
   /** A reader for streamed tiles (a terrain loaded at once reads from `tiles`). */
   openTiles(): TerrainTileReader;
+  /** What the files were read as: revisions of the document, the far map part (null when absent) and each tile of `tiles`. */
+  readonly revisions: {
+    readonly document: string | null;
+    readonly global: string | null;
+    readonly tiles: ReadonlyMap<string, { readonly format: TerrainHeightFormat; readonly revision: string | null }>;
+  };
+  /** One tile's file as it is now, undecoded (the editor's reads). */
+  readTile(key: string, signal?: AbortSignal): Promise<TerrainFileRead>;
 }
 
 export interface TerrainSource {
@@ -96,34 +117,42 @@ export interface TerrainSourceOptions {
   /** Null: every layer paints with its colour. */
   readonly materials: SurfaceMaterials | null;
   readonly fetchJson?: (url: string, headers: Readonly<Record<string, string>>) => Promise<unknown>;
-  readonly fetchBytes?: (url: string, headers: Readonly<Record<string, string>>, signal?: AbortSignal) => Promise<Uint8Array>;
+  /** A file's bytes, with its revision when the fetcher knows it. */
+  readonly fetchBytes?: (url: string, headers: Readonly<Record<string, string>>, signal?: AbortSignal) => Promise<Uint8Array | TerrainFileRead>;
   readonly warn?: (message: string, error: unknown) => void;
   /** Decode streamed tiles in workers (default: when `Worker` exists). */
   readonly workers?: boolean;
 }
 
-const defaultFetchJson = async (url: string, headers: Readonly<Record<string, string>>): Promise<unknown> => {
-  const response = await fetch(url, { headers: { ...headers } });
-  if (!response.ok) throw new Error(`${url}: ${response.status}`);
-  return response.json();
-};
+/** The dev server's revision header (tools/server/forgeServer.ts). */
+const REVISION_HEADER = "X-Forge-Revision";
 
-const defaultFetchBytes = async (url: string, headers: Readonly<Record<string, string>>, signal?: AbortSignal): Promise<Uint8Array> => {
+const defaultFetchBytes = async (url: string, headers: Readonly<Record<string, string>>, signal?: AbortSignal): Promise<TerrainFileRead> => {
   const response = await fetch(url, { headers: { ...headers }, ...(signal ? { signal } : {}) });
   if (!response.ok) throw new Error(`${url}: ${response.status}`);
-  return new Uint8Array(await response.arrayBuffer());
+  return { bytes: new Uint8Array(await response.arrayBuffer()), revision: response.headers.get(REVISION_HEADER) };
 };
 
 export function createTerrainSource(options: TerrainSourceOptions): TerrainSource {
-  const fetchJson = options.fetchJson ?? defaultFetchJson;
-  const fetchBytes = options.fetchBytes ?? defaultFetchBytes;
+  const fetchRead = async (url: string, headers: Readonly<Record<string, string>>, signal?: AbortSignal): Promise<TerrainFileRead> => {
+    const read = await (options.fetchBytes ?? defaultFetchBytes)(url, headers, signal);
+    return read instanceof Uint8Array ? { bytes: read, revision: null } : read;
+  };
+  const fetchBytes = async (url: string, headers: Readonly<Record<string, string>>, signal?: AbortSignal): Promise<Uint8Array> => (await fetchRead(url, headers, signal)).bytes;
+  // A given JSON fetcher (tests) reports no revision; the default reads the document's bytes with theirs.
+  const fetchDocument = async (url: string, headers: Readonly<Record<string, string>>): Promise<{ value: unknown; revision: string | null }> => {
+    if (options.fetchJson) return { value: await options.fetchJson(url, headers), revision: null };
+    const read = await fetchRead(url, headers);
+    return { value: JSON.parse(new TextDecoder().decode(read.bytes)), revision: read.revision };
+  };
   const warn = options.warn ?? ((message, error) => console.warn(message, error));
   const { urls } = options;
   return {
     async load(guid) {
       const url = urls.url(guid);
       if (url === null || urls.type(guid) !== "forge.terrain") throw new TerrainNotFoundError(guid, "not a terrain in the asset index");
-      const document = (await fetchJson(url, urls.headers)) as { schema?: unknown; data?: unknown };
+      const fetched = await fetchDocument(url, urls.headers);
+      const document = fetched.value as { schema?: unknown; data?: unknown };
       if (document.schema !== TERRAIN_SCHEMA) throw new TerrainNotFoundError(guid, `expected "${TERRAIN_SCHEMA}"`);
       const def = normalizeWorldTerrain(document.data);
       const tileUrl = (key: string): string => {
@@ -132,11 +161,15 @@ export function createTerrainSource(options: TerrainSourceOptions): TerrainSourc
         return found;
       };
       let global: TerrainGlobalAttributes | null = null;
+      let globalRevision: string | null = null;
+      const tileFiles = new Map<string, { format: TerrainHeightFormat; revision: string | null }>();
       if (isMultiTileTerrain(def)) {
         const mapUrl = urls.part(guid, TERRAIN_DOCUMENT_SUFFIX, "{stem}.global.bin");
         try {
           if (mapUrl === null) throw new Error("the global map has no address");
-          global = validateTerrainGlobalMap(def, await fetchBytes(mapUrl, urls.headers));
+          const read = await fetchRead(mapUrl, urls.headers);
+          global = validateTerrainGlobalMap(def, read.bytes);
+          globalRevision = read.revision;
         } catch (error) {
           warn(`forge render: terrain ${guid} loads every tile: its global map is missing or does not match`, error);
         }
@@ -148,7 +181,10 @@ export function createTerrainSource(options: TerrainSourceOptions): TerrainSourc
         for (let start = 0; start < keys.length; start += TILE_BATCH) {
           await Promise.all(
             keys.slice(start, start + TILE_BATCH).map(async (key) => {
-              all.set(key, validateTerrainTile(def, key, await fetchBytes(tileUrl(key), urls.headers)));
+              const read = await fetchRead(tileUrl(key), urls.headers);
+              const tile = validateTerrainTile(def, key, read.bytes);
+              all.set(key, tile);
+              tileFiles.set(key, { format: tile.heightFormat, revision: read.revision });
             }),
           );
         }
@@ -205,7 +241,11 @@ export function createTerrainSource(options: TerrainSourceOptions): TerrainSourc
           }
         }),
       );
-      return { def, global, tiles, layers, openTiles };
+      return {
+        def, global, tiles, layers, openTiles,
+        revisions: { document: fetched.revision, global: globalRevision, tiles: tileFiles },
+        readTile: (key, signal) => fetchRead(tileUrl(key), urls.headers, signal),
+      };
     },
   };
 }

@@ -29,18 +29,27 @@
 //   (engine/terrain/terrainVisualHeight.ts); `heightProbe` is the material's
 //   height probe for a GPU readback (sync/terrainHeightProbe.ts).
 //
-// Left for later steps: edits (5d), track detail (8).
+// - Edits (5d step 2, Forge's updateTile): `updateTile(key, rect)` re-reads a
+//   changed rectangle of a tile from the live map: its slot (and the normals
+//   one vertex around it, across a seam into the neighbours' slots), the node
+//   height bounds and the far map (heights with holes filled again, normals,
+//   weights). Uploads stay whole texture layers (r187 has no sub-rectangle
+//   upload); the CPU work is the rectangle's.
+//
+// Left for later steps: track detail (8).
 
 import * as THREE from "three/webgpu";
 import {
   TerrainWorldHeightBounds,
   computeTileNormals,
+  updateTerrainGlobalAttributes,
   worldTerrainRenderSource,
   type TerrainGlobalAttributes,
   type TerrainRenderSource,
 } from "../../engine/terrain/terrainRenderSource.ts";
 import { TerrainLodSelector, terrainResidentTileKeys, type TerrainLodBox, type TerrainLodNode } from "../../engine/terrain/terrainLod.ts";
-import { TERRAIN_PATCH_QUADS, TERRAIN_WEIGHT_BLOCKS } from "../../engine/terrain/terrainRenderData.ts";
+import { TERRAIN_PATCH_QUADS, TERRAIN_WEIGHT_BLOCKS, type TerrainVertexRect } from "../../engine/terrain/terrainRenderData.ts";
+import { invalidateTerrainTileRange } from "../../engine/terrain/terrainHeightQuery.ts";
 import { TerrainSlotPool } from "../../engine/terrain/terrainSlotPool.ts";
 import { parseTileKey, tileKey, type TerrainTileData, type WorldTerrainDef } from "../../engine/terrain/terrainTypes.ts";
 import type { TerrainDrawnNode, TerrainVisualSurface } from "../../engine/terrain/terrainVisualHeight.ts";
@@ -210,6 +219,8 @@ export class TerrainView {
   private terrainMaterial: TerrainMaterial;
   /** The far map heights the GPU reads (holes filled). */
   private readonly globalHeights: Float32Array;
+  /** The far map has holes (a grid gap): an edit fills them again over the whole map. */
+  private readonly globalHoles: boolean;
   private readonly layerTextures: TerrainLayerTextures;
   private readonly materialInput: Omit<TerrainMaterialInput, "farTiling">;
   private farTiling: boolean;
@@ -253,6 +264,7 @@ export class TerrainView {
     const { map } = global;
     const globalHeights = fillTerrainHoles(map.heights, map.width, map.height, this.bounds.range().min);
     this.globalHeights = globalHeights;
+    this.globalHoles = map.heights.some(Number.isNaN);
     const globalHeightTex = new THREE.DataTexture(globalHeights, map.width, map.height, THREE.RedFormat, THREE.FloatType);
     globalHeightTex.magFilter = globalHeightTex.minFilter = THREE.NearestFilter;
     globalHeightTex.needsUpdate = true;
@@ -403,6 +415,41 @@ export class TerrainView {
   }
 
   /**
+   * Tile `key`'s data changed inside `rect` (tile-local inclusive vertices; an
+   * edit): its slot, the neighbours' normals along the seam, the node bounds and
+   * the far map follow (Forge's TerrainRenderer.updateTile).
+   */
+  updateTile(key: string, rect: TerrainVertexRect): void {
+    const coord = parseTileKey(key)!;
+    const tile = this.source.tile(coord.x, coord.z);
+    if (!tile) return;
+    invalidateTerrainTileRange(tile);
+    this.bounds.updateTile(key, rect);
+    if (this.uploaded.has(key)) this.uploadTile(key, this.pool.slotOf(key)!, rect);
+    // The dirty vertices and their one-vertex normal reach, in the adjacent tiles (corner copies of a seam vertex too).
+    const last = this.def.tileQuads;
+    for (let dz = -1; dz <= 1; dz += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        if (dx === 0 && dz === 0) continue;
+        const neighbour = tileKey(coord.x + dx, coord.z + dz);
+        if (!this.uploaded.has(neighbour)) continue;
+        const overlap = (pad: number): TerrainVertexRect | null => {
+          const area = {
+            x0: Math.max(0, rect.x0 - pad - dx * last), x1: Math.min(last, rect.x1 + pad - dx * last),
+            z0: Math.max(0, rect.z0 - pad - dz * last), z1: Math.min(last, rect.z1 + pad - dz * last),
+          };
+          return area.x0 <= area.x1 && area.z0 <= area.z1 ? area : null;
+        };
+        const normals = overlap(1);
+        if (normals) this.uploadTile(neighbour, this.pool.slotOf(neighbour)!, overlap(0), normals);
+      }
+    }
+    const globalRect = updateTerrainGlobalAttributes(this.global, this.source, key, rect);
+    if (globalRect) this.writeGlobalTextures(globalRect);
+    this.selectionDirty = true;
+  }
+
+  /**
    * Streams tile slots and re-selects for `camera` (Forge's updateLod): call
    * once a frame before rendering. While the terrain casts shadows, nodes
    * inside the casters' shadow frusta stay selected too. `cull: false` keeps
@@ -545,28 +592,79 @@ export class TerrainView {
     return true;
   }
 
-  /** Writes a whole tile into its slot: heights, normals (across seams), weights; one layer each. */
-  private uploadTile(key: string, slot: number): void {
+  /**
+   * Writes tile `key` into its slot (one texture layer each): heights and
+   * weights inside `rect` (the whole tile when omitted, none when null), normals
+   * inside `normalRect` (default: `rect` and one vertex around it), across seams.
+   */
+  private uploadTile(key: string, slot: number, rect?: TerrainVertexRect | null, normalRect?: TerrainVertexRect): void {
     const { x, z } = parseTileKey(key)!;
     const tile = this.source.tile(x, z)!;
     const texels = this.tileTexels;
-    this.heights.set(tile.heights, slot * texels);
-    computeTileNormals(this.source, key, this.normalScratch);
+    const size = tile.size;
+    const vertices = rect === undefined ? { x0: 0, x1: size - 1, z0: 0, z1: size - 1 } : rect;
+    const area = normalRect ?? {
+      x0: Math.max(0, vertices!.x0 - 1), x1: Math.min(size - 1, vertices!.x1 + 1),
+      z0: Math.max(0, vertices!.z0 - 1), z1: Math.min(size - 1, vertices!.z1 + 1),
+    };
+    computeTileNormals(this.source, key, this.normalScratch, area);
     const normalBase = slot * texels * 2;
-    for (let i = 0; i < texels * 2; i += 1) this.normals[normalBase + i] = THREE.DataUtils.toHalfFloat(this.normalScratch[i]!);
-    const blockBytes = texels * 4;
-    const blocks = Math.ceil(tile.layerCount / 4);
-    for (let block = 0; block < TERRAIN_WEIGHT_BLOCKS; block += 1) {
-      const target = (slot * TERRAIN_WEIGHT_BLOCKS + block) * blockBytes;
-      if (block < blocks) this.weights.set(tile.weights.subarray(block * blockBytes, (block + 1) * blockBytes), target);
-      else this.weights.fill(0, target, target + blockBytes);
-      this.weightTex.addLayerUpdate(slot * TERRAIN_WEIGHT_BLOCKS + block);
+    for (let row = area.z0; row <= area.z1; row += 1) {
+      for (let column = area.x0; column <= area.x1; column += 1) {
+        const index = (row * size + column) * 2;
+        this.normals[normalBase + index] = THREE.DataUtils.toHalfFloat(this.normalScratch[index]!);
+        this.normals[normalBase + index + 1] = THREE.DataUtils.toHalfFloat(this.normalScratch[index + 1]!);
+      }
     }
-    this.heightTex.addLayerUpdate(slot);
     this.normalTex.addLayerUpdate(slot);
-    for (const tex of [this.heightTex, this.normalTex, this.weightTex]) tex.needsUpdate = true;
+    this.normalTex.needsUpdate = true;
+    if (vertices) {
+      const blockBytes = texels * 4;
+      const blocks = Math.ceil(tile.layerCount / 4);
+      for (let row = vertices.z0; row <= vertices.z1; row += 1) {
+        const start = row * size + vertices.x0;
+        const end = row * size + vertices.x1 + 1;
+        this.heights.set(tile.heights.subarray(start, end), slot * texels + start);
+        for (let block = 0; block < TERRAIN_WEIGHT_BLOCKS; block += 1) {
+          const target = (slot * TERRAIN_WEIGHT_BLOCKS + block) * blockBytes;
+          if (block < blocks) this.weights.set(tile.weights.subarray(block * blockBytes + start * 4, block * blockBytes + end * 4), target + start * 4);
+          else this.weights.fill(0, target + start * 4, target + end * 4);
+        }
+      }
+      this.heightTex.addLayerUpdate(slot);
+      for (let block = 0; block < TERRAIN_WEIGHT_BLOCKS; block += 1) this.weightTex.addLayerUpdate(slot * TERRAIN_WEIGHT_BLOCKS + block);
+      this.heightTex.needsUpdate = true;
+      this.weightTex.needsUpdate = true;
+    }
     this.uploaded.add(key);
     this.selectionDirty = true;
+  }
+
+  /** The far map's textures inside `rect` (map samples); holes are filled again over the whole map. */
+  private writeGlobalTextures(rect: TerrainVertexRect): void {
+    const { map, normals } = this.global;
+    const [heightTex, normalTex, weightTex] = this.globalTextures as [THREE.DataTexture, THREE.DataTexture, THREE.DataArrayTexture];
+    if (this.globalHoles) {
+      this.globalHeights.set(fillTerrainHoles(map.heights, map.width, map.height, this.bounds.range().min));
+    } else {
+      for (let z = rect.z0; z <= rect.z1; z += 1) {
+        const start = z * map.width + rect.x0;
+        this.globalHeights.set(map.heights.subarray(start, z * map.width + rect.x1 + 1), start);
+      }
+    }
+    const halves = (normalTex.image as { data: Uint16Array }).data;
+    for (let z = rect.z0; z <= rect.z1; z += 1) {
+      for (let x = rect.x0; x <= rect.x1; x += 1) {
+        const sample = z * map.width + x;
+        halves[sample * 4] = THREE.DataUtils.toHalfFloat(normals[sample * 3]!);
+        halves[sample * 4 + 1] = THREE.DataUtils.toHalfFloat(normals[sample * 3 + 1]!);
+        halves[sample * 4 + 2] = THREE.DataUtils.toHalfFloat(normals[sample * 3 + 2]!);
+      }
+    }
+    // The weight array texture reads the far map's own weights (updated in place).
+    heightTex.needsUpdate = true;
+    normalTex.needsUpdate = true;
+    weightTex.needsUpdate = true;
   }
 
   private select(cameraLocal: THREE.Vector3, cull: boolean): void {

@@ -53,6 +53,8 @@ export interface History {
   seal(): void;
   /** Forgets every step (the level was read again from disk: the steps' "before" no longer holds). */
   clear(): void;
+  /** Forgets the redo steps and ends coalescing: a step outside this history was taken (the editor's terrain stroke). */
+  clearRedo(): void;
 }
 
 /** One change per actor: the first before, the last after. Changes that cancel out are kept (they still dirty the actor). */
@@ -104,6 +106,10 @@ export function createHistory(limit = DEFAULT_HISTORY_LIMIT): History {
     },
     clear() {
       undo.length = 0;
+      redo.length = 0;
+      sealed = true;
+    },
+    clearRedo() {
       redo.length = 0;
       sealed = true;
     },

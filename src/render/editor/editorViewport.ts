@@ -48,6 +48,7 @@ import { createActorIcons, type ActorIcons } from "./actorIcon.ts";
 import { createEditorHelpersFeature, type EditorRenderBindingDef } from "./editorBinding.ts";
 import { createViewportGizmo, type GizmoView, type ViewportGizmo } from "./gizmo.ts";
 import { createEditorOverlay, type EditorOverlay } from "./overlay.ts";
+import { createBrushCursor, type BrushCursor } from "./brushCursor.ts";
 import { createScenePicker, type ScenePicker } from "./picker.ts";
 import { createSelectionOutline, type SelectionOutline } from "./selectionOutline.ts";
 
@@ -120,6 +121,8 @@ export interface EditorViewport {
   focusSelection(): boolean;
   focusWorld(x: number, z: number): void;
   terrainGrids(): readonly TerrainStreamingDebugGrid[];
+  /** The Landscape brush ring through these world points (closed, on the terrain); null hides it (plan 5d). */
+  setBrushCursor(points: readonly Vec3[] | null): void;
   /** The perspective camera's pose (Forge's getPlayCameraPose): where Play's camera starts. */
   playPose(): { readonly position: [number, number, number]; readonly quaternion: [number, number, number, number] };
   readonly gridVisible: boolean;
@@ -191,6 +194,7 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
   const pendingLost: ((message: string) => void)[] = [];
   const unbind: (() => void)[] = [];
   let overlay: EditorOverlay | null = null;
+  let brush: BrushCursor | null = null;
   let outline: SelectionOutline | null = null;
   let gizmo: ViewportGizmo | null = null;
   /** The last `data-forge-gizmo` written. */
@@ -302,7 +306,8 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       overlay = createEditorOverlay(host.renderer);
       grid = createEditorGrid(overlay.sceneVisibility);
       grid.mesh.visible = gridVisible;
-      overlay.scene.add(grid.mesh, helpers);
+      brush = createBrushCursor();
+      overlay.scene.add(grid.mesh, helpers, brush.object);
       icons = createActorIcons(options.document);
       outline = createSelectionOutline(picker, selected);
       overlay.addPass(outline);
@@ -460,6 +465,9 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       changeViewMode("lit");
       lens.position.set(...next); lens.lookAt(...target); camera.markTouched(); camera.syncAngles();
     },
+    setBrushCursor(points) {
+      brush?.set(points);
+    },
     terrainGrids() {
       return host?.world ? terrainStreamingProbes(host.world.scene).map((probe) => probe.stream.debugGrid()) : [];
     },
@@ -501,6 +509,8 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       icons?.dispose();
       helpers.clear();
       grid?.dispose();
+      brush?.dispose();
+      brush = null;
       overlay?.dispose();
       host?.dispose();
       host = null;

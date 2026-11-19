@@ -22,6 +22,12 @@
 // Play (step 8, play/play.ts) opens the game in a new tab with the level as
 // the editor holds it, through a play session: nothing is saved. Leaving the
 // page with unsaved level edits asks first.
+//
+// Landscape (plan 5d step 2): the terrain editing service is in the editor's
+// world before the level is assembled, so terrain bindings draw editable
+// terrains; the sculpt tool takes a press on the selected terrain before the
+// selection click (after a gizmo handle), and the terrains' unsaved tiles
+// save with the level (landscape/landscapeSave.ts).
 
 import {
   createSchemaRegistry,
@@ -93,6 +99,10 @@ import { createTransformTools, type TransformTools } from "./transformTools.ts";
 import { installShellStyle } from "./shell/shellStyle.ts";
 import { installKitStyle } from "./ui/kitStyle.ts";
 import { createViewportControls } from "./viewportControls.ts";
+import { createTerrainEditing, TerrainEditingKey } from "../engine/terrain/terrainEditing.ts";
+import { resourceKey } from "../render/resources/resourceCache.ts";
+import { createLandscapeTool, type LandscapeTool } from "./landscape/landscapeTool.ts";
+import { createLandscapeSave } from "./landscape/landscapeSave.ts";
 
 const helperModules = import.meta.glob<{ default?: EditorRenderBindingDef; assetPreviews?: readonly AssetPreviewRegistration[] }>("../features/*/editorRender.ts", { eager: true });
 /** The engine features' editor helper bindings. */
@@ -204,6 +214,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     let world: World | null = null;
     let editor: EditorSession | null = null;
     let tools: TransformTools | null = null;
+    let landscape: LandscapeTool | null = null;
     let commands: EditCommands | null = null;
     let thumbnails: ContentThumbnails | null = null;
     /** Who hears each frame (a Details preview that plays). */
@@ -232,10 +243,16 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         } else editor.selection.set(actor ? [actor] : []);
       },
       gizmo: () => tools?.gizmo() ?? null,
-      onPointerDown: (event) => tools?.pointerDown(event) ?? false,
-      onPointerMove: (event) => tools?.pointerMove(event) ?? null,
-      onPointerUp: (event) => tools?.pointerUp(event),
-      onPointerCancel: () => void tools?.cancel(),
+      // A gizmo handle first, then the Landscape brush on the selected terrain (5d), then the selection click.
+      onPointerDown: (event) => (tools?.pointerDown(event) ?? false) || (landscape?.pointerDown(event) ?? false),
+      onPointerMove: (event) => (landscape?.pointerMove(event) ? null : (tools?.pointerMove(event) ?? null)),
+      onPointerUp: (event) => {
+        if (!landscape?.pointerUp(event)) tools?.pointerUp(event);
+      },
+      onPointerCancel: () => {
+        landscape?.cancel();
+        void tools?.cancel();
+      },
     });
     await viewport.init();
     viewport.onLost((message) => shell.status(`The GPU device was lost: ${message}. Reload the page.`, "error"));
@@ -245,6 +262,8 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
 
     world = createWorld({ strict: true, registry, resolveClass, features: [...options.features, viewport.feature(options.features), viewport.helperFeature(options.features, EDITOR_HELPER_BINDINGS)], mode: "editor" });
     world.init();
+    const terrainEditing = createTerrainEditing();
+    world.services.provide(TerrainEditingKey, terrainEditing);
     assembleLevel(world, opened.session.level, { strict: true, resolveClass });
     world.beginPlay();
     const levelKey = `${options.projectName}/${options.level}`;
@@ -410,6 +429,28 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       editorDisposed = true; afterSaved = () => {}; stopHlodEdits(); hlodBuild.dispose(); hlodControls.dispose(); partition.dispose(); streaming.dispose();
     }, { once: true });
     const editCommands = commands;
+    landscape = createLandscapeTool({
+      editor: session,
+      editing: terrainEditing,
+      viewport: { pointerRay: (x, y) => viewport.pointerRay(x, y), pick: (x, y) => viewport.pick(x, y), setBrushCursor: (points) => viewport.setBrushCursor(points) },
+      status: (message, tone) => shell.status(message, tone),
+    });
+    // The ring goes with a changed selection or mode; the next move draws it again.
+    session.onChange(() => landscape?.leave());
+    terrainEditing.onChange(() => landscape?.leave());
+    const landscapeSave = createLandscapeSave({
+      editing: terrainEditing,
+      client: options.client,
+      documentPath: (guid) => content.index().byId(guid)?.file ?? null,
+      writable: (path) => content.index().byFile(path)?.writable ?? false,
+      readFile: async (path) => {
+        const response = await fetch(`/__forge/read?path=${encodeURIComponent(path)}`, { headers: { [FORGE_REQUEST_HEADER]: "1" } });
+        if (response.status === 404) return null;
+        if (!response.ok) throw new Error(`Reading ${path} failed: ${response.status}`);
+        return { bytes: new Uint8Array(await response.arrayBuffer()), revision: response.headers.get("X-Forge-Revision") ?? "" };
+      },
+    });
+    session.addParticipant(landscapeSave);
     tools = createTransformTools({ editor: session, viewport, storage: pageStorage(doc), status: (message, tone) => shell.status(message, tone), duplicate: (coalesce) => editCommands.duplicateForDrag(coalesce) });
     shell.attachTools(tools, () => viewport.camera.navigating);
     const play = createEditorPlay({
@@ -581,6 +622,8 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       }
       const others = files.filter((file) => !file.path.startsWith(`${options.level}/`));
       if (others.length === 0) return;
+      // Terrains changed by someone else (5d): clean edit sessions go, the drawn terrain reads the disk again.
+      const staleTerrains = new Set(landscapeSave.diskChanged(others));
       await content.refresh(true); await refreshAssetUrls(); await refreshClasses();
       updateHlodStatus();
       const changed = new Map<string, string>();
@@ -588,6 +631,12 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         const item = content.index().byFile(file.path) ?? content.index().byFile(file.path.replace(/\.meta\.json$/, ""));
         if (item?.id && item.type) changed.set(item.id, item.type);
       }
+      for (const guid of staleTerrains) {
+        viewport.host?.cache.evict(resourceKey.terrain(guid));
+        changed.set(guid, "forge.terrain");
+      }
+      // A terrain the editor saved itself keeps its session and its drawing.
+      for (const [guid, type] of changed) if (type === "forge.terrain" && !staleTerrains.has(guid) && terrainEditing.sessions().has(guid)) changed.delete(guid);
       for (const [guid, type] of changed) assetChanged(guid, type);
       assetEditor.diskChanged(others);
     };

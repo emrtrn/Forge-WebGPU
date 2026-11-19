@@ -30,6 +30,17 @@
 //   (render/sync/debugTags.ts; phase 5a step 4), every terrain's its view for
 //   the G8 collider match (step 5).
 //
+// - Editing (plan 5d step 2): in the editor's world (`TerrainEditingKey`
+//   provided) a terrain draws from its edit session (engine
+//   terrainEditSession.ts), which outlives this binding: the session's world
+//   is the tile map the view and the stream share, its far map the view's.
+//   Tiles still stream; the editor's reader reads each file with its revision
+//   and decodes it against the session's definition (a save may have widened
+//   its height range), and hands an edited tile back instead of the disk's.
+//   Edited tiles and those a stroke demands stay resident (`kept`). The
+//   binding registers the terrain with the editing service: the Landscape
+//   tool writes tiles and calls `changed`, the view re-reads them.
+//
 // A terrain whose data fails to load draws nothing; the cache counts it and
 // the host reports it.
 
@@ -38,6 +49,11 @@ import { parseComponentTypeTag, type ActorId, type WorldActor } from "../../core
 import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
 import { tagSceneSource } from "../../engine/perf/sceneCost.ts";
 import { raycastTerrain } from "../../engine/terrain/terrainHeightQuery.ts";
+import { createTerrainEditWorld } from "../../engine/terrain/terrainEdit.ts";
+import { TerrainEditingKey, type EditableTerrain } from "../../engine/terrain/terrainEditing.ts";
+import { TerrainEditSession } from "../../engine/terrain/terrainEditSession.ts";
+import { validateTerrainTile } from "../../engine/terrain/terrainLoader.ts";
+import type { TerrainGlobalAttributes } from "../../engine/terrain/terrainRenderSource.ts";
 import { TerrainRuntimeStreaming } from "../../engine/terrain/terrainRuntimeStreaming.ts";
 import { parseTileKey, terrainTileWorldSize, type TerrainTileData } from "../../engine/terrain/terrainTypes.ts";
 import { KeptRegionsKey } from "../../engine/world/keptRegions.ts";
@@ -53,7 +69,7 @@ import { publishTerrainSurface, terrainSurface, withdrawTerrainSurface } from ".
 import { Terrain, type TerrainData } from "./schema.ts";
 
 /** A drawn terrain as a pick surface: its live height field, in world space (placed by its definition's origin). */
-export function terrainPickSurface(terrain: LoadedTerrain, view: TerrainView): PickSurface {
+export function terrainPickSurface(terrain: Pick<LoadedTerrain, "def">, view: TerrainView): PickSurface {
   const { def } = terrain;
   // Forge's renderer cast in the terrain-local frame (origin 0): the far map's
   // heights are relative to the datum, as the tiles' are.
@@ -91,6 +107,16 @@ interface Placed {
   settled: boolean;
   removed: boolean;
   readonly key: string | null;
+  /** Editor only: the edit session drawn, the registration's end, the tiles a stroke holds and who waits for them. */
+  session: TerrainEditSession | null;
+  unregister: (() => void) | null;
+  readonly held: Map<string, number>;
+  readonly demands: { readonly keys: readonly string[]; resolve(): void; reject(error: Error): void }[];
+}
+
+/** A far map of one's own: the editor writes it per dab, the cache's stays as read. */
+function cloneGlobal(global: TerrainGlobalAttributes): TerrainGlobalAttributes {
+  return { map: { ...global.map, heights: global.map.heights.slice() }, normals: global.normals.slice(), weights: global.weights.slice() };
 }
 
 export default defineRenderBinding({
@@ -101,13 +127,42 @@ export default defineRenderBinding({
     const terrainsOf = (actor: WorldActor) =>
       Object.entries(actor.components).filter(([, component]) => parseComponentTypeTag(component.type)?.name === Terrain.name);
 
-    const show = (actor: WorldActor, key: string, entry: Placed, terrain: LoadedTerrain): void => {
-      const document = { def: terrain.def, tiles: new Map<string, TerrainTileData>(), globalAttributes: terrain.global };
+    /** The editor's session of this terrain (null in a game, or when it cannot be edited), with the map it draws from. */
+    const editSession = (guid: string, terrain: LoadedTerrain): TerrainEditSession | null => {
+      const editing = ctx.world.services.get(TerrainEditingKey);
+      if (!editing) return null;
+      let session: TerrainEditSession;
+      try {
+        session = editing.session(guid, () => new TerrainEditSession(createTerrainEditWorld(terrain.def, []), terrain.revisions));
+      } catch (error) {
+        console.warn(`forge render: terrain ${guid} cannot be edited`, error);
+        return null;
+      }
+      session.global ??= cloneGlobal(terrain.global);
+      const { tiles } = session.world;
+      // What a former binding's stream left is read again; edited tiles stay.
+      for (const tileKey of [...tiles.keys()]) if (!session.edited.has(tileKey)) tiles.delete(tileKey);
+      for (const [tileKey, tile] of terrain.tiles ?? []) {
+        if (tiles.has(tileKey)) continue;
+        const own: TerrainTileData = { ...tile, heights: tile.heights.slice(), weights: tile.weights.slice() };
+        tiles.set(tileKey, own);
+        const file = terrain.revisions.tiles.get(tileKey);
+        session.recordTile(tileKey, own, file?.format ?? "f32", file?.revision ?? null);
+      }
+      return session;
+    };
+
+    const show = (actor: WorldActor, key: string, entry: Placed, terrain: LoadedTerrain, guid: string): void => {
+      const session = editSession(guid, terrain);
+      entry.session = session;
+      const def = session?.world.def ?? terrain.def;
+      const global = session?.global ?? terrain.global;
+      const document = { def, tiles: session?.world.tiles ?? new Map<string, TerrainTileData>(), globalAttributes: global };
       const quality = ctx.quality();
       const view = new TerrainView({
-        def: terrain.def,
-        global: terrain.global,
-        tiles: terrain.tiles ?? document.tiles,
+        def,
+        global,
+        tiles: session ? session.world.tiles : (terrain.tiles ?? document.tiles),
         layers: terrain.layers,
         selfShadow: quality.terrainSelfShadow,
         farTiling: quality.terrainFarTiling,
@@ -115,8 +170,20 @@ export default defineRenderBinding({
       if (terrain.tiles === null) {
         const reader = terrain.openTiles();
         entry.reader = reader;
+        // The editor reads a file with its revision and checks it against the session's definition; an edited tile comes back as edited.
+        const fetch = session
+          ? (tile: string, signal: AbortSignal): Promise<TerrainTileData> => {
+            const edited = session.edited.get(tile);
+            if (edited) return Promise.resolve(edited);
+            return ctx.resources.track(terrain.readTile(tile, signal).then((read) => {
+              const decoded = validateTerrainTile(session.world.def, tile, read.bytes);
+              session.recordTile(tile, decoded, decoded.heightFormat, read.revision);
+              return decoded;
+            }));
+          }
+          : (tile: string, signal: AbortSignal): Promise<TerrainTileData> => ctx.resources.track(reader.read(tile, signal));
         entry.stream = new TerrainRuntimeStreaming(document, { id: actor.id, name: actor.name, collision: false }, {
-          fetch: (tile, signal) => ctx.resources.track(reader.read(tile, signal)),
+          fetch,
           changed: (tile) => view.refreshTile(tile),
           addColliders: () => {},
           removeColliders: () => {},
@@ -129,28 +196,79 @@ export default defineRenderBinding({
       view.mesh.userData.framing = false;
       tagSceneSource(view.mesh, "terrain");
       tagActorObject(view.mesh, actor.id);
-      tagPickSurface(view.mesh, terrainPickSurface(terrain, view));
-      tagTerrainView(view.mesh, { view, def: terrain.def });
+      tagPickSurface(view.mesh, terrainPickSurface({ def }, view));
+      tagTerrainView(view.mesh, { view, def });
       if (entry.stream) tagTerrainStreaming(view.mesh, { stream: entry.stream, sources: () => entry.sources });
       entry.view = view;
       ctx.root.add(view.mesh);
       // The foliage ring grows on the live tiles (plan 5c F1).
       publishTerrainSurface(ctx.scene, actor.id, {
-        def: terrain.def, tiles: view.source, existingTiles: new Set(terrain.def.tiles.map((tile) => tile.key)), global: terrain.global,
+        def, tiles: view.source, existingTiles: new Set(def.tiles.map((tile) => tile.key)), global,
         settled: () => entry.settled,
         setFarTint: (tint) => view.setFarTint(tint),
       });
+      const editing = ctx.world.services.get(TerrainEditingKey);
+      if (session && editing) {
+        const handle: EditableTerrain = {
+          actor: actor.id,
+          component: key,
+          guid,
+          session,
+          streams: entry.stream !== null,
+          changed: (dirty) => {
+            for (const [tileKey, rect] of dirty) view.updateTile(tileKey, rect);
+          },
+          demand: (keys) => {
+            const declared = new Set(def.tiles.map((tile) => tile.key));
+            const wanted = [...keys].filter((tileKey) => declared.has(tileKey));
+            for (const tileKey of wanted) entry.held.set(tileKey, (entry.held.get(tileKey) ?? 0) + 1);
+            return new Promise<void>((resolve, reject) => {
+              entry.demands.push({ keys: wanted, resolve, reject });
+              settleDemands(entry);
+            });
+          },
+          release: (keys) => {
+            for (const tileKey of keys) {
+              const count = (entry.held.get(tileKey) ?? 0) - 1;
+              if (count > 0) entry.held.set(tileKey, count);
+              else entry.held.delete(tileKey);
+            }
+          },
+        };
+        entry.unregister = editing.register(handle);
+      }
+    };
+
+    /** Resolves the strokes' waits whose tiles are in as read; one that came back a stand-in (a failed read) fails. */
+    const settleDemands = (entry: Placed): void => {
+      const session = entry.session;
+      if (!session || entry.demands.length === 0) return;
+      for (const demand of [...entry.demands]) {
+        const failed = demand.keys.find((tileKey) => session.world.tiles.has(tileKey) && !session.readable(tileKey));
+        if (failed) {
+          entry.demands.splice(entry.demands.indexOf(demand), 1);
+          demand.reject(new Error(`terrain tile ${failed} could not be read`));
+        } else if (demand.keys.every((tileKey) => session.world.tiles.has(tileKey))) {
+          entry.demands.splice(entry.demands.indexOf(demand), 1);
+          demand.resolve();
+        }
+      }
     };
 
     const add = (actor: WorldActor, key: string, data: TerrainData): void => {
       const id = `${actor.id}/${key}`;
-      const entry: Placed = { actor: actor.id, view: null, stream: null, reader: null, sources: [], busy: null, settled: false, removed: false, key: data.data === null ? null : resourceKey.terrain(data.data) };
+      const entry: Placed = {
+        actor: actor.id, view: null, stream: null, reader: null, sources: [], busy: null, settled: false, removed: false,
+        key: data.data === null ? null : resourceKey.terrain(data.data),
+        session: null, unregister: null, held: new Map(), demands: [],
+      };
       placed.set(id, entry);
-      if (data.data === null) return;
+      const guid = data.data;
+      if (guid === null) return;
       entry.busy = ctx.resources.busy();
-      ctx.resources.terrain(data.data).then(
+      ctx.resources.terrain(guid).then(
         (terrain) => {
-          if (!entry.removed) show(actor, key, entry, terrain);
+          if (!entry.removed) show(actor, key, entry, terrain, guid);
         },
         () => {
           // Counted by the cache and reported by the host; nothing is drawn.
@@ -165,6 +283,8 @@ export default defineRenderBinding({
       if (!entry) return;
       placed.delete(id);
       entry.removed = true;
+      entry.unregister?.();
+      for (const demand of entry.demands.splice(0)) demand.reject(new Error("the terrain left the world"));
       if (entry.view && terrainSurface(ctx.scene, entry.actor)?.tiles === entry.view.source) withdrawTerrainSurface(ctx.scene, entry.actor);
       entry.stream?.dispose();
       entry.reader?.dispose();
@@ -216,8 +336,11 @@ export default defineRenderBinding({
               const minX = def.origin[0] + coord.x * size, minZ = def.origin[2] + coord.z * size;
               return regions.some((area) => minX < area.maxX && minX + size > area.minX && minZ < area.maxZ && minZ + size > area.minZ);
             }).map((tile) => tile.key) : [];
+            // The editor's: tiles edited this session and the ones a stroke holds never stream out.
+            if (entry.session) kept.push(...entry.session.edited.keys(), ...entry.held.keys());
             stream.update(entry.sources, 1, kept);
           }
+          settleDemands(entry);
           casters ??= terrainShadowCasters(ctx.scene);
           view.update(frame.camera, casters);
           const stats = stream?.world.stats();

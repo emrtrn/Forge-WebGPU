@@ -23,6 +23,8 @@ function harness(options: { tilesX: number; tilesZ: number; streams: boolean }) 
     global: buildTerrainGlobalAttributes(worldTerrainRenderSource(def, tiles)),
     tiles: options.streams ? null : tiles,
     layers: [{ color: "#6f9a4a", texture: null, scale: [0.1, 0.1], roughness: 1, flipY: false, normalTexture: null, roughnessTexture: null, detail: null }],
+    revisions: { document: null, global: null, tiles: new Map() },
+    readTile: async () => { throw new Error("the game binding reads tiles through openTiles"); },
     openTiles(): TerrainTileReader {
       const state = { disposed: false };
       readers.push(state);
