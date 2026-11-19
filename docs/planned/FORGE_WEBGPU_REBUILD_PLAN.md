@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.95 · 2026-11-20 — Terrain Details'i Forge'un Landscape düzeninde (`775da8b`, kullanıcı kararı): Name → Landscape Mode; Class, Transform, pivot / yerleşim yok; bileşen alanları en altta kapalı; araçlar düğme ızgarası, View fırçanın altında. SDK 0.1.14 (`details: "tool"`). Seçili terrain üstünde gizmo sürüklemesi düzeltildi.
+**Güncelleme:** v1.96 · 2026-11-20 — Paint kipi Forge'un Brush / Auto Paint sekmeleriyle, Auto Paint kuralları Landscape Mode içinde; terrain Details'i Name'siz başlar; panel adları Forge'unki (Scene Outliner / World Partition, Details / Foliage) (`2a6ef5e`, kullanıcı isteği).
+
+**Önceki güncelleme:** v1.95 · 2026-11-20 — Terrain Details'i Forge'un Landscape düzeninde (`775da8b`, kullanıcı kararı): Name → Landscape Mode; Class, Transform, pivot / yerleşim yok; bileşen alanları en altta kapalı; araçlar düğme ızgarası, View fırçanın altında. SDK 0.1.14 (`details: "tool"`). Seçili terrain üstünde gizmo sürüklemesi düzeltildi.
 
 **Önceki güncelleme:** v1.94 · 2026-11-20 — 5d adım 4 (`4651b3b`): Add Actor > Terrain > World Terrain… (asset hemen yazılır, aktör tek undo), Expand (tek tile → ızgara, tek undo; Save yeni tile'ları yazar, geri alınanları siler), aktörle taşıma (`worldTerrainMove`: origin + dünya çerçeveli spline'lar; su Faz 7), heightmap içe / dışa aktarma (16-bit PNG / RAW). Kararlar kullanıcıda (öneriler gibi). `worldTerrainMove`'un 1 A'sı taşındı, su kullanan 3 A Faz 7'ye. Kullanıcı görsel kabulü bekleniyor.
 
@@ -2149,6 +2151,22 @@ Smoke'lar düğmelere ve gizmo ile taşımaya güncellendi; editör seti WebGL'd
 (`content.spec`'in geçici dosya yarışı tek başına yeniden koşuda geçti), landscape +
 authoring + addActor gerçek WebGPU'da 9 / 9.
 
+*Paint düzeni ve panel adları (2026-11-20, `2a6ef5e`; kullanıcı isteği):* Paint
+kipinde Forge'un Brush / Auto Paint sekmeleri (`LandscapeSettings.paintPanel`;
+Auto Paint sekmesinde viewport fırçası yok). İkisinde de Layer listesi (katman
+materyalinin adıyla, etkin olan vurgulu), Add Layer (n/8), Remove Layer (etkin
+katman), etkin katmanın Material seçimi; Brush'ta araçlar, Fill Layer ve fırça;
+Auto Paint'te aktörün `forge.landscapeAutoPaint` kuralları yerinde: Base Layer, kural
+başına kart (Rule n, katman, bantlar, Remove), Add Rule (etkin katmanla bütün
+zemini kapsar), Seed, Apply Auto Paint. Kural düzenlemesi level düzenlemesi (ilk
+düzenleme bileşeni ekler); değişiklik tamamlanınca yazılır. Kuralların ayrı
+bileşen bölümü yok (`details: "embedded"`, SDK 0.1.14 girdisi güncellendi). Tool
+aktörünün Details'i Name'siz, doğrudan Landscape Mode ile başlar. Kabuk: Forge'un
+sekme adları ve alt çizgili sekme biçimi (Scene Outliner / World Partition,
+Details / Foliage; Mesh Paint kapsam dışı, 5d karar 4). Fiziksel materyal satırı
+Faz 8'de (adım 3 kararı). Editör seti WebGL'de 91 / 91, landscape + authoring +
+streaming gerçek WebGPU'da 7 / 7.
+
 - [x] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
       Faz 3 karar 1) üretim kalitesine çıkar: morph,
       tile seam, 8 boya katmanı, su birikintisi (kıyı ıslaklığı ve kostik
@@ -2593,5 +2611,6 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-20 | v1.96 | Paint kipi Forge'un Brush / Auto Paint sekmeleriyle, Auto Paint kuralları Landscape Mode içinde (`details: "embedded"`), terrain Details'i Name'siz, panel adları Forge'unki (`2a6ef5e`) |
 | 2026-11-20 | v1.95 | Terrain Details Forge'un Landscape düzeninde (`775da8b`, kullanıcı kararı): `details: "tool"` sunumu (SDK 0.1.14), araç düğme ızgarası; seçili terrain üstünde gizmo sürüklemesi düzeltildi |
 | 2026-11-20 | v1.94 | 5d adım 4 (`4651b3b`): kararlar (kullanıcı, öneriler gibi: asset hemen yazılır, taşıma yalnız terrain, `worldTerrainMove` su kısmı Faz 7, heightmap yalnız editörde); World Terrain oluşturma, Expand, taşıma, heightmap içe / dışa; kayıtta global harita revizyonu ve geç olay düzeltmeleri. `worldTerrainMove` 1 A → **A 991 / 1.021**, 3 A Faz 7'ye. `landscapeWorld.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |

@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.76 · 2026-11-20 — §4.4 5d: bileşen sunumunda `details: "tool"` (SDK 0.1.14): aktörün Details'i ad, bileşenin eki, öteki bileşenler, en altta kapalı bileşen alanları; yerleşim denetimleri yok. World Terrain bunu kullanır (kullanıcı kararı).
+**Güncelleme:** v1.77 · 2026-11-20 — §4.4 5d: `details: "embedded"` (tool aktöründe bileşenin kendi bölümü yok, tool'un eki düzenler); Auto Paint kuralları Landscape Mode > Paint > Auto Paint'te; tool aktörünün Details'i Name'siz.
+
+**Önceki güncelleme:** v1.76 · 2026-11-20 — §4.4 5d: bileşen sunumunda `details: "tool"` (SDK 0.1.14): aktörün Details'i ad, bileşenin eki, öteki bileşenler, en altta kapalı bileşen alanları; yerleşim denetimleri yok. World Terrain bunu kullanır (kullanıcı kararı).
 
 **Önceki güncelleme:** v1.75 · 2026-11-20 — §4.4 5d adım 4: World Terrain asset olarak hemen yazılır, Expand oturumda tek undo (yeni / silinecek tile), taşıma tanımın origin'ini aktörle kaydırır (su Faz 7), heightmap içe / dışa yalnız editörde (kullanıcı kararları).
 
@@ -1121,6 +1123,9 @@ features/height-fog/
     "tool"` (SDK 0.1.14): ad, bileşenin Details eki, öteki bileşenler, bileşenin
     kendi alanları en altta kapalı; Class, transform, pivot / yerleşim, Remove,
     Advanced ve Add Component yok. Konumu verisinden gelen aktörler içindir.
+    Name de gösterilmez (2026-11-20); `details: "embedded"` bir bileşenin tool
+    aktöründeki kendi bölümünü kaldırır (`forge.landscapeAutoPaint`: kuralları
+    Paint > Auto Paint sekmesi düzenler, ajan yüzeyi `forge edit set` aynı).
 - **Ölçek ölçümü (2a, 2026-11-10):** 50.000 aktörlük level R1'de eşik içinde
   (bütün level yükleme ~0,9 s, hücre yükleme p95 ~1,5 ms, tek aktör kaydı
   ~40 ms, tam kayıt ~2,2 s, heap ~58 MB; [Faz 2a arşivi](../archive/PHASE_2A.md)). Aşağıdaki çarelere
