@@ -11,6 +11,9 @@
 // - the billboards change the image (against the same types without a far distance);
 // - the far tint changes the terrain past the cull distance;
 // - no page or GPU error, no worker fallback.
+// Two kinds: the conifers' own GLB models (the billboard baked at run time) and the same types drawn as the
+// starter's generated Broadleaf family (`family` laid over them too: the family's baked PG3 atlas, its
+// response): in winter its billboards go bare as its models do (the billboards add less, PV-WES-03).
 // The same on the WebGL2 test backend (the CPU twin; never a WebGPU acceptance). Shots go to
 // render-refs/candidates/ for the eye, counts to render-refs/runs/; nothing is compared with a reference.
 
@@ -30,6 +33,7 @@ interface Dev {
   step(ms: number): Promise<{ ran: boolean }>;
   host(): Host | null;
   foliageType(guid: string, patch: Record<string, unknown> | null): Promise<void>;
+  setSeason(season: string): void;
   gpuDriven: {
     check(): Promise<Check[]>;
     level(): Promise<Ring | null>;
@@ -45,6 +49,11 @@ const NEAR = { cullStart: 150, cullEnd: 250 };
 const FAR = { ...NEAR, far: { distance: 700, tint: 0 } };
 const NO_FAR = { ...NEAR, far: { distance: 0, tint: 0 } };
 const TINT = { ...NEAR, far: { distance: 700, tint: 0.6 } };
+/** The starter pack's generated deciduous family (content/packs/starter/procgen/trees/Broadleaf). */
+const BROADLEAF = "ast_e6beb70fb2c3ee3f49dc40b4d332462c";
+type Kind = "glb" | "family";
+/** The patch laid over conifer `index`: the family kind draws the Broadleaf's prototype `index`. */
+const typePatch = (kind: Kind, patch: Record<string, unknown>, index: number) => (kind === "family" ? { ...patch, family: BROADLEAF, prototype: index } : patch);
 
 const forge = <T>(page: Page, run: string, arg?: unknown): Promise<T> =>
   page.evaluate(([source, value]) => (new Function("dev", "arg", `return (${source})(dev, arg);`) as (dev: Dev, arg: unknown) => unknown)(
@@ -58,13 +67,13 @@ async function steps(page: Page, count: number): Promise<void> {
 }
 
 /** Lays `patch` over the conifers, sets the cull scale and waits until the ring and the far blocks settle; paused after. */
-async function grow(page: Page, patch: Record<string, unknown>, cullScale: number, far: boolean): Promise<void> {
+async function grow(page: Page, patch: Record<string, unknown>, cullScale: number, far: boolean, kind: Kind): Promise<void> {
   await forge(page, "(d) => d.resume()");
   await forge(page, `(d, arg) => {
     const host = d.host();
     host.setQuality({ ...host.quality, settings: { ...host.quality.settings, foliageCullDistanceScale: arg } });
   }`, cullScale);
-  for (const guid of CONIFERS) await forge(page, "(d, arg) => d.foliageType(arg[0], arg[1])", [guid, patch]);
+  for (const [index, guid] of CONIFERS.entries()) await forge(page, "(d, arg) => d.foliageType(arg[0], arg[1])", [guid, typePatch(kind, patch, index)]);
   await expect.poll(() => forge<Ring | null>(page, "(d) => d.gpuDriven.level()"), { timeout: 60_000, message: "the ring settles" })
     .toMatchObject({ rings: 1, pending: 0 });
   if (far) {
@@ -147,7 +156,7 @@ async function changedShare(page: Page, a: Buffer, b: Buffer): Promise<number> {
 test.use({ viewport: SMOKE_VIEWPORT });
 test.setTimeout(480_000);
 
-for (const backend of ["webgpu", "webgl"] as const) test(`foliage far (${backend}): billboards stand where the models stand, the tint darkens the far ground`, async ({ page }, testInfo) => {
+for (const kind of ["glb", "family"] as const) for (const backend of ["webgpu", "webgl"] as const) test(`foliage far (${backend}, ${kind}): billboards stand where the models stand, the tint darkens the far ground`, async ({ page }, testInfo) => {
   const webgl = backend === "webgl";
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -163,17 +172,17 @@ for (const backend of ["webgpu", "webgl"] as const) test(`foliage far (${backend
   const canvas = page.getByTestId("forge-canvas");
   const shot = () => canvas.screenshot();
 
-  await grow(page, NONE, 6, false);
+  await grow(page, NONE, 6, false, kind);
   const emptyFar = await shot();
   // Models out to 1,500 m: the authored 250 m at scale 6 (1,500 m authored would change the cell size).
-  await grow(page, NO_FAR, 6, false);
+  await grow(page, NO_FAR, 6, false, kind);
   const models = await shot();
-  await grow(page, NONE, 1, false);
+  await grow(page, NONE, 1, false, kind);
   const emptyNear = await shot();
-  await grow(page, NO_FAR, 1, false);
+  await grow(page, NO_FAR, 1, false, kind);
   const nearOnly = await shot();
   const started = Date.now();
-  await grow(page, FAR, 1, true);
+  await grow(page, FAR, 1, true, kind);
   const farMs = Date.now() - started;
   const billboards = await shot();
   const far = (await forge<{ blocks: number; instances: number }>(page, "(d) => d.gpuDriven.levelFar()"))!;
@@ -189,38 +198,51 @@ for (const backend of ["webgpu", "webgl"] as const) test(`foliage far (${backend
   expect(visible, "billboards are drawn").toBeGreaterThan(0);
   const added = await changedShare(page, nearOnly, billboards);
   const { map: placementMap, ...placement } = await blocks(page, { emptyNear, near: billboards, emptyFar, far: models });
-  await grow(page, TINT, 1, true);
+  await grow(page, TINT, 1, true, kind);
   const tinted = await shot();
   const tint = await changedShare(page, billboards, tinted);
+  // The family in winter: bare models near, bare billboards far (both shots in winter).
+  let winter: { added: number; billboards: Buffer } | null = null;
+  if (kind === "family") {
+    await forge(page, "(d) => d.setSeason('winter')");
+    await grow(page, NO_FAR, 1, false, kind);
+    const nearWinter = await shot();
+    await grow(page, FAR, 1, true, kind);
+    const billboardsWinter = await shot();
+    winter = { added: await changedShare(page, nearWinter, billboardsWinter), billboards: billboardsWinter };
+    await forge(page, "(d) => d.setSeason('summer')");
+  }
   await forge(page, "(d) => d.resume()");
   for (const guid of CONIFERS) await forge(page, "(d, arg) => d.foliageType(arg, null)", guid);
 
-  console.log(`foliage far (${backend}): ${far.blocks} blocks, ${far.instances} billboards, ${visible} visible; billboards add ${(added * 100).toFixed(2)} %, `
-    + `placement ${placement.inside} / ${placement.near} blocks (${(placement.precision * 100).toFixed(1)} %, models ${placement.far}), tint ${(tint * 100).toFixed(2)} %, far ready ${farMs} ms`);
+  console.log(`foliage far (${backend}, ${kind}): ${far.blocks} blocks, ${far.instances} billboards, ${visible} visible; billboards add ${(added * 100).toFixed(2)} %, `
+    + `placement ${placement.inside} / ${placement.near} blocks (${(placement.precision * 100).toFixed(1)} %, models ${placement.far}), tint ${(tint * 100).toFixed(2)} %${winter ? `, winter billboards add ${(winter.added * 100).toFixed(2)} %` : ""}, far ready ${farMs} ms`);
   const record = {
     schema: 1,
     kind: "phase 5c F3 far foliage smoke",
     backend,
+    typeKind: kind,
     date: new Date().toISOString(),
     commit: git(["rev-parse", "HEAD"]),
     dirty: git(["status", "--porcelain"]) !== "",
     level: scene.level,
     pose: "p2",
-    override: { conifers: CONIFERS, far: FAR, tint: TINT },
+    override: { conifers: CONIFERS, far: FAR, tint: TINT, family: kind === "family" ? BROADLEAF : null },
     far,
     visible,
     billboardsAdd: added,
     placement,
     tint,
+    winterBillboardsAdd: winter?.added ?? null,
     farReadyMs: farMs,
     checks,
   };
   const stamp = record.date.replace(/[:.]/g, "-");
-  const suffix = webgl ? "-webgl" : "";
+  const suffix = `${kind === "family" ? "-family" : ""}${webgl ? "-webgl" : ""}`;
   mkdirSync(join(RENDER_REFS, "runs"), { recursive: true });
   mkdirSync(join(RENDER_REFS, "candidates"), { recursive: true });
   writeFileSync(join(RENDER_REFS, "runs", `${stamp}-foliage-far${suffix}.json`), `${JSON.stringify(record, null, 2)}\n`);
-  for (const [name, image] of [["far-billboards", billboards], ["far-models", models], ["far-tint", tinted], ["far-placement", Buffer.from(placementMap, "base64")]] as const) {
+  for (const [name, image] of [["far-billboards", billboards], ["far-models", models], ["far-tint", tinted], ["far-placement", Buffer.from(placementMap, "base64")], ...(winter ? [["far-billboards-winter", winter.billboards] as const] : [])] as const) {
     writeFileSync(join(RENDER_REFS, "candidates", `derekavak-p2-${name}${suffix}.png`), image);
     await testInfo.attach(`derekavak-p2-${name}${suffix}`, { body: image, contentType: "image/png" });
   }
@@ -228,5 +250,6 @@ for (const backend of ["webgpu", "webgl"] as const) test(`foliage far (${backend
   expect(added, "the billboards change the image").toBeGreaterThan(0.002);
   expect(placement.precision, "billboards stand where the models stand").toBeGreaterThan(0.85);
   expect(tint, "the far tint changes the far ground").toBeGreaterThan(0.002);
+  if (winter) expect(winter.added, "bare in winter: the family's billboards add less than in summer").toBeLessThan(added * 0.8);
   expect(errors).toEqual([]);
 });
