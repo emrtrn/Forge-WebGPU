@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.84 · 2026-11-19 — 5c F3 (`0ffdcf5`): uzak billboard'lar ve uzak ton. Kullanıcı kararı: bütün uzak billboard'lar PG3 impostor biçiminde (karar 6 güncellendi); içe aktarılan GLB türü çalışma anında CPU rasterleyiciyle worker'da bake edilir. Smoke'ta billboard bloklarının %99'u modellerin üstünde.
+**Güncelleme:** v1.85 · 2026-11-19 — 5c adım 10–11: PG3 kapandı (KTX2 atlaslar, kullanıcı kararı; §8 ölçüldü; PK7 ölçümle odun / yaprak ayrımı), `npm run measure:forest` ile üretilmiş ormanda G6, PV-WES-01–08, mevsim geçişinde pipeline +0, hücre döngüsünde sızıntı yok (bulunan statik batch sızıntısı düzeltildi). 5c teknik kapısı geçti; görsel kabul kullanıcıda, kutu açık.
+
+**Önceki güncelleme:** v1.84 · 2026-11-19 — 5c F3 (`0ffdcf5`): uzak billboard'lar ve uzak ton. Kullanıcı kararı: bütün uzak billboard'lar PG3 impostor biçiminde (karar 6 güncellendi); içe aktarılan GLB türü çalışma anında CPU rasterleyiciyle worker'da bake edilir. Smoke'ta billboard bloklarının %99'u modellerin üstünde.
 
 **Önceki güncelleme:** v1.83 · 2026-11-18 — 5c adım 9: PG2 (`fa11eb2` … `3a8dd57`): foliage rüzgârı, ortak bitki tepkisi + WES mevsim geçişi, dallanan üretici + `forge.treeRecipe`, tekil bitki ve aileli foliage aynı yoldan. Kullanıcı: PG2–PG3 5c içinde (sıra korunur).
 
@@ -869,7 +871,7 @@ call'unun 260'ı foliage; foliage çizimleri toplanınca gönderim 3,9 → 2,2 m
    GLB türleri için~~ (kullanıcı, 2026-11-19, F3): bütün uzak billboard'lar PG3'ün
    yarım küre octahedral impostor'u; üretilen bitki offline atlasını, içe aktarılan
    GLB türü çalışma anında model başına bir kez CPU rasterleyiciyle (worker) bake
-   edilen tek katmanlı atlasını kullanır. PK7 PG3'te.
+   edilen tek katmanlı atlasını kullanır. PK7 PG3'te ölçümle kapandı (2026-11-19): odun / yaprak ayrımı.
 7. *Bitki dilimi (PG0–PG3, 5c ile):* `forge.plantFamily` asset'i + `forge.plant`
    bileşeni; tepki çözücü `engine`'de saf, tekil aktör ve foliage aynı
    uniform'ları kullanır. PG1 kayası saf çekirdeğin (rastgele akışlar, mesh
@@ -1062,7 +1064,40 @@ call'unun 260'ı foliage; foliage çizimleri toplanınca gönderim 3,9 → 2,2 m
    `3a8dd57`. Smoke: `foliageWind.smoke.ts`, `plants.smoke.ts` (iki arka uç); adaylar
    `render-refs/candidates/pg2-plants-{summer,winter,snow}.png` (görsel kabul kullanıcıda).
 10. PG3 LOD / kart / impostor bake, PK7 — X rasterleyici / C.
+   **Uygulandı (2026-11-19; ayrıntı ve ölçüm tabloları bitki planı §8, §10 PG3):** CPU bake, kartlar, impostor
+   (`3253c3a`, `a9d75fc`), uzak billboard'lar PG3 biçiminde (F3, `0ffdcf5`). **Kullanıcı kararları (2026-11-19):**
+   `forge generate` atlasları doğrudan KTX2 yazar (UASTC + Zstd, mip'li; `ktx2-encoder` 0.6.0 yalnız araçta), PK7
+   commit'siz spike'la ölçülür. KTX2 (`e603b87`): tür başına GPU doku belleği 69,3 → 17,3 MiB, indirme 10,5 → 8,4 MB
+   (Broadleaf); bağımsız `.ktx2` asset'i için `KTX2Loader`'a istek başlığı; impostor yuvasına `color` (uzak ton,
+   sıkıştırılmış atlas okunamaz). PK7: sınırlı mevsim atlası bellekte eşit, GPU'da gürültü içinde, ara mevsim ve
+   odun / yaprak tonu kaybı: odun / yaprak ayrımı kalır. Üretilmiş aile türünün uzak blokları smoke'ta (`bd09bdf`):
+   yerleşim %99,1 / %98,6, ton %8,1 / %6,7, kışın billboard'lar çıplak, iki arka uç.
 11. `measure:foliage`, PV-WES, kapı, belgeler, görsel kabul — C.
+   **Teknik kapı geçti (2026-11-19), görsel kabul kullanıcıda.** `npm run measure:forest` (`bd09bdf`, `078dcfd`;
+   kayıt `render-refs/runs/2026-11-19T10-24-02-112Z-forest.json`): Derekavak'ın kuralları, ağaç / çalı türleri
+   starter Broadleaf / Conifer ailesiyle (dev kancası), 1080p `high`, 60 Hz adımlı, gerçek WebGPU (NVIDIA Ampere);
+   GPU belleği WebGPU API sınırında sayıldı (three sıkıştırılmış dokuyu 1 bayt sayar). `measure:foliage` güncel
+   kodla yeniden (`2026-11-19T10-25-27-516Z-foliage.json`). Ort. / p95 ms:
+
+   | Senaryo | Gönderim | Ana iş parçacığı | GPU |
+   |---|---|---|---|
+   | Derekavak P2, kendi foliage'ı (1.640 örnek, S4'ün üretim karşılığı) | 0,99 / 2,8 | 1,49 / 3,4 | 2,41 |
+   | Aynısı, foliage yok | 0,64 / 2,0 | 1,13 / 2,6 | 2,20 |
+   | Üretilmiş orman, yaz | 1,16 / 3,3 | 1,67 / 3,9 | 2,69 |
+   | Üretilmiş orman, kış / kış + kar | 1,17 / 3,4 · 1,12 / 3,3 | 1,66 / 3,9 · 1,60 / 3,9 | 2,67 · 2,62 |
+   | Üretilmiş orman, 15 m/s yürüyüş | 1,82 / 4,0 | 3,09 / 5,2 (en çok 9,3) | 3,73 |
+   | Island P1, kendi foliage'ı | 0,79 / 1,1 | 1,18 / 1,7 | 2,38 |
+
+   S4: WebGL'de P2'nin 327 draw call'unun 260'ı foliage, gönderim 3,9 ms; üretimde aynı 1.640 örnek 6 GPU güdümlü
+   batch'te, gönderim 0,99 ms. Dört zamanlı mevsim geçişi (2 s, kare kare): **pipeline +0, shader modülü +0**, en
+   uzun kare 9,0 ms, GPU en çok 9,6 ms, GPU belleği 454,3 MiB (tepe = canlı; kendi foliage'ıyla 414,1), JS yığını
+   tepe ≈ 56 MiB. Kışta beş hücre döngüsü (6 km öteye, geri): halka 1.380 hücre / 1.640 örnek, three 129 geometri /
+   60 doku, GPU 438,9 MiB, canlı buffer 701–714, mevsim hemen kış. **Bulunan hata (`6a8a612`):** ilk koşularda döngü
+   başına +1 GPU buffer'ı (1 KiB, foliage'sız da): `instanceBatches`'in detay / gölge fade attribute'u dispose
+   edilmiyordu (WebGL2 ikizinde de); düzeltildi, döngüler sabit. Ertelenen 8 A (`foliageRing`) yeşil, A 990 / 1.021
+   (5c'ye ertelenmiş A yok). PV-WES-01–08 kanıtları bitki planı §10. Adaylar `render-refs/candidates/pg3-wes03-*`,
+   `pk7-*`, `derekavak-p2-far-*-family*`, `pg2-plants-*` (görsel kabul kullanıcıda). `gpuCulling.smoke.ts`'in bundle
+   karşılaştırması (WebGPU) HEAD'de de kararsız (3 koşuda 2 düştü), bu işten bağımsız; ayrı bakılacak.
 
 **Foliage sırası (kullanıcı kararları, 2026-11-18; v1.73).** R9b bittikten sonra
 (R10 başlamadı) sıra: F0 → adım 6 (F1–F3) → adım 7 (F4) → Foliage paneli (F5–F6, 5d'den
@@ -1955,6 +1990,8 @@ GPU güdümlü yolunu bekler.
       kış / ara mevsim tutarlılığı; üretilmiş ormanda da G6; çevre geçişinde
       yeniden derleme / kaynak sızıntısı yok, en uzun kare, GPU süresi ve
       toplam / tepe bellek raporlanmış. Tam üretici paneli beklenmez.
+      **2026-11-19:** teknik kapı geçti (5c adım 11 kaydı; bitki planı v0.10 PG3); kullanıcı görsel kabulü
+      bekleniyor, kutu kapatılmadı. Faz 5 bölümü 5d açık olduğu için arşive taşınmaz.
 - [ ] **5d Editör araçları + World Builder:** sculpt, paint, foliage paint
       (boya / silme fırçası; Foliage sekmesinin tür ve kural düzenlemesi 5c F5–F6'ya
       alındı, v1.73), landscape spline; World Builder penceresi + `/__world-random` endpoint'i
@@ -2276,6 +2313,7 @@ silinebilir.
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
 | 2026-11-19 | v1.83 | R9c Adım 5 kapandı. S12 ile üretimde mevcut `auto` ve S1 onaylandı. Şehir karşılaştırması ve iki arka uç doğrulaması ayrı plan §5.5’te. |
+| 2026-11-19 | v1.85 | 5c adım 10–11: PG3 (KTX2 `e603b87`, kullanıcı kararı; PK7 spike: odun / yaprak ayrımı kalır), `measure:forest` (`bd09bdf` `078dcfd`): üretilmiş ormanda G6, PV-WES-01–08, geçişte pipeline +0, hücre döngüsünde sızıntı yok; statik batch attribute sızıntısı düzeltildi (`6a8a612`). 5c teknik kapısı geçti, görsel kabul bekleniyor |
 | 2026-11-19 | v1.84 | 5c F3 (`0ffdcf5`): uzak billboard blokları ve uzak ton; kullanıcı: bütün uzak billboard'lar PG3 impostor biçiminde, GLB türü çalışma anında CPU bake (worker). Hand-off testi; Derekavak P2 smoke'unda billboard bloklarının %99'u modellerin üstünde, iki arka uç |
 | 2026-11-18 | v1.83 | 5c adım 9 = PG2 (`fa11eb2` `b9608c8` `bc05121` `3a8dd57`): foliage rüzgârı (iki yol, gölge dahil), ortak bitki tepkisi + WES mevsim geçişi, dallanan üretici + `forge.treeRecipe`, tekil `forge.plant` ve aileli foliage aynı batch yolu ve kancası. Kullanıcı: PG2–PG3 5c içinde |
 | 2026-11-18 | v1.82 | 5c adım 8, PG1 kalanı (`eea639f`): GLB yazıcısı, `forge.surfaceTextureRecipe@1`, materyal `projection` / `variation`, model `collision`, meta `generated`, `npm run forge -- generate`, starter kaya ön ayarları, `measure:rock-material` (A ekranı dolduran kayada C'den ~1,3 ms GPU fazla; `variation` ~0,1–0,2 ms) |

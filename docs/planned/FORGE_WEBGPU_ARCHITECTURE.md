@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.68 · 2026-11-19 — §4.4 uzak foliage (5c F3): blok host'u, tür başına PG3 impostor batch'i, GLB türü için çalışma anı CPU bake'i, terrain'e uzak ton; uzak temsil kararı PG3 biçimine güncellendi (kullanıcı).
+**Güncelleme:** v1.69 · 2026-11-19 — §4.4 / §4.9 PG3: üretilmiş atlaslar KTX2 (`forge generate`), impostor yuvasında `color`, mevsimsel uzak temsil odun / yaprak ayrımı (PK7 ölçümü); §4.5 bağımsız `.ktx2` doku asset'i; kapı ölçümü `measure:forest`.
+
+**Önceki güncelleme:** v1.68 · 2026-11-19 — §4.4 uzak foliage (5c F3): blok host'u, tür başına PG3 impostor batch'i, GLB türü için çalışma anı CPU bake'i, terrain'e uzak ton; uzak temsil kararı PG3 biçimine güncellendi (kullanıcı).
 
 **Önceki güncelleme:** v1.67 · 2026-11-18 — §4.4 bitki dilimi (PG2): GPU güdümlü batch'e örnek başına shading kancası (rüzgâr, bitki tepkisi), dünya başına ortak bitki çizimi, tekil `forge.plant` foliage yolunda; WES zamanlı mevsim geçişi.
 
@@ -805,7 +807,8 @@ features/height-fog/
     yarım küre octahedral impostor'u: üretilen bitki offline atlasıyla, içe
     aktarılan GLB türü çalışma anında model başına bir kez CPU rasterleyiciyle
     (worker) bake edilen tek katmanlı atlasla. Forge'un 8 açılı billboard'u
-    taşınmadı. PK7 PG3'te.
+    taşınmadı. Mevsim impostor'un iki katmanında (odun / yaprak, yaprakta dökülme
+    eşiği); sınırlı mevsim atlası ölçümde kazanç göstermedi (PK7, 2026-11-19).
   - *Bitki dilimi:* `forge.plantFamily` asset'i + `forge.plant` bileşeni;
     tepki çözücü `engine`'de saf, tekil aktör ve foliage aynı uniform'larla
     (§4.9 ortak sözleşme). PG1 kayası saf çekirdeğin ince dilimi olarak kalır.
@@ -818,11 +821,19 @@ features/height-fog/
     ailenin prototipini foliage batch'inde tek örnek olarak çizer; `family`'li foliage türü
     aynısını: iki temsil arasında ayrı yol yok. WES canlı durumunda zamanlı mevsim geçişi
     (`seasonFrom` / `seasonProgress`, kayıt durumunda).
+    **PG3 (2026-11-19):** `forge generate` yaprak / kart atlasını ve impostor atlaslarını KTX2 yazar
+    (UASTC + Zstd, kodlayıcının mip zinciri; `tools/procgen/ktx2.ts`, yalnız araçta devDependency
+    `ktx2-encoder`; kullanıcı kararı); yaprak atlası materyalin V çevirmesine göre saklanır, impostor atlası
+    olduğu gibi. Impostor yuvası (`forge.plantFamily` prototipi, `forge.foliageType`) `color` taşır: yaprak
+    katmanının ortalaması, uzak ton bundan okunur (sıkıştırılmış atlas çalışma anında okunamaz; yalnız
+    sıkıştırılmamış atlas geri okunur). Çalışma anında bake edilen GLB atlası RGBA8 kalır.
   - *İçe aktarıcı:* foliage type, landscape kuralları ve boyanmış gruplar
     çevrilir; referans projesi yeniden alınmadan önce kullanıcıya sorulur.
   - *Kapı ölçümü:* `npm run measure:foliage` (başlıklı gerçek WebGPU):
-    Derekavak P2 60 Hz G6, S4'ün üretim karşılığı, üretilmiş ormanda G6,
-    çevre geçişinde en uzun kare / pipeline sayısı / tepe bellek, PV-WES-01–08.
+    Derekavak P2 60 Hz G6, S4'ün üretim karşılığı. `npm run measure:forest`:
+    üretilmiş ormanda G6, çevre geçişinde en uzun kare / pipeline sayısı / tepe
+    bellek, hücre döngüsü, LOD çekimleri (PV-WES-01–08); GPU belleği WebGPU API
+    sınırında sayılır (`tests/smoke/gpuMemory.ts`).
   - *Spike sonucu ve karar (2026-11-17, kullanıcı; ayrıntı plan 5c adım 2):*
     statikler ve foliage ortak GPU güdümlü yolda: batch başına storage buffer,
     görünüm başına (ana kamera + kaskatlar) compute culling, indirect çizim,
@@ -1764,7 +1775,9 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   önbelleği three'nin kendisi; derleme süresi kayda yazılır. GUID → URL
   çözümü asset dizininden (geliştirmede dev server, üretimde build'in dizini).
   glTF: KTX2 ve meshopt three'nin `examples/jsm/libs` dosyalarıyla (yeni npm
-  bağımlılığı ve depoda vendor kopyası yok). İki World'ün önbelleği
+  bağımlılığı ve depoda vendor kopyası yok). Bağımsız `.ktx2` doku asset'i aynı
+  `KTX2Loader`'la, dev server'ın istek başlığıyla yüklenir; KTX2 kodlaması yalnız
+  araçta (`forge generate`). İki World'ün önbelleği
   paylaştığını ve birini kapatmanın ötekine dokunmadığını bir test sınar.
 - *Render bağlaması:* `features/<ad>/render.ts` →
   `defineRenderBinding({ feature, create(ctx) })`, dönen nesne
@@ -2017,9 +2030,9 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   - **Temsil tutarlılığı:** aynı yapraklılık, kar ve rüzgâr LOD / kart /
     impostor, kullanılan HLOD proxy'si ve gölge geçitlerinde karşılanır.
     Rüzgârın sınır genişlemesi culling'de dikkate alınır. Yaz atlasını
-    beyazlatmak kışın çıplak siluetini karşılamaz. Odun / yaprak ayrımı
-    veya sınırlı mevsim atlası seçimi PG3 ölçümünde kapanır; dört tam atlas
-    zorunlu değildir. Çevre geçişi shader yeniden derlemesi gerektirmez.
+    beyazlatmak kışın çıplak siluetini karşılamaz. PG3 ölçümüyle odun / yaprak
+    ayrımı seçildi (PK7, 2026-11-19): mevsim atlası yok. Çevre geçişi shader
+    yeniden derlemesi gerektirmez (ölçüldü: pipeline ve shader modülü +0).
   - **Sahiplik / akış:** mevsim aktör GUID'ini, foliage örnek sayısı ve
     transform / seed dizilerini değiştirmez; bitki asset'leri, terrain
     paint / yükseklikleri ve fizik materyalleri yazılmaz. Yeni hücre güncel

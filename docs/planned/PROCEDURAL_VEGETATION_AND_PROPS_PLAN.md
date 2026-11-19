@@ -1,13 +1,14 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.9 · 2026-11-18 (PG0 ve PG2 kapandı: iki ağaç, ortak WES tepkisi,
-foliage rüzgârı). Önceki: v0.8 (PG1 kapandı: kaya GLB çıktısı, `forge generate`,
+**Sürüm:** v0.10 · 2026-11-19 (PG3 kapandı: KTX2 atlaslar, §8 ölçüldü, PK7 ölçümle odun /
+yaprak ayrımı, PV-WES-01–08 kanıtları; görsel kabul kullanıcıda). Önceki: v0.9 (PG0 ve PG2 kapandı: iki
+ağaç, ortak WES tepkisi, foliage rüzgârı). v0.8 (PG1 kapandı: kaya GLB çıktısı, `forge generate`,
 taş doku tarifi, triplanar + `variation`, A / C ölçümü).
 
 **Önceki sürüm:** v0.6 · 2026-11-14 (WES ile birleşik bitki ailesi, ortak çalışma
 zamanı davranışı ve 5c ile birlikte ilerleyen üretim dilimi; kullanıcı kararı).
-**Durum:** Plan. Uygulama başlamadı; kod ve bağımlılık değişmedi, ana plan
-kutusu kapanmadı. Başlama koşulu §2'de.
+**Durum:** PG0–PG3 uygulandı (5c ile, 2026-11-17 – 2026-11-19); PG4–PG7 bekliyor.
+Başlama koşulu §2'de.
 **İlgili belgeler:** [yeniden inşa planı](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
 sırası; küçük üretim dilimi 5c ile birlikte, tam araçlar 5d ile ilerler),
 [mimari rapor](FORGE_WEBGPU_ARCHITECTURE.md) (ürün tezi §0.0, katmanlar §4.2,
@@ -328,10 +329,9 @@ durumudur; foliage ↔ etkileşimli aktör dönüşümü bu ilk kapsamın parça
 - Ot ve küçük taşta impostor yoktur; uzaklıkla seyrelme ve fade yeter.
 - **Mevsim tutarlılığı:** odun ve yaprak görünürlüğü, renk ve kar tüm LOD'lerde,
   impostor'da, HLOD varsa onun proxy'sinde ve gölgede aynı durumu temsil eder.
-  Yaz atlasını beyaza boyamak çıplak kış siluetini karşılamaz. Odun / yaprak
-  ayrımlı temsiller ile sınırlı mevsim atlasları PG3'te karşılaştırılır; seçim
-  görsel sonuç ve bellek / GPU ölçümüyle kapanır. Her prototipe dört tam atlas
-  zorunlu değildir; bu temsil seçimi açık bir uygulama ölçümüdür.
+  Yaz atlasını beyaza boyamak çıplak kış siluetini karşılamaz. PG3 ölçümüyle
+  (PK7, 2026-11-19) odun / yaprak ayrımı seçildi: impostor atlasında odun ve
+  yaprak iki katman, yaprak katmanında dökülme eşiği; mevsim atlası yok (§10 PG3).
 
 ### 6.5 Rüzgâr ve collider
 
@@ -594,6 +594,38 @@ yoktur. G6 hedefleri korunur; geçişte en uzun kare ve hücre yüklemesi de öl
 **Rapor:** her üretim köşe, üçgen, doku baytı, bake süresi ve collider
 sayısını yazar; bütçeyi aşan tarif uyarı verir.
 
+**PG3 ölçümü (2026-11-19).** Starter `Broadleaf` (yaprak döken) ve `Conifer`
+(herdem yeşil), tür başına 3 prototip; `forge generate` çıktısı, Node tek iş
+parçacığı; GPU belleği WebGPU API sınırında sayıldı (`tests/smoke/gpuMemory.ts`;
+three sıkıştırılmış dokuyu 1 bayt sayar). Doku belleği 1 B/texel sınıfı
+(UASTC → BC7) + mip zinciri.
+
+| | Broadleaf | Conifer | İlk hedef |
+|---|---:|---:|---:|
+| Üçgen LOD0 / LOD1 / LOD2 (prototip) | 17,5 k / 3,4 k / 0,7 k | 14,1 k / 3,2 k / 0,6 k | ≤ 20 k / 5 k / 0,8 k |
+| Impostor | 2 üçgen, 8 × 8 görüş × 128 px, odun + yaprak yan yana (2048 × 1024 × 2 doku) | aynı | 1024² × 2 |
+| Dal ucu kartı atlası (yaprak + 12 küme kartı) | 1024², 1,33 MiB | 1024², 1,33 MiB | 2048², ≈ 10,7 MiB |
+| Impostor atlası, prototip başına | 5,33 MiB | 5,33 MiB | ≈ 2,7 MiB |
+| Tür başına doku belleği (3 prototip + kart) | **17,3 MiB** | **17,3 MiB** | ≈ 16 MiB (2 prototip) |
+| Aynısı RGBA8 (KTX2'siz, PG3 öncesi) | 69,3 MiB | 69,3 MiB | |
+| Kabuk karosu (ortak, 3 × 512² PNG, sıkıştırılmamış) | 4 MiB | ortak | 2,7–4 MiB |
+| İndirme (3 prototip: LOD GLB'leri + KTX2) | 8,4 MB (GLB 4,6 + impostor 3,5 + kart 0,3) | 7,7 MB (4,0 + 3,4 + 0,3) | |
+| Aynısı PNG'yle (PG3 öncesi) | 10,5 MB | 9,5 MB | |
+| Bake: kart atlası / prototip impostor'u / KTX2 kodlama (prototip) | 1,7–2,6 s / 1,9–2,0 s / 2,3–2,6 s | aynı aralık | "saniyeler" |
+| Tarif başına toplam `forge generate` | ≈ 16 s | ≈ 16 s | |
+
+- **Güncellenen bütçe:** ağaç türü başına ≈ 6 MiB / prototip (impostor 5,33 +
+  kart payı) + 1,33 MiB kart atlası; 3 prototipte ≈ 18 MiB. Impostor'un iki
+  katmanı (odun / yaprak) §6.4'ün tek katman varsayımının iki katıdır; mevsimi
+  bu ayrım taşıdığı için ek mevsim atlası yoktur (PK7).
+- **İndirme hedefi:** tür başına (3 prototip) ≤ 9 MB; LOD0 GLB'si ≈ 1,1–1,2 MB /
+  prototip en büyük pay. Meshopt sıkıştırması üretilmiş GLB'de kapalı
+  (`GENERATED_MODEL_OPTIMIZE`); açmak ayrı karar.
+- **CPU bake** (§6.7) kullanılabilir hızda: GPU yoluna geçme gerekçesi yok.
+  İçe aktarılan GLB türünün çalışma anı bake'i (5c F3) worker'da, hazır ≈ 5 s.
+- **Açık:** kabuk / kaya karoları (`forge.surfaceTextureRecipe`) hâlâ PNG; KTX2
+  bu adımda yalnız ağaç atlaslarında (kullanıcı isteği).
+
 ---
 
 ## 9. Editör ve ajan yüzeyi
@@ -726,12 +758,71 @@ panel ve World Builder bağlantısı PG5'te 5d ile gelir. PG4–PG7 genişlemele
       yaprak döken çıplak, zamanlı geçişle yaz geri, kar; iki arka uç); halka smoke'u ve editör foliage
       testleri geçti. Adaylar `render-refs/candidates/pg2-plants-{summer,winter,snow}.png`; biçim, yoğunluk
       (iğne yapraklının seyrek iğneleri dahil), renk ve ışık kabulü kullanıcıda.
-- [ ] **PG3 LOD, kart ve impostor.** Dal ucu kartı kitaplığı, CPU bake, KTX2,
+- [x] **PG3 LOD, kart ve impostor.** Dal ucu kartı kitaplığı, CPU bake, KTX2,
       impostor, foliage türü çıktısı. *Kapı:* 360° ve yukarıdan bakışta siluet
       tutarlı; gölge ve alfa LOD'ler arasında uyumlu; §8 bütçeleri ölçüldü ve
       güncellendi; PK7 ölçümle kapandı; çıplak kış ve ara mevsim silueti uzak
       temsilde / gölgede tutarlı; G6 üretilmiş ağaçlı sahnede sınırın içinde;
       aşağıdaki PV-WES kabul matrisi sağlandı.
+      **2026-11-19 (`3253c3a` `a9d75fc` `0ffdcf5` `e603b87` `bd09bdf` `078dcfd`; teknik kapı geçti, görsel
+      kabul kullanıcıda).** CPU rasterleyici, dal ucu kartları, impostor atlasları (`3253c3a`), batch'lerin son
+      LOD'u impostor (`a9d75fc`), uzak billboard'lar PG3 biçiminde (`0ffdcf5`). *KTX2 (kullanıcı kararı
+      2026-11-19: `forge generate` doğrudan KTX2 yazar, PNG yok):* UASTC LDR 4 × 4 + Zstd, kodlayıcının mip
+      zinciri (`tools/procgen/ktx2.ts`, devDependency `ktx2-encoder` 0.6.0, sabit basis WebAssembly'si; aynı
+      girdi aynı baytlar); yaprak atlası materyalin V çevirmesine göre saklanır (sıkıştırılmış doku gölgelendiricide
+      çevrilmez), impostor atlası olduğu gibi. Bağımsız `.ktx2` doku asset'i ilk kez yüklendi: ortak
+      `KTX2Loader`'a istek başlığı eksikti (dev server 403). Impostor yuvasına `color` (yaprak katmanının
+      ortalaması; sıkıştırılmış atlas çalışma anında okunamadığı için üretilmiş ailenin uzak tonu kayboluyordu).
+      Ağaç üreticisi v3. *Ölçümler:* §8 tablosu; `npm run measure:forest` (kayıt
+      `render-refs/runs/2026-11-19T10-24-02-112Z-forest.json`); `foliageFar.smoke.ts` üretilmiş aile kipi
+      (Broadleaf, iki arka uç: billboard'ların %99,1 / %98,6'sı modellerin üstünde, ton %8,1 / %6,7, kışın
+      billboard katkısı %0,88 → %0,23); `impostors.smoke.ts` KTX2'yle iki arka uçta (dört yan, 30° / 60° /
+      tepeden, kış ve sonbahar; IoU 0,61–0,92), `plants.smoke.ts` iki arka uçta. Adaylar:
+      `render-refs/candidates/pg3-wes03-*.png`, `derekavak-p2-far-*-family*.png`, `pk7-*.png`.
+      *Bulunan hata (`6a8a612`):* statik batch yeniden kurulunca detay / gölge fade'inin örnek attribute'u
+      dispose edilmiyordu (hücre döngüsü başına bir GPU buffer'ı GC'ye kalıyordu; foliage'sız da); WebGL2
+      ikizinde de aynısı.
+
+**PK7 ölçümü (2026-11-19; spike kodu commit'lenmedi, kullanıcı kararı).** Bugünkü odun / yaprak ayrımı
+(tek atlas iki katman, yaprak katmanında dökülme eşiği) ile sınırlı mevsim atlası (yaz bileşiği + kış çıplak,
+her biri tek katmanlı 1024² × 2 doku, aynı rasterleyiciyle) aynı ormanda, impostor her mesafede zorlanarak,
+1080p `high`, 60 Hz adımlı, gerçek WebGPU (NVIDIA Ampere); kayıt
+`render-refs/runs/2026-11-19T10-12-12-886Z-pk7-spike.json`, çekimler `candidates/pk7-*.png`.
+
+| | Odun / yaprak ayrımı | Sınırlı mevsim atlası (yaz + kış) |
+|---|---|---|
+| Bellek / prototip | 5,33 MiB | 5,33 MiB (3 mevsimde 8 MiB) |
+| GPU, grup pozu (impostor ekranın ~%20'si) | 3,62–3,82 ms | 3,03–3,80 ms |
+| GPU, P2 | 2,65–3,51 ms | 2,68–2,86 ms |
+| Doku okuması / piksel | 12 | 6 (geçişte iki atlas: 12) |
+| Ara mevsim | sürekli dökülme, örnek başına eşik kayması | yok: atlas değişimi, bütün ağaçlar birlikte |
+| Ton / kar | odun ve yaprağa ayrı | tek katman: sonbahar tonu gövdeye de geçer, kar ayrımı yok |
+
+GPU farkı koşular arası gürültünün içinde (±0,3–0,8 ms); bellek eşit. **Sonuç:** odun / yaprak ayrımı kalır;
+mevsim atlası yalnız bellek veya GPU'da kazanç olsaydı düşünülürdü, ölçüm kazanç göstermedi (görsel kabul
+kullanıcıda).
+
+**PV-WES kanıtları (2026-11-19, iki prosedürel ağaç türü, Derekavak'ın gerçek yerleşimi):**
+
+- **01:** `plantResponse.test.ts` (mevsim karışımı, yaprak döken / herdem yeşil); `measure:forest`'ta her mevsimde
+  1.640 örnek, aynı hücreler; görsel kabul kullanıcıda (`pg3-wes03-*`).
+- **02:** tekil `forge.plant` ve aileli foliage aynı batch yolu ve kanca (PG2); `measure:forest` LOD çekimlerinde
+  iki aileden birer tekil bitki ormanın önünde, her mevsimde yan yana (`pg3-wes03-*`).
+- **03:** LOD 0 / 1 / 2 / impostor zorlanarak dört mevsim durumu, ormanın görüntü payı kış / yaz 0,63 / 0,65 /
+  0,66 / 0,85 (impostor yakına zorlandığında odunu kalın gösterir, 128 px kare); kar her LOD'da artırır; uzak
+  billboard'lar kışın çıplak (`foliageFar` aile kipi); gölge geçidi aynı maskeyle (`impostorMaterial`'ın
+  `maskShadowNode`'u). HLOD foliage kullanmıyor.
+- **04:** `plantResponse.test.ts` (karsız kış, ilkbaharda kalan kar), `surface.test.ts`.
+- **05:** `measure:forest` kışta beş hücre döngüsü (6 km öteye, bütün halka boşalır, geri): halka 1.380 hücre /
+  1.640 örnek, three 129 geometri / 60 doku, GPU 438,9 MiB, canlı buffer 701–714 (birikim yok), mevsim hemen
+  kış (geçiş oynatılmaz), görüntü farkı %0,20–0,26 (rüzgâr).
+- **06 / 07:** `surface.test.ts` (saat atlaması birikim değil, 30 / 60 / 144 Hz eşdeğer, pause, önizleme
+  kayda sızmaz, WES yokluğunda taban), `worldEnvironmentTransition.test.ts`.
+- **08:** `measure:forest`: P2 üretilmiş orman yaz / kış / kar gönderim 1,12–1,17 / p95 3,3–3,4 ms, ana iş
+  parçacığı 1,60–1,67 / p95 3,9 ms, GPU 2,62–2,69 ms; 15 m/s yürüyüş 1,82 / 3,09 ms (en uzun 9,3 ms). Dört
+  zamanlı mevsim geçişi (2 s, kare kare): **pipeline +0, shader modülü +0**, en uzun kare 9,0 ms, GPU en çok
+  9,6 ms; GPU belleği 454,3 MiB sabit (tepe = canlı), JS yığını tepe ≈ 56 MiB. Ağaç başına script / materyal yok
+  (tür başına batch).
 - [ ] **PG4 Çalı ve ot.** Çok saplı çalı ön ayarı; şerit / demet üreticisi.
       *Kapı:* çalı ağaçtan ayrı topolojiyle üretiliyor; ot yakın–uzak geçişi
       seyrelme ve fade ile çalışıyor.
@@ -792,12 +883,10 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 | Başlangıç ön ayarları (eski PK6) | `content/packs/starter/`: birkaç nötr ön ayar; bölgeye özgü türler oyun projesinde (kullanıcı, 2026-11-18) |
 | Tarif asset türü | Üretici başına bir şemalı tür (`forge.rockRecipe`, `forge.treeRecipe`, …); ortak alanlar aynı adlarla (kullanıcı, 2026-11-18) |
 | Bitki LOD çıktısı | LOD başına tek GLB; odun ve yaprak iki primitive / materyal slotu; yaprak küme kimliği ve dökülme eşiği köşe niteliğinde (kullanıcı, 2026-11-18) |
+| Mevsimsel uzak temsil (eski PK7) | Odun / yaprak ayrımı: impostor atlasında iki katman, yaprak katmanında dökülme eşiği; ek mevsim atlası yok. Sınırlı mevsim atlası ölçümde bellek ve GPU'da kazanç göstermedi, ara mevsimi ve odun / yaprak tonunu kaybetti (ölçüm 2026-11-19, §10 PG3) |
+| Üretilmiş atlasların sıkıştırması | `forge generate` doğrudan KTX2 (UASTC + Zstd, mip'li) yazar; PNG yok (kullanıcı, 2026-11-19). Çalışma anında bake edilen GLB atlası RGBA8 kalır |
 
-**Açık (belirtilen adımda kapanır):**
-
-| ID | Soru | Öneri |
-|---|---|---|
-| PK7 | Mevsimsel kart / impostor temsili nasıl saklanır? | PG3'te odun / yaprak ayrımı ile sınırlı mevsim atlaslarını görsel kalite, toplam / tepe bellek ve GPU süresiyle karşılaştır; her prototipe dört atlas zorunlu değil |
+**Açık:** yok (PK7 PG3'te ölçümle kapandı).
 
 ---
 
@@ -875,6 +964,7 @@ kurallarına göre yeniden yazılır.
 | 2026-11-11 | v0.3 | Bake CPU'da (PK3 kapandı). Dokular da prosedürel (kullanıcı kararı): §6.6 materyal tarifi, dört yol, öneri karma; PK4 yeniden yazıldı, açık |
 | 2026-11-11 | v0.4 | Doku yolu karma (C), yedek kaynaklar Codex ve Poly Haven (kullanıcı kararı; PK4 kapandı). Poly Haven lisansı ve API koşulları aynı gün sitesinden doğrulandı |
 | 2026-11-11 | v0.5 | İnsan yapımı prop'lar kapsam dışı (kullanıcı kararı; PK5 kapandı); "Basit biçim" üreticisi yalnız mantara indi |
+| 2026-11-19 | v0.10 | PG3 kapandı (`3253c3a` `a9d75fc` `0ffdcf5` `e603b87` `bd09bdf` `078dcfd`): KTX2 atlaslar (kullanıcı kararı), impostor `color`, §8 ölçüldü ve güncellendi, PK7 ölçümle (spike) odun / yaprak ayrımı, PV-WES-01–08 kanıtları `measure:forest` ile; statik batch attribute sızıntısı düzeltildi (`6a8a612`). Görsel kabul kullanıcıda |
 | 2026-11-18 | v0.9 | PG0 ve PG2 kapandı (`fa11eb2` `b9608c8` `bc05121` `3a8dd57`): foliage rüzgârı, ortak tepki + WES mevsim geçişi, dallanan üretici + `forge.treeRecipe`, aile `sway`, tekil bitki ve aileli foliage aynı yol |
 | 2026-11-18 | v0.8 | PG1 kapandı (`eea639f`): kaya GLB çıktısı + `forge generate`, `forge.surfaceTextureRecipe`, materyal `projection` / `variation`, model `collision`, meta `generated`, starter ön ayarları; A / C ölçüldü (A ~2×) |
 | 2026-11-18 | v0.7 | Kullanıcı: PK6 starter paketi, üretici başına tarif türü, LOD başına tek GLB (odun / yaprak iki slot). PG0 şemaları (`c0937cd`); sözleşme denetimi: 5c foliage'ında rüzgâr yok, PG2'de |
