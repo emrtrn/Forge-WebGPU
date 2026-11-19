@@ -81,7 +81,11 @@ export function createContentGrid<T>(options: {
     grid.style.gridTemplateColumns = `repeat(${view.columns}, minmax(0, 1fr))`;
     grid.style.gridAutoRows = `${CONTENT_VIEW_SIZES[size].row}px`;
     const shown = items.slice(view.first, view.end);
+    // A card that had the focus is replaced: the focus goes to the new selected card, or the drawer's
+    // keys (Delete, F2, Ctrl + C) would reach the actors' shortcuts after a refresh or a scroll.
+    const focused = grid.contains(doc.activeElement);
     grid.replaceChildren(...shown.map(options.card));
+    if (focused && !grid.contains(doc.activeElement)) grid.querySelector<HTMLElement>(".asset-card.is-selected")?.focus({ preventScroll: true });
     options.drawn?.(shown);
   };
   const schedule = (): void => {

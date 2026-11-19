@@ -250,9 +250,23 @@ export function createContentPanel(options: ContentPanelOptions): ContentPanel {
   drawer.append(top, body);
 
   // ---- cards ----
+  const thumbnails = options.thumbnails;
   const actions = createContentActions({
     document: doc,
-    store: options.store,
+    // A file operation pauses the thumbnail drawings until the listing after it is read (contentThumbnails.ts).
+    store: thumbnails
+      ? {
+          ...options.store,
+          op: async (body) => {
+            const release = await thumbnails.pause();
+            try {
+              return await options.store.op(body);
+            } finally {
+              release();
+            }
+          },
+        }
+      : options.store,
     host: drawer,
     activeLevel: options.activeLevel,
     ...(options.inUse ? { inUse: options.inUse } : {}),

@@ -2,7 +2,9 @@
 // per thumbnail key (`<guid>-<revision>`), first asked first done, one at a
 // time (a job draws on the viewport's GPU between its frames). Cards scrolled
 // out of view drop their waiting jobs (`retain`); a key is done once, failed
-// or not, until it is forgotten (Refresh Thumbnail). Pure.
+// or not, until it is forgotten (Refresh Thumbnail). A hold (a file operation
+// in flight) starts no job until it is released; `idle` waits for the one
+// running. Pure.
 
 export interface ThumbnailJob {
   readonly key: string;
@@ -13,6 +15,24 @@ export class ThumbnailQueue {
   private readonly waiting = new Map<string, ThumbnailJob>();
   private readonly done = new Set<string>();
   private running: string | null = null;
+  private current: Promise<void> | null = null;
+  private holds = 0;
+
+  /** No job starts until the returned release is called (once; later calls do nothing). */
+  hold(): () => void {
+    this.holds += 1;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.holds -= 1;
+    };
+  }
+
+  /** Resolves when the running job (if any) has ended. */
+  idle(): Promise<void> {
+    return this.current ?? Promise.resolve();
+  }
 
   /** Queues a job unless its key is waiting, running or done. */
   request(job: ThumbnailJob): void {
@@ -38,22 +58,27 @@ export class ThumbnailQueue {
     return this.waiting.size;
   }
 
-  /** Starts the next job when none runs; resolves when it ends (null when nothing started). */
+  /** Starts the next job when none runs and nothing holds the queue; resolves when it ends (null when nothing started). */
   pump(): Promise<void> | null {
-    if (this.running !== null) return null;
+    if (this.running !== null || this.holds > 0) return null;
     const next = this.waiting.values().next();
     if (next.done) return null;
     const job = next.value;
     this.waiting.delete(job.key);
     this.running = job.key;
-    return job.run().then(
+    const current = job.run().then(
       () => this.finish(job.key),
       () => this.finish(job.key),
     );
+    this.current = current;
+    return current;
   }
 
   private finish(key: string): void {
     this.done.add(key);
-    if (this.running === key) this.running = null;
+    if (this.running === key) {
+      this.running = null;
+      this.current = null;
+    }
   }
 }

@@ -32,6 +32,28 @@ test("one job at a time, first asked first done, each key once (failed or not) u
   expect(queue.pump()).toBeNull();
 });
 
+test("a hold (a file operation in flight) starts nothing until released; idle waits for the running job", async () => {
+  const queue = new ThumbnailQueue();
+  const log: string[] = [];
+  let end!: () => void;
+  queue.request({ key: "a", run: () => new Promise<void>((resolve) => (end = () => { log.push("a"); resolve(); })) });
+  queue.request(job("b", log));
+  void queue.pump();
+  const release = queue.hold();
+  let idle = false;
+  const waited = queue.idle().then(() => (idle = true));
+  await Promise.resolve();
+  expect(idle).toBe(false);
+  end();
+  await waited;
+  expect(queue.pump()).toBeNull();
+  release();
+  release(); // a second call does nothing
+  await queue.pump();
+  expect(log).toEqual(["a", "b"]);
+  await queue.idle();
+});
+
 test("cards out of view drop their waiting jobs", () => {
   const queue = new ThumbnailQueue();
   const log: string[] = [];

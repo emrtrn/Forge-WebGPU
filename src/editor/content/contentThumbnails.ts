@@ -7,7 +7,9 @@
 // one at a time between frames, only for cards still in view, and the PNG goes
 // back to the server's cache. A card scrolled away and drawn again takes the
 // image from memory. Refresh Thumbnail draws again over the cached one (a
-// material's textures changed: the material's own revision did not).
+// material's textures changed: the material's own revision did not). A file
+// operation pauses the drawings (`pause`): it waits for the one under way, and
+// none starts until the listing after it is read.
 // Three-free: the drawing is handed in.
 
 import { FORGE_REQUEST_HEADER } from "../../core/index.ts";
@@ -41,6 +43,12 @@ export interface ContentThumbnails {
   retain(items: readonly ContentAssetItem[]): void;
   /** Draws it again over the cached image. */
   refresh(item: ContentAssetItem): void;
+  /**
+   * Before a file operation: no drawing starts until the returned release, and it resolves once the
+   * drawing under way has read its files. A drawing resolves its GUID through the listing it was
+   * started with, so one started while a file is moved or deleted would read the old path.
+   */
+  pause(): Promise<() => void>;
   /** Starts the next drawing when none runs (each editor frame, after the viewport's). */
   pump(): void;
   /** Drawings waiting (the browser checks wait for zero). */
@@ -139,6 +147,11 @@ export function createContentThumbnails(options: {
       if (key === null) return;
       queue.forget(key);
       queueDraw(item, key);
+    },
+    async pause() {
+      const release = queue.hold();
+      await queue.idle();
+      return release;
     },
     pump() {
       void queue.pump();

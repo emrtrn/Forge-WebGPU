@@ -3,7 +3,7 @@
 // editor draws with WebGL forced (`?forceWebGL`, never a WebGPU acceptance;
 // FORGE_EDITOR_WEBGPU=1 drops it on a machine with a GPU); the render
 // acceptance stays in `npm run smoke:render`. The server is always started
-// here on the smoke port, never reused (another project's server must not
+// here on the smoke port (5283, or FORGE_SMOKE_PORT), never reused (another project's server must not
 // become the target).
 //
 // Smokes never write to an example project (D14): every run serves a fresh
@@ -17,7 +17,8 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "@playwright/test";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const PORT = 5283;
+/** 5283; `FORGE_SMOKE_PORT` when another session's server holds it (the render smoke's rule). */
+const PORT = Number(process.env.FORGE_SMOKE_PORT ?? 5283);
 
 if (!process.env.FORGE_EDITOR_SMOKE_PROJECT) {
   const project = join(mkdtempSync(join(tmpdir(), "forge-editor-smoke-")), "starter");

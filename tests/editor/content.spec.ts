@@ -11,7 +11,7 @@
 // (step 6b). The level
 // and the files are written into this run's temporary project copy (D14).
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { cubeGlb } from "./glb.ts";
@@ -44,7 +44,19 @@ test.beforeAll(() => {
   mkdirSync(at("content/thumbs"), { recursive: true });
   writeFileSync(at("content/thumbs/cube.glb"), cubeGlb());
   writeFileSync(at("content/thumbs/cube.glb.meta.json"), meta(CUBE, "forge.model@2"));
-  // Step 6c: a model the ops level places, a texture nothing uses, a folder to paste into.
+  mkdirSync(at("content/many"), { recursive: true });
+  for (let i = 0; i < MANY; i += 1) writeFileSync(at(`content/many/item${String(i).padStart(4, "0")}.bin`), "x");
+});
+
+/**
+ * Step 6c's files, written fresh before every run of the operations test: it renames, moves and
+ * deletes them, so a repeat (`--repeat-each`) or a retry must not start from the last run's leftovers.
+ */
+function writeOpsFixture(): void {
+  const project = smokeProject();
+  const at = (path: string): string => join(project, ...path.split("/"));
+  for (const folder of ["content/ops", "content/ops-materials", OPS_LEVEL]) rmSync(at(folder), { recursive: true, force: true });
+  // A model the ops level places, a texture a material uses, a folder to paste into.
   mkdirSync(at("content/ops/sub"), { recursive: true });
   writeFileSync(at("content/ops/rock.glb"), cubeGlb());
   writeFileSync(at("content/ops/rock.glb.meta.json"), meta(ROCK, "forge.model@2"));
@@ -66,9 +78,7 @@ test.beforeAll(() => {
     components: { mesh: { type: "forge.staticMesh@2", parent: null, local: { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] }, mesh: ROCK, materials: [], color: null, castShadow: true } },
   };
   writeLevel(OPS_LEVEL, "lvl_0000000000000000000000000000c002", [rockActor]);
-  mkdirSync(at("content/many"), { recursive: true });
-  for (let i = 0; i < MANY; i += 1) writeFileSync(at(`content/many/item${String(i).padStart(4, "0")}.bin`), "x");
-});
+}
 
 async function open(page: Page): Promise<string[]> {
   return openEditor(page, { level: LEVEL });
@@ -236,6 +246,7 @@ test("thumbnails: a model and a material are drawn once, stored in the server's 
 });
 
 test("operations: rename in place, a delete refused while the level uses it (who uses it is listed), cut / copy / paste, Delete, the open level locked", async ({ page }) => {
+  writeOpsFixture();
   const project = smokeProject();
   const onDisk = (path: string): boolean => existsSync(join(project, ...path.split("/")));
   page.on("dialog", (dialog) => void dialog.accept());
