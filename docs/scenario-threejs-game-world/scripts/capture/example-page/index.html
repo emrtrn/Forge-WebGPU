@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Capture hook example</title>
+    <link rel="icon" href="data:," />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #000;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+    <!-- three.module.js and three.core.js are copied next to this file from node_modules/three/build/ -->
+    <script type="importmap">
+      { "imports": { "three": "./three.module.js" } }
+    </script>
+  </head>
+  <body>
+    <script type="module" src="./game.js"></script>
+  </body>
+</html>

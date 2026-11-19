@@ -19,6 +19,8 @@ kararları plan K12'de; taşınmayan Forge kodu `forge-webgl-final` etiketinde.
   modeli, şema kaydı, kayıt servisi, SDK, A kararları. Çelişkide rapor geçerli.
 - [Mimari harita](docs/architecture/ARCHITECTURE.md): rapordan kısa özet;
   kararları tekrar yazmaz, haritadaki bir şey değişirse aynı commit'te güncellenir.
+- [Oyun üretim akışı](docs/reference/GAME_PRODUCTION_WORKFLOW.md): ilk oynanabilir
+  kesit, görsel inceleme, asset kabulü ve oyun projesinde doğrulama.
 - [Taşıma günlüğü](docs/PORT_LOG.md): Forge özellik envanteri, taşınan
   modüller, port bekleyen düzeltmeler (plan §7).
 - [Arşiv](docs/archive/INDEX.md): biten fazların ayrıntısı.
