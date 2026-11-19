@@ -120,7 +120,9 @@ override uyumsuzluğunu kayıtta reddeder (rapor §4.11).
   ikizi (`cpuDrivenBatch`: referans ayıklar, örnekli mesh çizer). Painted foliage level parçası
   (`foliage.json` + `foliage/<x>_<z>.bin`) `core/level/foliage*.ts`'de (rapor §4.4).
   Landscape foliage kuralları `features/foliage/render.ts`'te kameranın çevresinde
-  halka olarak büyür (`engine/foliage/foliageRingHost.ts`); terrain'in yerleşik
+  halka olarak büyür (`engine/foliage/foliageRingHost.ts`), uzak billboard blokları ve
+  terrain'e uzak ton `engine/foliage/foliageFarHost.ts` + `render/foliage/farBillboards.ts`
+  (PG3 impostor'u; GLB türü çalışma anında bake); terrain'in yerleşik
   tile'ları `render/sync/terrainSurfaces.ts`'ten, foliage türü `WorldResources.json`'dan.
 - Kayıt oyunu `forge.saveGame/1` (`src/core/save/`): her şey GUID'le, bileşen
   alanının `persist` bayrağı, bileşenin `state` bölümü, `defineSaveState`;

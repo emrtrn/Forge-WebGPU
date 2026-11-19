@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.83 · 2026-11-18 — 5c adım 9: PG2 (`fa11eb2` … `3a8dd57`): foliage rüzgârı, ortak bitki tepkisi + WES mevsim geçişi, dallanan üretici + `forge.treeRecipe`, tekil bitki ve aileli foliage aynı yoldan. Kullanıcı: PG2–PG3 5c içinde (sıra korunur).
+**Güncelleme:** v1.84 · 2026-11-19 — 5c F3 (`0ffdcf5`): uzak billboard'lar ve uzak ton. Kullanıcı kararı: bütün uzak billboard'lar PG3 impostor biçiminde (karar 6 güncellendi); içe aktarılan GLB türü çalışma anında CPU rasterleyiciyle worker'da bake edilir. Smoke'ta billboard bloklarının %99'u modellerin üstünde.
+
+**Önceki güncelleme:** v1.83 · 2026-11-18 — 5c adım 9: PG2 (`fa11eb2` … `3a8dd57`): foliage rüzgârı, ortak bitki tepkisi + WES mevsim geçişi, dallanan üretici + `forge.treeRecipe`, tekil bitki ve aileli foliage aynı yoldan. Kullanıcı: PG2–PG3 5c içinde (sıra korunur).
 
 **Önceki güncelleme:** v1.82 · 2026-11-18 — 5c adım 8: PG1 kaya çıktısı (`eea639f`): GLB yazımı, `forge generate`, taş doku tarifi, triplanar + `variation`, starter ön ayarları; A / C ölçüldü.
 
@@ -863,8 +865,11 @@ call'unun 260'ı foliage; foliage çizimleri toplanınca gönderim 3,9 → 2,2 m
    gölge kaskatlarında da. Fade 5b'nin dither'ı; rüzgâr WES'ten, köşe niteliği
    varsa ondan, yoksa Forge'un yükseklik formülüyle (PG0 sözleşmesi 2). Çevre
    değişimi uniform'la, yeniden derleme yok.
-6. *Uzak temsil:* önce Forge'un çalışma anı billboard'u TSL'de, içe aktarılan
-   GLB türleri için; üretilen bitkinin offline impostor'u ve PK7 PG3'te.
+6. *Uzak temsil:* ~~önce Forge'un çalışma anı billboard'u TSL'de, içe aktarılan
+   GLB türleri için~~ (kullanıcı, 2026-11-19, F3): bütün uzak billboard'lar PG3'ün
+   yarım küre octahedral impostor'u; üretilen bitki offline atlasını, içe aktarılan
+   GLB türü çalışma anında model başına bir kez CPU rasterleyiciyle (worker) bake
+   edilen tek katmanlı atlasını kullanır. PK7 PG3'te.
 7. *Bitki dilimi (PG0–PG3, 5c ile):* `forge.plantFamily` asset'i + `forge.plant`
    bileşeni; tepki çözücü `engine`'de saf, tekil aktör ve foliage aynı
    uniform'ları kullanır. PG1 kayası saf çekirdeğin (rastgele akışlar, mesh
@@ -1097,8 +1102,20 @@ boya / silme fırçası (`engine/scene/foliagePaint.ts`) 5d'de kalır. Forge kar
   `engine/world/workers/foliageWorker.ts` + `render/resources/foliageWorkerGenerator.ts` (dünya başına tek sıralı
   worker, aynı iş parçacığı üreticisi aynalı yedek, ilk hatada tek uyarı). Halka smoke'u yedeğe düşmeyi hata sayar;
   Derekavak P2 iki arka uçta yine 1.640 örnek. Ana iş parçacığı ölçümü F7'de (G6: ana iş parçacığı ≤ 6 ms).
-- [ ] **F3** ertelendi (kullanıcı, 2026-11-18): referans projedeki 6 türün hiçbiri `far.distance` / `far.tint`
-  kullanmıyor; billboard ve ton PG3'ün impostor atlasıyla, üretilmiş ağaçların uzak mesafesiyle gerçek içerikte yapılır.
+- [x] **F3** (`0ffdcf5`, C; 2026-11-18'de PG3'e ertelenmişti): `engine/foliage/foliageFarHost.ts` (Forge'un
+  `planFar` / `computeTint` / `sendTints`'i sink'le: 512 m bloklar, en dış bandın yoğunluğu, global harita dünya
+  yüksekliğine çevrilir, hand-off'ta tile'dan yeniden kurulur), `render/foliage/farBillboards.ts` (tür başına GPU
+  güdümlü batch, tek LOD PG3 impostor'u; modellerin fade dither'ının tümleyeni, pencerenin önünde dörtgen çöker, son
+  %15'te söner, gölge yok), `render/plant/modelImpostor.ts` + `engine/world/workers/impostorBakeWorker.ts` (GLB
+  parçaları bake yüzeyine, `forge.material` dokusu `surfaceBakeSource` ile; tek katmanlı atlas, ortalama renk,
+  taç yarıçapı), terrain'de ton (`setFarTint`, global normal dokusunun alfası). Kullanıcı kararı (2026-11-19): biçim
+  PG3 (karar 6). Kapı: hand-off testi (tile'dan kurulan bloğun her billboard'u halkanın modeliyle aynı yerde, 3 test);
+  `foliageFar.smoke.ts` Derekavak P2, iğne yapraklılara dev kancasıyla `far` (`__forgeDev.foliageType`):
+  billboard bloklarının %99,1 (WebGPU) / %99,4 (WebGL2)'ü modellerin üstünde, GPU sayıları CPU referansında, ton uzak
+  zemini değiştirir; GLB bake'i hazır ~5 sn. Adaylar `render-refs/candidates/derekavak-p2-far-{billboards,models,tint,placement}.png`
+  (görsel kabul kullanıcıda). Halka ve PG3 impostor smoke'ları iki arka uçta yine geçti. Akan tile'ların ötesinde
+  billboard'lar global haritadan büyür, halka orada model üretmez (smoke'un ölçütü bu yüzden 700 m'de). Üretilmiş
+  aile türünün uzak bloğu aynı impostor yolundan; smoke'ta yalnız GLB türü sınandı.
 - [x] **F4** (`1b63507`; akış çekirdeği Codex `gpt-6.2-sol` medium, 6 test): `engine/foliage/paintedFoliageStreaming.ts`
   (Forge `FoliageCellStreaming`: önyükleme 1,5×, karede iki etkinleştirme, histerezis, okunamayan hücre boş + uyarı,
   `prepare`), servis `engine/foliage/levelFoliageSource.ts` (`LevelFoliageSourceKey`; çalışma anı
@@ -2259,6 +2276,7 @@ silinebilir.
 | 2026-11-17 | v1.64 | R9a occlusion çalışması (`5058c7b`): CPU Hi-Z referansı (`engine/world/hiZ.ts`, Codex), dev çalışma ölçümü `measure:occlusion`; Derekavak foliage üçgeninin en çok %0–21'i örtülü (iyimser sınır). Öneri: üretime alınmaz, R10'a geçilir; kullanıcı kararı bekliyor. Mimari v1.61 |
 | 2026-11-17 | v1.65 | R9a iç mekân çalışması (`a017c66`; `tools/scenes/indoorScene.ts` Codex): örtülü nesne %63–69, üçgen %88–94; model başına batch'te draw kazancı 0, 16 m hücre batch'inde %45–64. Açık dünya "üretime alınmaz" önerisi geri çekildi; üretim tasarımı karar bekliyor |
 | 2026-11-19 | v1.83 | R9c Adım 5 kapandı. S12 ile üretimde mevcut `auto` ve S1 onaylandı. Şehir karşılaştırması ve iki arka uç doğrulaması ayrı plan §5.5’te. |
+| 2026-11-19 | v1.84 | 5c F3 (`0ffdcf5`): uzak billboard blokları ve uzak ton; kullanıcı: bütün uzak billboard'lar PG3 impostor biçiminde, GLB türü çalışma anında CPU bake (worker). Hand-off testi; Derekavak P2 smoke'unda billboard bloklarının %99'u modellerin üstünde, iki arka uç |
 | 2026-11-18 | v1.83 | 5c adım 9 = PG2 (`fa11eb2` `b9608c8` `bc05121` `3a8dd57`): foliage rüzgârı (iki yol, gölge dahil), ortak bitki tepkisi + WES mevsim geçişi, dallanan üretici + `forge.treeRecipe`, tekil `forge.plant` ve aileli foliage aynı batch yolu ve kancası. Kullanıcı: PG2–PG3 5c içinde |
 | 2026-11-18 | v1.82 | 5c adım 8, PG1 kalanı (`eea639f`): GLB yazıcısı, `forge.surfaceTextureRecipe@1`, materyal `projection` / `variation`, model `collision`, meta `generated`, `npm run forge -- generate`, starter kaya ön ayarları, `measure:rock-material` (A ekranı dolduran kayada C'den ~1,3 ms GPU fazla; `variation` ~0,1–0,2 ms) |
 | 2026-11-18 | v1.81 | R9c Adım 3 ve R9b Z8–Z10 kapandı. İki katlı şehir üretimi, donanım WebGPU ölçümleri ve yeni Z6 kullanıcı görsel kabulü ayrı plan §5.3’te. |

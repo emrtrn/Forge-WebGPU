@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.67 · 2026-11-18 — §4.4 bitki dilimi (PG2): GPU güdümlü batch'e örnek başına shading kancası (rüzgâr, bitki tepkisi), dünya başına ortak bitki çizimi, tekil `forge.plant` foliage yolunda; WES zamanlı mevsim geçişi.
+**Güncelleme:** v1.68 · 2026-11-19 — §4.4 uzak foliage (5c F3): blok host'u, tür başına PG3 impostor batch'i, GLB türü için çalışma anı CPU bake'i, terrain'e uzak ton; uzak temsil kararı PG3 biçimine güncellendi (kullanıcı).
+
+**Önceki güncelleme:** v1.67 · 2026-11-18 — §4.4 bitki dilimi (PG2): GPU güdümlü batch'e örnek başına shading kancası (rüzgâr, bitki tepkisi), dünya başına ortak bitki çizimi, tekil `forge.plant` foliage yolunda; WES zamanlı mevsim geçişi.
 
 **Önceki güncelleme:** v1.66 · 2026-11-18 — §4.6 asset modeli (PG1): meta `generated` kaydı, `forge.model` `collision`, `forge.material` `projection` / `variation`; prosedürel çıktı `forge generate` ile kalıcı asset.
 
@@ -799,8 +801,11 @@ features/height-fog/
     rüzgâr WES'ten, köşe niteliği varsa ondan, yoksa Forge'un yükseklik
     formülüyle (PG0 sözleşmesi 2). Çevre değişimi uniform'la, yeniden
     derleme yok.
-  - *Uzak temsil:* önce Forge'un çalışma anı billboard'u TSL'de (içe aktarılan
-    GLB türleri); üretilen bitkinin offline impostor'u ve PK7 PG3'te.
+  - *Uzak temsil (kullanıcı, 2026-11-19):* bütün uzak billboard'lar PG3'ün
+    yarım küre octahedral impostor'u: üretilen bitki offline atlasıyla, içe
+    aktarılan GLB türü çalışma anında model başına bir kez CPU rasterleyiciyle
+    (worker) bake edilen tek katmanlı atlasla. Forge'un 8 açılı billboard'u
+    taşınmadı. PK7 PG3'te.
   - *Bitki dilimi:* `forge.plantFamily` asset'i + `forge.plant` bileşeni;
     tepki çözücü `engine`'de saf, tekil aktör ve foliage aynı uniform'larla
     (§4.9 ortak sözleşme). PG1 kayası saf çekirdeğin ince dilimi olarak kalır.
@@ -869,7 +874,19 @@ features/height-fog/
     boşaltır ve kullanan aktörleri yeniden yükler). `?debug` / dev ölçümü
     `tagFoliage` etiketinden okur. Hücreler dünya başına tek worker'da üretilir
     (`render/resources/foliageWorkerGenerator.ts`, F2; aynı iş parçacığı üreticisi
-    yedek). Uzak billboard / ton PG3'le (F3).
+    yedek).
+  - *Uzak foliage (5c F3, 2026-11-19):* uzak mesafesi `cullEnd`'i aşan türün
+    kuralı modellerin fade penceresinden uzak mesafeye kadar 512 m bloklarda da
+    büyür (`engine/foliage/foliageFarHost.ts`, three'siz; global harita dünya
+    yüksekliğine çevrilir, hand-off'a yaklaşan blok tile'lar gelince yeniden
+    kurulur). Çizim `render/foliage/farBillboards.ts`: tür başına GPU güdümlü
+    batch, tek LOD PG3 impostor'u (`impostorMaterial.ts`, GLB için `layers: 1`);
+    billboard modellerin fade dither'ının bıraktığı pikselleri alır, pencerenin
+    önünde dörtgen çöker, son %15'te söner, gölge yok. GLB atlası
+    `render/plant/modelImpostor.ts` (`forge.material`'ın temel renk dokusu
+    `surfaceBakeSource` ile) + `engine/world/workers/impostorBakeWorker.ts`.
+    Uzak ton terrain'in global normal dokusunun alfasında, başlangıç / bitiş /
+    renk uniform'la (`TerrainView.setFarTint`, yüzey kaydından).
   - *Boyanmış hücreler (5c F4, 2026-11-18):* level parçası (`foliage.json` + FFOL)
     world servisi `LevelFoliageSourceKey` (`engine/foliage/levelFoliageSource.ts`)
     olarak gelir: çalışma anı level yükleyicisi ve editör sağlar (editör dosyalar
