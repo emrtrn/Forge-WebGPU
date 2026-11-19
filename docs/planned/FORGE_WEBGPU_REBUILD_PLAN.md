@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.92 · 2026-11-19 — 5d adım 3 (`30fe244`): Landscape Paint kipi (Paint / Erase / Weights, vuruş boyunca biriken ağırlık), katman listesi (Add / Remove / materyal, Fill Layer; her biri tek undo), terrain aktöründe `forge.landscapeAutoPaint` + Apply Auto Paint, yalnız editörde derlenen lit / height / slope / layer görünümü. Kararlar kullanıcıda (2026-11-19, öneriler gibi). Kullanıcı görsel kabulü bekleniyor.
+**Güncelleme:** v1.93 · 2026-11-19 — 5d adım 3'ün görsel kabulü (kullanıcı, 2026-11-19). Sırada adım 4: World Terrain oluşturma / genişletme, taşıma, heightmap içe / dışa aktarma.
+
+**Önceki güncelleme:** v1.92 · 2026-11-19 — 5d adım 3 (`30fe244`): Landscape Paint kipi (Paint / Erase / Weights, vuruş boyunca biriken ağırlık), katman listesi (Add / Remove / materyal, Fill Layer; her biri tek undo), terrain aktöründe `forge.landscapeAutoPaint` + Apply Auto Paint, yalnız editörde derlenen lit / height / slope / layer görünümü. Kararlar kullanıcıda (2026-11-19, öneriler gibi). Kullanıcı görsel kabulü bekleniyor.
 
 **Önceki güncelleme:** v1.91 · 2026-11-19 — 5d adım 2'nin görsel kabulü (kullanıcı, 2026-11-19). Sırada adım 3: katman boyama, Auto Paint, katman görünümü.
 
@@ -2093,7 +2095,7 @@ Add Layer + Fill + undo / redo → kaydet, tanımda 5 katman; görünüm kipleri
 level'a yazılmaz; yeniden aç) `forceWebGL`'de ve gerçek WebGPU'da geçti; editör
 seti forceWebGL'de 90 / 90. Sonraya: Auto Paint'in ajan komutu (karar gereği
 ayrı adım), katman adı / rengi düzenleme, fiziksel materyal (Faz 8), Play'e
-kaydedilmemiş boya (adım 2'deki gibi). Kullanıcı görsel kabulü bekleniyor.
+kaydedilmemiş boya (adım 2'deki gibi). Kullanıcı görsel kabulü 2026-11-19'da verildi.
 
 - [x] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
       Faz 3 karar 1) üretim kalitesine çıkar: morph,
@@ -2538,3 +2540,4 @@ silinebilir.
 | 2026-11-19 | v1.90 | 5d adım 2 (`3074f3a`): Landscape sculpt — Details'te Landscape bölümü, Forge'un 8 aracı + değiştiricileri, araziye oturan halka; `TerrainEditingKey` + asset başına `TerrainEditSession` (akış sürer, düzenlenen tile `kept`), `TerrainView.updateTile`; level adımlarıyla birleşik undo (`pushStep`, `History.clearRedo`); kayıt katılımcısı tile + global harita + tanımı okunan revizyonlarla tek işlemde yazar. Editör smoke'u `landscape.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
+| 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
