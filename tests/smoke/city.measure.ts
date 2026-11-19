@@ -2,9 +2,9 @@
 // with separate diagnostic snapshots and a continuous street–room–street walk.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import type { writeCityLevel } from "../../tools/bench-city-level.ts";
-import { cityDraws, cityFrames, cityHeap, citySettle, cityWalk, CITY_FRAME_MS } from "./cityPage.ts";
+import { cityDraws, cityFrames, cityHeap, citySettle, cityWalk, requireCityGpu, CITY_FRAME_MS } from "./cityPage.ts";
 import { RENDER_REFS, SMOKE_VIEWPORT } from "./renderPaths.ts";
 import { git, isOptionalHlodMiss, openSmokeLevel } from "./smokePage.ts";
 
@@ -21,24 +21,6 @@ if (focus && (focus.some(pose => !pose) || new Set(focus).size !== focus.length)
 const WARM_FRAMES = 60;
 const FRAMES = 300;
 const WALK_SPEED = 4;
-
-async function requireCityGpu(page: Page, profile: string) {
-  const { proof, ratio, quality, fallback } = await page.evaluate(() => {
-    const host = window.__forgeDev.host()!;
-    const backend = host.renderer.backend as unknown as { device?: { adapterInfo?: { isFallbackAdapter?: boolean } } };
-    return { proof: host.proof, ratio: host.renderer.getPixelRatio(), quality: host.quality.level,
-      fallback: backend.device?.adapterInfo?.isFallbackAdapter ?? null };
-  });
-  const adapter = Object.values(proof.adapter ?? {}).join(" ");
-  expect(proof.backend, "city backend").toBe("webgpu");
-  expect(adapter.trim(), "WebGPU adapter identity").not.toBe("");
-  expect(fallback, "WebGPU fallback adapter").not.toBe(true);
-  expect(adapter, "Use a hardware WebGPU adapter").not.toMatch(/swiftshader|llvmpipe|lavapipe|software|fallback|\bwarp\b/i);
-  expect(proof.timestampQuery, "GPU timestamp queries").toBe(true);
-  expect(ratio).toBe(1);
-  expect(quality).toBe(profile);
-  return { ...proof, fallback };
-}
 
 test("city draw budget baseline", async ({ context, browser }, info) => {
   // The six poses and walk run serially for both profiles. A hardware RTX 3060

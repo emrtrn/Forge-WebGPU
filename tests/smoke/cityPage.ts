@@ -1,6 +1,6 @@
 // Browser-side probes for R9c. Sample timing and instrumented draw counts
 // on different frames so the measurement hooks don't inflate submission time.
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import type { Camera, Object3D } from "three";
 import type { RenderHost } from "../../src/render/host/renderHost.ts";
 
@@ -29,6 +29,24 @@ declare global {
   interface Window { __forgeDev: CityDev }
 }
 
+export async function requireCityGpu(page: Page, profile: string) {
+  const { proof, ratio, quality, fallback } = await page.evaluate(() => {
+    const host = window.__forgeDev.host()!;
+    const backend = host.renderer.backend as unknown as { device?: { adapterInfo?: { isFallbackAdapter?: boolean } } };
+    return { proof: host.proof, ratio: host.renderer.getPixelRatio(), quality: host.quality.level,
+      fallback: backend.device?.adapterInfo?.isFallbackAdapter ?? null };
+  });
+  const adapter = Object.values(proof.adapter ?? {}).join(" ");
+  expect(proof.backend, "city backend").toBe("webgpu");
+  expect(adapter.trim(), "WebGPU adapter identity").not.toBe("");
+  expect(fallback, "WebGPU fallback adapter").not.toBe(true);
+  expect(adapter, "Use a hardware WebGPU adapter").not.toMatch(/swiftshader|llvmpipe|lavapipe|software|fallback|\bwarp\b/i);
+  expect(proof.timestampQuery, "GPU timestamp queries").toBe(true);
+  expect(ratio).toBe(1);
+  expect(quality).toBe(profile);
+  return { ...proof, fallback };
+}
+
 export function distribution(values: readonly (number | null)[]) {
   const sorted = values.filter((value): value is number => value !== null && Number.isFinite(value)).sort((a, b) => a - b);
   if (!sorted.length) return null;
@@ -37,24 +55,37 @@ export function distribution(values: readonly (number | null)[]) {
     p95: quantile(.95), p99: quantile(.99), max: sorted.at(-1)! };
 }
 
-export async function cityFrames(page: Page, count: number) {
-  const frames = await page.evaluate(async ({ count, ms }) => {
+export async function cityFrames(page: Page, count: number, measureCull = false) {
+  const frames = await page.evaluate(async ({ count, ms, measureCull }) => {
     const dev = window.__forgeDev;
     dev.pause();
-    const renderer = dev.host()?.renderer;
-    if (!renderer) throw new Error("The city renderer is missing.");
-    const frames: (FrameTiming & { gpuComputeMs: number | null })[] = [];
-    for (let index = 0; index < count; index += 1) {
-      const before = renderer.info.compute.calls;
-      const frame = await dev.step(ms);
-      if (!frame.ran) throw new Error("The city did not step a frame.");
-      const gpuComputeMs = frame.gpuMs === null ? null : renderer.info.compute.calls === before
-        ? 0 : (await renderer.resolveTimestampsAsync("compute")) ?? null;
-      frames.push({ ...frame, gpuComputeMs });
+    const host = dev.host();
+    if (!host) throw new Error("The city renderer is missing.");
+    const { renderer, gpuDriven } = host;
+    const frames: (FrameTiming & { gpuComputeMs: number | null; cullCpuMs: number | null })[] = [];
+    const cull = gpuDriven.cull;
+    let cullCpuMs: number | null = null;
+    if (measureCull) gpuDriven.cull = function (...args) {
+      const started = performance.now();
+      cull.apply(this, args);
+      cullCpuMs = performance.now() - started;
+    };
+    try {
+      for (let index = 0; index < count; index += 1) {
+        const before = renderer.info.compute.calls;
+        const frame = await dev.step(ms);
+        if (!frame.ran) throw new Error("The city did not step a frame.");
+        const gpuComputeMs = frame.gpuMs === null ? null : renderer.info.compute.calls === before
+          ? 0 : (await renderer.resolveTimestampsAsync("compute")) ?? null;
+        frames.push({ ...frame, gpuComputeMs, cullCpuMs });
+      }
+    } finally {
+      if (measureCull) gpuDriven.cull = cull;
     }
     return frames;
-  }, { count, ms: CITY_FRAME_MS });
+  }, { count, ms: CITY_FRAME_MS, measureCull });
   return { cpuMs: distribution(frames.map(f => f.cpuMs)), submitMs: distribution(frames.map(f => f.submitMs)),
+    ...(measureCull ? { cullCpuMs: distribution(frames.map(f => f.cullCpuMs)) } : {}),
     gpuRenderMs: distribution(frames.map(f => f.gpuMs)),
     gpuComputeMs: distribution(frames.map(f => f.gpuComputeMs)),
     gpuTotalMs: distribution(frames.map(f => f.gpuMs === null || f.gpuComputeMs === null ? null : f.gpuMs + f.gpuComputeMs)),
@@ -77,8 +108,8 @@ interface DrawBackend {
   addBundle(...args: unknown[]): void;
 }
 
-export async function cityDraws(page: Page) {
-  return page.evaluate(async (ms) => {
+export async function cityDraws(page: Page, measureS12 = false) {
+  return page.evaluate(async ({ ms, measureS12 }) => {
     const dev = window.__forgeDev;
     const host = dev.host();
     const world = host?.world;
@@ -154,17 +185,38 @@ export async function cityDraws(page: Page) {
     if (bundles) throw new Error("The city draw probe does not count render bundles.");
 
     const inputs = gpuDriven.lastViews;
+    const s12Batches = [];
+    const s12Cells: { name: string; count: number }[] = [];
+    if (measureS12) world.scene.traverse(object => {
+      if (object.name.startsWith("s12-cell/") && "count" in object && typeof object.count === "number") {
+        s12Cells.push({ name: object.name, count: object.count });
+      }
+    });
+    const referencePath = "/src/engine/world/instanceCulling.ts";
+    const reference = measureS12 ? await import(referencePath) as typeof import("../../src/engine/world/instanceCulling.ts") : null;
     for (const batch of gpuDriven.lastBatches) {
+      const stages = [];
       const accepted = batch.views === inputs.length ? inputs : inputs.filter(view => view.role !== "shadow");
       for (const [index, input] of accepted.slice(0, batch.views).entries()) {
         if (batch.zoneMode === "shadow" && input.role !== "shadow") continue;
         const key = input.role === "main" ? "main" : [...cameras].find(([camera]) => camera.layers.isEnabled(input.layer))?.[1];
         if (key === undefined) continue; // cull-only camera, no renderer view
         const counts = await batch.readCounts(renderer, index);
+        if (reference && batch.name.startsWith("s12/")) {
+          const { cullInstanceCounts, NO_CULL_DISTANCE } = reference;
+          const matrices = batch.instances.matrices(), count = batch.instances.count;
+          const frustum = { ...input, minCasterRadius: 0 };
+          const frustumOnly = cullInstanceCounts(matrices, count, { ...batch.cullBatch, cullEnd: NO_CULL_DISTANCE }, frustum);
+          const withDistance = cullInstanceCounts(matrices, count, batch.cullBatch, frustum);
+          const withCaster = cullInstanceCounts(matrices, count, batch.cullBatch, input);
+          stages.push({ view: key, tested: count, afterFrustum: frustumOnly.counts[0], afterDistance: withDistance.counts[0],
+            afterCaster: withCaster.counts[0], certain: withCaster.certain[0], possible: withCaster.possible[0], drawn: counts[0] });
+        }
         const current = bucket(key);
         current.gpuInstances += counts.reduce((sum, count) => sum + count, 0);
         current.gpuTriangles += counts.reduce((sum, count, lod) => sum + count * batch.lodTriangles[lod]!, 0);
       }
+      if (stages.length) s12Batches.push({ name: batch.name, path: batch.path, triangles: batch.lodTriangles[0], stages });
     }
     const perView = Object.fromEntries([...views].map(([key, { meshes, ...view }]) => [key, {
       ...view, draws: view.direct + view.indirect, drawnMeshes: meshes.size,
@@ -174,28 +226,31 @@ export async function cityDraws(page: Page) {
       perView, draws: Object.values(perView).reduce((sum, view) => sum + view.draws, 0),
       triangles: Object.values(perView).reduce((sum, view) => sum + view.triangles, 0),
       dispatches, gpu: gpuDriven.stats(), zones: world.zones?.stats() ?? null, streaming: dev.streaming(),
+      ...(measureS12 ? { s12Batches, s12Cells } : {}),
     };
-  }, CITY_FRAME_MS);
+  }, { ms: CITY_FRAME_MS, measureS12 });
 }
 
-export async function citySettle(page: Page) {
+export async function citySettle(page: Page, requireActiveCells = true) {
   const start = Date.now();
   const deadline = start + 120_000;
   let quiet = 0;
   while (Date.now() < deadline) {
-    const settled = await page.evaluate(async (ms) => {
+    const settled = await page.evaluate(async ({ ms, requireActiveCells }) => {
       const dev = window.__forgeDev;
       dev.pause();
       await dev.step(ms);
       const { cache, cells } = dev.streaming();
-      return cache?.pending === 0 && cells !== null && cells.active > 0 && cells.fetching === 0 && cells.queued === 0
+      const cellsReady = (!requireActiveCells || (cells?.active ?? 0) > 0)
+        && (cells?.fetching ?? 0) === 0 && (cells?.queued ?? 0) === 0;
+      return cache?.pending === 0 && cellsReady
         && dev.host()?.preparingObjects().length === 0;
-    }, CITY_FRAME_MS);
+    }, { ms: CITY_FRAME_MS, requireActiveCells });
     quiet = settled ? quiet + 1 : 0;
     if (quiet === 3) return Date.now() - start;
     await page.waitForTimeout(100);
   }
-  throw new Error("City cells and resources did not settle.");
+  throw new Error("Level cells and render resources did not settle.");
 }
 
 export async function cityWalk(page: Page, route: readonly (readonly [number, number, number])[], speed: number) {

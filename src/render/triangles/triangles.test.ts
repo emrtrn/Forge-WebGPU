@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vitest";
-import { Box3, BoxGeometry, DoubleSide, Group, InstancedMesh, Matrix4, Mesh, MeshStandardNodeMaterial, PerspectiveCamera, Raycaster, SphereGeometry, Vector3, type WebGPURenderer } from "three/webgpu";
+import { Box3, BoxGeometry, DoubleSide, Group, InstancedMesh, Matrix4, Mesh, MeshStandardNodeMaterial, PerspectiveCamera, PlaneGeometry, Raycaster, SphereGeometry, Vector3, type WebGPURenderer } from "three/webgpu";
 import { prepareTriangles } from "../../engine/geometry/prepareTriangles.ts";
 import { projectedLodStarts, triangleKey } from "../../engine/geometry/triangleData.ts";
 import { createGpuDriven } from "../gpu/gpuDriven.ts";
@@ -8,7 +8,26 @@ import { triangleInput } from "./triangleSource.ts";
 import { createTriangleDrawing } from "./triangleDrawing.ts";
 import { createInstanceBatch } from "../sync/instanceBatches.ts";
 import { disposeMergedParts, modelParts } from "../resources/modelParts.ts";
-import { lodParts } from "./staticPath.ts";
+import { lodParts, s12Candidate } from "./staticPath.ts";
+
+test("S12 only measures eligible batches at the inclusive placement, spread and total triangle limits", () => {
+  const material = new MeshStandardNodeMaterial();
+  const glass = new MeshStandardNodeMaterial({ transparent: true });
+  const half = new PlaneGeometry(1, 1, 25, 50);
+  const full = new PlaneGeometry(1, 1, 50, 50);
+  const over = full.clone().setIndex([...full.index!.array, 0, 1, 2]);
+  const parts = [{ geometry: half, material }, { geometry: half, material }];
+  expect(s12Candidate(parts, 64, 200, 100)).toBe(true);
+  expect(s12Candidate(parts, 63, 200, 100)).toBe(false);
+  expect(s12Candidate(parts, 64, 199.99, 100)).toBe(false);
+  expect(s12Candidate(parts, 64, 200, null)).toBe(false);
+  expect(s12Candidate([...parts, parts[0]!], 64, 200, 100)).toBe(false);
+  expect(s12Candidate([{ geometry: over, material }], 64, 200, 100)).toBe(false);
+  expect(s12Candidate([parts[0]!, { geometry: half, material: glass }], 64, 200, 100)).toBe(false);
+  expect(lodParts("auto", [{ geometry: full, material }, parts[0]!])).toEqual([false, false]);
+  expect(lodParts("auto", [{ geometry: over, material }, parts[0]!])).toEqual([true, true]);
+  half.dispose(); full.dispose(); over.dispose(); material.dispose(); glass.dispose();
+});
 
 test("deterministic derivatives keep source indices valid, preserve seams and skip small primitives", async () => {
   const small = await prepareTriangles(triangleInput(new BoxGeometry()));

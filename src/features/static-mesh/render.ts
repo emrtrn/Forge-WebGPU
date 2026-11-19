@@ -95,6 +95,9 @@ export default defineRenderBinding({
     const placementsByModel = new Map<string, Set<string>>();
     const placementModels = new Map<string, string>();
     const modelBounds = new Map<string, Box3>();
+    // Dev only: once a resident source batch qualifies, keep its cell layout for the pose.
+    const s12Sizes = new Map<string, number>();
+    const measureCells = ctx.staticPath?.() === "s12-cells";
     const matrix = new Matrix4();
     const meshesOf = (actor: WorldActor) =>
       Object.entries(actor.components).filter(([, component]) => parseComponentTypeTag(component.type)?.name === StaticMesh.name);
@@ -104,7 +107,7 @@ export default defineRenderBinding({
       if (existing) return existing;
       const batch: Batch = {
         instances: createInstanceBatch({
-          name: `staticMesh/${model}`, source: "staticMesh", parent: ctx.root, castShadow: data.castShadow,
+          name: `${key.includes("|s12") ? "s12-cell/" : ""}staticMesh/${model}`, source: "staticMesh", parent: ctx.root, castShadow: data.castShadow,
           ...(ctx.prepare ? { prepare: ctx.prepare } : {}),
           ...(ctx.gpuDriven?.instancedCasters ? { shadowCasters: ctx.gpuDriven.instancedCasters } : {}),
           ...(ctx.triangles ? { triangles: ctx.triangles, ...(ctx.staticPath ? { staticPath: ctx.staticPath } : {}) } : {}),
@@ -163,7 +166,9 @@ export default defineRenderBinding({
       }
       const zone = placementZone(ctx.zones, at, bounds);
       const batchZone = data.mesh !== null && unsplit.has(data.mesh) ? null : zone;
-      return { key: staticMeshBatchKey(data) + cellSuffix(at, cellSize()) + zoneSuffix(batchZone), zone, batchZone };
+      const base = staticMeshBatchKey(data) + cellSuffix(at, cellSize()) + zoneSuffix(batchZone);
+      const size = s12Sizes.get(base);
+      return { key: size === undefined ? base : `${base}|s12${cellSuffix(at, size)}`, zone, batchZone };
     };
     const rekey = (model?: string): void => {
       const ids = model === undefined ? [...placements.ids()] : [...(placementsByModel.get(model) ?? [])];
@@ -245,6 +250,15 @@ export default defineRenderBinding({
         changeInstances(changes, { move, removed, added });
       },
       sync(frame) {
+        if (measureCells) {
+          let changed = false;
+          for (const [key, batch] of batches) {
+            if (s12Sizes.has(key) || key.includes("|s12")) continue;
+            const size = batch.instances.s12CellSize();
+            if (size > 0) { s12Sizes.set(key, size); changed = true; }
+          }
+          if (changed) rekey();
+        }
         for (const batch of batches.values()) {
           batch.instances.flush();
           batch.instances.updateCulling(frame.camera, ctx.quality().foliageCullDistanceScale);

@@ -1,6 +1,8 @@
 # Katmanlı çizim bütçesi planı (Faz 5c R9c)
 
-**Sürüm:** v0.3 · 2026-11-18 — Adım 2 ve Adım 3 donanım doğrulaması ve kullanıcı
+**Sürüm:** v0.4 · 2026-11-19 — Adım 5 kapandı. S12 kararıyla üretimde mevcut `auto` ve S1 kullanılır.
+
+**Önceki sürüm:** v0.3 · 2026-11-18 — Adım 2 ve Adım 3 donanım doğrulaması ve kullanıcı
 görsel onayıyla kapandı. Adım 3 aynı zamanda R9b’nin yeni Z6 kabulünü tamamladı.
 
 Bu belge ana plandan ayrıdır (kullanıcı kararı 2026-11-18; `CLAUDE.md`'deki "tek ana plan"
@@ -621,6 +623,114 @@ level'larda gerileme yok; render / editör smoke iki arka uçta.
 cullDistance: number | null })` kuralı ya da `detailCellSize(cullDistance: number): number`;
 kabul: S1'in mevcut testleri değişmeden, yeni koşulun sınırları.
 
+#### S12 şehir karşılaştırması (19 Kasım 2026)
+
+`12a53f2` üzerine kurulan geliştirme kipleri `s12-gpu` ve `s12-cells`, opak ve toplamı
+en çok 5.000 üçgen olan aynı kaynak batch'leri kullandı. Adaylık için en az 64 yerleşim
+ve yerleşim konumlarının AABB'sinden hesaplanan küre yarıçapının ölçek 1 detay cull
+mesafesinin en az iki katı olması arandı. Hücre kenarı bu mesafeydi. GPU adayı kaynak
+üçgenlerini korudu ve mevcut GPU yolunun parça küreleriyle eledi. Hücre adayı mevcut
+batch gölge sınıfını kullandı. Model parçası başına yerleşim sayıları iki adayda bütün
+koşullarda eşleşti. `street` 18.839, `square` 29.118 parça-örnek içerdi.
+
+RTX 3060, Chrome 157.0.8103.79, donanım WebGPU, 1920 × 1080, DPR 1. Aynı sentetik
+şehir, kamera ve kalite ayarlarında, bina içi akış kapalı ve gölgeler açıkken 60 kare
+ısınma ardından 300 kare ölçüldü. Süreler ortalamadır. CPU gönderimi eleme dahil render
+gönderiminin duvar süresidir. GPU süresi render ve compute timestamp toplamıdır.
+Draw sayaçları ayrı bir kareden alınır. Sıfır örnekli dolaylı draw komutları da sayılır.
+[Ham şehir ve WebGL2 smoke kaydı](../reference/measurements/2026-11-19T06-47-37-238Z-city-s12.json).
+
+| Kalite | Poz | Yol | Ana draw | Gölge draw (kaskat sırası) | Dispatch | Gönderim CPU (ms) | GPU (ms) | Ana / gölge üçgen (milyon) | Kare CPU (ms) |
+|---|---|---|---:|---|---:|---:|---:|---:|---:|
+| high | `street` | `auto` | 118 | 101 / 101 / 101 | 0 | 3,539 | 3,322 | 6,641 / 18,153 | 11,676 |
+| high | `street` | `s12-gpu` | 118 | 101 / 101 / 101 | 444 | 6,943 | 2,892 | 2,818 / 3,386 | 14,034 |
+| high | `street` | `s12-cells` | 345 | 121 / 185 / 319 | 0 | 4,819 | 1,856 | 4,319 / 7,915 | 13,512 |
+| high | `square` | `auto` | 105 | 102 / 102 / 102 | 0 | 4,116 | 4,468 | 9,291 / 27,705 | 16,728 |
+| high | `square` | `s12-gpu` | 105 | 102 / 102 / 102 | 444 | 9,139 | 2,607 | 2,534 / 4,684 | 21,750 |
+| high | `square` | `s12-cells` | 326 | 113 / 185 / 320 | 0 | 7,603 | 1,751 | 4,307 / 9,379 | 23,327 |
+| ultra | `street` | `auto` | 118 | 101 / 101 / 101 / 101 | 0 | 3,925 | 4,004 | 6,641 / 24,204 | 12,067 |
+| ultra | `street` | `s12-gpu` | 118 | 101 / 101 / 101 / 101 | 555 | 8,013 | 3,440 | 2,827 / 4,995 | 15,018 |
+| ultra | `street` | `s12-cells` | 354 | 121 / 159 / 217 / 368 | 0 | 5,936 | 2,275 | 4,429 / 10,824 | 15,265 |
+| ultra | `square` | `auto` | 105 | 102 / 102 / 102 / 102 | 0 | 4,116 | 5,267 | 9,291 / 36,939 | 15,432 |
+| ultra | `square` | `s12-gpu` | 105 | 102 / 102 / 102 / 102 | 555 | 8,532 | 3,352 | 2,545 / 6,732 | 19,042 |
+| ultra | `square` | `s12-cells` | 341 | 112 / 171 / 250 / 433 | 0 | 8,497 | 2,349 | 4,589 / 14,006 | 23,335 |
+
+GPU adayı için parça-örnek başına frustum, mesafe ve gölge boyutu katkısı, aynı
+görünümlerin CPU referansında sıralı olarak ölçüldü. Sonuç GPU geri okumasıyla eşleşti.
+Gölge satırları kaskat toplamıdır, aynı örnek birden fazla kaskatta sayılır.
+
+| Kalite | Poz | Görünüm | Girdi | Frustum sonrası | Mesafe sonrası | Gölge eşiği sonrası | GPU çizdi |
+|---|---|---|---:|---:|---:|---:|---:|
+| high | `street` | Ana | 18.839 | 7.588 | 2.660 | 2.660 | 2.660 |
+| high | `street` | Gölge | 56.517 | 4.599 | 2.343 | 2.024 | 2.024 |
+| high | `square` | Ana | 29.118 | 6.302 | 2.227 | 2.227 | 2.227 |
+| high | `square` | Gölge | 87.354 | 3.826 | 1.953 | 1.640 | 1.640 |
+| ultra | `street` | Ana | 18.839 | 7.588 | 2.721 | 2.721 | 2.721 |
+| ultra | `street` | Gölge | 75.356 | 8.044 | 4.116 | 4.086 | 4.086 |
+| ultra | `square` | Ana | 29.118 | 6.302 | 2.297 | 2.297 | 2.297 |
+| ultra | `square` | Gölge | 116.472 | 7.496 | 3.574 | 3.561 | 3.561 |
+
+**WebGL2 CPU ikizi.** `high/street` şehir smoke'u geçti ve adayın `cpu` yolunu
+kullandığı doğrulandı. 18.839 parça-örneğin 2.660'ı ana görünümde çizildi. Render
+gönderimi `auto` ile 2,696 ms, ikizle 18,583 ms oldu. `gpuDriven.cull` CPU süresi
+sırasıyla 0,610 ve 15,138 ms, kare CPU süresi 10,442 ve 26,233 ms oldu.
+Ayrı tekrarda aynı `street` popülasyonu 37 parçada 20.000 parça-örneğe oranlandı.
+Üç kaskat ve ana görünüm için üretim CPU ikizinin eleme, sıkıştırma ve tampon yazımı
+ortalama 15,100 ms, p95 16,500 ms sürdü. Bu süreye sürücüye draw gönderimi dahil değil.
+[Ham 20.000 parça-örnek kaydı](../reference/measurements/2026-11-19T07-08-40-218Z-city-s12-webgl2-cpu.json).
+
+Tekrar koşusu için `measure:city` komutunda `FORGE_CITY_S12=1` şehir karşılaştırmasını,
+`FORGE_CITY_S12=cpu` ayrı CPU ölçümünü seçer.
+
+**S12 kararı (kullanıcı onayı, 19 Kasım 2026).** Üretimde mevcut `auto` ve S1
+üçgen eşiği kullanılır. `s12-gpu` ve `s12-cells` geliştirme ölçüm kipleridir. İki aday da dört
+koşulda GPU süresini ve çizilen üçgeni düşürdü, CPU gönderimini ve kare CPU süresini
+yükseltti. GPU yolu `street` draw bütçesini korudu ve 444–555 dispatch ekledi. Hücre
+yolu `street`te 549–697 ek draw üretti ve `square`da da aynı maliyet yönü görüldü.
+Yeni bir ölçümde önce GPU yolunu, en az 128 yerleşim ve en büyük yerleşim ölçeğiyle
+düzeltilmiş detay mesafesinin en az iki katı yayılım koşuluyla dene. Alt sınırın
+128'e çıkması bu sahnede 37 aday parçanın 16'sını dışarıda bırakır. Ölçek koşulu,
+ana görünümde mesafe elemesine hiç takılmayan şehir ağaçları gibi adayları ayırır.
+Bu dar eşik bir sonraki ölçüm önerisidir.
+
+**Referans level gerileme kontrolü.** `measure:static-path` dört level'da `auto`
+yoluyla donanım WebGPU ve `FORGE_STATIC_PATH_BACKEND=webgl2` ile çalıştı. `12a53f2`
+kaynak arşivi ve yalnız Adım 5 kaynak değişiklikleri aynı yalıtılmış kopyada ölçüldü.
+Kayıtlardaki `dirty` alanı üst çalışma ağacına aittir. Her level ayrı sekmede açıldı,
+kamera pozu doğrulandı ve kaynaklar yerleşene kadar beklendi. Her motor adımından önce
+yeni tarayıcı karesi beklendi, böylece Three.js post-process sahne geçişi her örnekte
+çalıştı. İki arka uçta kamera, draw, doğrudan üçgen, GPU güdümlü batch ve örnek sayıları
+önce ve sonra birebir eşleşti. WebGL2'de GPU timestamp'i kapalıydı.
+[WebGPU başlangıç](../reference/measurements/2026-11-19T07-31-38-645Z-static-path.json) ·
+[WebGPU Adım 5](../reference/measurements/2026-11-19T07-32-34-818Z-static-path.json) ·
+[WebGL2 başlangıç](../reference/measurements/2026-11-19T07-29-43-681Z-static-path-webgl2.json) ·
+[WebGL2 Adım 5](../reference/measurements/2026-11-19T07-30-45-373Z-static-path-webgl2.json).
+
+| Arka uç | Level / poz | Draw | CPU gönderim önce → sonra (ms) | GPU önce → sonra (ms) |
+|---|---|---:|---:|---:|
+| WebGPU | `derekavak/p2` | 119 | 3,443 → 3,947 | 5,193 → 10,199 |
+| WebGPU | `wb-pilot/p1` | 68 | 2,536 → 2,952 | 2,576 → 4,148 |
+| WebGPU | `island/p1` | 29 | 1,861 → 1,752 | 1,469 → 1,671 |
+| WebGPU | `open-world/p1` | 4 | 0,868 → 0,809 | 0,751 → 1,076 |
+| WebGL2 | `derekavak/p2` | 119 | 5,015 → 4,369 | — |
+| WebGL2 | `wb-pilot/p1` | 59 | 3,182 → 3,489 | — |
+| WebGL2 | `island/p1` | 18 | 2,280 → 1,742 | — |
+| WebGL2 | `open-world/p1` | 4 | 0,841 → 0,597 | — |
+
+İlk tam çiftteki yüksek WebGPU süreleri için `derekavak/p2` ve `wb-pilot/p1`,
+başlangıç → Adım 5 → Adım 5 → başlangıç sırasıyla tekrar ölçüldü. Draw ve üçgen
+sayıları her tekrarda eşleşti. Derekavak GPU ortalaması sırayla 5,274 / 5,298 /
+5,222 / 9,286 ms, WbPilotValley ortalaması 2,473 / 2,551 / 2,582 / 3,419 ms oldu.
+Büyük süre farkı Adım 5'e özgü olarak tekrarlanmadı. Çizim işi eşleşirken GPU süresi
+koşular arasında değişti.
+[Ham WebGPU süre tekrarları](../reference/measurements/r9c-s12-webgpu-timing-recheck.json).
+
+**Odaklı doğrulama.** `triangles.test.ts` ve `instanceBatches.test.ts` toplam 20 test
+geçti. Deney için 64 yerleşim, iki kat yayılım ve toplam 5.000 üçgen sınırları, S1 için
+parça başına 5.000 ve 5.001 üçgen doğrulandı. `triangles` ve `zones` render smoke'ları
+WebGPU ve WebGL2'de toplam 4 test geçti. Statik model/slot bırakma, iki seçim ve
+viewport smoke'ları her arka uçta 4'er test geçti.
+
 ### 5.6 Adım 6 — Ölçüme göre
 
 - **WP boyut sınıfı menzilleri (S13):** küçük nesneler daha kısa menzilde akar. Draw'ı detay cull
@@ -663,7 +773,7 @@ boşaltmayı ele alıyor.
 | S9 | Gölge cull formülü ve kalite profiliyle ilişki | Texel kuralı `r ≥ τ · t_k`, τ profil alanı (`shadowCasterMinTexels`, öneri `ultra` 1,5, `high` 2, düşükler 3); level / nesne geçersiz kılması yok (bölgenin `alwaysCastShadows`'u gibi gerekirse sonra) | Yarıçap × K kuralı harita boyutunu ve kaskat sayısını görmez; texel kuralı profille kendiliğinden ölçeklenir. τ ölçümle |
 | S10 | Gölge kesilmesi solsun mu? | Evet, `maskShadowNode` dither, izinli son bölmenin son %15'i | Kaskat sınırında küçük gölgenin birden kaybolması sokakta görülür; maliyeti ihmal edilebilir |
 | S11 | Yakın kaskadın kapsadığı gölge düşürücü uzak kaskattan çıkarılsın mı? | Şimdi değil; adım 2 ölçümünden sonra | Gölge hacmi kaskattan taşabilir (gün batımı); yanlış gizleme riski, kazancı adım 2'den sonra küçük olabilir |
-| S12 | Instanced küçük nesne: GPU yolu mu hücre bölmesi mi? | İkisini `street`'te ölç; ön tahmin GPU yolu (yayılma + yerleşim koşuluyla) | Hücre draw'ı artırır (azalttığımız şey); GPU yolu draw'ı sabit tutar, gölge kuralını örnek başına uygular. Bedeli dispatch, sayısı sınırlı |
+| S12 | Instanced küçük nesne: GPU yolu mu hücre bölmesi mi? | **Onaylandı (19 Kasım):** Mevcut `auto` (S1) üretim varsayılanı. | İki aday da `street` ve `square` koşularında CPU gönderim ve kare CPU süresini artırdı (§5.5). |
 | S13 | World Partition çoklu menzil gerekli mi? | Şimdilik hayır | Draw'ı detay cull + adım 5 çözer; menzil yalnız bellek / yükleme sorunuysa |
 | S14 | Adım 3 R9b'nin tamamlanması mı, ayrı mı? | R9b'nin tamamlanması (Z8–Z10, yeni Z6 kabulü); adım 4 R9c'nin | §7 |
 | S15 | Şehir sahnesinin modelleri | Prosedürel deterministik GLB, yalnız ölçüm kopyasında | Şekiller slot üretmez (draw dili yanlış çıkar); referans projesi modelleri az arketip; lisans sorunu yok |
@@ -691,7 +801,6 @@ boşaltmayı ele alıyor.
 
 **Ölçülmeden verilmeyecek kararlar**
 - τ (S9) ve solma bandı (S10).
-- GPU yolu mu hücre bölmesi mi (S12), yerleşim / yayılma eşikleri.
 - İlk `walk` rotasında 20 ms p99 sınırı (§5.4).
 - S2'nin bina üyeliği, S11'in kaskat iç içe kesimi, dispatch birleştirme.
 - WP çoklu menzil (S13) ve atlas (§5.6).
@@ -709,3 +818,4 @@ boşaltmayı ele alıyor.
 | 2026-11-18 | v0.2 | Adım 3 şehir ve ağır iç mekân ölçümleri tamamlandı. Şehirde iki kat, 252 oda ve 674 portal doğrulandı. Görsel kabul açık (§5.3). |
 | 2026-11-18 | v0.3 | Kullanıcı Adım 3 görsellerini onayladı. Adım 3 ve R9b Z8–Z10, yeni Z6 kabulüyle kapandı. |
 | 2026-11-18 | v0.3 | S5–S8 onaylandı ve Adım 4 yerelde uygulandı. Görsel onay, WebGPU/WebGL2 kayıtları ve ilk yürüyüşte açık kalan p99 kabulü §5.4’te. |
+| 2026-11-19 | v0.4 | Adım 5 kapandı. Kullanıcı S12 için mevcut `auto` ve S1'i onayladı. Şehir karşılaştırması, iki arka uçtaki referans ve smoke sonuçları §5.5’te. |

@@ -31,14 +31,14 @@
 // Geometry and materials are the batch owner's (cache uses); the batch owns
 // only its instanced meshes and their buffers.
 
-import { Color, InstancedBufferAttribute, InstancedMesh, Matrix4, Sphere, Vector3, type Box3, type BufferGeometry, type Camera, type Material, type Object3D } from "three/webgpu";
+import { Box3, Color, InstancedBufferAttribute, InstancedMesh, Matrix4, Sphere, Vector3, type BufferGeometry, type Camera, type Material, type Object3D } from "three/webgpu";
 import type { ActorId, WorldActor, WorldActorChange } from "../../core/index.ts";
 import { SCENE_SOURCE_KEY } from "../../engine/perf/sceneCost.ts";
 import { tagInstanceActors, tagPartSlots } from "./pickTags.ts";
 import { detailBatchCulled, detailCullDistance } from "../../engine/world/detailCulling.ts";
 import { createCasterFade, createDetailFade } from "../materials/detailFade.ts";
 import type { LodPiece, TriangleBinding, TriangleDrawing } from "../triangles/triangleDrawing.ts";
-import { lodParts, type StaticPath } from "../triangles/staticPath.ts";
+import { lodParts, s12Candidate, type StaticPath } from "../triangles/staticPath.ts";
 import type { InstancedShadowCasters } from "./shadowCasterLayers.ts";
 import { ZONE_HIDDEN_LAYER, ZONE_SHADOW_LAYER, type ZoneMode } from "../gpu/gpuDrivenBatch.ts";
 
@@ -62,6 +62,8 @@ export interface InstanceBatch {
   /** Moves a placement: only its matrix changes. False when there is no such placement. */
   move(id: string, matrix: Matrix4): boolean;
   readonly size: number;
+  /** Scale-1 detail cell size for an S12 candidate; queried before the first build. */
+  s12CellSize(): number;
   /** The parts to draw; until set, placements wait and nothing is drawn. */
   setParts(parts: readonly InstancePart[], detailRadius?: number, casterRadius?: number, placementBounds?: Box3): void;
   updateCulling(camera: Camera | null, qualityScale: number): void;
@@ -133,6 +135,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
   let triangleBindings: TriangleBinding[] = [];
   /** Per mesh of the current set: drawn by the automatic LOD path (its source stays for picking). */
   let lodOf: boolean[] = [];
+  let cullOnly = false;
   let detailRadius: number | undefined;
   let maxScale = 0;
   const cameraPosition = new Vector3(), sphere = new Sphere();
@@ -143,6 +146,16 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
   const matrix = new Matrix4();
   const color = new Color();
   const shown = new Color();
+
+  let measuredCellSize: number | undefined;
+  const s12CellSize = (): number => measuredCellSize ??= measureS12CellSize();
+  const measureS12CellSize = (): number => {
+    if (!parts || placements.size < 64 || cullDistance === null) return 0;
+    const bounds = new Box3(), p = new Vector3();
+    for (const { matrix } of placements.values()) bounds.expandByPoint(p.setFromMatrixPosition(matrix));
+    const spreadRadius = bounds.getBoundingSphere(new Sphere()).radius;
+    return s12Candidate(parts, placements.size, spreadRadius, cullDistance) ? cullDistance : 0;
+  };
 
   /** A drawn set kept on screen while its replacement prepares (R9.1); released when that one shows. */
   let retired: (() => void) | null = null;
@@ -197,23 +210,27 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
     get ready() { return placements.size === 0 || (meshes.length > 0 && prepared); },
     set(id, placement, placementColor, actor) {
       placements.set(id, { matrix: placement.clone(), color: placementColor, actor });
+      measuredCellSize = undefined;
       dirty = true;
     },
     delete(id) {
-      if (placements.delete(id)) dirty = true;
+      if (placements.delete(id)) { dirty = true; measuredCellSize = undefined; }
     },
     move(id, placement) {
       const entry = placements.get(id);
       if (!entry) return false;
       entry.matrix.copy(placement);
+      measuredCellSize = undefined;
       moved.add(id);
       return true;
     },
     get size() {
       return placements.size;
     },
+    s12CellSize,
     setParts(next, radius, shadowRadius = radius, bounds) {
       parts = next;
+      measuredCellSize = undefined;
       placementBounds = bounds;
       detailRadius = radius;
       casterRadius = shadowRadius;
@@ -257,12 +274,15 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         removeMeshes();
         return;
       }
-      if (count > capacity || needsColor !== colored || meshes.length === 0) {
+      const path = options.staticPath?.() ?? "gpu";
+      const s12 = path === "s12-gpu" && (cullOnly || s12CellSize() > 0);
+      if (count > capacity || needsColor !== colored || meshes.length === 0 || s12 !== cullOnly) {
         removeMeshes(true);
         capacity = capacityFor(count);
         colored = needsColor;
         // R9.3 / R9.4: decided per set; the LOD path fades and culls on the GPU itself.
-        lodOf = options.triangles ? lodParts(options.staticPath?.() ?? "gpu", parts) : parts.map(() => false);
+        cullOnly = s12;
+        lodOf = options.triangles ? lodParts(s12 ? "gpu" : path, parts) : parts.map(() => false);
         const detail = cullDistance !== null && lodOf.some(lod => !lod);
         const caster = options.castShadow && options.shadowCasters && casterRadius !== undefined;
         if (detail || caster) {
@@ -330,15 +350,17 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         const ticket = generation, pending = [...meshes], lods = lodOf;
         const pendingBindings = triangleBindings, signal = preparation.signal;
         const pendingCasterFade = casterFade, pendingBounds = placementBounds;
+        const pendingCullOnly = cullOnly;
         const locals = parts!.map((part) => part.local.clone()), pieces = parts!.map((part) => part.lodPieces);
         preparationWork = anyLod ? (async () => {
           for (let i = 0; i < pending.length; i += 1) {
             if (!lods[i]) continue;
             try {
-              pendingBindings.push(await options.triangles!.prepare(pending[i]!, detailRadius, false, locals[i], pieces[i], pendingBounds));
+              pendingBindings.push(await options.triangles!.prepare(pending[i]!, detailRadius, false, locals[i], pieces[i], pendingBounds, pendingCullOnly));
             } catch (error) {
               // R9.3: a part the LOD path cannot take draws instanced (unfaded) in the same batch.
               if (signal.aborted) return;
+              if (pendingCullOnly) throw error;
               lods[i] = false;
               if (pendingCasterFade) {
                 const mesh = pending[i]!, material = mesh.material;

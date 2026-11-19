@@ -16,9 +16,9 @@
 
 import type { BufferGeometry, Material } from "three/webgpu";
 
-export type StaticPath = "auto" | "gpu" | "instanced";
+export type StaticPath = "auto" | "gpu" | "instanced" | "s12-gpu" | "s12-cells";
 
-export const STATIC_PATHS: readonly StaticPath[] = ["auto", "gpu", "instanced"];
+export const STATIC_PATHS: readonly StaticPath[] = ["auto", "gpu", "instanced", "s12-gpu", "s12-cells"];
 
 /** Part triangles over which `auto` draws a batch through the GPU path (R9b S1, measured). */
 export const GPU_STATIC_MIN_TRIANGLES = 5000;
@@ -41,6 +41,13 @@ export function lodEligible(part: StaticPathPart): boolean {
 
 function triangleCount(geometry: BufferGeometry): number {
   return Math.floor((geometry.index ? geometry.index.count : geometry.attributes.position?.count ?? 0) / 3);
+}
+
+/** The development-only S12 comparison uses the same batch criteria on both paths. */
+export function s12Candidate(parts: readonly StaticPathPart[], count: number, spreadRadius: number, cullDistance: number | null): boolean {
+  return cullDistance !== null && count >= 64 && spreadRadius >= 2 * cullDistance
+    && parts.length > 0 && parts.every(lodEligible)
+    && parts.reduce((sum, part) => sum + triangleCount(part.geometry), 0) <= GPU_STATIC_MIN_TRIANGLES;
 }
 
 /** Per part: draw it through the automatic LOD path. All false keeps the batch instanced. */

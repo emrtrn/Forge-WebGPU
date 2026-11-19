@@ -51,7 +51,7 @@ export interface TriangleDrawing {
    * buffer, parts) replaces it.
    * The owner retains sources through compilation, including cancelled work.
    */
-  prepare(source: InstancedMesh, detailRadius?: number, bundle?: boolean, local?: Matrix4, pieces?: readonly LodPiece[], placementBounds?: Box3): Promise<TriangleBinding>;
+  prepare(source: InstancedMesh, detailRadius?: number, bundle?: boolean, local?: Matrix4, pieces?: readonly LodPiece[], placementBounds?: Box3, cullOnly?: boolean): Promise<TriangleBinding>;
   /** Once a frame before the cull; `zones` (plan 5c R9b) gives each instance its zone slot when the set or the matrices change. */
   update(camera: Camera, qualityScale: number, zones?: TriangleZones | null): void;
   dispose(): void;
@@ -85,13 +85,15 @@ export function createTriangleDrawing(renderer: WebGPURenderer, gpu: GpuDrivenDr
     return mergeTriangleLods(pieces.map((piece, i) => ({ data: chains[i]!, vertexOffset: piece.vertexOffset, vertexCount: piece.vertexCount, flip: piece.flip, scale: piece.scale })), `merged:${chains.map((chain) => chain.key).join("+")}`);
   };
   return {
-    async prepare(source, detailRadius, bundle = false, local = new Matrix4(), pieces, placementBounds) {
+    async prepare(source, detailRadius, bundle = false, local = new Matrix4(), pieces, placementBounds, cullOnly = false) {
       if (disposed) throw new Error("triangles: drawing disposed");
       if (source.geometry.drawRange.start !== 0 || source.geometry.drawRange.count !== Infinity || Object.keys(source.geometry.morphAttributes).length) throw new Error("triangles: source must be a complete, static triangle primitive");
       const cullDistance = detailRadius === undefined ? null : detailCullDistance(detailRadius);
-      const data = pieces && pieces.length > 0 ? await mergedData(pieces) : await dataOf(source.geometry);
+      // S12 compares vertex work with identical source geometry on all paths.
+      const data = cullOnly ? { lods: [{ indices: [], error: 0, groups: undefined }] }
+        : pieces && pieces.length > 0 ? await mergedData(pieces) : await dataOf(source.geometry);
       if (disposed) throw new Error("triangles: drawing disposed during preprocessing");
-      const root = new Group(); root.name = `automaticLOD/${source.name}`; root.matrixAutoUpdate = false;
+      const root = new Group(); root.name = `${cullOnly ? "s12" : "automaticLOD"}/${source.name}`; root.matrixAutoUpdate = false;
       // Its draws sit in template space (the instances transform them on the GPU): the
       // level's framing (`NOT_FRAMED`, levelViewer.ts) takes the source's bounds instead.
       root.userData.framing = false;

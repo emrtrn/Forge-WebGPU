@@ -1,0 +1,201 @@
+{
+  "schema": 1,
+  "kind": "phase 5c R9.0 static batches: instanced vs GPU-driven automatic LOD",
+  "date": "2026-11-19T07:32:34.818Z",
+  "commit": "12a53f2c862c130c0997d0ff4f9de7a5c7a92eaf",
+  "dirty": true,
+  "backend": "webgpu",
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "frameMs": 16.666666666666668,
+  "warmFrames": 60,
+  "frames": 300,
+  "results": [
+    {
+      "level": "derekavak",
+      "pose": "p2",
+      "camera": {
+        "position": [
+          230.7,
+          299.9,
+          343.3
+        ],
+        "quaternion": [
+          -0.172239,
+          0.125198,
+          0.022076,
+          0.976817
+        ]
+      },
+      "path": "auto",
+      "readyMs": 9355,
+      "settleMs": 251,
+      "draws": 119,
+      "threeTriangles": 1849148,
+      "gpu": {
+        "batches": 6,
+        "instances": 1640,
+        "draws": 42,
+        "views": 4,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 0,
+        "generated": 0
+      },
+      "submitMs": {
+        "mean": 3.947,
+        "p95": 5.8
+      },
+      "cpuMs": {
+        "mean": 4.964,
+        "p95": 7
+      },
+      "gpuMs": {
+        "mean": 10.199,
+        "p95": 11.993,
+        "samples": 300
+      }
+    },
+    {
+      "level": "wb-pilot",
+      "pose": "p1",
+      "camera": {
+        "position": [
+          -36,
+          93.7,
+          300
+        ],
+        "quaternion": [
+          -0.005,
+          -0.006169,
+          -0.000031,
+          0.999968
+        ]
+      },
+      "path": "auto",
+      "readyMs": 5348,
+      "settleMs": 237,
+      "draws": 68,
+      "threeTriangles": 1059893,
+      "gpu": {
+        "batches": 6,
+        "instances": 2250,
+        "draws": 42,
+        "views": 4,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 0,
+        "generated": 0
+      },
+      "submitMs": {
+        "mean": 2.952,
+        "p95": 4.4
+      },
+      "cpuMs": {
+        "mean": 3.834,
+        "p95": 5.5
+      },
+      "gpuMs": {
+        "mean": 4.148,
+        "p95": 8.913,
+        "samples": 300
+      }
+    },
+    {
+      "level": "island",
+      "pose": "p1",
+      "camera": {
+        "position": [
+          0,
+          13.7,
+          0
+        ],
+        "quaternion": [
+          -0.002951,
+          0.80727,
+          0.004036,
+          0.59016
+        ]
+      },
+      "path": "auto",
+      "readyMs": 5690,
+      "settleMs": 238,
+      "draws": 29,
+      "threeTriangles": 307457,
+      "gpu": {
+        "batches": 6,
+        "instances": 1408,
+        "draws": 24,
+        "views": 2,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 0,
+        "generated": 0
+      },
+      "submitMs": {
+        "mean": 1.752,
+        "p95": 2.5
+      },
+      "cpuMs": {
+        "mean": 2.676,
+        "p95": 3.6
+      },
+      "gpuMs": {
+        "mean": 1.671,
+        "p95": 2.228,
+        "samples": 300
+      }
+    },
+    {
+      "level": "open-world",
+      "pose": "p1",
+      "camera": {
+        "position": [
+          23.8,
+          2.2,
+          500
+        ],
+        "quaternion": [
+          -0.004998,
+          0.023733,
+          0.000119,
+          0.999706
+        ]
+      },
+      "path": "auto",
+      "readyMs": 1724,
+      "settleMs": 236,
+      "draws": 4,
+      "threeTriangles": 578573,
+      "gpu": {
+        "batches": 0,
+        "instances": 0,
+        "draws": 0,
+        "views": 0,
+        "bundleUpdates": 0
+      },
+      "cache": {
+        "hits": 0,
+        "generated": 0
+      },
+      "submitMs": {
+        "mean": 0.809,
+        "p95": 1.2
+      },
+      "cpuMs": {
+        "mean": 1.456,
+        "p95": 2.1
+      },
+      "gpuMs": {
+        "mean": 1.076,
+        "p95": 1.507,
+        "samples": 300
+      }
+    }
+  ]
+}
