@@ -176,7 +176,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
     preparation?.abort(); preparation = null;
     const wasPrepared = prepared;
     generation += 1; prepared = false; preparing = false;
-    const oldMeshes = meshes, oldFade = fade, oldTriangles = triangleBindings;
+    const oldMeshes = meshes, oldFade = fade, oldTriangles = triangleBindings, oldPlacements = fadePlacements;
     const oldCasterFade = casterFade, untrackOldCaster = untrackCaster;
     untrackCaster = undefined;
     casterFade = null;
@@ -188,6 +188,9 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
       for (const mesh of oldMeshes) { mesh.removeFromParent(); mesh.dispose(); }
       oldCasterFade?.dispose();
       oldFade?.dispose();
+      // The meshes' own instance buffers go with mesh.dispose(); this one is the batch's (5c gate: one GPU
+      // buffer per rebuilt batch stayed until a garbage collection, measure:forest's cell cycle).
+      oldPlacements?.dispose();
     };
     if (keep && wasPrepared && oldMeshes.length > 0 && (options.prepare || options.triangles)) {
       releaseRetired();

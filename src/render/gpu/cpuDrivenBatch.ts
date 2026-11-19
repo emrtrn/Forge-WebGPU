@@ -84,7 +84,12 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
   const instance = new Matrix4();
 
   const releaseView = (view: View): void => {
-    for (const { mesh } of view.meshes) { mesh.removeFromParent(); mesh.dispose(); }
+    for (const { mesh, shown, shading } of view.meshes) {
+      mesh.removeFromParent(); mesh.dispose();
+      // The mesh's own attributes; mesh.dispose() releases only its instance matrix / colour.
+      shown.dispose();
+      if (shading) { shading.placement.dispose(); shading.seed.dispose(); for (const column of shading.basis) column.dispose(); }
+    }
     for (const material of view.materials) material.dispose();
     view.meshes = []; view.materials = []; view.built = -1;
   };
