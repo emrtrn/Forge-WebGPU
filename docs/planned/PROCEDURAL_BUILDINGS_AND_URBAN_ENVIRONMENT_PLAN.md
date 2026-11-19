@@ -1,9 +1,11 @@
 # Forge WebGPU — Prosedürel Bina ve Kentsel Çevre Planı
 
-**Sürüm:** v0.4 · 2026-11-12 (v0.3'ten fark: kullanıcının referans görselden
-stil kiti fikri §5.5'e işlendi: akış, kaynak seçimi ölçütü, kültürler arası
-kelime dağarcığı adayları, bileşik tarif, görselden çıkarımın sınırları; açık
-sorular BK4–BK7, iki yeni risk. Önceki sürümlerin farkları ilerleme kaydında)
+**Sürüm:** v0.5 · 2026-11-19 (v0.4'ten fark: Slop New York'un önceki
+okumada açılmayan modülleri okundu, Ek A.3 genişledi: çevre ilçelerin
+prosedürel şehri, ada ve parsel çıkarımı, ada ekstrüzyonuyla kaldırım, ada
+kenarı boyunca donatı, yol işaretleri, yangın merdiveni. Notlar §2 nokta 3,
+§4.1, §6.7, §7.3 ve PB6'da; açık soru BK8. Önceki sürümlerin farkları
+ilerleme kaydında)
 **Durum:** Plan. Uygulama başlamadı; kod, bağımlılık ya da ana plan kutusu
 değişmedi. Başlama koşulu §2'de.
 **İlgili belgeler:** [yeniden inşa planı](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
@@ -101,7 +103,8 @@ PG2 ve PG4–PG7 bu işi beklemez, bu iş de onları beklemez.
    meshlet hattı gibi GPU güdümlü bir yol mu? İkincisi üreticinin çıktısına
    kısıt koyar (§6.7) ve ana planın kararıdır, bu planın değil.
 3. Spline boyunca mesh süpürme (Forge'da yol yüzeyinin `meshAsset` yolu) hangi
-   fazda geldi? Bordür ve kaldırım kesiti ona bağlıdır (PB6).
+   fazda geldi? Bordür ve kaldırım kesiti ona bağlıdır (PB6). Spline'sız bir
+   seçenek var: kaldırım adası çokgeninin ekstrüzyonu (Ek A.3); seçim PB6'da.
 4. 5b'nin HLOD'u girdi olarak kaynak mesh'in en kaba LOD'unu kabul ediyor mu
    (§6.7)?
 5. Asset meta'sında adlandırılmış bağlanma noktası (giriş, levha yüzü) için
@@ -187,10 +190,10 @@ Bu bölüm onları kayda geçirir ve sahipsiz kalmalarını önler; karar BK3'te
 | **Trafik ışığı** | U07 | World Builder (kavşak konumu, `streetFurniture` kuralı) | **açık** | Direk (gövde + kol); lamba kafası sabit topolojiye sığmayabilir. three'nin `city/` klasöründe üreticisi var, okunmadı (Ek A.1) |
 | **Durak** (gölgelik, levha, bank) | U07 | World Builder | **açık** | Direk + Kasa parçalarının birleşimi; sabit topolojiye sığıp sığmadığına bakılmadı |
 | **Hidrant** | U07, U09 | World Builder | **açık** | Döndürme (profil + yan çıkışlar). three'nin `city/` klasöründe üreticisi var, okunmadı |
-| **Yol yüzeyi türleri** (asfalt, kilit taş, parke, çakıl, toprak) ve **yol işaretleri** (şerit çizgisi, ok, kenar çizgisi) | U03 | World Builder'ın yol sistemi | **açık** | Yüzey dokusu ya da decal. Desen ailesinin şaşırtmalı sırası kilit taş ve parkeyi taşıyabilir |
+| **Yol yüzeyi türleri** (asfalt, kilit taş, parke, çakıl, toprak) ve **yol işaretleri** (şerit çizgisi, ok, kenar çizgisi) | U03 | World Builder'ın yol sistemi | **açık** | Yüzey dokusu ya da decal. Desen ailesinin şaşırtmalı sırası kilit taş ve parkeyi taşıyabilir. İşaretler için üçüncü yol: yol ağından üretilen ince şerit mesh'i, kesik deseni gölgelendiricide; uzakta ekranda genişletilip soldurulur (Slop New York, Ek A.3). Saydam ve derinlik yazmayan materyaldir |
 | **Rögar kapağı, mazgal, drenaj ızgarası, menfez** | U06, U09 | World Builder | **açık** | Küçük zemin parçası; Döndürme (disk) ya da decal |
 | **Otobüs cebi, yük indirme alanı, otopark çizgileri** | U06, U11 | World Builder (düzen, §7.3) | **açık** | Düzen World Builder'ın; yüzey işareti yukarıdaki yol işaretleriyle aynı karara bağlı |
-| **Çatı üstü donatı** (klima grubu, anten, güneş paneli, su tankı), **yangın merdiveni**, dış klima ünitesi | U10 | Bina eki olarak prototip içinde | **açık** | Üretici seçilirse bina kabuğunun eki (§6.2). Hazır model seçilirse prototip mesh'inin parçası olamaz; ayrı örnek olarak dizilir ve ayrı çizim çağrısı ister |
+| **Çatı üstü donatı** (klima grubu, anten, güneş paneli, su tankı), **yangın merdiveni**, dış klima ünitesi | U10 | Bina eki olarak prototip içinde | **açık** | Üretici seçilirse bina kabuğunun eki (§6.2). Hazır model seçilirse prototip mesh'inin parçası olamaz; ayrı örnek olarak dizilir ve ayrı çizim çağrısı ister. Yangın merdiveni için dördüncü biçim: tek mesh + örnek başına ölçü niteliği (en, kat sayısı), korkuluk ızgarası gölgelendiricide maskelenir (Ek A.3). O örnekte materyal çift yüzlü ve alfa kaplamalıdır; §6.7'deki hat kısıtına uymaz |
 | **Köy ölçeği:** toprak yol, küçük köprü, sera, kümes, odunluk, ahır avlusu | U03, U05, U11 | World Builder | **açık** | Toprak yol yukarıdaki yüzey satırına girer; sera ve odunluk bina kabuğu ya da Kasa'ya yakın; küçük köprü Doğrusal modüle yakın olabilir. Ahır kendisi Bina kabuğu ailesindedir (§4) |
 | **Aynı sınıftaki öteki donatı:** yön levhası, bariyer, duba, kiosk, ilan panosu, elektrik kutusu | U07 | World Builder | **açık** | Sabit topolojiye sığmayan her donatı bu tabloya yazılır |
 
@@ -529,6 +532,12 @@ asset'i, kalıcı çıktı, CPU'da üretim, karma yol.
 - **Pişmiş uzak cephe:** LOD0'ın yüz başına ortografik çekimi (renk + normal),
   CPU rasterleyiciyle, prototip başına tek atlas.
 - Çok açılı impostor yoktur: bina kutuya yakındır ve LOD2 zaten ucuzdur.
+- **Büyük şehirde uzak katman açık sorudur (BK8).** Slop New York'un çevre
+  ilçeleri pişmiş doku kullanmaz: tek birim kutu, örnek başına ölçü + seed ve
+  renk + stil niteliği, cephe gölgelendiricide; binlerce farklı ölçü tek
+  materyal ve parça başına tek çizimdir (Ek A.3). Bu, prototip başına pişmiş
+  uzak cephenin seçeneğidir ve §1'deki "gölgelendiricide cephe" retinin
+  kapsamına bağlıdır.
 - Çit, duvar ve donatıda LOD2 ve bake yoktur; uzaklıkla fade yeter.
 - LOD seçimi, hysteresis ve fade sunumun işidir; üretici her LOD'un sınırını ve
   önerilen ekran boyutu eşiğini verir. Küçük varlıkta görünürlük mesafesi
@@ -617,7 +626,10 @@ buraya yalnız bina tarafını etkiledikleri için yazıldı:
 
 | Eksik | Bina tarafına etkisi |
 |---|---|
-| Izgara ve radyal sokak deseni (bugün ağırlıkları yok sayılıyor) | Yok |
+| Izgara ve radyal sokak deseni (bugün ağırlıkları yok sayılıyor). En basit ızgara biçimi: bölge = döndürülmüş ızgara (açı, orijin, ada aralığı, sokak genişliği, parsel eni), texel başına bir baytlık bölge haritasını CPU ve zemin gölgelendiricisi birlikte okur (Ek A.3) | Yok |
+| Yol ağından ada ve dikdörtgen parsel çıkarımı: yol raster'ı → kaldırım adaları → kaldırım eni kadar erozyon → açgözlü en büyük dikdörtgen parseller; düzensiz adada kenar yönü kümeleri ayrı çerçevede (Ek A.3). Ağın kaynağından bağımsızdır | §7.2 prototip seçimi dikdörtgen parsel ister; dikdörtgen birleşimi PB5'in L, T, U ayak iziyle aynı dildir |
+| Mahalle karakteri ve yoğunluk alanı: parsel eni, sıra derinliği, boşluk oranı, yüksek bina payı ve aralığı; merkezden uzaklıkla sönen kule kümesi (Ek A.3). Bölge profilinde bugün rol başına ayak izi ve kat aralığı var | Yüksek katlı tarifin (PB6) kat aralığı bu alandan gelir |
+| Donatı dizilişi ada kenarı boyunca: kısa kenar atlanır, iç / dış yön ada sınamasıyla, cadde ve sokakta farklı oran, direkler arası en az boşluk, trafik ışığı kavşağın çapraz köşelerinde (Ek A.3) | Yok |
 | Bitişik nizam ve köşe parseli | PB6: yan duvarı kör, köşede iki cepheli prototip |
 | Park ve meydanın iç düzeni | Yok; varlıkları bitki planı ve PB4 verir |
 | Kaldırım ve bordür | PB6: kesit modülü (§2, nokta 3) |
@@ -736,7 +748,8 @@ kabulüdür; kapılar işlevsel ve ölçülebilirdir.
       bitişik nizam ve köşe binası (komşuya bakan duvar kör); yüksek katlı bina
       ve giydirme cephe; iç mekân izlenimi ve gece pencere ışığı (camın
       arkasında gölgelendiricide sahte oda; uzakta yalnız oda ortalaması);
-      kaldırım ve bordür kesiti; yeni donatı üreticileri. §4.1'deki açık
+      kaldırım ve bordür (kesit süpürmesi ya da kaldırım adası ekstrüzyonu,
+      §2 nokta 3); yeni donatı üreticileri. §4.1'deki açık
       kaynaklı varlıklardan üretici seçilenler (BK3) buraya ya da PB4'e madde
       olarak eklenir.
 
@@ -791,6 +804,12 @@ açık onay da verilmedi):
 | BK6 | İlk hedef stil Türk kasabası / şehri olursa bitişik nizam ve düz çatı ekipmanı PB6'dan öne alınır mı? | Hedef oyun belli olunca karar verilir; ölçek sırası kararı (2026-10-28) o güne kadar geçerli |
 | BK7 | Stil özeti ve varlık envanteri ayrı bir asset türü mü (editörde formla düzenlenir), paket içinde belge mi? | İlk kit paket içinde belgeyle yapılır; formla düzenleme ihtiyacı ikinci kitte görülürse A13 veri asset'ine geçilir |
 
+**Açık (büyük şehir, 2026-11-19'da sunuldu, karar bekliyor):**
+
+| ID | Soru | Öneri |
+|---|---|---|
+| BK8 | §1'deki "gölgelendiricide çizilen cephe" reddi uzak katmanı da kapsıyor mu? On binlerce binalı şehirde uzak katman prototip başına pişmiş uzak cephe + HLOD mu (§6.7), Slop New York'un parametreli kutu + gölgelendirici cephesi mi (Ek A.3)? | Öneri yok; mimari sorudur, varsayılmaz. Kapanması yüksek katlı adımı (PB6) bekleyebilir; köy / kasaba ölçeğini etkilemez |
+
 ---
 
 ## 12. Riskler
@@ -817,7 +836,7 @@ açık onay da verilmedi):
 
 ## Ek A — Referans incelemesi
 
-2026-11-11 ve 2026-11-12'de bu plan için açılan kaynaklar. Kodu okunan üç
+2026-11-11, 2026-11-12 ve 2026-11-19'da bu plan için açılan kaynaklar. Kodu okunan üç
 kaynak ayrı başlıktadır; "→" bu plana etkisini gösterir. Okunmayan dosyalar her
 başlıkta adıyla yazılıdır.
 
@@ -931,7 +950,81 @@ satır) içinden `filteredPulse`, `distantWindowLight`, `facadeCell` ve
 - **Ayıklama ve gölge.** Küçük varlığın görünürlük mesafesi tipik boyutu ×
   1.100'dür (en az 300 m; 2.000 m'yi aşan hep görünür). Büyük statik gölge
   atıcılar yalnız konum taşıyan, 500 m'lik hücrelere bölünmüş vekillerle gölge
-  atar; vekilleri yalnız gölge kameraları çizer. → §6.7.
+  atar; vekilleri yalnız gölge kameraları çizer. → §6.7. Boyuta göre gölge
+  cull'u, küçük statiklerde örnek başına cull ve bina akışı ana planın R9c
+  adımlarında motora girdi (katmanlı çizim bütçesi planı); bu plan için yeni
+  bir iş doğurmaz.
+
+**İkinci okuma (2026-11-19, aynı commit).** Okunan: `js/boroughs.js` (3.367
+satır) içinden arazi kullanımı, bölge ızgaraları, zemin ve bina materyali,
+ada üreticisi ve örnekli çizim; `tools/geo-blocks.mjs` (tamamı);
+`js/city-grid.js` içinden kaldırım ve bordür bölümü; `js/street-details.js`
+içinden direk ve lamba yerleşimi, kümelenmiş ışık havuzu; `js/road-paint.js`
+ve `js/road-network.js` başı; `js/fire-escapes.js` başı ve materyal
+bayrakları; `js/tsl-materials.js` içinden `canyonSkyAONode`,
+`facadeCell`, `createCurtainWallMaterial` başı, yol, yol işareti ve kaldırım
+materyallerinin başı. Okunmayanlar: trafik, yaya, araç, simge yapılar, su,
+`nyc-map.js`, ses; topluluk çatalları ([Slop Cities](https://github.com/zz85/slop-cities)).
+
+- **Manhattan prosedürel değildir, çevre ilçeler prosedüreldir.** New
+  Jersey, Brooklyn, Queens ve Bronx, Manhattan kıyısından 9 km'ye kadar
+  `boroughs.js`'te üretilir. Sıra: elle boyanmış arazi kullanımı dokusu
+  (park, sanayi, banliyö, bataklık; 1024 × 1664, bulanıklaştırılmış) → bölge
+  haritası (texel başına bir bayt; 12 bölge, her biri tek döndürülmüş ızgara:
+  açı, orijin, ada aralığı, sokak genişliği, parsel eni) → ada başına üretici
+  → kutu listesi. → §7.3 ızgara satırı.
+- **CPU ve GPU aynı bölge haritasını okur.** Binalar 9 km'de biter; zemin
+  gölgelendiricisi aynı ızgaradan yolu, kaldırımı, çatıları, arka bahçe
+  ağaçlarını ve gece sokak lambalarını ufka kadar çizer, bina ile "şehir
+  halısı" kaymaz. → Uzak katman sorusu (BK8).
+- **Mahalle karakteri tablosu.** Yükseklik aralığı, palet, parsel eni, sıra
+  derinliği, boşluk oranı, yüksek bina payı ve aralığı, park içinde kule
+  payı. Adayı beş tipolojiden biri doldurur: uzun sokağa bakan iki sıra
+  parsel, sanayi sundurması, banliyö evi, park içinde artı planlı kule (iki
+  kesişen kutu), kule kümesinde podyum + 1–3 kule. Kule kümesi merkez,
+  yarıçap, yükseklik aralığı ve olasılıktır, etkisi `1 − (d/r)²` ile söner;
+  simge kuleler elle konur, köprü yaklaşımları dışlama alanıdır. → §7.3
+  mahalle karakteri satırı. Tipoloji listesi oyun verisidir (§5.4).
+- **Uzaklıkla sadeleşme yerleşimdedir.** 1 km'den sonra olasılıkla
+  seyreltme; parsel eni uzaklıkla × 1 / 2,2 / 3,4 / 5 (uzakta komşu parseller
+  tek binada birleşir); çatı kutuları yalnız 2 km içinde. Çevre ilçelere
+  gidilemediği için bu bir kez yapılır. → Alınmadı: açık dünyada oyuncu her
+  yere gider; uzaklığa bağlı sadeleşme HLOD'un ve akışın işidir.
+- **Uzak binaların çizimi.** Alt yüzü olmayan tek birim kutu; örnek başına
+  ölçü + seed ve renk + stil niteliği; 1,2 km'lik `InstancedMesh` parçaları,
+  tek materyal, gölge yok. Cephe gölgelendiricide beş stildir (aks, kat
+  yüksekliği, pencere oranı, yanık pencere olasılığı, cam oranı); uzakta
+  pencere ışığı ortalamaya söner. Gürültü `fract(sin())` iledir. → §6.7,
+  BK8; hash kuralı §6.6.
+- **Ada ve parsel çıkarımı** (`geo-blocks.mjs`). Yol orta çizgileri genişlikleriyle
+  1 m'lik rastere kapsül olarak basılır; kalan alan 4-bağlı etiketlenir (kaldırım
+  adaları); 4,6 m kare erozyon mülk sınırını verir; mülk alanı histogramda en
+  büyük dikdörtgenle açgözlü biçimde en çok 8 parselle, %93'e kadar kaplanır.
+  Düzensiz adada kenar yönleri 90° modunda ±7° içinde en çok üç kümeye
+  ayrılır, her küme kendi döndürülmüş çerçevesinde yeniden rasterlenir.
+  Algoritma ağın kaynağına bakmaz. → §7.3 parsel satırı; §7.2 prototip seçimi.
+- **Kaldırım spline'sızdır** (`city-grid.js`). Dikdörtgen adalar örnekli kutu;
+  öteki adalarda bordür ada çokgeninden 0,18 m, kaldırım 0,25 m içeriden
+  0,22 m ekstrüde edilir; bütün yollar tek düz asfalt düzlemidir. Adalar yol
+  raster'ının tümleyeni olduğu için kavşakta ayrı geometri gerekmez. Yol ağı
+  (trafik için) bu kurulmuş zeminden çıkarılır. → §2 nokta 3, PB6.
+- **Donatı ada kenarı boyunca dizilir** (`street-details.js`). 24 m'den kısa
+  kenar atlanır; iç / dış yön ada sınamasıyla bulunur ve kenarın yola baktığı
+  doğrulanır; cadde ve sokak kenarında farklı oranlar; direkler arası en az
+  6,5 m. Trafik ışığı direkleri kavşağın çapraz iki köşesindedir. Lambaların
+  ışığı kameraya yakın havuzdan atanır (36 spot, 48 nokta ışığı, 128 m
+  hücreler). → §7.3 donatı satırı.
+- **Yol işaretleri** yol ağı kenarlarından şerit geometrisidir; `paint`
+  niteliği kenar boyunca metre, periyot ve doluluğu taşır, kesik desen
+  gölgelendiricidedir. Ekranda 1,5 px'ten ince şerit 16 kata kadar genişletilip
+  soldurulur; materyal saydam ve derinlik yazmaz. Asfalt aşınması, yama,
+  çukur ve rögar da gölgelendiricidedir. → §4.1 yol yüzeyi satırı.
+- **Yangın merdiveni** merdiven başına bir örnektir: örnek niteliği en ve kat
+  sayısını taşır, korkuluk ızgarası gölgelendiricide maskelenir; yakında
+  basamak, uzakta silüet, gölge yalnız 115 m içinde. Materyal çift yüzlü,
+  alfa kaplamalı. → §4.1 çatı üstü donatı satırı; §6.7 hat kısıtı.
+- **Kanyon gökyüzü örtmesi:** yüksekliğe göre basit AO (0–68 m), parkta açık.
+  Görsel ayardır; yalnız kayıt.
 
 ### A.4 Öteki kaynaklar
 
@@ -975,3 +1068,4 @@ Aynı liste her stil kitinde varlık envanterinin (§5.5 ②) kontrol listesidir
 | 2026-11-12 | v0.3 | Kapsam envanterinde olup hiçbir yere atanmamış varlıklar §4.1'e işlendi: trafik ışığı, durak, hidrant, yol yüzeyi ve işaretleri, rögar ve mazgal, otobüs cebi ve yük indirme, çatı üstü donatı ve yangın merdiveni, köy ölçeği yapılar, öteki sığmayan donatı. Kullanıcı kararı: kaynakları (hazır model / üretici) şimdilik açık; BK3. §1, §4, §7.3, PB6, §12 ve Ek B ona göre güncellendi. Uygulama yok |
 | 2026-11-12 | v0.2 | Üç referansın kodu okundu (three r187 şehir üreticisi ve meshlet hattı, Slop New York); Ek A yeniden yazıldı. Gövdeye girenler: ayna ayrı varyant, parça kimliği niteliği (donatıda da), üçgen sırası, modül hizalama varsayılan, gölge vekili ve meshlet kısıtları kodla düzeltildi. Kapsam envanteri belgesi kaldırıldı (kullanıcı onayı). Uygulama yok |
 | 2026-11-12 | v0.4 | Kullanıcının referans görselden stil kiti fikri §5.5'e işlendi (kültür değişince üslup ve bina türleri değişir; çağ ve kültürü çıkar, tekrar eden varlıkları listele, kaynağını seç, üret). Eklenenler: kaynak seçimi ölçütü, kültürler arası kelime dağarcığı adayları, bileşik tarif, görselden çıkarımın sınırları, kod öncesi sınama önerisi; açık sorular BK4–BK7; iki risk. Kullanıcı: bugün başlanmıyor. Uygulama yok |
+| 2026-11-19 | v0.5 | Slop New York ikinci okuma (aynı commit `2813185`), büyük şehir açısından: çevre ilçelerin prosedürel şehri, ada ve parsel çıkarımı, ada ekstrüzyonuyla kaldırım, ada kenarı boyunca donatı, yol işaretleri, yangın merdiveni (Ek A.3). Notlar §2 nokta 3, §4.1 (iki satır), §6.7, §7.3 (bir satır genişledi, üç satır eklendi), PB6; açık soru BK8 (uzak katmanda gölgelendirici cephe). Uygulama yok |
