@@ -24,6 +24,8 @@ export interface EditorCatalog {
   present(components: ComponentMap, hasChildren: boolean): ActorPresentation;
   /** A component's Details extension, if a feature gives one. */
   details(component: string): DetailsExtension | undefined;
+  /** The name of the component that leads these components' Details as a tool (`details: "tool"`); null for none. */
+  toolComponent(components: ComponentMap): string | null;
 }
 
 const GROUP: ActorPresentation = { icon: "group", type: "gameplay", kind: "Group" };
@@ -46,6 +48,13 @@ export function createEditorCatalog(editors: readonly FeatureEditorDef[], regist
   return {
     editors,
     details: (component) => extensions.get(component),
+    toolComponent(components) {
+      for (const component of Object.values(components)) {
+        const name = COMPONENT_TYPE.exec(component.type)?.[1];
+        if (name !== undefined && byComponent.get(name)?.details === "tool") return name;
+      }
+      return null;
+    },
     present(components, hasChildren) {
       for (const component of Object.values(components)) {
         const name = COMPONENT_TYPE.exec(component.type)?.[1];

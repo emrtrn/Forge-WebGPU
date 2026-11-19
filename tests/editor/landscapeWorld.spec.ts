@@ -6,18 +6,30 @@
 // editor reads it all back. In this run's temporary project copy (D14).
 
 import { expect, test, type Page } from "@playwright/test";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { encodeHeightmapPng16 } from "../../src/engine/terrain/heightmapPng.ts";
 import { decodeTerrainTile } from "../../src/engine/terrain/terrainTileCodec.ts";
-import { IDENTITY, named, openEditor, projectPath, shape, writeLevel } from "./support.ts";
+import { drag, gizmoHandles, IDENTITY, named, openEditor, projectPath, shape, writeLevel } from "./support.ts";
 
 const LEVEL = "content/levels/landscape-world-smoke";
 const DOCUMENT = "content/terrain/Smoke_Ground.terrain.json";
 const tilePath = (key: string): string => `content/terrain/Smoke_Ground.tiles/${key}.tile.bin`;
 const definition = (): { tilesX: number; tilesZ: number; origin: number[]; tiles: { key: string }[] } =>
   (JSON.parse(readFileSync(projectPath(DOCUMENT), "utf8")) as { data: ReturnType<typeof definition> }).data;
+
+/** The saved position of the actor named `name`, from the level's files (the terrain's actor is in the persistent layer). */
+function savedPosition(name: string): number[] {
+  const folder = projectPath(LEVEL);
+  const files = readdirSync(folder, { recursive: true }).map(String).filter((file) => file.endsWith(".json"));
+  for (const file of files) {
+    const actors = (JSON.parse(readFileSync(`${folder}/${file}`, "utf8")) as { actors?: { name: string; transform: { p: number[] } }[] }).actors ?? [];
+    const found = actors.find((actor) => actor.name === name);
+    if (found) return found.transform.p;
+  }
+  throw new Error(`${name} is not saved in ${LEVEL}`);
+}
 
 test.beforeAll(() => {
   writeLevel(LEVEL, "lvl_0000000000000000000000000000a5c3", [
@@ -90,14 +102,17 @@ test("World Terrain: create, expand with undo / redo, import and export a height
   await page.getByTestId("landscape-heightmap-export-png").click();
   expect((await download).suggestedFilename()).toBe("Smoke_Ground-heightmap.png");
 
-  // Move the actor 16 m along X in Details: the definition's origin follows.
+  // Move the actor with the gizmo along X (its Details have no transform): the definition's origin follows by the same offset.
   const origin = definition().origin;
-  const x = page.getByTestId("detail-transform.p[0]");
-  await x.fill(String(Number(await x.inputValue()) + 16));
-  await x.press("Tab");
+  const before = savedPosition("Smoke Ground");
+  // From afar the gizmo is at most 4 m (Forge): its centre box (free move) is the handle a pointer surely hits.
+  const handles = await gizmoHandles(page.getByTestId("forge-canvas"));
+  await drag(page, handles["move:xyz"]!, [120, 0]);
   await expect(page.getByTestId("editor-save")).toBeEnabled();
   await save(page);
-  expect(definition().origin[0]).toBeCloseTo(origin[0]! + 16, 4);
+  const moved = savedPosition("Smoke Ground")[0]! - before[0]!;
+  expect(Math.abs(moved)).toBeGreaterThan(1);
+  expect(definition().origin[0]).toBeCloseTo(origin[0]! + moved, 4);
 
   await openEditor(page, { level: LEVEL, drawn: true });
   await named(page, "Smoke Ground").click();

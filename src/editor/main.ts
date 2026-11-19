@@ -247,7 +247,8 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       gizmo: () => tools?.gizmo() ?? null,
       // A gizmo handle first, then the Landscape brush on the selected terrain (5d), then the selection click.
       onPointerDown: (event) => (tools?.pointerDown(event) ?? false) || (landscape?.pointerDown(event) ?? false),
-      onPointerMove: (event) => (landscape?.pointerMove(event) ? null : (tools?.pointerMove(event) ?? null)),
+      // A gizmo drag keeps its moves (the brush ring would take them over the selected terrain).
+      onPointerMove: (event) => (tools?.dragging ? tools.pointerMove(event) : landscape?.pointerMove(event) ? null : (tools?.pointerMove(event) ?? null)),
       onPointerUp: (event) => {
         if (!landscape?.pointerUp(event)) tools?.pointerUp(event);
       },

@@ -6,6 +6,9 @@
 // page's (the editing service's), shared with the viewport tool: changing them
 // is never an undo step.
 //
+// Forge's layout (user decision 2026-11-20): Mode, the tools as a button grid
+// (the selected one lit), the hint, the brush, then View.
+//
 // Paint (step 3): the paint tool and brush, the terrain's layers (the active
 // one is painted; each with its material), Add / Remove / Fill Layer, and the
 // Auto Paint rules' place (`forge.landscapeAutoPaint` on this actor). Layer
@@ -38,16 +41,27 @@ const TOOL_LABELS: Record<TerrainSculptTool, string> = {
 const PAINT_TOOL_LABELS: Record<LandscapePaintTool, string> = { paint: "Paint", erase: "Erase", smoothWeights: "Weights" };
 const VIEW_LABELS: Record<LandscapeViewMode, string> = { lit: "Lit", height: "Height", slope: "Slope", layer: "Layer" };
 
-/** The mode row: Sculpt / Paint and the view mode (an editor preview, never saved). */
+/** The mode row: Sculpt / Paint. */
 const MODE_FIELDS: FieldMap = {
   mode: enumOf(["sculpt", "paint"], { default: "sculpt", labels: { sculpt: "Sculpt", paint: "Paint" }, label: "Mode", hint: "Sculpt yüksekliği, Paint boya katmanlarını düzenler." }),
+};
+
+/** The view row under the brush (an editor preview, never saved). */
+const VIEW_FIELDS: FieldMap = {
   viewMode: enumOf(LANDSCAPE_VIEW_MODES, { default: "lit", labels: VIEW_LABELS, label: "View", hint: "Yalnız editör önizlemesi: Height yüksekliği, Slope eğimi, Layer etkin katmanın ağırlığını boyar. Level'a ve Play'e geçmez." }),
+};
+
+const SCULPT_TOOL_HINTS: Record<TerrainSculptTool, string> = {
+  raise: "Araziyi yükseltir.", lower: "Araziyi alçaltır.", smooth: "Yükseklikleri yumuşatır.", flatten: "Hedef yüksekliğe düzler.",
+  noise: "Doğal yükseklik çeşitliliği boyar.", ramp: "İki nokta arasında rampa / yol açar.", terrace: "Yükseklik basamakları boyar.", erosion: "Aşınma uygular.",
+};
+const PAINT_TOOL_HINTS: Record<LandscapePaintTool, string> = {
+  paint: "Etkin katmanı boyar.", erase: "Etkin katmanı azaltır.", smoothWeights: "Katman ağırlıklarını yumuşatır.",
 };
 
 /** Forge's paint brush. */
 export function landscapePaintFields(): FieldMap {
   return {
-    paintTool: enumOf(LANDSCAPE_PAINT_TOOLS, { default: "paint", labels: PAINT_TOOL_LABELS, label: "Tool", hint: "Paint etkin katmanı ekler, Erase azaltır, Weights katman ağırlıklarını yumuşatır." }),
     brushSize: num({ default: 6, min: 0.5, max: 50, step: 0.5, label: "Brush Size", hint: "Fırça yarıçapı (metre)." }),
     strength: num({ default: 0.25, min: 0.01, max: 2, step: 0.01, label: "Strength", hint: "Darbe başına etki." }),
     falloff: num({ default: 2, min: 0.25, max: 8, step: 0.25, label: "Falloff", hint: "Kenara doğru zayıflamanın üssü; büyük değer merkezi keskinleştirir." }),
@@ -66,9 +80,7 @@ const TOOL_HINTS: Partial<Record<TerrainSculptTool, string>> = {
 
 /** The form's fields for these settings (Forge's limits and steps). */
 export function landscapeFields(settings: LandscapeSettings): FieldMap {
-  const fields: Record<string, FieldMap[string]> = {
-    tool: enumOf(LANDSCAPE_SCULPT_TOOLS, { default: "raise", labels: TOOL_LABELS, label: "Tool", hint: "Sculpt aracı; değiştirici tuşlar araç seçimini darbe başına değiştirir." }),
-  };
+  const fields: Record<string, FieldMap[string]> = {};
   if (settings.tool === "ramp") {
     fields.rampWidth = num({ default: 12, min: 1, max: 100, step: 1, label: "Ramp Width (m)", hint: "Düz yol yüzeyinin tam genişliği." });
   } else {
@@ -110,12 +122,12 @@ function formValue(settings: LandscapeSettings): Record<string, unknown> {
 }
 
 /** A form value back into settings. */
-function settingsPatch(value: Record<string, unknown>): Partial<LandscapeSettings> {
+function settingsPatch(value: Record<string, unknown>, tool: TerrainSculptTool): Partial<LandscapeSettings> {
   const patch: Record<string, unknown> = { ...value };
-  if (typeof value.rampWidth === "number" && value.tool === "ramp") patch.brushSize = value.rampWidth / 2;
+  if (typeof value.rampWidth === "number" && tool === "ramp") patch.brushSize = value.rampWidth / 2;
   if (value.erosionType !== undefined) patch.erosionHydraulic = value.erosionType === "hydraulic";
-  delete patch.rampWidth;
-  delete patch.erosionType;
+  // The tool buttons, Mode and View own these; the brush form never writes them back.
+  for (const key of ["rampWidth", "erosionType", "mode", "tool", "paintTool", "viewMode", "activeLayerId"]) delete patch[key];
   return patch as Partial<LandscapeSettings>;
 }
 
@@ -133,6 +145,38 @@ const button = (doc: Document, label: string, testId: string, title: string, onC
   node.addEventListener("click", onClick);
   return node;
 };
+
+/** Forge's tool buttons, four to a row; the selected one is lit (`on`, `aria-pressed`). */
+function createToolGrid(doc: Document, editing: TerrainEditing) {
+  const element = doc.createElement("div");
+  element.dataset.testid = "landscape-tools";
+  Object.assign(element.style, { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "6px", margin: "6px 0" });
+  const buttons = new Map<string, HTMLButtonElement>();
+  let shown = "";
+  const draw = (): void => {
+    const settings = editing.settings;
+    const painting = settings.mode === "paint";
+    if (shown !== settings.mode) {
+      shown = settings.mode;
+      buttons.clear();
+      const entries: [string, string, string, () => void][] = painting
+        ? LANDSCAPE_PAINT_TOOLS.map((tool) => [tool, PAINT_TOOL_LABELS[tool], PAINT_TOOL_HINTS[tool], () => editing.update({ paintTool: tool })])
+        : LANDSCAPE_SCULPT_TOOLS.map((tool) => [tool, TOOL_LABELS[tool], SCULPT_TOOL_HINTS[tool], () => editing.update({ tool })]);
+      element.replaceChildren(...entries.map(([tool, label, title, pick]) => {
+        const node = button(doc, label, `landscape-tool-${tool}`, title, pick);
+        node.className = "detail-action-button";
+        buttons.set(tool, node);
+        return node;
+      }));
+    }
+    const current = painting ? settings.paintTool : settings.tool;
+    for (const [tool, node] of buttons) {
+      node.classList.toggle("on", tool === current);
+      node.setAttribute("aria-pressed", String(tool === current));
+    }
+  };
+  return { element, draw };
+}
 
 /** The Paint mode's layer list, Fill Layer and the Auto Paint line. */
 function createLayerList(doc: Document, editing: TerrainEditing, layers: LandscapeLayers | undefined, status: (message: string, tone?: "info" | "warning" | "error") => void) {
@@ -214,11 +258,20 @@ export function createLandscapeDetails(ctx: DetailsExtensionContext): { element:
   const modeForm = createFormView({
     document: doc,
     fields: formFields(MODE_FIELDS),
-    value: { mode: editing.settings.mode, viewMode: editing.settings.viewMode },
+    value: { mode: editing.settings.mode },
     testIdPrefix: "landscape",
     warn: (message) => ctx.status(message, "warning"),
-    onChange: (change) => editing.update(change.next as Partial<LandscapeSettings>),
+    onChange: (change) => editing.update({ mode: change.next.mode as LandscapeSettings["mode"] }),
   });
+  const viewForm = createFormView({
+    document: doc,
+    fields: formFields(VIEW_FIELDS),
+    value: { viewMode: editing.settings.viewMode },
+    testIdPrefix: "landscape",
+    warn: (message) => ctx.status(message, "warning"),
+    onChange: (change) => editing.update({ viewMode: change.next.viewMode as LandscapeSettings["viewMode"] }),
+  });
+  const toolGrid = createToolGrid(doc, editing);
   const layerList = createLayerList(doc, editing, layers, ctx.status);
   const terrainNow = (): { actor: ActorId | null; terrain: EditableTerrain | undefined } => {
     const target = ctx.target();
@@ -245,7 +298,9 @@ export function createLandscapeDetails(ctx: DetailsExtensionContext): { element:
   let shownFields = "";
   const draw = (): void => {
     const settings = editing.settings;
-    modeForm.update({ mode: settings.mode, viewMode: settings.viewMode });
+    modeForm.update({ mode: settings.mode });
+    viewForm.update({ viewMode: settings.viewMode });
+    toolGrid.draw();
     const key = fieldsKey(settings);
     if (form && key === shownFields) {
       form.update(formValue(settings));
@@ -260,16 +315,16 @@ export function createLandscapeDetails(ctx: DetailsExtensionContext): { element:
       value: formValue(settings),
       testIdPrefix: "landscape",
       warn: (message) => ctx.status(message, "warning"),
-      onChange: (change) => editing.update(settingsPatch(change.next)),
+      onChange: (change) => editing.update(settingsPatch(change.next, editing.settings.tool)),
     });
     if (painting) {
-      tools.body.replaceChildren(modeForm.element, form.element, layerList.element);
+      tools.body.replaceChildren(modeForm.element, toolGrid.element, form.element, viewForm.element, layerList.element);
       drawLayers();
       return;
     }
     toolHint.textContent = TOOL_HINTS[settings.tool] && settings.tool !== "flatten" ? TOOL_HINTS[settings.tool]! : "";
     toolHint.hidden = toolHint.textContent === "";
-    tools.body.replaceChildren(modeForm.element, form.element, hint, toolHint);
+    tools.body.replaceChildren(modeForm.element, toolGrid.element, hint, toolHint, form.element, viewForm.element);
   };
 
   const rows = doc.createElement("div");

@@ -312,7 +312,7 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
     return { transform: preview?.transform ?? target.doc.transform, pivot: preview?.pivot ?? target.doc.pivot ?? ([0, 0, 0] satisfies Vec3) };
   };
 
-  const header = (now: readonly DetailsTarget[]): HTMLElement => {
+  const header = (now: readonly DetailsTarget[], tool: boolean): HTMLElement => {
     const box = el("div", "details-header");
     const icon = el("div", "details-actor-icon");
     const look = options.catalog.present(now[0]!.components, false);
@@ -339,6 +339,10 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
     });
     nameRow.append(name);
     box.append(nameRow);
+    if (tool) {
+      box.append(el("div", "details-actor-kind", look.kind));
+      return box;
+    }
     const info = el("div", "detail-row");
     if (now.length === 1) {
       const target = now[0]!;
@@ -354,10 +358,14 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
     return box;
   };
 
-  const componentBlock = (now: readonly DetailsTarget[]): HTMLElement[] => {
+  /** The components' sections; a tool component (`details: "tool"`) leads with its extension and ends with its own fields, closed. */
+  const componentBlock = (now: readonly DetailsTarget[], tool: string | null): HTMLElement[] => {
     const blocks: HTMLElement[] = [];
+    const lead: HTMLElement[] = [];
+    const tail: HTMLElement[] = [];
     for (const section of componentSections(now, registry)) {
-      const { section: box, heading, toggle, body } = createSection(doc, section.def.label, { testId: `detail-component-${section.id}` });
+      const isTool = section.def.name === tool;
+      const { section: box, heading, toggle, body } = createSection(doc, section.def.label, { testId: `detail-component-${section.id}`, collapsed: isTool });
       if (section.def.hint) toggle.title = section.def.hint;
       if (section.fromClass) {
         if (section.overridden.size > 0) {
@@ -368,7 +376,7 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
           resetAll.addEventListener("click", () => apply(`Reset ${section.def.label}`, "commit", `${section.id}:reset`, ({ doc: actor }) => resetOverride(actor, section.id, null)));
           heading.append(resetAll);
         }
-      } else if (!section.def.singleton || section.def.spatial) {
+      } else if (!isTool && (!section.def.singleton || section.def.spatial)) {
         const remove = el("button", "detail-inline-button", "Remove");
         remove.type = "button";
         remove.title = "Bileşeni aktörden kaldır";
@@ -442,12 +450,13 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
           },
           status,
         });
-        body.append(built.element);
+        if (isTool) lead.push(built.element);
+        else body.append(built.element);
         if (built.dispose) disposers.push(() => built.dispose!());
       }
-      blocks.push(box);
+      (isTool ? tail : blocks).push(box);
     }
-    return blocks;
+    return [...lead, ...blocks, ...tail];
   };
 
   const addComponentButton = (target: DetailsTarget): HTMLElement => {
@@ -492,9 +501,11 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
       return;
     }
     const values = now.map(actorValue);
+    // A tool actor (Forge's Landscape) shows no placement: its data places it.
+    const tool = now.length === 1 ? options.catalog.toolComponent(now[0]!.components) : null;
     // Scene-wide singleton actors have no meaningful placement or streaming controls.
     // Use effective components so class instances follow the same rule as plain actors.
-    const showSpatialControls = now.every((target) => {
+    const showSpatialControls = tool === null && now.every((target) => {
       const components = Object.values(target.components);
       return components.length === 0 || !components.every((component) => {
         const name = parseComponentTypeTag(component.type)?.name;
@@ -529,9 +540,9 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
       onChange: (change) => apply(`Edit ${pathKey(change.path)} of ${what(now)}`, change.phase, pathKey(change.path), ({ doc: actor }) => editActor(actor, change.path, change.value)),
     }) : null;
     renderActions(now);
-    const parts: HTMLElement[] = [header(now)];
+    const parts: HTMLElement[] = [header(now, tool !== null)];
     if (actorView && general) parts.push(actorView.element, actions);
-    parts.push(...componentBlock(now));
+    parts.push(...componentBlock(now, tool));
     if (general) {
       const advanced = panelSection("Advanced", "detail-advanced");
       advanced.body.append(general.element);

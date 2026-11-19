@@ -61,7 +61,10 @@ test("Landscape sculpt: raise, undo, save in place, reopen", async ({ page }) =>
   await named(page, "Ground").click();
   const panel = page.getByTestId("landscape-panel");
   await expect(panel).toBeVisible();
-  await expect(page.getByTestId("landscape-tool")).toHaveValue("raise");
+  await expect(page.getByTestId("landscape-tool-raise")).toHaveAttribute("aria-pressed", "true");
+  // A tool actor: no transform or placement in its Details (Forge's layout).
+  await expect(page.getByTestId("detail-transform.p[0]")).toHaveCount(0);
+  await expect(page.getByTestId("detail-placement-toolbar")).toBeHidden();
   await expect(page.getByTestId("landscape-unsaved-tiles")).toHaveText("0");
 
   await stroke(page);

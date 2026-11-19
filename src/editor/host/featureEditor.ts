@@ -58,6 +58,14 @@ export interface ComponentPresentation {
   readonly icon: ActorTypeIcon | ((data: Readonly<Record<string, unknown>>) => ActorTypeIcon);
   /** The Outliner's type filter group. */
   readonly outliner: OutlinerType;
+  /**
+   * `tool` (Forge's Landscape): the actor's Details are its name, then this
+   * component's Details extension, the other components, and this component's
+   * own fields last in a closed section. No Class row, transform, pivot,
+   * placement, Remove, Advanced or Add Component: the actor is placed by its
+   * data, not its transform.
+   */
+  readonly details?: "tool";
 }
 
 /** Forge's Add Actor categories, in its order; a game's own categories come after them. */
@@ -195,6 +203,9 @@ export function defineFeatureEditor(options: FeatureEditorOptions): FeatureEdito
     }
     if (typeof presentation.icon !== "string" && typeof presentation.icon !== "function") {
       throw new SchemaDefinitionError(`${where}: the icon is an icon name or a function.`);
+    }
+    if (presentation.details !== undefined && presentation.details !== "tool") {
+      throw new SchemaDefinitionError(`${where}: no Details layout "${String(presentation.details)}".`);
     }
     if (!OUTLINER_TYPE_SET.has(presentation.outliner)) {
       throw new SchemaDefinitionError(`${where}: no Outliner type "${String(presentation.outliner)}".`);

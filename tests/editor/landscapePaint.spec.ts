@@ -91,7 +91,10 @@ test("Landscape paint: paint, Auto Paint, add and fill a layer, view modes, save
   await named(page, "Ground").click();
   await expect(page.getByTestId("landscape-panel")).toBeVisible();
   await page.getByTestId("landscape-mode").selectOption("paint");
-  await expect(page.getByTestId("landscape-paintTool")).toHaveValue("paint");
+  await expect(page.getByTestId("landscape-tool-paint")).toHaveAttribute("aria-pressed", "true");
+  await page.getByTestId("landscape-tool-erase").click();
+  await expect(page.getByTestId("landscape-tool-erase")).toHaveAttribute("aria-pressed", "true");
+  await page.getByTestId("landscape-tool-paint").click();
   // Layers: grass, dirt, rock, snow (the default Landscape layers); the first is active.
   await expect(page.getByTestId("landscape-layer-grass-select")).toHaveAttribute("aria-pressed", "true");
 

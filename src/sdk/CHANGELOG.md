@@ -8,6 +8,16 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.14
+
+API: e8c130b39adaed4d
+
+A component's editor presentation may set `details: "tool"` (plan 5d,
+Forge's Landscape layout): the actor's Details show its name, then the
+component's Details extension, the other components, and the component's own
+fields last in a closed section, with no Class row, transform, pivot,
+placement, Remove, Advanced or Add Component. The World Terrain uses it.
+
 ## 0.1.13
 
 API: 99e95314c9991702
