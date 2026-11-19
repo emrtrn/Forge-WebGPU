@@ -138,7 +138,10 @@ geliştirme sunucusunda ayrı bir Node worker'ından aynı CLI üreticisine gide
   kayıt işlemi, okunan revizyonlarla). Boyama ve katman işlemleri (Fill, Add /
   Remove, materyal, Auto Paint) `landscapeLayers.ts` (`LandscapeLayersKey`); Auto
   Paint kuralları aktörde `forge.landscapeAutoPaint`; görünüm kipi yalnız editör
-  terrain materyalinde (`editorViews`).
+  terrain materyalinde (`editorViews`). Oluşturma (asset hemen), Expand, aktörle
+  taşıma (`worldTerrainMove`) ve heightmap dosyaları `landscapeTerrain.ts`
+  (`LandscapeTerrainKey`); oturum ızgara değişimini (`replaceTerrain`) ve silinecek
+  tile dosyalarını bilir.
 - Kayıt oyunu `forge.saveGame/1` (`src/core/save/`): her şey GUID'le, bileşen
   alanının `persist` bayrağı, bileşenin `state` bölümü, `defineSaveState`;
   yüklenmemiş hücrelerin durumu `SaveLedger`'da. Slot deposu

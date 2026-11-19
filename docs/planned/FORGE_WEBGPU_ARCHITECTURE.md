@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.74 · 2026-11-19 — §4.4 5d adım 3: katman boyama ve katman işlemleri (tek undo), `forge.landscapeAutoPaint` bileşeni (kullanıcı kararı), editöre özel terrain görünüm kipleri.
+**Güncelleme:** v1.75 · 2026-11-20 — §4.4 5d adım 4: World Terrain asset olarak hemen yazılır, Expand oturumda tek undo (yeni / silinecek tile), taşıma tanımın origin'ini aktörle kaydırır (su Faz 7), heightmap içe / dışa yalnız editörde (kullanıcı kararları).
+
+**Önceki güncelleme:** v1.74 · 2026-11-19 — §4.4 5d adım 3: katman boyama ve katman işlemleri (tek undo), `forge.landscapeAutoPaint` bileşeni (kullanıcı kararı), editöre özel terrain görünüm kipleri.
 
 **Önceki güncelleme:** v1.73 · 2026-11-19 — §4.4 5d uygulaması (adım 2): `TerrainEditingKey` + asset başına `TerrainEditSession`, editör oturumunda level dışı undo adımı ve kayıt katılımcısı.
 
@@ -1100,6 +1102,19 @@ features/height-fog/
     girdileriyle yeniden kurar (oturum ve akış tile'ları korunur). Görünüm
     kipleri terrain materyaline yalnız `editorViews` ile derlenir; oyunun
     materyali değişmez.
+  - *Adım 4 kararları (kullanıcı, 2026-11-19, öneriler gibi):* yeni World Terrain
+    bir asset olarak hemen yazılır (undo'suz), aktörün eklenmesi tek undo; terrain
+    aktörü taşınınca yalnız tanımın origin'i ve dünya çerçeveli spline'ları kayar
+    (tile'lar değişmez; döndürme / ölçek yok; birikinti ve öteki aktörler gelmez);
+    `worldTerrainMove`'un su kısmı Faz 7'de su tipleriyle; heightmap içe / dışa
+    aktarma yalnız editörde.
+  - *Uygulama (adım 4, `4651b3b`):* `editor/landscape/landscapeTerrain.ts`
+    (`LandscapeTerrainKey`); `EditableTerrain.layersChanged` →
+    `definitionChanged` (katman, taşıma, ızgara). Oturumun dosya defteri ızgara
+    değişimini bilir: `replaceTerrain`, `created` tile (yeni dosya), tanımın
+    listelemediği okunmuş dosya (Save'de silinir). Taşıma level'daki konum
+    farkını izler (sürüklerken yalnız görünüm kayar), böylece undo / redo simetrik.
+    Add Actor menüsüne editöre özel eylem (`AddActorAction`); SDK yüzeyi değişmez.
 - **Ölçek ölçümü (2a, 2026-11-10):** 50.000 aktörlük level R1'de eşik içinde
   (bütün level yükleme ~0,9 s, hücre yükleme p95 ~1,5 ms, tek aktör kaydı
   ~40 ms, tam kayıt ~2,2 s, heap ~58 MB; [Faz 2a arşivi](../archive/PHASE_2A.md)). Aşağıdaki çarelere

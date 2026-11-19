@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.93 · 2026-11-19 — 5d adım 3'ün görsel kabulü (kullanıcı, 2026-11-19). Sırada adım 4: World Terrain oluşturma / genişletme, taşıma, heightmap içe / dışa aktarma.
+**Güncelleme:** v1.94 · 2026-11-20 — 5d adım 4 (`4651b3b`): Add Actor > Terrain > World Terrain… (asset hemen yazılır, aktör tek undo), Expand (tek tile → ızgara, tek undo; Save yeni tile'ları yazar, geri alınanları siler), aktörle taşıma (`worldTerrainMove`: origin + dünya çerçeveli spline'lar; su Faz 7), heightmap içe / dışa aktarma (16-bit PNG / RAW). Kararlar kullanıcıda (öneriler gibi). `worldTerrainMove`'un 1 A'sı taşındı, su kullanan 3 A Faz 7'ye. Kullanıcı görsel kabulü bekleniyor.
+
+**Önceki güncelleme:** v1.93 · 2026-11-19 — 5d adım 3'ün görsel kabulü (kullanıcı, 2026-11-19). Sırada adım 4: World Terrain oluşturma / genişletme, taşıma, heightmap içe / dışa aktarma.
 
 **Önceki güncelleme:** v1.92 · 2026-11-19 — 5d adım 3 (`30fe244`): Landscape Paint kipi (Paint / Erase / Weights, vuruş boyunca biriken ağırlık), katman listesi (Add / Remove / materyal, Fill Layer; her biri tek undo), terrain aktöründe `forge.landscapeAutoPaint` + Apply Auto Paint, yalnız editörde derlenen lit / height / slope / layer görünümü. Kararlar kullanıcıda (2026-11-19, öneriler gibi). Kullanıcı görsel kabulü bekleniyor.
 
@@ -2024,7 +2026,7 @@ A–F sırasıyla yürür; ağaç tarifi editörü (`ff7ce85`) ve sürümlü bü
    bağlanması; üretilen level Content Browser'da — C. B13.
 9. Bitki tarafı (karar 6) — bitki planının akışıyla.
 10. Kapı: araç başına editör smoke'u (düzenle → kaydet → yeniden aç), ertelenen
-    4 A yeşil, Faz 5 toplu görsel + performans kabulü (kullanıcı), ardından Faz 5
+    5d A'ları yeşil (`worldTerrainMove`'un 1 A'sı adım 4'te; su kullanan 3 A Faz 7'de), Faz 5 toplu görsel + performans kabulü (kullanıcı), ardından Faz 5
     bölümünün arşivi.
 
 *Adım 2 (2026-11-19, `3074f3a`):* Landscape sculpt. Terrain seçilince Details'te
@@ -2097,6 +2099,42 @@ seti forceWebGL'de 90 / 90. Sonraya: Auto Paint'in ajan komutu (karar gereği
 ayrı adım), katman adı / rengi düzenleme, fiziksel materyal (Faz 8), Play'e
 kaydedilmemiş boya (adım 2'deki gibi). Kullanıcı görsel kabulü 2026-11-19'da verildi.
 
+*Adım 4 kararları (kullanıcı, 2026-11-19, öneriler gibi):* yeni World Terrain asset
+olarak hemen yazılır (Content Browser'daki yeni asset gibi, undo'suz), aktörün
+eklenmesi tek undo; taşıma yalnız terrain'i taşır (birikinti, boyalı foliage ve öteki
+aktörler kendiliğinden gelmez), döndürme / ölçek uygulanmaz; `worldTerrainMove`'un
+su kısmı ve onu kullanan 3 A Faz 7'ye; heightmap içe / dışa aktarma yalnız editörde
+(CLI gerekirse sonra).
+
+*Adım 4 (2026-11-20, `4651b3b`):* World Terrain. **Oluşturma:** Add Actor > Terrain >
+World Terrain… (editöre özel menü eylemi; SDK değişmedi) diyaloğu: ad, tile ızgarası,
+çözünürlük, aralık, taban yüksekliği, çok tile'da kodlama aralığı, isteğe bağlı
+16-bit PNG / RAW heightmap (ızgara ona oturtulur), boyut / maliyet özeti ve sorunlar.
+Forge'un Open World bölümü yok (level ayarları World Settings'te). Asset
+`content/terrain/<ad>.terrain.json` + tile'lar (çok tile u16, tek tile f32) + global
+harita tek kayıt isteğiyle yeni dosya olarak; aktör level'a tek undo ile eklenir ve
+seçilir. **Expand** (Landscape > Tiles, yalnız tek tile): Forge'un
+`expandSingleTileWorldTerrain`'i, oturumda `replaceTerrain` ile tek undo adımı; yeni
+tile'lar `created` (Save `base: null` ile yazar), tanımın artık listelemediği diskteki
+tile'lar (geri alınan Expand) Save'de silinir. **Taşıma:** gizmo sürüklerken terrain
+görünümü aktörün kaymasıyla izler; level'daki konum değişince (gizmo, Details, undo /
+redo) tanımın origin'i ve dünya çerçeveli spline'ları aynı farkla kayar
+(`engine/terrain/worldTerrainMove.ts`), tanım kirli, terrain yeniden çizilir; tile'lar
+değişmez. **Heightmap:** Import Heightmap… (ızgaranın tam boyunda PNG / RAW, 0 /
+65535'in yüksekliği; bütün tile'lar yüklenir, tek undo) ve Export PNG / RAW (bütün
+ızgara indirilir; durum satırı yeniden alma aralığını söyler). **Kayıt düzeltmeleri:**
+global haritasını hiç okumamış (tek tile) terrain'in kaydı haritanın disk revizyonunu
+okur; editörün önceki kaydının geç gelen dosya olayı temiz oturumu düşürmez (kendi
+yazdığı yol / revizyonlar tutulur). **Kanıt:** `worldTerrainMove.test.ts` (Forge'un
+1. kontrolü birebir, origin / spline kısımları bu deponun), `landscapeSave.test.ts`
+(Expand'in yeni tile'ı / silmesi, geç olay); editör smoke'u
+`tests/editor/landscapeWorld.spec.ts` (oluştur → Expand + undo / redo → heightmap
+içe → dışa → Details'ten taşı → kaydet → yeniden aç) `forceWebGL`'de ve gerçek
+WebGPU'da (üç kez) geçti; landscape, addActor, foliage, streaming, world spec'leri
+WebGL'de 19 / 19. Sonraya: çok tile'lı terrain'in genişletilmesi (Forge'da da yok),
+terrain silinince asset'in temizlenmesi, ajanın `forge edit move`'unun tanımı
+taşıması (komut yalnız level'ı yazar). Kullanıcı görsel kabulü bekleniyor.
+
 - [x] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
       Faz 3 karar 1) üretim kalitesine çıkar: morph,
       tile seam, 8 boya katmanı, su birikintisi (kıyı ıslaklığı ve kostik
@@ -2142,8 +2180,8 @@ kaydedilmemiş boya (adım 2'deki gibi). Kullanıcı görsel kabulü 2026-11-19'
       alındı, v1.73), landscape spline; World Builder penceresi + `/__world-random` endpoint'i
       + önizleme worker'ı; PG5 tam tarif paneli, `generated` model kaynağı ve
       bitki ailesi yerleşimi. *Kapı:* araç başına editör smoke'u (düzenle → kaydet
-      → yeniden aç); üretilen dünya Content Browser'da görünüyor; ertelenen
-      4 A yeşil (`worldTerrainMove`, su tipleri Faz 7'yle); üretilen bitki
+      → yeniden aç); üretilen dünya Content Browser'da görünüyor; `worldTerrainMove`'un
+      origin / spline A'sı yeşil (su kullanan 3 A Faz 7'de, kullanıcı kararı 2026-11-19); üretilen bitki
       yerleşimleri aileyi kullanıyor, aile / mevsim önizlemesi çalışıyor.
       **19 Kasım 2026:** Ağaç tarifinde canlı worker önizlemesi, seed / mesh LOD
       seçimi ve aile üretimi için ilk editör dilimi. Görsel bulgular, uyumluluk
@@ -2541,3 +2579,4 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-20 | v1.94 | 5d adım 4 (`4651b3b`): kararlar (kullanıcı, öneriler gibi: asset hemen yazılır, taşıma yalnız terrain, `worldTerrainMove` su kısmı Faz 7, heightmap yalnız editörde); World Terrain oluşturma, Expand, taşıma, heightmap içe / dışa; kayıtta global harita revizyonu ve geç olay düzeltmeleri. `worldTerrainMove` 1 A → **A 991 / 1.021**, 3 A Faz 7'ye. `landscapeWorld.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
