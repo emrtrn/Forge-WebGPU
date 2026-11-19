@@ -1099,7 +1099,7 @@ call'unun 260'ı foliage; foliage çizimleri toplanınca gönderim 3,9 → 2,2 m
    edilmiyordu (WebGL2 ikizinde de); düzeltildi, döngüler sabit. Ertelenen 8 A (`foliageRing`) yeşil, A 990 / 1.021
    (5c'ye ertelenmiş A yok). PV-WES-01–08 kanıtları bitki planı §10. Adaylar `render-refs/candidates/pg3-wes03-*`,
    `pk7-*`, `derekavak-p2-far-*-family*`, `pg2-plants-*` (görsel kabul kullanıcıda). `gpuCulling.smoke.ts`'in bundle
-   karşılaştırması (WebGPU) HEAD'de de kararsız (3 koşuda 2 düştü), bu işten bağımsız; ayrı bakılacak.
+   karşılaştırması (WebGPU) kararsızdı: çekimler `?debug` okuma metnini de içeriyordu, "gürültü" çoğunlukla metindi ve test şansla geçiyordu. Çekimlerde sayfa katmanları gizlenince gürültü 0,000, bundle farkı 0,020 (saydam parçaların bundle dışında kalmasının belgelenmiş sıra maliyeti; eşik 0,05), 5 / 5 kararlı.
 
 **Foliage sırası (kullanıcı kararları, 2026-11-18; v1.73).** R9b bittikten sonra
 (R10 başlamadı) sıra: F0 → adım 6 (F1–F3) → adım 7 (F4) → Foliage paneli (F5–F6, 5d'den

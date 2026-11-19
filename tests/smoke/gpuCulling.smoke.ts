@@ -183,6 +183,9 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
   else expect(unshadowedDraws, "without castShadow only the main view draws").toBe(installed.draws);
   // In a render bundle (5.3, on WebGPU; WebGL2 has none): the same image.
   // Let each reinstall settle without moving the scene's clouds between shots.
+  // The page's overlays (the `?debug` readout and labels) change between frames: hidden for these shots, or
+  // the "noise" below is mostly their text and the check passes or fails on chance.
+  const overlays = await page.addStyleTag({ content: "body :not(canvas):not(:has(canvas)) { visibility: hidden !important; }" });
   await dev(page).install(foliage.types, foliage.cullScale, true, true);
   await steps(page, 20, 0);
   const bundled = await page.getByTestId("forge-canvas").screenshot();
@@ -193,6 +196,7 @@ for (const backend of ["webgpu", "webgl"] as const) test(`gpu culling (${backend
   const bundleDifference = await difference(page, bundled, direct);
   await steps(page, 6, 0);
   const noise = await difference(page, direct, await page.getByTestId("forge-canvas").screenshot());
+  await overlays.evaluate((tag) => tag.remove());
   console.log(`bundle difference ${bundleDifference.toFixed(3)}, direct reinstall ${noise.toFixed(3)}`);
   // WebGL2 has no bundles (the twin ignores the option); its frames also vary more between shots.
   if (!webgl) expect(bundleDifference, "the bundled batches draw what the direct ones do").toBeLessThan(noise + 0.05);
