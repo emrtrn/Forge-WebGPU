@@ -12,7 +12,8 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "@playwright/test";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const PORT = 5283;
+/** 5283; `FORGE_SMOKE_PORT` when another session's server holds it (the render smoke's rule). */
+const PORT = Number(process.env.FORGE_SMOKE_PORT ?? 5283);
 export const BASE = "/forge-base/";
 
 if (!process.env.FORGE_DIST_SMOKE_OUT) process.env.FORGE_DIST_SMOKE_OUT = join(mkdtempSync(join(tmpdir(), "forge-dist-smoke-")), "dist");
