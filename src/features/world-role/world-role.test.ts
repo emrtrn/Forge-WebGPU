@@ -19,6 +19,7 @@ describe("World Builder output components", () => {
       "forge.shape",
       "forge.worldRole",
       "forge.terrain",
+      "forge.landscapeAutoPaint",
     ]);
     // Version 1 files migrate to version 2 (phase 3 step 4): new fields take their defaults.
     const shape = normalizeComponent(Shape, { type: "forge.shape@1" }, { strict: true });
