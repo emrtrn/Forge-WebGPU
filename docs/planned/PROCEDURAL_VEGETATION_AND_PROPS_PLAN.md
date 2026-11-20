@@ -1,6 +1,6 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.13 · 2026-11-19 (tür ve yaşa bağlı taç üretimi, §9.2).
+**Sürüm:** v0.14 · 2026-11-19 (meşenin iç taç dağılımı ve LOD karşılaştırması, §9.3).
 Önceki: v0.11 · 2026-11-19 (kullanıcı PG3 / PV-WES görsel kabulünü verdi; kabuk / kaya
 dokuları da KTX2). Önceki: v0.10 (PG3 kapandı: KTX2 atlaslar, §8 ölçüldü, PK7 ölçümle odun /
 yaprak ayrımı, PV-WES-01–08 kanıtları). Önceki: v0.9 (PG0 ve PG2 kapandı: iki
@@ -781,14 +781,103 @@ levhaları `.forge-cache/vegetation-growth/comparison-leaf.jpg` ve
 `comparison-wood.jpg`. **Wood only** aynı kadrajda yaprakları gizler.
 WES kışı ve kar ayrı bir sahne kontrolü gerektirir.
 
-Üç seed'de olgun meşenin ana dalları yana yayılırken kavak dar ve dik
+İlk tariflerde (`31006ca`) üç seed'de olgun meşenin ana dalları yana yayılırken kavak dar ve dik
 kalıyor. Genç kavaklarda tohum farkı bu ölçekte güç seçiliyor. Olgun
 meşede büyük yaprak demetleri dal uçlarında tekrarlanıyor ve iç taçta geniş
-boşluklar kalıyor. Sonraki görsel çalışma, bu meşe üzerinde dalcıkların
-yönünü ve taç içindeki dağılımını iyileştirip aynı kadrajla karşılaştırmak.
+boşluklar kalıyor. §9.3 bu meşede dalcık yönlerinin ve taç içindeki
+dağılımın değişimini aynı kadrajda karşılaştırıyor.
 Yakın planda dal birleşimleri, doğal LOD geçişleri ve rüzgâr kabulü açık.
 
 ---
+
+### 9.3 Meşenin iç tacı
+
+Meşe tarifinde ikinci ve üçüncü düzey dallar ebeveynin tabanına daha yakın
+başlar ve daha geniş bir açı aralığına yayılır. LOD0, daha çok dalcığa
+dağılan yaprak kümelerinin yarısını çizer. LOD1 ve LOD2 ince odunu daha erken
+eler ve yaprak örtüsünü daha fazla dal ucu kartıyla taşır.
+
+60 yaşta, seed 1–3 için gövde ekseninin 3 m çevresine düşen uç dal sayısı
+25–29'dan 102–105'e çıktı. Gerçek WebGPU editöründe eski tarif (`31006ca`)
+ve güncel tarif aynı oturumda, aynı ışık ve iki sabit açıyla çekildi. LOD0'da
+taç merkezindeki yeşil piksel oranı altı eşleşmenin tamamında arttı.
+
+| Seed | İlk açı, önce → sonra | İkinci açı, önce → sonra | Olgun ağaçta üçgen, LOD0 / LOD1 / LOD2 |
+|---|---:|---:|---:|
+| 1 | %43,3 → %70,3 | %43,6 → %72,4 | 16.213 / 3.949 / 610 |
+| 2 | %39,6 → %69,7 | %41,3 → %65,3 | 16.689 / 3.986 / 645 |
+| 3 | %43,4 → %78,1 | %46,4 → %75,1 | 17.274 / 4.097 / 648 |
+
+Her eşleşmede ölçüm alanı eski görüntüdeki yeşil piksellerin sınır kutusunun
+ortadaki yarı eni ve yarı boyudur. Aynı alan iki karede de kullanıldı.
+8 bit ekran renklerinde G > R + 4 ve G > B + 8 yeşil sayıldı. Ölçüm bu
+ışık ve kamera için görünür örtüyü gösterir. 12 yaşta üç seed'in LOD0 maliyeti
+1.818–1.874 üçgen. 60 yaşta seed 0–255 taramasında LOD başına en yüksek
+sayılar 19.138 / 4.699 / 735. CLI deneme üretimi üç prototip için 37 çıktı
+planladı. Karşılaştırma levhaları yerelde `.forge-cache/oak-review/` altında
+`oak-front.jpg`, `oak-side.jpg` ve `oak-lods.jpg`.
+
+Olgun meşede iç dallar arasındaki boşluklar küçüldü. Tekrarlanan yaprak
+kartları dış siluette hâlâ seçiliyor. İlk açıda zorlanmış LOD2'nin yeşil
+piksel sayısı LOD0'ın %50–52'si. Bu tarifle başlayan doğal kamera geçişi
+§9.4'te ölçüldü.
+
+### 9.4 Meşede doğal LOD geçişi
+
+**20 Kasım 2026.** 60 yaşındaki meşe ilk çekimde üç seed'de de LOD1'den
+LOD2'ye geçerken bir karede seyrekleşti. Eşikte ağaç yalnız 41–47 piksel
+yüksekliğindeyken bile arka plan dalların arasında belirginleşti. Aşağıda
+alan, yaprak ve odun birlikte ağacın kapladığı piksel sayısıdır. Yüzdeler
+kameranın hareketinden doğan alan değişimi çıkarıldıktan sonradır.
+
+| Seed | LOD1 ↔ LOD2 eşiği | Uzaklaşırken alan değişimi, önce → sonra | Yaklaşırken alan değişimi, önce → sonra | Son üçgen, LOD0 / LOD1 / LOD2 |
+|---|---:|---:|---:|---:|
+| 1 | 541,18 m | −%34,8 → +%6,3 | +%53,4 → −%5,9 | 16.213 / 3.949 / 690 |
+| 2 | 527,54 m | −%36,2 → −%0,9 | +%56,7 → +%0,9 | 16.689 / 3.986 / 701 |
+| 3 | 490,76 m | −%37,7 → −%0,4 | +%60,5 → +%0,4 | 17.274 / 4.097 / 724 |
+
+**Ölçüm.** Çalışma ağacındaki tariften geçici projede GLB/KTX2 ailesi üretildi.
+Her prototip aynı noktada tek bir `forge.plant` olarak çizildi. Başlıklı Chrome,
+NVIDIA Ampere WebGPU, 1920 × 1080, DPR 1, High, dikey görüş açısı 44°.
+WES yaz, açık hava, saat 14.00. Rüzgâr, hamle ve gölgeler kapalı. Kamera
+6 m yükseklikte sabit doğrultuda, 35 m yatay mesafeden başlayarak kare başına
+0,5 m ilerledi ve aynı yoldan döndü (30 Hz, 15 m/sn).
+`foliageBatches`, ailenin `screenSize` değerlerini LOD0 küre yarıçapı /
+(`screenSize` × tan(dikey görüş açısı / 2)) ile metreye çevirir.
+GPU kameradan örneğin köküne uzaklığı bu eşiklerle karşılaştırır.
+Her karede ana görünümün GPU örnek sayaçları okundu. Önce ve sonra üç
+yolda da her kamera pozu ve seçilen LOD birebir eşleşti.
+
+Sabit arka plandan herhangi bir RGB kanalında 22/255'ten fazla ayrılan
+pikseller sayıldı. Ardışık iki karenin alan oranı ikinci / ilk yatay kamera
+mesafesinin karesiyle çarpıldı. Eşikte 0,5 m hareketin doğal alan farkı
+yaklaşık %0,2. LOD0 → LOD1 geçişi 172–189 m civarında gerçekleşti. Bu ilk
+geçişte toplam örtü %9–12 azalıyor ve yaprak kümelerinin tonu değişiyor.
+
+**Neden ve düzeltme.** İlk tarifte LOD2 odunu tek başına çizildiğinde LOD1
+alanının %50–56'sını, dal ucu kartları tek başına çizildiğinde %59–61'ini
+korudu. LOD1'de 253 / 260 / 273 dal ucuna kart düşerken LOD2'de yalnız
+53 / 54 / 57 uç temsil ediliyordu. Aynı kartları büyütmek toplam alanı
+geri getirebildi, fakat seed 1'in tacı dar kaldı. Seçilen düzeltmede LOD2'nin
+çapraz kartlarının arka yüzünü mevcut çift taraflı yaprak materyali çiziyor.
+Boşalan üçgen bütçesiyle kart taşıyan dal ucu oranı %21'den %43'e,
+üç seed'de uç sayısı 126 / 122 / 133'e çıktı. Odun, atlas, alfa eşiği ve
+geçiş mesafesi iki çekimde aynı. Daha çok dal ucuna kart vermek dış hatları
+ve doluluğu birlikte korudu. Özellikle seed 1'de bazı yaprak kümeleri hâlâ
+yer değiştiriyor ve tepe yaklaşık üç piksel kısalıyor.
+
+Yalnız üç LOD2 GLB'si ile metaları değişti. LOD0/1, atlaslar ve aile dahil
+31 çıktı önceki üretimle, tekrarlanan üretimde 37/37 çıktı son üretimle
+bayt bayt aynıydı. LOD0/1'den eşleşen 452 çekim de aynıydı. 60 yaşta
+seed 0–255 taramasında en yüksek maliyet 19.138 / 4.699 / 779 üçgen.
+
+Yerel adaylar: [gidiş-dönüş videosu, gerçek piksel boyu ve 3,5×](../../.forge-cache/oak-motion/review/mese-gecis.mp4),
+[uzaklaşma kareleri](../../.forge-cache/oak-motion/review/uzaklasma.png),
+[yaklaşma kareleri](../../.forge-cache/oak-motion/review/yaklasma.png).
+Kare başına kamera konumu ve GPU sayaçları aynı dizinin üstündeki
+`before/seed{1,2,3}/frames.json` ve `after/seed{1,2,3}/frames.json`
+dosyalarında. Görsel kabul kullanıcıda. Sonraki öneri, kalan kenar ve tepe
+değişiminin açıya bağımlılığını görmek için bu geçişi ikinci bir azimutta çekmek.
 
 ## 10. Adımlar
 
