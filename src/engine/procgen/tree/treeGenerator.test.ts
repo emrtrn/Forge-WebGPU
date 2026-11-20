@@ -69,6 +69,25 @@ test("generation is byte-deterministic across the LOD chain", () => {
   assert.deepStrictEqual(first, second);
 });
 
+test("two-sided branch-tip material keeps the same fronts and budgets only their triangles", () => {
+  const recipe = (leafCards: string) => ({
+    seed: 7, levels: [{ count: 5 }], leaves: { perStem: 2, cards: 2 },
+    lods: [{ leafCards, leafFraction: 1 }],
+  });
+  const explicit = success(generateTree(recipe("clusters")));
+  const original = explicit.lods[0]!.leaves!;
+  const cap = explicit.stats[0]!.wood.triangles + original.indices.length / 6;
+  const compact = success(generateTree(recipe("clustersMaterialBackfaces"), { triangleCaps: [cap] }));
+  const leaves = compact.lods[0]!.leaves!;
+  assert.equal(compact.stats[0]!.triangles, cap);
+  assert.equal(leaves.positions.length * 2, original.positions.length);
+  assert.deepEqual(compact.lods[0]!.wood, explicit.lods[0]!.wood);
+  for (let i = 0; i < leaves.positions.length; i += 12) {
+    assert.deepEqual(leaves.positions.slice(i, i + 12), original.positions.slice(2 * i, 2 * i + 12));
+  }
+  assert.equal(generateTree(recipe("clusters"), { triangleCaps: [cap] }).ok, false);
+});
+
 test("changing secondary branch counts preserves the trunk and primary branches", () => {
   const params = normalizeTreeParams({ seed: 770 });
   const first = skeleton(params).stems;

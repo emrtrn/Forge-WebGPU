@@ -19,6 +19,8 @@ export interface TreeLodParams {
   leafFraction: number;
   /** Branch-tip cards (one card per kept terminal stem, from the species' card library) instead of leaf cards. */
   clusterCards: boolean;
+  /** Omit the reversed quads when the leaf material draws both sides. */
+  materialBackfaces?: boolean;
 }
 
 export interface TreeParams {
@@ -103,13 +105,16 @@ function normalizeLevel(entry: Readonly<Record<string, unknown>>, fallback: Tree
 }
 
 function normalizeLod(entry: Readonly<Record<string, unknown>>, fallback: TreeLodParams): TreeLodParams {
+  const materialBackfaces = entry.leafCards === "clustersMaterialBackfaces"
+    || (entry.leafCards === undefined && entry.clusterCards === true && entry.materialBackfaces === true);
   return {
     radialSegments: Math.floor(finite(entry.radialSegments, fallback.radialSegments, 3, 32)),
     ringsPerMeter: finite(entry.ringsPerMeter, fallback.ringsPerMeter, 0.5, 16),
     minRadius: finite(entry.minRadius, fallback.minRadius, 0, 0.5),
     leafFraction: finite(entry.leafFraction, fallback.leafFraction, 0, 1),
-    clusterCards: entry.leafCards === "clusters" ? true : entry.leafCards === "leaves" ? false
+    clusterCards: materialBackfaces || entry.leafCards === "clusters" ? true : entry.leafCards === "leaves" ? false
       : typeof entry.clusterCards === "boolean" ? entry.clusterCards : fallback.clusterCards,
+    ...(materialBackfaces ? { materialBackfaces: true } : {}),
   };
 }
 

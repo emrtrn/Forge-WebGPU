@@ -59,6 +59,8 @@ export const hash01 = (id: string): number => hashString(id) / 4294967296;
 /** Largest growth of a kept branch-tip card standing in for dropped ones. */
 const MAX_CARD_GROWTH = 1.5;
 
+const clusterSides = (lod: TreeLodParams) => lod.materialBackfaces ? [1] as const : [1, -1] as const;
+
 function eachKeptCluster(
   params: TreeParams, lod: TreeLodParams, sources: LeafSource[],
   visit: (id: string, t: number, source: LeafSource) => void,
@@ -110,7 +112,7 @@ export function planTreeLod(params: TreeParams, { stems }: { stems: TreeStem[] }
   if (clustered) {
     const cardStems = lod.leafFraction === 0 || params.leaves.perStem === 0 ? []
       : terminalStems(stems).filter((index) => hash01(stems[index]!.id + "/card") < lod.leafFraction);
-    triangles += cardStems.length * 4 * params.leaves.cards;
+    triangles += cardStems.length * 2 * clusterSides(lod).length * params.leaves.cards;
     return { tubes, sources, cardStems, clusters, triangles };
   }
   eachKeptCluster(params, lod, sources, () => { triangles += 4 * params.leaves.cards; });
@@ -275,7 +277,7 @@ function addClusterCard(
     const lighting = unit(addScaled(dot(face, crownDirection) < 0 ? addScaled([0, 0, 0], face, -1) : face, crownDirection, 1));
     // Corners (along, across): base-low, tip-low, tip-high, base-high; across max is the tile's top (v1).
     const corners = [[a0, b0, u0, v0], [a1, b0, u1, v0], [a1, b1, u1, v1], [a0, b1, u0, v1]] as const;
-    for (const side of [1, -1]) {
+    for (const side of clusterSides(lod)) {
       const litNormal = addScaled([0, 0, 0], lighting, side);
       const [a, b, c, d] = corners.map(([along, high, u, v]) => {
         const position = addScaled(addScaled(base, axis, along), vertical, high);

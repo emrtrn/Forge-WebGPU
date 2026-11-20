@@ -120,9 +120,10 @@ export async function treeOutputs(
           attributes: { _WIND: { data: mesh.leaves.attributes.wind, size: 4 }, _LEAF: { data: mesh.leaves.attributes.leaf!, size: 2 } },
         });
       }
+      const cardMode = lods[lod]?.leafCards;
       const bytes = writeGlb({
         nodes: [{ name, primitives, extras: { forgeGenerated: { recipe: recipeId, seed, lod } } }],
-        materials: [{ name: "Wood", baseColor: [0.35, 0.27, 0.2, 1], roughness: 0.9 }, { name: "Leaf", baseColor: [0.3, 0.45, 0.16, 1], roughness: 0.8 }],
+        materials: [{ name: "Wood", baseColor: [0.35, 0.27, 0.2, 1], roughness: 0.9 }, { name: "Leaf", baseColor: [0.3, 0.45, 0.16, 1], roughness: 0.8, doubleSided: cardMode === "clustersMaterialBackfaces" }],
         generator: `Forge procgen tree ${version}`,
       });
       const id = outputId(recipeId, `tree/${seed}/lod${lod}`);
@@ -132,7 +133,7 @@ export async function treeOutputs(
       }, generated);
       if (lod === 0) height = Math.max(meshBounds(mesh.wood).max[1], mesh.leaves ? meshBounds(mesh.leaves).max[1] : 0);
       const lodStats = result.stats[lod]!;
-      stats.push(`${name}.glb: wood ${lodStats.wood.triangles}, leaves ${lodStats.leaves?.triangles ?? 0} triangles${lods[lod]?.leafCards === "clusters" ? " (branch-tip cards)" : ""}`);
+      stats.push(`${name}.glb: wood ${lodStats.wood.triangles}, leaves ${lodStats.leaves?.triangles ?? 0} triangles${cardMode === "clusters" || cardMode === "clustersMaterialBackfaces" ? " (branch-tip cards)" : ""}`);
     });
     stats.push(`seed ${seed}: ${result.stems} stems, ${result.clusters} leaf clusters, ${Math.round(performance.now() - started)} ms`);
 

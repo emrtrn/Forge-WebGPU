@@ -1,5 +1,5 @@
 import {
-  AmbientLight, BufferAttribute, BufferGeometry, Color, DataTexture, DirectionalLight, GridHelper, Group,
+  AmbientLight, BufferAttribute, BufferGeometry, Color, DataTexture, DirectionalLight, DoubleSide, FrontSide, GridHelper, Group,
   LinearMipmapLinearFilter, Mesh, MeshStandardNodeMaterial, PerspectiveCamera, Scene, SRGBColorSpace,
   type Material, type Texture,
 } from "three/webgpu";
@@ -50,7 +50,7 @@ export function createTreePreview(ctx: AssetPreviewContext): AssetPreviewControl
   ctx.host.setCamera(camera);
   let recipe: JsonObject, ticket = 0, disposed = false;
   let worker: Worker | null = null, working = false, startTimer = 0, fullTimer = 0;
-  let current: { tree: Extract<TreePreviewReply, { tree: unknown }>["tree"]; wood: Material; leaf: Material; dispose(): void } | null = null;
+  let current: { tree: Extract<TreePreviewReply, { tree: unknown }>["tree"]; wood: Material; leaf: Material; fallbackSides?: boolean[]; dispose(): void } | null = null;
   const clearMeshes = () => {
     for (const child of subject.children) if (child instanceof Mesh) child.geometry.dispose();
     subject.clear();
@@ -63,6 +63,10 @@ export function createTreePreview(ctx: AssetPreviewContext): AssetPreviewControl
     clearMeshes();
     subject.add(new Mesh(geometry(mesh.wood), current.wood));
     if (mesh.leaves) {
+      if (current.fallbackSides) {
+        const side = current.fallbackSides[index] ? DoubleSide : FrontSide;
+        if (current.leaf.side !== side) { current.leaf.side = side; current.leaf.needsUpdate = true; }
+      }
       const leaves = new Mesh(geometry(mesh.leaves), current.leaf);
       leaves.name = "leaves"; leaves.visible = !woodOnly.checked; subject.add(leaves);
     }
@@ -81,6 +85,7 @@ export function createTreePreview(ctx: AssetPreviewContext): AssetPreviewControl
         : new MeshStandardNodeMaterial({ color: new Color(0.35, 0.27, 0.2), roughness: 0.9 });
       if (typeof ids.wood !== "string") owned.push(wood);
       let leaf: Material;
+      let fallbackSides: boolean[] | undefined;
       const generatedLeaf = defaultTreeLeafMaterial(ctx.guid, recipe.generatorVersion, ids.leaf);
       if (ctx.materialType && (generatedLeaf || typeof ids.leaf === "string")) {
         const document = generatedLeaf ?? await resources.json(String(ids.leaf));
@@ -98,13 +103,14 @@ export function createTreePreview(ctx: AssetPreviewContext): AssetPreviewControl
         leaf = createSurfaceMaterial(fields, slots);
       } else {
         leaf = new MeshStandardNodeMaterial({ color: new Color(0.3, 0.45, 0.16), roughness: 0.8 });
+        fallbackSides = (recipe.lods as JsonObject[]).map(lod => lod.leafCards === "clustersMaterialBackfaces");
       }
       owned.push(leaf);
       if (disposed || reply.ticket !== ticket) { dispose(); return; }
       const selected = levels.value;
       levels.replaceChildren(...tree.lods.map((_, i) => new Option(String(i), String(i))));
       levels.value = selected && Number(selected) < tree.lods.length ? selected : "0";
-      current?.dispose(); current = { tree, wood, leaf, dispose };
+      current?.dispose(); current = { tree, wood, leaf, ...(fallbackSides && { fallbackSides }), dispose };
       quality = draft ? " · draft atlas" : "";
       showLod(); ready = !draft;
     } catch (error) {

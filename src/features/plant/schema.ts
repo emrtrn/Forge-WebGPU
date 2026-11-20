@@ -138,7 +138,7 @@ export const TREE_HABITS = ["broadleaf", "conifer"] as const;
 export const LEAF_CARD_KINDS = ["broad", "needle"] as const;
 export const TREE_COLLIDERS = ["none", "trunk"] as const;
 export const LEAF_TEXTURE_SIZES = ["128", "256", "512", "1024"] as const;
-export const LEAF_CARD_MODES = ["leaves", "clusters"] as const;
+export const LEAF_CARD_MODES = ["leaves", "clusters", "clustersMaterialBackfaces"] as const;
 export const IMPOSTOR_FRAME_SIZES = ["64", "128", "256"] as const;
 
 const treeLevel = object(
@@ -161,7 +161,11 @@ const treeLod = object(
     ringsPerMeter: num({ min: 0.5, max: 16, default: 2, hint: "Metre başına halka (kıvrım çözünürlüğü)." }),
     minRadius: num({ min: 0, max: 0.5, default: 0, hint: "Bundan ince dallar ve çocukları düşer, metre." }),
     leafFraction: num({ min: 0, max: 1, default: 1, hint: "Tutulan yaprak kümesi oranı (dal ucu kartlarında kart taşıyan uç dal oranı); tutulanlar alanı koruyacak kadar büyür." }),
-    leafCards: enumOf(LEAF_CARD_MODES, { default: "leaves", labels: { leaves: "Leaf Cards", clusters: "Branch Tip Cards" }, hint: "Yapraklar tek tek kartlarla mı, türün dal ucu kartı kitaplığından kartlarla mı çizilir (uzak LOD'lar)." }),
+    leafCards: enumOf(LEAF_CARD_MODES, {
+      default: "leaves",
+      labels: { leaves: "Leaf Cards", clusters: "Branch Tip Cards", clustersMaterialBackfaces: "Branch Tip Cards (Two-Sided Material)" },
+      hint: "Dal ucu kartları türün atlasını kullanır. Two-Sided Material seçeneğinde kartın arkasını çift taraflı yaprak materyali çizer.",
+    }),
     screenSize: num({ min: 0, max: 1, default: 0.25, hint: "Bu LOD'a geçilen ekran boyu (yükseklik oranı); LOD0'da kullanılmaz." }),
   },
   { label: "LOD" },
