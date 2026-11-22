@@ -4,9 +4,10 @@ import { normalizeTreeParams, type TreeParams } from "./treeParams.ts";
 import { addScaled, buildTreeSkeleton, createStemSampler, perpendicular, type TreeStem } from "./treeSkeleton.ts";
 
 /** Recipes marked 1–3 historically went through the PG3 baker. Preserve its output stamp as well as its geometry. */
-export function treeOutputVersion(version: unknown): 3 | 4 {
+export function treeOutputVersion(version: unknown): 3 | 4 | 5 {
   if (version === undefined || version === 1 || version === 2 || version === 3) return 3;
   if (version === 4) return 4;
+  if (version === 5) return 5;
   throw new Error(`Unsupported tree generator version ${String(version)}`);
 }
 
@@ -93,9 +94,11 @@ function growthSkeleton(params: TreeParams, input: Readonly<Record<string, unkno
 
 /** Atlas baking, interactive preview and final meshes must resolve age and species identically. */
 export function recipeTreeStructure(input: Readonly<Record<string, unknown>>) {
+  const version = treeOutputVersion(input.generatorVersion);
+  if (input.habit === "shrub" && version !== 5) throw new Error("Shrub habit requires tree generator version 5.");
   const params = normalizeTreeParams(input);
   const growth = input.growth;
-  const skeleton = treeOutputVersion(input.generatorVersion) === 3 ? buildTreeSkeleton(params)
+  const skeleton = version !== 4 ? buildTreeSkeleton(params)
     : growthSkeleton(params, typeof growth === "object" && growth !== null ? growth as Record<string, unknown> : {});
   return { params, skeleton };
 }

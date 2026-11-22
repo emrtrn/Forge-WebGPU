@@ -16,7 +16,7 @@ import { dilate, rasterize, type BakeCamera, type BakeSurface, type BakeTexture 
 import type { ProcMesh } from "../mesh.ts";
 import { cross, dot, sub, unit } from "../vector.ts";
 import type { Vec3 } from "../vector.ts";
-import { addCluster, addTube, FULL_RECT, terminalStems, TreeMeshBuilder, type ClusterCard, type LeafAtlas, type UvRect } from "./treeMesh.ts";
+import { addCluster, addTube, FULL_RECT, terminalStems, treeCrownCenter, TreeMeshBuilder, type ClusterCard, type LeafAtlas, type UvRect } from "./treeMesh.ts";
 import type { TreeParams } from "./treeParams.ts";
 import { addScaled, createStemSampler, type TreeStem } from "./treeSkeleton.ts";
 
@@ -66,8 +66,7 @@ export function clusterLibrary(params: TreeParams, skeleton: { stems: TreeStem[]
   const { stems } = skeleton;
   if (params.leaves.perStem === 0 || stems.length === 0) return [];
   const lod0 = { ...params.lods[0]!, leafFraction: 1, clusterCards: false };
-  const trunk = createStemSampler(stems[0]!);
-  const crown = trunk((1 + params.crownStart) / 2).point;
+  const crown = treeCrownCenter(params, createStemSampler(stems[0]!));
   return selectClusterStems(stems, Math.min(params.leaves.clusters, LEAF_ATLAS_GRID * LEAF_ATLAS_GRID - 1)).map((index, k) => {
     const stem = stems[index]!;
     const sample = createStemSampler(stem);

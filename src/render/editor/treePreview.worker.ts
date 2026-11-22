@@ -13,7 +13,7 @@ let cached: { key: string; atlas: ReturnType<typeof treeRecipeAtlas> } | null = 
 
 function build({ recipe, seed, draft }: TreePreviewRequest) {
   const start = performance.now();
-  const key = JSON.stringify([draft, recipe.generatorVersion, recipe.growth, (recipe.variants as number[])[0], recipe.habit, recipe.height,
+  const key = JSON.stringify([draft, recipe.generatorVersion, recipe.growth, recipe.shrub, (recipe.variants as number[])[0], recipe.habit, recipe.height,
     recipe.trunkRadius, recipe.taper, recipe.flare, recipe.crownStart, recipe.irregularity, recipe.levels, recipe.leaves, recipe.lods]);
   if (cached?.key !== key) cached = { key, atlas: treeRecipeAtlas(recipe, draft ? 64 : undefined) };
   const atlas = cached.atlas;

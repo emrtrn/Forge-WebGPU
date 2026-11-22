@@ -71,6 +71,7 @@ export async function treeOutputs(
 ): Promise<Output[]> {
   const outputs: Output[] = [];
   const version = treeOutputVersion(data.generatorVersion);
+  const shrub = version === 5;
   const generated = { recipe: recipeId, generator: "tree", generatorVersion: version };
   const materials = { ...data.materials as { wood: string | null; leaf: string | null } };
   const leaf = defaultTreeLeafMaterial(recipeId, version, materials.leaf);
@@ -138,7 +139,7 @@ export async function treeOutputs(
     stats.push(`seed ${seed}: ${result.stems} stems, ${result.clusters} leaf clusters, ${Math.round(performance.now() - started)} ms`);
 
     let impostor: JsonObject = { albedo: null, normal: null, views: 8, screenSize: 0.03, color: null };
-    if (impostorSettings.enabled) {
+    if (!shrub && impostorSettings.enabled) {
       const bakeStarted = performance.now();
       const baked = bakeTreeImpostor(result.lods[0]!, impostorLooks, { views: impostorSettings.views, frameSize: Number(impostorSettings.frameSize) });
       const ids = { albedo: outputId(recipeId, `tree/${seed}/impostor/albedo`), normal: outputId(recipeId, `tree/${seed}/impostor/normal`) };
@@ -159,6 +160,8 @@ export async function treeOutputs(
     const chain = lodIds.map((mesh, lod) => ({ mesh, screenSize: lod === 0 ? 1 : round(Number(lods[lod]?.screenSize ?? 0.25)) }));
     prototypes.push({ seed, lods: chain, impostor, height: round(height) });
     const sway = data.sway as JsonObject;
+    // Leave an LOD2 interval before fading a shrub out on the existing foliage path.
+    const fadeStart = Math.max(75, height * 65);
     documentOutput(outputs, `${folder}/${stem}_${seed}.foliagetype.json`, {
       schema: "forge.foliageType/1",
       id: outputId(recipeId, `tree/${seed}/foliageType`),
@@ -169,7 +172,8 @@ export async function treeOutputs(
       scaleMin: 0.85,
       scaleMax: 1.15,
       alignToNormal: false,
-      collision: data.collision !== "none",
+      collision: !shrub && data.collision !== "none",
+      ...(shrub ? { cullStart: round(fadeStart), cullEnd: round(fadeStart * 1.35) } : {}),
       sway: { enabled: true, source: "vertex", amplitude: sway.amplitude, height: round(height), frequency: sway.frequency },
       lods: chain.slice(1),
       impostor,
@@ -181,7 +185,7 @@ export async function treeOutputs(
     generatorVersion: version,
     prototypes,
     materials: { wood: materials.wood, leaf: materials.leaf },
-    collider: data.collision === "none" ? "none" : "trunk",
+    collider: shrub || data.collision === "none" ? "none" : "trunk",
     sway: data.sway as JsonObject,
     response: data.response as JsonObject,
   });

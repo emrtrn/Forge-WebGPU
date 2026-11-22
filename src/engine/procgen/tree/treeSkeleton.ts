@@ -4,7 +4,7 @@ import type { Vec3 } from "../vector.ts";
 import type { TreeLevelParams, TreeParams } from "./treeParams.ts";
 
 export interface TreeStem {
-  /** Root is "0", followed by slash-separated child indices. */
+  /** Root identifiers are followed by slash-separated child indices. */
   id: string;
   level: number;
   parent: number;
@@ -87,6 +87,30 @@ function trunk(params: TreeParams, density: number): TreeStem {
   return { id: "0", level: 0, parent: -1, attach: 0, points, radii, length: arcLengths(points).at(-1)! };
 }
 
+/** Start a forest of stems in one root crown. Each root has its own arc and RNG. */
+function shrubRoots(params: TreeParams, density: number, { stemCount, spread }: NonNullable<TreeParams["shrub"]>): TreeStem[] {
+  const rotation = createStream(params.seed, "shrub/crown").range(0, 2 * Math.PI);
+  return Array.from({ length: stemCount }, (_, index) => {
+    const id = "shrub/" + index;
+    const random = createStream(params.seed, id);
+    const azimuth = rotation + (2 * Math.PI / stemCount) * (index + random.range(-0.25, 0.25) * params.irregularity);
+    const height = params.height * (0.72 + random.range(0, 0.28) * params.irregularity);
+    const reach = spread * params.height * random.range(0.73, 1.13);
+    const base = Math.min(spread * params.height * random.range(0.12, 0.19), params.trunkRadius * 4);
+    const radius = params.trunkRadius * random.range(0.76, 1.13);
+    const curve = random.range(-0.48, 0.48) * params.irregularity;
+    const steps = Math.max(8, Math.ceil(Math.hypot(height, reach) * density));
+    const points: Vec3[] = [], radii: number[] = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps, angle = azimuth + curve * t;
+      const distance = base + reach * (0.28 * t + 0.72 * t ** 1.55);
+      points.push([distance * Math.cos(angle), -radius + (height + radius) * t, distance * Math.sin(angle)]);
+      radii.push(radius * (1 - (1 - params.taper) * t) * (1 + params.flare * Math.max(0, 1 - t / 0.10) ** 2));
+    }
+    return { id, parent: -1, level: 0, attach: 0, points, radii, length: arcLengths(points).at(-1)! };
+  });
+}
+
 function growBranch(
   params: TreeParams, parent: TreeStem, parentIndex: number, sample: (t: number) => StemSample,
   profile: TreeLevelParams, index: number, density: number,
@@ -135,7 +159,7 @@ function growBranch(
 }
 
 export function buildTreeSkeleton(params: TreeParams): { stems: TreeStem[] } | { error: string } {
-  let total = 1, count = 1;
+  let total = params.shrub?.stemCount ?? 1, count = total;
   for (const [level, profile] of params.levels.entries()) {
     count *= profile.count;
     total += count;
@@ -143,7 +167,7 @@ export function buildTreeSkeleton(params: TreeParams): { stems: TreeStem[] } | {
   }
 
   const density = Math.max(4, ...params.lods.map(lod => lod.ringsPerMeter));
-  const stems = [trunk(params, density)];
+  const stems = params.shrub ? shrubRoots(params, density, params.shrub) : [trunk(params, density)];
   for (let parentIndex = 0; parentIndex < stems.length; parentIndex++) {
     const parent = stems[parentIndex]!, profile = params.levels[parent.level];
     if (!profile?.count) continue;

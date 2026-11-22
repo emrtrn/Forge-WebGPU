@@ -270,7 +270,11 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
   if (!def || !isJsonAssetType(def) || !doc) throw new Error(`${label} is not a readable recipe`);
   const draft = options.editorDraft;
   if (draft) {
-    if (entry.type !== "forge.treeRecipe" || draft.document.id !== entry.id || draft.document.generatorVersion !== doc.generatorVersion)
+    const version = draft.document.generatorVersion;
+    // An explicit Habit edit can switch the topology while retaining the recipe identity.
+    const switchingTopology = (version === 5) !== (doc.generatorVersion === 5)
+      && (version === 5 ? draft.document.habit === "shrub" : draft.document.habit === "broadleaf" || draft.document.habit === "conifer");
+    if (entry.type !== "forge.treeRecipe" || draft.document.id !== entry.id || (version !== doc.generatorVersion && !switchingTopology))
       throw new Error("Unsupported tree recipe identity or generator version.");
     const checked = normalizeJsonAsset(def, draft.document, { strict: true });
     if (!checked.ok || !checked.value) throw new Error(checked.issues.map(issue => `${issue.path} ${issue.message}`).join("\n"));

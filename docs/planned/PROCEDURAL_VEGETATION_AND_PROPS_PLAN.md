@@ -1,6 +1,7 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.14 · 2026-11-19 (meşenin iç taç dağılımı ve LOD karşılaştırması, §9.3).
+**Sürüm:** v0.15 · 2026-11-22 (PG4 çok saplı çalı dilimi, §9.5).
+Önceki: v0.14 (meşenin iç taç dağılımı ve doğal LOD karşılaştırması, §9.3–9.4).
 Önceki: v0.11 · 2026-11-19 (kullanıcı PG3 / PV-WES görsel kabulünü verdi; kabuk / kaya
 dokuları da KTX2). Önceki: v0.10 (PG3 kapandı: KTX2 atlaslar, §8 ölçüldü, PK7 ölçümle odun /
 yaprak ayrımı, PV-WES-01–08 kanıtları). Önceki: v0.9 (PG0 ve PG2 kapandı: iki
@@ -9,7 +10,7 @@ taş doku tarifi, triplanar + `variation`, A / C ölçümü).
 
 **Önceki sürüm:** v0.6 · 2026-11-14 (WES ile birleşik bitki ailesi, ortak çalışma
 zamanı davranışı ve 5c ile birlikte ilerleyen üretim dilimi; kullanıcı kararı).
-**Durum:** PG0–PG3 uygulandı (5c ile, 2026-11-17 – 2026-11-19). PG5'in ağaç tarif editörüne başlandı. PG4 ve PG5 kapıları açık. PG6–PG7 ileride.
+**Durum:** PG0–PG3 uygulandı (5c ile, 2026-11-17 – 2026-11-19). PG4'ün çok saplı çalısı görsel kabul aldı. Şerit/demet ot ve PG5 kapıları açık. PG6–PG7 ileride.
 Başlama koşulu §2'de.
 **İlgili belgeler:** [yeniden inşa planı](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
 sırası; küçük üretim dilimi 5c ile birlikte, tam araçlar 5d ile ilerler),
@@ -879,6 +880,63 @@ Kare başına kamera konumu ve GPU sayaçları aynı dizinin üstündeki
 dosyalarında. Görsel kabul kullanıcıda. Sonraki öneri, kalan kenar ve tepe
 değişiminin açıya bağımlılığını görmek için bu geçişi ikinci bir azimutta çekmek.
 
+### 9.5 PG4 · Çok saplı fındık çalısı
+
+Starter paketindeki `Hazel.treerecipe.json`, mevcut dallanan tarif şemasında
+üretici 5'i seçer. Ağaç tarifinde **Habit → Shrub** seçildiğinde Hazel'ın
+başlangıç biçimi uygulanır ve mevcut seed listesi korunur. Kayıttan önce
+**Undo** önceki tarifi geri getirir. Bir kök boğazı çevresinde bağımsız odunsu ana saplar
+oluşur. Her sapın eğrisi ve dal hiyerarşisi var. **Shrub** bölümündeki
+**Main Stems** ve **Basal Spread**, sap sayısını ve sapların dipten yana
+açılmasını düzenler. Boy, dallanma ve yaprak örtüsü mevcut alanları kullanır.
+LOD2'de her ana sap üç üçgenle temsil edilir. Kalan bütçedeki dal ucu
+kartları uç noktalar arasındaki boşluklara göre seçilir. Rüzgâr ağırlığı
+sapların toprak hizasındaki ucunda düşük, sürgün uçlarında yüksektir.
+İlk çalı ailesi fizik çarpışması olmadan üretilir.
+
+Geçici yazılabilir projede editörün canlı WebGPU önizlemesinde **5 → 6** sap
+ve **0,62 → 0,78** yayılım düzenlendi. Üç seed incelendi. **Generate & Save
+Family** dokuz GLB'yi, ortak KTX2 atlasını ve materyalini, bitki ailesini ve
+üç foliage türünü yazdı. Tarif yeniden açıldığında iki değer de korundu.
+Aynı tarif tekrar üretildiğinde 25/25 dosya aynı baytları verdi. Broadleaf
+ve Conifer'de 72/72, önceki meşe adayında 37/37 çıktı aynı kaldı.
+
+| Seed | Kaydedilen aile LOD0 / LOD1 / LOD2 | LOD1–LOD2 eşiği |
+|---|---:|---:|
+| 1 | 2.578 / 350 / 98 | 106,10 m |
+| 2 | 2.576 / 350 / 98 | 108,37 m |
+| 3 | 2.544 / 368 / 98 | 106,19 m |
+
+Sahne çekimi başlıklı Chrome, NVIDIA Ampere WebGPU, High, 1920 × 1080 ve
+DPR 1 ile yapıldı. Yaz ve saat 14.00 sabitti. Rüzgâr gücü 0,32, yönü 35°,
+hamle ve gölgeler kapalıydı. Dikey görüş açısı 44° olan kamera, 0,95 m
+yükseklikte 4,5 m'den yaklaşık 125 m'ye ilerledi ve aynı yoldan döndü.
+Kare başına gerçek LOD, ana görünümün GPU örnek sayaçlarından okundu.
+Yakında toprağa giren ana saplar, üç seed'de de çalıya özgü enine açılım
+ve farklı dal boşlukları görülüyor.
+
+LOD1 → LOD2 geçişinde en ve görünür örtü tek karede çökmüyor. Kamera
+mesafesi düzeltildikten sonra görünür alan uzaklaşırken yaklaşık %1–7
+arttı, yaklaşırken %1–9 azaldı. Eşikte bitki yaklaşık 30–35 piksel
+yüksekliğinde. Seed 2'de birkaç iri kart yer değiştiriyor. Kenar boşlukları
+ve kartların tonu eşikte fark edilebiliyor. Uzaklaşırken ilk LOD geçişinde
+görünür alan %5–8 azalıyor. Alan hesabı, her ekran satırında sabit arka
+plandan bir RGB kanalında 25/255'ten fazla ayrılan pikselleri sayar.
+
+Aynı aile gerçek sahnede bir `forge.plant` ve sekiz boyalı foliage örneği
+olarak çizildi. Üretilen foliage türleri uzak temsilde mevcut mesafe
+fade'ini kullanır. High kaliteyle grup, 185 m kamera konumunda sekiz,
+195 m'de dört, 205 m'de sıfır foliage örneği çizdi. Tekil aktörde mevcut
+mesafe davranışı geçerli. Otun seyrelme ve fade kabulü ayrı duruyor.
+
+Yerel adaylar [çalılar ve sap dipleri](../../.forge-cache/pg4-shrub/review/cali-ve-dipler.png),
+[kamera gidiş-dönüşü](../../.forge-cache/pg4-shrub/review/cali-gidis-donus.webp),
+[uzaklaşma eşiği](../../.forge-cache/pg4-shrub/review/lod2-uzaklasma.png),
+[yaklaşma eşiği](../../.forge-cache/pg4-shrub/review/lod2-yaklasma.png) ve
+[foliage grubu](../../.forge-cache/pg4-shrub/review/painted-group.png).
+Kare başına kamera ve GPU sayacı `.forge-cache/pg4-shrub/final/seed{1,2,3}/frames.json` içinde.
+Kullanıcı 22 Kasım 2026'da görsel onayı verdi.
+
 ## 10. Adımlar
 
 Her adım dikey bir dilimdir ve kendi kapısıyla biter. Görsel beğeni kullanıcı
@@ -1051,6 +1109,10 @@ kullanıcıda).
 - [ ] **PG4 Çalı ve ot.** Çok saplı çalı ön ayarı; şerit / demet üreticisi.
       *Kapı:* çalı ağaçtan ayrı topolojiyle üretiliyor; ot yakın–uzak geçişi
       seyrelme ve fade ile çalışıyor.
+      **Çalı dilimi** uygulandı. Editör kaydı, üç seed'in bütçeleri, doğal LOD
+      geçişi ve boyalı foliage fade'i gerçek WebGPU'da doğrulandı (§9.5).
+      Kullanıcı görsel onayı verdi (2026-11-22).
+      **Ot dilimi** açık. Şerit/demet üreticisi, seyrelme ve fade kabulü bekliyor.
 - [ ] **PG5 World Builder'ın tam bağlantısı.** Zemin örtüsünün bitkileri
       tariflere bağlanır; bağlı tarifler; aile onay sayfası; başlangıç ön ayar
       paketi; tam tarif paneli ve `generated` kaynağı (5d). *Kapı:* üretilen

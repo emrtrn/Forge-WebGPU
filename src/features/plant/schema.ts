@@ -134,7 +134,7 @@ export const Plant = defineComponent(
 
 export type PlantData = ComponentData<typeof Plant>;
 
-export const TREE_HABITS = ["broadleaf", "conifer"] as const;
+export const TREE_HABITS = ["broadleaf", "conifer", "shrub"] as const;
 export const LEAF_CARD_KINDS = ["broad", "needle"] as const;
 export const TREE_COLLIDERS = ["none", "trunk"] as const;
 export const LEAF_TEXTURE_SIZES = ["128", "256", "512", "1024"] as const;
@@ -175,6 +175,12 @@ const treeLod = object(
 export const TreeRecipeFields = {
   // An omitted version also occurs in historical sparse recipes. New species opt in explicitly.
   generatorVersion: num({ min: 1, default: 1, step: 1, hint: "Tarifin kullandığı üretici sürümü." }),
+  habit: enumOf(TREE_HABITS, { default: "broadleaf", labels: { broadleaf: "Broadleaf", conifer: "Conifer", shrub: "Shrub" },
+    hint: "Geniş yapraklı ağaç, iğne yapraklı ağaç veya kökten çok saplı çalı. Çalıya geçiş başlangıç biçimini uygular." }),
+  shrub: object({
+    stemCount: num({ min: 2, max: 8, default: 5, step: 1, label: "Main Stems", hint: "Toprak hizasından çıkan odunsu ana sap sayısı." }),
+    spread: num({ min: 0.2, max: 1.2, default: 0.62, label: "Basal Spread", hint: "Ana sapların dipten yana açılması, çalı boyuna oranla." }),
+  }, { label: "Shrub", hint: "Çalının kök boğazından çıkan saplar ve yana yayılımı." }),
   growth: object({
     age: num({ min: 1, max: 400, default: 60, step: 1, hint: "Ağacın yaşı, yıl." }),
     matureAge: num({ min: 1, max: 400, default: 60, step: 1, hint: "Ağacın tarifteki boy ve gövde kalınlığına ulaştığı yaş." }),
@@ -183,7 +189,6 @@ export const TreeRecipeFields = {
     fullness: num({ min: 0, max: 1, default: 0.78, hint: "Taç doluluğu, dal ve yaprak kümesi yoğunluğunu belirler." }),
     leaderDominance: num({ min: 0, max: 1, default: 0.55, hint: "Ana gövdenin baskınlığı. Artırdıkça gövde dikleşir ve yan dallar incelir." }),
   }, { label: "Growth", hint: "Yaş ve türe özgü taç biçimi." }),
-  habit: enumOf(TREE_HABITS, { default: "broadleaf", labels: { broadleaf: "Broadleaf", conifer: "Conifer" }, hint: "Geniş yapraklı (yuvarlak taç) ya da iğne yapraklı (gövde tepeye kadar, katlı dallar)." }),
   variants: array(num({ min: 0, max: 4294967295, default: 1, step: 1, hint: "Bu tohum bir prototip üretir." }), { default: [1], hint: "Tohum listesi: her tohum ayrı bir ağaç prototipi." }),
   height: num({ min: 1, max: 60, default: 12, slider: [2, 40], hint: "Ağacın boyu, metre." }),
   trunkRadius: num({ min: 0.02, max: 3, default: 0.3, slider: [0.05, 1.5], hint: "Gövdenin tabandaki yarıçapı, metre." }),

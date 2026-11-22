@@ -1,11 +1,12 @@
 import assert from "node:assert";
+import { readFileSync } from "node:fs";
 import { test } from "vitest";
 import { validateMesh } from "../mesh.ts";
 import { hashString } from "../random.ts";
 import { generateTree } from "./treeGenerator.ts";
 import type { TreeResult } from "./treeGenerator.ts";
 import { meshTree } from "./treeMesh.ts";
-import { normalizeTreeParams, TREE_PRESETS } from "./treeParams.ts";
+import { normalizeTreeParams, SHRUB_TRIANGLE_CAPS, TREE_PRESETS } from "./treeParams.ts";
 import type { TreeParams } from "./treeParams.ts";
 import { buildTreeSkeleton } from "./treeSkeleton.ts";
 import { recipeTreeStructure, treeOutputVersion } from "./treeGrowth.ts";
@@ -16,7 +17,7 @@ test("recipe versions pin historical geometry; growth changes proportions at a f
     assert.equal(treeOutputVersion(version), 3);
     assert.deepEqual(skeleton, buildTreeSkeleton(params));
   }
-  assert.throws(() => treeOutputVersion(5), /Unsupported/);
+  assert.throws(() => treeOutputVersion(6), /Unsupported/);
   const shape = (age: number, width: number, seed = 7) => {
     const result = recipeTreeStructure({ generatorVersion: 4, seed, growth: { age, width } });
     if ("error" in result.skeleton) assert.fail(result.skeleton.error);
@@ -42,6 +43,40 @@ function skeleton(params: TreeParams) {
   if ("error" in result) assert.fail(result.error);
   return result;
 }
+
+test("the starter shrub grows independent ground stems and stays within all three LOD budgets", () => {
+  const preset = JSON.parse(readFileSync(new URL("../../../../content/packs/starter/procgen/trees/Hazel.treerecipe.json", import.meta.url), "utf8"));
+  const roots = (seed: number, stemCount: number, spread: number) => {
+    const { params } = recipeTreeStructure({ ...preset, seed, shrub: { stemCount, spread } });
+    const { stems } = skeleton(params);
+    for (const [index, stem] of stems.entries()) {
+      if (stem.parent < 0) assert.equal(stem.level, 0);
+      else assert.ok(stem.parent < index && stems[stem.parent]!.level === stem.level - 1);
+    }
+    return stems.filter(stem => stem.parent < 0);
+  };
+  const narrow = roots(1, 6, 0.25), wide = roots(1, 6, 0.78);
+  const reach = (stems: typeof wide) => Math.max(...stems.map(stem => {
+    const [x, , z] = stem.points.at(-1)!;
+    return Math.hypot(x, z);
+  }));
+  assert.equal(narrow.length, 6);
+  assert.equal(roots(1, 5, 0.62).length, 5);
+  assert.equal(new Set(wide.map(stem => stem.points[0]!.join())).size, 6);
+  assert.ok(wide.every(stem => stem.points[0]![1] < 0 && stem.points[0]![1] > -0.1));
+  assert.ok(reach(wide) > 2 * reach(narrow));
+  assert.deepStrictEqual(wide, roots(1, 6, 0.78));
+  assert.notDeepStrictEqual(wide, roots(2, 6, 0.78));
+  for (const seed of [1, 2, 3]) {
+    const result = success(generateTree({ ...preset, seed, shrub: { stemCount: 8, spread: 1.2 } }));
+    assert.equal(result.lods.length, 3);
+    for (const [index, { wood, leaves }] of result.lods.entries()) {
+      assert.ok(leaves && result.stats[index]!.triangles <= SHRUB_TRIANGLE_CAPS[index]!);
+      assert.deepStrictEqual(validateMesh(wood), []);
+      assert.deepStrictEqual(validateMesh(leaves), []);
+    }
+  }
+});
 
 test("normalization uses habit defaults, clamps fields and drops invalid entries", () => {
   const raw = {

@@ -14,6 +14,7 @@ import { assetDocumentAdapter, type EditableAsset } from "./assetDocument.ts";
 import { installAssetEditorStyle } from "./assetEditorStyle.ts";
 import { openAssetSession, type AssetSession } from "./assetSession.ts";
 import { arrayFields, createAssetTable } from "./assetTable.ts";
+import { treeHabitDraft } from "./treeRecipeHabit.ts";
 import { createClassTools } from "./classTools.ts";
 
 export interface AssetEditorOptions {
@@ -98,12 +99,25 @@ export function createAssetEditor(options: AssetEditorOptions) {
       const pickAsset = (type: string | null) => openPicker({ document: doc, host: fields, title: "Select Asset", testId: "asset-editor-picker", items: options.catalog.ofType(type).map((item) => ({ id: item.guid, label: item.name, note: item.file })) });
       const formOptions = { assetLabel: (id: string) => options.catalog.label(id), pickAsset, warn: status };
       const fieldsForEditor = filterAssetFields(adapter.fields, presentation?.handledFields ?? []);
-      const legacyTree = () => key === "forge.treeRecipe" && opened.value().generatorVersion !== 4;
-      const legacyFields = fieldsForEditor.filter(field => field.key !== "growth");
-      let visible = legacyTree() ? legacyFields : fieldsForEditor;
+      const treeFields = {
+        legacy: fieldsForEditor.filter(field => field.key !== "growth" && field.key !== "shrub"),
+        growth: fieldsForEditor.filter(field => field.key !== "shrub"),
+        shrub: fieldsForEditor.filter(field => !["growth", "collision", "impostor"].includes(field.key)),
+      };
+      const fieldsForDraft = () => {
+        if (key !== "forge.treeRecipe") return fieldsForEditor;
+        const version = opened.value().generatorVersion;
+        return version === 5 ? treeFields.shrub : version === 4 ? treeFields.growth : treeFields.legacy;
+      };
+      let visible = fieldsForDraft();
+      const formValue = () => {
+        const value = opened.value();
+        // Early shrub recipes used the default Broadleaf label with the shrub generator.
+        return key === "forge.treeRecipe" && value.generatorVersion === 5 && value.habit !== "shrub" ? { ...value, habit: "shrub" } : value;
+      };
       const uiState = key === "forge.treeRecipe" ? {
         collapsed: new Map(fieldsForEditor.filter(field => field.kind === "array" || field.kind === "object")
-          .map(field => [`asset-field-section-${field.key}`, field.key !== "variants" && field.key !== "growth"])),
+          .map(field => [`asset-field-section-${field.key}`, !["variants", "growth", "shrub"].includes(field.key)])),
         linkedScales: new Set<string>(),
       } : undefined;
       let form: FormView | null = null, mode = arrayFields(visible).some((entry) => { const list = getAtPath(opened.value(), entry.path); return Array.isArray(list) && list.length > 50; }) ? "table" : "form";
@@ -118,9 +132,20 @@ export function createAssetEditor(options: AssetEditorOptions) {
         if (mode === "table") {
           table = createAssetTable({ document: doc, session: opened, fields: visible, formOptions }); formHost.append(table.element);
         } else {
-          form = createFormView({ document: doc, fields: visible, value: opened.value(), disabled: !asset.writable, testIdPrefix: "asset-field", ...formOptions,
+          form = createFormView({ document: doc, fields: visible, value: formValue(), disabled: !asset.writable, testIdPrefix: "asset-field", ...formOptions,
             ...(uiState ? { uiState } : {}),
-            onChange: (change) => edit(`Edit ${pathKey(change.path)}`, change.path, change.value, change.phase),
+            onChange: (change) => {
+              if (key === "forge.treeRecipe" && change.path.length === 1 && change.path[0] === "habit") {
+                const draft = treeHabitDraft(opened.value(), change.value, options.catalog);
+                if (draft) {
+                  const checked = adapter.normalize(draft);
+                  if (checked.ok && checked.value) edit("Change plant habit", [], checked.value);
+                  else status(checked.issues.map(issue => issue.message).join("\n"));
+                  return;
+                }
+              }
+              edit(`Edit ${pathKey(change.path)}`, change.path, change.value, change.phase);
+            },
           }); formHost.append(form.element);
         }
       };
@@ -135,7 +160,7 @@ export function createAssetEditor(options: AssetEditorOptions) {
         try {
           await options.saved(opened);
           const saved = opened.result();
-          status(["Generated and saved the tree family.", ...(saved?.status === "saved" ? saved.warnings.map(w => w.message) : [])].join("\n"));
+          status(["Generated and saved the plant family.", ...(saved?.status === "saved" ? saved.warnings.map(w => w.message) : [])].join("\n"));
         } catch (error) { status(`Family saved. Content refresh failed: ${String(error)}`); }
       }) : null;
       const undo = button("Undo", "asset-editor-undo", () => opened.undo());
@@ -199,12 +224,12 @@ export function createAssetEditor(options: AssetEditorOptions) {
       };
       let lastPreviewValue: Readonly<Record<string, unknown>> | null = null;
       const update = () => {
-        const nextFields = legacyTree() ? legacyFields : fieldsForEditor;
+        const nextFields = fieldsForDraft();
         if (visible !== nextFields) { visible = nextFields; drawForm(); }
         title.textContent = `${asset.name}${opened.dirty() ? " *" : ""} · ${contentTypeLabel(asset.type)}${asset.writable ? "" : " · Read Only"}`;
         if (generate) generate.disabled = !asset.writable || opened.busy();
         save.disabled = !asset.writable || !opened.dirty() || opened.busy(); undo.disabled = !opened.canUndo(); redo.disabled = !opened.canRedo(); reload.disabled = opened.busy(); compare.disabled = !asset.writable || opened.busy(); fields.inert = opened.busy();
-        form?.update(opened.value()); table?.update(); extension?.update?.();
+        form?.update(formValue()); table?.update(); extension?.update?.();
         if (preview && lastPreviewValue !== opened.value()) {
           lastPreviewValue = opened.value();
           const active = preview;

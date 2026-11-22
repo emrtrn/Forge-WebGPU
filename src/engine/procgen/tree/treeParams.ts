@@ -36,7 +36,10 @@ export interface TreeParams {
   leaves: { perStem: number; size: readonly [number, number]; cards: number; /** Branch-tip card library size, 0..15. */ clusters: number };
   /** Fine to coarse. */
   lods: TreeLodParams[];
+  shrub?: { stemCount: number; spread: number };
 }
+
+export const SHRUB_TRIANGLE_CAPS = [4000, 800, 100] as const;
 
 export const TREE_PRESETS: { broadleaf: TreeParams; conifer: TreeParams } = {
   broadleaf: {
@@ -119,7 +122,9 @@ function normalizeLod(entry: Readonly<Record<string, unknown>>, fallback: TreeLo
 }
 
 export function normalizeTreeParams(input: Readonly<Record<string, unknown>>): TreeParams {
-  const habit = input.habit === "conifer" ? "conifer" : "broadleaf";
+  const shrub = input.generatorVersion === 5;
+  const roots = isRecord(input.shrub) ? input.shrub : {};
+  const habit = !shrub && input.habit === "conifer" ? "conifer" : "broadleaf";
   const defaults = TREE_PRESETS[habit];
   const leaves = isRecord(input.leaves) ? input.leaves : {};
   const size = Array.isArray(leaves.size) ? leaves.size : [];
@@ -139,6 +144,10 @@ export function normalizeTreeParams(input: Readonly<Record<string, unknown>>): T
       cards: Math.floor(finite(leaves.cards, defaults.leaves.cards, 1, 4)),
       clusters: Math.floor(finite(leaves.clusters, defaults.leaves.clusters, 0, 15)),
     },
-    lods: entries(input.lods, defaults.lods, 4, normalizeLod),
+    lods: entries(input.lods, defaults.lods, shrub ? 3 : 4, normalizeLod),
+    ...(shrub ? { shrub: {
+      stemCount: Math.floor(finite(roots.stemCount, 5, 2, 8)),
+      spread: finite(roots.spread, 0.62, 0.2, 1.2),
+    } } : {}),
   };
 }

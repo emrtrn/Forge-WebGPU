@@ -80,24 +80,49 @@ export function terminalStems(stems: readonly TreeStem[]): number[] {
   return stems.flatMap((_, index) => (parents.has(index) ? [] : [index]));
 }
 
+/** Keep the extremes and fill gaps between represented branch tips. */
+function spreadCardStems(stems: readonly TreeStem[], candidates: number[], count: number): number[] {
+  if (candidates.length <= count) return candidates;
+  const tips = candidates.map(index => stems[index]!.points.at(-1)!);
+  const gaps = tips.map(point => dot(point, point));
+  const selected: number[] = [];
+  while (selected.length < count) {
+    const next = gaps.reduce((best, gap, i) => gap > gaps[best]! ? i : best, 0);
+    selected.push(candidates[next]!);
+    gaps[next] = -1;
+    for (const [i, point] of tips.entries()) {
+      const delta = sub(point, tips[next]!);
+      gaps[i] = Math.min(gaps[i]!, dot(delta, delta));
+    }
+  }
+  return selected.sort((a, b) => a - b);
+}
+
+export function treeCrownCenter(params: TreeParams, root: (t: number) => { point: Vec3 }): Vec3 {
+  const t = (1 + params.crownStart) / 2;
+  return params.shrub ? [0, params.height * t, 0] : root(t).point;
+}
+
 /**
  * Count the exact triangles before allocating any vertices. `clustered`: the leaves are branch-tip cards, one
  * crossed card per kept terminal stem (`leafFraction` of them), drawn along the stem itself even where its tube
  * dropped: the card shows the twig.
  */
-export function planTreeLod(params: TreeParams, { stems }: { stems: TreeStem[] }, lod: TreeLodParams, clustered = false): TreeLodPlan {
+export function planTreeLod(params: TreeParams, { stems }: { stems: TreeStem[] }, lod: TreeLodParams, clustered = false, shrubCap?: number): TreeLodPlan {
   const tubes: Tube[] = [];
   const sources: LeafSource[] = [];
   const hosts: (LeafPlacement | undefined)[] = [];
   const parents = new Set(stems.map(stem => stem.parent));
   let triangles = 0, clusters = 0;
+  const coarseShrub = params.shrub && lod === params.lods[2];
   for (const [index, stem] of stems.entries()) {
     const parentHost = hosts[stem.parent];
     const radius = stem.radii[0]!;
-    const kept = radius >= lod.minRadius && (stem.parent < 0 || parentHost?.host === stem.parent);
+    const root = stem.parent < 0;
+    const kept = (params.shrub && root) || (!coarseShrub && radius >= lod.minRadius && (root || parentHost?.host === stem.parent));
     if (kept) {
       const segments = Math.max(3, Math.min(lod.radialSegments, Math.round(lod.radialSegments * radius / params.trunkRadius)));
-      const spans = Math.max(1, Math.ceil(stem.length * lod.ringsPerMeter));
+      const spans = coarseShrub ? 0 : Math.max(1, Math.ceil(stem.length * lod.ringsPerMeter));
       tubes.push({ index, segments, spans });
       triangles += segments * (2 * spans + 1);
     }
@@ -110,9 +135,11 @@ export function planTreeLod(params: TreeParams, { stems }: { stems: TreeStem[] }
     }
   }
   if (clustered) {
-    const cardStems = lod.leafFraction === 0 || params.leaves.perStem === 0 ? []
-      : terminalStems(stems).filter((index) => hash01(stems[index]!.id + "/card") < lod.leafFraction);
-    triangles += cardStems.length * 2 * clusterSides(lod).length * params.leaves.cards;
+    const terminal = lod.leafFraction === 0 || params.leaves.perStem === 0 ? [] : terminalStems(stems);
+    const perCard = 2 * clusterSides(lod).length * params.leaves.cards;
+    const cardStems = shrubCap === undefined ? terminal.filter(index => hash01(stems[index]!.id + "/card") < lod.leafFraction)
+      : spreadCardStems(stems, terminal, Math.max(0, Math.min(Math.ceil(terminal.length * lod.leafFraction), Math.floor((shrubCap - triangles) / perCard))));
+    triangles += cardStems.length * perCard;
     return { tubes, sources, cardStems, clusters, triangles };
   }
   eachKeptCluster(params, lod, sources, () => { triangles += 4 * params.leaves.cards; });
@@ -121,7 +148,8 @@ export function planTreeLod(params: TreeParams, { stems }: { stems: TreeStem[] }
 
 export function wind(params: TreeParams, stem: TreeStem, y: number, t: number, phase: number, flutter: number): number[] {
   const bend = Math.min(1, Math.max(0, y / params.height)) ** 2;
-  return [bend, t * stem.level / params.levels.length, phase, flutter];
+  const sway = params.shrub ? t * (stem.level + 0.5) / (params.levels.length + 0.5) : t * stem.level / params.levels.length;
+  return [bend, sway, phase, flutter];
 }
 
 export class TreeMeshBuilder {
@@ -164,7 +192,7 @@ export function addTube(
   let { point, tangent, radius } = sample(0);
   let normal = perpendicular(tangent);
   for (let i = 0; i <= spans; i++) {
-    const t = i / spans;
+    const t = i / Math.max(1, spans);
     if (i > 0) {
       const next = sample(t);
       normal = transport(normal, tangent, next.tangent);
@@ -190,6 +218,8 @@ export function addTube(
     }
     lastRing = ring;
   }
+  // At the shrub's coarsest LOD a stem is one tapered triangle fan.
+  if (spans === 0) ({ point, tangent } = sample(1));
   const tip = builder.addVertex(point, tangent, 0.5, stem.length / circumference, wind(params, stem, point[1], 1, phase, 0));
   for (let j = 0; j < segments; j++) builder.geometry.addTriangle(lastRing + j, lastRing + j + 1, tip);
 }
@@ -308,10 +338,13 @@ export function buildTreeLod(
     addTube(wood, params, stem, tube, sample);
     samplers.set(tube.index, sample);
   }
-  const crown = samplers.get(0)!((1 + params.crownStart) / 2).point;
+  const crown = treeCrownCenter(params, samplers.get(0)!);
   if (plan.cardStems) {
     if (!atlas || atlas.clusters.length === 0) throw new Error("branch-tip cards need the card library");
-    for (const index of plan.cardStems) addClusterCard(leaves, params, lod, stems[index]!, atlas, crown);
+    const cardLod = params.shrub && plan.cardStems.length
+      ? { ...lod, leafFraction: plan.cardStems.length / terminalStems(stems).length }
+      : lod;
+    for (const index of plan.cardStems) addClusterCard(leaves, params, cardLod, stems[index]!, atlas, crown);
   } else {
     eachKeptCluster(params, lod, plan.sources, (id, t, { host, dropped }) => {
       addCluster(leaves, params, lod, stems[host]!, id, t, samplers.get(host)!, crown, dropped, atlas?.leaf ?? FULL_RECT);

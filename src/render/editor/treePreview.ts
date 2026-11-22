@@ -153,6 +153,7 @@ export function createTreePreview(ctx: AssetPreviewContext): AssetPreviewControl
   return {
     async update(value) {
       const initial = !recipe;
+      if (!initial && (recipe.generatorVersion === 5) !== (value.generatorVersion === 5)) framed = false;
       recipe = value as JsonObject;
       const previous = variants.selectedIndex;
       const seeds = [...new Set(recipe.variants as number[])];

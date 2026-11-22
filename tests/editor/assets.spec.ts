@@ -34,6 +34,7 @@ export default defineGameModule({ id:'starter.assets', features:[defineFeature({
   await write(`${FOLDER}/surface.material.json`, { schema: "forge.material/1", id: MATERIAL, baseColor: "#aa2200", roughness: 0.5 });
   const tree = JSON.parse(await readFile(join(REPO, "content/packs/starter/procgen/trees/Broadleaf.treerecipe.json"), "utf8"));
   await write(`${FOLDER}/grove.treerecipe.json`, { ...tree, id: `ast_${"a".repeat(31)}5`, variants: [1], impostor: { ...tree.impostor, views: 4, frameSize: "64" } });
+  await write(`${FOLDER}/tree2.treerecipe.json`, { schema: "forge.treeRecipe/1", id: `ast_${"a".repeat(31)}7`, variants: [7] });
   await write(comparison, { ...await species("Oak"), id: comparisonId });
   await write(`${FOLDER}/item.actor.json`, { schema: "forge.actorClass/1", id: CLASS, name: "Item", components: { shape: { type: "forge.shape@2", primitive: "cube", color: "#c8c8c8" } } });
   await write(`${FOLDER}/data.values.json`, { schema: "test.values/1", id: DATA, title: "Values", rows: Array.from({ length: 1000 }, (_, index) => ({ label: `Row ${index}`, value: index % 100 })) });
@@ -135,6 +136,34 @@ test("tree recipe previews starter species, seeds and LODs in a read-only pack",
     await page.getByTestId("asset-editor-focus").click();
   }
   await close(page); expect(errors).toEqual([]);
+});
+
+test("tree recipe changes Habit to Shrub, previews and publishes the new topology", async ({ page }, info) => {
+  const errors = await open(page);
+  await asset(page, "tree2.treerecipe.json");
+  const habit = page.getByTestId("asset-field-habit");
+  const stems = page.getByTestId("asset-field-shrub.stemCount");
+  const preview = page.getByTestId("asset-editor-preview");
+  await expect(habit).toHaveValue("broadleaf");
+  await expect(stems).toHaveCount(0);
+  await habit.selectOption("shrub");
+  await expect(stems).toHaveValue("5");
+  await expect(preview).toHaveAttribute("data-preview-ready", "1", { timeout: 35000 });
+  await expect(preview.getByLabel("Seed")).toHaveValue("7");
+  await previewShot(page, "tree-shrub-habit", info);
+  await page.getByTestId("asset-editor-undo").click();
+  await expect(habit).toHaveValue("broadleaf");
+  await expect(page.getByTestId("asset-field-height")).toHaveValue("12");
+  await page.getByTestId("asset-editor-redo").click();
+  await stems.fill("6"); await stems.press("Tab");
+  await page.getByTestId("asset-editor-generate").click();
+  await expect(page.getByTestId("asset-editor-status")).toContainText("Generated and saved", { timeout: 60000 });
+  expect(await json(`${FOLDER}/tree2.treerecipe.json`)).toMatchObject({ generatorVersion: 5, habit: "shrub", shrub: { stemCount: 6 } });
+  expect(await json(`${FOLDER}/tree2/tree2.plantfamily.json`)).toMatchObject({ generatorVersion: 5, collider: "none", prototypes: [{ seed: 7 }] });
+  await page.getByTestId("asset-editor-reload").click();
+  await expect(habit).toHaveValue("shrub");
+  await expect(stems).toHaveValue("6");
+  expect(errors).toEqual([]);
 });
 
 test("tree growth compares crown and age at a fixed camera across three seeds", async ({ page }) => {

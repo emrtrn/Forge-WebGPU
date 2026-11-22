@@ -4,7 +4,7 @@ import { clusterLibrary, leafAtlasOf } from "./treeCards.ts";
 import { buildTreeLod, planTreeLod } from "./treeMesh.ts";
 import type { LeafAtlas, TreeLodMesh } from "./treeMesh.ts";
 import { recipeTreeStructure } from "./treeGrowth.ts";
-import type { TreeParams } from "./treeParams.ts";
+import { SHRUB_TRIANGLE_CAPS, type TreeParams } from "./treeParams.ts";
 
 export interface TreeReport {
   code: "budget" | "skeleton";
@@ -40,8 +40,10 @@ export function generateTree(
   const plans: ReturnType<typeof planTreeLod>[] = [];
   for (const [lod, settings] of params.lods.entries()) {
     const requested = options?.triangleCaps?.[lod];
-    const cap = requested !== undefined && Number.isFinite(requested) ? Math.max(0, Math.floor(requested)) : TRIANGLE_CAPS[lod]!;
-    const plan = planTreeLod(params, skeleton, settings, settings.clusterCards && (atlas?.clusters.length ?? 0) > 0);
+    const builtInCap = params.shrub ? SHRUB_TRIANGLE_CAPS[lod]! : TRIANGLE_CAPS[lod]!;
+    const requestedCap = requested !== undefined && Number.isFinite(requested) ? Math.max(0, Math.floor(requested)) : builtInCap;
+    const cap = params.shrub ? Math.min(builtInCap, requestedCap) : requestedCap;
+    const plan = planTreeLod(params, skeleton, settings, settings.clusterCards && (atlas?.clusters.length ?? 0) > 0, params.shrub ? cap : undefined);
     if (plan.triangles > cap) return { ok: false, report: {
       code: "budget", lod, message: `LOD${lod} requests ${plan.triangles} triangles; cap is ${cap}`,
     } };

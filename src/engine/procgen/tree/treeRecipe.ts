@@ -4,9 +4,9 @@ import { bakeLeafTexture } from "../texture/leafTexture.ts";
 import { bakeLeafAtlas } from "./treeCards.ts";
 import { recipeTreeStructure } from "./treeGrowth.ts";
 
-/** A blank v4 leaf slot and an explicit reference to its generated material resolve identically. */
+/** A blank modern leaf slot and an explicit reference to its generated material resolve identically. */
 export function defaultTreeLeafMaterial(recipeId: string, version: unknown, leaf: unknown) {
-  if (version !== 4) return null;
+  if (version !== 4 && version !== 5) return null;
   const id = generatedOutputId(recipeId, "tree/leafMaterial");
   if (leaf != null && leaf !== id) return null;
   return { schema: "forge.material/1", id,
