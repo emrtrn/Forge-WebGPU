@@ -1,6 +1,7 @@
 import type { JsonObject } from "../../core/index.ts";
 import { generateTree } from "../../engine/procgen/tree/treeGenerator.ts";
 import { treeRecipeAtlas } from "../../engine/procgen/tree/treeRecipe.ts";
+import { generateGrass, type GrassShape } from "../../engine/procgen/grass.ts";
 
 export interface TreePreviewRequest {
   ticket: number;
@@ -11,7 +12,7 @@ export interface TreePreviewRequest {
 
 let cached: { key: string; atlas: ReturnType<typeof treeRecipeAtlas> } | null = null;
 
-function build({ recipe, seed, draft }: TreePreviewRequest) {
+function buildTree({ recipe, seed, draft }: TreePreviewRequest) {
   const start = performance.now();
   const key = JSON.stringify([draft, recipe.generatorVersion, recipe.growth, recipe.shrub, (recipe.variants as number[])[0], recipe.habit, recipe.height,
     recipe.trunkRadius, recipe.taper, recipe.flare, recipe.crownStart, recipe.irregularity, recipe.levels, recipe.leaves, recipe.lods]);
@@ -23,11 +24,24 @@ function build({ recipe, seed, draft }: TreePreviewRequest) {
     clusters: tree.clusters, size: atlas.size, rgba: atlas.rgba.slice(), milliseconds: Math.round(performance.now() - start) };
 }
 
-export type TreePreviewReply = { ticket: number; tree: ReturnType<typeof build> } | { ticket: number; error: string };
+function buildGrass({ recipe, seed }: TreePreviewRequest) {
+  const start = performance.now();
+  const lods = generateGrass(recipe as unknown as GrassShape, seed).map(lod => lod.mesh);
+  return { lods, bladeCount: Math.round(recipe.bladeCount as number), milliseconds: Math.round(performance.now() - start) };
+}
+
+export type TreePreviewReply = { ticket: number; tree: ReturnType<typeof buildTree> }
+  | { ticket: number; grass: ReturnType<typeof buildGrass> } | { ticket: number; error: string };
 
 self.onmessage = ({ data }: MessageEvent<TreePreviewRequest>) => {
   try {
-    const tree = build(data);
+    if (data.recipe.schema === "forge.grassRecipe/1") {
+      const grass = buildGrass(data);
+      const buffers = grass.lods.flatMap(mesh => [mesh.positions.buffer, mesh.normals.buffer, mesh.indices.buffer, mesh.colors!.buffer]);
+      self.postMessage({ ticket: data.ticket, grass }, { transfer: buffers as ArrayBuffer[] });
+      return;
+    }
+    const tree = buildTree(data);
     const buffers: ArrayBufferLike[] = [tree.rgba.buffer];
     for (const lod of tree.lods) for (const mesh of [lod.wood, lod.leaves]) {
       if (!mesh) continue;

@@ -6,22 +6,23 @@ import {
 import { normalizeJsonAsset, type AssetPreviewController, type JsonObject } from "../../core/index.ts";
 import { generatedOutputId } from "../../engine/procgen/recipeOutput.ts";
 import { defaultTreeLeafMaterial } from "../../engine/procgen/tree/treeRecipe.ts";
-import type { TreeLodMesh } from "../../engine/procgen/tree/treeMesh.ts";
+import type { ProcMesh } from "../../engine/procgen/mesh.ts";
 import { createSurfaceMaterial, surfaceTextureSlots, type SurfaceMaterialData } from "../materials/surfaceMaterial.ts";
 import type { AssetPreviewContext } from "./assetPreview.ts";
 import { createAssetPreviewControls } from "./assetPreviewControls.ts";
 import type { TreePreviewReply, TreePreviewRequest } from "./treePreview.worker.ts";
 
-function geometry(mesh: TreeLodMesh["wood"]) {
+function geometry(mesh: ProcMesh & { uvs?: Float32Array }) {
   const geo = new BufferGeometry();
   geo.setAttribute("position", new BufferAttribute(mesh.positions, 3));
   geo.setAttribute("normal", new BufferAttribute(mesh.normals, 3));
-  geo.setAttribute("uv", new BufferAttribute(mesh.uvs, 2));
+  if (mesh.uvs) geo.setAttribute("uv", new BufferAttribute(mesh.uvs, 2));
+  if (mesh.colors) geo.setAttribute("color", new BufferAttribute(mesh.colors, 4));
   geo.setIndex(new BufferAttribute(mesh.indices, 1));
   return geo;
 }
 
-export function createTreePreview(ctx: AssetPreviewContext): AssetPreviewController {
+export function createTreePreview(ctx: AssetPreviewContext, grass = false): AssetPreviewController {
   const doc = ctx.container.ownerDocument;
   const panel = doc.createElement("div"), surface = doc.createElement("div"), bar = doc.createElement("div");
   const stats = doc.createElement("output");
@@ -32,8 +33,9 @@ export function createTreePreview(ctx: AssetPreviewContext): AssetPreviewControl
   };
   const variants = select("Seed"), levels = select("LOD");
   const woodOnly = doc.createElement("input"), woodLabel = doc.createElement("label");
-  woodOnly.type = "checkbox"; woodLabel.append(woodOnly, "Wood only"); bar.append(woodLabel);
-  stats.dataset.testid = "tree-preview-stats";
+  woodOnly.type = "checkbox"; woodLabel.append(woodOnly, "Wood only");
+  if (!grass) bar.append(woodLabel);
+  stats.dataset.testid = grass ? "grass-preview-stats" : "tree-preview-stats";
   bar.append(stats); panel.append(surface, bar); ctx.container.append(panel);
   const scene = new Scene(), subject = new Group(), camera = new PerspectiveCamera(35, 1, 0.01, 1000);
   scene.background = new Color(0x272d33);
@@ -50,7 +52,10 @@ export function createTreePreview(ctx: AssetPreviewContext): AssetPreviewControl
   ctx.host.setCamera(camera);
   let recipe: JsonObject, ticket = 0, disposed = false;
   let worker: Worker | null = null, working = false, startTimer = 0, fullTimer = 0;
-  let current: { tree: Extract<TreePreviewReply, { tree: unknown }>["tree"]; wood: Material; leaf: Material; fallbackSides?: boolean[]; dispose(): void } | null = null;
+  let current: {
+    lods: readonly { body: ProcMesh; leaves?: ProcMesh | null; label: string }[];
+    body: Material; leaf?: Material; fallbackSides?: boolean[]; dispose(): void;
+  } | null = null;
   const clearMeshes = () => {
     for (const child of subject.children) if (child instanceof Mesh) child.geometry.dispose();
     subject.clear();
@@ -58,11 +63,11 @@ export function createTreePreview(ctx: AssetPreviewContext): AssetPreviewControl
   let quality = "";
   const showLod = () => {
     if (!current) return;
-    const index = Number(levels.value), tree = current.tree, mesh = tree.lods[index];
+    const index = Number(levels.value), mesh = current.lods[index];
     if (!mesh) return;
     clearMeshes();
-    subject.add(new Mesh(geometry(mesh.wood), current.wood));
-    if (mesh.leaves) {
+    subject.add(new Mesh(geometry(mesh.body), current.body));
+    if (mesh.leaves && current.leaf) {
       if (current.fallbackSides) {
         const side = current.fallbackSides[index] ? DoubleSide : FrontSide;
         if (current.leaf.side !== side) { current.leaf.side = side; current.leaf.needsUpdate = true; }
@@ -71,11 +76,28 @@ export function createTreePreview(ctx: AssetPreviewContext): AssetPreviewControl
       leaves.name = "leaves"; leaves.visible = !woodOnly.checked; subject.add(leaves);
     }
     if (!framed) { controls.frame(subject); framed = true; }
-    stats.value = `${tree.triangles[index]!.toLocaleString()} triangles · ${tree.stems} stems · ${tree.clusters} leaf clusters · ${tree.milliseconds} ms CPU${quality}`;
+    stats.value = mesh.label + quality;
+  };
+  const display = (next: NonNullable<typeof current>, draft: boolean) => {
+    const selected = levels.value;
+    levels.replaceChildren(...next.lods.map((_, i) => new Option(String(i), String(i))));
+    levels.value = selected && Number(selected) < next.lods.length ? selected : "0";
+    current?.dispose(); current = next;
+    quality = draft ? " · draft atlas" : "";
+    showLod(); ready = !draft;
   };
   const accept = async (reply: TreePreviewReply, draft: boolean) => {
     if (disposed || reply.ticket !== ticket) return;
     if ("error" in reply) { stats.value = reply.error; return; }
+    if ("grass" in reply) {
+      const { lods, bladeCount, milliseconds } = reply.grass;
+      const body = new MeshStandardNodeMaterial({ vertexColors: true, side: DoubleSide, roughness: 0.88 });
+      display({ body, dispose: () => body.dispose(), lods: lods.map((mesh, index) => ({
+        body: mesh,
+        label: `${mesh.indices.length / 3} triangles · ${index === 0 ? bladeCount : Math.min(6, bladeCount)} blades · ${milliseconds} ms CPU`,
+      })) }, false);
+      return;
+    }
     const tree = reply.tree, ids = recipe.materials as JsonObject;
     const resources = ctx.host.resources(`tree-preview:${ctx.guid}:${ticket}:${draft}`);
     const owned: { dispose(): void }[] = [];
@@ -107,12 +129,10 @@ export function createTreePreview(ctx: AssetPreviewContext): AssetPreviewControl
       }
       owned.push(leaf);
       if (disposed || reply.ticket !== ticket) { dispose(); return; }
-      const selected = levels.value;
-      levels.replaceChildren(...tree.lods.map((_, i) => new Option(String(i), String(i))));
-      levels.value = selected && Number(selected) < tree.lods.length ? selected : "0";
-      current?.dispose(); current = { tree, wood, leaf, ...(fallbackSides && { fallbackSides }), dispose };
-      quality = draft ? " · draft atlas" : "";
-      showLod(); ready = !draft;
+      display({ body: wood, leaf, ...(fallbackSides && { fallbackSides }), dispose, lods: tree.lods.map((mesh, index) => ({
+        body: mesh.wood, leaves: mesh.leaves,
+        label: `${tree.triangles[index]!.toLocaleString()} triangles · ${tree.stems} stems · ${tree.clusters} leaf clusters · ${tree.milliseconds} ms CPU`,
+      })) }, draft);
     } catch (error) {
       dispose();
       if (!disposed && reply.ticket === ticket) stats.value = String(error);
@@ -139,10 +159,10 @@ export function createTreePreview(ctx: AssetPreviewContext): AssetPreviewControl
     };
     active.postMessage(request);
   };
-  const schedule = (draft: boolean) => {
+  const schedule = (editing: boolean) => {
     stop(); ticket++; ready = false; ctx.container.dataset.previewReady = "0";
     stats.value = "Generating preview…";
-    startTimer = window.setTimeout(() => run(draft), draft ? 75 : 0);
+    startTimer = window.setTimeout(() => run(editing && !grass), editing ? 75 : 0);
   };
   variants.onchange = () => schedule(false);
   levels.onchange = showLod;

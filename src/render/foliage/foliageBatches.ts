@@ -44,6 +44,8 @@ export interface FoliageTypeDraw {
   readonly castShadow: boolean;
   readonly cullStart: number;
   readonly cullEnd: number;
+  /** Staggers the distance fade over stable per-instance offsets, reducing far density. */
+  readonly fadeSpread?: number;
   /** Wind sway; absent or null: still. */
   readonly sway?: FoliageSway | null;
   /** A generated plant family's prototype (PG2): its response shades the instances. */
@@ -111,7 +113,8 @@ const sameSway = (a: FoliageSway | null | undefined, b: FoliageSway | null | und
 
 const sameType = (a: FoliageTypeDraw, b: FoliageTypeDraw): boolean =>
   sameSway(a.sway, b.sway) && JSON.stringify(a.plant ?? null) === JSON.stringify(b.plant ?? null) && JSON.stringify(a.impostor ?? null) === JSON.stringify(b.impostor ?? null) && a.mesh === b.mesh && a.castShadow === b.castShadow && a.cullStart === b.cullStart && a.cullEnd === b.cullEnd
-  && a.lods.length === b.lods.length && a.lods.every((lod, index) => lod.mesh === b.lods[index]!.mesh && lod.screenSize === b.lods[index]!.screenSize);
+  && a.fadeSpread === b.fadeSpread && a.lods.length === b.lods.length
+  && a.lods.every((lod, index) => lod.mesh === b.lods[index]!.mesh && lod.screenSize === b.lods[index]!.screenSize);
 
 /**
  * A model's parts with its slot materials, and LOD 0's bounding sphere (three's Box3 → sphere, what an impostor's
@@ -146,20 +149,21 @@ export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBat
   const applyDistances = (entry: TypeEntry): void => {
     if (!entry.batch) return;
     const window = foliageFadeWindow(entry.type.cullStart, entry.type.cullEnd, quality.cullScale);
+    const fadeSpread = window ? Math.min(window[0], (entry.type.fadeSpread ?? 0) * quality.cullScale) : 0;
     const screenSizes = entry.type.lods.map((lod) => lod.screenSize);
     if (entry.batch.lodCount > screenSizes.length + 1) screenSizes.push(entry.type.impostor!.screenSize);
     if (lodOverride !== null) {
       const forced = Math.min(lodOverride, entry.batch.lodCount - 1);
       entry.batch.setDistances({
         fadeStart: window?.[0] ?? NO_CULL_DISTANCE, cullEnd: window?.[1] ?? NO_CULL_DISTANCE,
-        lodStarts: screenSizes.map((_, index) => (index < forced ? 0 : NO_CULL_DISTANCE)),
+        fadeSpread, lodStarts: screenSizes.map((_, index) => (index < forced ? 0 : NO_CULL_DISTANCE)),
       });
       return;
     }
     const lodStarts = lodStartsOfScreenSizes(entry.radius, screenSizes, quality.verticalFov)
       // Ascending, as the batch requires.
       .map((start, index, all) => Math.max(start, index > 0 ? all[index - 1]! : 0));
-    entry.batch.setDistances({ fadeStart: window?.[0] ?? NO_CULL_DISTANCE, cullEnd: window?.[1] ?? NO_CULL_DISTANCE, lodStarts });
+    entry.batch.setDistances({ fadeStart: window?.[0] ?? NO_CULL_DISTANCE, cullEnd: window?.[1] ?? NO_CULL_DISTANCE, fadeSpread, lodStarts });
   };
 
   const shadingOf = (type: FoliageTypeDraw): InstanceShading | null => {
@@ -203,6 +207,7 @@ export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBat
         name: `foliage/${entry.type.id}`, parent: options.parent, lods: lods.map((lod) => lod.parts),
         bounds: { center: [sphere.center.x, sphere.center.y, sphere.center.z], radius: sphere.radius },
         distanceMode: "origin", castShadow: entry.type.castShadow, source: options.source ?? "foliage",
+        ...(entry.type.fadeSpread ? { staggeredFade: true } : {}),
         ...(options.bundle !== undefined ? { bundle: options.bundle } : {}),
         ...(capacity > 0 ? { capacity } : {}),
         ...(shadingOf(entry.type) ? { instanceShading: shadingOf(entry.type)! } : {}),

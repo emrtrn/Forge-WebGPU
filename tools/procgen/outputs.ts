@@ -7,7 +7,7 @@ export { generatedOutputId as outputId, srgbTriple } from "../../src/engine/proc
 import { PROJECT_LICENSE } from "../import-forge-webgl/provenance.ts";
 
 /** Bumped with every change to a generator that alters its output (written to the recipe's outputs). */
-export const GENERATOR_VERSIONS = { rock: 1, surfaceTexture: 2, tree: 4 } as const;
+export const GENERATOR_VERSIONS = { rock: 1, surfaceTexture: 2, tree: 4, grass: 1 } as const;
 export type GeneratorName = keyof typeof GENERATOR_VERSIONS;
 
 export interface Output {

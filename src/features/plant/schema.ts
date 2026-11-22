@@ -270,3 +270,19 @@ export const TreeRecipeAssetType = defineJsonAssetType(
 );
 
 export type TreeRecipeData = FieldValues<typeof TreeRecipeFields>;
+
+const GrassRecipeFields = {
+  variants: array(num({ min: 0, max: 4294967295, default: 1, step: 1 }), { default: [1, 2, 3], hint: "Her tohum ayrı bir ot demeti üretir." }),
+  height: num({ min: 0.08, max: 2, default: 0.42, label: "Blade Height", hint: "Kıvrım öncesi şerit boyu, metre." }),
+  width: num({ min: 0.005, max: 0.12, default: 0.037, label: "Blade Width", hint: "Uca doğru incelen şeridin genişliği, metre." }),
+  bend: num({ min: 0, max: 1, default: 0.62, label: "Blade Bend", hint: "Şeritlerin kökten dışa doğru kıvrımı." }),
+  bladeCount: num({ min: 5, max: 13, default: 12, step: 1, label: "Blades per Tuft", hint: "Bir kök çevresindeki şerit sayısı." }),
+};
+
+export const GrassRecipeAssetType = defineJsonAssetType(
+  "forge.grassRecipe", 1,
+  { suffix: ".grassrecipe.json", fields: GrassRecipeFields },
+  { label: "Grass Recipe", hint: "Eğri şeritlerden ot demeti ve iki mesh LOD'u üretir." },
+);
+
+export type GrassRecipeData = FieldValues<typeof GrassRecipeFields>;

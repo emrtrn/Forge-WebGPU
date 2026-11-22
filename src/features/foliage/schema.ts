@@ -83,6 +83,7 @@ export const FoliageTypeFields = {
     },
     { hint: "Rüzgâr salınımı." },
   ),
+  fadeSpread: num({ min: 0, default: 0, slider: [0, 100], hint: "Seyrelme aralığı, metre. Her örneğin solma penceresi bu aralıkta daha yakına kayar. Uzak kart kullanıldığında uygulanmaz." }),
   far: object(
     {
       distance: num({ min: 0, max: 20000, default: 0, slider: [0, 5000], hint: "Landscape kuralı foliage'ı cullEnd'den sonra bu uzaklığa kadar kameraya dönük kartla çizilir, metre (0 kapalı)." }),

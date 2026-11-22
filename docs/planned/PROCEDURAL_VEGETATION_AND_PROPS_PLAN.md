@@ -1,6 +1,7 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.15 · 2026-11-22 (PG4 çok saplı çalı dilimi, §9.5).
+**Sürüm:** v0.17 · 2026-11-22 (PG4 görsel kabul ve kapanış, §9.5–9.6).
+Önceki: v0.16 (şerit/demet ot ve WebGPU yakın–uzak doğrulaması, §9.6).
 Önceki: v0.14 (meşenin iç taç dağılımı ve doğal LOD karşılaştırması, §9.3–9.4).
 Önceki: v0.11 · 2026-11-19 (kullanıcı PG3 / PV-WES görsel kabulünü verdi; kabuk / kaya
 dokuları da KTX2). Önceki: v0.10 (PG3 kapandı: KTX2 atlaslar, §8 ölçüldü, PK7 ölçümle odun /
@@ -10,7 +11,7 @@ taş doku tarifi, triplanar + `variation`, A / C ölçümü).
 
 **Önceki sürüm:** v0.6 · 2026-11-14 (WES ile birleşik bitki ailesi, ortak çalışma
 zamanı davranışı ve 5c ile birlikte ilerleyen üretim dilimi; kullanıcı kararı).
-**Durum:** PG0–PG3 uygulandı (5c ile, 2026-11-17 – 2026-11-19). PG4'ün çok saplı çalısı görsel kabul aldı. Şerit/demet ot ve PG5 kapıları açık. PG6–PG7 ileride.
+**Durum:** PG0–PG3 uygulandı (5c ile, 2026-11-17 – 2026-11-19). PG4, çok saplı Hazel ve şerit/demet MeadowGrass için WebGPU doğrulaması ve kullanıcı görsel onayıyla kapandı (2026-11-22, §9.5–9.6). PG5 açık. PG6–PG7 ileride.
 Başlama koşulu §2'de.
 **İlgili belgeler:** [yeniden inşa planı](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
 sırası; küçük üretim dilimi 5c ile birlikte, tam araçlar 5d ile ilerler),
@@ -937,6 +938,75 @@ Yerel adaylar [çalılar ve sap dipleri](../../.forge-cache/pg4-shrub/review/cal
 Kare başına kamera ve GPU sayacı `.forge-cache/pg4-shrub/final/seed{1,2,3}/frames.json` içinde.
 Kullanıcı 22 Kasım 2026'da görsel onayı verdi.
 
+### 9.6 PG4 · Şerit/demet ot
+
+Starter paketindeki `MeadowGrass.grassrecipe.json`, kök bölgesinden farklı
+yönlere açılan ve uca doğru incelen eğri şeritler üretir. Tarif formunda
+şerit boyu, genişliği, kıvrımı ve demet başına şerit sayısı düzenlenir.
+LOD1 aynı demetten en fazla altı şerit seçer ve örtünün bir bölümünü
+korumak için seçilen şeritleri genişletir. Kök uçlarının rüzgâr ağırlığı
+sıfırdır. Üç prototip ve bunların foliage türleri tek bitki ailesi olarak
+kaydedilir. Aile için impostor, doku veya collider üretilmez.
+
+Yazılabilir geçici projede canlı önizlemede genişlik 0,037 → 0,048 m,
+yoğunluk 12 → 13 şerit oldu. Seed 1, 2 ve 3 aynı kamera ve ışıkta iki
+LOD ile çekildi. **Generate & Save Family** altı GLB'yi, altı metayı, üç
+foliage türünü ve aileyi kaydetti. Editör yeniden açıldığında iki değer
+korundu. Aynı tarifin CLI tekrar üretim karşılaştırmasında 16/16 çıktı
+bayt bayt aynıydı.
+
+| Seed | LOD0 üçgen | LOD1 üçgen |
+|---|---:|---:|
+| 1 | 117 | 18 |
+| 2 | 117 | 18 |
+| 3 | 117 | 18 |
+
+Kaydedilen aile, geçici bir düz sahnede 1.190 demetlik boyalı foliage
+örtüsü olarak çizildi. Başlıklı Chrome, RTX 3060 WebGPU, High, 1280 × 720,
+DPR 1 ve 44° dikey görüş açısı kullanıldı. Yaz ve saat 14.00 sabitlendi.
+Kamera örtünün merkezinden yatayda 9–76 m arasında gidip döndü. Ana
+görünümün LOD sayaçları doğrudan GPU'dan okundu. Bütün 157 karede aynı tek
+hücre ve 1.190 demet yüklü kaldı. LOD0 ve LOD1 yaklaşık 36,7–48,6 m
+arasında birlikte çizildi ve dönüşte aynı pozlarda aynı sayılar görüldü.
+Altı mesafede üç prototip için GPU ve CPU referans sayaçları eşleşti.
+
+| Örtü merkezine yatay mesafe | LOD0 | LOD1 | Ortak fade pencereli kontrol, toplam |
+|---|---:|---:|---:|
+| 9,0 m | 1.189 | 0 | 1.189 |
+| 34,8 m | 1.113 | 0 | 1.190 |
+| 44,5 m | 222 | 453 | 1.190 |
+| 49,7 m | 0 | 423 | 1.190 |
+| 55,0 m | 0 | 192 | 1.157 |
+| 60,6 m | 0 | 25 | 391 |
+| 64,1 m | 0 | 0 | 11 |
+
+Foliage türü başına `fadeSpread`, mevcut dither penceresini demetin
+tohumu ve konumundan elde edilen kararlı bir pay kadar yakına kaydırır.
+Bu koşuda High kaliteyle ortak pencere 39,1–59,5 m, kaydırma en fazla
+25,5 m idi. Her demet kendi penceresinin sonunda GPU çizim listesinden
+çıkar. Aynı kamera yolunda iki komşu kare arasındaki en yüksek örnek
+sayısı düşüşü ortak pencerede 178, kaydırılmış pencerede 62 oldu. Aynı
+51 m pozunda dither açık ve kapalıyken GPU 359 LOD1 demeti gönderdi.
+Ot rengiyle eşleşen piksel sayısı aynı kırpımda 1.522'den 349'a indi.
+Bu çekim fade'i örnek sayısındaki değişimden bağımsız gösteriyor.
+
+Yakında şeritler dipte toplanıyor, uçlar rüzgârla salınıyor. Orta
+mesafede örtüde boşluklar açılıyor. Uzakta son izler birkaç piksele
+inerken incelme sürüyor. Aday gidiş–dönüşte belirgin bir geçiş bandı
+veya tek karede boşalma görülmedi. Çok yakın planda şeritlerin
+çokgen kıvrımları, uzakta ise son birkaç demette dither noktaları
+seçiliyor. Çekim tek, düz boyalı foliage örtüsünü kapsıyor.
+Kullanıcı MeadowGrass için 22 Kasım 2026'da görsel onay verdi.
+
+Yerel adaylar [canlı düzenleme](../../.forge-cache/pg4-grass/review/editor-width-and-density.png),
+[üç seed ve iki LOD](../../.forge-cache/pg4-grass/review/editor-seed-comparison.png),
+[yeniden açılan tarif](../../.forge-cache/pg4-grass/review/editor-reopened.png),
+[kök yakın çekimi](../../.forge-cache/pg4-grass/review/roots.png),
+[rüzgâr ve kamera gidiş–dönüşü](../../.forge-cache/pg4-grass/review/meadow-grass-webgpu.mp4),
+[kamera yolu karşılaştırması](../../.forge-cache/pg4-grass/review/camera-control.png),
+[sabit pozda fade karşılaştırması](../../.forge-cache/pg4-grass/review/fade-control.png) ve
+[kare başına sayaçlar](../../.forge-cache/pg4-grass/review/camera-metrics.csv).
+
 ## 10. Adımlar
 
 Her adım dikey bir dilimdir ve kendi kapısıyla biter. Görsel beğeni kullanıcı
@@ -1106,13 +1176,15 @@ kullanıcıda).
   zamanlı mevsim geçişi (2 s, kare kare): **pipeline +0, shader modülü +0**, en uzun kare 9,0 ms, GPU en çok
   9,6 ms; GPU belleği 454,3 MiB sabit (tepe = canlı), JS yığını tepe ≈ 56 MiB. Ağaç başına script / materyal yok
   (tür başına batch).
-- [ ] **PG4 Çalı ve ot.** Çok saplı çalı ön ayarı; şerit / demet üreticisi.
+- [x] **PG4 Çalı ve ot.** Çok saplı çalı ön ayarı; şerit / demet üreticisi.
       *Kapı:* çalı ağaçtan ayrı topolojiyle üretiliyor; ot yakın–uzak geçişi
       seyrelme ve fade ile çalışıyor.
       **Çalı dilimi** uygulandı. Editör kaydı, üç seed'in bütçeleri, doğal LOD
       geçişi ve boyalı foliage fade'i gerçek WebGPU'da doğrulandı (§9.5).
       Kullanıcı görsel onayı verdi (2026-11-22).
-      **Ot dilimi** açık. Şerit/demet üreticisi, seyrelme ve fade kabulü bekliyor.
+      **Ot dilimi** uygulandı. Editör kaydı, bütçeler, kararlı tekrar üretim
+      ve doğal WebGPU geçişinde seyrelme + fade doğrulandı (§9.6).
+      Kullanıcı ot için görsel onay verdi (2026-11-22); PG4 kapandı.
 - [ ] **PG5 World Builder'ın tam bağlantısı.** Zemin örtüsünün bitkileri
       tariflere bağlanır; bağlı tarifler; aile onay sayfası; başlangıç ön ayar
       paketi; tam tarif paneli ve `generated` kaynağı (5d). *Kapı:* üretilen
@@ -1246,6 +1318,7 @@ kurallarına göre yeniden yazılır.
 
 | Tarih | Sürüm | Not |
 |---|---|---|
+| 2026-11-22 | v0.17 | MeadowGrass görsel onayı kaydedildi (§9.6). Hazel ve MeadowGrass kabulüyle PG4 kapandı. PG5 açık. |
 | 2026-11-11 | v0.1 | Plan yazıldı; prosedürel üretim kararı ve zamanlama (kullanıcı). Eski araştırma raporu ve kapsam envanteri kaldırıldı. Uygulama yok |
 | 2026-11-11 | v0.2 | Tarif A13 veri asset'i, çıktı kalıcı dosya (kullanıcı kararları; PK1 ve PK2 kapandı). §6.7'ye CPU / GPU bake hız karşılaştırması eklendi; PK3 açık |
 | 2026-11-11 | v0.3 | Bake CPU'da (PK3 kapandı). Dokular da prosedürel (kullanıcı kararı): §6.6 materyal tarifi, dört yol, öneri karma; PK4 yeniden yazıldı, açık |

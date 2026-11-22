@@ -3,8 +3,8 @@ import { FORGE_REQUEST_HEADER } from "../../core/index.ts";
 
 export default defineFeatureEditor({
   feature: "forge.plant",
-  assetEditors: [{
-    assetType: "forge.treeRecipe", preview: "forge.treeRecipe", handledFields: ["generatorVersion"],
+  assetEditors: ["forge.treeRecipe", "forge.grassRecipe"].map(assetType => ({
+    assetType, preview: assetType, handledFields: assetType === "forge.treeRecipe" ? ["generatorVersion"] : [],
     publish: {
       label: "Generate & Save Family",
       async run(path, base, document) {
@@ -14,8 +14,8 @@ export default defineFeatureEditor({
         });
         const result = await response.json();
         if (result.status === "saved" || result.status === "conflict" || result.status === "rejected") return result;
-        return { status: "rejected", reason: "generation", message: result.message ?? "Tree generation failed." };
+        return { status: "rejected", reason: "generation", message: result.message ?? "Plant generation failed." };
       },
     },
-  }],
+  })),
 });

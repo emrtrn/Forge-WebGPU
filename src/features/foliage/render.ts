@@ -208,7 +208,10 @@ export default defineRenderBinding({
           const plant = family?.plant ?? null;
           const far: FarBillboardType | null = foliageRuleHasFarBillboards({ cullEnd: data.cullEnd, farDistance: data.far.distance })
             ? { id: guid, mesh, impostor, plant, cullStart: data.cullStart, cullEnd: data.cullEnd, farDistance: data.far.distance } : null;
-          types.set(guid, { data, far, draw: { id: guid, mesh, lods, castShadow: data.castShadow, cullStart: data.cullStart, cullEnd: data.cullEnd, sway, plant, impostor } });
+          types.set(guid, { data, far, draw: {
+            id: guid, mesh, lods, castShadow: data.castShadow, cullStart: data.cullStart, cullEnd: data.cullEnd,
+            fadeSpread: far ? 0 : data.fadeSpread, sway, plant, impostor,
+          } });
         } catch (error) {
           console.warn(`forge render: foliage type ${guid} not drawn: ${String(error)}`);
           types.set(guid, null);

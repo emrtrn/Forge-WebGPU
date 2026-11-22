@@ -43,6 +43,8 @@ import { encodeRgbaKtx2 } from "./ktx2.ts";
 import { treeOutputs, type MaterialLook } from "./treeOutputs.ts";
 import { treeOutputVersion } from "../../src/engine/procgen/tree/treeGrowth.ts";
 import { defaultTreeLeafMaterial } from "../../src/engine/procgen/tree/treeRecipe.ts";
+import type { GrassRecipeData } from "../../src/features/plant/schema.ts";
+import { grassOutputs } from "./grassOutputs.ts";
 
 export { GENERATOR_VERSIONS } from "./outputs.ts";
 
@@ -270,27 +272,28 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
   if (!def || !isJsonAssetType(def) || !doc) throw new Error(`${label} is not a readable recipe`);
   const draft = options.editorDraft;
   if (draft) {
+    const plantGenerator = entry.type === "forge.grassRecipe" ? "grass" : entry.type === "forge.treeRecipe" ? "tree" : null;
     const version = draft.document.generatorVersion;
     // An explicit Habit edit can switch the topology while retaining the recipe identity.
     const switchingTopology = (version === 5) !== (doc.generatorVersion === 5)
       && (version === 5 ? draft.document.habit === "shrub" : draft.document.habit === "broadleaf" || draft.document.habit === "conifer");
-    if (entry.type !== "forge.treeRecipe" || draft.document.id !== entry.id || (version !== doc.generatorVersion && !switchingTopology))
-      throw new Error("Unsupported tree recipe identity or generator version.");
+    if (!plantGenerator || draft.document.id !== entry.id || (plantGenerator === "tree" && version !== doc.generatorVersion && !switchingTopology))
+      throw new Error("Unsupported plant recipe identity or generator version.");
     const checked = normalizeJsonAsset(def, draft.document, { strict: true });
     if (!checked.ok || !checked.value) throw new Error(checked.issues.map(issue => `${issue.path} ${issue.message}`).join("\n"));
     doc = checked.value as JsonObject;
     const saved = await readFile(join(target.root, label));
     const revision = fileRevision(saved);
     if (revision !== draft.base) throw new RecipeSaveConflict([{ path: label, base: draft.base, current: revision }]);
-    const materials = doc.materials as JsonObject;
-    for (const guid of [materials.wood, materials.leaf]) {
+    const materials = doc.materials as JsonObject | undefined;
+    for (const guid of [materials?.wood, materials?.leaf]) {
       if (typeof guid === "string" && target.index.entries.get(guid)?.type !== "forge.material") throw new Error(`Missing tree material ${guid}`);
     }
     // A directly placed family can name a prototype by index. Generated foliage types are updated in this transaction.
-    const familyId = outputId(entry.id, "tree/family");
+    const familyId = outputId(entry.id, `${plantGenerator}/family`);
     const family = target.index.jsonAssets.get(familyId) as JsonObject | undefined;
     const published = (family?.prototypes as JsonObject[] | undefined) ?? [];
-    const types = new Set(published.map(p => outputId(entry.id, `tree/${p.seed}/foliageType`)));
+    const types = new Set(published.map(p => outputId(entry.id, `${plantGenerator}/${p.seed}/foliageType`)));
     const seeds = [...new Set(doc.variants as number[])];
     if (published.some((prototype, i) => prototype.seed !== seeds[i]) && target.index.referrersOf(familyId).some(ref => !types.has(ref.from))) {
       throw new Error("An asset uses this family by prototype index. Keep the published seed order or generate a new recipe.");
@@ -326,6 +329,9 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
         : await materialLook(options, target, materials.leaf ?? null, own, warnings),
     };
     outputs = await treeOutputs(entry.id, doc, folder, stem, stats, looks);
+  } else if (entry.type === "forge.grassRecipe") {
+    generator = "grass";
+    outputs = grassOutputs(entry.id, doc as GrassRecipeData, folder, stem, stats);
   } else if (entry.type === "forge.surfaceTextureRecipe") {
     generator = "surfaceTexture";
     outputs = await surfaceTextureOutputs(entry.id, doc, folder, stem, stats);
@@ -339,7 +345,7 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
     const prefix = `${folder}/${stem}_`, suffix = ".foliagetype.json";
     const middle = path.startsWith(prefix) && path.endsWith(suffix) ? path.slice(prefix.length, -suffix.length) : "";
     const seed = /^\d+$/.test(middle) ? middle : undefined;
-    return (generator === "rock" || generator === "tree") && seed !== undefined && id === outputId(entry.id, `${generator}/${Number(seed)}/foliageType`);
+    return generator !== "surfaceTexture" && seed !== undefined && id === outputId(entry.id, `${generator}/${Number(seed)}/foliageType`);
   };
 
   // The save writes documents canonically (every field, schema order): compare and write that text.

@@ -1,0 +1,9 @@
+{
+  "schema": "forge.grassRecipe/1",
+  "id": "ast_598987d1ddc141e5b8a957d1e3f5fc64",
+  "variants": [1, 2, 3],
+  "height": 0.42,
+  "width": 0.037,
+  "bend": 0.62,
+  "bladeCount": 12
+}

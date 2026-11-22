@@ -153,6 +153,7 @@ export function cullInstanceCounts(
   count: number,
   batch: InstanceCullBatch,
   view: InstanceCullView,
+  fadeOffset?: (index: number) => number,
 ): InstanceCullResult {
   const lods = batch.lodStarts.length + 1;
   if (lods > MAX_INSTANCE_LODS) throw new Error(`instance culling: at most ${MAX_INSTANCE_LODS} LODs`);
@@ -181,8 +182,9 @@ export function cullInstanceCounts(
       if (s < inside) inside = s;
     }
     const distance = measuredDistance(matrices, at, batch.distanceMode, view.origin);
-    // Near: below the cull end (strictly, as the shader's `lessThan`).
-    const far = side(distance, batch.cullEnd);
+    // Near: below this instance's cull end. LOD still uses the unshifted distance.
+    const end = batch.cullEnd - (fadeOffset?.(index) ?? 0);
+    const far = side(distance, end);
     const near: -1 | 0 | 1 = far === 1 ? -1 : far === -1 ? 1 : 0;
     const passes = Math.min(inside, near, caster);
     let lod = 0;
@@ -194,7 +196,7 @@ export function cullInstanceCounts(
       if (s === 1) lowLod += 1;
       if (s >= 0) highLod += 1;
     }
-    if (radius >= minimum && distance < batch.cullEnd && passesExactly(view.planes, wx, wy, wz, radius)) {
+    if (radius >= minimum && distance < end && passesExactly(view.planes, wx, wy, wz, radius)) {
       counts[lod] = counts[lod]! + 1;
       visible[lod]!.push(index);
     }

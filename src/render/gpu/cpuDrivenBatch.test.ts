@@ -50,6 +50,33 @@ describe("cpu-driven batch (the WebGL2 twin)", () => {
     expect(parent.children).toEqual([]);
   });
 
+  test("staggered foliage fades before culling, with stable ranks after buffer compaction", async () => {
+    const parent = new Group();
+    const geometry = new BoxGeometry(), material = new MeshBasicNodeMaterial(), local = new Matrix4();
+    const batch = createCpuDrivenBatch({} as WebGPURenderer, {
+      name: "grass", parent, distanceMode: "origin", bounds: { center: [0, 0, 0], radius: 1 },
+      lods: [[{ geometry, material, local, name: "tuft" }]], staggeredFade: true,
+    });
+    batch.setDistances({ fadeStart: 45, cullEnd: 65, fadeSpread: 30, lodStarts: [] });
+    const handles = Array.from({ length: 64 }, (_, seed) => batch.instances.add(at(0, 0, -50), 0, seed));
+    batch.prepare([VIEW]);
+    const mesh = batch.meshes[0] as InstancedMesh;
+    const drawn = (await batch.readCounts({} as WebGPURenderer, 0))[0]!;
+    expect(drawn).toBeGreaterThan(0);
+    expect(drawn).toBeLessThan(64);
+    const shown = mesh.userData[CPU_FADE_KEY] as InstancedBufferAttribute;
+    expect(Array.from({ length: drawn }, (_, i) => shown.getX(i)).every(value => value > 0 && value < 1)).toBe(true);
+    const extras = batch.instances.extraBuffer.array;
+    const lastRank = extras[63 * 4 + 3];
+    batch.instances.remove(handles[0]!);
+    expect(extras[3]).toBe(lastRank);
+    batch.setDistances({ fadeStart: 45, cullEnd: 65, fadeSpread: 0, lodStarts: [] });
+    batch.prepare([VIEW]);
+    expect((await batch.readCounts({} as WebGPURenderer, 0))[0]).toBe(63);
+    expect(shown.getX(0)).toBeCloseTo(0.84375);
+    batch.dispose(); geometry.dispose(); material.dispose();
+  });
+
   test("shadow views (5.2): own meshes on their layer, culled by their planes, distances from the main camera", () => {
     const parent = new Group();
     const batch = createCpuDrivenBatch({} as WebGPURenderer, {

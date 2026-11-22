@@ -118,7 +118,9 @@ export function createDevGpuDriven(host: () => RenderHost | null): DevGpuDriven 
       const viewCheck = async (batch: GpuDrivenBatch, index: number): Promise<DevGpuViewCheck> => {
         const layer = batch.viewLayers[index];
         const view = views.find(entry => entry.layer === layer) ?? views[0]!;
-        const cpu = cullInstanceCounts(batch.instances.matrices(), batch.instances.count, batch.cullBatch, view);
+        const spread = batch.fadeSpread;
+        const fadeOffset = spread > 0 ? (at: number) => batch.instances.fadeRank(at) * spread : undefined;
+        const cpu = cullInstanceCounts(batch.instances.matrices(), batch.instances.count, batch.cullBatch, view, fadeOffset);
         return { gpu: await batch.readCounts(current.renderer, index),
           ...(view.minCasterRadius === undefined ? {} : { minCasterRadius: view.minCasterRadius }),
           cpu: { counts: cpu.counts, certain: cpu.certain, possible: cpu.possible } };

@@ -206,6 +206,8 @@ export interface GpuDrivenBatchOptions {
   readonly zoneMasks?: StorageBufferAttribute;
   /** Per-instance shading (wind, plant response; `instanceShading.ts`), applied in every view on both paths. */
   readonly instanceShading?: InstanceShading;
+  /** Enables stable per-instance distance fade offsets in this batch's shaders. */
+  readonly staggeredFade?: boolean;
 }
 
 /** The fade band and LOD starts, in measured distance (the owner applies the quality scales). */
@@ -213,11 +215,13 @@ export interface GpuBatchDistances {
   readonly fadeStart: number;
   /** Culled from here; {@link NO_CULL_DISTANCE} never. */
   readonly cullEnd: number;
+  readonly fadeSpread?: number;
   readonly lodStarts: readonly number[];
 }
 
 export interface GpuDrivenBatch {
   readonly name: string;
+  readonly fadeSpread: number;
   /** `gpu`: compute culling and indirect draws; `cpu`: the WebGL2 twin (CPU culling, instanced draws). */
   readonly path: "gpu" | "cpu";
   /** Draws of the last prepare (every view) that `renderer.info` does not count (all of the GPU path's, none of the CPU path's). */
@@ -335,7 +339,7 @@ interface View {
 export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrivenBatchOptions): GpuDrivenBatch {
   const lodCount = options.lods.length;
   if (lodCount < 1 || lodCount > MAX_INSTANCE_LODS) throw new Error(`gpu batch ${options.name}: 1 to ${MAX_INSTANCE_LODS} LODs`);
-  const instances = createGpuInstances(options.capacity);
+  const instances = createGpuInstances(options.capacity, options.staggeredFade);
   const draws = options.lods.flatMap((parts, lod) => parts.flatMap((part) => partDraws(lod, part)));
   const drawCount = draws.reduce((sum, draw) => sum + drawPasses(draw.material), 0);
   const lodTriangles = options.lods.map((_, lod) => draws.filter((draw) => draw.lod === lod)
@@ -351,6 +355,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
   const lodStarts = uniform(new Vector4(NO_CULL_DISTANCE, NO_CULL_DISTANCE, NO_CULL_DISTANCE, NO_CULL_DISTANCE));
   const bounds = uniform(new Vector4(...options.bounds.center, options.bounds.radius));
   const fade = uniform(new Vector2(NO_CULL_DISTANCE * 0.5, NO_CULL_DISTANCE));
+  const fadeSpread = uniform(0);
   const scaled = options.distanceMode === "scaled";
   let distances: GpuBatchDistances = { fadeStart: NO_CULL_DISTANCE, cullEnd: NO_CULL_DISTANCE, lodStarts: [] };
 
@@ -435,7 +440,8 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         const p = planes.element(plane);
         inside = inside.and(dot(p.xyz, center).add(p.w).greaterThanEqual(reach));
       }
-      let keep: Node<"bool"> = inside.and(distanceVar.lessThan(cullEnd));
+      const end = options.staggeredFade ? cullEnd.sub(extraCull.element(instanceIndex).w.mul(fadeSpread)) : cullEnd;
+      let keep: Node<"bool"> = inside.and(distanceVar.lessThan(end));
       if (zoneMasks) {
         // R9b: the instance's zone draws in this view (shadow views read the casting mask).
         const zone = uint(extraCull.element(instanceIndex).z).toVar();
@@ -498,7 +504,8 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
           const color = varying(storage(colorBuffer, "vec4", colorBuffer.count).toReadOnly().element(slot).xyz);
           material.colorNode = vec3((material.colorNode as Node<"vec3"> | null) ?? materialColor.rgb).mul(color);
         }
-        let opacity = float(1).sub(smoothstep(fade.x, fade.y, placement.measured)).mul(extraRead.element(slot).x);
+        const fadeDistance = options.staggeredFade ? placement.measured.add(extraRead.element(slot).w.mul(fadeSpread)) : placement.measured;
+        let opacity = float(1).sub(smoothstep(fade.x, fade.y, fadeDistance)).mul(extraRead.element(slot).x);
         if (shadow) {
           const radius = bounds.w.mul(placement.scale);
           const { y: second, z: third, w: fourth } = view.casterRadiiNode;
@@ -554,6 +561,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       distances = next;
       const end = Math.min(next.cullEnd, NO_CULL_DISTANCE);
       cullEnd.value = end;
+      fadeSpread.value = next.fadeSpread ?? 0;
       // A band without width is a hard cut at the end: the compute pass culls there already.
       fade.value.set(Math.min(next.fadeStart, end * 0.999999), end);
       lodStarts.value.set(...([0, 1, 2, 3].map((k) => next.lodStarts[k] ?? NO_CULL_DISTANCE) as [number, number, number, number]));
@@ -561,6 +569,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     get cullBatch() {
       return { center: options.bounds.center, radius: options.bounds.radius, distanceMode: options.distanceMode, cullEnd: Math.min(distances.cullEnd, NO_CULL_DISTANCE), lodStarts: distances.lodStarts };
     },
+    get fadeSpread() { return options.staggeredFade ? distances.fadeSpread ?? 0 : 0; },
     prepare(list) {
       if (colorBuffer && options.instanceColors && colorVersion !== options.instanceColors.version) {
         for (let i = 0; i < options.instanceColors.count; i += 1) colorBuffer.setXYZW(i, options.instanceColors.getX(i), options.instanceColors.getY(i), options.instanceColors.getZ(i), 1);

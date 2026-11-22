@@ -15,7 +15,7 @@
 //   streaming and the editor fade through it later), y the seed's u32 bits
 //   (wind phase, tint variation), z the instance's zone slot as a float value
 //   (plan 5c R9b: 0 in no zone, always drawn; `gpuDriven.ts` zone masks; a
-//   value, not bits: small integers' bits are denormal floats), w free.
+//   value, not bits: small integers' bits are denormal floats), w the distance-fade rank (when used).
 
 import { StorageBufferAttribute } from "three/webgpu";
 
@@ -30,6 +30,8 @@ export interface GpuInstances {
   readonly generation: number;
   readonly matrixBuffer: StorageBufferAttribute;
   readonly extraBuffer: StorageBufferAttribute;
+  /** Distance-fade rank of a packed slot, in [0, 1). */
+  fadeRank(slot: number): number;
   /** Adds an instance from 16 column-major floats at `offset`; returns its handle. */
   add(matrix: ArrayLike<number>, offset?: number, seed?: number): number;
   /** Adds `count` instances from `matrices` (16 floats each); returns their handles in order. */
@@ -54,9 +56,10 @@ function capacityFor(count: number): number {
   return capacity;
 }
 
-export function createGpuInstances(initialCapacity = MIN_CAPACITY): GpuInstances {
+export function createGpuInstances(initialCapacity = MIN_CAPACITY, staggeredFade = false): GpuInstances {
   let capacity = capacityFor(initialCapacity);
   let matrixArray = new Float32Array(capacity * MATRIX_FLOATS);
+  let matrixBits = new Uint32Array(matrixArray.buffer);
   let extraArray = new Float32Array(capacity * EXTRA_FLOATS);
   let seedView = new Uint32Array(extraArray.buffer);
   let matrixBuffer = new StorageBufferAttribute(matrixArray, MATRIX_FLOATS);
@@ -84,6 +87,7 @@ export function createGpuInstances(initialCapacity = MIN_CAPACITY): GpuInstances
     const handles = new Int32Array(next).fill(-1); handles.set(handleOf);
     matrixBuffer.dispose(); extraBuffer.dispose();
     matrixArray = matrices; extraArray = extras; seedView = new Uint32Array(extras.buffer);
+    matrixBits = new Uint32Array(matrices.buffer);
     slotOf = slots; handleOf = handles;
     matrixBuffer = new StorageBufferAttribute(matrixArray, MATRIX_FLOATS);
     extraBuffer = new StorageBufferAttribute(extraArray, EXTRA_FLOATS);
@@ -105,6 +109,7 @@ export function createGpuInstances(initialCapacity = MIN_CAPACITY): GpuInstances
     get generation() { return generation; },
     get matrixBuffer() { return matrixBuffer; },
     get extraBuffer() { return extraBuffer; },
+    fadeRank(slot) { return extraArray[slot * EXTRA_FLOATS + 3]!; },
     add(matrix, offset = 0, seed = 0) {
       // Handles index slotOf, which grows with the capacity: a handle never outnumbers it.
       grow(count + 1);
@@ -114,7 +119,17 @@ export function createGpuInstances(initialCapacity = MIN_CAPACITY): GpuInstances
       writeMatrix(slot, matrix, offset);
       extraArray[slot * EXTRA_FLOATS] = 1;
       seedView[slot * EXTRA_FLOATS + 1] = seed >>> 0;
-      extraArray[slot * EXTRA_FLOATS + 2] = 0; extraArray[slot * EXTRA_FLOATS + 3] = 0;
+      extraArray[slot * EXTRA_FLOATS + 2] = 0;
+      // Position also differentiates procedural placements whose seeds are all zero.
+      let rank = 0;
+      if (staggeredFade) {
+        const at = slot * MATRIX_FLOATS;
+        let hash = seed ^ Math.imul(matrixBits[at + 12]!, 0x9e3779b1) ^ Math.imul(matrixBits[at + 14]!, 0x85ebca6b);
+        hash = Math.imul(hash ^ (hash >>> 16), 0x7feb352d);
+        hash = Math.imul(hash ^ (hash >>> 15), 0x846ca68b);
+        rank = ((hash ^ (hash >>> 16)) >>> 8) / 0x1000000;
+      }
+      extraArray[slot * EXTRA_FLOATS + 3] = rank;
       return handle;
     },
     addMany(matrices, total, seeds) {

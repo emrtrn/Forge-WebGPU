@@ -64,7 +64,7 @@ interface View {
 export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrivenBatchOptions): GpuDrivenBatch {
   const lodCount = options.lods.length;
   if (lodCount < 1 || lodCount > MAX_INSTANCE_LODS) throw new Error(`gpu batch ${options.name}: 1 to ${MAX_INSTANCE_LODS} LODs`);
-  const instances = createGpuInstances(options.capacity);
+  const instances = createGpuInstances(options.capacity, options.staggeredFade);
   const maxViews = 1 + MAX_SHADOW_VIEWS + MAX_CAMERA_VIEWS;
   // The draws three issues: one per material group of each part, two for a two-pass material.
   const partPasses = (part: GpuDrivenBatchOptions["lods"][number][number]): number => {
@@ -163,6 +163,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     get cullBatch() {
       return { center: options.bounds.center, radius: options.bounds.radius, distanceMode: options.distanceMode, cullEnd: Math.min(distances.cullEnd, NO_CULL_DISTANCE), lodStarts: distances.lodStarts };
     },
+    get fadeSpread() { return options.staggeredFade ? distances.fadeSpread ?? 0 : 0; },
     prepare(list) {
       instances.flush();
       const matrices = instances.matrices();
@@ -170,6 +171,8 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       const seedBits = new Uint32Array(extras.buffer, extras.byteOffset, extras.length);
       const cull = batch.cullBatch;
       const fadeStart = Math.min(distances.fadeStart, cull.cullEnd);
+      const spread = batch.fadeSpread;
+      const fadeOffset = spread > 0 ? (at: number) => instances.fadeRank(at) * spread : undefined;
       const accepted = list.filter((view) => view.role !== "shadow" || options.castShadow !== false).slice(0, maxViews);
       prepared = accepted.length;
       lastDraws = 0;
@@ -180,7 +183,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
           view.role = source.role; view.layer = source.layer;
           buildView(view, index);
         }
-        const result = cullInstanceCounts(matrices, instances.count, cull, source);
+        const result = cullInstanceCounts(matrices, instances.count, cull, source, fadeOffset);
         // R9b: the zone masks as the GPU reads them (extras.z, the view's mask).
         const masks = options.zoneMasks?.array as Uint32Array | undefined;
         const base = source.role === "shadow" ? ZONE_MASK_WORDS : 0;
@@ -203,7 +206,8 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
             const distance = measuredDistance(matrices, offset, cull.distanceMode, source.origin);
             const end = source.casterProfile ? instanceCasterFadeEnd(matrices, offset, cull.radius, source.casterProfile) : 0;
             const shadow = end > 0 ? fadeShown(measuredDistance(matrices, offset, "origin", source.origin), end * CASTER_FADE_START, end) : 1;
-            shown.setX(slot, fadeShown(distance, fadeStart, cull.cullEnd) * extras[at * EXTRA_FLOATS]! * shadow);
+            const staggeredDistance = distance + (fadeOffset?.(at) ?? 0);
+            shown.setX(slot, fadeShown(staggeredDistance, fadeStart, cull.cullEnd) * extras[at * EXTRA_FLOATS]! * shadow);
           });
           mesh.count = visible.length;
           if (visible.length > 0) lastDraws += passes;
@@ -213,7 +217,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
           shown.needsUpdate = true;
           if (shading) { shading.placement.needsUpdate = true; shading.seed.needsUpdate = true; for (const column of shading.basis) column.needsUpdate = true; }
         }
-        view.counts = masks ? lists.map((list) => list.length) : [...result.counts];
+        view.counts = masks ? lists.map(list => list.length) : [...result.counts];
       }
       for (let index = prepared; index < views.length; index += 1) for (const { mesh } of views[index]!.meshes) mesh.visible = false;
       return [];
