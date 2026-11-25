@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.09 · 2026-11-25 — Faz W (hava) açıldı (kullanıcı; yalnız plan): yağış görseli, zamanlı hava geçişi, yağış siperi, statik mesh'te kar / ıslaklık, yağışla ıslanma / kuruma, su birikintisi + halkalar, terrain kar yüksekliği; adımlar W0–W8, HV-01–12. Açık kararlar HK1–HK7 kullanıcıda.
+**Güncelleme:** v2.10 · 2026-11-25 — Faz W: HK1–HK7 kapandı (kullanıcı, öneriler gibi); terrain yüzey fiziği yağışla değişir (kullanıcı): yüzey fiziği sözleşmesi ve W8 eklendi, kapı W9. Açık: HK8–HK10.
+
+**Önceki güncelleme:** v2.09 · 2026-11-25 — Faz W (hava) açıldı (kullanıcı; yalnız plan): yağış görseli, zamanlı hava geçişi, yağış siperi, statik mesh'te kar / ıslaklık, yağışla ıslanma / kuruma, su birikintisi + halkalar, terrain kar yüksekliği; adımlar W0–W8, HV-01–12.
 
 **Önceki güncelleme:** v2.08 · 2026-11-25 — PG5b adım 1–4'ün kullanıcı görsel kabulü (bitki planı v0.21). Sırada adım 5 (türler) ve 6 (World Builder örtüleri).
 
@@ -334,7 +336,7 @@ Büyüklükler görelidir (S < M < L < XL); süre tahmini değildir.
 | 4 | Editör çekirdeği | L | 3 | Editör smoke'u (yerleştir / taşı / undo / kaydet / yeniden aç) |
 | 5 | Açık dünya: 5a terrain, 5b akış + HLOD, 5c foliage, 5d editör araçları + World Builder penceresi | XL | 3, 4 | Alt faz başına kapı; sonda açık dünya sahnelerinde görsel + performans kabulü |
 | 6 | Oyun runtime'ı + araçlar + Ridgebound pilotu (K8) | L | 3; araç kapısı için 5a (5b–5d ile paralel yürüyebilir) | Runtime smoke'u; araç terrain üstünde sürülüyor; pilot kopya `check:projects`'te yeşil |
-| W | Hava: yağış, ıslanma / kuruma, su birikintisi, kar yüksekliği | L | 5 (6 ile paralel yürüyebilir) | HV-01–12 ve görsel kabul |
+| W | Hava: yağış, ıslanma / kuruma, su birikintisi, kar yüksekliği | L | 5 (6 ile paralel yürüyebilir) | HV-01–13 ve görsel kabul |
 | 7 | Su ve yansımalar | L | 5 | Su görsel kabulü |
 | 8 | Terrain deformasyonu + araç hasarı | L | 5, 6 | Ridgebound kopya sahnesinde senaryolar |
 | 9 | İleri aydınlatma (her teknik ölçümle) | M–L | 5 | Teknik başına ölçüm + kullanıcı kararı |
@@ -2479,9 +2481,12 @@ Eksik:
 7. Yağış kesilince kuruma: önce düz zemin, sonra su birikintileri; karın kalkması.
 8. Terrain'de kar yüksekliği zamanla gerçekten artar. Statik mesh'te kar şimdilik
    yalnız beyaz görünür.
+9. Terrain'in yüzey fiziği boyandığı gibi sabit kalmaz, yağışla zamanla değişir
+   (grass karlanınca kar fiziği; çamur, göl ve göl tabanı karlanmaz, değişmez).
+   Araç karda batar; kar kalkınca zemin eski hâline döner (iz ve batma Faz 8).
 
-**Kapsam dışı.** Statik mesh'te kar kalınlığı; karda iz ve küreme (Faz 8); kar /
-ıslaklığın fiziği; bölgesel hava; otomatik takvim ve kural tabanlı hava; dolu,
+**Kapsam dışı.** Statik mesh'te kar kalınlığı; karda iz ve batma (Faz 8), küreme;
+statik mesh'in (yol) yüzey fiziği; bölgesel hava; otomatik takvim ve kural tabanlı hava; dolu,
 şimşek, fırtına; donma / buz; sıçrama parçacıkları, oluk ve damlama; ekranda
 damla; göl, nehir ve okyanusta halka (halka düğümü hazır olur, Faz 7 bağlar);
 yağmur sesi (6c); hareketli cisim üstünde birikim.
@@ -2542,8 +2547,8 @@ kalır. Yalnız uniform güncellenir; hava değişince shader derlenmez.
   yamalıdır, su birikintisinin çevresi en son kurur.
 - *Kar:* bugünkü eğim + yükseklik maskesi, siper ve materyal kabulüyle; kar
   altında ince normal yumuşar.
-- *Yazım:* `forge.material`'a `weather` grubu (ıslanma, gözeneklilik, kar kabulü,
-  birikinti kabulü); terrain katmanı materyalinden okur.
+- *Yazım:* mesh'te `forge.material`'ın `weather` grubu (ıslanma, gözeneklilik, kar
+  kabulü, birikinti kabulü); terrain'de boya katmanı (aşağıda 9).
 
 **6 · Su birikintisi.** Üç kaynak, aynı `puddleFill`:
 
@@ -2567,7 +2572,9 @@ sınırında çatlak yok); siper maskesi vertex aralığı kadar genişletilir (
 dibinden içeri sızmaz); normal yükselen yüzeyden; gölge geçidi aynı konumu
 kullanır; düğüm sınırları ve culling en yüksek karı içerir. Kısa ot kara gömülür,
 bu istenen sonuçtur. Authored yükseklik, paint, fizik materyali ve collider
-yazılmaz; G8 kar 0 iken ölçülür.
+yazılmaz; G8 kar 0 iken ölçülür. Maskelerin hepsi saf fonksiyondur ve **CPU
+ikizi** vardır (fizik aynı noktada aynı karı görür); siperin CPU karşılığı temas
+noktasından yukarı ışındır, GPU okuması yok.
 
 **8 · Şema ve yüzeyler.** `forge.worldEnvironment@3`: `weather` geçişi,
 `weatherDrivesSurface`, yeni oranlar, `snowMaxDepth`, dikey ıslanma; canlı
@@ -2576,6 +2583,32 @@ nötr varsayılanlar. SDK servisi (`transitionWeather`, yağış ve yüzey okuma
 changelog. Editör önizlemesi yeni büyüklükleri gösterir ve **hızlı oynatır**
 ("20 dk yağmur" gibi); level'a yazılmaz. Ajan aynı alanları `forge edit set` ile
 yazar.
+
+**9 · Yüzey fiziği sözleşmesi (yön kullanıcının, 2026-11-25; mekanizma öneri, kullanıcı W0'da
+onaylar).** Bugün bir boya katmanının
+fizik materyali (`mud`, `sand`, `snow` …) sabittir ve `TerrainSurfaceSampler`
+tekere katman ağırlıklarıyla karışmış profili verir. Boya ve fizik materyali yine
+yazılmaz; **okunan** profil canlı olur:
+
+- *Katman tepkisi:* katmanda `weather` (`snowAccept` 0–1, `wetPhysicalMaterial`);
+  boşsa fizik materyalinin varsayılanı: `mud` 0, ötekiler 1. Görünen kar ile fizik
+  **aynı** değeri okur; beyaz görünen yer kar gibi tutar. Su altındaki zemin
+  (göl, `forge.puddle`) katmandan bağımsız 0'dır (göl / nehir Faz 7'de bağlanır).
+- *Canlı profil:* katman başına `karışım(kendi profili, snow profili, s)`, sonra bugünkü
+  ağırlıklı karışım. `s` = noktadaki kar yüksekliğinin yumuşak eşiği × kabul; ince
+  karda az, kalın karda tam. Kar azaldıkça profil kendiliğinden tabana döner.
+  Teker efekti ve sesi de (`dominantMaterialAt`) canlı materyali görür. Hiç fizik
+  materyali olmayan terrain bugün örnekleyici kurmaz; hava bağı açıkken kurar.
+- *Kar collider'ın üstündedir.* Boyanmış karda collider karın üst yüzüdür ve iz onun
+  altına iner; yağan karda collider sert tabandır, kar onun üstünde `snowDepth`
+  kadardır. Sonuç: yağan karda iz en çok tabana kadar iner (`maxDepth` yerel kar
+  yüksekliğiyle sınırlı), sıkışmış bir pay kalır, teker onun üstünde durur (bugünkü
+  sanal zemin ofseti işaretli olur). Collider hiç yeniden kurulmaz.
+- *İz ortama bağlıdır.* Deformasyon hücresi kar mı taban mı olduğunu taşır. Kar izi
+  kar eridikçe onunla biter, yeni kar yağdıkça dolar; çamur / kum izi kardan
+  etkilenmez ve kalır. Kar inceyken baskı tabana (kumsa kum izine) geçer.
+- *Nerede:* canlı profil W8 (saf + test), tekere bağ 6d, iz, batma, işaretli ofset
+  ve kayıt Faz 8. Sayıların ayarı (eşik, sıkışma, tutuş) Faz 8'de araçla yapılır.
 
 #### Adımlar
 
@@ -2593,15 +2626,19 @@ yüzeyiyle biter.
 - [ ] **W4 Statik mesh örtüsü.** `surfaceCover` v2, `forge.material` `weather`,
       bütün statik yollar + HLOD, dikey ıslanma. *Kapı:* HV-04, 12; statik ölçüm. — C
 - [ ] **W5 Yağışla ıslanma, karlanma, kuruma.** Yüzey durumu modeli (X) + hava
-      bağı, yamalı kuruma, kayıt oyunu (C). *Kapı:* HV-05, 08, 09.
+      bağı, katmanın `weather` alanı ve Details'i, yamalı kuruma, kayıt oyunu (C).
+      *Kapı:* HV-05, 08, 09.
 - [ ] **W6 Su birikintisi ve halkalar.** Çukur haritası (X) + terrain bağı, mikro
       birikinti, `followWeather`, halka düğümü (C). *Kapı:* HV-06.
-- [ ] **W7 Terrain kar yüksekliği.** *Kapı:* HV-07, 08. — C
-- [ ] **W8 Kapı.** `npm run measure:weather`, smoke'lar (`precipitation`, `weather`,
+- [ ] **W7 Terrain kar yüksekliği.** CPU ikiziyle. *Kapı:* HV-07, 08. — C
+- [ ] **W8 Canlı yüzey fiziği.** Hava duyarlı örnekleyici (saf; mevcut araç
+      testleriyle), efekt materyali. Teker bağı 6d,
+      iz Faz 8. *Kapı:* HV-13. — X (saf) + C
+- [ ] **W9 Kapı.** `npm run measure:weather`, smoke'lar (`precipitation`, `weather`,
       `snowDepth`), editör smoke'u, belgeler, kullanıcı görsel kabulü. — C
 
-Sıra: W0 → W1 → W2 → W3 → W4 → W5 → W6 → W7 → W8. W7, W5'ten sonra W6'dan önce
-alınabilir.
+Sıra: W0 → W1 → … → W9. W7, W5'ten sonra W6'dan önce alınabilir; W8, W7'den
+sonra gelir.
 
 #### Kabul matrisi
 
@@ -2614,11 +2651,12 @@ alınabilir.
 | HV-05 | Yağınca ıslanır; kesilince önce düz zemin, sonra birikintiler kurur; kar kalkınca zemin ıslak kalıp kurur | Deterministik sıra testi + zaman serisi çekimleri |
 | HV-06 | Birikinti çukurda ve düzlükte oluşur, yamaçta ve siper altında oluşmaz; halka yalnız yağmurda; `forge.puddle` seviyeyle iner | Çukur haritası testi + pozlar |
 | HV-07 | Kar yüksekliği artar ve iner; hiçbir noktada zeminin altına inmez, en çok sınırı kadar; LOD / tile sınırında çatlak yok; siper ve mesh altında yükselmez | GPU okuması ↔ CPU formülü + pozlar |
-| HV-08 | Authored yükseklik, paint, fizik materyali, collider ve G8 değişmez; önizleme kayda ve Play'e sızmaz | Bayt karşılaştırması, G8, editör smoke'u |
+| HV-08 | Authored yükseklik, paint, fizik materyali, collider ve G8 değişmez (okunan profil yalnız W8 ile canlıdır); önizleme kayda ve Play'e sızmaz | Bayt karşılaştırması, G8, editör smoke'u |
 | HV-09 | 30 / 60 / 144 Hz aynı sonuç; saat atlaması birikim değil; kayıt / yükleme kaldığı yerden; yeni hücre güncel durumla gelir | Saf testler + hücre döngüsü |
 | HV-10 | WES yoksa, hava açık ve durum 0 iken görüntü bugünkü gibi; eski level baytları değişmez | Render smoke'u + bayt karşılaştırması |
 | HV-11 | Bütçe tutuyor (aşağıda), hücre döngüsünde GPU / JS sızıntısı yok | `measure:weather`, R1, gerçek WebGPU |
 | HV-12 | Uzak temsil tutarlı: HLOD proxy'si, uzak bitki ve terrain yakınla aynı ton | Yakın–uzak pozlar |
+| HV-13 | Grass / toprak / kum karlandıkça kar profiline geçer, eriyince aynı sayılara döner; çamur ve su altı değişmez; karışık boyada ağırlıklı; siper altında taban; görünen kar ile fizik aynı noktada aynı kararı verir; hava bağı kapalıyken profil bugünküyle birebir | Saf testler (CPU ikizi) + mevcut araç testleri |
 
 **Bütçe (öneri; R1, 1080p `high`, Derekavak P2, sağanak / yoğun kar).** Yağış
 ≤ 0,8 ms GPU; siper haritası yenilendiği karede ≤ 1,0 ms GPU, duran karede 0;
@@ -2628,21 +2666,28 @@ alınabilir.
 
 #### Kararlar
 
-**Kapalı (kullanıcı, 2026-11-25):** yukarıdaki kapsam 1–8; yağış yüzeyi sürer
+**Kapalı (kullanıcı, 2026-11-25):** yukarıdaki kapsam 1–9; yağış yüzeyi sürer
 (5a'nın "hava hedefleri değiştirmez" kararı, bağ açıkken geçersiz); statik
-mesh'te kar kalınlığı yok; önce plan.
+mesh'te kar kalınlığı yok; önce plan. HK1–HK7 öneri olduğu gibi (aynı gün); yüzey
+fiziği yağışla değişir (kapsam 9, tasarım 9).
+
+| ID | Konu | Karar |
+|---|---|---|
+| HK1 | Zaman | PG5b ve Faz 5 toplu kabulünden sonra; Faz 6 ile paralel yürüyebilir |
+| HK2 | Hava → yüzey bağının varsayılanı | Şemada kapalı (eski level'lar aynı kalır); Add Actor ve World Builder açık yazar |
+| HK3 | Kar yüksekliğinin fiziği | W'de yalnız görünen geometri, collider değişmez; canlı yüzey fiziği W8 (tasarım 9), araç bağı 6d, iz ve batma Faz 8 |
+| HK4 | En yüksek kar | `snowMaxDepth` varsayılan 0,4 m, aralık 0–2 m |
+| HK5 | Birikintinin yeri | Çukur haritası + mikro birikinti kendiliğinden; yazar katman / materyalin birikinti kabulüyle ayarlar; yeni fırça yok |
+| HK6 | Ağaç altı | Bitki siper sayılmaz (orman altına da yağar) |
+| HK7 | Elle konan `forge.puddle` | `forge.puddle` `followWeather` varsayılan kapalı; birikinti bugünkü gibi kalır |
 
 **Açık (W0'dan önce; kullanıcı):**
 
 | ID | Konu | Öneri |
 |---|---|---|
-| HK1 | Zaman | PG5b ve Faz 5 toplu kabulünden sonra; Faz 6 ile paralel yürüyebilir |
-| HK2 | Hava → yüzey bağının varsayılanı | Şemada kapalı (eski level'lar aynı kalır); Add Actor ve World Builder açık yazar |
-| HK3 | Kar yüksekliğinin fiziği | Yalnız görünen geometri: collider değişmez, karakter ve tekerlek karın içinde kalır; iz ve batma Faz 8 |
-| HK4 | En yüksek kar | `snowMaxDepth` varsayılan 0,4 m, aralık 0–2 m |
-| HK5 | Birikintinin yeri | Çukur haritası + mikro birikinti kendiliğinden; yazar katman / materyalin birikinti kabulüyle ayarlar; yeni fırça yok |
-| HK6 | Ağaç altı | Bitki siper sayılmaz (orman altına da yağar) |
-| HK7 | Elle konan `forge.puddle` | `forge.puddle` `followWeather` varsayılan kapalı; birikinti bugünkü gibi kalır |
+| HK8 | Yağmur da fiziği değiştirsin mi? | Evet, katman isterse: `wetPhysicalMaterial` (ör. toprak → `mud`) ıslaklık doydukça karışır, kuruyunca döner; varsayılan boş |
+| HK9 | Boyanmış `snow` katmanına yağan kar | Üstüne eklenir; eriyince boyanmış kar kalır (kalıcı kar) |
+| HK10 | Karda karakter | W'de ve Faz 8'in ilk diliminde yalnız araç batar ve iz bırakır; karakterin ayak izi ve yavaşlaması Faz 8'de ayrı karar |
 
 #### Riskler
 
@@ -2654,6 +2699,8 @@ mesh'te kar kalınlığı yok; önce plan.
 | Kar odaya ya da duvar dibine sızar | Siper maskesi vertex aralığı kadar genişler; HV-02 / 07 pozları |
 | Yol mesh'i karın altında kalır | Yol siper haritasındadır; altındaki terrain yükselmez |
 | Siper menzilinin kenarında kar yüksekliği belirir | Kademe kenarında yumuşak geçiş; HV-07'de yürüyüş |
+| Görünen kar ile fizik ayrışır | Tek saf maske, CPU ikizi; HV-07 ve HV-13 aynı noktaları karşılaştırır |
+| Boyanmış kar (collider üst yüz) ile yağan kar (collider taban) karışır | İki ortam ayrı hücre bilgisi; sözleşme tasarım 9, uygulama Faz 8 |
 | Çukur haritası tile sınırında kopar | Komşu payı ve sığ derinlik sınırı; saf test iki tile'ı tek parçayla karşılaştırır |
 
 ### Faz 6 — Oyun runtime'ı ve araçlar
@@ -2737,7 +2784,7 @@ sonra.
       Mümkünse compute partikül. Yağış ayrı bir çizimdir (Faz W); yağmur sesi ses
       dünyaya bağlanınca (6c) WES'in yağış şiddetini okur.
 - [ ] Araçlar: Vehicle component, tekerlek görsel node'ları, motor sesi, yüzey
-      tepkisi.
+      tepkisi (Faz W W8'in canlı profiliyle; W8 gelmediyse bugünkü örnekleyici).
 - [ ] `templates/game-starter` karşılığı.
 - [ ] Oyun projesi build'i: Forge'daki `game-project-build` / `build-record` /
       `verify:build` karşılığı; editörsüz üretim çıktısı, `verify:dist
@@ -2771,8 +2818,9 @@ sonra.
 
 ### Faz 8 — Terrain deformasyonu ve araç hasarı
 
-- [ ] Karda iz: deformasyon Faz W'nin kar yüksekliğini oyar; batma ve collider
-      kararı burada (Faz W HK3).
+- [ ] Karda iz ve batma (Faz W tasarım 9): deformasyon yağan karı en çok tabana kadar
+      oyar, işaretli sanal zemin ofseti, hücrede ortam (kar / taban), yağışla dolma
+      ve erimeyle bitme, kayıt; sayıların araçla ayarı. Collider yeniden kurulmaz.
 - [ ] Terrain deformasyonu: GPU yükseklik güncellemesi (texture veya compute),
       collider senkronu, ıslak iz, save-game kalıcılığı, editör yüzeyi.
 - [ ] Araç hasarı: impact deform + mesh senkronu, `dentWear` TSL'de, parça
@@ -3049,6 +3097,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-25 | v2.10 | Faz W: HK1–HK7 kapandı (kullanıcı, öneriler gibi); terrain yüzey fiziği yağışla değişir (kullanıcı): yüzey fiziği sözleşmesi ve W8 eklendi, kapı W9. Açık: HK8–HK10. |
 | 2026-11-25 | v2.09 | Faz W (hava) açıldı (kullanıcı; yalnız plan): yağış görseli, zamanlı hava geçişi, yağış siperi, statik mesh'te kar / ıslaklık, yağışla ıslanma / kuruma, su birikintisi + halkalar, terrain kar yüksekliği; adımlar W0–W8, HV-01–12. Açık kararlar HK1–HK7 kullanıcıda. |
 | 2026-11-25 | v2.05 | World Builder açık level'a kurar, sahne ayarları kalır; Outliner klasörleri (`5b8f6fa`, kullanıcı kararı; adım 8'in "yeni level" kararı kalktı). İlgili vitest 389, editör spec'leri 21 |
 | 2026-11-25 | v2.04 | 5d adım 10 teknik kapı: tam kapı (2.733 test, editör 99 + 99 WebGPU), G8, ölçümler bütçede; HLOD KTX2 (`eab26b4`), `.forge-cache` izleyicisi (`ded16da`), akış ölçüm level'ı üretilmiş modelsiz. Faz 5 toplu kabulü kullanıcıda |
