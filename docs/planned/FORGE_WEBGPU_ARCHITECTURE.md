@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.81 · 2026-11-25 — §4.4 5d adım 9: `generated` model kaynağı tarif GUID'i, onay sayfası asset'i (`forge.familySheet`), tekil bitki yerleşimi; §4.6 tarif başvuruları.
+**Güncelleme:** v1.82 · 2026-11-25 — §4.4 aktörün `folder`'ı (Outliner klasörü) ve World Builder'ın açık level'a kurulumu; adım 8'in "yeni level" kararı kalktı.
+
+**Önceki güncelleme:** v1.81 · 2026-11-25 — §4.4 5d adım 9: `generated` model kaynağı tarif GUID'i, onay sayfası asset'i (`forge.familySheet`), tekil bitki yerleşimi; §4.6 tarif başvuruları.
 
 **Önceki güncelleme:** v1.80 · 2026-11-25 — §4.4 5d adım 8: World Builder penceresi (yeni level'a kurulum, paket ekleme, uç noktalar); §4.6 World Builder girdilerinde asset başvuruları GUID, girdi yolları etiket.
 
@@ -632,6 +634,12 @@ features/height-fog/
     aktörün yerel uzayı; `ActorPivotField`) editörün döndürme ve ölçeğinin etrafında
     yapıldığı noktadır (Forge'un yerleşim pivot'u). Editör verisidir: World ve oyun
     okumaz; orijindeki pivot kanonik belgeye yazılmaz.
+  - *Klasör (kullanıcı kararı 2026-11-25):* aktörün isteğe bağlı `folder`'ı
+    (`World/Fences`; `ActorFolderField`, `core/level/actorFolder.ts`) Outliner'daki
+    klasörüdür. Editör verisidir: World ve oyun okumaz, hücreyi ve konumu etkilemez
+    (ebeveyn bu iş için kullanılmaz, alt aktör kökünün hücresinde yaşar). Klasör
+    nesnesi yoktur, aktörlerin yollarından çıkar; alt aktörde yol beklemededir;
+    kök ("") yazılmaz. `forge edit set <id> actor.folder=World/Props`.
   - *Atama:* kök aktörün `transform.p` X/Z'si hücresini belirler. Alt aktör
     kökünü izler, kendi bayrağına bakılmaz; bu yüzden `parent` her zaman
     aynı dosyadadır ve dosya başına normalize'da denetlenir (dosyada olmayan
@@ -1150,8 +1158,10 @@ features/height-fog/
     (IO'suz), okuma / kayıt / undo `editor/foliage/foliageEdits.ts` (oturum katılımcısı).
     Bağlama düzenlenen hücreyi `LevelFoliageSource.edits`'ten çizer, ötekiler dosyadan
     akar; oyunda `edits` yoktur. Kaynak level'ın aktör hücresi olmasa da verilir.
-  - *Adım 8 kararları (kullanıcı, 2026-11-25, öneriler gibi):* World Builder yeni level
-    klasörüne kurar, var olanı sorarak değiştirir; su seçimleri Faz 7'ye kadar yalnız yatak
+  - *Adım 8 kararları (kullanıcı, 2026-11-25):* World Builder açık level'a kurar: level
+    ayarları ve sahne ayarı aktörleri (tekil ortam bileşenleri, yönlü ışık) kalır, gerisi
+    silinip yeniden kurulur (`build/sceneSettings.ts`; CLI'ın `--force`'u da öyle); level'da
+    silinecek şey varsa sorar; su seçimleri Faz 7'ye kadar yalnız yatak
     ve kıyı; örtü ağaçları ve kayalar starter paketinden GUID'le; eksik `worldbuilder`
     paketini pencere manifeste ekler ve dev server yeniden başlar.
   - *Uygulama (adım 8, `54161a3`):* kurulum dev server'ın çocuk süreci (`tools/world-random.ts

@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.04 · 2026-11-25 — 5d adım 10, kapının teknik kısmı geçti: tam kapı, editör seti WebGL ve gerçek WebGPU 99 / 99, render smoke'u, terrain / akış / foliage / orman ölçümleri. Bulunan ve düzeltilenler: HLOD'un KTX2 dokuyu okumaması (`eab26b4`), Vite'ın `.forge-cache`'i taraması (`ded16da`), akış ölçüm level'ının paketle büyümesi. Faz 5 toplu görsel + performans kabulü kullanıcıda; kutular ve arşiv kabulü bekliyor.
+**Güncelleme:** v2.05 · 2026-11-25 — World Builder açık level'a kurar ve sahne ayarlarını korur; Outliner klasörleri (`5b8f6fa`). Kullanıcı kararı, adım 8'in "yeni level" kararının yerini alır. Adım 8 / 9 ve Faz 5 toplu kabulü kullanıcıda.
+
+**Önceki güncelleme:** v2.04 · 2026-11-25 — 5d adım 10, kapının teknik kısmı geçti: tam kapı, editör seti WebGL ve gerçek WebGPU 99 / 99, render smoke'u, terrain / akış / foliage / orman ölçümleri. Bulunan ve düzeltilenler: HLOD'un KTX2 dokuyu okumaması (`eab26b4`), Vite'ın `.forge-cache`'i taraması (`ded16da`), akış ölçüm level'ının paketle büyümesi. Faz 5 toplu görsel + performans kabulü kullanıcıda; kutular ve arşiv kabulü bekliyor.
 
 **Önceki güncelleme:** v2.03 · 2026-11-25 — 5d adım 9, bitki tarafı (bitki planı PG5 = E + F; `88913ec` `3ce003b` `e4982df` `62d153f` `6ef8a9b` `f838402`): tarif / aile / onay sayfası önizlemeleri, kaya tarifinin editörden üretimi, World Builder'da `generated` model kaynağı, örtüde tarif başvurusu, tekil bitki ve yerleşim ağacı. Kararlar kullanıcıda (öneriler gibi). Kullanıcı görsel kabulü bekleniyor (adım 8 ile birlikte).
 
@@ -2291,6 +2293,21 @@ ilgili editör spec'leri WebGL'de 29 / 29, WebGPU'da 7 / 7. Sonraya: su aktörle
 Starter Conifer'ın seyrek iğne yaprağı üretilen ormanda görünür (bitki planı). Kullanıcı
 görsel kabulü bekleniyor.
 
+*Adım 8 düzeltmesi (kullanıcı kararı, 2026-11-25, `5b8f6fa`; Forge'un 2026-11-08 kararı `1a471eda` taşınırken
+değiştirilmişti):* Create açık level'a kurar; Name alanı ve yeni level seçeneği yok. Level'ın ayarları ve sahne
+ayarı aktörleri (tekil ortam bileşenleri, yönlü ışık, içinde durdukları grup; `build/sceneSettings.ts`) kalır,
+gerisi (arazi, nesneler, boyanmış foliage, HLOD) silinip yeniden kurulur. Gökyüzü / Sky Light / güneşi olan
+level'a greybox görünüm eklenmez. Kaydedilmemiş değişiklik kurulumdan önce kaydedilir; pencere yalnız level'da
+silinecek bir şey varsa sorar. `world:random --force` / `world:brief --force` aynı kuralı izler. **Outliner
+klasörleri (Unreal gibi):** aktörün `folder`'ı (editör verisi, mimari §4.4); üretilenler `World/Buildings`,
+`Structures`, `Fences`, `Furniture`, `Rocks`, `Vegetation` altında. Ebeveyn kullanılmadı: alt aktör kökünün
+hücresinde yaşar, dünya tek hücreye toplanırdı. Klasör satırı: aç / kapat, göz, kilit, sürükle-bırak, New Folder,
+Rename, Remove Folder (aktörler kalır), Select Contents; her düzenleme tek undo. **Kanıt:** ilgili vitest 389 / 389,
+`outliner` + `worldBuilder` spec'leri 7 / 7, `agent` / `edit` / `hlod` / `selection` / `streaming` 14 / 14 (`forceWebGL`).
+`bench:outliner` değişiklikten önce de sonra da seçim ve arama eşiğini aşıyor (26,8 → 21,7 ms; 62,7 → 63,3 ms;
+eşik 16 / 50): gerileme yok, aşım açık. **Sınırlar:** klasör adı değişikliği yalnız yüklü aktörlere ulaşır (durum
+satırı söyler); boş klasör sayfayla sınırlı, kaydedilmez.
+
 *Adım 9 kararları (kullanıcı, 2026-11-25, öneriler gibi):* sıra E, sonra F; onay projede ayrı
 `*.familysheet.json` asset'inde (durum, not, onaylanan çıktının özeti); starter'a Hazel ve
 MeadowGrass çıktısı girer (≈ 1 MB), Oak / Poplar C kabulünü bekler; onay bekleyen ya da değişen
@@ -2807,6 +2824,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-25 | v2.05 | World Builder açık level'a kurar, sahne ayarları kalır; Outliner klasörleri (`5b8f6fa`, kullanıcı kararı; adım 8'in "yeni level" kararı kalktı). İlgili vitest 389, editör spec'leri 21 |
 | 2026-11-25 | v2.04 | 5d adım 10 teknik kapı: tam kapı (2.733 test, editör 99 + 99 WebGPU), G8, ölçümler bütçede; HLOD KTX2 (`eab26b4`), `.forge-cache` izleyicisi (`ded16da`), akış ölçüm level'ı üretilmiş modelsiz. Faz 5 toplu kabulü kullanıcıda |
 | 2026-11-25 | v2.03 | 5d adım 9 (PG5 E + F, `88913ec` … `f838402`): kararlar (kullanıcı, öneriler gibi); önizlemeler, onay sayfası (SDK 0.1.15), `generated` kaynağı, tekil bitki ve yerleşim ağacı, starter'a Hazel + MeadowGrass çıktısı. `worldBuilder.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda. Sıradaki: adım 10 (5d kapısı, Faz 5 toplu kabulü) |
 | 2026-11-25 | v2.02 | 5d adım 8 (`54161a3`): kararlar (kullanıcı, öneriler gibi: yeni level, su notla, starter bitki / kaya, asset'ler GUID, Add Pack); World Builder penceresi, `/__forge/world-random`, önizleme worker'ı. `worldBuilder.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda. Sıradaki: 5d adım 9 (bitki tarafı, karar 6) |
