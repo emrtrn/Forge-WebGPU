@@ -52,6 +52,8 @@ export interface FoliageTypeDraw {
   readonly plant?: PlantFamilyDraw | null;
   /** The baked impostor (PG3): drawn as the last LOD from its screen size. */
   readonly impostor?: ImpostorRef | null;
+  /** The editor's comparisons: this LOD at any distance (the last when it has fewer; the impostor is the last). */
+  readonly forcedLod?: number;
 }
 
 export interface FoliageQuality {
@@ -113,7 +115,7 @@ const sameSway = (a: FoliageSway | null | undefined, b: FoliageSway | null | und
 
 const sameType = (a: FoliageTypeDraw, b: FoliageTypeDraw): boolean =>
   sameSway(a.sway, b.sway) && JSON.stringify(a.plant ?? null) === JSON.stringify(b.plant ?? null) && JSON.stringify(a.impostor ?? null) === JSON.stringify(b.impostor ?? null) && a.mesh === b.mesh && a.castShadow === b.castShadow && a.cullStart === b.cullStart && a.cullEnd === b.cullEnd
-  && a.fadeSpread === b.fadeSpread && a.lods.length === b.lods.length
+  && a.fadeSpread === b.fadeSpread && a.forcedLod === b.forcedLod && a.lods.length === b.lods.length
   && a.lods.every((lod, index) => lod.mesh === b.lods[index]!.mesh && lod.screenSize === b.lods[index]!.screenSize);
 
 /**
@@ -152,8 +154,9 @@ export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBat
     const fadeSpread = window ? Math.min(window[0], (entry.type.fadeSpread ?? 0) * quality.cullScale) : 0;
     const screenSizes = entry.type.lods.map((lod) => lod.screenSize);
     if (entry.batch.lodCount > screenSizes.length + 1) screenSizes.push(entry.type.impostor!.screenSize);
-    if (lodOverride !== null) {
-      const forced = Math.min(lodOverride, entry.batch.lodCount - 1);
+    const forcedLod = lodOverride ?? entry.type.forcedLod ?? null;
+    if (forcedLod !== null) {
+      const forced = Math.min(forcedLod, entry.batch.lodCount - 1);
       entry.batch.setDistances({
         fadeStart: window?.[0] ?? NO_CULL_DISTANCE, cullEnd: window?.[1] ?? NO_CULL_DISTANCE,
         fadeSpread, lodStarts: screenSizes.map((_, index) => (index < forced ? 0 : NO_CULL_DISTANCE)),

@@ -13,9 +13,9 @@
 
 import { Group, Matrix4, PerspectiveCamera, Vector3, type Camera } from "three/webgpu";
 import { normalizeJsonAsset, parseComponentTypeTag, type ActorId, type WorldActor } from "../../core/index.ts";
-import { createFoliageBatches, type FoliageBatches, type FoliageTypeDraw } from "../../render/foliage/foliageBatches.ts";
+import { createFoliageBatches, type FoliageBatches } from "../../render/foliage/foliageBatches.ts";
 import { plantWorld } from "../../render/plant/plantDrawing.ts";
-import { readFamilyPrototype, type PlantFamilyFieldsRead } from "../../render/plant/plantFamilies.ts";
+import { plantDraw, readFamilyPrototype, type PlantFamilyFieldsRead } from "../../render/plant/plantFamilies.ts";
 import { defineRenderBinding } from "../../render/sync/renderBinding.ts";
 import { componentWorldMatrix } from "../../render/sync/transforms.ts";
 import { Plant, PlantFamilyAssetType, type PlantData } from "./schema.ts";
@@ -68,11 +68,7 @@ export default defineRenderBinding({
       void Promise.all(list.map(async ([key, data]) => {
         const prototype = await readFamilyPrototype(ctx.resources, data.family as string, data.prototype, entry.keys, readFamily);
         if (!prototype || entry.removed) return;
-        const type: FoliageTypeDraw = {
-          id: `plant:${data.family}:${Math.floor(data.prototype)}:${data.castShadow ? 1 : 0}`,
-          mesh: prototype.mesh, lods: prototype.lods, castShadow: data.castShadow, cullStart: 0, cullEnd: 0,
-          sway: prototype.sway, plant: prototype.plant, impostor: prototype.impostor,
-        };
+        const type = plantDraw(prototype, data.family as string, data.prototype, data.castShadow);
         const owner = `${actor.id}/${key}`;
         entry.owners.push(owner);
         target.set(type, owner, componentWorldMatrix(ctx.world, actor, key, new Matrix4()).elements, [data.seed >>> 0]);

@@ -8,6 +8,7 @@
 import type { PlantResponseProfile } from "../../engine/plant/plantResponse.ts";
 import { resourceKey } from "../resources/resourceCache.ts";
 import type { WorldResources } from "../resources/worldResources.ts";
+import type { FoliageTypeDraw } from "../foliage/foliageBatches.ts";
 import type { PlantFamilyDraw } from "./plantDrawing.ts";
 
 /** The fields of a normalised `forge.plantFamily` the renderer reads (features/plant/schema.ts). */
@@ -71,6 +72,30 @@ export interface FamilyPrototypeDraw {
   readonly sway: { readonly amplitude: number; readonly height: number; readonly frequency: number; readonly source: "vertex" };
 }
 
+/** A family document's prototype; null when it has none with a model at this index. */
+export function familyPrototype(family: PlantFamilyFieldsRead, guid: string, prototype: number): FamilyPrototypeDraw | null {
+  const entry = family.prototypes[Math.max(0, Math.floor(prototype))];
+  const chain = (entry?.lods ?? []).flatMap((lod) => (typeof lod.mesh === "string" && lod.mesh.length > 0 ? [{ mesh: lod.mesh, screenSize: lod.screenSize }] : []));
+  if (!entry || chain.length === 0) return null;
+  return {
+    mesh: chain[0]!.mesh,
+    lods: chain.slice(1),
+    plant: { id: guid, wood: family.materials.wood, leaf: family.materials.leaf, response: family.response },
+    impostor: impostorRef(entry.impostor),
+    height: entry.height,
+    sway: { amplitude: family.sway.amplitude, height: Math.max(entry.height, 0.01), frequency: family.sway.frequency, source: "vertex" },
+  };
+}
+
+/** A single plant of a family as the plant path draws it: one batch per family, prototype and shadow. */
+export function plantDraw(prototype: FamilyPrototypeDraw, family: string, index: number, castShadow: boolean): FoliageTypeDraw {
+  return {
+    id: `plant:${family}:${Math.floor(index)}:${castShadow ? 1 : 0}`,
+    mesh: prototype.mesh, lods: prototype.lods, castShadow, cullStart: 0, cullEnd: 0,
+    sway: prototype.sway, plant: prototype.plant, impostor: prototype.impostor,
+  };
+}
+
 /** Null (with a warning) when the family cannot be read or has no such prototype with a model. */
 export async function readFamilyPrototype(
   resources: WorldResources,
@@ -83,17 +108,9 @@ export async function readFamilyPrototype(
   try {
     const family = normalize(await resources.json(guid));
     if (!family) throw new Error("unreadable");
-    const entry = family.prototypes[Math.max(0, Math.floor(prototype))];
-    const chain = (entry?.lods ?? []).flatMap((lod) => (typeof lod.mesh === "string" && lod.mesh.length > 0 ? [{ mesh: lod.mesh, screenSize: lod.screenSize }] : []));
-    if (!entry || chain.length === 0) throw new Error(`no prototype ${prototype} with a model`);
-    return {
-      mesh: chain[0]!.mesh,
-      lods: chain.slice(1),
-      plant: { id: guid, wood: family.materials.wood, leaf: family.materials.leaf, response: family.response },
-      impostor: impostorRef(entry.impostor),
-      height: entry.height,
-      sway: { amplitude: family.sway.amplitude, height: Math.max(entry.height, 0.01), frequency: family.sway.frequency, source: "vertex" },
-    };
+    const draw = familyPrototype(family, guid, prototype);
+    if (!draw) throw new Error(`no prototype ${prototype} with a model`);
+    return draw;
   } catch (error) {
     console.warn(`forge render: plant family ${guid} not drawn: ${String(error)}`);
     return null;

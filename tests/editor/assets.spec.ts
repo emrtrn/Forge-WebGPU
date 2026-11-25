@@ -34,6 +34,8 @@ export default defineGameModule({ id:'starter.assets', features:[defineFeature({
   await write(`${FOLDER}/surface.material.json`, { schema: "forge.material/1", id: MATERIAL, baseColor: "#aa2200", roughness: 0.5 });
   const tree = JSON.parse(await readFile(join(REPO, "content/packs/starter/procgen/trees/Broadleaf.treerecipe.json"), "utf8"));
   await write(`${FOLDER}/grove.treerecipe.json`, { ...tree, id: `ast_${"a".repeat(31)}5`, variants: [1], impostor: { ...tree.impostor, views: 4, frameSize: "64" } });
+  const family = JSON.parse(await readFile(join(REPO, "content/packs/starter/procgen/trees/Broadleaf/Broadleaf.plantfamily.json"), "utf8"));
+  await write(`${FOLDER}/family.plantfamily.json`, { ...family, id: `ast_${"a".repeat(31)}9` });
   const rock = JSON.parse(await readFile(join(REPO, "content/packs/starter/procgen/rocks/RockRounded.rockrecipe.json"), "utf8"));
   await write(`${FOLDER}/boulder.rockrecipe.json`, { ...rock, id: `ast_${"a".repeat(31)}8`, variants: [4, 5], lods: [2, 1] });
   await write(`${FOLDER}/tree2.treerecipe.json`, { schema: "forge.treeRecipe/1", id: `ast_${"a".repeat(31)}7`, variants: [7] });
@@ -142,6 +144,37 @@ test("tree recipe compares Source, LODs and impostor, shows every seed, the fami
   await expect(page.getByTestId("asset-related-uses")).toContainText("Bark · Surface Texture Recipe");
   await page.getByTestId("asset-related-uses").getByText("M_Bark", { exact: false }).click();
   await expect(page.getByTestId("asset-editor")).not.toHaveAttribute("data-asset-id", `ast_${"a".repeat(31)}5`);
+  await close(page); expect(errors).toEqual([]);
+});
+
+test("plant family previews prototypes, LODs and a single plant beside foliage in every season; its response edits follow live", async ({ page }, info) => {
+  test.setTimeout(120000);
+  const errors = await open(page);
+  await asset(page, "family.plantfamily.json");
+  const preview = page.getByTestId("asset-editor-preview"), labels = page.getByTestId("preview-labels").locator("span");
+  const ready = () => expect(preview).toHaveAttribute("data-preview-ready", "1", { timeout: 60000 });
+  await ready();
+  await expect(labels).toHaveText(["Prototype 0", "Prototype 1", "Prototype 2"]);
+  const flex = page.getByTestId("asset-field-response.windFlex");
+  await flex.fill("0.5"); await flex.press("Tab");
+  await ready(); await save(page);
+  expect((await json(`${FOLDER}/family.plantfamily.json`)).response.windFlex).toBe(0.5);
+  await expect(page.getByTestId("asset-related")).toContainText("Broadleaf · Tree Recipe");
+  // The pack's own family has Foliage Types; it opens read-only.
+  await page.getByTestId("asset-editor-open").click();
+  await page.locator('[data-testid="asset-open-picker-item"][data-id="ast_e6beb70fb2c3ee3f49dc40b4d332462c"]').click();
+  await expect(page.getByTestId("asset-editor")).toHaveAttribute("data-asset-id", "ast_e6beb70fb2c3ee3f49dc40b4d332462c");
+  await ready();
+  await preview.getByLabel("View").selectOption("lods"); await ready();
+  await expect(labels).toHaveText(["LOD 0", "LOD 1", "LOD 2", "Impostor"]);
+  await previewShot(page, "family-lods", info);
+  await preview.getByLabel("View").selectOption("foliage"); await ready();
+  await expect(labels).toHaveText(["forge.plant", "Foliage"]);
+  for (const season of ["spring", "summer", "autumn", "winter"]) {
+    await preview.getByLabel("Season").selectOption(season);
+    if (season === "winter") await preview.getByLabel("Snow").fill("0.8");
+    await previewShot(page, `family-foliage-${season}`, info);
+  }
   await close(page); expect(errors).toEqual([]);
 });
 

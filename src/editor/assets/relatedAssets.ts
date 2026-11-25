@@ -15,8 +15,9 @@ const GROUPS = [["uses", "Uses"], ["outputs", "Generated"], ["usedBy", "Used By"
 
 export function createRelatedAssets(options: {
   readonly document: Document;
-  readonly recipe: string;
-  readonly links: (recipe: string) => Promise<RecipeLinks>;
+  /** A model recipe, or a generated plant family. */
+  readonly asset: string;
+  readonly links: (asset: string) => Promise<RecipeLinks>;
   /** Whether a link opens in the asset editor. */
   readonly canOpen: (id: string) => boolean;
   readonly open: (id: string) => void;
@@ -41,6 +42,12 @@ export function createRelatedAssets(options: {
     const title = doc.createElement("strong");
     title.textContent = links.built ? "Related" : "Related · not generated yet";
     element.replaceChildren(title);
+    if (links.recipe.id !== options.asset) {
+      const line = doc.createElement("p");
+      line.className = "asset-related-note";
+      line.textContent = "Generated: the next generation of this recipe writes its own response over edits made here.";
+      element.append(line, row(links.recipe));
+    }
     for (const note of links.notes) {
       const line = doc.createElement("p");
       line.className = "asset-related-note";
@@ -61,7 +68,7 @@ export function createRelatedAssets(options: {
     element,
     async refresh() {
       try {
-        const links = await options.links(options.recipe);
+        const links = await options.links(options.asset);
         if (options.alive()) draw(links);
       } catch (error) {
         if (options.alive()) element.textContent = `Related: ${error instanceof Error ? error.message : String(error)}`;

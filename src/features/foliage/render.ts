@@ -43,10 +43,11 @@ import { FoliageFar, foliageRuleHasFarBillboards, worldGlobalMap, type FoliageFa
 import { FoliageRing, type FoliageRingRule, type FoliageRingTerrain } from "../../engine/foliage/foliageRingHost.ts";
 import { LevelFoliageSourceKey, type LevelFoliageSource } from "../../engine/foliage/levelFoliageSource.ts";
 import { plantWorld } from "../../render/plant/plantDrawing.ts";
-import { impostorRef, readFamilyPrototype, type PlantFamilyFieldsRead } from "../../render/plant/plantFamilies.ts";
+import { readFamilyPrototype, type PlantFamilyFieldsRead } from "../../render/plant/plantFamilies.ts";
 import { PlantFamilyAssetType } from "../plant/schema.ts";
 import { createFarBillboards, type FarBillboards, type FarBillboardType } from "../../render/foliage/farBillboards.ts";
 import { createFoliageBatches, type FoliageBatches, type FoliageTypeDraw } from "../../render/foliage/foliageBatches.ts";
+import { foliageTypeDraw } from "../../render/foliage/foliageTypeDraw.ts";
 import { PaintedFoliageView } from "../../render/foliage/paintedFoliageView.ts";
 import { createFoliageCellGenerator } from "../../render/resources/foliageWorkerGenerator.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
@@ -197,21 +198,11 @@ export default defineRenderBinding({
           const data = result.value as unknown as FoliageTypeData;
           const family = typeof data.family === "string" && data.family.length > 0
             ? await readFamilyPrototype(ctx.resources, data.family, data.prototype, keys, readFamily) : null;
-          const mesh = family?.mesh ?? data.mesh;
-          if (typeof mesh !== "string" || mesh.length === 0) { types.set(guid, null); return; }
-          const lods = family ? [...family.lods] : data.lods.flatMap((lod) => (typeof lod.mesh === "string" && lod.mesh.length > 0 ? [{ mesh: lod.mesh, screenSize: lod.screenSize }] : []));
-          // A family's instances sway as its single plants do (the family's sway, PV-WES-02).
-          const sway = family ? family.sway : data.sway.enabled
-            ? { amplitude: data.sway.amplitude, height: data.sway.height, frequency: data.sway.frequency, source: data.sway.source }
-            : null;
-          const impostor = family ? family.impostor : impostorRef(data.impostor);
-          const plant = family?.plant ?? null;
+          const draw = foliageTypeDraw(guid, data, family);
+          if (!draw) { types.set(guid, null); return; }
           const far: FarBillboardType | null = foliageRuleHasFarBillboards({ cullEnd: data.cullEnd, farDistance: data.far.distance })
-            ? { id: guid, mesh, impostor, plant, cullStart: data.cullStart, cullEnd: data.cullEnd, farDistance: data.far.distance } : null;
-          types.set(guid, { data, far, draw: {
-            id: guid, mesh, lods, castShadow: data.castShadow, cullStart: data.cullStart, cullEnd: data.cullEnd,
-            fadeSpread: far ? 0 : data.fadeSpread, sway, plant, impostor,
-          } });
+            ? { id: guid, mesh: draw.mesh, impostor: draw.impostor ?? null, plant: draw.plant ?? null, cullStart: data.cullStart, cullEnd: data.cullEnd, farDistance: data.far.distance } : null;
+          types.set(guid, { data, far, draw: far ? { ...draw, fadeSpread: 0 } : draw });
         } catch (error) {
           console.warn(`forge render: foliage type ${guid} not drawn: ${String(error)}`);
           types.set(guid, null);

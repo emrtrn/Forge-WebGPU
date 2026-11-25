@@ -130,8 +130,8 @@ export function createAssetEditor(options: AssetEditorOptions) {
       };
       extension = adapter.kind === "class" ? createClassTools(ctx) : presentation?.tools?.(ctx) ?? null;
       if (extension) toolHost.append(extension.element);
-      const related = recipeGenerator(asset.type) === null ? null : createRelatedAssets({
-        document: doc, recipe: asset.id, links: fetchRecipeLinks, alive: () => ticket === generation,
+      const related = recipeGenerator(asset.type) === null && asset.type !== "forge.plantFamily" ? null : createRelatedAssets({
+        document: doc, asset: asset.id, links: fetchRecipeLinks, alive: () => ticket === generation,
         canOpen: (id) => { const candidate = options.lookup(id); return candidate !== null && assetDocumentAdapter(candidate, options.registry) !== null; },
         open: (id) => { const candidate = options.lookup(id); if (candidate) void open(candidate); },
       });

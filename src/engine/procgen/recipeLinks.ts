@@ -18,7 +18,8 @@ export interface RecipeLink {
 }
 
 export interface RecipeLinks {
-  readonly recipe: string;
+  /** The recipe itself. */
+  readonly recipe: RecipeLink;
   readonly generator: RecipeGenerator;
   readonly built: boolean;
   readonly digest: string | null;
@@ -33,7 +34,21 @@ export interface RecipeLinks {
 /** An asset's display name: its file's name up to the first dot. */
 const nameOf = (path: string): string => path.slice(path.lastIndexOf("/") + 1).split(".")[0] ?? path;
 
-export function recipeLinks(index: AssetIndex, recipe: AssetId): RecipeLinks | null {
+/** The recipe a plant family was generated from (its models' record), when it is there. */
+function recipeOfFamily(index: AssetIndex, family: AssetId): AssetId | null {
+  const document = index.jsonAssets.get(family) as JsonObject | undefined;
+  for (const reference of index.references) {
+    if (reference.from !== family) continue;
+    const owner = index.metas.get(reference.target)?.generated?.recipe;
+    if (owner && document && index.jsonAssets.has(owner)) return owner as AssetId;
+  }
+  return null;
+}
+
+/** `id`: a model recipe, or a generated plant family (its recipe's links). */
+export function recipeLinks(index: AssetIndex, id: AssetId): RecipeLinks | null {
+  const recipe = index.entries.get(id)?.type === "forge.plantFamily" ? recipeOfFamily(index, id) : id;
+  if (recipe === null) return null;
   const built = builtRecipe(index, recipe);
   if (!built) return null;
   const link = (id: string): RecipeLink[] => {
@@ -75,7 +90,7 @@ export function recipeLinks(index: AssetIndex, recipe: AssetId): RecipeLinks | n
   // The models and textures are many; the assets a person opens are the documents.
   const documents = [...owned].filter((id) => index.entries.get(id)?.storage === "document" || index.jsonAssets.has(id));
   return {
-    recipe, generator: outputs.generator, built: built.built, digest: built.digest, family: outputs.family, prototypes: built.prototypes,
+    recipe: link(recipe)[0]!, generator: outputs.generator, built: built.built, digest: built.digest, family: outputs.family, prototypes: built.prototypes,
     uses: links(uses), outputs: links(documents), usedBy: links(usedBy), notes,
   };
 }
