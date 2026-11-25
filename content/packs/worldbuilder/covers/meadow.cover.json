@@ -69,31 +69,15 @@
       {
         "id": "grove-broadleaf",
         "layer": "forest",
-        "foliageType": "ast_424d01f7324122c5f5a0a325141a1be9",
-        "density": 0.000667,
+        "recipe": "ast_1cc830feab66656728f8bf965079b68a",
+        "density": 0.002,
         "minWeight": 0.5,
         "seed": 201
       },
       {
-        "id": "grove-broadleaf-2",
-        "layer": "forest",
-        "foliageType": "ast_23cd0fe4ada5125c07abc14042b4ba55",
-        "density": 0.000667,
-        "minWeight": 0.5,
-        "seed": 207
-      },
-      {
-        "id": "grove-broadleaf-3",
-        "layer": "forest",
-        "foliageType": "ast_b3bfde5d466dd40b44820897bcac38c1",
-        "density": 0.000667,
-        "minWeight": 0.5,
-        "seed": 208
-      },
-      {
         "id": "grove-conifer",
         "layer": "forest",
-        "foliageType": "ast_01bcf3887fb62403301b33abe4612f74",
+        "recipe": "ast_fd4f39c78d58ef550273be682359d194",
         "density": 0.0008,
         "minWeight": 0.55,
         "seed": 202
@@ -101,6 +85,7 @@
       {
         "id": "grove-bush",
         "layer": "forest",
+        "recipe": "ast_87bb62bab8604e289363f8780ac6f60e",
         "density": 0.0015,
         "minWeight": 0.5,
         "seed": 203
@@ -108,6 +93,7 @@
       {
         "id": "meadow-grass",
         "layer": "meadow",
+        "recipe": "ast_598987d1ddc141e5b8a957d1e3f5fc64",
         "density": 0.03,
         "minWeight": 0.45,
         "seed": 204
@@ -115,16 +101,10 @@
       {
         "id": "meadow-bush",
         "layer": "meadow",
-        "density": 0.0012,
+        "recipe": "ast_87bb62bab8604e289363f8780ac6f60e",
+        "density": 0.002,
         "minWeight": 0.6,
         "seed": 205
-      },
-      {
-        "id": "meadow-bush-b",
-        "layer": "meadow",
-        "density": 0.0008,
-        "minWeight": 0.6,
-        "seed": 206
       }
     ],
     "rocks": {

@@ -66,6 +66,8 @@ describe("data documents", () => {
     expect(dataDocumentReferences(WorldBriefAssetType, { models: [{ file: "content/a.glb" }, { file: type }] })).toEqual([
       { path: "data.models[1].file", target: type, assetType: "forge.model", via: "field" },
     ]);
+    expect(dataDocumentReferences(WorldBriefAssetType, { models: [{ recipe: type }] })).toEqual([{ path: "data.models[0].recipe", target: type, assetType: null, via: "field" }]);
+    expect(dataDocumentReferences(GroundCoverAssetType, { plants: [{ recipe: type }] })).toEqual([{ path: "data.plants[0].recipe", target: type, assetType: null, via: "field" }]);
     expect(dataDocumentReferences(TerrainAssetType, { layers: "none" })).toEqual([]);
     const road = assetId("b3");
     const splines = [{ segments: [{ mesh: { enabled: true, assetId: road } }, { mesh: { assetId: "sm-road" } }, {}] }];

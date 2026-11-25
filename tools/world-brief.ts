@@ -32,6 +32,7 @@ async function main(): Promise<void> {
   console.log(`[world:brief] ${result.folder}: ${result.level.level.actors.length} actors (${result.level.counts.placeholders} placeholders), `
     + `${result.written.length} files written, ${result.removed.length} removed, ${seconds} s.`);
   for (const item of result.build.deferred) console.log(`[world:brief] not built yet: ${item}`);
+  for (const item of result.build.review) console.log(`[world:brief] not approved: ${item}`);
 }
 
 main().catch((error: unknown) => {

@@ -81,24 +81,17 @@
     },
     "plants": [
       {
-        "id": "alpine-pine",
+        "id": "alpine-conifer",
         "layer": "forest",
-        "foliageType": "ast_01bcf3887fb62403301b33abe4612f74",
-        "density": 0.003,
+        "recipe": "ast_fd4f39c78d58ef550273be682359d194",
+        "density": 0.0042,
         "minWeight": 0.45,
         "seed": 601
       },
       {
-        "id": "alpine-conifer",
-        "layer": "forest",
-        "foliageType": "ast_de4c97c1a71f54049926634b7f86f771",
-        "density": 0.0012,
-        "minWeight": 0.5,
-        "seed": 602
-      },
-      {
         "id": "alpine-bush",
         "layer": "forest",
+        "recipe": "ast_87bb62bab8604e289363f8780ac6f60e",
         "density": 0.001,
         "minWeight": 0.5,
         "seed": 603
@@ -106,6 +99,7 @@
       {
         "id": "alpine-grass",
         "layer": "meadow",
+        "recipe": "ast_598987d1ddc141e5b8a957d1e3f5fc64",
         "density": 0.015,
         "minWeight": 0.5,
         "seed": 604
@@ -113,6 +107,7 @@
       {
         "id": "alpine-bush-b",
         "layer": "meadow",
+        "recipe": "ast_87bb62bab8604e289363f8780ac6f60e",
         "density": 0.0006,
         "minWeight": 0.6,
         "seed": 605

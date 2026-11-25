@@ -48,6 +48,20 @@ describe("worldLevel", () => {
     expect(look[2]!.transform).toMatchObject({ p: [3, 9, 4], r: eulerXyzQuaternion(-48, 35, 0) });
   });
 
+  test("a plant group becomes single plants of the family, each with its own stable seed and role", () => {
+    const family = `ast_${"e".repeat(32)}`;
+    const groups = [{ assetId: `plant:${family}#2`, placements: [{ id: "s1-tree", role: "vegetation.tree", position: [1, 2, 3] as [number, number, number], scale: 1.1 }, { id: "s2-tree", role: "vegetation.tree", position: [4, 2, 3] as [number, number, number] }] }];
+    const level = worldLevel(buildWith(groups), { levelId: LEVEL, terrainId: "valley" });
+    const [first, second] = level.level.actors.slice(1);
+    expect(first!.class === null && first!.components).toMatchObject({
+      plant: { type: "forge.plant@1", family, prototype: 2, castShadow: true, seed: expect.any(Number) },
+      role: { role: "vegetation.tree", stage: "" },
+    });
+    expect((first!.class === null && first!.components.plant!.seed)).not.toBe(second!.class === null && second!.components.plant!.seed);
+    expect(level.level.actors).toEqual(worldLevel(buildWith(groups), { levelId: LEVEL, terrainId: "valley" }).level.actors);
+    expect(level.counts).toEqual({ placements: 2, placeholders: 0, meshes: 0 });
+  });
+
   test("a model group becomes static mesh actors; a hand-placed role has no stage; no role, no role component", () => {
     const mesh = "ast_ffffffffffffffffffffffffffffffff";
     const level = worldLevel(buildWith([{

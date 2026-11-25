@@ -24,12 +24,15 @@
  * The `forest` cover Forge ships paints exactly what the pilot's temporary
  * paint did on a world with relief, so a random world keeps its look.
  * Plants name their foliage type by asset id (plan 5d step 8; Forge WebGL: a
- * file path), so a missing one fails the asset gate like any other reference.
+ * file path), or a tree, shrub or grass recipe whose generated prototypes share
+ * the rule (vegetation plan PG5); a missing one fails the asset gate like any
+ * other reference.
  * Pure and deterministic.
  */
 import { isId, type AssetId } from "../../core/index.ts";
 import type { BriefTerrain } from "./briefTerrain.ts";
 import { WATER_BED_MARGIN } from "./briefTerrain.ts";
+import type { GeneratedSources } from "./generatedModels.ts";
 import { oceanBeachWeight } from "./island.ts";
 import { fbm } from "./noise.ts";
 import {
@@ -87,8 +90,10 @@ export interface CoverPlant {
   id: string;
   /** Layer id the plant grows on. */
   layer: string;
-  /** `forge.foliageType` asset id; null while no asset grows here (the rule is kept, reported and not written). */
+  /** `forge.foliageType` asset id; null while no asset grows here (the rule is kept, reported and not written) or a recipe is named. */
   foliageType: AssetId | null;
+  /** Instead of a type: a tree, shrub or grass recipe whose prototypes share the rule's density (`generatedModels.ts`). */
+  recipe?: AssetId;
   /** Instances per m² at full paint. */
   density: number;
   minWeight: number;
@@ -227,20 +232,22 @@ export function normalizeGroundCover(value: unknown): { cover: GroundCover | nul
   const plants = arrayOf(ctx, "plants", value.plants, (c, p, entry): CoverPlant | null => {
     const raw = record(c, p, entry);
     if (!raw) return null;
-    known(c, raw, p, ["id", "layer", "foliageType", "density", "minWeight", "seed"]);
+    known(c, raw, p, ["id", "layer", "foliageType", "recipe", "density", "minWeight", "seed"]);
     const plantId = requireId(c, `${p}.id`, raw.id);
     const layer = layerRef(`${p}.layer`, raw.layer);
     const foliageType = raw.foliageType === undefined || raw.foliageType === null ? null
       : isId(raw.foliageType, "asset") ? raw.foliageType : reject(c, `${p}.foliageType`, "must be a foliage type asset id");
+    const recipe = raw.recipe === undefined ? undefined : isId(raw.recipe, "asset") ? raw.recipe : reject(c, `${p}.recipe`, "must be a recipe asset id");
+    if (recipe && foliageType) issue(c, p, "names a foliage type or a recipe, not both");
     // Instances per m² are small numbers: kept as written, not rounded to millimetres.
     const density = typeof raw.density === "number" && Number.isFinite(raw.density) && raw.density >= 0 && raw.density <= 10
       ? raw.density : reject(c, `${p}.density`, "must be a number 0..10");
     const minWeight = requireNumber(c, `${p}.minWeight`, raw.minWeight, 0, 1);
     const seed = Number.isInteger(raw.seed) && (raw.seed as number) >= 0 ? raw.seed as number : reject(c, `${p}.seed`, "must be a whole number");
     if (plantId !== null && plantIds.has(plantId)) return reject(c, p, `repeats id "${plantId}"`);
-    if (plantId === null || layer === null || (foliageType === null && raw.foliageType) || density === null || minWeight === null || seed === null) return null;
+    if (plantId === null || layer === null || recipe === null || (foliageType === null && raw.foliageType) || density === null || minWeight === null || seed === null) return null;
     plantIds.add(plantId);
-    return { id: plantId, layer, foliageType, density, minWeight, seed };
+    return { id: plantId, layer, foliageType, ...(recipe ? { recipe } : {}), density, minWeight, seed };
   });
 
   const rocksRaw = record(ctx, "rocks", value.rocks) ?? {};
@@ -424,20 +431,32 @@ export interface CoverPlantRule {
   seed: number;
 }
 
-/** Foliage rules on the cover's layers, and the plants without a foliage type (not written). */
-export function coverPlantRules(cover: GroundCover, densities: CoverDensities): { rules: CoverPlantRule[]; missing: string[] } {
+/** Rule seeds of a recipe's prototypes: far apart, so their cells do not repeat each other's rolls. */
+const PROTOTYPE_SEED_STEP = 1009;
+
+/**
+ * Foliage rules on the cover's layers, and the plants that grow none: without a type or with a recipe that has
+ * no output (`missing`), or a recipe the user rejected (`rejected`). A recipe's published prototypes share its
+ * density, one rule each.
+ */
+export function coverPlantRules(cover: GroundCover, densities: CoverDensities, generated: GeneratedSources = () => null): { rules: CoverPlantRule[]; missing: string[]; rejected: string[] } {
   const factor = COVER_DENSITY_FACTOR[densities.forest];
-  const missing: string[] = [];
+  const missing: string[] = [], rejected: string[] = [];
   const rules = cover.plants.flatMap((plant): CoverPlantRule[] => {
-    if (plant.foliageType === null) {
-      missing.push(plant.id);
+    const source = plant.recipe === undefined ? null : generated(plant.recipe);
+    const types = source ? source.foliageTypes : plant.foliageType === null ? [] : [plant.foliageType];
+    if (types.length === 0) {
+      (source?.state === "rejected" ? rejected : missing).push(plant.id);
       return [];
     }
     // The forest density thins or thickens the trees as well as the forest's area.
     const density = plant.layer === cover.roles.forest && densities.forest !== "medium" ? plant.density * Math.sqrt(factor) : plant.density;
-    return [{ id: plant.id, layerId: plant.layer, foliageTypeId: plant.foliageType, density: Number(density.toPrecision(6)), minWeight: plant.minWeight, seed: plant.seed }];
+    return types.map((foliageTypeId, index) => ({
+      id: index === 0 ? plant.id : `${plant.id}-${index + 1}`, layerId: plant.layer, foliageTypeId,
+      density: Number((density / types.length).toPrecision(6)), minWeight: plant.minWeight, seed: (plant.seed + index * PROTOTYPE_SEED_STEP) >>> 0,
+    }));
   });
-  return { rules, missing };
+  return { rules, missing, rejected };
 }
 
 /** Rock counts after the density. */

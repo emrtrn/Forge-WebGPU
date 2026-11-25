@@ -51,6 +51,7 @@ function summary(result: RandomWorldRunResult, started: number) {
     seconds: Number(((Date.now() - started) / 1000).toFixed(1)),
     notes: result.notes,
     deferred: result.build.deferred,
+    review: result.build.review,
   };
 }
 

@@ -67,46 +67,25 @@
     },
     "plants": [
       {
-        "id": "forest-conifer-a",
+        "id": "forest-conifer",
         "layer": "forest",
-        "foliageType": "ast_01bcf3887fb62403301b33abe4612f74",
-        "density": 0.0025,
-        "minWeight": 0.6,
-        "seed": 101
-      },
-      {
-        "id": "forest-conifer-b",
-        "layer": "forest",
-        "foliageType": "ast_de4c97c1a71f54049926634b7f86f771",
-        "density": 0.002,
+        "recipe": "ast_fd4f39c78d58ef550273be682359d194",
+        "density": 0.006,
         "minWeight": 0.45,
-        "seed": 102
-      },
-      {
-        "id": "forest-conifer-c",
-        "layer": "forest",
-        "foliageType": "ast_86350e34eb76c70a8871be2bf79f7f6c",
-        "density": 0.0015,
-        "minWeight": 0.35,
-        "seed": 106
+        "seed": 101
       },
       {
         "id": "forest-bush",
         "layer": "forest",
-        "density": 0.0015,
+        "recipe": "ast_87bb62bab8604e289363f8780ac6f60e",
+        "density": 0.0025,
         "minWeight": 0.5,
         "seed": 103
       },
       {
-        "id": "forest-bush-b",
-        "layer": "forest",
-        "density": 0.001,
-        "minWeight": 0.5,
-        "seed": 107
-      },
-      {
         "id": "meadow-bush",
         "layer": "meadow",
+        "recipe": "ast_87bb62bab8604e289363f8780ac6f60e",
         "density": 0.0006,
         "minWeight": 0.6,
         "seed": 104
@@ -114,6 +93,7 @@
       {
         "id": "meadow-grass",
         "layer": "meadow",
+        "recipe": "ast_598987d1ddc141e5b8a957d1e3f5fc64",
         "density": 0.02,
         "minWeight": 0.5,
         "seed": 105

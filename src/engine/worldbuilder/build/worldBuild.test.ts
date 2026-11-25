@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
-import { isId } from "../../../core/index.ts";
+import { isId, type AssetId } from "../../../core/index.ts";
+import { plantAssetId } from "../../forgeImport/placements.ts";
+import { padWeight } from "../../terrain/terrainPads.ts";
+import type { GeneratedSources } from "../generatedModels.ts";
 import { normalizeGroundCover } from "../groundCover.ts";
 import { randomWorldBrief } from "../randomWorld.ts";
 import { normalizeRegionProfile } from "../regionProfile.ts";
@@ -22,12 +25,21 @@ function smallBrief(): WorldBrief {
   return brief!;
 }
 
-function build(brief: WorldBrief, assetIdForFile: (file: string) => string | null, onProgress?: (step: WorldBuildStep) => void): WorldBuild {
+/** Every recipe named is built: two prototypes each, plants as family prototypes. */
+const PLANTS = new Set(["ast_1cc830feab66656728f8bf965079b68a"]);
+const GENERATED: GeneratedSources = (recipe) => ({
+  recipe, name: "Recipe", state: "built", approval: null,
+  placements: [0, 1].map((index) => (PLANTS.has(recipe) ? plantAssetId(recipe, index) : `ast_${"0".repeat(31)}${index + 1}`)),
+  foliageTypes: [0, 1].map((index): AssetId => `ast_${"f".repeat(31)}${index + 1}`),
+});
+
+function build(brief: WorldBrief, generated: GeneratedSources = () => null, onProgress?: (step: WorldBuildStep) => void): WorldBuild {
   return buildWorldFromBrief({
+    generated,
     brief,
     profile: normalizeRegionProfile(packData(brief.regionProfile!)).profile,
     cover: normalizeGroundCover(packData(brief.cover!.file)).cover,
-    assetIdForFile,
+    assetIdForFile: () => null,
     ...(onProgress ? { onProgress } : {}),
   });
 }
@@ -36,8 +48,8 @@ describe("buildWorldFromBrief", () => {
   test("a random world builds from the pack's cover and profile, the same every time", () => {
     const brief = smallBrief();
     const steps: WorldBuildStep[] = [];
-    const first = build(brief, () => null, (step) => steps.push(step));
-    const again = build(brief, () => null);
+    const first = build(brief, GENERATED, (step) => steps.push(step));
+    const again = build(brief, GENERATED);
     expect(steps).toEqual(["terrain", "paint", "settlements", "roads", "ground", "placements"]);
     expect(JSON.stringify(first.groups)).toBe(JSON.stringify(again.groups));
     expect(JSON.stringify(first.recipe)).toBe(JSON.stringify(again.recipe));
@@ -48,7 +60,7 @@ describe("buildWorldFromBrief", () => {
   });
 
   test("every stage runs once, in order, and the recipe records what each placed", () => {
-    const result = build(smallBrief(), () => null);
+    const result = build(smallBrief());
     const order = [...WORLD_BRIEF_STAGES, ...WORLD_BRIEF_GROUND_STAGES].map((stage) => stage.id);
     expect(result.stages.map((run) => run.stageId)).toEqual(order);
     expect(result.recipe.generation.stages).toEqual(order);
@@ -61,33 +73,58 @@ describe("buildWorldFromBrief", () => {
     expect(result.def.splines!.map((spline) => spline.id)).toEqual(expect.arrayContaining(roads.splines.map(({ spline }) => spline.id)));
   });
 
-  test("a model row without a project asset is a role-coloured placeholder; a row with one keeps its asset", () => {
+  test("a generated row without output is a role-coloured placeholder; one with output shares its prototypes", () => {
     const brief = smallBrief();
-    const without = build(brief, () => null);
+    const without = build(brief);
     const rocks = without.groups.find((group) => group.assetId === PLACEHOLDER_ASSET_ID)!.placements.filter((placement) => placement.role === "prop.rock");
     expect(rocks.length).toBeGreaterThan(0);
     expect(rocks.every((rock) => rock.color === "#f5cf3a")).toBe(true);
-    expect(without.warnings.some((warning) => warning.startsWith("model rows with no project asset, placed as placeholders: prop.rock"))).toBe(true);
+    expect(without.deferred.some((line) => line.startsWith("generated models with no output, placed as placeholders: prop.rock"))).toBe(true);
 
-    const rock = "ast_0000000000000000000000000000000a";
-    const withModels = build(brief, (file) => (brief.models.some((model) => model.file === file) ? rock : null));
-    const placed = withModels.groups.find((group) => group.assetId === rock)!.placements;
-    expect(placed.map((placement) => placement.id)).toEqual(rocks.map((placement) => placement.id));
-    expect(placed.every((placement) => placement.color === undefined)).toBe(true);
+    const withModels = build(brief, GENERATED);
+    const groups = [1, 2].map((digit) => withModels.groups.find((group) => group.assetId === `ast_${"0".repeat(31)}${digit}`)!.placements);
+    expect(groups.flat().map((placement) => placement.id).sort()).toEqual(rocks.map((placement) => placement.id).sort());
+    expect(groups.every((group) => group.length > 0 && group.every((placement) => placement.color === undefined))).toBe(true);
+    const rejected = build(brief, (recipe) => ({ ...GENERATED(recipe)!, state: "rejected", approval: "rejected", placements: [], foliageTypes: [] }));
+    expect(rejected.deferred.some((line) => line.startsWith("generated models rejected on a family sheet, placed as placeholders: prop.rock"))).toBe(true);
+    expect(rejected.foliage).toEqual([]);
+    expect(rejected.review).toEqual([]);
+    const pending = build(brief, (recipe) => ({ ...GENERATED(recipe)!, approval: "changed" }));
+    expect(pending.review).toContain("Recipe (changed)");
+  });
+
+  test("each settlement gets one generated tree near its centre, clear of the buildings and roads", () => {
+    const brief = smallBrief();
+    const result = build(brief, GENERATED);
+    const trees = result.groups.filter((group) => group.assetId.startsWith("plant:")).flatMap((group) => group.placements);
+    expect(trees.map((tree) => tree.id)).toEqual(brief.settlements.map((settlement) => `${settlement.id}-tree`));
+    for (const tree of trees) {
+      const [x, , z] = tree.position;
+      expect(result.recipe.generated.pads.every((pad) => padWeight({ polygon: pad.polygon, height: 0, falloff: 3 }, x, z) === 0)).toBe(true);
+      const site = result.recipe.generated.sites[0]!;
+      expect(Math.hypot(x - site.center[0], z - site.center[1])).toBeLessThan(120);
+    }
+    const bare = { ...brief, models: brief.models.filter((model) => model.role !== "vegetation.tree") };
+    expect(build(bare, GENERATED).groups.some((group) => group.assetId.startsWith("plant:"))).toBe(false);
   });
 
   test("the cover's plants become foliage rules; a plant without a foliage type is reported", () => {
     const brief = smallBrief();
     const cover = normalizeGroundCover(packData(brief.cover!.file)).cover!;
-    const result = build(brief, () => null);
-    expect(result.foliage.map((rule) => rule.id)).toEqual(cover.plants.filter((plant) => plant.foliageType !== null).map((plant) => plant.id));
+    const result = build(brief, GENERATED);
+    const grown = cover.plants.filter((plant) => plant.recipe !== undefined);
+    expect(grown.length).toBeGreaterThan(3);
+    expect(result.foliage.map((rule) => rule.id)).toEqual(grown.flatMap((plant) => [plant.id, `${plant.id}-2`]));
+    expect(result.foliage[0]!.density).toBeCloseTo(grown[0]!.density / 2);
+    expect(new Set(result.foliage.map((rule) => rule.seed)).size).toBe(result.foliage.length);
     expect(result.foliage.every((rule) => cover.layers.some((layer) => layer.id === rule.layerId) && isId(rule.foliageTypeId, "asset"))).toBe(true);
-    const missing = cover.plants.filter((plant) => plant.foliageType === null).map((plant) => plant.id);
-    expect(result.deferred).toContain(`foliage: no foliage type yet for ${missing.join(", ")}`);
+    const without = build(brief);
+    expect(without.foliage).toEqual([]);
+    expect(without.deferred).toContain(`foliage: no foliage type yet for ${cover.plants.map((plant) => plant.id).join(", ")}`);
   });
 
   test("what is not built yet is reported, not dropped", () => {
-    const result = build(smallBrief(), () => null);
+    const result = build(smallBrief());
     expect(result.deferred).toEqual(expect.arrayContaining([
       expect.stringMatching(/^rivers: 1 bed\(s\) carved/),
       expect.stringMatching(/^foliage: /),

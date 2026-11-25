@@ -31,15 +31,20 @@ import type { ActorDoc, ActorId, AssetId, ComponentMap, Transform } from "../../
 import type { LayoutPlacement } from "../legacy/layout.ts";
 import { SHAPE_PRIMITIVE_TYPES } from "../legacy/shapes.ts";
 import type { WorldTerrainDef } from "../terrain/terrainTypes.ts";
+import { stableHex } from "./ids.ts";
 import { worldTerrainActorPosition } from "../terrain/worldTerrainActor.ts";
 
 export const STATIC_MESH_TAG = "forge.staticMesh@2";
 export const SHAPE_TAG = "forge.shape@2";
 export const WORLD_ROLE_TAG = "forge.worldRole@1";
 export const TERRAIN_TAG = "forge.terrain@2";
+export const PLANT_TAG = "forge.plant@1";
 export const HEIGHT_FOG_TAG = "forge.heightFog@1";
 
 export const SHAPE_PREFIX = "shape:";
+/** A group of single plants: `plant:<family>#<prototype>` (World Builder's generated roles). */
+export const PLANT_PREFIX = "plant:";
+export const plantAssetId = (family: AssetId, prototype: number): string => `${PLANT_PREFIX}${family}#${prototype}`;
 export const MARKER_PREFIX = "marker:";
 export const PLAYER_START_MARKER = "marker:playerStart";
 export const PLAYER_START_NAME = "Player Start";
@@ -107,12 +112,13 @@ export function placementGroupActors(groups: readonly PlacementGroup[], options:
       throw new Error(`placement group ${group.assetId}: not a shape primitive`);
     }
     const marker = group.assetId.startsWith(MARKER_PREFIX);
+    const plant = group.assetId.startsWith(PLANT_PREFIX) ? group.assetId.slice(PLANT_PREFIX.length).split("#") : null;
     if (marker && group.assetId !== PLAYER_START_MARKER) {
       skip(group.assetId, group.placements.length);
       continue;
     }
-    const mesh = shape === null && !marker ? (options.meshAsset ? options.meshAsset(group.assetId) : group.assetId) : null;
-    if (shape === null && !marker && mesh === null) {
+    const mesh = shape === null && !marker && plant === null ? (options.meshAsset ? options.meshAsset(group.assetId) : group.assetId) : null;
+    if (shape === null && !marker && plant === null && mesh === null) {
       skip(group.assetId, group.placements.length);
       continue;
     }
@@ -137,8 +143,15 @@ export function placementGroupActors(groups: readonly PlacementGroup[], options:
           materials = { materials: [...slots] };
         }
       }
-      const components: ComponentMap = shape !== null
+      const components: ComponentMap = plant !== null
         ? {
+          plant: {
+            type: PLANT_TAG, parent: null, local: structuredClone(IDENTITY_LOCAL), family: plant[0]!, prototype: Number(plant[1] ?? 0),
+            // Variety that stays with the placement: colour, wind phase, shedding.
+            seed: Number.parseInt(stableHex(`plant/${key}`).slice(0, 8), 16), castShadow,
+          },
+        }
+        : shape !== null ? {
           shape: {
             type: SHAPE_TAG, parent: null, local: structuredClone(IDENTITY_LOCAL), primitive: shape, ...color, castShadow, collision,
           },
@@ -163,7 +176,7 @@ export function placementGroupActors(groups: readonly PlacementGroup[], options:
       });
       counts.placements += 1;
       if (shape !== null) counts.placeholders += 1;
-      else counts.meshes += 1;
+      else if (plant === null) counts.meshes += 1;
     });
   }
   return { actors, counts, skipped, unresolvedMaterials };

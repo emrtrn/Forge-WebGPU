@@ -8,12 +8,14 @@
 // the save service. The level is a folder: `level.json`, `cells.json`,
 // `cells/`, `terrain/<id>.terrain.json` with its tiles, and
 // `<folder>.worldrecipe.json`. An existing level is replaced only with `force`
-// (it may hold editor changes) and keeps its level id.
+// (it may hold editor changes) and keeps its level id. A recipe of the project
+// the brief or cover names is generated first when it has no output.
 
 import { readFile } from "node:fs/promises";
 import { join, posix } from "node:path";
 import {
   createId,
+  fileLabel,
   GroundCoverAssetType,
   isId,
   isJsonObject,
@@ -21,14 +23,18 @@ import {
   RegionProfileAssetType,
   stringifyDocument,
   WorldBriefAssetType,
+  type AssetId,
   type LevelId,
 } from "../../src/core/index.ts";
-import { buildWorldFromBrief, type WorldBuild } from "../../src/engine/worldbuilder/build/worldBuild.ts";
+import { readSheetEntries } from "../../src/engine/plant/familySheet.ts";
+import { recipeGenerator } from "../../src/engine/procgen/recipeOutputs.ts";
+import { buildWorldFromBrief, worldRecipes, type WorldBuild } from "../../src/engine/worldbuilder/build/worldBuild.ts";
 import { worldLevel, type WorldLevel } from "../../src/engine/worldbuilder/build/worldLevel.ts";
+import { generatedSources } from "../../src/engine/worldbuilder/generatedModels.ts";
 import { normalizeGroundCover, type GroundCover } from "../../src/engine/worldbuilder/groundCover.ts";
 import { normalizeRegionProfile, regionProfileAssetIds, type RegionProfile } from "../../src/engine/worldbuilder/regionProfile.ts";
 import { normalizeWorldBrief, type WorldBuildStep } from "../../src/engine/worldbuilder/worldBrief.ts";
-import { openWorldProject } from "./worldProject.ts";
+import { openWorldProject, type WorldProject } from "./worldProject.ts";
 import { writeWorld } from "./worldWrite.ts";
 
 export interface WorldBriefRunOptions {
@@ -79,12 +85,32 @@ async function existingLevelId(projectRoot: string, folder: string): Promise<Lev
   return isJsonObject(json) && isId(json.id, "level") ? json.id : null;
 }
 
+/** The entries of every family sheet of the project (its packs' too). */
+const sheetsOf = (project: WorldProject) =>
+  [...project.index.entries.values()].filter((entry) => entry.type === "forge.familySheet").map((entry) => readSheetEntries(project.index.jsonAssets.get(entry.id)));
+
+/**
+ * Generates the project's own recipes that have no output yet (vegetation plan §7.2; user decision 2026-11-25:
+ * existing output is never touched, a pack is read-only and a rejected recipe stays as it is).
+ */
+async function generateMissing(project: WorldProject, options: WorldBriefRunOptions, recipes: readonly AssetId[]): Promise<WorldProject> {
+  const sources = generatedSources(project.index, sheetsOf(project));
+  const labels = recipes.flatMap((recipe) => {
+    const entry = project.index.entries.get(recipe)!;
+    return sources(recipe)?.state === "missing" && project.manifest.contentRoots.includes(entry.root) ? [fileLabel(entry.root, entry.path)] : [];
+  });
+  if (labels.length === 0) return project;
+  const { generateFromRecipe } = await import("../procgen/generate.ts");
+  for (const recipe of labels) await generateFromRecipe({ engineRoot: options.engineRoot, projectRoot: options.projectRoot, recipe });
+  return openWorldProject(options.engineRoot, options.projectRoot);
+}
+
 export async function runWorldBrief(options: WorldBriefRunOptions): Promise<WorldBriefRunResult> {
   const briefPath = projectRelative(options.brief, "brief");
   if (!briefPath.endsWith(".worldbrief.json")) throw new Error(`brief must be a *.worldbrief.json file: ${briefPath}`);
   const folder = posix.dirname(briefPath);
   if (folder === ".") throw new Error(`a brief sits in its level's folder, not at the project root: ${briefPath}`);
-  const project = await openWorldProject(options.engineRoot, options.projectRoot);
+  let project = await openWorldProject(options.engineRoot, options.projectRoot);
 
   const { brief, issues } = normalizeWorldBrief(project.readData(briefPath, WorldBriefAssetType, "world brief"));
   if (!brief) throw new Error(`invalid world brief ${briefPath}:\n  ${issues.join("\n  ")}`);
@@ -118,8 +144,15 @@ export async function runWorldBrief(options: WorldBriefRunOptions): Promise<Worl
     if (missing.length) throw new Error(`ground cover ${brief.cover.file} names foliage type(s) not in the project: ${missing.map((plant) => `${plant.foliageType} (${plant.id})`).join(", ")}`);
   }
 
+  const unknown = worldRecipes(brief, cover).filter((recipe) => recipeGenerator(project.index.entries.get(recipe)?.type ?? "") === null);
+  if (unknown.length) throw new Error(`${briefPath}: no model recipe in the project: ${unknown.join(", ")}`);
+  const grown = (cover?.plants ?? []).flatMap((plant) => (plant.recipe ? [plant.recipe] : [])).filter((recipe) => project.index.entries.get(recipe)!.type === "forge.rockRecipe");
+  if (grown.length) throw new Error(`ground cover ${brief.cover!.file} grows rock recipe(s): ${grown.join(", ")}`);
+  project = await generateMissing(project, options, worldRecipes(brief, cover));
+  const generated = generatedSources(project.index, sheetsOf(project));
+
   const build = buildWorldFromBrief({
-    brief, profile, cover, assetIdForFile: (file) => (isId(file, "asset") ? (project.index.entries.has(file) ? file : null) : project.assetIdOf(file)), onProgress: options.onProgress,
+    brief, profile, cover, generated, assetIdForFile: (file) => (isId(file, "asset") ? (project.index.entries.has(file) ? file : null) : project.assetIdOf(file)), onProgress: options.onProgress,
   });
   options.onProgress?.("files");
   const level = worldLevel(build, { levelId, terrainId: brief.terrain.id });

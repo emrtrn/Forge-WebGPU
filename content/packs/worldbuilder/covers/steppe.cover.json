@@ -80,6 +80,7 @@
       {
         "id": "steppe-grass",
         "layer": "steppe",
+        "recipe": "ast_598987d1ddc141e5b8a957d1e3f5fc64",
         "density": 0.006,
         "minWeight": 0.5,
         "seed": 401
@@ -87,6 +88,7 @@
       {
         "id": "steppe-bush",
         "layer": "steppe",
+        "recipe": "ast_87bb62bab8604e289363f8780ac6f60e",
         "density": 0.0006,
         "minWeight": 0.55,
         "seed": 402
@@ -94,30 +96,15 @@
       {
         "id": "riverside-tree",
         "layer": "forest",
-        "foliageType": "ast_424d01f7324122c5f5a0a325141a1be9",
-        "density": 0.001,
+        "recipe": "ast_1cc830feab66656728f8bf965079b68a",
+        "density": 0.003,
         "minWeight": 0.45,
         "seed": 403
       },
       {
-        "id": "riverside-tree-2",
-        "layer": "forest",
-        "foliageType": "ast_23cd0fe4ada5125c07abc14042b4ba55",
-        "density": 0.001,
-        "minWeight": 0.45,
-        "seed": 405
-      },
-      {
-        "id": "riverside-tree-3",
-        "layer": "forest",
-        "foliageType": "ast_b3bfde5d466dd40b44820897bcac38c1",
-        "density": 0.001,
-        "minWeight": 0.45,
-        "seed": 406
-      },
-      {
         "id": "riverside-grass",
         "layer": "meadow",
+        "recipe": "ast_598987d1ddc141e5b8a957d1e3f5fc64",
         "density": 0.02,
         "minWeight": 0.5,
         "seed": 404

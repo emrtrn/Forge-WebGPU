@@ -24,6 +24,7 @@
  *
  * Pure and deterministic.
  */
+import type { AssetId } from "../../../core/index.ts";
 import type { LayoutPlacement } from "../../legacy/layout.ts";
 import { shapeAssetId } from "../../legacy/shapes.ts";
 import { normalizeWorldTerrain } from "../../terrain/terrainDefinition.ts";
@@ -55,6 +56,7 @@ import {
   type CoverPlantRule,
   type GroundCover,
 } from "../groundCover.ts";
+import { stablePick, type GeneratedSources } from "../generatedModels.ts";
 import type { WorldPoint } from "../normalize.ts";
 import type { WorldRecipe } from "../recipe.ts";
 import type { RegionProfile } from "../regionProfile.ts";
@@ -76,6 +78,7 @@ import {
   type WorldBrief,
   type WorldBuildStep,
 } from "../worldBrief.ts";
+import { settlementTrees } from "./settlementTrees.ts";
 import { applyStageRun, runStage, type StageRun } from "./stageRun.ts";
 import {
   briefClearings,
@@ -111,13 +114,15 @@ export interface WorldBuildInput {
   profile: RegionProfile | null;
   /** Asset id of a model row's `file` (an asset id, or an asset index file label), or null when it is not an asset of the project. */
   assetIdForFile: (file: string) => string | null;
+  /** A recipe's output, for `generated` model rows and cover plants; without it they have none. */
+  generated?: GeneratedSources;
   /** The brief's ground cover, loaded; null (or absent) when it names none: the pilot's paint. */
   cover?: GroundCover | null;
   /** Told as each build step starts (`WORLD_BUILD_STEPS`); it only reports, the build does not wait. */
   onProgress?: ((step: WorldBuildStep) => void) | undefined;
 }
 
-/** One placement group: a model asset id, or a `shape:<type>` placeholder. */
+/** One placement group: a model asset id, a `plant:<family>#<prototype>`, or a `shape:<type>` placeholder. */
 export interface WorldPlacementGroup {
   assetId: string;
   placements: LayoutPlacement[];
@@ -147,6 +152,8 @@ export interface WorldBuild {
   warnings: string[];
   /** Brief fields read but not built yet. */
   deferred: string[];
+  /** Generated families in this world the user has not approved: `Broadleaf (changed)`. */
+  review: string[];
 }
 
 /** Millimetres, as the editor saves positions. */
@@ -160,30 +167,50 @@ function title(id: string): string {
 
 /**
  * Model rows by role and variant; the first row of a role without a variant is
- * its default. A row whose file is not an asset gives the placeholder.
+ * its default. A row whose file is not an asset, or whose recipe has no usable
+ * output, gives the placeholder; a generated row stands for its prototypes.
  */
-function modelResolver(models: readonly BriefModel[], assetIdForFile: (file: string) => string | null) {
-  const resolved = new Map<BriefModel, string>();
-  const missing: string[] = [];
-  for (const model of models) {
-    const assetId = assetIdForFile(model.file);
-    if (assetId) resolved.set(model, assetId);
-    else missing.push(`${model.role}${model.variant ? ` (${model.variant})` : ""}: ${model.file}`);
-  }
-  const rows = (role: string, variant: string | null): BriefModel[] =>
-    models.filter((model) => model.role === role && (variant === null || model.variant === variant));
+function modelResolver(models: readonly BriefModel[], assetIdForFile: (file: string) => string | null, generated: GeneratedSources) {
+  const missing: string[] = [], unbuilt: string[] = [], rejected: string[] = [];
+  const label = (model: BriefModel, what: string): string => `${model.role}${model.variant ? ` (${model.variant})` : ""}: ${what}`;
+  const ids = new Map<BriefModel, readonly string[]>(models.map((model) => {
+    if (model.source !== "generated") {
+      const assetId = assetIdForFile(model.file);
+      if (!assetId) missing.push(label(model, model.file));
+      return [model, [assetId ?? PLACEHOLDER_ASSET_ID]];
+    }
+    const source = generated(model.recipe);
+    if (!source || source.state !== "built") (source?.state === "rejected" ? rejected : unbuilt).push(label(model, source?.name ?? model.recipe));
+    return [model, source?.state === "built" ? source.placements : [PLACEHOLDER_ASSET_ID]];
+  }));
   return {
-    missing,
-    /** Asset id for a role; `pick` 0..1 chooses among several rows. Null when the role has no row. */
+    missing, unbuilt, rejected,
+    /** Asset id for a role; `pick` 0..1 chooses among several models. Null when the role has no row. */
     assetId(role: string, variant: string | null, pick = 0): string | null {
-      const candidates = rows(role, variant);
-      if (candidates.length === 0) return null;
-      const model = variant === null
-        ? candidates.find((row) => row.variant === undefined) ?? candidates[0]!
-        : candidates[Math.floor(pick * candidates.length)]!;
-      return resolved.get(model) ?? PLACEHOLDER_ASSET_ID;
+      const rows = models.filter((model) => model.role === role && (variant === null || model.variant === variant));
+      if (rows.length === 0) return null;
+      const candidates = variant === null
+        ? ids.get(rows.find((row) => row.variant === undefined) ?? rows[0]!)!
+        : rows.flatMap((row) => ids.get(row)!);
+      return candidates[Math.min(candidates.length - 1, Math.floor(pick * candidates.length))]!;
     },
   };
+}
+
+/** The recipes a brief and its cover name. */
+export function worldRecipes(brief: WorldBrief, cover: GroundCover | null): AssetId[] {
+  return [...new Set([
+    ...brief.models.flatMap((model) => (model.source === "generated" ? [model.recipe] : [])),
+    ...(cover?.plants ?? []).flatMap((plant) => (plant.recipe ? [plant.recipe] : [])),
+  ])];
+}
+
+/** Families the world was built with although the user has not approved them, when the project has a page. */
+function reviewOf(brief: WorldBrief, cover: GroundCover | null, generated: GeneratedSources): string[] {
+  return worldRecipes(brief, cover).flatMap((recipe) => {
+    const source = generated(recipe);
+    return source?.state === "built" && (source.approval === "pending" || source.approval === "changed") ? [`${source.name} (${source.approval})`] : [];
+  });
 }
 
 function writeWeights(tile: TerrainTileData, index: number, weights: number[]): void {
@@ -231,7 +258,8 @@ export function buildWorldFromBrief(input: WorldBuildInput): WorldBuild {
   progress("terrain");
   const warnings: string[] = [];
   const deferred: string[] = [];
-  const models = modelResolver(brief.models, input.assetIdForFile);
+  const generated = input.generated ?? (() => null);
+  const models = modelResolver(brief.models, input.assetIdForFile, generated);
   const bounds = briefWorldBounds(brief);
   const ground = createBriefTerrain(brief);
   const cover = input.cover ?? null;
@@ -390,7 +418,7 @@ export function buildWorldFromBrief(input: WorldBuildInput): WorldBuild {
     groups.set(assetId, [...(groups.get(assetId) ?? []), placement]);
   };
   for (const landmark of brief.landmarks) {
-    const assetId = models.assetId(landmark.role, null);
+    const assetId = models.assetId(landmark.role, null, stablePick(landmark.id));
     if (!assetId) {
       warnings.push(`landmark ${landmark.id}: no model row for ${landmark.role}; nothing placed`);
       continue;
@@ -398,7 +426,7 @@ export function buildWorldFromBrief(input: WorldBuildInput): WorldBuild {
     place(assetId, { id: landmark.id, role: landmark.role, name: title(landmark.id), at: briefToWorld(brief, landmark.at), rotationYDeg: 0, scale: 1, collision: true });
   }
   for (const prop of brief.props) {
-    const assetId = models.assetId(prop.role, null);
+    const assetId = models.assetId(prop.role, null, stablePick(prop.id));
     if (!assetId) throw new Error(`prop ${prop.id}: no model row for ${prop.role}`);
     place(assetId, {
       id: prop.id, role: prop.role, name: title(prop.id), at: briefToWorld(brief, prop.at),
@@ -412,8 +440,11 @@ export function buildWorldFromBrief(input: WorldBuildInput): WorldBuild {
     if (kept.length) groups.set(group.assetId, [...(groups.get(group.assetId) ?? []), ...structuredClone(kept)]);
   }
   const rockCounts = cover ? coverRockCounts(cover, densities) : null;
+  const trees = settlementTrees(brief, ground, recipe, (def.splines ?? []).filter((spline) => !waterIds.has(spline.id)));
+  warnings.push(...trees.warnings);
   const scatter: ScatterPlacement[] = [
     ...yardFences(brief),
+    ...trees.placements,
     ...scatterRocks(brief, ground, bounds, rockCounts ?? undefined),
     ...(cover && rockCounts && rockCounts.outcrops > 0 ? scatterOutcrops(brief, ground, bounds, rockCounts.outcrops, cover.rock.slope[0]) : []),
   ];
@@ -431,9 +462,12 @@ export function buildWorldFromBrief(input: WorldBuildInput): WorldBuild {
   if (ground.courses.length) deferred.push(`rivers: ${ground.courses.length} bed(s) carved and their splines kept on the terrain; River actors wait for Faz 7`);
   if (ground.lakes.length) deferred.push(`lakes: ${ground.lakes.length} bed(s) carved; Lake actors wait for Faz 7`);
   if (brief.ocean) deferred.push("ocean: the coast is shaped; the Ocean actor waits for Faz 7");
-  const plants = cover ? coverPlantRules(cover, densities) : { rules: [], missing: [] };
+  if (models.unbuilt.length) deferred.push(`generated models with no output, placed as placeholders: ${models.unbuilt.join("; ")}`);
+  if (models.rejected.length) deferred.push(`generated models rejected on a family sheet, placed as placeholders: ${models.rejected.join("; ")}`);
+  const plants = cover ? coverPlantRules(cover, densities, generated) : { rules: [], missing: [], rejected: [] };
   if (!cover) deferred.push("foliage: the pilot's plants have no foliage type here; name a ground cover");
   else if (plants.missing.length) deferred.push(`foliage: no foliage type yet for ${plants.missing.join(", ")}`);
+  if (plants.rejected.length) deferred.push(`foliage: rejected on a family sheet: ${plants.rejected.join(", ")}`);
   if (brief.environment) deferred.push("environment: season/weather/hour are read, not written to the level yet (WES link, plan §12)");
   if (brief.regions.length) deferred.push("regions: in the recipe plan only");
   deferred.push(...ground.deferred);
@@ -454,5 +488,6 @@ export function buildWorldFromBrief(input: WorldBuildInput): WorldBuild {
     sampleHeight,
     warnings,
     deferred,
+    review: reviewOf(brief, cover, generated),
   };
 }

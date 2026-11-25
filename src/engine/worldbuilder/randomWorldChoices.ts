@@ -123,6 +123,8 @@ export interface RandomWorldDone {
   readonly seconds: number;
   readonly notes: readonly string[];
   readonly deferred: readonly string[];
+  /** Generated families in it the user has not approved (`WorldBuild.review`). */
+  readonly review?: readonly string[];
 }
 
 export type RandomWorldEvent =

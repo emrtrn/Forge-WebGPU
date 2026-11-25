@@ -14,6 +14,7 @@
  * `normalizeWorldBrief` is the single source of field shape. It is strict: any
  * issue means the brief is not built. Dependency-free; no three.js.
  */
+import { isId, type AssetId } from "../../core/index.ts";
 import { metricElevationToWorld, metricToWorld, type MetricFrame } from "./metricFrame.ts";
 import { ISLAND_RADIAL_SAMPLES } from "./islandShape.ts";
 import {
@@ -58,8 +59,8 @@ export const WORLD_BUILD_STEPS = ["terrain", "paint", "settlements", "roads", "g
 export type WorldBuildStep = (typeof WORLD_BUILD_STEPS)[number];
 export const WORLD_BRIEF_SUFFIX = ".worldbrief.json";
 
-/** Where a model comes from (decision 21): Claude in Blender, Tripo AI, or a ready-made model. */
-export const MODEL_SOURCES = ["blender", "tripo", "ready"] as const;
+/** Where a model comes from (decision 21): Claude in Blender, Tripo AI, a ready-made model, or a recipe's output (vegetation plan PG5). */
+export const MODEL_SOURCES = ["blender", "tripo", "ready", "generated"] as const;
 export type ModelSource = (typeof MODEL_SOURCES)[number];
 
 /** WES seasons and weather presets (`worldEnvironment.ts`); kept here so the schema stays dependency-free. */
@@ -269,13 +270,18 @@ export interface BriefEnvironment {
 }
 
 /** One model a role may use. A role with several rows has variants; `variant` groups them. */
-export interface BriefModel {
+export type BriefModel = {
   role: string;
-  source: ModelSource;
+  variant?: string;
+} & ({
+  source: Exclude<ModelSource, "generated">;
   /** Model asset id, or an asset index file label. */
   file: string;
-  variant?: string;
-}
+} | {
+  source: "generated";
+  /** Recipe asset id (`generatedModels.ts`). */
+  recipe: AssetId;
+});
 
 export interface WorldBrief {
   schema: typeof WORLD_BRIEF_SCHEMA_VERSION;
@@ -759,14 +765,19 @@ export function normalizeWorldBrief(value: unknown): WorldBriefNormalization {
     if (!isRecord(entry)) return reject(c, p, "must be an object");
     const role = requireToken(c, `${p}.role`, entry.role);
     const source = isOneOf(MODEL_SOURCES, entry.source) ? entry.source : reject(c, `${p}.source`, `must be one of ${MODEL_SOURCES.join(", ")}`);
-    const file = normalizeAssetPath(entry.file, null) ?? reject(c, `${p}.file`, "must be a public-root-relative path");
     const variant = optional(entry.variant, () => requireToken(c, `${p}.variant`, entry.variant));
+    if (source === "generated") {
+      const recipe = isId(entry.recipe, "asset") ? entry.recipe : reject(c, `${p}.recipe`, "must be a recipe asset id");
+      if (entry.file !== undefined) issue(c, `${p}.file`, "is not a generated row's field; name its recipe");
+      return role === null || recipe === null ? null : { role, source, recipe, ...(variant ? { variant } : {}) };
+    }
+    const file = normalizeAssetPath(entry.file, null) ?? reject(c, `${p}.file`, "must be a public-root-relative path");
     if (role === null || source === null || file === null) return null;
     return { role, source, file, ...(variant ? { variant } : {}) };
   });
   const modelKeys = new Set<string>();
   models.forEach((model, index) => {
-    const key = `${model.role}|${model.variant ?? ""}|${model.file}`;
+    const key = `${model.role}|${model.variant ?? ""}|${model.source === "generated" ? model.recipe : model.file}`;
     if (modelKeys.has(key)) issue(ctx, `models[${index}]`, "repeats a role, variant and file");
     modelKeys.add(key);
   });

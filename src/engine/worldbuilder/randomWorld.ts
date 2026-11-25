@@ -15,6 +15,7 @@
  * Pure and deterministic; dependency-free. Placement on the ground is the
  * builder's: this module only lays out where things go.
  */
+import type { AssetId } from "../../core/index.ts";
 import { DEFAULT_RELIEF_CLEAR, type BriefModel, type BriefRelief, type CoverDensityLevel } from "./worldBrief.ts";
 import { DEFAULT_OCEAN_SHORE_PROFILE, islandOcean, oceanLandDistance, type SeaSide } from "./island.ts";
 import type { RoadClass } from "./vocabulary.ts";
@@ -73,15 +74,18 @@ export type CoverName = keyof typeof COVERS;
 export const DEFAULT_REGION_PROFILE = "engine:content/packs/worldbuilder/profiles/neutral.regionprofile.json";
 
 /**
- * The starter pack's generated rocks, by asset id (Forge WebGL named its own starter models by file):
- * angular on the heights and slopes, rounded on the slopes and the water banks.
+ * The starter pack's recipes, by asset id (vegetation plan PG5; Forge WebGL named its own starter models by
+ * file): angular rocks on the heights and slopes, rounded ones on the slopes and the water banks, and the tree
+ * that stands near a settlement's centre.
  */
-const ROCKS_ANGULAR = ["ast_d0cdcdeb363bbbca741677e961e5a698", "ast_b90777781daeb37307e12395210c68e6", "ast_5e58123e7eeec50f3c101a0a9a0061c4"] as const;
-const ROCKS_ROUNDED = ["ast_c37f3f7112aee9be5592812b3a9b1dce", "ast_19d833e92ac6963595a8be66725a7262", "ast_892eb4e597928b49e794fef81b130ba6"] as const;
+const ROCK_ANGULAR = "ast_49952fa42490dda70383d99c0f04f762" as AssetId, ROCK_ROUNDED = "ast_2b01db89c1e2f45f79ae6ce5294aa4bc" as AssetId;
+const BROADLEAF = "ast_1cc830feab66656728f8bf965079b68a" as AssetId;
 export const DEFAULT_NATURE_MODELS: readonly BriefModel[] = [
-  ...ROCKS_ANGULAR.map((file): BriefModel => ({ role: "prop.rock", source: "ready", file, variant: "high" })),
-  ...[ROCKS_ANGULAR[0], ROCKS_ANGULAR[2], ROCKS_ROUNDED[1]].map((file): BriefModel => ({ role: "prop.rock", source: "ready", file, variant: "slope" })),
-  ...ROCKS_ROUNDED.map((file): BriefModel => ({ role: "prop.rock", source: "ready", file, variant: "river" })),
+  { role: "prop.rock", source: "generated", recipe: ROCK_ANGULAR, variant: "high" },
+  { role: "prop.rock", source: "generated", recipe: ROCK_ANGULAR, variant: "slope" },
+  { role: "prop.rock", source: "generated", recipe: ROCK_ROUNDED, variant: "slope" },
+  { role: "prop.rock", source: "generated", recipe: ROCK_ROUNDED, variant: "river" },
+  { role: "vegetation.tree", source: "generated", recipe: BROADLEAF },
 ];
 
 export interface RandomSettlement {

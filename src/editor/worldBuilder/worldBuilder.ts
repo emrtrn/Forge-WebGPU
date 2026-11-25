@@ -169,7 +169,7 @@ export function createWorldBuilder(options: WorldBuilderOptions): WorldBuilder {
       const done = JSON.parse(report) as RandomWorldDone;
       if (done.level === options.level) {
         const open = [...done.notes, ...done.deferred];
-        options.status(`World built in ${done.seconds} s: ${done.buildings} buildings, ${done.bridges} bridges, ${done.actors} actors.${open.length ? ` Not built: ${open.join("; ")}` : ""}`);
+        options.status(`World built in ${done.seconds} s: ${done.buildings} buildings, ${done.bridges} bridges, ${done.actors} actors.${open.length ? ` Not built: ${open.join("; ")}` : ""}${done.review?.length ? ` Not approved: ${done.review.join(", ")}.` : ""}`);
       }
     } catch {
       // Not a summary: nothing to say.

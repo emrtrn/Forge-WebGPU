@@ -96,7 +96,8 @@ export const WorldBriefAssetType = dataDocumentType(
   "World Builder'ın dünyayı kurduğu tarif: alan, arazi, yerleşimler, yollar, su ve modeller.",
   ".worldbrief.json",
   [],
-  [{ path: "models[].file", assetType: "forge.model" }],
+  // A recipe is any model recipe type (tree, grass, rock): the build checks which.
+  [{ path: "models[].file", assetType: "forge.model" }, { path: "models[].recipe", assetType: null }],
 );
 
 export const WorldRecipeAssetType = dataDocumentType(
@@ -119,7 +120,7 @@ export const GroundCoverAssetType = dataDocumentType(
   "Zemin örtüsü ön ayarı: boya katmanları, eğim / yükseklik kuralları, kaya ve bitki yoğunlukları.",
   ".cover.json",
   [],
-  [{ path: "layers[].material", assetType: "forge.material" }, { path: "plants[].foliageType", assetType: "forge.foliageType" }],
+  [{ path: "layers[].material", assetType: "forge.material" }, { path: "plants[].foliageType", assetType: "forge.foliageType" }, { path: "plants[].recipe", assetType: null }],
 );
 
 export const DATA_DOCUMENT_TYPES: readonly DocumentAssetTypeDef[] = [
