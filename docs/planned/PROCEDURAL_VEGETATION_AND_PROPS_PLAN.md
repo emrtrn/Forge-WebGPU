@@ -1,6 +1,7 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.19 · 2026-11-25 (PG5b açıldı: taç kalitesi, üretici sürümü 6, §9.8; kullanıcı kararları).
+**Sürüm:** v0.20 · 2026-11-25 (PG5b adım 1–4: taç üreticisi, sprey, yaprak ışığı, LOD; görsel kabul bekleniyor, §9.8).
+Önceki: v0.19 (PG5b açıldı: taç kalitesi, üretici sürümü 6; kullanıcı kararları).
 Önceki: v0.18 · 2026-11-25 (PG5 editörü ve World Builder bağlantısı, §9.7; görsel kabul bekleniyor).
 Önceki: v0.17 · 2026-11-22 (PG4 görsel kabul ve kapanış, §9.5–9.6).
 Önceki: v0.16 (şerit/demet ot ve WebGPU yakın–uzak doğrulaması, §9.6).
@@ -1096,6 +1097,39 @@ değişir). Yakın ağacın LOD0 tavanı 20 k yerine **40 k** üçgen, yalnız i
   taç derinliğine göre kararma (yaprak ve odun); mesh LOD'ları ve impostor aynı kuralda.
 - *Kapı.* LAI alt sınırı bütün LOD'larda testte; LOD'lar arası alan farkı sınırlı.
 
+**Adım 1–4 (2026-11-25, `4279194`).** `engine/procgen/tree/crown/` (parametre, iskelet,
+taç ışığı, sprey + LOD), `texture/sprayTexture.ts`, `render/plant/crownShading.ts` ve
+`leafLighting.ts`. Starter Broadleaf / Conifer sürüm 6'da, aile ve model GUID'leri aynı.
+
+| Prototip 1 | LOD0 | LOD1 | LOD2 |
+|---|---:|---:|---:|
+| Broadleaf üçgen (odun + yaprak) | 11,4 k + 25,0 k | 1,4 k + 3,6 k | 86 + 714 |
+| Broadleaf LAI | 6,2 | 6,2 | 6,2 |
+| Conifer üçgen | 10,2 k + 14,7 k | 1,4 k + 2,8 k | 44 + 734 |
+| Conifer LAI | 7,5 | 7,4 | 6,5 |
+
+- *Eşikler.* LOD0 ≈ 40 m, LOD1 ≈ 119 m (önceden 340), LOD2 ≈ 250 m, sonra impostor.
+- *Taç ışığı.* Yaprak alanı voksellere yazılır; 18 ışın açıklığı (`_LEAF`.y, odunda da)
+  ve bükülmüş normali verir. Impostor aynı değeri normal dokusunun mavisinde taşır.
+- *Ton.* Doygun mevsim tonu yeşille çarpılıp kararmaz, yaprağın parlaklığını alır.
+  Örnek başına küçük ton farkı. `response.translucency` / `crownDepth` formda.
+- *Form.* Sürüm 6'da Growth + Spray; `levels` ve `leaves` görünmez. Habit değişince
+  starter'ın o alışkanlıktaki ön ayarı uygulanır.
+- *Kapı.* `crownTree.test.ts`: her LOD'da LAI ≥ 4, LOD0'a göre alan farkı ≤ %20, tavanlar,
+  karo örtüsü, nested LOD, taç şişmez, aynı tohum aynı bayt.
+
+**Ölçüm (R1).** `measure:forest` (Derekavak, 1080p `high`): yaz gönderim 1,30 / p95 3,7 ms,
+ana iş parçacığı 1,80 / 4,3 ms, GPU 2,94 ms (level'ın kendi foliage'ı 2,56); 15 m/s yürüyüş
+1,95 / 3,23 ms; mevsim geçişinde pipeline +0; kar / kış doğru (PV-WES-03 çekimleri yenilendi).
+World_1'in dört pozunda (1600 × 900, tek koşular, ±1 ms, bir pozda açılış sıçraması 9–12 ms):
+GPU eski 1,8–5,0 → yeni 1,7–8,1 ms; orman içi pozlarda ≈ +2–3 ms. Impostor bake prototip başına
+2 → ≈ 6 s, atlas ≈ 7 s; aile başına doku + 1,33 MiB (yaprak normali). Smoke: plants, impostors
+(silüet IoU 0,79–0,97), foliageFar / Wind / Ring gerçek WebGPU ve WebGL'de; editör `assets` +
+`worldBuilder` gerçek WebGPU'da.
+
+**Sınırlar.** Impostor yakına zorlandığında bulanık (128 px). Broadleaf ve Conifer dışındaki
+tarifler (Hazel, Oak, Poplar) eski iskelette. Kullanıcı görsel kabulü bekleniyor.
+
 ---
 
 ## 10. Adımlar
@@ -1287,10 +1321,10 @@ kullanıcıda).
 - [ ] **PG5b Taç kalitesi (§9.8; kullanıcı, 2026-11-25).** *Kapı:* LAI alt sınırı
       testte; Broadleaf / Conifer World_1'de ve tekil pozda kullanıcı kabulü;
       `measure:forest` G6'yı tutuyor; PV-WES-01–03 (kış, kar, LOD eşitliği) yeniden.
-  - [ ] **1 Taç.** Sürüm 6 iskeletleri, sprey yerleşimi, LOD zinciri, starter tarifleri.
-  - [ ] **2 Dal dokusu.** Sprey atlası (renk + alfa + normal), kabuk.
-  - [ ] **3 Yaprak ışığı.** Taç normali, geçirgenlik, iç kararma; impostor aynı kuralda.
-  - [ ] **4 LOD.** Eşikler, alan koruma, LAI / örtü testleri, 40 k LOD0.
+  - [x] **1 Taç.** Sürüm 6 iskeletleri, sprey yerleşimi, LOD zinciri, starter tarifleri.
+  - [x] **2 Dal dokusu.** Sprey atlası (renk + alfa + normal), kabuk (dikey oluk).
+  - [x] **3 Yaprak ışığı.** Taç normali, geçirgenlik, iç kararma; impostor aynı kuralda.
+  - [x] **4 LOD.** Eşikler, alan koruma, LAI / örtü testleri, 40 k LOD0.
   - [ ] **5 Türler.** Akçaağaç, huş, meşe, kavak, çam, ladin; kabuklar; Oak / Poplar sürüm 6'ya,
         eski iskelet sürümleri (1–4) kalkar.
   - [ ] **6 World Builder.** Örtülerde karışık tür, orman yoğunluğu, genç ağaç, orman altı.
@@ -1430,6 +1464,7 @@ kurallarına göre yeniden yazılır.
 
 | Tarih | Sürüm | Not |
 |---|---|---|
+| 2026-11-25 | v0.20 | PG5b adım 1–4 (`4279194`): LAI 6,2 / 7,5 bütün LOD'larda, `measure:forest` G6'da; adım 5–6 ve görsel kabul açık |
 | 2026-11-25 | v0.19 | PG5b açıldı (§9.8): World_1 denetimi (LAI 0,08–0,57), klonda deneme, kullanıcı kararları (yer değiştirme, 40 k LOD0). Kod yok |
 | 2026-11-25 | v0.18 | PG5: E (`88913ec` `3ce003b` `e4982df`) ve F (`62d153f` `6ef8a9b` `f838402`); kararlar kullanıcıda (öneriler gibi). §9.7. Görsel kabul bekleniyor |
 | 2026-11-22 | v0.17 | MeadowGrass görsel onayı kaydedildi (§9.6). Hazel ve MeadowGrass kabulüyle PG4 kapandı. PG5 açık. |

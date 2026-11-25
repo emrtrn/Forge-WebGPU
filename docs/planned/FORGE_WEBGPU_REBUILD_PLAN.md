@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.06 · 2026-11-25 — Bitki planı PG5b açıldı (v0.19, §9.8; kullanıcı kararı): ağaçların yaprak örtüsü referansın çok altında (LAI 0,08–0,57); üretici sürümü 6 starter Broadleaf / Conifer'in yerine geçer, LOD0 tavanı 40 k. PG5 görsel kabulü ve Faz 5 toplu kabulü PG5b'yi bekler.
+**Güncelleme:** v2.07 · 2026-11-25 — Bitki planı PG5b adım 1–4 (`4279194`, v0.20): taç üreticisi (sürüm 6), starter Broadleaf / Conifer yeni ağaçlarla, aynı GUID'ler; `measure:forest` G6'yı tutuyor. Kullanıcı görsel kabulü bekleniyor; sırada adım 5 (türler) ve 6 (World Builder örtüleri).
+
+**Önceki güncelleme:** v2.06 · 2026-11-25 — Bitki planı PG5b açıldı (v0.19, §9.8; kullanıcı kararı): ağaçların yaprak örtüsü referansın çok altında (LAI 0,08–0,57); üretici sürümü 6 starter Broadleaf / Conifer'in yerine geçer, LOD0 tavanı 40 k. PG5 görsel kabulü ve Faz 5 toplu kabulü PG5b'yi bekler.
 
 **Önceki güncelleme:** v2.05 · 2026-11-25 — World Builder açık level'a kurar ve sahne ayarlarını korur; Outliner klasörleri (`5b8f6fa`). Kullanıcı kararı, adım 8'in "yeni level" kararının yerini alır. Adım 8 / 9 ve Faz 5 toplu kabulü kullanıcıda.
 
