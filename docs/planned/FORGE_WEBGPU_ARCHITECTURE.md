@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.87 · 2026-11-25 — §4.9 hava sözleşmesi W1: geç katman (AA'dan sonra, alan derinliği ve bloom'dan önce) ve yağış çizimi.
+**Güncelleme:** v1.88 · 2026-11-26 — §4.4 foliage: Landscape kuralında meşcere (`stand`) ve boya kenarı (`edge`), aile prototipinde `young`.
+
+**Önceki güncelleme:** v1.87 · 2026-11-25 — §4.9 hava sözleşmesi W1: geç katman (AA'dan sonra, alan derinliği ve bloom'dan önce) ve yağış çizimi.
 
 **Önceki güncelleme:** v1.86 · 2026-11-25 — §4.9 hava sözleşmesi W0: `forge.worldEnvironment@3`, SDK `WorldEnvironmentServiceKey`, `surfaceCondition` modeli.
 
@@ -832,6 +834,12 @@ features/height-fog/
   - *Landscape kuralları (INV-D30):* terrain aktöründe şemalı
     `forge.landscapeFoliage` bileşeni (kural başına katman, tür GUID'i,
     yoğunluk, `minWeight`, `seed`); ajan `forge edit set` ile düzenler.
+    *Meşcere (PG5b, 2026-11-26):* `stand` grubu açık kurallar aynı tohum ve
+    yoğunlukla tek altıgen ızgarayı payla bölüşür; yerleşim hücre boyundan ve
+    uzaklıktan bağımsızdır (`engine/foliage/foliageStand.ts`). `reach` verilirse
+    kural type'ını kendi erişimiyle, seyrelmeden çizer, sonrası far billboard;
+    gölge bir kaba LOD'dan. `edge` boya ağırlığında seyreltir. İki grup kapalıysa
+    kural eskisi gibi üretilir.
     Prosedürel halka terrain tile'ı gibi kameraya bağlı, WP hücrelerinden
     bağımsız akar; uzak bloklar global haritadan (dünya uzayı yüksekliği;
     dosyadan çözülen harita datum'a göreli, çeviri çağıranda).

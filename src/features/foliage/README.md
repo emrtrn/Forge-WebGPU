@@ -12,7 +12,8 @@ kararlar 2–4, kullanıcı 2026-11-17).
     (PG3 doldurur). Genel veri editörüyle (A13) düzenlenir.
   - `forge.landscapeFoliage@1`: terrain aktöründeki kurallar (Forge'un
     `LandscapeFoliageRule`'u): katman, tür, yoğunluk, `minWeight`, tohum ve
-    bantlar. Kuralın terrain'i bileşenin aktörüdür. Örnekler kaydedilmez,
+    bantlar; isteğe bağlı boya kenarı (`edge`) ve meşcere (`stand`: ortak ızgara,
+    tür payı, kendi erişimi; `engine/foliage/foliageStand.ts`). Kuralın terrain'i bileşenin aktörüdür. Örnekler kaydedilmez,
     kamera çevresinde tohumdan yeniden kurulur.
 - `feature.ts`: bileşeni ve asset türünü kurar.
 - Şema verisi → saf üretim girdisi `src/engine/foliage/foliageAsset.ts`

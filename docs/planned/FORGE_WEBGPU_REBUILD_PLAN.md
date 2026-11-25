@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.16 · 2026-11-25 — Faz W W1 kapandı (kullanıcı görsel kabulü). Sırada W2: zamanlı hava geçişi (yeni oturumda).
+**Güncelleme:** v2.17 · 2026-11-26 — Bitki planı PG5b adım 6 (`8710f0c`, v0.23): karışık orman (`stand`), genç ağaçlar, altı World Builder örtüsü; kullanıcı görsel kabulü. PG5b ve PG5 kapandı.
+
+**Önceki güncelleme:** v2.16 · 2026-11-25 — Faz W W1 kapandı (kullanıcı görsel kabulü). Sırada W2: zamanlı hava geçişi (yeni oturumda).
 
 **Önceki güncelleme:** v2.15 · 2026-11-25 — Faz W W0 kapandı (kullanıcı tasarım 9'un mekanizmasını onayladı); W1 yağış görseli (`49c76ce`): geç katman, yağmur / kar hacimleri, WES `precipitation` ayarları.
 
@@ -489,7 +491,7 @@ akışı ve HLOD, **5c** GPU güdümlü foliage, impostor, bölgeler, statik bat
 spline, heightmap, World Terrain), Foliage fırçası, World Builder penceresi, PG5 editörü.
 Kapı (2026-11-25): 2.733 test, editör seti WebGL ve gerçek WebGPU'da 99 / 99, terrain /
 akış / foliage / orman ölçümleri sınırın içinde, G8 2,93 mm; kullanıcı kabulü aynı gün.
-World Builder örtüleri (bitki planı PG5b adım 6) bitki planında sürer.
+World Builder örtüleri bitki planında kapandı (PG5b adım 6, 2026-11-26).
 
 ### Faz W — Hava: yağış, ıslanma, kar
 
@@ -1162,6 +1164,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-26 | v2.17 | Bitki planı PG5b adım 6 (`8710f0c`, v0.23): karışık orman (`stand`), genç ağaçlar, altı World Builder örtüsü; kullanıcı görsel kabulü. PG5b ve PG5 kapandı. |
 | 2026-11-25 | v2.16 | Faz W W1 kapandı (kullanıcı görsel kabulü). Sırada W2: zamanlı hava geçişi (yeni oturumda). |
 | 2026-11-25 | v2.15 | Faz W W0 kapandı (kullanıcı tasarım 9'un mekanizmasını onayladı); W1 yağış görseli (`49c76ce`): geç katman, yağmur / kar hacimleri, WES `precipitation` ayarları. Kullanıcı görsel kabulü bekleniyor; sırada W2. |
 | 2026-11-25 | v2.14 | Bitki planı PG5b adım 5 (`e1891dd`, v0.22): türler (Maple, Birch, Oak, Poplar, Pine, Hazel) tek üreticide, meshopt'lu çıktı, eski sürümler kalktı; kullanıcı görsel kabulü. Sırada adım 6 (World Builder örtüleri). Faz W ayrı oturumda sürer. |

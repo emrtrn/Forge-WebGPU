@@ -1,6 +1,7 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.22 · 2026-11-25 (PG5b adım 5: türler, tek üretici; kullanıcı görsel kabulü; sırada adım 6, §9.8).
+**Sürüm:** v0.23 · 2026-11-26 (PG5b adım 6: karışık orman, genç ağaç, örtüler; kullanıcı görsel kabulü; PG5b ve PG5 kapandı, §9.8).
+Önceki: v0.22 · 2026-11-25 (PG5b adım 5: türler, tek üretici; kullanıcı görsel kabulü).
 Önceki: v0.21 (PG5b adım 1–4'ün kullanıcı görsel kabulü).
 Önceki: v0.20 (PG5b adım 1–4: taç üreticisi, sprey, yaprak ışığı, LOD).
 Önceki: v0.19 (PG5b açıldı: taç kalitesi, üretici sürümü 6; kullanıcı kararları).
@@ -16,7 +17,7 @@ taş doku tarifi, triplanar + `variation`, A / C ölçümü).
 
 **Önceki sürüm:** v0.6 · 2026-11-14 (WES ile birleşik bitki ailesi, ortak çalışma
 zamanı davranışı ve 5c ile birlikte ilerleyen üretim dilimi; kullanıcı kararı).
-**Durum:** PG0–PG3 uygulandı (5c ile, 2026-11-17 – 2026-11-19). PG4, çok saplı Hazel ve şerit/demet MeadowGrass için WebGPU doğrulaması ve kullanıcı görsel onayıyla kapandı (2026-11-22, §9.5–9.6). PG5'in kodu ve teknik kapısı tamam (2026-11-25, §9.7); PG5b'de adım 1–5 kabul edildi, 6 açık (§9.8). PG6–PG7 ileride.
+**Durum:** PG0–PG3 uygulandı (5c ile, 2026-11-17 – 2026-11-19). PG4, çok saplı Hazel ve şerit/demet MeadowGrass için WebGPU doğrulaması ve kullanıcı görsel onayıyla kapandı (2026-11-22, §9.5–9.6). PG5 ve PG5b kapandı (2026-11-26, §9.7–9.8). PG6–PG7 ileride.
 Başlama koşulu §2'de.
 **İlgili belgeler:** [yeniden inşa planı](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
 sırası; küçük üretim dilimi 5c ile birlikte, tam araçlar 5d ile ilerler),
@@ -528,7 +529,8 @@ Taşınmış hâli başlarken yeniden doğrulanır; adlar değişmiş olabilir.
 
 ### 7.2 Bağlantı
 
-1, 2, 3 ve 5 uygulandı (2026-11-25, §9.7); 4 (bağlı tarifler) PG6'da.
+1, 2, 3 ve 5 uygulandı (2026-11-25, §9.7); 4 (bağlı tarifler) PG6'da. Örtülerin
+karışık ormanı (`stands`, genç ağaç, kenar; 2026-11-26) §9.8'de.
 
 1. **Yeni model kaynağı:** `generated`. Satır dosya yolu yerine tarifi
    gösterir; çözümleme bitkilerde aile referansı üretir. Tekil yerleşim bitki
@@ -1168,6 +1170,51 @@ sakin koşu: kış 1,37 / 1,86, yürüyüş 2,03 / 3,32 ms. Adım 6'da boş maki
 *Sınırlar:* impostor yakına zorlanınca bulanık ve üzerinde çapraz gölge izi; yapraksız kışta LOD1'den
 sonra ince dallar düşer. Kullanıcı görsel kabulü: 2026-11-25.
 
+**Adım 6 · World Builder örtüleri (2026-11-26, `8710f0c`).** Kararlar (kullanıcı): §11.
+
+- *Meşcere.* `forge.landscapeFoliage` kuralında `stand`: aynı tohum ve toplam yoğunluklu kurallar tek
+  altıgen ızgarayı (jitter 0,8) `from`–`to` payıyla bölüşür, isteğe bağlı ≈ 60 m tür yaması
+  (`engine/foliage/foliageStand.ts`). Slot dünya indeksinden hash'lenir: yerleşim hücre boyundan ve
+  uzaklıktan bağımsız, yoğunluk ve paylar tam (eski ızgarada hedef 60 → 29 ağaç/ha), gövde aralığı testte.
+  `edge`: boya ağırlığında `fadeIn`, `maxWeight` / `fadeOut`; kalan bitki oynamaz, `edgeScale` küçültür.
+  Alanları olmayan kural eski algoritmayla üretilir (kurulmuş dünyalar, taşınan Forge testleri).
+- *Erişim.* `stand.reach` (360 m) içinde seyrelme ve `grassDensity` etkisi yok; sonra aynı atlasla far
+  billboard (3 km) ve arazi tonu. Type'lar değişmez: kural kendi batch'ini çizer (`ruleDraws`).
+- *Genç ağaç.* Tarifte `young` (yaş payı 0,2 + tohumlar): olgunların ardına eklenen prototipler, rol
+  `tree/<tohum>_young/…`, ortak atlas ve materyal, yarı boy impostor karesi (64 px). Yedi türde ikişer; LOD0
+  10–16 k üçgen, LAI ≥ 4, alan farkı ≤ %20 (kaba LOD'lar dalcıkların 1,6 katını tutar; Conifer LOD2 0,73 →
+  0,89). Tür başına 1,5–1,9 MB, toplam 11,8 MB. Olgun modeller ve dokular bayt bayt aynı. Editör önizlemesi,
+  galeri ve onay sayfası gençleri `11 (young)` adıyla gösterir.
+- *Örtüler.* Altı örtü `stands` + `age`, `prototypes`, `fadeIn` / `maxWeight` / `fadeOut`, `edgeScale`
+  alanlarıyla. Orman (ağaç/ha, medium): Broadleaf 45, Conifer 40, Birch 35, Maple 20, Pine 15, Oak 12 + genç 95,
+  orman altında Hazel 70, kenarda 200. Ot 1,0–1,8/m² (çayır), 0,5 (orman altı), 0,4 (bozkır). Tür başına en
+  çok iki olgun ve bir genç prototip; gençler 200 m'ye kadar, billboard'suz.
+- *Yerleşim ağaçları.* Broadleaf, Oak, Maple, Birch satırları kararlı `pick` ile; binadan önce 8 m, yer
+  yoksa 4 m. Landmark'lar ve köy ağaçları yalnız olgun prototip alır.
+- *Maliyet araçları (yalnız meşcere).* Gölge görünümleri bir kaba LOD çizer, yakın LOD uzaklıkları
+  `stand.detail` (0,65) ile çarpılır, halkada impostor yerine billboard, halka hücresi 128 m. Bütün foliage'da:
+  yakın LOD önce çizilir, hiçbir uzaklıkta çizilmeyecek LOD'un draw'ı atlanır.
+
+Ölçüm (World_1'in brief'iyle World_3, `forest: high`, 1600 × 900 `high`, RTX 3060, 60 Hz adımlı, sakin makine,
+birer koşu, ±1,5 ms):
+
+| | GPU eski → yeni (ms) | Gönderim eski → yeni (ms) |
+|---|---|---|
+| Orman içi (3 poz) | 5,5–6,3 → 8,8–9,3 | 1,5–1,6 → 3,6–3,8 |
+| Kenar (3 poz) | 4,3–4,9 → 8,5–10,8 | 1,7–1,9 → 3,7–4,3 |
+| Havadan / uzak | 4,0–4,6 → 10,8–11,3 | 1,7–1,9 → 4,2–4,3 |
+
+İlk kurulum 11–18 ms GPU, 5,2–6,6 ms gönderimdi. Sık orman 7–8 ms hedefini ≈ 1 ms, gönderim 3 ms'yi aşar;
+kullanıcı böyle kabul etti (yoğunluk ve yapı kısılmadı). Süre üçgen ağırlıklı (≈ 1 ms / milyon), gönderim
+batch sayısından (≈ 12 µs / draw). `measure:forest` (Derekavak) G6 içinde: yaz gönderim 1,50 / ana iş
+parçacığı 2,02 / GPU 3,02 ms; kış 1,42 / 1,91 / 2,86; karlı kış 1,49 / 1,99 / 3,04; yürüyüş 2,20 / 3,50 / 4,29;
+mevsim geçişinde pipeline +0. Meşcerede GPU / CPU görünür sayıları (gölge dahil) 140 karşılaştırmada birebir.
+Smoke: plants, impostors, foliageFar / Ring / Wind, gpuCulling (16, WebGPU + WebGL); editör assets, worldBuilder,
+foliage gerçek WebGPU'da. Kareler `.forge-cache/vegetation-v6/step6/shots/pg5b6-*.png` (yerel).
+*Sınırlar:* ot karda yeşil kalır; çöl çalısının tarifi yok; bozkır ve çöl örtüsü çekimle bakılmadı. Eski
+dünyanın bir ölçüm koşusunda sayfa bir kez çöktü, biri açılmadı (başka GPU yükü altında); sakin makinede
+tekrarlamadı, nedeni bulunmadı. Kullanıcı görsel kabulü: 2026-11-26.
+
 ---
 
 ## 10. Adımlar
@@ -1348,15 +1395,15 @@ kullanıcıda).
       **Ot dilimi** uygulandı. Editör kaydı, bütçeler, kararlı tekrar üretim
       ve doğal WebGPU geçişinde seyrelme + fade doğrulandı (§9.6).
       Kullanıcı ot için görsel onay verdi (2026-11-22); PG4 kapandı.
-- [ ] **PG5 World Builder'ın tam bağlantısı.** Zemin örtüsünün bitkileri
+- [x] **PG5 World Builder'ın tam bağlantısı.** Zemin örtüsünün bitkileri
       tariflere bağlanır; bağlı tarifler; aile onay sayfası; başlangıç ön ayar
       paketi; tam tarif paneli ve `generated` kaynağı (5d). *Kapı:* üretilen
       dünyada doğa varlıkları için hazır model yok; kaya rolleri doluyor,
       tekil bitki / foliage aileyi kullanıyor; panel düzenle → üret → kaydet →
       yeniden aç çalışıyor; onay sayfası Content Browser'da görünüyor.
-      **2026-11-25:** kod ve teknik kapı tamam (§9.7). Kutu kullanıcı görsel
-      kabulüyle kapanır. Bağlı tariflerin `linked` alanı ilk üreticisiyle PG6'da.
-- [ ] **PG5b Taç kalitesi (§9.8; kullanıcı, 2026-11-25).** *Kapı:* LAI alt sınırı
+      **2026-11-25:** kod ve teknik kapı tamam (§9.7). Kullanıcı görsel kabulü PG5b
+      adım 6 ile (2026-11-26). Bağlı tariflerin `linked` alanı ilk üreticisiyle PG6'da.
+- [x] **PG5b Taç kalitesi (§9.8; kullanıcı, 2026-11-25).** *Kapı:* LAI alt sınırı
       testte; Broadleaf / Conifer World_1'de ve tekil pozda kullanıcı kabulü;
       `measure:forest` G6'yı tutuyor; PV-WES-01–03 (kış, kar, LOD eşitliği) yeniden.
   - [x] **1 Taç.** Sürüm 6 iskeletleri, sprey yerleşimi, LOD zinciri, starter tarifleri.
@@ -1365,7 +1412,8 @@ kullanıcıda).
   - [x] **4 LOD.** Eşikler, alan koruma, LAI / örtü testleri, 40 k LOD0.
   - [x] **5 Türler.** Akçaağaç, huş, meşe, kavak, çam, ladin (Conifer), Hazel; kabuklar; eski iskelet
         sürümleri (1–5) kalktı (`e1891dd`; kabul 2026-11-25).
-  - [ ] **6 World Builder.** Örtülerde karışık tür, orman yoğunluğu, genç ağaç, orman altı.
+  - [x] **6 World Builder.** Örtülerde karışık tür, orman yoğunluğu, genç ağaç, orman altı, kenar
+        (`8710f0c`; kabul 2026-11-26).
 - [ ] **PG6 Ölü odun, döküntü, iğne yapraklı.** *Kapı:* kütük ve döküntü
       bağlı ağaç tarifinden türüyor; PG2'nin iğne yapraklı örneği daha geniş
       ön ayarlarla kart bütçesinde. İsteğe bağlı yakın çevre yaprak efekti
@@ -1430,6 +1478,10 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 | PG5b · paket boyutu | LOD GLB'leri meshopt'lu; yeni türler 2 prototip, Broadleaf / Conifer / Hazel 3 (kullanıcı, 2026-11-25) |
 | PG5b · eski üretici sürümleri | 1–5 tarifleri okunurken taç üreticisine göçer (`forge.treeRecipe/3`); çıktı yeniden üretilene kadar kalır (kullanıcı, 2026-11-25) |
 | PG5b · Hazel ve ladin | Hazel taç üreticisine taşındı; ladin ayrı tarif değil, Conifer (kullanıcı, 2026-11-25) |
+| PG5b · yerleşim | Kuralda isteğe bağlı `stand` (ortak altıgen ızgara, tür payı / yaması) ve boya rampası; alan yoksa yerleşim aynı (kullanıcı, 2026-11-25) |
+| PG5b · genç ağaç | Aynı tarifte `young` yaş varyantı, prototipler sonda, 64 px impostor (kullanıcı, 2026-11-25) |
+| PG5b · uzak orman | Meşcerenin kendi erişimi: seyrelmesiz halka, far billboard, arazi tonu; type'lar aynı (kullanıcı, 2026-11-25) |
+| PG5b · örtü tablosu ve bütçe | Tablo tam; önce gölge LOD'u, LOD uzaklığı ve çizim sırası. Kalan aşım (orman içi ≈ 9 ms GPU) ve tablodan sapmalar (ot 1,0–1,8/m², en çok 2 olgun + 1 genç prototip, gençler 200 m) kabul (kullanıcı, 2026-11-26) |
 | Üretilmiş dokuların sıkıştırması | `forge generate` ağaç atlaslarını ve yüzey dokusu tariflerini (kabuk, kaya) doğrudan KTX2 (UASTC + Zstd, mip'li) yazar; PNG yok (kullanıcı, 2026-11-19). Çalışma anında bake edilen GLB atlası RGBA8 kalır |
 
 **Açık:** yok (PK7 PG3'te ölçümle kapandı).
@@ -1505,6 +1557,7 @@ kurallarına göre yeniden yazılır.
 
 | Tarih | Sürüm | Not |
 |---|---|---|
+| 2026-11-26 | v0.23 | PG5b adım 6 (`8710f0c`): meşcere yerleşimi, genç ağaçlar, altı örtü; ölçüm §9.8; kullanıcı görsel kabulü. PG5b ve PG5 kapandı |
 | 2026-11-25 | v0.22 | PG5b adım 5 (`e1891dd`): sekiz tarif taç üreticisinde, meshopt, kabuklar, eski sürümler kalktı; kullanıcı görsel kabulü. Adım 6 yeni oturumda |
 | 2026-11-25 | v0.21 | PG5b adım 1–4 kullanıcı görsel kabulü; adım 5–6 yeni oturumda |
 | 2026-11-25 | v0.20 | PG5b adım 1–4 (`4279194`): LAI 6,2 / 7,5 bütün LOD'larda, `measure:forest` G6'da; adım 5–6 ve görsel kabul açık |
