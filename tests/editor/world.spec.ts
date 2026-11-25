@@ -194,7 +194,7 @@ test("cover preview stays out of level bytes and Play state", async ({ page, con
   const game = await opened;
   await expect(game.getByTestId("forge-canvas")).toHaveAttribute("data-forge-ready", "1", { timeout: 60_000 });
   const state = await game.evaluate(() => (window as unknown as { __forgeDev: { environmentState(): { surface: unknown } } }).__forgeDev.environmentState());
-  expect(state.surface).toEqual({ snowCoverage: 0, wetness: 0 });
+  expect(state.surface).toEqual({ snowCoverage: 0, wetness: 0, puddleFill: 0, snowDepth: 0 });
   expect(readFileSync(path, "utf8")).toBe(before);
   await game.close();
   expect(errors).toEqual([]);

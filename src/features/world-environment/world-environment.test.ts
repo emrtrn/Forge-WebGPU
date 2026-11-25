@@ -29,7 +29,7 @@ describe("world environment schema", () => {
 
   test("every row has an English name and a Turkish hint", () => {
     const rows = formOf(WorldEnvironment).fields;
-    expect(rows.map((field) => field.key)).toEqual(["hour", "season", "surface", "wind", "weather", "sunPath", "night"]);
+    expect(rows.map((field) => field.key)).toEqual(["hour", "season", "surface", "wind", "weather", "precipitation", "sunPath", "night"]);
     const flat = (fields: typeof rows): typeof rows =>
       fields.flatMap((field) => (field.kind === "object" ? [field, ...flat(field.fields)] : [field]));
     for (const field of flat(rows)) {

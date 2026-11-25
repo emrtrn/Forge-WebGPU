@@ -178,6 +178,23 @@
           "preset": "clear",
           "intensity": 1
         },
+        "precipitation": {
+          "windInfluence": 1,
+          "brightness": 1,
+          "rain": {
+            "amount": 1,
+            "opacity": 1,
+            "speed": 9,
+            "length": 1
+          },
+          "snow": {
+            "amount": 1,
+            "opacity": 1,
+            "speed": 1.3,
+            "size": 1,
+            "flutter": 1
+          }
+        },
         "sunPath": {
           "azimuthDeg": 180,
           "noonElevationDeg": 60,

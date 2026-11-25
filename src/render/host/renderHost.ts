@@ -410,6 +410,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
         gpuDriven,
         staticCellSize: () => staticCellSize,
         buildingStreaming: featureOptions?.buildingStreaming === true,
+        reversedDepth: (renderer as { reversedDepthBuffer?: boolean }).reversedDepthBuffer === true,
         modelBounds: (guid) => options.assetUrls.modelBounds?.(guid) ?? null,
         features,
         name,
@@ -463,7 +464,7 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       gpuDriven.setZoneMasks(world.zones?.masks ?? null);
       triangles.update(camera, quality.settings.foliageCullDistanceScale, world.zones ?? null);
       gpuDriven.cull(world.scene, camera, quality.settings.shadowCasterMinTexels);
-      pipeline.render(world.scene, camera, world.output, quality.settings);
+      pipeline.render(world.scene, camera, world.output, quality.settings, world.late ?? null);
       overlay?.render({ renderer, scene: world.scene, camera, sceneDepth: pipeline.sceneDepth });
       // CPU wall time for render traversal / encoding / submission; never GPU execution time.
       renderSubmitMs = performance.now() - submitted;

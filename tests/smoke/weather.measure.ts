@@ -3,13 +3,12 @@
 // DPR 1, the frame loop paused and stepped at a fixed 60 Hz.
 //
 // Derekavak P2 (terrain, foliage) and L03 (static meshes, no terrain), each in
-// the same states: clear and dry, rain, snow, and the covered surface (wet,
-// snow). The states are measured in interleaved rounds, because one GPU time
-// drifts by a few tenths of a millisecond between two runs, and a whole round can
-// jump: a state's GPU number is the median of its rounds' means, recorded with
-// every round. Every
-// later step of phase W is compared with the W0 record (the states before
-// anything falls). Each switch also counts the pipelines and shader modules it
+// the same states: clear and dry, rain and snow (and each without its drops or
+// flakes), and the covered surface (wet, snow). The states are measured in
+// interleaved rounds, because one GPU time drifts by a few tenths of a
+// millisecond between two runs, and a whole round can jump: a state's GPU number
+// is the median of its rounds' means, recorded with every round. The W0 record
+// holds the states before anything fell. Each switch also counts the pipelines and shader modules it
 // made: a weather change must make none once the state has been drawn.
 //
 // Spawns a World Environment where the level has none (development hook; the
@@ -29,13 +28,15 @@ const FRAMES = 120;
 const ROUNDS = 5;
 
 interface Step { ran: boolean; cpuMs: number; gpuMs: number | null; submitMs: number | null }
-interface State { id: string; weather: string; intensity: number; surface: Record<string, number> }
+/** `late: false` draws the same state without its precipitation: the difference is what rain and snow cost. */
+interface State { id: string; weather: string; intensity: number; surface: Record<string, number>; late?: false }
 interface Dev {
   pause(): void;
   step(ms: number): Promise<Step>;
   spawn(raw: unknown[]): string[];
   setWeather(preset: string, intensity: number): void;
   setSurface(surface: Record<string, number>): void;
+  setLateVisible(visible: boolean): void;
   environmentState(): unknown;
   gpuDriven: { level(): Promise<{ pending: number } | null> };
 }
@@ -44,7 +45,9 @@ const DRY = { snowCoverage: 0, wetness: 0, puddleFill: 0, snowDepth: 0 };
 const STATES: readonly State[] = [
   { id: "clear", weather: "clear", intensity: 1, surface: DRY },
   { id: "rain", weather: "rain", intensity: 1, surface: DRY },
+  { id: "rain-undrawn", weather: "rain", intensity: 1, surface: DRY, late: false },
   { id: "snow", weather: "snow", intensity: 1, surface: DRY },
+  { id: "snow-undrawn", weather: "snow", intensity: 1, surface: DRY, late: false },
   { id: "rain-wet", weather: "rain", intensity: 1, surface: { ...DRY, wetness: 1, puddleFill: 1 } },
   { id: "snow-covered", weather: "snow", intensity: 1, surface: { ...DRY, snowCoverage: 1, snowDepth: 0.4 } },
 ];
@@ -90,6 +93,7 @@ test("weather: cost of each state, pipelines made by the switches", async ({ pag
       const next = arg as State;
       d.setWeather(next.weather, next.intensity);
       d.setSurface(next.surface);
+      d.setLateVisible(next.late !== false);
     }, state);
     const rounds = new Map(STATES.map((state) => [state.id, [] as { submit: number[]; cpu: number[]; gpu: number[]; pipelines: number; shaderModules: number }[]]));
     for (let i = 0; i < ROUNDS; i += 1) {

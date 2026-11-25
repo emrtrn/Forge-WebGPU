@@ -11,7 +11,9 @@
 // frame's output (output.ts), applied by the render pipeline's last step, or
 // by the renderer itself when a plan has no pass and the scene is drawn
 // straight to the canvas (with the renderer's MSAA, as Forge drew a level
-// without effect passes). The scene pass has no MSAA: its depth, normal and
+// without effect passes). The late layer (lateLayer.ts: rain, snow) is drawn in
+// its own pass over the anti-aliased colour; while it has nothing to draw, its
+// pass is skipped and its cleared target composited. The scene pass has no MSAA: its depth, normal and
 // velocity feed the screen-space passes, and anti-aliasing is TRAA / SMAA.
 //
 // Forge's mapping of its 1-based authored values onto its passes is kept
@@ -23,6 +25,7 @@
 
 import {
   ACESFilmicToneMapping,
+  Color,
   HalfFloatType,
   NeutralToneMapping,
   NoToneMapping,
@@ -69,6 +72,7 @@ import { smaa } from "three/examples/jsm/tsl/display/SMAANode.js";
 import { ssgi, type default as SSGINode } from "three/examples/jsm/tsl/display/SSGINode.js";
 import { ssr } from "three/examples/jsm/tsl/display/SSRNode.js";
 import { traa } from "three/examples/jsm/tsl/display/TRAANode.js";
+import type { LateLayer } from "./lateLayer.ts";
 import type { FrameOutput, OutputToneMapping, PostProcessSettings } from "./output.ts";
 import { planPipeline, type PipelinePlan } from "./pipelinePlan.ts";
 import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
@@ -124,6 +128,8 @@ interface Built {
   readonly key: string;
   readonly scene: Scene;
   readonly camera: Camera;
+  readonly late: LateLayer | null;
+  readonly latePass: ReturnType<typeof pass> | null;
   readonly pipeline: RenderPipeline;
   readonly plan: PipelinePlan;
   /** The scene pass's depth (single sample, the jittered camera's when TRAA runs). */
@@ -146,7 +152,27 @@ function vignette(rgb: V3, u: Uniforms): V3 {
   return mix(rgb, vec3(float(1).sub(u.vignetteIntensity)), dot(centred, centred)) as V3;
 }
 
-function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: PipelinePlan): Built {
+/** The late layer's pass: transparent clear; not drawn while the layer is empty (once more, to clear it). */
+function createLatePass(late: LateLayer, camera: Camera): ReturnType<typeof pass> {
+  const latePass = pass(late.scene, camera, { samples: 0 });
+  const draw = latePass.updateBefore.bind(latePass) as unknown as (frame: { renderer: WebGPURenderer }) => void;
+  const clearColor = new Color();
+  let drawn = false;
+  (latePass as unknown as { updateBefore: (frame: { renderer: WebGPURenderer }) => void }).updateBefore = (frame) => {
+    const active = late.active;
+    if (!active && !drawn) return;
+    drawn = active;
+    const { renderer } = frame;
+    renderer.getClearColor(clearColor);
+    const alpha = renderer.getClearAlpha();
+    renderer.setClearColor(0x000000, 0);
+    draw(frame);
+    renderer.setClearColor(clearColor, alpha);
+  };
+  return latePass;
+}
+
+function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: PipelinePlan, late: LateLayer | null): Built {
   const disposables: { dispose(): void }[] = [];
   const has = (name: string): boolean => plan.passes.includes(name as PipelinePlan["passes"][number]);
   const u: Uniforms = {
@@ -245,6 +271,14 @@ function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: Pip
     node = resolved as unknown as V4;
   }
 
+  // After the history and the MRT passes, before what blurs and grades the picture (premultiplied).
+  const latePass = late ? createLatePass(late, camera) : null;
+  if (latePass) {
+    disposables.push(latePass);
+    const over = latePass.getTextureNode("output");
+    node = vec4(node.rgb.mul(float(1).sub(over.a)).add(over.rgb), node.a) as V4;
+  }
+
   if (has("dof")) {
     const blurred = dof(node, scenePass.getViewZNode(), u.focus, u.focalLength, u.bokehScale);
     disposables.push(blurred);
@@ -273,6 +307,8 @@ function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: Pip
     key: plan.key,
     scene,
     camera,
+    late,
+    latePass,
     pipeline,
     plan,
     depth: scenePass.renderTarget.depthTexture,
@@ -308,7 +344,7 @@ function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: Pip
 export interface FramePipeline {
   compile(objects: Object3D, scene: Scene, camera: Camera): Promise<void>;
   /** Draws a frame: the plan from the gated Post Process and the quality; rebuilt only when it changes. */
-  render(scene: Scene, camera: Camera, output: FrameOutput, quality: QualitySettings): void;
+  render(scene: Scene, camera: Camera, output: FrameOutput, quality: QualitySettings, late?: LateLayer | null): void;
   /** The plan of the last frame. */
   readonly plan: PipelinePlan;
   /** Pipelines built so far (a rebuild counts). */
@@ -332,6 +368,31 @@ export function createFramePipeline(renderer: WebGPURenderer): FramePipeline {
     built?.dispose();
     built = null;
   };
+  /** What the late layer's drawings were last prepared for: the first rain then compiles nothing. */
+  let prepared = "";
+  let preparedLate: LateLayer | null = null;
+  const prepareLate = (late: LateLayer, parent: Scene, camera: Camera): void => {
+    const key = `${direct ? "direct" : builds}:${late.root.children.map((child) => child.id).join(",")}`;
+    if (late === preparedLate && key === prepared) return;
+    preparedLate = late;
+    prepared = key;
+    if (late.root.children.length === 0) return;
+    const visible = late.root.children.map((child) => child.visible);
+    const previousTarget = renderer.getRenderTarget(), previousMrt = renderer.getMRT();
+    for (const child of late.root.children) child.visible = true;
+    try {
+      if (!direct && built?.latePass) { renderer.setRenderTarget(built.latePass.renderTarget); renderer.setMRT(null); }
+      // The state is taken before the first await; visibility is put back at once.
+      // compileAsync leaves its captured target and MRT behind when it ends, as `compile` below knows.
+      void renderer.compileAsync(late.root, camera, parent)
+        .catch((error: unknown) => console.warn("Late layer not prepared", error))
+        .finally(() => { renderer.setRenderTarget(previousTarget); renderer.setMRT(previousMrt); });
+    } finally {
+      late.root.children.forEach((child, i) => { child.visible = visible[i]!; });
+      renderer.setRenderTarget(previousTarget);
+      renderer.setMRT(previousMrt);
+    }
+  };
   return {
     compile(objects, scene, camera) {
       // Capture the actual scene pass's MRT/depth/sample formats. Restore
@@ -344,7 +405,7 @@ export function createFramePipeline(renderer: WebGPURenderer): FramePipeline {
         });
       } finally { renderer.setRenderTarget(previousTarget); renderer.setMRT(previousMrt); }
     },
-    render(scene, camera, frame, quality) {
+    render(scene, camera, frame, quality, late = null) {
       plan = planPipeline(frame.postProcess, quality);
       const toneMapping = TONE_MAPPINGS[frame.toneMapping];
       if (renderer.toneMapping !== toneMapping) renderer.toneMapping = toneMapping;
@@ -352,17 +413,29 @@ export function createFramePipeline(renderer: WebGPURenderer): FramePipeline {
       if (plan.direct || !frame.postProcess) {
         release();
         direct = true;
+        if (late) {
+          if (late.root.parent !== scene) scene.add(late.root);
+          late.setSceneDepth(null);
+          prepareLate(late, scene, camera);
+        }
         renderer.render(scene, camera);
         return;
       }
       direct = false;
-      if (!built || built.key !== plan.key || built.scene !== scene || built.camera !== camera) {
+      if (!built || built.key !== plan.key || built.scene !== scene || built.camera !== camera || built.late !== late) {
         release();
-        built = build(renderer, scene, camera, plan);
+        built = build(renderer, scene, camera, plan, late);
         builds += 1;
+      }
+      if (late) {
+        if (late.root.parent !== late.scene) late.scene.add(late.root);
+        late.scene.fogNode = scene.fogNode;
+        late.setSceneDepth(built.depth);
       }
       built.update(frame.postProcess);
       built.pipeline.render();
+      // Once the pass has set its target up (its formats are the renderer's only then).
+      if (late) prepareLate(late, late.scene, camera);
     },
     get plan() {
       return plan;

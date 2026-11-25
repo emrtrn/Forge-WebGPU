@@ -87,6 +87,32 @@ export const WorldEnvironment = defineComponent(
       },
       { hint: "Level'ın başlangıçtaki havası." },
     ),
+    precipitation: object(
+      {
+        windInfluence: num({ min: 0, max: 3, default: 1, step: 0.05, hint: "Rüzgârın yağışı ne kadar sürüklediği. 0 dümdüz yağar." }),
+        brightness: num({ min: 0, max: 4, default: 1, step: 0.05, hint: "Yağmur ve karın parlaklığı; rengi havanın (sisin) rengidir." }),
+        rain: object(
+          {
+            amount: num({ min: 0, max: 3, default: 1, step: 0.05, hint: "Damla sayısı çarpanı; hava şiddeti ve kalite ayrıca ölçekler." }),
+            opacity: num({ min: 0, max: 2, default: 1, step: 0.05, hint: "Damlaların görünürlüğü." }),
+            speed: num({ min: 1, max: 20, default: 9, step: 0.1, label: "Speed (m/s)", hint: "Damlaların düşüş hızı, m/sn." }),
+            length: num({ min: 0.1, max: 4, default: 1, step: 0.05, hint: "Damla çizgisinin uzunluk çarpanı." }),
+          },
+          { hint: "Yağmurun görünüşü (hava Rain iken)." },
+        ),
+        snow: object(
+          {
+            amount: num({ min: 0, max: 3, default: 1, step: 0.05, hint: "Kar tanesi sayısı çarpanı; hava şiddeti ve kalite ayrıca ölçekler." }),
+            opacity: num({ min: 0, max: 2, default: 1, step: 0.05, hint: "Kar tanelerinin görünürlüğü." }),
+            speed: num({ min: 0.2, max: 6, default: 1.3, step: 0.05, label: "Speed (m/s)", hint: "Kar tanelerinin düşüş hızı, m/sn." }),
+            size: num({ min: 0.2, max: 4, default: 1, step: 0.05, hint: "Kar tanelerinin boy çarpanı." }),
+            flutter: num({ min: 0, max: 4, default: 1, step: 0.05, hint: "Kar tanelerinin düşerken salınması. 0 düz düşer." }),
+          },
+          { hint: "Karın görünüşü (hava Snow iken)." },
+        ),
+      },
+      { hint: "Yağışın görünüşü. Ne kadar yağdığını hava (Weather) belirler." },
+    ),
     sunPath: object(
       {
         azimuthDeg: num({

@@ -161,7 +161,8 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
     if (!live) return;
     playing = false;
     ctx.edit("Make preview default", { hour: Number(live.hour.toFixed(2)), season: live.season, weather: { preset: live.weather.preset, intensity: live.weather.intensity },
-      surface: { ...authored().surface, ...live.surface } });
+      // The authored amounts only: standing water and snow depth are live state.
+      surface: { ...authored().surface, snowCoverage: live.surface.snowCoverage, wetness: live.surface.wetness } });
   });
   reset.addEventListener("click", () => {
     const level = authored();
@@ -170,7 +171,7 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
     live?.setHour(level.hour);
     live?.setSeason(level.season);
     live?.setWeather(level.weather.preset, level.weather.intensity);
-    live?.setSurface(level.surface);
+    live?.setSurface({ ...level.surface, puddleFill: 0, snowDepth: 0 });
   });
 
   const stopChanged = controller()?.onChanged(() => update()) ?? (() => {});

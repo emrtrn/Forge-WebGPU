@@ -19,6 +19,7 @@
 import { Group, Scene, Vector3, type Camera, type Object3D } from "three/webgpu";
 import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { defineFeature, defineSubsystem, LevelSettingsKey, type FeatureDef, type LevelSettings, type SubsystemContext } from "../../core/index.ts";
+import { createLateLayer, type LateLayer } from "../pipeline/lateLayer.ts";
 import type { ResourceCache } from "../resources/resourceCache.ts";
 import type { SurfaceMaterials } from "../resources/surfaceMaterials.ts";
 import type { TerrainSource } from "../resources/terrains.ts";
@@ -55,10 +56,14 @@ export interface RenderWorld {
   readonly levelSettings?: () => LevelSettings | undefined;
   /** Its zones (plan 5c R9b): the host updates them once a frame, before the cull. */
   readonly zones?: ZoneDrawing;
+  /** What is drawn over the scene after its anti-aliasing (plan phase W1). */
+  readonly late?: LateLayer;
 }
 
 export interface RenderFeatureOptions {
   readonly buildingStreaming?: boolean;
+  /** The renderer keeps a reversed (float) depth buffer: the late layer reads the scene's depth. */
+  readonly reversedDepth?: boolean;
   readonly modelBounds?: (guid: string) => ZoneBox | null;
   readonly prepare?: (objects: readonly Object3D[], scene: Scene, signal?: AbortSignal) => Promise<void>;
   /** The GPU-driven automatic LOD drawing static batches may take (R9.4). */
@@ -110,6 +115,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       const root = new Group();
       root.name = "actors";
       scene.add(root);
+      const late = createLateLayer(options.reversedDepth === true);
       const resources = createWorldResources(options.cache, options.name, options.models, options.materials ?? null, options.terrains ?? null, options.textures ?? null, options.jsonAssets ?? null);
       const view: RenderWorldView = {
         services: ctx.services,
@@ -128,7 +134,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       const invalidateReadiness = () => { readinessRevision += 1; };
       const instances: RenderBindingInstance[] = bindings.map((binding) =>
         binding.create({
-          world: view, scene, root, resources, lighting, environment: environment.environment, output,
+          world: view, scene, root, late, resources, lighting, environment: environment.environment, output,
           capture: options.capture ?? null, quality: effectiveQuality, invalidateReadiness,
           ...(options.prepare ? { prepare: (objects: readonly Object3D[], signal?: AbortSignal) => resources.track(options.prepare!(objects, scene, signal)) } : {}),
           ...(options.triangles ? { triangles: options.triangles } : {}),
@@ -146,7 +152,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
         isActorReady: (id) => readiness.every((instance) => instance.isActorReady!(id)),
       });
       const world: RenderWorld = {
-        name: options.name, scene, root, resources, output,
+        name: options.name, scene, root, resources, output, late,
         get shadowsEnabled() { return sceneShadowsEnabled(view); },
         levelSettings: () => ctx.services.get(LevelSettingsKey)?.current,
         zones,
@@ -212,6 +218,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           lighting.dispose();
           resources.releaseAll();
           options.detach?.(world);
+          late.dispose();
           root.clear();
           scene.clear();
         },

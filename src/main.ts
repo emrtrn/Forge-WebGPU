@@ -285,6 +285,11 @@ async function start(): Promise<void> {
       },
       setHour: (hour: number) => environment()?.setHour(hour),
       setSurface: (surface: { snowCoverage?: number; wetness?: number; puddleFill?: number; snowDepth?: number }) => environment()?.setSurface(surface),
+      /** Plan phase W: the late layer (rain, snow) drawn or not, to compare in one session. */
+      setLateVisible: (visible: boolean) => {
+        const root = viewer.host?.world?.late?.root;
+        if (root) root.visible = visible;
+      },
       /** Plan phase W: the weather at once. */
       setWeather: (preset: "clear" | "cloudy" | "rain" | "snow" | "fog", intensity?: number) => environment()?.setWeather(preset, intensity),
       /** Vegetation plan PG2: the season at once, or a timed change in simulation seconds. */

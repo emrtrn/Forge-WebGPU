@@ -20,6 +20,7 @@ import type { Camera, Group, Object3D, Scene, Texture, Vector3 } from "three/web
 import type { ResolvedEnvironment } from "../../engine/environment/environmentResolve.ts";
 import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import { COMPONENT_NAME_PATTERN, SchemaDefinitionError, type ActorId, type ComponentEntry, type Services, type WorldActor, type WorldActorChange } from "../../core/index.ts";
+import type { LateLayer } from "../pipeline/lateLayer.ts";
 import type { FrameOutput } from "../pipeline/output.ts";
 import type { WorldResources } from "../resources/worldResources.ts";
 import type { CameraViews, GpuDrivenBatches } from "../gpu/gpuDriven.ts";
@@ -104,6 +105,8 @@ export interface RenderBindingContext {
   readonly scene: Scene;
   /** Parent of the objects a binding adds for actors. */
   readonly root: Group;
+  /** Drawn after the scene's anti-aliasing (rain and snow, plan phase W1); absent in tests that draw none. */
+  readonly late?: LateLayer;
   /** The host's resource cache, counted for this world. */
   readonly resources: WorldResources;
   readonly lighting: RenderLighting;
