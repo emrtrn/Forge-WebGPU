@@ -14,7 +14,7 @@ import { assetDocumentAdapter, type EditableAsset } from "./assetDocument.ts";
 import { installAssetEditorStyle } from "./assetEditorStyle.ts";
 import { openAssetSession, type AssetSession } from "./assetSession.ts";
 import { arrayFields, createAssetTable } from "./assetTable.ts";
-import { treeHabitDraft } from "./treeRecipeHabit.ts";
+import { createTreeSpeciesRow, treeHabitDraft } from "./treeRecipePresets.ts";
 import { createClassTools } from "./classTools.ts";
 import { fetchRecipeLinks } from "./recipeClient.ts";
 import { createRelatedAssets } from "./relatedAssets.ts";
@@ -118,6 +118,11 @@ export function createAssetEditor(options: AssetEditorOptions) {
       } : undefined;
       let form: FormView | null = null, mode = arrayFields(visible).some((entry) => { const list = getAtPath(opened.value(), entry.path); return Array.isArray(list) && list.length > 50; }) ? "table" : "form";
       const formHost = doc.createElement("div"), toolHost = doc.createElement("div"); fields.append(formHost, toolHost);
+      const species = key !== "forge.treeRecipe" ? null : createTreeSpeciesRow({
+        document: doc, adapter, catalog: options.catalog, disabled: !asset.writable, value: opened.value, status,
+        apply: (name, value) => { edit(`Apply ${name} species`, [], value); status(`${name} applied. Generate & Save Family writes its output.`); },
+      });
+      if (species) fields.prepend(species.element);
       const ctx: AssetEditorExtensionContext = { document: doc, registry: options.registry, catalog: options.catalog, fields: adapter.fields, readOnly: !asset.writable,
         value: opened.value, edit, preview: () => preview, pickAsset, status,
       };
@@ -232,7 +237,7 @@ export function createAssetEditor(options: AssetEditorOptions) {
         title.textContent = `${asset.name}${opened.dirty() ? " *" : ""} · ${contentTypeLabel(asset.type)}${asset.writable ? "" : " · Read Only"}`;
         if (generate) generate.disabled = !asset.writable || opened.busy();
         save.disabled = !asset.writable || !opened.dirty() || opened.busy(); undo.disabled = !opened.canUndo(); redo.disabled = !opened.canRedo(); reload.disabled = opened.busy(); compare.disabled = !asset.writable || opened.busy(); fields.inert = opened.busy();
-        form?.update(opened.value()); table?.update(); extension?.update?.();
+        form?.update(opened.value()); table?.update(); species?.update(); extension?.update?.();
         if (preview && lastPreviewValue !== opened.value()) {
           lastPreviewValue = opened.value();
           const active = preview;

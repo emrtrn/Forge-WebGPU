@@ -299,6 +299,30 @@ test("tree recipe changes Habit to Shrub, previews and publishes the new topolog
   expect(errors).toEqual([]);
 });
 
+test("Species Preset gives a recipe a starter species in one undo and says Custom once it is changed", async ({ page }) => {
+  const errors = await open(page);
+  await asset(page, "grove.treerecipe.json");
+  const species = page.getByTestId("asset-tree-species"), shape = page.getByTestId("asset-field-spray.leafShape"), preview = page.getByTestId("asset-editor-preview");
+  const undo = page.getByTestId("asset-editor-undo");
+  // The impostor settings of this recipe are its own: not the starter's Broadleaf.
+  await expect(species).toHaveValue("");
+  await species.selectOption("Pine");
+  await expect(species).toHaveValue("Pine");
+  await expect(shape).toHaveValue("needle");
+  await expect(page.getByTestId("asset-field-habit")).toHaveValue("broadleaf");
+  await expect(preview).toHaveAttribute("data-preview-ready", "1", { timeout: 35000 });
+  await species.selectOption("Hazel");
+  await expect(page.getByTestId("asset-field-shrub.stemCount")).toHaveValue("6");
+  await undo.click();
+  await expect(species).toHaveValue("Pine");
+  const droop = page.getByTestId("asset-field-growth.droop"); await droop.fill("0.3"); await droop.press("Tab");
+  await expect(species).toHaveValue("");
+  await undo.click(); await undo.click();
+  await expect(shape).toHaveValue("ovate");
+  await expect(page.getByTestId("asset-editor-save")).toBeDisabled();
+  await close(page); expect(errors).toEqual([]);
+});
+
 test("tree growth compares crown and age at a fixed camera across two seeds", async ({ page }) => {
   test.setTimeout(180000);
   const errors = await open(page);
