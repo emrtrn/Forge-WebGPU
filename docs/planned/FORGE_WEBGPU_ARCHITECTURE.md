@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.77 · 2026-11-20 — §4.4 5d: `details: "embedded"` (tool aktöründe bileşenin kendi bölümü yok, tool'un eki düzenler); Auto Paint kuralları Landscape Mode > Paint > Auto Paint'te; tool aktörünün Details'i Name'siz.
+**Güncelleme:** v1.78 · 2026-11-25 — §4.4 5d adım 5: spline mesh'leri terrain tanımından çalışma anında üretilir (saklanmaz, statik batch, HLOD proxy'si yok); spline düzenleme ve seçimi; `EditableTerrain.splinesChanged`.
+
+**Önceki güncelleme:** v1.77 · 2026-11-20 — §4.4 5d: `details: "embedded"` (tool aktöründe bileşenin kendi bölümü yok, tool'un eki düzenler); Auto Paint kuralları Landscape Mode > Paint > Auto Paint'te; tool aktörünün Details'i Name'siz.
 
 **Önceki güncelleme:** v1.76 · 2026-11-20 — §4.4 5d: bileşen sunumunda `details: "tool"` (SDK 0.1.14): aktörün Details'i ad, bileşenin eki, öteki bileşenler, en altta kapalı bileşen alanları; yerleşim denetimleri yok. World Terrain bunu kullanır (kullanıcı kararı).
 
@@ -1119,6 +1121,19 @@ features/height-fog/
     listelemediği okunmuş dosya (Save'de silinir). Taşıma level'daki konum
     farkını izler (sürüklerken yalnız görünüm kayar), böylece undo / redo simetrik.
     Add Actor menüsüne editöre özel eylem (`AddActorAction`); SDK yüzeyi değişmez.
+  - *Adım 5 kararları (kullanıcı, 2026-11-25, öneriler gibi):* yol mesh'i saklanmaz;
+    terrain çizilirken tanımın `splines`'ından CPU'da üretilir (editör ve oyun aynı
+    üretici), statik batch yoluyla çizilir. Terrain aktörü kalıcı katmanda olduğu
+    için yollar hep yüklüdür ve HLOD proxy'si gerekmez (karar 5'in HLOD kısmı bu
+    kuralla karşılanır). Apply Deform / Apply Paint mesh'ten ayrı eylemler; süsleme
+    Faz 6'da (D27); spline seçimi `LandscapeSettings`'te (undo adımı değil, kayda
+    girmez); ajan için ek komut yok.
+  - *Uygulama (adım 5, `49d6c09`):* saf üretici `engine/terrain/roadMesh.ts`, çizim
+    `render/sync/roadMeshes.ts` (Faz 6'nın yol collider'ı aynı üreticiyi kullanır).
+    `EditableTerrain.splinesChanged` yalnız mesh'leri yeniden kurar;
+    `definitionChanged` terrain'i. `TerrainAssetType` başvuruları spline mesh'lerini
+    de sayar. Yol seçilmez (`InstanceBatchOptions.pick: false`). Spline noktasının
+    gizmosu görünürken seçimin gizmosu görünmez ve sürüklenmez.
   - *Terrain Details düzeni (kullanıcı kararı 2026-11-20):* `ComponentPresentation.details:
     "tool"` (SDK 0.1.14): ad, bileşenin Details eki, öteki bileşenler, bileşenin
     kendi alanları en altta kapalı; Class, transform, pivot / yerleşim, Remove,

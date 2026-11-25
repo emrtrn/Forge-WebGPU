@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.96 · 2026-11-20 — Paint kipi Forge'un Brush / Auto Paint sekmeleriyle, Auto Paint kuralları Landscape Mode içinde; terrain Details'i Name'siz başlar; panel adları Forge'unki (Scene Outliner / World Partition, Details / Foliage) (`2a6ef5e`, kullanıcı isteği).
+**Güncelleme:** v1.97 · 2026-11-25 — 5d adım 5 (`49d6c09`): Landscape Splines kipi (Draw / Edit Points, birleştir / kapat / dal, yumuşak eğri, segment etkileri, Apply Deform / Apply Paint), tanımdan CPU'da bükülen yol mesh'leri (editör ve oyun; saklanmaz, statik batch). Kararlar kullanıcıda (öneriler gibi); yol süslemeleri Faz 6'ya (D27). Kullanıcı görsel kabulü bekleniyor.
+
+**Önceki güncelleme:** v1.96 · 2026-11-20 — Paint kipi Forge'un Brush / Auto Paint sekmeleriyle, Auto Paint kuralları Landscape Mode içinde; terrain Details'i Name'siz başlar; panel adları Forge'unki (Scene Outliner / World Partition, Details / Foliage) (`2a6ef5e`, kullanıcı isteği).
 
 **Önceki güncelleme:** v1.95 · 2026-11-20 — Terrain Details'i Forge'un Landscape düzeninde (`775da8b`, kullanıcı kararı): Name → Landscape Mode; Class, Transform, pivot / yerleşim yok; bileşen alanları en altta kapalı; araçlar düğme ızgarası, View fırçanın altında. SDK 0.1.14 (`details: "tool"`). Seçili terrain üstünde gizmo sürüklemesi düzeltildi.
 
@@ -2167,6 +2169,47 @@ Details / Foliage; Mesh Paint kapsam dışı, 5d karar 4). Fiziksel materyal sat
 Faz 8'de (adım 3 kararı). Editör seti WebGL'de 91 / 91, landscape + authoring +
 streaming gerçek WebGPU'da 7 / 7.
 
+*Adım 5 kararları (kullanıcı, 2026-11-25, öneriler gibi):* yol mesh'i terrain
+tanımından çalışma anında üretilir ve önbelleğe alınır (saklanan asset ya da level
+parçası yok; terrain aktörü kalıcı katmanda olduğu için HLOD proxy'si gerekmez);
+yol süslemeleri (`splineRoadDecorations`) Faz 6'da D27 ile; Apply Deform ve Apply
+Paint mesh'ten ayrı iki eylem (Forge gibi); spline seçimi sayfanın Landscape
+ayarlarında; ajan için ek komut yok (spline'lar `.terrain.json`'da düz JSON).
+
+*Adım 5 (2026-11-25, `49d6c09`):* Landscape Splines. Forge'un `splineGenerator` /
+`splineDeformMesh`'i spline aktörünündür (INV-D27); landscape yolu
+`SceneRuntimeCore`'un zincir bükmesidir ve taşınan odur.
+**Yol mesh'i (INV-G21):** saf üretici `engine/terrain/roadMesh.ts` (Codex;
+`deformSplineMeshGeometry` + kaynak: eğri, banka, araziye hizalama, süren UV,
+1e-5 kaynak, kaynak sonrası normal; parçalar 128 m hücrelere dikişsiz bölünür;
+model uzunluğu bütün modelden ölçülür, Forge primitive başına ölçüyordu).
+Çizim `render/sync/roadMeshes.ts`: terrain bağlaması tanımdan kurar (editör ve
+oyun), bükülen zincir hücre parçası, düz parçalar model başına statik batch;
+modelin slot materyalleri; yeni set hazır olana dek eskisi çizilir; seçilmez
+(tıklama terrain'e geçer). Spline düzenlemesi terrain'i yeniden kurmaz
+(`EditableTerrain.splinesChanged`); hizalı yolun altı oyulunca yol izler.
+Tanımdaki `splines[].segments[].mesh.assetId` asset dizinine başvuru olarak girer
+(asılı başvuru kapıda hata); içe aktarıcı onu GUID'e çevirir. **Editör (INV-B06):**
+`engine/terrain/landscapeSplineEdit.ts` (saf işlemler), `landscapeSplines.ts`
+(her işlem tek undo; kayıt tanımla, `markDefinitionDirty`), `landscapeSplineTool.ts`
+(Draw, işaretçi seçimi, noktanın gizmosu terrain'inkinin yerine), `landscapeSplinePanel.ts`
+(Forge düzeni; Ctrl / Shift çoklu seçim, "Multiple Values"), `render/editor/splineOverlay.ts`.
+Forge'dan farklar: Split noktayı yolun sırasına koyar ve Close açık uçları bağlar
+(Forge'da Split'ten sonra Close Loop yanlış noktaları bağlıyordu); çizilen nokta yolun
+genişliğini ve etkilerini sürdürür; mesh seçmek onu bükülü ve hizalı açar.
+**Kanıt:** `roadMesh.test.ts` (Forge'un 7 R kontrolü three'siz uyarlanmış, 18 test),
+`landscapeSplineEdit.test.ts`, `landscapeSplines.test.ts`, `roadMeshes.test.ts`;
+editör smoke'u `tests/editor/landscapeSpline.spec.ts` (çiz → eğri → gizmo ile taşı →
+mesh → Deform / Paint + undo / redo → Split → Close → kaydet → yeniden aç → oyunda çiz)
+`forceWebGL`'de ve gerçek WebGPU'da; landscape, authoring, gizmo, selection, foliage
+spec'leri WebGL'de 11 / 11, landscape + gizmo gerçek WebGPU'da 6 / 6. Render smoke'u 44 / 45: `impostors (webgl, broadleaf)` bir kez eşiğin altında kaldı (IoU 0,65; 0,75),
+tek başına ve bütün dosya olarak yeniden koşuda geçti; HEAD'de yalnız impostor dosyası koşuldu
+(4 / 4), düşüş orada yeniden üretilmedi: aralıklı, nedeni kanıtlanmadı.
+Sonraya: yol collider'ı (Faz 6, aynı üreticiden; tanımın `collision` alanı duruyor),
+yeniden içe aktarılan modelin yollarda tazelenmesi (terrain yeniden yüklenince gelir).
+Forge'daki gibi bükülen model segment başına bir kez uzatılır: boyunca halkası
+olmayan model eğriyi yalnız segment uçlarında izler. Kullanıcı görsel kabulü bekleniyor.
+
 - [x] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
       Faz 3 karar 1) üretim kalitesine çıkar: morph,
       tile seam, 8 boya katmanı, su birikintisi (kıyı ıslaklığı ve kostik
@@ -2611,6 +2654,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-25 | v1.97 | 5d adım 5 (`49d6c09`): kararlar (kullanıcı, öneriler gibi: mesh tanımdan üretilir, süsleme Faz 6, iki ayrı Apply, seçim sayfanın ayarlarında, ek ajan komutu yok); Landscape Splines kipi ve yol mesh'leri (saf üretici Codex); içe aktarıcı ve asset dizini spline mesh'lerini tanır. `landscapeSpline.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda. Sıradaki: 5d adım 6 (B09) |
 | 2026-11-20 | v1.96 | Paint kipi Forge'un Brush / Auto Paint sekmeleriyle, Auto Paint kuralları Landscape Mode içinde (`details: "embedded"`), terrain Details'i Name'siz, panel adları Forge'unki (`2a6ef5e`) |
 | 2026-11-20 | v1.95 | Terrain Details Forge'un Landscape düzeninde (`775da8b`, kullanıcı kararı): `details: "tool"` sunumu (SDK 0.1.14), araç düğme ızgarası; seçili terrain üstünde gizmo sürüklemesi düzeltildi |
 | 2026-11-20 | v1.94 | 5d adım 4 (`4651b3b`): kararlar (kullanıcı, öneriler gibi: asset hemen yazılır, taşıma yalnız terrain, `worldTerrainMove` su kısmı Faz 7, heightmap yalnız editörde); World Terrain oluşturma, Expand, taşıma, heightmap içe / dışa; kayıtta global harita revizyonu ve geç olay düzeltmeleri. `worldTerrainMove` 1 A → **A 991 / 1.021**, 3 A Faz 7'ye. `landscapeWorld.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
