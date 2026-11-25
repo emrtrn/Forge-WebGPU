@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.85 · 2026-11-25 — §4.9 hava sözleşmesi: HK8–HK10 kapandı (yağmur katman isterse fiziği değiştirir, boyanmış kar kalıcı, karda karakter Faz 8'de ayrı karar).
+**Güncelleme:** v1.86 · 2026-11-25 — §4.9 hava sözleşmesi W0: `forge.worldEnvironment@3`, SDK `WorldEnvironmentServiceKey`, `surfaceCondition` modeli.
+
+**Önceki güncelleme:** v1.85 · 2026-11-25 — §4.9 hava sözleşmesi: HK8–HK10 kapandı (yağmur katman isterse fiziği değiştirir, boyanmış kar kalıcı, karda karakter Faz 8'de ayrı karar).
 
 **Önceki güncelleme:** v1.84 · 2026-11-25 — §4.9 hava sözleşmesi: terrain yüzey fiziği canlı okunur (kullanıcı), kar collider'ın üstünde, maskelerin CPU ikizi; HK1–HK7 kapandı.
 
@@ -2247,6 +2249,12 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     Görünen kar ile fizik aynı kabulü okur. Yağan karda collider sert tabandır
     (boyanmış karda üst yüz); iz tabana kadar, hücre ortamını taşır. Canlı profil
     W8, araç bağı 6d, iz ve batma Faz 8.
+  - **W0 uygulaması (2026-11-25):** `forge.worldEnvironment@3` canlı yüzeye
+    `puddleFill` ve `snowDepth` ekler (yazılan alan yok; sürüm 3 Faz W boyunca
+    açık). `engine/environment/precipitation.ts` yağışın tek okuması,
+    `surfaceCondition.ts` dört büyüklüğün saf modeli (olay noktalarında bölünür,
+    adım bağımsız; W5 bağlar). SDK 0.1.16: `WorldEnvironmentServiceKey` (aynı
+    denetleyici; WES yoksa `current()` null, istekler etkisiz).
   - Tasarım, adımlar ve HV-01–13 [plan Faz W'de](FORGE_WEBGPU_REBUILD_PLAN.md).
 - *Terrain:* Faz 3'te salt çizim (spike S2'nin TSL CDLOD'u: yükseklik, 8
   katman, normal, gölge); su birikintisi, tile akışı ve üretim kalitesi 5a'da;

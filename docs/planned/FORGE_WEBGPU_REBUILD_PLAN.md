@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.12 · 2026-11-25 — Faz 5 kapandı (kullanıcı görsel kabulü); bölüm `docs/archive/PHASE_5.md`'de. Faz W başladı: W0.
+**Güncelleme:** v2.13 · 2026-11-25 — Faz W W0: `forge.worldEnvironment@3`, SDK `WorldEnvironmentServiceKey` (0.1.16), yağış okuması, saf yüzey durumu modeli (Codex), `measure:weather` tabanı (`cb0a856`). Kalan: tasarım 9'un mekanizma onayı (kullanıcı). Sırada W1.
+
+**Önceki güncelleme:** v2.12 · 2026-11-25 — Faz 5 kapandı (kullanıcı görsel kabulü); bölüm `docs/archive/PHASE_5.md`'de. Faz W başladı: W0.
 
 **Önceki güncelleme:** v2.11 · 2026-11-25 — Faz W: HK8–HK10 kapandı (kullanıcı, öneriler gibi); açık HK yok. Yüzey fiziği mekanizması (tasarım 9) W0'da onaylanır.
 
@@ -652,7 +654,16 @@ yazılmaz; **okunan** profil canlı olur:
 yüzeyiyle biter.
 
 - [ ] **W0 Sözleşme.** Tasarım 9'un mekanizma onayı (kullanıcı); şema `@3` + geçiş zinciri; SDK;
-      ölçüm tabanı (WES'siz / WES'li, yağışsız). — C
+      ölçüm tabanı (WES açık; WES'siz karşılaştırma HV-10 ile W2'de). — C
+      **Kod 2026-11-25 (`cb0a856`):** `@3` yalnız canlı durumu büyütür (`puddleFill`, `snowDepth`;
+      0'da kalır), `@1` / `@2` kısmi güvenli kimlikle göçer. Sürüm 3 Faz W boyunca açık: yazılan
+      alanlar, onları çizen adımda nötr varsayılanla eklenir (çalışmayan ayar görünmez). Oyun
+      WES'e SDK'dan ilk kez ulaşır: `WorldEnvironmentServiceKey` (0.1.16). `precipitationOf`
+      yağışın tek okuması. W5'in saf modeli öne alındı (`surfaceCondition.ts`, Codex; kuralları
+      alanları belirler, henüz bağlı değil). Taban: hava
+      değişiminde pipeline ve shader modülü +0; süreler bitki oturumunun GPU koşularıyla iki kez
+      çakıştı, temiz kayıt bekliyor.
+      **Kutu mekanizma onayıyla kapanır.**
 - [ ] **W1 Yağış görseli.** TRAA denemesi → seçim; yağmur ve kar hacimleri, rüzgâr,
       ışık / sis, kalite. *Kapı:* HV-01, 02'nin açık alan kısmı; GPU bütçesi. — C
 - [ ] **W2 Zamanlı hava geçişi.** Saf geçiş (X) + etken karışımı, Sky Light hızı,
@@ -661,7 +672,7 @@ yüzeyiyle biter.
       *Kapı:* HV-02. — C
 - [ ] **W4 Statik mesh örtüsü.** `surfaceCover` v2, `forge.material` `weather`,
       bütün statik yollar + HLOD, dikey ıslanma. *Kapı:* HV-04, 12; statik ölçüm. — C
-- [ ] **W5 Yağışla ıslanma, karlanma, kuruma.** Yüzey durumu modeli (X) + hava
+- [ ] **W5 Yağışla ıslanma, karlanma, kuruma.** Yüzey durumu modeli (W0'da) + hava
       bağı, katmanın `weather` alanı ve Details'i, yamalı kuruma, kayıt oyunu (C).
       *Kapı:* HV-05, 08, 09.
 - [ ] **W6 Su birikintisi ve halkalar.** Çukur haritası (X) + terrain bağı, mikro
@@ -1128,6 +1139,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-25 | v2.13 | Faz W W0: `forge.worldEnvironment@3`, SDK `WorldEnvironmentServiceKey` (0.1.16), yağış okuması, saf yüzey durumu modeli (Codex), `measure:weather` tabanı (`cb0a856`). Kalan: tasarım 9'un mekanizma onayı (kullanıcı). Sırada W1. |
 | 2026-11-25 | v2.12 | Faz 5 kapandı (kullanıcı görsel kabulü); bölüm `docs/archive/PHASE_5.md`'de. Faz W başladı: W0. |
 | 2026-11-25 | v2.11 | Faz W: HK8–HK10 kapandı (kullanıcı, öneriler gibi); açık HK yok. Yüzey fiziği mekanizması (tasarım 9) W0'da onaylanır. |
 | 2026-11-25 | v2.10 | Faz W: HK1–HK7 kapandı (kullanıcı, öneriler gibi); terrain yüzey fiziği yağışla değişir (kullanıcı): yüzey fiziği sözleşmesi ve W8 eklendi, kapı W9. Açık: HK8–HK10. |
