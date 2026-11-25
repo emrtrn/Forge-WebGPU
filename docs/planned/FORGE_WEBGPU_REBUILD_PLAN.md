@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.01 · 2026-11-25 — 5d adım 6'nın ve yol modeli tekrarının görsel kabulü (kullanıcı, 2026-11-25). Sırada adım 8: World Builder penceresi (B13).
+**Güncelleme:** v2.02 · 2026-11-25 — 5d adım 8 (`54161a3`): World Builder penceresi (Add Actor > Terrain > World Builder…): seçimler, worker önizlemesi, yeni level'a kurulum, eksik paketi tek düğmeyle ekleme; örtü ağaçları ve kayalar GUID'le starter paketinden, bitkiler `forge.landscapeFoliage` kuralı. Kararlar kullanıcıda (öneriler gibi). Kullanıcı görsel kabulü bekleniyor.
+
+**Önceki güncelleme:** v2.01 · 2026-11-25 — 5d adım 6'nın ve yol modeli tekrarının görsel kabulü (kullanıcı, 2026-11-25). Sırada adım 8: World Builder penceresi (B13).
 
 **Önceki güncelleme:** v2.00 · 2026-11-25 — 5d adım 6 (`c3f7f0e`): Foliage fırçası (Select, Lasso, Paint, Erase, Single, Fill, Remove; Select Invalid, Reattach, Reapply, Remove Selected), darbe başına tek undo, level parçası olarak kayıt; hücresiz level'da boyanmış foliage'ın oyunda çizilmemesi düzeltildi. Bükülen yol modeli segment boyunca kendi uzunluğunda tekrarlanır (`ec45418`). Kararlar kullanıcıda (öneriler gibi). Kullanıcı görsel kabulü 2026-11-25'te verildi.
 
@@ -2255,6 +2257,36 @@ terrainCollider dosyaları 23 / 23. Sonraya: Play'e kaydedilmemiş foliage (adı
 boyanmış foliage'ın collider'ı (Faz 6). Yol mesh'leri seçilmediği için fırça yolun altındaki
 araziye boyar (Forge gibi). Kullanıcı görsel kabulü 2026-11-25'te verildi (yol tekrarıyla birlikte).
 
+*Adım 8 kararları (kullanıcı, 2026-11-25, öneriler gibi):* Create yeni level klasörüne
+kurar (Forge açık level'ın içine kurardı), var olan adda önce sorar; nehir / göl / ada /
+kıyı notla görünür (yatak ve kıyı işlenir, su Faz 7), varsayılan nehir 0; örtünün ağaçları
+ve kayalar starter paketine bağlanır, karşılığı olmayan çalı ve ot raporda kalır; asset
+başvuruları GUID, World Builder girdileri (brief → örtü / profil) dosya etiketiyle;
+`worldbuilder` paketi eksikse Add Pack manifesti yazar.
+
+*Adım 8 (2026-11-25, `54161a3`):* World Builder penceresi (B13). **Saf kısım:**
+`engine/worldbuilder/randomWorldChoices.ts` (seçimler ve aralarındaki kurallar, klasör adı
+kuralı, kurulum olayları, açılış kamerası). **Sunucu:** `tools/server/worldBuilder.ts`:
+`GET /__forge/world-builder`, `POST /__forge/world-builder/pack` (manifesti kayıt servisiyle
+yazar, dev server yeniden başlar: içerik kökleri açılışta okunur), `POST /__forge/world-random`
+(`tools/world-random.ts --request` çocuk süreçte, tek kurulum, NDJSON olaylar; var olan level
+`force` ister; salt okunur proje reddedilir). **Editör:** `editor/worldBuilder/` (kit formu,
+önizleme worker'ı ve çizimi, kurulum, ilerleme) ve `editor/ui/forgeWindow.ts` (Forge'un
+sürüklenen / boyutlanan penceresi, sekmesiz). Level adı: açık level üretilmişse onun adı,
+yoksa boş olan `World_<n>`. Kurulum bitince level kuş bakışı pozla açılır; özet ve kurulmayanlar
+durum satırında. **Üretim:** örtü belgelerinin `plants[].foliageType`'ı ve brief'in
+`models[].file`'ı GUID (asset kapısı asılıyı görür); geniş yapraklı kuralları üç prototipe
+bölündü; terrain aktörüne `forge.landscapeFoliage`; değiştirilen level'da eski arazinin
+boyanmış foliage'ı silinir. CLI (`world:random` / `world:brief`) aynı üretimi kullanır.
+**Kanıt:** `randomWorldChoices.test.ts`, `tools/server/worldBuilder.test.ts`, `worldBuild` /
+`worldLevel` / `world` / `dataDocument` testleri (ilgili vitest 438 / 438); editör smoke'u
+`tests/editor/worldBuilder.spec.ts` (paket ekle + sunucu yeniden başlar → önizleme → kur ve
+aç → diskte ve Content Browser'da → sorarak yeniden kur) `forceWebGL`'de ve gerçek WebGPU'da;
+ilgili editör spec'leri WebGL'de 29 / 29, WebGPU'da 7 / 7. Sonraya: su aktörleri (Faz 7),
+çalı / ot türleri (bitki akışı), World Builder girdilerinin GUID başvurusu (yapılmadı, karar).
+Starter Conifer'ın seyrek iğne yaprağı üretilen ormanda görünür (bitki planı). Kullanıcı
+görsel kabulü bekleniyor.
+
 - [x] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
       Faz 3 karar 1) üretim kalitesine çıkar: morph,
       tile seam, 8 boya katmanı, su birikintisi (kıyı ıslaklığı ve kostik
@@ -2699,6 +2731,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-25 | v2.02 | 5d adım 8 (`54161a3`): kararlar (kullanıcı, öneriler gibi: yeni level, su notla, starter bitki / kaya, asset'ler GUID, Add Pack); World Builder penceresi, `/__forge/world-random`, önizleme worker'ı. `worldBuilder.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda. Sıradaki: 5d adım 9 (bitki tarafı, karar 6) |
 | 2026-11-25 | v2.01 | 5d adım 6'nın ve yol modeli tekrarının görsel kabulü (kullanıcı). Sıradaki: 5d adım 8 (B13) |
 | 2026-11-25 | v2.00 | 5d adım 6 (`c3f7f0e`): kararlar (kullanıcı, öneriler gibi: araç seçilince, hedef saklanmaz, 7 araç + eylemler, Fill 20.000); Foliage fırçası, darbe başına undo, level parçası kaydı; hücresiz level'da boyanmış foliage oyunda çizilir. Yol modeli segment boyunca tekrarlanır (`ec45418`, kullanıcı kararı). `foliagePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda. Sıradaki: 5d adım 8 (B13) |
 | 2026-11-25 | v1.99 | 5d adım 4'ün, terrain Details / Paint düzeninin ve panel adlarının görsel kabulü (kullanıcı) |

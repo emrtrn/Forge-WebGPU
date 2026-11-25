@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.79 · 2026-11-25 — §4.4 5d adım 6: boyanmış foliage'ın düzenlenmesi (`FoliagePaintSession`, `LevelFoliageSource.edits`, hedef saklanmaz); spline mesh'i segment boyunca tekrarlanır.
+**Güncelleme:** v1.80 · 2026-11-25 — §4.4 5d adım 8: World Builder penceresi (yeni level'a kurulum, paket ekleme, uç noktalar); §4.6 World Builder girdilerinde asset başvuruları GUID, girdi yolları etiket.
+
+**Önceki güncelleme:** v1.79 · 2026-11-25 — §4.4 5d adım 6: boyanmış foliage'ın düzenlenmesi (`FoliagePaintSession`, `LevelFoliageSource.edits`, hedef saklanmaz); spline mesh'i segment boyunca tekrarlanır.
 
 **Önceki güncelleme:** v1.78 · 2026-11-25 — §4.4 5d adım 5: spline mesh'leri terrain tanımından çalışma anında üretilir (saklanmaz, statik batch, HLOD proxy'si yok); spline düzenleme ve seçimi; `EditableTerrain.splinesChanged`.
 
@@ -1146,6 +1148,14 @@ features/height-fog/
     (IO'suz), okuma / kayıt / undo `editor/foliage/foliageEdits.ts` (oturum katılımcısı).
     Bağlama düzenlenen hücreyi `LevelFoliageSource.edits`'ten çizer, ötekiler dosyadan
     akar; oyunda `edits` yoktur. Kaynak level'ın aktör hücresi olmasa da verilir.
+  - *Adım 8 kararları (kullanıcı, 2026-11-25, öneriler gibi):* World Builder yeni level
+    klasörüne kurar, var olanı sorarak değiştirir; su seçimleri Faz 7'ye kadar yalnız yatak
+    ve kıyı; örtü ağaçları ve kayalar starter paketinden GUID'le; eksik `worldbuilder`
+    paketini pencere manifeste ekler ve dev server yeniden başlar.
+  - *Uygulama (adım 8, `54161a3`):* kurulum dev server'ın çocuk süreci (`tools/world-random.ts
+    --request`), tek kurulum, NDJSON olaylar (`tools/server/worldBuilder.ts`); editör
+    (`editor/worldBuilder/`) yalnız istemci. Seçimler tarayıcı depolamasında, dünyanın
+    kaydı level'ın yanındaki brief'te.
   - *Terrain Details düzeni (kullanıcı kararı 2026-11-20):* `ComponentPresentation.details:
     "tool"` (SDK 0.1.14): ad, bileşenin Details eki, öteki bileşenler, bileşenin
     kendi alanları en altta kapalı; Class, transform, pivot / yerleşim, Remove,
@@ -1401,7 +1411,8 @@ düşen alan uyarı değil, **hatadır**.
     Builder girdileri birbirine dosya yoluyla başvurur (asset dizininin dosya
     etiketi: `content/levels/…`, `engine:content/packs/worldbuilder/…`):
     Forge'un normalize fonksiyonları ve kontrolleri yol kuralını sınıyor;
-    GUID'li başvuru World Builder penceresiyle (5d) gelir.
+    girdi başvuruları yol etiketi kalır, asset başvuruları GUID'dir (kullanıcı kararı
+    2026-11-25: örtünün `plants[].foliageType`'ı, brief'in `models[].file`'ı; dizin toplar).
   - *Dizin:* `src/core/assets` saftır: içerik köklerinin dosya listesini (JSON
     içerikleri ayrıştırılmış) alır, diski `tools/assets` okur. Kurulum: kimlik
     (meta'sız ikili, ikilisiz meta, aynı GUID iki dosyada → yol sırasında ilki
