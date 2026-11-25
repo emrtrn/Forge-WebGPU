@@ -1,4 +1,7 @@
-// npm run bench:streaming-level -- --project <path> --out content/levels/<name>
+// npm run bench:streaming-level -- --project <path> --out content/levels/<name> [--generated]
+//
+// Generated models (a recipe's rocks, trees, each LOD a file of its own) are left out unless `--generated`: they
+// grow with the starter pack, draw as families and foliage, and would make every record a different level.
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isId } from "../src/core/index.ts";
@@ -11,7 +14,7 @@ try {
   const flags = new Set<string>();
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i]!;
-    if (["--force", "--json"].includes(arg)) flags.add(arg);
+    if (["--force", "--json", "--generated"].includes(arg)) flags.add(arg);
     else if (["--project", "--out", "--seed", "--size", "--actors"].includes(arg)) {
       const value = args[++i];
       if (value === undefined || value.startsWith("--")) throw new Error(`${arg} needs a value.`);
@@ -20,12 +23,12 @@ try {
   }
   const projectPath = values.get("--project");
   const out = values.get("--out");
-  if (!projectPath || !out) throw new Error("Usage: bench:streaming-level --project <path> --out content/levels/<name> [--seed N] [--size M] [--actors N] [--force] [--json]");
+  if (!projectPath || !out) throw new Error("Usage: bench:streaming-level --project <path> --out content/levels/<name> [--seed N] [--size M] [--actors N] [--force] [--generated] [--json]");
   const engineRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   // Reuses loadProject + projectIndexRoots + scanRoots + the real schema registry.
   const project = await openWorldProject(engineRoot, resolve(projectPath));
   const models = [...project.index.entries.values()]
-    .flatMap((entry) => entry.type === "forge.model" && isId(entry.id, "asset") ? [entry.id] : []).sort();
+    .flatMap((entry) => entry.type === "forge.model" && isId(entry.id, "asset") && (flags.has("--generated") || project.index.metas.get(entry.id)?.generated === undefined) ? [entry.id] : []).sort();
   if (!models.length) throw new Error(`Project ${project.root} has no forge.model assets in its content roots or selected packs.`);
   const numeric: { seed?: number; size?: number; actors?: number } = {};
   for (const key of ["seed", "size", "actors"] as const) {
