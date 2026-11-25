@@ -112,6 +112,8 @@ export function forgeServerPlugin(options: ForgeServerPluginOptions = {}): Plugi
         engineRoot: server.config.root,
         ...(await projectAuthoringOptions(server.config.root, current, registry, engineContent)),
         identity: identityOf({ ...current, problems }),
+        // The manifest's content packs are read at start (plan 5d step 8: the World Builder window adds one).
+        restart: () => void server.restart().catch((error: unknown) => server.config.logger.error(`forge: restart: ${String(error)}`)),
       });
       server.middlewares.use(triangleMiddleware(server.config.root, async () => (await forge.authoring.current()).index, forge.authoring.contentRoots));
       server.middlewares.use(forge.middleware);

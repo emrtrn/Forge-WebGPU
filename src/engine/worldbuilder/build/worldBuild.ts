@@ -14,7 +14,9 @@
  * `stageRun.ts` (Forge's Stage Runner is not ported); the level and its files
  * are written by `worldLevel.ts` and `tools/world`, not by Forge's save
  * validators. Not built here, reported in `deferred`: Lake / River / Ocean
- * actors (Faz 7; the beds are carved), foliage rules (5c). The greybox light
+ * actors (Faz 7; the beds are carved), cover plants without a foliage type
+ * (5d step 8: the others become the terrain's `forge.landscapeFoliage` rules;
+ * the pilot's plants name Forge assets and wait). The greybox light
  * and sky are written by `worldLevel.ts` (Forge's look, the user's to set). A
  * model row whose file is not an
  * asset of the project becomes a role-coloured placeholder (Forge refused the
@@ -46,9 +48,11 @@ import { PAD_FALLOFF } from "../buildings.ts";
 import {
   coverDensity,
   coverPaint,
+  coverPlantRules,
   coverRockCounts,
   coverSnowLine,
   type CoverDensities,
+  type CoverPlantRule,
   type GroundCover,
 } from "../groundCover.ts";
 import type { WorldPoint } from "../normalize.ts";
@@ -105,7 +109,7 @@ export interface WorldBuildInput {
   brief: WorldBrief;
   /** The brief's region profile, loaded; null when it names none. */
   profile: RegionProfile | null;
-  /** Asset id of a model file (an asset index file label), or null when it is not an asset of the project. */
+  /** Asset id of a model row's `file` (an asset id, or an asset index file label), or null when it is not an asset of the project. */
   assetIdForFile: (file: string) => string | null;
   /** The brief's ground cover, loaded; null (or absent) when it names none: the pilot's paint. */
   cover?: GroundCover | null;
@@ -128,6 +132,8 @@ export interface WorldBuild {
   globalBytes: Uint8Array;
   /** Every placement of the level, by asset; placeholders under `shape:<type>`. */
   groups: WorldPlacementGroup[];
+  /** Plant rules of the ground cover, on the terrain's paint layers. */
+  foliage: CoverPlantRule[];
   /** World position of the Player Start, or null. */
   playerStart: [number, number, number] | null;
   /** The recipe after the stages, `generatedBy` included (the level writer moves it onto the objects). */
@@ -425,7 +431,9 @@ export function buildWorldFromBrief(input: WorldBuildInput): WorldBuild {
   if (ground.courses.length) deferred.push(`rivers: ${ground.courses.length} bed(s) carved and their splines kept on the terrain; River actors wait for Faz 7`);
   if (ground.lakes.length) deferred.push(`lakes: ${ground.lakes.length} bed(s) carved; Lake actors wait for Faz 7`);
   if (brief.ocean) deferred.push("ocean: the coast is shaped; the Ocean actor waits for Faz 7");
-  deferred.push(cover ? "foliage: the ground cover's plant rules wait for foliage (5c)" : "foliage: the pilot's plant rules wait for foliage (5c)");
+  const plants = cover ? coverPlantRules(cover, densities) : { rules: [], missing: [] };
+  if (!cover) deferred.push("foliage: the pilot's plants have no foliage type here; name a ground cover");
+  else if (plants.missing.length) deferred.push(`foliage: no foliage type yet for ${plants.missing.join(", ")}`);
   if (brief.environment) deferred.push("environment: season/weather/hour are read, not written to the level yet (WES link, plan §12)");
   if (brief.regions.length) deferred.push("regions: in the recipe plan only");
   deferred.push(...ground.deferred);
@@ -437,6 +445,7 @@ export function buildWorldFromBrief(input: WorldBuildInput): WorldBuild {
     tileBytes,
     globalBytes,
     groups: [...groups].map(([assetId, placements]) => ({ assetId, placements })),
+    foliage: plants.rules,
     playerStart: start ? [start[0], savedCoordinate(startHeight! + 2), start[1]] : null,
     recipe,
     stages,

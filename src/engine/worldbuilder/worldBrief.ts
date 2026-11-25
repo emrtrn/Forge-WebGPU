@@ -272,7 +272,7 @@ export interface BriefEnvironment {
 export interface BriefModel {
   role: string;
   source: ModelSource;
-  /** Public-root-relative model file. */
+  /** Model asset id, or an asset index file label. */
   file: string;
   variant?: string;
 }

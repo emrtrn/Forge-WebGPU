@@ -9,7 +9,7 @@
 // neutral region profile). The brief stays in the level folder; `npm run
 // world:brief` rebuilds from it.
 //
-// `--request` is the dev server's mode (`/__world-random`, 5d): it reads the
+// `--request` is the dev server's mode (`/__forge/world-random`): it reads the
 // window's request JSON from stdin (tools/world/randomWorldRequest.ts) and
 // prints one `@@<json>` event line per build step, then `done` or `error`.
 

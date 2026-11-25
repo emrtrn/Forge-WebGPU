@@ -72,11 +72,16 @@ export type CoverName = keyof typeof COVERS;
  */
 export const DEFAULT_REGION_PROFILE = "engine:content/packs/worldbuilder/profiles/neutral.regionprofile.json";
 
-/** Forge's starter nature models: rocks by where they lie, conifers, bushes, grass. */
+/**
+ * The starter pack's generated rocks, by asset id (Forge WebGL named its own starter models by file):
+ * angular on the heights and slopes, rounded on the slopes and the water banks.
+ */
+const ROCKS_ANGULAR = ["ast_d0cdcdeb363bbbca741677e961e5a698", "ast_b90777781daeb37307e12395210c68e6", "ast_5e58123e7eeec50f3c101a0a9a0061c4"] as const;
+const ROCKS_ROUNDED = ["ast_c37f3f7112aee9be5592812b3a9b1dce", "ast_19d833e92ac6963595a8be66725a7262", "ast_892eb4e597928b49e794fef81b130ba6"] as const;
 export const DEFAULT_NATURE_MODELS: readonly BriefModel[] = [
-  ...["02", "03", "06", "07"].map((n): BriefModel => ({ role: "prop.rock", source: "ready", file: `assets/starter-content/StaticMeshes/Environment/Forest_Rock_${n}.glb`, variant: "high" })),
-  ...["03", "05", "08"].map((n): BriefModel => ({ role: "prop.rock", source: "ready", file: `assets/starter-content/StaticMeshes/Environment/Forest_Rock_${n}.glb`, variant: "slope" })),
-  ...["01", "04", "05", "09"].map((n): BriefModel => ({ role: "prop.rock", source: "ready", file: `assets/starter-content/StaticMeshes/Environment/Forest_Rock_${n}.glb`, variant: "river" })),
+  ...ROCKS_ANGULAR.map((file): BriefModel => ({ role: "prop.rock", source: "ready", file, variant: "high" })),
+  ...[ROCKS_ANGULAR[0], ROCKS_ANGULAR[2], ROCKS_ROUNDED[1]].map((file): BriefModel => ({ role: "prop.rock", source: "ready", file, variant: "slope" })),
+  ...ROCKS_ROUNDED.map((file): BriefModel => ({ role: "prop.rock", source: "ready", file, variant: "river" })),
 ];
 
 export interface RandomSettlement {

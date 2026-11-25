@@ -13,7 +13,7 @@ function buildWith(groups: WorldBuild["groups"], playerStart: WorldBuild["player
   const recipe = createWorldRecipe("valley", 3);
   recipe.generatedBy.placements = { "house-1": { stage: "buildings" }, "lamp-1": { stage: "furniture" } };
   recipe.generatedBy.splines = { "road-1": { stage: "roads", edge: "e1" } };
-  return { def, recipe, groups, playerStart } as unknown as WorldBuild;
+  return { def, recipe, groups, playerStart, foliage: [] } as unknown as WorldBuild;
 }
 
 const house: LayoutPlacement = {
@@ -79,6 +79,17 @@ describe("worldLevel", () => {
     expect(level.terrainFile).toBe("terrain/valley.terrain.json");
     expect(start).toMatchObject({ name: "Player Start", components: {}, transform: { p: [10, 22, -4] } });
     expect(level.level.settings).toEqual({ cellSize: 128, wind: { directionDeg: 45, strength: .3, gust: .3 }, viewDistance: 0, loadRange: 384, landmarkDistance: 0 });
+  });
+
+  test("the cover's plant rules are landscape foliage on the terrain actor; none, no component", () => {
+    const foliageType = "ast_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" as const;
+    const build = { ...buildWith([]), foliage: [{ id: "wood", layerId: "forest", foliageTypeId: foliageType, density: 0.002, minWeight: 0.5, seed: 7 }] };
+    const [terrain] = worldLevel(build, { levelId: LEVEL, terrainId: "valley" }).level.actors;
+    expect(terrain!.class === null && terrain!.components.foliage).toMatchObject({
+      type: "forge.landscapeFoliage@1", rules: [{ id: "wood", layer: "forest", foliageType, density: 0.002, minWeight: 0.5, seed: 7 }],
+    });
+    const [bare] = worldLevel(buildWith([]), { levelId: LEVEL, terrainId: "valley" }).level.actors;
+    expect(bare!.class === null && bare!.components.foliage).toBeUndefined();
   });
 
   test("the written recipe carries no ledger: provenance is on the objects", () => {

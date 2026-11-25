@@ -83,7 +83,7 @@
       {
         "id": "alpine-pine",
         "layer": "forest",
-        "foliageType": "assets/foliage/Pine.foliagetype.json",
+        "foliageType": "ast_01bcf3887fb62403301b33abe4612f74",
         "density": 0.003,
         "minWeight": 0.45,
         "seed": 601
@@ -91,7 +91,7 @@
       {
         "id": "alpine-conifer",
         "layer": "forest",
-        "foliageType": "assets/world-builder/foliage/wp-conifer-b.foliagetype.json",
+        "foliageType": "ast_de4c97c1a71f54049926634b7f86f771",
         "density": 0.0012,
         "minWeight": 0.5,
         "seed": 602
@@ -99,7 +99,6 @@
       {
         "id": "alpine-bush",
         "layer": "forest",
-        "foliageType": "assets/world-builder/foliage/wp-bush-b.foliagetype.json",
         "density": 0.001,
         "minWeight": 0.5,
         "seed": 603
@@ -107,7 +106,6 @@
       {
         "id": "alpine-grass",
         "layer": "meadow",
-        "foliageType": "assets/world-builder/foliage/wp-grass-a.foliagetype.json",
         "density": 0.015,
         "minWeight": 0.5,
         "seed": 604
@@ -115,7 +113,6 @@
       {
         "id": "alpine-bush-b",
         "layer": "meadow",
-        "foliageType": "assets/world-builder/foliage/wp-bush-b.foliagetype.json",
         "density": 0.0006,
         "minWeight": 0.6,
         "seed": 605

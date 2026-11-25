@@ -23,8 +23,11 @@
  *
  * The `forest` cover Forge ships paints exactly what the pilot's temporary
  * paint did on a world with relief, so a random world keeps its look.
- * Pure and deterministic; dependency-free.
+ * Plants name their foliage type by asset id (plan 5d step 8; Forge WebGL: a
+ * file path), so a missing one fails the asset gate like any other reference.
+ * Pure and deterministic.
  */
+import { isId, type AssetId } from "../../core/index.ts";
 import type { BriefTerrain } from "./briefTerrain.ts";
 import { WATER_BED_MARGIN } from "./briefTerrain.ts";
 import { oceanBeachWeight } from "./island.ts";
@@ -35,7 +38,6 @@ import {
   isOneOf,
   isRecord,
   issue,
-  normalizeAssetPath,
   reject,
   requireId,
   requireNumber,
@@ -85,8 +87,8 @@ export interface CoverPlant {
   id: string;
   /** Layer id the plant grows on. */
   layer: string;
-  /** Public-root-relative `*.foliagetype.json`. */
-  foliageType: string;
+  /** `forge.foliageType` asset id; null while no asset grows here (the rule is kept, reported and not written). */
+  foliageType: AssetId | null;
   /** Instances per m² at full paint. */
   density: number;
   minWeight: number;
@@ -228,14 +230,15 @@ export function normalizeGroundCover(value: unknown): { cover: GroundCover | nul
     known(c, raw, p, ["id", "layer", "foliageType", "density", "minWeight", "seed"]);
     const plantId = requireId(c, `${p}.id`, raw.id);
     const layer = layerRef(`${p}.layer`, raw.layer);
-    const foliageType = normalizeAssetPath(raw.foliageType, ".foliagetype.json") ?? reject(c, `${p}.foliageType`, "must be a public-root-relative *.foliagetype.json");
+    const foliageType = raw.foliageType === undefined || raw.foliageType === null ? null
+      : isId(raw.foliageType, "asset") ? raw.foliageType : reject(c, `${p}.foliageType`, "must be a foliage type asset id");
     // Instances per m² are small numbers: kept as written, not rounded to millimetres.
     const density = typeof raw.density === "number" && Number.isFinite(raw.density) && raw.density >= 0 && raw.density <= 10
       ? raw.density : reject(c, `${p}.density`, "must be a number 0..10");
     const minWeight = requireNumber(c, `${p}.minWeight`, raw.minWeight, 0, 1);
     const seed = Number.isInteger(raw.seed) && (raw.seed as number) >= 0 ? raw.seed as number : reject(c, `${p}.seed`, "must be a whole number");
     if (plantId !== null && plantIds.has(plantId)) return reject(c, p, `repeats id "${plantId}"`);
-    if (plantId === null || layer === null || foliageType === null || density === null || minWeight === null || seed === null) return null;
+    if (plantId === null || layer === null || (foliageType === null && raw.foliageType) || density === null || minWeight === null || seed === null) return null;
     plantIds.add(plantId);
     return { id: plantId, layer, foliageType, density, minWeight, seed };
   });
@@ -411,21 +414,30 @@ export function coverPaint(
   };
 }
 
-/** Foliage rules on the cover's layers; `foliageTypeId` maps a foliage type file to its manifest id. */
-export function coverPlantRules(
-  cover: GroundCover,
-  terrainId: string,
-  densities: CoverDensities,
-  foliageTypeId: (file: string) => string | null,
-): Array<Record<string, unknown>> {
+/** One foliage rule of a built world: Forge's `LandscapeFoliageRule` fields on the cover's layer. */
+export interface CoverPlantRule {
+  id: string;
+  layerId: string;
+  foliageTypeId: AssetId;
+  density: number;
+  minWeight: number;
+  seed: number;
+}
+
+/** Foliage rules on the cover's layers, and the plants without a foliage type (not written). */
+export function coverPlantRules(cover: GroundCover, densities: CoverDensities): { rules: CoverPlantRule[]; missing: string[] } {
   const factor = COVER_DENSITY_FACTOR[densities.forest];
-  return cover.plants.map((plant) => {
-    const id = foliageTypeId(plant.foliageType);
-    if (!id) throw new Error(`ground cover ${cover.id}: foliage type ${plant.foliageType} is not in the asset manifest`);
+  const missing: string[] = [];
+  const rules = cover.plants.flatMap((plant): CoverPlantRule[] => {
+    if (plant.foliageType === null) {
+      missing.push(plant.id);
+      return [];
+    }
     // The forest density thins or thickens the trees as well as the forest's area.
     const density = plant.layer === cover.roles.forest && densities.forest !== "medium" ? plant.density * Math.sqrt(factor) : plant.density;
-    return { id: plant.id, landscapeId: terrainId, layerId: plant.layer, foliageTypeId: id, density: Number(density.toPrecision(6)), minWeight: plant.minWeight, seed: plant.seed };
+    return [{ id: plant.id, layerId: plant.layer, foliageTypeId: plant.foliageType, density: Number(density.toPrecision(6)), minWeight: plant.minWeight, seed: plant.seed }];
   });
+  return { rules, missing };
 }
 
 /** Rock counts after the density. */

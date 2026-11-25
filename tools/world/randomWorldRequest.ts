@@ -2,13 +2,13 @@
 // Adapted (plan 2b): `out` is a level folder of the new format, not a `.level.json` under `assets/`.
 /**
  * The editor's World Builder window asks the dev server for a random world
- * (`/__world-random`, RANDOM_WORLD_PLAN step 5). This is the request's
+ * (`POST /__forge/world-random`, tools/server/worldBuilder.ts). This is the request's
  * allowlist: every choice must be one the generator knows, and the level must
  * be a level folder inside the project with plain names (generated levels live
  * with the content, so the Content Browser shows them; the save service keeps
  * the write inside a content root). Unknown fields reject the request.
  *
- * Pure; the dev server (5d) and `npm run world:random` both run it.
+ * Pure; the dev server and `npm run world:random` both run it.
  */
 import { COVER_DENSITY_LEVELS } from "../../src/engine/worldbuilder/worldBrief.ts";
 import { MAX_RANDOM_WATER } from "../../src/engine/worldbuilder/randomWater.ts";
@@ -21,20 +21,15 @@ import {
   SETTLEMENT_TYPES,
   WORLD_SIZES,
   oceanWorldSizeSupported,
-  type RandomWorldOptions,
 } from "../../src/engine/worldbuilder/randomWorld.ts";
-
-/** Most settlements the window may ask for. */
-export const MAX_RANDOM_SETTLEMENTS = 8;
-
-export type RandomWorldChoices = Omit<RandomWorldOptions, "id" | "name" | "regionProfile" | "models">;
+import { MAX_RANDOM_SETTLEMENTS, plainFolderName, type RandomWorldRequestChoices } from "../../src/engine/worldbuilder/randomWorldChoices.ts";
 
 export interface RandomWorldRequest {
   /** Project-relative level folder, e.g. `content/levels/My World`. */
   out: string;
   /** Replace an existing level (and its brief). */
   force: boolean;
-  world: RandomWorldChoices;
+  world: RandomWorldRequestChoices;
 }
 
 const WORLD_KEYS = ["seed", "size", "landform", "mountainHeight", "settlements", "roads", "rivers", "lakes", "cover", "densities", "seaSide"];
@@ -69,7 +64,7 @@ export function validateRandomWorldLevelFolder(value: unknown): string {
   const parts = path.split("/");
   if (parts.length < 2) throw new Error(`out must be a level folder inside a content root, e.g. content/levels/<Name>: ${value}`);
   for (const part of parts) {
-    if (!/^[A-Za-z0-9][A-Za-z0-9 _.-]*$/.test(part) || part.endsWith(".") || part.endsWith(" ")) {
+    if (!plainFolderName(part)) {
       throw new Error(`out has an unusable folder name "${part}": letters, digits, space, _ . - only`);
     }
   }

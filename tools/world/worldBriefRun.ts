@@ -114,10 +114,12 @@ export async function runWorldBrief(options: WorldBriefRunOptions): Promise<Worl
     const normalized = normalizeGroundCover(project.readData(brief.cover.file, GroundCoverAssetType, "ground cover"));
     if (!normalized.cover) throw new Error(`ground cover ${brief.cover.file}: ${normalized.issues.join("; ")}`);
     cover = normalized.cover;
+    const missing = cover.plants.filter((plant) => plant.foliageType !== null && !project.index.entries.has(plant.foliageType));
+    if (missing.length) throw new Error(`ground cover ${brief.cover.file} names foliage type(s) not in the project: ${missing.map((plant) => `${plant.foliageType} (${plant.id})`).join(", ")}`);
   }
 
   const build = buildWorldFromBrief({
-    brief, profile, cover, assetIdForFile: (file) => project.assetIdOf(file), onProgress: options.onProgress,
+    brief, profile, cover, assetIdForFile: (file) => (isId(file, "asset") ? (project.index.entries.has(file) ? file : null) : project.assetIdOf(file)), onProgress: options.onProgress,
   });
   options.onProgress?.("files");
   const level = worldLevel(build, { levelId, terrainId: brief.terrain.id });

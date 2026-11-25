@@ -21,7 +21,8 @@
 // asset references sit (plan phase 3 step 8, user decision 2026-11-13: the
 // paint layers' materials are GUIDs): `layers[].material` is the `material`
 // of every element of `layers`. The asset index collects them, so a dangling
-// one fails the asset gate like any other reference.
+// one fails the asset gate like any other reference. World Builder's inputs
+// name assets the same way (a cover's plants, a brief's models; 5d step 8).
 
 import { isId, type AssetId } from "../id.ts";
 import { isJsonObject, type JsonObject } from "../json.ts";
@@ -94,6 +95,8 @@ export const WorldBriefAssetType = dataDocumentType(
   "World Brief",
   "World Builder'ın dünyayı kurduğu tarif: alan, arazi, yerleşimler, yollar, su ve modeller.",
   ".worldbrief.json",
+  [],
+  [{ path: "models[].file", assetType: "forge.model" }],
 );
 
 export const WorldRecipeAssetType = dataDocumentType(
@@ -116,7 +119,7 @@ export const GroundCoverAssetType = dataDocumentType(
   "Zemin örtüsü ön ayarı: boya katmanları, eğim / yükseklik kuralları, kaya ve bitki yoğunlukları.",
   ".cover.json",
   [],
-  [{ path: "layers[].material", assetType: "forge.material" }],
+  [{ path: "layers[].material", assetType: "forge.material" }, { path: "plants[].foliageType", assetType: "forge.foliageType" }],
 );
 
 export const DATA_DOCUMENT_TYPES: readonly DocumentAssetTypeDef[] = [

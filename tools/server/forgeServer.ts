@@ -23,6 +23,8 @@
 //   GET  /__forge/asset-files   every binary asset (with its import settings), schema-defined JSON asset and data document:
 //                               GUID -> { type, file, import? }, `file` for /__forge/read
 //                               (the renderer resolves model and texture GUIDs with it)
+//   GET  /__forge/world-builder, POST /__forge/world-builder/pack, POST /__forge/world-random
+//                               the World Builder window (worldBuilder.ts, plan 5d step 8)
 //   POST /__forge/play          a play session: the editor's unsaved level files, checked, in a layer over the
 //                               project (playSessions.ts, plan phase 4 step 8); `GET /__forge/read?…&play=<id>`
 //                               reads through it, `GET /__forge/play?id=` names its level and camera. A
@@ -72,6 +74,7 @@ import { createPlaySessions, PLAY_ID, PlaySessionMissing } from "./playSessions.
 import { MANIFEST_FILE, type SaveRequest, type SaveResult } from "../save/transaction.ts";
 import { normalizeProjectPath, ProjectPathError, resolveWritablePath, type WritePolicy } from "./projectPaths.ts";
 import { createHlodJobs, type HlodJobs } from "./hlodJobs.ts";
+import { createWorldBuilderServer, type StartWorldBuild } from "./worldBuilder.ts";
 
 export const STAGING_DIR = ".forge-staging";
 export const THUMBNAIL_DIR = ".forge-cache/thumbnails";
@@ -161,6 +164,10 @@ export interface ForgeServerOptions extends AuthoringOptions {
   readonly identity?: unknown;
   /** Tests may inject a worker adapter; production owns one queue per server/project. */
   readonly hlodJobs?: HlodJobs;
+  /** Tests may inject a World Builder build. */
+  readonly startWorldBuild?: StartWorldBuild;
+  /** Restarts the dev server (a content pack was added to the manifest). */
+  readonly restart?: () => void;
 }
 
 /** An asset's file as `GET /__forge/asset-files` lists it; `file` is what `/__forge/read?path=` takes. */
@@ -217,6 +224,10 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
   const stagingDir = join(policy.root, STAGING_DIR);
   const hlodJobs = options.hlodJobs ?? createHlodJobs({
     engineRoot: options.engineRoot ?? resolve(dirname(fileURLToPath(import.meta.url)), "../.."), project: policy.root,
+  });
+  const worldBuilder = createWorldBuilderServer({
+    engineRoot: options.engineRoot ?? resolve(dirname(fileURLToPath(import.meta.url)), "../.."), authoring, readOnly: options.readOnly === true,
+    ...(options.startWorldBuild ? { start: options.startWorldBuild } : {}),
   });
   // Uploads do not outlive the server: a save names them within one session.
   await rm(stagingDir, { recursive: true, force: true });
@@ -284,6 +295,24 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
         message: error instanceof Error ? error.message : String(error),
       });
     }
+  };
+
+  const worldRandom = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    let body: unknown;
+    try {
+      body = JSON.parse((await readBody(req, 64 * 1024)).toString("utf8"));
+    } catch (error) {
+      send(res, error instanceof BodyTooLarge ? 413 : 400, { message: "Invalid World Builder request." });
+      return;
+    }
+    await worldBuilder.build(body, res);
+  };
+  const addWorldBuilderPacks = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    req.resume();
+    const answer = await worldBuilder.addPacks();
+    // Once the page has its answer: the restart drops the connections.
+    if (answer.restart && options.restart) res.once("close", options.restart);
+    send(res, answer.status, answer.body);
   };
 
   const save = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
@@ -585,6 +614,9 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
       "POST /__forge/tree-bake": () => bakePlant(req, res),
       "POST /__forge/hlod": () => hlod(req, url, res),
       "GET /__forge/hlod": () => hlod(req, url, res),
+      "GET /__forge/world-builder": async () => send(res, 200, await worldBuilder.state()),
+      "POST /__forge/world-builder/pack": () => addWorldBuilderPacks(req, res),
+      "POST /__forge/world-random": () => worldRandom(req, res),
       "POST /__forge/stage-binary": () => stage(req, res),
       "GET /__forge/read": () => read(url, res),
       "GET /__forge/identity": async () => send(res, 200, options.identity ?? {}),
@@ -612,5 +644,5 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
     });
   };
 
-  return { middleware, policy, authoring, dispose: () => hlodJobs.dispose() };
+  return { middleware, policy, authoring, dispose: () => { hlodJobs.dispose(); worldBuilder.dispose(); } };
 }

@@ -10,6 +10,7 @@
  * - The terrain is an actor with `forge.terrain` in the persistent layer; its
  *   definition is a `forge.terrain` data document with the tiles and global
  *   map as parts.
+ * - The ground cover's plants are `forge.landscapeFoliage` rules on it (5d step 8).
  * - The Player Start is an actor of that name without components until the
  *   Player Start feature (Faz 6).
  * - Forge's greybox look (tools/world/worldBriefBuild.ts `GREYBOX_LOOK`: a sun,
@@ -24,6 +25,7 @@
 import type { ActorDoc, ActorId, AssetId, DataDocument, LevelDoc, LevelId } from "../../../core/index.ts";
 import { LEVEL_SCHEMA, LevelSettingsFields, TerrainAssetType, WorldRecipeAssetType, dataDocument } from "../../../core/index.ts";
 import { environmentActors } from "../../forgeImport/environment.ts";
+import { convertLandscapeFoliageRule, LANDSCAPE_FOLIAGE_TAG } from "../../forgeImport/foliage.ts";
 import { stableHex } from "../../forgeImport/ids.ts";
 import { forgeLightSources, lightActors } from "../../forgeImport/lights.ts";
 import { placementGroupActors, playerStartActor, terrainActor } from "../../forgeImport/placements.ts";
@@ -75,7 +77,12 @@ export function worldLevel(build: WorldBuild, options: WorldLevelOptions): World
   const terrainAsset = assetId(`terrain/${terrainId}`);
   const recipeAsset = assetId("recipe");
   const stageOf = build.recipe.generatedBy.placements;
-  const actors: ActorDoc[] = [terrainActor(actorId(`terrain/${terrainId}`), build.def.name, build.def, terrainAsset)];
+  const terrain = terrainActor(actorId(`terrain/${terrainId}`), build.def.name, build.def, terrainAsset);
+  if (terrain.class === null && build.foliage.length) {
+    const rules = build.foliage.map((rule) => convertLandscapeFoliageRule({ ...rule }, rule.foliageTypeId));
+    terrain.components = { ...terrain.components, foliage: { type: LANDSCAPE_FOLIAGE_TAG, rules } };
+  }
+  const actors: ActorDoc[] = [terrain];
   if (build.playerStart) {
     actors.push(playerStartActor(actorId("playerStart"), { p: [...build.playerStart], r: [0, 0, 0, 1], s: [1, 1, 1] }));
   }

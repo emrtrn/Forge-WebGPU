@@ -53,9 +53,20 @@ export interface EditorCameraPoseStore {
   save(camera: PerspectiveCamera): void;
 }
 
+const poseKey = (levelKey: string): string => `${STORAGE_PREFIX}${encodeURIComponent(levelKey)}`;
+
+/** Remembers a pose for a level that is not open yet (a generated world's first view). */
+export function storeEditorCameraPose(storage: PoseStorage | null, levelKey: string, pose: EditorCameraPose): void {
+  try {
+    storage?.setItem(poseKey(levelKey), JSON.stringify(pose));
+  } catch {
+    // The level opens with the default framing.
+  }
+}
+
 /** The store of one level (`levelKey`: the project and the level folder); null storage keeps nothing. */
 export function createEditorCameraPoseStore(storage: PoseStorage | null, levelKey: string): EditorCameraPoseStore {
-  const key = `${STORAGE_PREFIX}${encodeURIComponent(levelKey)}`;
+  const key = poseKey(levelKey);
   let lastSerialized: string | null = null;
   let lastWrite = Number.NEGATIVE_INFINITY;
   const save = (camera: PerspectiveCamera): void => {

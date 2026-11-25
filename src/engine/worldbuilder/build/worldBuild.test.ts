@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
+import { isId } from "../../../core/index.ts";
 import { normalizeGroundCover } from "../groundCover.ts";
 import { randomWorldBrief } from "../randomWorld.ts";
 import { normalizeRegionProfile } from "../regionProfile.ts";
@@ -69,10 +70,20 @@ describe("buildWorldFromBrief", () => {
     expect(without.warnings.some((warning) => warning.startsWith("model rows with no project asset, placed as placeholders: prop.rock"))).toBe(true);
 
     const rock = "ast_0000000000000000000000000000000a";
-    const withModels = build(brief, (file) => (file.includes("Forest_Rock") ? rock : null));
+    const withModels = build(brief, (file) => (brief.models.some((model) => model.file === file) ? rock : null));
     const placed = withModels.groups.find((group) => group.assetId === rock)!.placements;
     expect(placed.map((placement) => placement.id)).toEqual(rocks.map((placement) => placement.id));
     expect(placed.every((placement) => placement.color === undefined)).toBe(true);
+  });
+
+  test("the cover's plants become foliage rules; a plant without a foliage type is reported", () => {
+    const brief = smallBrief();
+    const cover = normalizeGroundCover(packData(brief.cover!.file)).cover!;
+    const result = build(brief, () => null);
+    expect(result.foliage.map((rule) => rule.id)).toEqual(cover.plants.filter((plant) => plant.foliageType !== null).map((plant) => plant.id));
+    expect(result.foliage.every((rule) => cover.layers.some((layer) => layer.id === rule.layerId) && isId(rule.foliageTypeId, "asset"))).toBe(true);
+    const missing = cover.plants.filter((plant) => plant.foliageType === null).map((plant) => plant.id);
+    expect(result.deferred).toContain(`foliage: no foliage type yet for ${missing.join(", ")}`);
   });
 
   test("what is not built yet is reported, not dropped", () => {

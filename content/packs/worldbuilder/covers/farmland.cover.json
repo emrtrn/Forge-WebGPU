@@ -87,15 +87,31 @@
       {
         "id": "wood-broadleaf",
         "layer": "forest",
-        "foliageType": "assets/world-builder/foliage/wb-broadleaf.foliagetype.json",
-        "density": 0.0022,
+        "foliageType": "ast_424d01f7324122c5f5a0a325141a1be9",
+        "density": 0.000733,
         "minWeight": 0.5,
         "seed": 301
       },
       {
+        "id": "wood-broadleaf-2",
+        "layer": "forest",
+        "foliageType": "ast_23cd0fe4ada5125c07abc14042b4ba55",
+        "density": 0.000733,
+        "minWeight": 0.5,
+        "seed": 306
+      },
+      {
+        "id": "wood-broadleaf-3",
+        "layer": "forest",
+        "foliageType": "ast_b3bfde5d466dd40b44820897bcac38c1",
+        "density": 0.000733,
+        "minWeight": 0.5,
+        "seed": 307
+      },
+      {
         "id": "wood-conifer",
         "layer": "forest",
-        "foliageType": "assets/world-builder/foliage/wp-conifer-b.foliagetype.json",
+        "foliageType": "ast_de4c97c1a71f54049926634b7f86f771",
         "density": 0.0008,
         "minWeight": 0.55,
         "seed": 302
@@ -103,7 +119,6 @@
       {
         "id": "wood-bush",
         "layer": "forest",
-        "foliageType": "assets/world-builder/foliage/wp-bush-a.foliagetype.json",
         "density": 0.0012,
         "minWeight": 0.5,
         "seed": 303
@@ -111,7 +126,6 @@
       {
         "id": "meadow-grass",
         "layer": "meadow",
-        "foliageType": "assets/world-builder/foliage/wp-grass-a.foliagetype.json",
         "density": 0.02,
         "minWeight": 0.5,
         "seed": 304
@@ -119,7 +133,6 @@
       {
         "id": "meadow-bush",
         "layer": "meadow",
-        "foliageType": "assets/world-builder/foliage/wp-bush-a.foliagetype.json",
         "density": 0.0008,
         "minWeight": 0.6,
         "seed": 305

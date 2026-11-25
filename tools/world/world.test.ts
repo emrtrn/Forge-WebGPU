@@ -46,6 +46,8 @@ describe("world:random", () => {
     const result = await run("content/levels/plain", { onProgress: (step) => steps.push(step) });
     expect(steps).toEqual([...WORLD_BUILD_STEPS]);
     expect(result.folder).toBe("content/levels/plain");
+    expect(result.build.warnings.filter((warning) => warning.startsWith("model rows"))).toEqual([]);
+    expect(result.build.foliage.length).toBeGreaterThan(0);
     expect(result.brief).toBe("content/levels/plain/plain.worldbrief.json");
     const names = (await readdir(join(project, "content/levels/plain"))).sort();
     expect(names).toEqual(["cells", "cells.json", "level.json", "plain.worldbrief.json", "plain.worldrecipe.json", "terrain"]);
@@ -84,8 +86,15 @@ describe("world:random", () => {
     expect(await text("content/levels/again/level.json")).toBe(level);
     expect(await text("content/levels/again/again.worldbrief.json")).toBe(brief);
 
+    // Foliage painted on the old terrain goes with it; a file that is not the build's stays.
+    await mkdir(join(project, "content/levels/again/foliage"), { recursive: true });
+    await writeFile(join(project, "content/levels/again/foliage/0_0.bin"), "x");
+    await writeFile(join(project, "content/levels/again/notes.txt"), "mine");
     // Fewer cells after a smaller world: the stale cell files go, the index follows.
     await run("content/levels/again", { force: true, world: { ...WORLD, settlements: [] } });
+    expect(await exists("content/levels/again/foliage/0_0.bin")).toBe(false);
+    expect(await exists("content/levels/again/notes.txt")).toBe(true);
+    await rm(join(project, "content/levels/again/notes.txt"));
     const index = JSON.parse(await text("content/levels/again/cells.json")) as { cells: Record<string, string> };
     expect((await readdir(join(project, "content/levels/again/cells"))).map((name) => name.slice(0, -5)).sort())
       .toEqual(Object.keys(index.cells).sort());

@@ -110,6 +110,7 @@ import { createLandscapeSplines, LandscapeSplinesKey } from "./landscape/landsca
 import { createLandscapeSplineTool, type LandscapeSplineTool } from "./landscape/landscapeSplineTool.ts";
 import { createLandscapeTool, type LandscapeTool } from "./landscape/landscapeTool.ts";
 import { createLandscapeSave } from "./landscape/landscapeSave.ts";
+import { createWorldBuilder } from "./worldBuilder/worldBuilder.ts";
 
 const helperModules = import.meta.glob<{ default?: EditorRenderBindingDef; assetPreviews?: readonly AssetPreviewRegistration[] }>("../features/*/editorRender.ts", { eager: true });
 /** The engine features' editor helper bindings. */
@@ -514,6 +515,20 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       event.preventDefault();
       event.returnValue = "";
     });
+    // Forge's openLevel: unsaved edits are lost after a confirm; the page opens the level (`?level=`).
+    const openLevel = (folder: string, name: string, confirmed = false): void => {
+      const view = doc.defaultView!;
+      if (!confirmed && session.dirty() > 0 && !view.confirm(`Open "${name}"?\nUnsaved changes to the current level will be lost.`)) return;
+      leaveConfirmed = true;
+      const url = new URL(view.location.href);
+      url.searchParams.set("level", folder);
+      view.location.assign(url.toString());
+    };
+    const worldBuilder = createWorldBuilder({
+      document: doc, host: shell.root, area: () => shell.viewport.getBoundingClientRect(), storage, session: tabStorage(doc), client: options.client,
+      projectName: options.projectName, level: options.level, exists: (path) => (content.index().folder(path) ?? content.index().byFile(path)) !== undefined,
+      dirty: () => session.dirty() > 0, openLevel, status: (message, tone) => shell.status(message, tone),
+    });
     const snapOf = tools;
     // A Content Browser asset dragged into the viewport (step 6f) is placed under its own key.
     let assetDrop: AssetDrop | null = null;
@@ -557,6 +572,9 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     shell.attachPlacer(placer, [{
       key: "forge.worldTerrain", label: "World Terrain…", category: "Terrain", icon: "terrain",
       title: "Yeni World Terrain: asset hemen yazılır, aktör level'a eklenir", run: () => void landscapeTerrain.openCreate(),
+    }, {
+      key: "forge.worldBuilder", label: "World Builder…", category: "Terrain", icon: "terrain",
+      title: "Seçimlerden rastgele dünya: yeni bir level'a kurulur ve açılır", run: () => worldBuilder.open(),
     }]);
     const modelBounds = createModelBounds(() => viewport.host);
     shell.attachModelBounds(modelBounds);
@@ -722,15 +740,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         drag: assetDrop,
         canOpenAsset: (item) => { const asset = editableAsset(item); return !!asset && assetDocumentAdapter(asset, registry) !== null; },
         openAsset: (item) => { const asset = editableAsset(item); if (asset) void assetEditor.open(asset); },
-        // Forge's openLevel: unsaved edits are lost after a confirm; the page opens the level (`?level=`).
-        openLevel: (folder, name) => {
-          const view = doc.defaultView!;
-          if (session.dirty() > 0 && !view.confirm(`Open "${name}"?\nUnsaved changes to the current level will be lost.`)) return;
-          leaveConfirmed = true;
-          const url = new URL(view.location.href);
-          url.searchParams.set("level", folder);
-          view.location.assign(url.toString());
-        },
+        openLevel,
         newItems: newAssetItems(registry, editors),
         importExtensions: registry.assetTypes().flatMap((def) => (def.storage === "binary" ? def.extensions : [])),
         // A reimported model: the cache forgets it and the actors that use it read it again (step 6e). Another binary
