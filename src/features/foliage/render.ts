@@ -233,11 +233,15 @@ export default defineRenderBinding({
       painted = null;
     };
 
+    /** The level has painted foliage, saved or being painted (5d step 6). */
+    const paintable = (source: LevelFoliageSource | undefined): boolean =>
+      source !== undefined && ((source.index?.cells.length ?? 0) > 0 || [...(source.edits?.keys() ?? [])].length > 0);
+
     /** The level's painted foliage, (re)started when its source or revision changes. */
     const syncPainted = (target: FoliageBatches, center: readonly [number, number]): void => {
       const source = ctx.world.services.get(LevelFoliageSourceKey);
       if (painted && (painted.source !== source || painted.revision !== source?.revision)) dropPainted();
-      if (!painted && source?.index && source.index.cells.length > 0) {
+      if (!painted && source && paintable(source)) {
         const keys: string[] = [];
         painted = {
           source, revision: source.revision, keys, busy: ctx.resources.busy(),
@@ -374,7 +378,7 @@ export default defineRenderBinding({
         if (frame.camera) frame.camera.getWorldPosition(cameraPosition);
         plants.sync(frame, frame.dt, frame.camera ? cameraPosition : null);
         if (!frame.camera || !active) return;
-        if (placed.size === 0 && !painted && !ctx.world.services.get(LevelFoliageSourceKey)?.index) return;
+        if (placed.size === 0 && !painted && !paintable(ctx.world.services.get(LevelFoliageSourceKey))) return;
         const target = ensureBatches(frame.camera);
         if (!target) return;
         const quality = ctx.quality();

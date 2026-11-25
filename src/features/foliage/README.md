@@ -18,6 +18,9 @@ kararlar 2–4, kullanıcı 2026-11-17).
 - Şema verisi → saf üretim girdisi `src/engine/foliage/foliageAsset.ts`
   (`foliageTypeParamsOf`, `foliageRuleParamsOf`); üretim
   `src/engine/foliage/proceduralFoliage.ts`, halka `src/engine/world/foliageRing.ts`.
+- Boyanmış örnekler editörde Foliage sekmesinin araçlarıyla düzenlenir (5d adım 6,
+  `src/editor/foliage`, `engine/foliage/foliagePaintSession.ts`); bağlama düzenlenen
+  hücreyi `LevelFoliageSource.edits`'ten çizer, hedef yüzey saklanmaz.
 - Boyanmış örnekler asset değil, level parçasıdır: `foliage.json` + hücre
   başına `foliage/<x>_<z>.bin` (`src/core/level/foliage*.ts`), hücreyle akar.
 - Çizim (GPU culling + indirect + render bundle) 5c adım 5–6'da gelir.

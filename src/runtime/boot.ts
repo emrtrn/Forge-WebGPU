@@ -185,6 +185,9 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
     // A missing class is already reported by normalisation; report it once.
     const seen = new Set(warnings.map((issue) => `${issue.code} ${issue.path}`));
     warnings.push(...assembled.issues.filter((issue) => !seen.has(`${issue.code} ${issue.path}`)));
+    // Painted foliage streams with the camera in the foliage binding (plan 5c F4), not with the cells' actors: a level
+    // whose actors are all in the persistent layer has no cell streaming and may have foliage (5d step 6).
+    if (loaded.foliage && render) world.services.provide(LevelFoliageSourceKey, { index: loaded.foliage.index, load: loaded.foliage.load });
     if (loaded.cells && render?.streamingSources) {
       const live = world;
       streaming = createCellStreaming({
@@ -204,8 +207,6 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
         const active = streaming;
         live.services.provide(CellStreamingKey, active);
         if (loaded.hlod) live.services.provide(HlodSourceKey, { index: loaded.hlod.index, load: loaded.hlod.load, isCellActive: (key) => active.isCellActive(key) });
-        // Painted foliage streams with the camera in the foliage binding (plan 5c F4), not with the cells' actors.
-        if (loaded.foliage) live.services.provide(LevelFoliageSourceKey, { index: loaded.foliage.index, load: loaded.foliage.load });
       }
     } else if (loaded.cells) {
       // No renderer: no camera to stream around; the whole level is assembled (headless checks).

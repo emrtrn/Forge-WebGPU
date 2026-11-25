@@ -63,7 +63,7 @@ import { Box3, Vector3 } from "three/webgpu";
 import { parseComponentTypeTag, type ActorId, type WorldActor } from "../../core/index.ts";
 import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
 import { tagSceneSource } from "../../engine/perf/sceneCost.ts";
-import { raycastTerrain } from "../../engine/terrain/terrainHeightQuery.ts";
+import { raycastTerrain, terrainFaceNormalAt, terrainSmoothNormalAt } from "../../engine/terrain/terrainHeightQuery.ts";
 import { createTerrainEditWorld } from "../../engine/terrain/terrainEdit.ts";
 import { TerrainEditingKey, type EditableTerrain } from "../../engine/terrain/terrainEditing.ts";
 import { TerrainEditSession } from "../../engine/terrain/terrainEditSession.ts";
@@ -101,6 +101,8 @@ export function terrainPickSurface(terrain: Pick<LoadedTerrain, "def">, view: Te
       const hit = raycastTerrain(query, view.source, local, [direction.x, direction.y, direction.z], far, partial ? view.global.map : undefined);
       return hit ? hit.distance : null;
     },
+    // The shading normal, as the foliage ring aligns to; none where the tile under the point is not loaded.
+    normal: (x, z) => (terrainFaceNormalAt(def, view.source, x, z) ? terrainSmoothNormalAt(def, view.source, x, z) : null),
     bounds() {
       const { min, max } = view.heightRange();
       const [width, depth] = worldTerrainExtent(def);

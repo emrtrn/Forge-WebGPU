@@ -59,7 +59,11 @@ import { createThumbnailRenderer } from "../render/editor/thumbnails.ts";
 import { createAssetPreview, type AssetPreviewRegistration } from "../render/editor/assetPreview.ts";
 import { createAssetEditor } from "./assets/assetEditor.ts";
 import { openPicker } from "./details/pickerPopover.ts";
-import { createFoliagePanel } from "./foliage/foliagePanel.ts";
+import { createFoliageEdits } from "./foliage/foliageEdits.ts";
+import { createFoliagePaintPanel } from "./foliage/foliagePaintPanel.ts";
+import { createFoliagePanel, FOLIAGE_TYPE } from "./foliage/foliagePanel.ts";
+import { bindFoliageKeys, createFoliageTools, type FoliageTools } from "./foliage/foliageTool.ts";
+import { createFoliageTypes } from "./foliage/foliageTypes.ts";
 import { assetDocumentAdapter, type EditableAsset } from "./assets/assetDocument.ts";
 import type { AssetFile } from "../render/resources/assetUrls.ts";
 import { assembleLevel } from "../runtime/assembler.ts";
@@ -86,7 +90,6 @@ import { createEditorSession, type EditorSession } from "./session/editorSession
 import { createEditorCellStreaming } from "./session/cellStreaming.ts";
 import { HlodSourceKey, hlodPlacementsOf, hlodCellSourceHash, hlodZonesOf } from "../engine/world/hlod.ts";
 import { LevelFoliageSourceKey } from "../engine/foliage/levelFoliageSource.ts";
-import { FOLIAGE_DIR, FOLIAGE_INDEX_FILE, normalizeLevelFoliageIndex, type LevelFoliageIndex } from "../core/level/foliage.ts";
 import { createWorldPartitionPanel } from "./world/worldPartitionPanel.ts";
 import { KeptRegionsKey } from "../engine/world/keptRegions.ts";
 import { RenderReadinessKey } from "../engine/world/renderReadiness.ts";
@@ -220,6 +223,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     let tools: TransformTools | null = null;
     let landscape: LandscapeTool | null = null;
     let splineTool: LandscapeSplineTool | null = null;
+    let foliageTools: FoliageTools | null = null;
     let commands: EditCommands | null = null;
     let thumbnails: ContentThumbnails | null = null;
     /** Who hears each frame (a Details preview that plays). */
@@ -247,17 +251,18 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
           if (actor) editor.selection.toggle(actor);
         } else editor.selection.set(actor ? [actor] : []);
       },
-      // A spline point's gizmo stands in for the terrain's (5d step 5).
-      gizmo: () => splineTool?.gizmo() ?? tools?.gizmo() ?? null,
+      // A spline point's gizmo stands in for the terrain's (5d step 5); a Foliage tool owns the left button, no gizmo then (5d step 6).
+      gizmo: () => (foliageTools?.active ? null : (splineTool?.gizmo() ?? tools?.gizmo() ?? null)),
       // A gizmo handle first, then the Landscape spline tool or brush on the selected terrain (5d), then the selection click.
-      onPointerDown: (event) => (splineTool?.gizmo() ? splineTool.grab(event) : (tools?.pointerDown(event) ?? false))
+      onPointerDown: (event) => foliageTools?.active ? foliageTools.pointerDown(event) : (splineTool?.gizmo() ? splineTool.grab(event) : (tools?.pointerDown(event) ?? false))
         || (splineTool?.pointerDown(event) ?? false) || (landscape?.pointerDown(event) ?? false),
       // A gizmo drag keeps its moves (the brush ring would take them over the selected terrain).
-      onPointerMove: (event) => (splineTool && !tools?.dragging && (splineTool.dragging || splineTool.gizmo()) ? splineTool.pointerMove(event) : tools?.dragging ? tools.pointerMove(event) : landscape?.pointerMove(event) ? null : (tools?.pointerMove(event) ?? null)),
+      onPointerMove: (event) => (foliageTools?.pointerMove(event) ? null : splineTool && !tools?.dragging && (splineTool.dragging || splineTool.gizmo()) ? splineTool.pointerMove(event) : tools?.dragging ? tools.pointerMove(event) : landscape?.pointerMove(event) ? null : (tools?.pointerMove(event) ?? null)),
       onPointerUp: (event) => {
-        if (!splineTool?.pointerUp(event) && !landscape?.pointerUp(event)) tools?.pointerUp(event);
+        if (!foliageTools?.pointerUp(event) && !splineTool?.pointerUp(event) && !landscape?.pointerUp(event)) tools?.pointerUp(event);
       },
       onPointerCancel: () => {
+        foliageTools?.cancel();
         splineTool?.cancel();
         landscape?.cancel();
         void tools?.cancel();
@@ -310,23 +315,20 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         load: (file) => options.client.readBinary!(`${options.level}/${file}`),
       });
     // The level's painted foliage (plan 5c F4): its index, streamed by the foliage binding; a change on disk restreams it.
-    let foliageIndex: LevelFoliageIndex | null = null;
-    let foliageRevision = 0;
-    let foliageText: string | null | undefined;
-    const refreshFoliage = async (force = false): Promise<void> => {
-      const file = await options.client.read(`${options.level}/${FOLIAGE_INDEX_FILE}`);
-      const text = file?.text ?? null;
-      if (!force && text === foliageText) return;
-      const checked = text !== null ? normalizeLevelFoliageIndex(JSON.parse(text), { strict: false }) : null;
-      foliageIndex = checked?.value?.level === session.level.level.id ? checked.value : null;
-      foliageText = text; foliageRevision += 1;
+    // Its edits (plan 5d step 6) are drawn from the edit session and saved with the level.
+    const readFile = async (path: string): Promise<{ bytes: Uint8Array; revision: string } | null> => {
+      const response = await fetch(`/__forge/read?path=${encodeURIComponent(path)}`, { headers: { [FORGE_REQUEST_HEADER]: "1" } });
+      if (response.status === 404) return null;
+      if (!response.ok) throw new Error(`Reading ${path} failed: ${response.status}`);
+      return { bytes: new Uint8Array(await response.arrayBuffer()), revision: response.headers.get("X-Forge-Revision") ?? "" };
     };
-    await refreshFoliage();
-    if (options.client.readBinary) world.services.provide(LevelFoliageSourceKey, {
-      get index() { return foliageIndex; },
-      get revision() { return foliageRevision; },
-      load: (file) => options.client.readBinary!(`${options.level}/${file}`),
+    const foliageEdits = createFoliageEdits({
+      editor: session, client: options.client, folder: options.level, level: session.level.level.id, cellSize: () => session.level.level.settings.cellSize,
+      writable: (levelFolder?.writable ?? !options.readOnly) && !options.level.startsWith("engine:"), readFile, status: (message, tone) => shell.status(message, tone),
     });
+    await foliageEdits.refresh();
+    if (options.client.readBinary) world.services.provide(LevelFoliageSourceKey, foliageEdits.source);
+    session.addParticipant(foliageEdits);
     let hiddenKey = JSON.stringify(session.visibility.ids());
     session.onChange(() => {
       const ids = session.visibility.ids();
@@ -452,12 +454,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       client: options.client,
       documentPath: (guid) => content.index().byId(guid)?.file ?? null,
       writable: (path) => content.index().byFile(path)?.writable ?? false,
-      readFile: async (path) => {
-        const response = await fetch(`/__forge/read?path=${encodeURIComponent(path)}`, { headers: { [FORGE_REQUEST_HEADER]: "1" } });
-        if (response.status === 404) return null;
-        if (!response.ok) throw new Error(`Reading ${path} failed: ${response.status}`);
-        return { bytes: new Uint8Array(await response.arrayBuffer()), revision: response.headers.get("X-Forge-Revision") ?? "" };
-      },
+      readFile,
     });
     session.addParticipant(landscapeSave);
     // Paint layers, Fill Layer and Auto Paint (plan 5d step 3), for the Landscape Details.
@@ -561,7 +558,8 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       key: "forge.worldTerrain", label: "World Terrain…", category: "Terrain", icon: "terrain",
       title: "Yeni World Terrain: asset hemen yazılır, aktör level'a eklenir", run: () => void landscapeTerrain.openCreate(),
     }]);
-    shell.attachModelBounds(createModelBounds(() => viewport.host));
+    const modelBounds = createModelBounds(() => viewport.host);
+    shell.attachModelBounds(modelBounds);
     assetDrop = createAssetDrop({
       host: shell.viewport,
       editors,
@@ -624,8 +622,19 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       },
     });
     // The Foliage tab beside Details (plan 5c F5): Foliage Types listed and edited in place, saved as the asset editor saves.
+    const foliageTypes = createFoliageTypes({
+      client: options.client, lookup: (id) => editableAsset(content.index().byId(id)), registry, modelBounds,
+      draft: (guid) => (foliagePanel.active()?.asset.id === guid ? foliagePanel.active()!.value() : null),
+    });
+    foliageTools = createFoliageTools({
+      edits: foliageEdits, editing: terrainEditing, viewport, actor: (id) => world!.context.actor(id),
+      activeType: () => foliagePanel.selected() as AssetId | null, typeInfo: (type) => foliageTypes.info(type), status: (message, tone) => shell.status(message, tone),
+    });
+    const foliageBrush = foliageTools;
+    const foliagePaintPanel = createFoliagePaintPanel(doc, foliageBrush, (message, tone) => shell.status(message, tone));
     const foliagePanel = createFoliagePanel({
       document: doc, registry, client: options.client, catalog: assets, editor: session,
+      tools: foliagePaintPanel.element, painted: (guid) => foliageEdits.session.count(guid as AssetId),
       lookup: (id) => editableAsset(content.index().byId(id)),
       pickAsset: (type) => openPicker({ document: doc, host: shell.root, title: "Select Asset", testId: "foliage-picker", items: assets.ofType(type).map((item) => ({ id: item.guid, label: item.name, note: item.file })) }),
       createAsset: async (type, name, values) => {
@@ -642,13 +651,23 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       status: (message, tone) => shell.status(message, tone),
     });
     content.onChange(() => foliagePanel.refresh());
-    shell.attachDetailsTab("Foliage", "foliage-tab", foliagePanel.element);
+    let countsStale = false;
+    foliageEdits.onChange(() => { countsStale = true; });
+    frameListeners.add(() => {
+      if (!countsStale) return;
+      countsStale = false;
+      foliagePanel.countsChanged();
+    });
+    // Leaving the tab turns the tool off (user decision 2026-11-25).
+    shell.attachDetailsTab("Foliage", "foliage-tab", foliagePanel.element, (visible) => { if (!visible) foliageBrush.update({ tool: null }); });
+    bindFoliageKeys(doc, foliageBrush);
     /** After an asset's file changed (saved here or on disk): caches forget it, the actors that use it read it again, its thumbnail redraws. */
     const assetChanged = (guid: string, type: string): void => {
       if (type === "forge.model") viewport.host?.cache.evict(`model:${guid}`);
       else if (type === "forge.material") viewport.host?.cache.evictPrefix(`material:${guid}:`);
       // JSON assets a binding reads as documents (`forge.foliageType`): `json:<guid>`.
       viewport.host?.cache.evict(`json:${guid}`);
+      if (type === FOLIAGE_TYPE) { foliageTypes.forget(guid); foliageEdits.restream(); }
       const references = new Set([guid]);
       for (const item of content.index().assets) if (item.id && item.type === "forge.model" && JSON.stringify(options.assetUrls.importSettings(item.id)).includes(guid)) references.add(item.id);
       const users = session.level.level.actors.filter((actor) => {
@@ -666,9 +685,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       if (files.some((file) => file.path === `${options.level}/hlod.json`)) {
         await refreshHlod(); updateHlodStatus();
       }
-      if (files.some((file) => file.path === `${options.level}/${FOLIAGE_INDEX_FILE}` || file.path.startsWith(`${options.level}/${FOLIAGE_DIR}/`))) {
-        await refreshFoliage(true);
-      }
+      await foliageEdits.diskChanged(files);
       const others = files.filter((file) => !file.path.startsWith(`${options.level}/`));
       if (others.length === 0) return;
       // Terrains changed by someone else (5d): clean edit sessions go, the drawn terrain reads the disk again.

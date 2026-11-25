@@ -83,3 +83,38 @@ test("a level's painted cells stream into the batches, one owner per cell, and a
     console.warn = warn;
   }
 });
+
+test("an edited cell is drawn from the edits at once, with types the index does not know, and the stream leaves it alone", async () => {
+  const { index, cells } = buildLevelFoliage({
+    level: LEVEL, cellSize: 64, groups: [{ type: GRASS, instances: [{ position: [10, 0, 10], rotation: [0, 0, 0, 1], scale: 1, seed: 1 }] }],
+  });
+  const one = (x: number) => ({ positions: Float32Array.from([x, 0, 5]), rotations: Float32Array.from([0, 0, 0, 1]), scales: Float32Array.from([1]), seeds: Uint32Array.from([9]) });
+  const edited = new Map<string, { type: string; instances: ReturnType<typeof one> }[]>();
+  let changed = (_key: string): void => {};
+  const source: LevelFoliageSource = {
+    index, load: async (file) => cells.get(file.slice("foliage/".length, -".bin".length))?.slice().buffer ?? null,
+    edits: { keys: () => edited.keys(), cell: (key) => edited.get(key) ?? null, onChange: (listener) => { changed = listener; return () => { changed = () => {}; }; } },
+  };
+  const { batches, owners } = fakeBatches();
+  const view = new PaintedFoliageView({ source, batches, loadRange: 128, loadTypes: async (guids) => new Map(guids.map((guid) => [guid, draw(guid)])) });
+  await settle(view, [0, 0]);
+  assert.deepEqual([...owners.get("painted:0_0")!.keys()], [GRASS]);
+  const change = async (key: string, list: { type: string; instances: ReturnType<typeof one> }[]): Promise<void> => {
+    edited.set(key, list);
+    changed(key);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  };
+  await change("0_0", [{ type: GRASS, instances: one(11) }, { type: TREE, instances: one(12) }]);
+  assert.deepEqual([...owners.get("painted:0_0")!].map(([type, entry]) => [type, entry.matrices[12]]), [[GRASS, 11], [TREE, 12]]);
+  // A cell the files do not have, far away.
+  await change("40_40", [{ type: TREE, instances: one(2565) }]);
+  assert.equal(owners.get("painted:40_40")!.get(TREE)!.matrices.length, 16);
+  // Its last instance of a type goes: the type's share empties.
+  await change("0_0", [{ type: GRASS, instances: one(13) }]);
+  assert.equal(owners.get("painted:0_0")!.get(TREE)!.matrices.length, 0);
+  // Out of range the stream unloads; the edited cell stays drawn.
+  for (let i = 0; i < 4; i += 1) { view.update([9000, 9000]); await new Promise((resolve) => setTimeout(resolve, 0)); }
+  assert.equal(owners.get("painted:0_0")!.get(GRASS)!.matrices[12], 13);
+  view.dispose();
+  assert.deepEqual([...owners.keys()], []);
+});

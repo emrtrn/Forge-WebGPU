@@ -23,6 +23,8 @@ export interface ViewportPick {
   readonly actor: ActorId;
   readonly distance: number;
   readonly point: Vector3;
+  /** The unit surface normal toward the ray's origin, where what was hit gives one. */
+  readonly normal?: Vector3 | null;
   /** The model material slot under the pointer, when what was hit is tagged with one (pickTags.ts). */
   readonly slot?: number | null;
 }
@@ -94,6 +96,17 @@ export function createScenePicker(root: () => Object3D | null, helpers: () => Ob
     return null;
   };
 
+  const hitNormal = (hit: Intersection): Vector3 | null => {
+    if (!hit.face) return null;
+    const matrix = world.copy(hit.object.matrixWorld);
+    if (hit.instanceId !== undefined && hit.object instanceof InstancedMesh) {
+      hit.object.getMatrixAt(hit.instanceId, instance);
+      matrix.multiply(instance);
+    }
+    const normal = hit.face.normal.clone().transformDirection(matrix);
+    return normal.dot(raycaster.ray.direction) > 0 ? normal.negate() : normal;
+  };
+
   /** The nearest actor the raycaster's ray hits in the scene (meshes, instances, pick surfaces), `exclude` left out. */
   const castScene = (exclude: ReadonlySet<ActorId>): ViewportPick | null => {
     const top = root();
@@ -112,7 +125,7 @@ export function createScenePicker(root: () => Object3D | null, helpers: () => Ob
     for (const hit of hits) {
       const actor = actorOfHit(hit);
       if (actor === null || exclude.has(actor)) continue;
-      best = { actor, distance: hit.distance, point: hit.point.clone(), slot: slotOfHit(hit) };
+      best = { actor, distance: hit.distance, point: hit.point.clone(), slot: slotOfHit(hit), normal: hitNormal(hit) };
       break;
     }
     for (const { object, surface } of surfaces) {
@@ -120,7 +133,9 @@ export function createScenePicker(root: () => Object3D | null, helpers: () => Ob
       if (actor === null || exclude.has(actor)) continue;
       const distance = surface.raycast(raycaster.ray.origin, raycaster.ray.direction, best?.distance ?? raycaster.far);
       if (distance === null || (best && distance >= best.distance)) continue;
-      best = { actor, distance, point: raycaster.ray.at(distance, new Vector3()) };
+      const point = raycaster.ray.at(distance, new Vector3());
+      const up = surface.normal?.(point.x, point.z) ?? null;
+      best = { actor, distance, point, normal: up ? new Vector3().fromArray(up) : null };
     }
     return best;
   };

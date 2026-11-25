@@ -28,6 +28,8 @@ export interface PickSurface {
   raycast(origin: Vector3, direction: Vector3, far: number): number | null;
   /** World-space bounds (focus, the orbit target). */
   bounds(): Box3;
+  /** The unit surface normal at a world X / Z; null off it or where its exact data is not loaded. */
+  normal?(x: number, z: number): [number, number, number] | null;
 }
 
 export function tagActorObject(object: Object3D, actor: ActorId): void {

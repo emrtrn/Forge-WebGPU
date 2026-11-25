@@ -49,6 +49,8 @@ import { createEditorHelpersFeature, type EditorRenderBindingDef } from "./edito
 import { createViewportGizmo, type GizmoView, type ViewportGizmo } from "./gizmo.ts";
 import { createEditorOverlay, type EditorOverlay } from "./overlay.ts";
 import { createBrushCursor, type BrushCursor } from "./brushCursor.ts";
+import { createFoliageSelectionOverlay, type FoliageCage, type FoliageSelectionOverlay } from "./foliageSelection.ts";
+import { createSurfaceProbe, type SurfaceProbe } from "./surfaceProbe.ts";
 import { createSplineOverlay, SPLINE_OVERLAY_LIFT, type SplineOverlay, type SplineOverlayView } from "./splineOverlay.ts";
 import { createScenePicker, type ScenePicker } from "./picker.ts";
 import { createSelectionOutline, type SelectionOutline } from "./selectionOutline.ts";
@@ -106,7 +108,11 @@ export interface EditorViewport {
   /** The camera's forward direction. */
   viewDirection(): Vec3;
   /** The first thing a world ray hits among what the level draws, `exclude`'s actors left out. */
-  raycast(origin: Vec3, direction: Vec3, far: number, exclude: ReadonlySet<ActorId>): { readonly distance: number; readonly point: Vec3 } | null;
+  raycast(origin: Vec3, direction: Vec3, far: number, exclude: ReadonlySet<ActorId>): { readonly distance: number; readonly point: Vec3; readonly actor: ActorId; readonly normal: Vec3 | null } | null;
+  /** What lies under the points of an area, gathered once (the Foliage brush, plan 5d step 6). */
+  surfaceProbe(rect: { readonly minX: number; readonly minZ: number; readonly maxX: number; readonly maxZ: number }): SurfaceProbe;
+  /** The cages around selected foliage instances. */
+  setFoliageSelection(cages: readonly FoliageCage[]): void;
   /** World box of what these actors draw (three-free). */
   worldBox(actors: readonly ActorId[]): Box | null;
   /** The box of what an actor draws, in its own space (before its scale). */
@@ -201,6 +207,7 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
   let overlay: EditorOverlay | null = null;
   let brush: BrushCursor | null = null;
   let splineOverlay: SplineOverlay | null = null;
+  let foliageSelection: FoliageSelectionOverlay | null = null;
   let splinePoints: SplineOverlayView["points"] = [];
   /** The last `data-forge-spline-points` written. */
   let splinePointsText = "";
@@ -337,7 +344,8 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       grid.mesh.visible = gridVisible;
       brush = createBrushCursor();
       splineOverlay = createSplineOverlay();
-      overlay.scene.add(grid.mesh, helpers, brush.object, splineOverlay.object);
+      foliageSelection = createFoliageSelectionOverlay();
+      overlay.scene.add(grid.mesh, helpers, brush.object, splineOverlay.object, foliageSelection.object);
       icons = createActorIcons(options.document);
       outline = createSelectionOutline(picker, selected);
       overlay.addPass(outline);
@@ -447,7 +455,11 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
     },
     raycast(origin, direction, far, exclude) {
       const hit = picker.raycast(new Vector3().fromArray(origin), new Vector3().fromArray(direction).normalize(), far, exclude);
-      return hit ? { distance: hit.distance, point: hit.point.toArray() } : null;
+      return hit ? { distance: hit.distance, point: hit.point.toArray(), actor: hit.actor, normal: hit.normal ? hit.normal.toArray() : null } : null;
+    },
+    surfaceProbe: (rect) => createSurfaceProbe(host?.world?.root ?? null, rect),
+    setFoliageSelection(cages) {
+      foliageSelection?.set(cages);
     },
     worldBox(actors) {
       return plainBox(picker.bounds(new Set(actors)));
@@ -549,6 +561,8 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       brush = null;
       splineOverlay?.dispose();
       splineOverlay = null;
+      foliageSelection?.dispose();
+      foliageSelection = null;
       overlay?.dispose();
       host?.dispose();
       host = null;

@@ -125,7 +125,7 @@ export interface EditorShell {
   attachContent(panel: ContentPanel): void;
   attachWorldPartition(panel: HTMLElement): void;
   /** Adds a tab beside Details (the Foliage tab, plan 5c F5); the first one turns Details' heading into tabs. */
-  attachDetailsTab(label: string, testId: string, panel: HTMLElement): void;
+  attachDetailsTab(label: string, testId: string, panel: HTMLElement, onVisible?: (visible: boolean) => void): void;
   /** Adds Forge's Play button after the view menus, and its key P (step 8); `play` reports for the status line. */
   attachPlay(play: () => Promise<{ readonly ok: boolean; readonly message: string }>): void;
   /** Saves the level, as the Save button does (the drawer's Save All). */
@@ -265,21 +265,22 @@ export function createShell(options: ShellOptions): EditorShell {
   const detailsBody = el("div", "details-scroll");
   details.append(detailsHeading, detailsBody);
   // Tabs beside Details (attachDetailsTab): one pane shows at a time.
-  let detailsTabs: { readonly list: HTMLElement; readonly tabs: { readonly button: HTMLButtonElement; readonly pane: HTMLElement }[] } | null = null;
+  let detailsTabs: { readonly list: HTMLElement; readonly tabs: { readonly button: HTMLButtonElement; readonly pane: HTMLElement; readonly onVisible: ((visible: boolean) => void) | undefined }[] } | null = null;
   const showDetailsTab = (pane: HTMLElement): void => {
     for (const tab of detailsTabs?.tabs ?? []) {
       tab.pane.hidden = tab.pane !== pane;
       tab.button.setAttribute("aria-selected", String(tab.pane === pane));
     }
+    for (const tab of detailsTabs?.tabs ?? []) tab.onVisible?.(tab.pane === pane);
   };
-  const addDetailsTab = (label: string, testId: string, pane: HTMLElement): void => {
+  const addDetailsTab = (label: string, testId: string, pane: HTMLElement, onVisible?: (visible: boolean) => void): void => {
     const button = el("button", "forge-btn-ghost inspector-tab", label);
     button.type = "button";
     button.setAttribute("role", "tab");
     button.dataset.testid = testId;
     button.onclick = () => showDetailsTab(pane);
     detailsTabs!.list.append(button);
-    detailsTabs!.tabs.push({ button, pane });
+    detailsTabs!.tabs.push({ button, pane, onVisible });
   };
 
   const statusLine = el("footer", "editor-status");
@@ -383,7 +384,7 @@ export function createShell(options: ShellOptions): EditorShell {
       viewControls.append(split);
       actions.play = () => void run();
     },
-    attachDetailsTab(label, testId, panel) {
+    attachDetailsTab(label, testId, panel, onVisible) {
       if (!detailsTabs) {
         const list = el("div", "forge-tab-list");
         list.setAttribute("role", "tablist");
@@ -395,7 +396,7 @@ export function createShell(options: ShellOptions): EditorShell {
       const pane = el("div", "details-scroll");
       pane.append(panel);
       details.append(pane);
-      addDetailsTab(label, testId, pane);
+      addDetailsTab(label, testId, pane, onVisible);
       showDetailsTab(detailsBody);
     },
     attachContent(panel) {

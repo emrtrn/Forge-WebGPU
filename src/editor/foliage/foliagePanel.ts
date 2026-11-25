@@ -1,5 +1,6 @@
 // The Foliage tab beside Details (plan 5c F5, user decision 2026-11-18: ahead
-// of 5d; the paint / erase brush stays in 5d). Forge WebGL's foliage panel
+// of 5d; its tools came with 5d step 6: foliagePaintPanel.ts, above the types,
+// painting the selected type). Forge WebGL's foliage panel
 // (src/editor/panels/foliage/foliagePanel.ts @ forge-webgl-final) listed the
 // level's types and edited the active one's fields by hand; here:
 // - Types: every `forge.foliageType` the project sees (engine content and
@@ -35,6 +36,10 @@ export interface FoliagePanelOptions {
   createAsset(type: string, name: string, values: Readonly<Record<string, unknown>>): Promise<string | null>;
   /** After a save: the asset editor's path (listing, caches, the actors that use it). */
   saved(session: AssetSession): Promise<void>;
+  /** The tools' section, above the types (5d step 6). */
+  readonly tools?: HTMLElement;
+  /** Painted instances of a type in the open level. */
+  readonly painted?: (guid: string) => number;
   /** Opens an asset picker; resolves to the chosen GUID or null. */
   pickAsset(type: string | null): Promise<string | null>;
   status(message: string, tone?: "info" | "warning" | "error"): void;
@@ -44,6 +49,10 @@ export interface FoliagePanel {
   readonly element: HTMLElement;
   /** The listing changed (an import, a move): the type list is drawn again. */
   refresh(): void;
+  /** The selected type; null for none. */
+  selected(): string | null;
+  /** The painted counts changed: the rows' numbers are drawn again. */
+  countsChanged(): void;
   /** The selected type's session, if any (tests, the shell's guards). */
   active(): AssetSession | null;
   dispose(): void;
@@ -101,6 +110,7 @@ export function createFoliagePanel(options: FoliagePanelOptions): FoliagePanel {
   list.dataset.testid = "foliage-type-list";
   const editor = el("div", "foliage-type-editor");
   editor.dataset.testid = "foliage-type-editor";
+  if (options.tools) element.append(options.tools);
   element.append(typesHead, list, editor);
   const rules: FoliageRules | null = options.editor
     ? createFoliageRules({
@@ -141,8 +151,21 @@ export function createFoliagePanel(options: FoliagePanelOptions): FoliagePanel {
       row.title = type.file;
       const writable = options.lookup(type.guid)?.writable ?? false;
       row.append(el("span", "", type.name), el("small", "", writable ? type.file : `${type.file} · Read Only`));
+      if (options.painted) {
+        const count = el("small", "foliage-count");
+        count.dataset.testid = "foliage-type-count";
+        count.title = "Level'da boyanmış örnek sayısı.";
+        row.append(count);
+      }
       row.addEventListener("click", () => void select(type.guid));
       list.append(row);
+    }
+    drawCounts();
+  };
+  const drawCounts = (): void => {
+    for (const count of list.querySelectorAll<HTMLElement>(".foliage-count")) {
+      const painted = options.painted?.(count.closest<HTMLElement>("[data-guid]")!.dataset.guid!) ?? 0;
+      count.textContent = painted > 0 ? String(painted) : "";
     }
   };
 
@@ -240,6 +263,8 @@ export function createFoliagePanel(options: FoliagePanelOptions): FoliagePanel {
       if (selected && !options.lookup(selected)) { closeSession(); selected = null; }
       drawList();
     },
+    selected: () => selected,
+    countsChanged: drawCounts,
     active: () => session,
     dispose() {
       ticket += 1;
