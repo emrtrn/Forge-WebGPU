@@ -14,7 +14,7 @@ Yükseklik haritalı arazi (Forge WebGL'deki Landscape aktörü).
 - `feature.ts`: iki bileşeni kurar.
 - `editor.ts`: editördeki görünüşü (`defineFeatureEditor`): Forge'un Outliner
   ikonu ve tür grubu; terrain Details'inin altında Landscape bölümü (Sculpt /
-  Paint, görünüm kipi, katmanlar; `src/editor/landscape/`), Auto Paint
+  Paint / Splines, görünüm kipi, katmanlar; `src/editor/landscape/`), Auto Paint
   bileşeninin altında Apply Auto Paint.
 - Arazi hücreden büyük olduğu için aktörü kalıcı katmandadır
   (`spatiallyLoaded: false`).
@@ -26,5 +26,9 @@ Yükseklik haritalı arazi (Forge WebGL'deki Landscape aktörü).
   `TerrainRuntimeStreaming`'i, çözme worker'da); öteki bütün tile'larını bir
   kerede okur. Görüş ve gölge ışıklarının frustum'uyla kesilir; landscape
   `material`'ı çizilmez (Forge runtime'ı gibi).
+- Spline mesh'leri (5d adım 5): tanımın `splines`'ından, terrain çizilirken CPU'da
+  bükülür (`engine/terrain/roadMesh.ts`), 128 m'lik hücre parçaları ve düz
+  parçalar statik batch olarak çizilir (`render/sync/roadMeshes.ts`); saklanmaz,
+  editörde ve oyunda aynıdır. Kalıcı katmanda oldukları için HLOD proxy'si yok.
 - Algoritmalar `src/engine/terrain`'de; üretim kalitesi 5a'da, collider Faz 6'da
   gelir (akış o zaman fizikle paylaşılan bir alt sisteme taşınır).

@@ -130,6 +130,12 @@ export async function readForgeLevel(source: ForgeSource, path: string): Promise
     for (const layer of Array.isArray(def.layers) ? def.layers : []) {
       if (isJsonObject(layer) && typeof layer.material === "string") seeds.push(layer.material);
     }
+    for (const spline of Array.isArray(def.splines) ? def.splines : []) {
+      for (const segment of isJsonObject(spline) && Array.isArray(spline.segments) ? spline.segments : []) {
+        const mesh = isJsonObject(segment) ? segment.mesh : null;
+        if (isJsonObject(mesh) && typeof mesh.assetId === "string" && mesh.assetId !== "") seeds.push(mesh.assetId);
+      }
+    }
   }
 
   const foliageDoc = await readSidecar(source, `${base}.foliage.json`);

@@ -86,7 +86,7 @@ export const TerrainAssetType = dataDocumentType(
   "Arazi tanımı: tile ızgarası, yükseklik aralığı, boya katmanları ve yol spline'ları. Tile'lar ve global harita yanındaki parçalardır.",
   ".terrain.json",
   ["{stem}.global.bin", "{stem}.tiles/*.tile.bin"],
-  [{ path: "layers[].material", assetType: "forge.material" }],
+  [{ path: "layers[].material", assetType: "forge.material" }, { path: "splines[].segments[].mesh.assetId", assetType: "forge.model" }],
 );
 
 export const WorldBriefAssetType = dataDocumentType(

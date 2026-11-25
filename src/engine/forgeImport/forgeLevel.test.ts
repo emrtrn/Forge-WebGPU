@@ -80,12 +80,20 @@ describe("importForgeLevel", () => {
     expect(report.missingAssets).toEqual([{ assetId: "kenney-tree", placements: 1 }]);
   });
 
-  test("the terrain's paint layer materials become GUIDs; one the target lacks leaves its layer to its colour, reported", () => {
+  test("the terrain's paint layer materials and spline meshes become GUIDs; one the target lacks is left out, reported", () => {
     const input = fixture();
-    const raw = input.terrains.get(TERRAIN_REF) as { layers: Record<string, unknown>[] };
+    const raw = input.terrains.get(TERRAIN_REF) as { layers: Record<string, unknown>[]; splines: unknown };
+    const points = [{ id: "a", position: [0, 0, 0], width: 4, falloff: 1 }, { id: "b", position: [9, 0, 0], width: 4, falloff: 1 }];
+    raw.splines = [{
+      id: "road", points,
+      segments: ["rock", "kenney-tree"].map((assetId, index) => ({ id: `s${index}`, startPointId: "a", endPointId: "b", mesh: { enabled: true, assetId } })),
+    }];
     raw.layers = [{ id: "meadow", name: "Meadow", color: "#6f9a4a", material: "lt-meadow" }, { id: "snow", name: "Snow", color: "#ffffff", material: "lt-snow" }];
     const { terrains, report } = importForgeLevel(input, resolvers);
     const layers = (terrains[0]!.document.data as { layers: Record<string, unknown>[] }).layers;
+    const [road] = normalizeWorldTerrain(terrains[0]!.document.data).splines!;
+    expect(road!.segments.map((segment) => segment.mesh?.assetId)).toEqual([forgeAssetId("rock"), undefined]);
+    expect(report.notConverted).toContainEqual(expect.objectContaining({ field: "terrain splines[].segments[].mesh.assetId=kenney-tree" }));
     expect(layers.map((layer) => layer.material)).toEqual([forgeAssetId("lt-meadow"), undefined]);
     expect(raw.layers[1]!.material).toBe("lt-snow");
     expect(report.notConverted).toContainEqual(expect.objectContaining({ field: "terrain layers[].material=lt-snow" }));

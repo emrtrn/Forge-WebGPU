@@ -49,6 +49,7 @@ import { createEditorHelpersFeature, type EditorRenderBindingDef } from "./edito
 import { createViewportGizmo, type GizmoView, type ViewportGizmo } from "./gizmo.ts";
 import { createEditorOverlay, type EditorOverlay } from "./overlay.ts";
 import { createBrushCursor, type BrushCursor } from "./brushCursor.ts";
+import { createSplineOverlay, SPLINE_OVERLAY_LIFT, type SplineOverlay, type SplineOverlayView } from "./splineOverlay.ts";
 import { createScenePicker, type ScenePicker } from "./picker.ts";
 import { createSelectionOutline, type SelectionOutline } from "./selectionOutline.ts";
 
@@ -123,6 +124,10 @@ export interface EditorViewport {
   terrainGrids(): readonly TerrainStreamingDebugGrid[];
   /** The Landscape brush ring through these world points (closed, on the terrain); null hides it (plan 5d). */
   setBrushCursor(points: readonly Vec3[] | null): void;
+  /** The Landscape Splines overlay; null hides it (plan 5d step 5). The canvas's `data-forge-spline-points` tells where its points are. */
+  setSplineOverlay(view: SplineOverlayView | null): void;
+  /** Where a world point is on the page; null behind the camera or outside its range. */
+  project(point: Vec3): readonly [number, number] | null;
   /** The perspective camera's pose (Forge's getPlayCameraPose): where Play's camera starts. */
   playPose(): { readonly position: [number, number, number]; readonly quaternion: [number, number, number, number] };
   readonly gridVisible: boolean;
@@ -195,6 +200,10 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
   const unbind: (() => void)[] = [];
   let overlay: EditorOverlay | null = null;
   let brush: BrushCursor | null = null;
+  let splineOverlay: SplineOverlay | null = null;
+  let splinePoints: SplineOverlayView["points"] = [];
+  /** The last `data-forge-spline-points` written. */
+  let splinePointsText = "";
   let outline: SelectionOutline | null = null;
   let gizmo: ViewportGizmo | null = null;
   /** The last `data-forge-gizmo` written. */
@@ -224,6 +233,26 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
     gizmoPoints = text;
     if (text) canvas.dataset.forgeGizmo = text;
     else delete canvas.dataset.forgeGizmo;
+  };
+  const projected = new Vector3();
+  const project = (point: Vec3): readonly [number, number] | null => {
+    if (!host) return null;
+    const rect = host.canvas.getBoundingClientRect();
+    projected.fromArray(point).project(camera.active());
+    if (rect.width === 0 || rect.height === 0 || Math.abs(projected.z) > 1) return null;
+    return [rect.left + ((projected.x + 1) / 2) * rect.width, rect.top + ((1 - projected.y) / 2) * rect.height];
+  };
+  const publishSplinePoints = (canvas: HTMLCanvasElement): void => {
+    const points: Record<string, [number, number]> = {};
+    for (const { id, position } of splinePoints) {
+      const at = project([position[0], position[1] + SPLINE_OVERLAY_LIFT, position[2]]);
+      if (at) points[id] = [Math.round(at[0]), Math.round(at[1])];
+    }
+    const text = splinePoints.length > 0 ? JSON.stringify(points) : "";
+    if (text === splinePointsText) return;
+    splinePointsText = text;
+    if (text) canvas.dataset.forgeSplinePoints = text;
+    else delete canvas.dataset.forgeSplinePoints;
   };
   let grid: EditorGrid | null = null;
   let gridVisible = true;
@@ -307,7 +336,8 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       grid = createEditorGrid(overlay.sceneVisibility);
       grid.mesh.visible = gridVisible;
       brush = createBrushCursor();
-      overlay.scene.add(grid.mesh, helpers, brush.object);
+      splineOverlay = createSplineOverlay();
+      overlay.scene.add(grid.mesh, helpers, brush.object, splineOverlay.object);
       icons = createActorIcons(options.document);
       outline = createSelectionOutline(picker, selected);
       overlay.addPass(outline);
@@ -361,6 +391,7 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       active.updateMatrixWorld();
       gizmo?.update(options.gizmo?.() ?? null, active, rect.height);
       publishGizmo(host.canvas, active);
+      publishSplinePoints(host.canvas);
       host.frame(now);
       const proxies = host.world.scene.getObjectByName("hlod")?.children ?? [];
       host.canvas.dataset.forgeHlod = JSON.stringify({ loaded: proxies.length, visible: proxies.filter((proxy) => proxy.visible).length });
@@ -468,6 +499,11 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
     setBrushCursor(points) {
       brush?.set(points);
     },
+    setSplineOverlay(view) {
+      splineOverlay?.set(view);
+      splinePoints = view?.points ?? [];
+    },
+    project,
     terrainGrids() {
       return host?.world ? terrainStreamingProbes(host.world.scene).map((probe) => probe.stream.debugGrid()) : [];
     },
@@ -511,6 +547,8 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       grid?.dispose();
       brush?.dispose();
       brush = null;
+      splineOverlay?.dispose();
+      splineOverlay = null;
       overlay?.dispose();
       host?.dispose();
       host = null;

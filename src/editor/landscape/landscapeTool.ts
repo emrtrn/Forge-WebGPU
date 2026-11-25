@@ -120,6 +120,17 @@ export function landscapeFlattenTarget(settings: Pick<LandscapeSettings, "flatte
   return settings.flattenUseClickedHeight || (event.ctrlKey && event.altKey) ? sampleHeight : settings.flattenTargetHeight;
 }
 
+/** Where a ray meets a terrain's height field (world), the far map where a tile is not loaded. */
+export function terrainRayHit(terrain: EditableTerrain, ray: Ray): Vec3 | null {
+  const { def } = terrain.session.world;
+  const local: Vec3 = [ray.origin[0] - def.origin[0], ray.origin[1] - def.origin[1], ray.origin[2] - def.origin[2]];
+  const query = { tileQuads: def.tileQuads, spacing: def.spacing, tilesX: def.tilesX, tilesZ: def.tilesZ, origin: [0, 0, 0] as Vec3 };
+  const partial = def.tiles.some(({ key }) => !terrain.session.world.tiles.has(key));
+  const global = partial ? terrain.session.global?.map : undefined;
+  const hit = raycastTerrain(query, terrain.session.world, local, ray.direction, 1e6, global);
+  return hit ? [hit.point[0] + def.origin[0], hit.point[1] + def.origin[1], hit.point[2] + def.origin[2]] : null;
+}
+
 export function createLandscapeTool(options: LandscapeToolOptions): LandscapeTool {
   const { editor, editing, viewport, status } = options;
   let stroke: Stroke | null = null;
@@ -137,17 +148,9 @@ export function createLandscapeTool(options: LandscapeToolOptions): LandscapeToo
     return editing.find(primary) ?? null;
   };
 
-  /** Where the pointer's ray meets the terrain's height field (world), the far map where a tile is not loaded. */
   const terrainHit = (terrain: EditableTerrain, clientX: number, clientY: number): Vec3 | null => {
     const ray = viewport.pointerRay(clientX, clientY);
-    if (!ray) return null;
-    const { def } = terrain.session.world;
-    const local: Vec3 = [ray.origin[0] - def.origin[0], ray.origin[1] - def.origin[1], ray.origin[2] - def.origin[2]];
-    const query = { tileQuads: def.tileQuads, spacing: def.spacing, tilesX: def.tilesX, tilesZ: def.tilesZ, origin: [0, 0, 0] as Vec3 };
-    const partial = def.tiles.some(({ key }) => !terrain.session.world.tiles.has(key));
-    const global = partial ? terrain.session.global?.map : undefined;
-    const hit = raycastTerrain(query, terrain.session.world, local, ray.direction, 1e6, global);
-    return hit ? [hit.point[0] + def.origin[0], hit.point[1] + def.origin[1], hit.point[2] + def.origin[2]] : null;
+    return ray ? terrainRayHit(terrain, ray) : null;
   };
 
   /** The ring around `centre`, on the ground where tiles are loaded. */

@@ -51,6 +51,10 @@
 //   Landscape view mode (lit / height / slope / layer) is the editing
 //   service's setting, passed to the view each frame; only an editor view has
 //   it compiled in.
+// - Spline meshes (5d step 5, INV-G21): the definition's road meshes are made
+//   when the terrain is drawn (render/sync/roadMeshes.ts), in the game and the
+//   editor alike; `splinesChanged` and edits of the ground under an aligned
+//   road build them again.
 //
 // A terrain whose data fails to load draws nothing; the cache counts it and
 // the host reports it.
@@ -74,6 +78,7 @@ import { resourceKey } from "../../render/resources/resourceCache.ts";
 import type { TerrainData as LoadedTerrain, TerrainLayerInput, TerrainTileReader } from "../../render/resources/terrains.ts";
 import { defineRenderBinding } from "../../render/sync/renderBinding.ts";
 import { tagTerrainStreaming, tagTerrainView } from "../../render/sync/debugTags.ts";
+import { createRoadMeshes, type RoadMeshes } from "../../render/sync/roadMeshes.ts";
 import { tagActorObject, tagPickSurface, type PickSurface } from "../../render/sync/pickTags.ts";
 import { TerrainView, terrainShadowCasters } from "../../render/sync/terrainView.ts";
 import { publishTerrainSurface, terrainSurface, withdrawTerrainSurface } from "../../render/sync/terrainSurfaces.ts";
@@ -108,6 +113,7 @@ export function terrainPickSurface(terrain: Pick<LoadedTerrain, "def">, view: Te
 interface Placed {
   readonly actor: ActorId;
   view: TerrainView | null;
+  roads: RoadMeshes | null;
   stream: TerrainRuntimeStreaming | null;
   reader: TerrainTileReader | null;
   /** The sources of the stream's last update. */
@@ -228,6 +234,14 @@ export default defineRenderBinding({
       if (entry.stream) tagTerrainStreaming(view.mesh, { stream: entry.stream, sources: () => entry.sources });
       entry.view = view;
       ctx.root.add(view.mesh);
+      entry.roads = createRoadMeshes({
+        ctx, actor: actor.id, name: `${actor.name}/${key}`,
+        input: () => ({
+          def: session?.world.def ?? def,
+          tiles: session ? session.world.tiles : (terrain.tiles ?? document.tiles),
+          load: async (tile) => session?.edited.get(tile) ?? validateTerrainTile(session?.world.def ?? def, tile, (await terrain.readTile(tile)).bytes),
+        }),
+      });
       // The foliage ring grows on the live tiles (plan 5c F1).
       publishTerrainSurface(ctx.scene, actor.id, {
         def, tiles: view.source, existingTiles: new Set(def.tiles.map((tile) => tile.key)), global,
@@ -244,7 +258,10 @@ export default defineRenderBinding({
           streams: entry.stream !== null,
           changed: (dirty) => {
             for (const [tileKey, rect] of dirty) view.updateTile(tileKey, rect);
+            entry.roads?.groundChanged(dirty.keys());
           },
+          splinesChanged: () => entry.roads?.rebuild(),
+          roads: () => entry.roads?.stats() ?? { chunks: 0, pieces: 0, triangles: 0, problems: [], building: false },
           definitionChanged: async () => {
             const generation = ++entry.generation;
             const { world } = session;
@@ -302,7 +319,9 @@ export default defineRenderBinding({
       if (entry.view && terrainSurface(ctx.scene, entry.actor)?.tiles === entry.view.source) withdrawTerrainSurface(ctx.scene, entry.actor);
       entry.stream?.dispose();
       entry.reader?.dispose();
+      entry.roads?.dispose();
       entry.view?.dispose();
+      entry.roads = null;
       entry.stream = null;
       entry.reader = null;
       entry.view = null;
@@ -311,7 +330,7 @@ export default defineRenderBinding({
     const add = (actor: WorldActor, key: string, data: TerrainData): void => {
       const id = `${actor.id}/${key}`;
       const entry: Placed = {
-        actor: actor.id, view: null, stream: null, reader: null, sources: [], busy: null, settled: false, removed: false,
+        actor: actor.id, view: null, roads: null, stream: null, reader: null, sources: [], busy: null, settled: false, removed: false,
         key: data.data === null ? null : resourceKey.terrain(data.data),
         session: null, unregister: null, generation: 0, held: new Map(), demands: [],
         latest: actor, placedAt: [...actor.transform.p] as [number, number, number],
@@ -369,6 +388,7 @@ export default defineRenderBinding({
               if (entry.session && entry.view) {
                 const [x, y, z] = actor.transform.p;
                 entry.view.mesh.position.set(x - entry.placedAt[0], y - entry.placedAt[1], z - entry.placedAt[2]);
+                entry.roads?.setOffset(x - entry.placedAt[0], y - entry.placedAt[1], z - entry.placedAt[2]);
               }
             }
             continue;
@@ -413,6 +433,7 @@ export default defineRenderBinding({
           settleDemands(entry);
           casters ??= terrainShadowCasters(ctx.scene);
           view.update(frame.camera, casters);
+          entry.roads?.sync(frame.camera);
           const stats = stream?.world.stats();
           const settled = (!stats || stats.queued + stats.inFlight === 0) && view.pendingUploads === 0;
           entry.settled = settled;

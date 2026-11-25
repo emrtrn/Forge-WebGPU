@@ -25,6 +25,8 @@ function setup() {
     actor: ACTOR, component: "terrain", guid: "g", session, streams: false,
     changed: () => { calls.changed += 1; },
     definitionChanged: async () => { calls.layers += 1; },
+    splinesChanged: () => {},
+    roads: () => ({ chunks: 0, pieces: 0, triangles: 0, problems: [], building: false }),
     demand: async () => {},
     release: () => {},
   };

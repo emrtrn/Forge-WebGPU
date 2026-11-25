@@ -103,6 +103,8 @@ import { createTerrainEditing, TerrainEditingKey } from "../engine/terrain/terra
 import { createLandscapeLayers, LandscapeLayersKey } from "./landscape/landscapeLayers.ts";
 import { createLandscapeTerrain, LandscapeTerrainKey } from "./landscape/landscapeTerrain.ts";
 import { resourceKey } from "../render/resources/resourceCache.ts";
+import { createLandscapeSplines, LandscapeSplinesKey } from "./landscape/landscapeSplines.ts";
+import { createLandscapeSplineTool, type LandscapeSplineTool } from "./landscape/landscapeSplineTool.ts";
 import { createLandscapeTool, type LandscapeTool } from "./landscape/landscapeTool.ts";
 import { createLandscapeSave } from "./landscape/landscapeSave.ts";
 
@@ -217,6 +219,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     let editor: EditorSession | null = null;
     let tools: TransformTools | null = null;
     let landscape: LandscapeTool | null = null;
+    let splineTool: LandscapeSplineTool | null = null;
     let commands: EditCommands | null = null;
     let thumbnails: ContentThumbnails | null = null;
     /** Who hears each frame (a Details preview that plays). */
@@ -244,15 +247,18 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
           if (actor) editor.selection.toggle(actor);
         } else editor.selection.set(actor ? [actor] : []);
       },
-      gizmo: () => tools?.gizmo() ?? null,
-      // A gizmo handle first, then the Landscape brush on the selected terrain (5d), then the selection click.
-      onPointerDown: (event) => (tools?.pointerDown(event) ?? false) || (landscape?.pointerDown(event) ?? false),
+      // A spline point's gizmo stands in for the terrain's (5d step 5).
+      gizmo: () => splineTool?.gizmo() ?? tools?.gizmo() ?? null,
+      // A gizmo handle first, then the Landscape spline tool or brush on the selected terrain (5d), then the selection click.
+      onPointerDown: (event) => (splineTool?.gizmo() ? splineTool.grab(event) : (tools?.pointerDown(event) ?? false))
+        || (splineTool?.pointerDown(event) ?? false) || (landscape?.pointerDown(event) ?? false),
       // A gizmo drag keeps its moves (the brush ring would take them over the selected terrain).
-      onPointerMove: (event) => (tools?.dragging ? tools.pointerMove(event) : landscape?.pointerMove(event) ? null : (tools?.pointerMove(event) ?? null)),
+      onPointerMove: (event) => (splineTool && !tools?.dragging && (splineTool.dragging || splineTool.gizmo()) ? splineTool.pointerMove(event) : tools?.dragging ? tools.pointerMove(event) : landscape?.pointerMove(event) ? null : (tools?.pointerMove(event) ?? null)),
       onPointerUp: (event) => {
-        if (!landscape?.pointerUp(event)) tools?.pointerUp(event);
+        if (!splineTool?.pointerUp(event) && !landscape?.pointerUp(event)) tools?.pointerUp(event);
       },
       onPointerCancel: () => {
+        splineTool?.cancel();
         landscape?.cancel();
         void tools?.cancel();
       },
@@ -475,6 +481,23 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     });
     world.services.provide(LandscapeTerrainKey, landscapeTerrain);
     tools = createTransformTools({ editor: session, viewport, storage: pageStorage(doc), status: (message, tone) => shell.status(message, tone), duplicate: (coalesce) => editCommands.duplicateForDrag(coalesce) });
+    // Landscape splines (plan 5d step 5): the Details' actions and the viewport tool.
+    const landscapeSplines = createLandscapeSplines({
+      editor: session, editing: terrainEditing, status: (message, tone) => shell.status(message, tone), assetLabel: (guid) => assets.label(guid),
+      pickAsset: (type) => openPicker({ document: doc, host: shell.root, title: "Select Asset", testId: "asset-picker", items: assets.ofType(type).map((item) => ({ id: item.guid, label: item.name, note: item.file })) }),
+    });
+    world.services.provide(LandscapeSplinesKey, landscapeSplines);
+    const transformTools = tools;
+    splineTool = createLandscapeSplineTool({
+      editor: session, editing: terrainEditing, splines: landscapeSplines, viewport,
+      snap: () => transformTools.snap, gizmoShown: () => transformTools.tool !== "select",
+    });
+    frameListeners.add(() => splineTool?.update());
+    // An undo, another edit or Escape under a point drag: the drag's start is stale.
+    session.onChange(() => void splineTool?.cancel());
+    doc.addEventListener("keydown", (event) => {
+      if (event.code === "Escape" && splineTool?.cancel()) event.preventDefault();
+    });
     shell.attachTools(tools, () => viewport.camera.navigating);
     const play = createEditorPlay({
       level: session.level,

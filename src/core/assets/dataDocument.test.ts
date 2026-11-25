@@ -60,6 +60,11 @@ describe("data documents", () => {
     expect(dataDocumentReferences(GroundCoverAssetType, data)).toEqual(expected);
     expect(dataDocumentReferences(WorldBriefAssetType, data)).toEqual([]);
     expect(dataDocumentReferences(TerrainAssetType, { layers: "none" })).toEqual([]);
+    const road = assetId("b3");
+    const splines = [{ segments: [{ mesh: { enabled: true, assetId: road } }, { mesh: { assetId: "sm-road" } }, {}] }];
+    expect(dataDocumentReferences(TerrainAssetType, { splines })).toEqual([
+      { path: "data.splines[0].segments[0].mesh.assetId", target: road, assetType: "forge.model", via: "field" },
+    ]);
   });
 
   test("the asset index reports a paint layer material that is not there", () => {

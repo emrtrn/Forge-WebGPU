@@ -27,7 +27,11 @@ import { DEFAULT_TERRAIN_SCULPT_SETTINGS, type TerrainSculptSettings, type Terra
 /** Forge's World Terrain sculpt tools, in its order. */
 export const LANDSCAPE_SCULPT_TOOLS: readonly TerrainSculptTool[] = ["raise", "lower", "smooth", "flatten", "noise", "ramp", "terrace", "erosion"];
 
-export type LandscapeEditMode = "sculpt" | "paint";
+export type LandscapeEditMode = "sculpt" | "paint" | "splines";
+
+/** Forge's spline tools: Draw adds points (welds, branches, closes), Edit selects and drags them. */
+export type LandscapeSplineTool = "draw" | "edit";
+export const LANDSCAPE_SPLINE_TOOLS: readonly LandscapeSplineTool[] = ["draw", "edit"];
 
 /** Forge's paint tools: lay the active layer, take it away, even out the weights. */
 export type LandscapePaintTool = LandscapeWeightBrushMode;
@@ -49,6 +53,14 @@ export interface LandscapeSettings extends TerrainSculptSettings {
   /** The paint layer's id; one a terrain does not have paints nothing (the panel picks the terrain's first). */
   readonly activeLayerId: string;
   readonly viewMode: LandscapeViewMode;
+  readonly splineTool: LandscapeSplineTool;
+  /** Splines mode's selection (5d step 5, user decision: the page's, never an undo step of its own): the active spline, its active point and segment. */
+  readonly activeSplineId: string | null;
+  readonly activeSplinePointId: string | null;
+  readonly activeSplineSegmentId: string | null;
+  /** The points and segments the panel edits together (Ctrl / Shift); the active one is among them. */
+  readonly splinePointIds: readonly string[];
+  readonly splineSegmentIds: readonly string[];
   /** Radius in metres. */
   readonly brushSize: number;
   readonly strength: number;
@@ -68,6 +80,12 @@ export const DEFAULT_LANDSCAPE_SETTINGS: Readonly<LandscapeSettings> = {
   paintPanel: "brush",
   activeLayerId: "",
   viewMode: "lit",
+  splineTool: "draw",
+  activeSplineId: null,
+  activeSplinePointId: null,
+  activeSplineSegmentId: null,
+  splinePointIds: [],
+  splineSegmentIds: [],
   brushSize: 6,
   strength: 0.25,
   falloff: 2,
@@ -94,6 +112,10 @@ export interface EditableTerrain {
    * from the session. Resolves when it is.
    */
   definitionChanged(): Promise<void>;
+  /** The definition's splines changed (5d step 5): their meshes are built again, the terrain stays as drawn. */
+  splinesChanged(): void;
+  /** Its spline meshes as drawn now. */
+  roads(): { readonly chunks: number; readonly pieces: number; readonly triangles: number; readonly problems: readonly string[]; readonly building: boolean };
   /** Keeps `keys` resident until released; resolves when every declared one is in the world as read, rejects when one fails to read. */
   demand(keys: Iterable<string>): Promise<void>;
   release(keys: Iterable<string>): void;

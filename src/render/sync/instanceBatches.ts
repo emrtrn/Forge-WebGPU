@@ -89,6 +89,8 @@ export interface InstanceBatchOptions {
   readonly castShadow: boolean;
   readonly shadowCasters?: InstancedShadowCasters;
   readonly invalidateReadiness?: () => void;
+  /** False: what it draws is not picked or outlined (a terrain's spline meshes). Default true. */
+  readonly pick?: boolean;
 }
 
 const WHITE = new Color(1, 1, 1);
@@ -308,7 +310,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
           mesh.receiveShadow = true;
           mesh.matrixAutoUpdate = false;
           if (options.source !== undefined) mesh.userData[SCENE_SOURCE_KEY] = options.source;
-          if (part.slots) tagPartSlots(mesh, part.slots);
+          if (part.slots && options.pick !== false) tagPartSlots(mesh, part.slots);
           if (!options.prepare && !lodOf.includes(true)) options.parent.add(mesh);
           return mesh;
         });
@@ -332,7 +334,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
       casterScale.value = maxScale;
       if (fadePlacements) fadePlacements.needsUpdate = true;
       meshes.forEach((mesh, partIndex) => {
-        tagInstanceActors(mesh, actors);
+        if (options.pick !== false) tagInstanceActors(mesh, actors);
         const part = parts![partIndex]!;
         const base = baseColorOf(part.material);
         let index = 0;

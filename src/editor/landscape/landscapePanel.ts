@@ -15,6 +15,9 @@
 // this actor). Layer actions are the editor's (landscapeLayers.ts), each one
 // undo step.
 //
+// Splines (step 5, landscapeSplinePanel.ts): Draw / Edit Points and Forge's
+// spline lists and effects.
+//
 // Tiles (step 4): Expand… (a single tile into a grid), Import Heightmap… and
 // Export PNG / RAW (landscapeTerrain.ts). Moving the terrain is the gizmo's.
 //
@@ -25,8 +28,8 @@
 
 import { bool, enumOf, formFields, num, type ActorId, type FieldMap } from "../../core/index.ts";
 import {
-  LANDSCAPE_PAINT_TOOLS, LANDSCAPE_SCULPT_TOOLS, LANDSCAPE_VIEW_MODES, TerrainEditingKey,
-  type EditableTerrain, type LandscapePaintTool, type LandscapeSettings, type LandscapeViewMode, type TerrainEditing,
+  LANDSCAPE_PAINT_TOOLS, LANDSCAPE_SCULPT_TOOLS, LANDSCAPE_SPLINE_TOOLS, LANDSCAPE_VIEW_MODES, TerrainEditingKey,
+  type EditableTerrain, type LandscapePaintTool, type LandscapeSettings, type LandscapeSplineTool, type LandscapeViewMode, type TerrainEditing,
 } from "../../engine/terrain/terrainEditing.ts";
 import type { TerrainSculptTool } from "../../engine/terrain/terrainSculpt.ts";
 import { terrainTileWorldSize } from "../../engine/terrain/terrainTypes.ts";
@@ -34,6 +37,8 @@ import type { DetailsExtensionContext } from "../host/featureEditor.ts";
 import { createFormView, createSection, type FormView } from "../ui/formView.ts";
 import { LandscapeLayersKey, type LandscapeLayers } from "./landscapeLayers.ts";
 import { createAutoPaintBlock, createLayerBlock, createPaintTabs } from "./landscapePaintPanel.ts";
+import { createSplineBlock } from "./landscapeSplinePanel.ts";
+import { LandscapeSplinesKey } from "./landscapeSplines.ts";
 import { LandscapeTerrainKey } from "./landscapeTerrain.ts";
 
 const TOOL_LABELS: Record<TerrainSculptTool, string> = {
@@ -43,9 +48,15 @@ const TOOL_LABELS: Record<TerrainSculptTool, string> = {
 const PAINT_TOOL_LABELS: Record<LandscapePaintTool, string> = { paint: "Paint", erase: "Erase", smoothWeights: "Weights" };
 const VIEW_LABELS: Record<LandscapeViewMode, string> = { lit: "Lit", height: "Height", slope: "Slope", layer: "Layer" };
 
-/** The mode row: Sculpt / Paint. */
+const SPLINE_TOOL_LABELS: Record<LandscapeSplineTool, string> = { draw: "Draw", edit: "Edit Points" };
+const SPLINE_TOOL_HINTS: Record<LandscapeSplineTool, string> = {
+  draw: "Arazide tıklamak etkin spline'a nokta ekler; var olan bir noktaya tıklamak ona bağlar (kapatır, dallandırır, birleştirir).",
+  edit: "Noktaya tıklamak seçer; gizmo ile taşınır.",
+};
+
+/** The mode row: Sculpt / Paint / Splines. */
 const MODE_FIELDS: FieldMap = {
-  mode: enumOf(["sculpt", "paint"], { default: "sculpt", labels: { sculpt: "Sculpt", paint: "Paint" }, label: "Mode", hint: "Sculpt yüksekliği, Paint boya katmanlarını düzenler." }),
+  mode: enumOf(["sculpt", "paint", "splines"], { default: "sculpt", labels: { sculpt: "Sculpt", paint: "Paint", splines: "Splines" }, label: "Mode", hint: "Sculpt yüksekliği, Paint boya katmanlarını, Splines yolları düzenler." }),
 };
 
 /** The view row under the brush (an editor preview, never saved). */
@@ -135,7 +146,7 @@ function settingsPatch(value: Record<string, unknown>, tool: TerrainSculptTool):
 
 /** Which fields a settings change needs (the mode, a new tool, an erosion type, the clicked height switch). */
 const fieldsKey = (settings: LandscapeSettings): string =>
-  settings.mode === "paint" ? `paint:${settings.paintPanel}` : `${settings.tool}:${settings.erosionHydraulic}:${settings.flattenUseClickedHeight}`;
+  settings.mode === "splines" ? "splines" : settings.mode === "paint" ? `paint:${settings.paintPanel}` : `${settings.tool}:${settings.erosionHydraulic}:${settings.flattenUseClickedHeight}`;
 
 const button = (doc: Document, label: string, testId: string, title: string, onClick: () => void): HTMLButtonElement => {
   const node = doc.createElement("button");
@@ -161,7 +172,9 @@ function createToolGrid(doc: Document, editing: TerrainEditing) {
     if (shown !== settings.mode) {
       shown = settings.mode;
       buttons.clear();
-      const entries: [string, string, string, () => void][] = painting
+      const entries: [string, string, string, () => void][] = settings.mode === "splines"
+        ? LANDSCAPE_SPLINE_TOOLS.map((tool) => [tool, SPLINE_TOOL_LABELS[tool], SPLINE_TOOL_HINTS[tool], () => editing.update({ splineTool: tool })])
+        : painting
         ? LANDSCAPE_PAINT_TOOLS.map((tool) => [tool, PAINT_TOOL_LABELS[tool], PAINT_TOOL_HINTS[tool], () => editing.update({ paintTool: tool })])
         : LANDSCAPE_SCULPT_TOOLS.map((tool) => [tool, TOOL_LABELS[tool], SCULPT_TOOL_HINTS[tool], () => editing.update({ tool })]);
       element.replaceChildren(...entries.map(([tool, label, title, pick]) => {
@@ -171,7 +184,7 @@ function createToolGrid(doc: Document, editing: TerrainEditing) {
         return node;
       }));
     }
-    const current = painting ? settings.paintTool : settings.tool;
+    const current = settings.mode === "splines" ? settings.splineTool : painting ? settings.paintTool : settings.tool;
     for (const [tool, node] of buttons) {
       node.classList.toggle("on", tool === current);
       node.setAttribute("aria-pressed", String(tool === current));
@@ -218,7 +231,13 @@ export function createLandscapeDetails(ctx: DetailsExtensionContext): { element:
     const target = ctx.target();
     return { actor: target?.actor ?? null, terrain: target ? editing.find(target.actor, target.key) : undefined };
   };
+  const splineBlock = createSplineBlock(doc, editing, ctx.service(LandscapeSplinesKey), ctx.status);
   const drawLayers = (): void => {
+    if (editing.settings.mode === "splines") {
+      const { actor, terrain } = terrainNow();
+      splineBlock.draw(actor, terrain);
+      return;
+    }
     if (editing.settings.mode !== "paint") return;
     const { actor, terrain } = terrainNow();
     // A terrain without the active layer paints its first one.
@@ -246,13 +265,21 @@ export function createLandscapeDetails(ctx: DetailsExtensionContext): { element:
     toolGrid.draw();
     paintTabs.draw();
     const key = fieldsKey(settings);
-    if (form && key === shownFields) {
-      form.update(formValue(settings));
+    if (key === shownFields) {
+      form?.update(formValue(settings));
       drawLayers();
       return;
     }
     shownFields = key;
     const painting = settings.mode === "paint";
+    if (settings.mode === "splines") {
+      form = null;
+      toolHint.hidden = false;
+      toolHint.textContent = "Draw: arazide tıkla; var olan noktaya tıklamak bağlar (kapat, dallandır, birleştir). Edit Points: noktayı seç, gizmo ile taşı.";
+      tools.body.replaceChildren(modeForm.element, toolGrid.element, toolHint, splineBlock.element, viewForm.element);
+      drawLayers();
+      return;
+    }
     form = createFormView({
       document: doc,
       fields: formFields(painting ? landscapePaintFields() : landscapeFields(settings)),

@@ -170,13 +170,15 @@ export interface ForgeLevelImport {
 }
 
 /**
- * The Forge terrain definition with each paint layer's material as the
- * material asset's GUID; a material the target does not have leaves the
- * layer without one (it paints with its colour) and is counted in the report.
+ * The Forge terrain definition with each paint layer's material and each
+ * spline segment's mesh as the asset's GUID; one the target does not have
+ * leaves the layer without a material (it paints with its colour) or the
+ * segment without a mesh, and is counted in the report.
  */
-function terrainWithLayerMaterialIds(
+function terrainWithAssetIds(
   raw: JsonObject,
   materialAsset: ((forgeMaterialId: string) => string | null) | undefined,
+  meshAsset: (forgeAssetId: string) => string | null,
   note: (field: string, count: number, phase: string) => void,
 ): JsonObject {
   const def = structuredClone(raw);
@@ -188,6 +190,19 @@ function terrainWithLayerMaterialIds(
       delete layer.material;
     } else {
       layer.material = guid;
+    }
+  }
+  for (const spline of arrayOf(def.splines)) {
+    for (const segment of arrayOf(isJsonObject(spline) ? spline.segments : null)) {
+      const mesh = isJsonObject(segment) ? segment.mesh : null;
+      if (!isJsonObject(segment) || !isJsonObject(mesh) || typeof mesh.assetId !== "string" || mesh.assetId === "") continue;
+      const guid = meshAsset(mesh.assetId);
+      if (guid === null) {
+        note(`terrain splines[].segments[].mesh.assetId=${mesh.assetId}`, 1, "- (model hedefte yok)");
+        delete segment.mesh;
+      } else {
+        mesh.assetId = guid;
+      }
     }
   }
   return def;
@@ -352,7 +367,7 @@ export function importForgeLevel(input: ForgeLevelInput, options: ForgeLevelOpti
     terrains.push({
       file,
       source: landscape.dataRef,
-      document: dataDocument(TerrainAssetType, data, terrainWithLayerMaterialIds(raw as JsonObject, options.materialAsset, note)),
+      document: dataDocument(TerrainAssetType, data, terrainWithAssetIds(raw as JsonObject, options.materialAsset, options.meshAsset, note)),
       tileKeys: def.tiles.map((tile) => tile.key),
     });
     for (const field of Object.keys(landscape)) {
