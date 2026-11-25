@@ -10,6 +10,7 @@ import { createWorld } from "../../runtime/world.ts";
 import type { AssetEditorExtensionContext } from "../host/assetEditorTypes.ts";
 import type { AssetCatalog } from "./assetCatalog.ts";
 import type { EditableAsset } from "./assetDocument.ts";
+import { fetchRecipeLinks } from "./recipeClient.ts";
 
 export interface AssetPreviewsOptions {
   /** The viewport's render host; null before it starts and once the device is lost. */
@@ -51,6 +52,7 @@ export function createAssetPreviews(options: AssetPreviewsOptions): OpenAssetPre
       host, container, guid: asset.id, urls: options.assetUrls, materialType: options.materialType, readOnly: !asset.writable, status,
       edit: (path, value, phase) => edit("Edit in preview", path, value, phase),
       assetsOf: (type) => options.catalog.ofType(type).map((item) => item.guid),
+      recipeLinks: fetchRecipeLinks,
       classWorld: classWorld(host),
     };
     if (key === "forge.actorClass") return createAssetPreview(context, "class");

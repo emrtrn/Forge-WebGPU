@@ -26,7 +26,7 @@
 // texture, the family and a foliage type per prototype beside it. It lives
 // here, not in procgen, because it carries the family's response profile.
 
-import { array, assetRef, bool, color, defineComponent, defineJsonAssetType, enumOf, num, object, vec2, type ComponentData, type FieldValues, type JsonAssetDoc } from "../../core/index.ts";
+import { array, assetRef, bool, color, defineComponent, defineJsonAssetType, enumOf, num, object, text, vec2, type ComponentData, type FieldValues, type JsonAssetDoc } from "../../core/index.ts";
 
 export const LEAF_HABITS = ["deciduous", "evergreen"] as const;
 export const PLANT_COLLIDERS = ["none", "trunk", "hull"] as const;
@@ -270,6 +270,36 @@ export const TreeRecipeAssetType = defineJsonAssetType(
 );
 
 export type TreeRecipeData = FieldValues<typeof TreeRecipeFields>;
+
+export const FAMILY_SHEET_STATUSES = ["pending", "approved", "rejected"] as const;
+
+export const FamilySheetFields = {
+  entries: array(
+    object(
+      {
+        recipe: assetRef({ hint: "Onaylanan ağaç, çalı, ot ya da kaya tarifi (projenin ya da paketin)." }),
+        status: enumOf(FAMILY_SHEET_STATUSES, { default: "pending", labels: { pending: "Pending", approved: "Approved", rejected: "Rejected" }, hint: "Kullanıcının kararı. Reddedilen tarif üretilen dünyada kullanılmaz." }),
+        digest: text({ default: "", hint: "Karar verildiğindeki çıktının özeti; çıktı değişince onay 'Changed' olur." }),
+        note: text({ default: "", hint: "Karara not." }),
+      },
+      { label: "Recipe" },
+    ),
+    { hint: "Sayfadaki tarifler." },
+  ),
+};
+
+/**
+ * The approval page of generated families (plan §7.3, PG5; user decision
+ * 2026-11-25: its own asset in the project, so a pack's family can be
+ * approved too and a regeneration does not erase the answer). World Builder
+ * reads it (engine/plant/familySheet.ts).
+ */
+export const FamilySheetAssetType = defineJsonAssetType(
+  "forge.familySheet",
+  1,
+  { suffix: ".familysheet.json", fields: FamilySheetFields },
+  { label: "Family Sheet", hint: "Üretilmiş ailelerin onay sayfası: tarif başına karar, önizlemesiyle." },
+);
 
 const GrassRecipeFields = {
   variants: array(num({ min: 0, max: 4294967295, default: 1, step: 1 }), { default: [1, 2, 3], hint: "Her tohum ayrı bir ot demeti üretir." }),

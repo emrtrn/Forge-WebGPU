@@ -8,6 +8,14 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.15
+
+API: 746e548859aa3406
+
+An asset preview may offer `select(key)`: an asset editor's tools show one part
+of the asset in it. The family sheet's list shows the selected recipe's
+generated output.
+
 ## 0.1.14
 
 API: adbd54da1880bca0

@@ -78,7 +78,7 @@ interface JsonAssetTypeDef<M>
 
 type LevelId = `lvl_${string}`
 
-const SDK_VERSION: "0.1.14"
+const SDK_VERSION: "0.1.15"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -254,6 +254,7 @@ interface AssetPreviewController
   dispose: () => void
   focus: () => void
   info: () => AssetPreviewInfo
+  select?: ((key: string) => void) | undefined
   setTool: (tool: "select" | "move" | "rotate" | "scale") => void
   update: (document: Readonly<Record<string, unknown>>) => Promise<void>
 
@@ -312,7 +313,7 @@ const OUTLINER_TYPES: readonly [{ readonly type: "mesh"; readonly label: "Meshes
 
 type OutlinerType = "mesh" | "character" | "light" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
 
-const SDK_VERSION: "0.1.14"
+const SDK_VERSION: "0.1.15"
 
 function defineFeatureEditor(options: FeatureEditorOptions): FeatureEditorDef
 

@@ -2,6 +2,7 @@
 // Runtime class-world construction is injected by the editor (layer boundary).
 import { AmbientLight, Box3, BufferAttribute, Color, DirectionalLight, Group, Mesh, NoToneMapping, PerspectiveCamera, Scene, SphereGeometry, SRGBColorSpace, type Material, type Object3D, type Texture } from "three/webgpu";
 import { isJsonObject, normalizeJsonAsset, type AssetPreviewController, type AssetPreviewInfo, type JsonAssetTypeDef } from "../../core/index.ts";
+import type { RecipeLinks } from "../../engine/procgen/recipeLinks.ts";
 import type { RenderHost } from "../host/renderHost.ts";
 import { createSurfaceMaterial, surfaceTextureSlots, type SurfaceMaterialData } from "../materials/surfaceMaterial.ts";
 import type { AssetUrls } from "../resources/assetUrls.ts";
@@ -22,6 +23,8 @@ export interface AssetPreviewContext {
   readonly readOnly: boolean;
   /** GUIDs of the project's assets of a type. */
   readonly assetsOf?: (type: string) => readonly string[];
+  /** A model recipe's published output and connections. */
+  readonly recipeLinks?: (recipe: string) => Promise<RecipeLinks>;
   readonly classWorld?: (document: Readonly<Record<string, unknown>>) => PreviewClassWorld;
   edit(path: readonly (string | number)[], value: unknown, phase: "input" | "commit"): void;
   status(message: string): void;

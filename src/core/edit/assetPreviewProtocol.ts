@@ -9,5 +9,7 @@ export interface AssetPreviewController {
   info(): AssetPreviewInfo;
   focus(): void;
   setTool(tool: "select" | "move" | "rotate" | "scale"): void;
+  /** Shows one part of the asset, by the key its tools use (an approval page's recipe). */
+  select?(key: string): void;
   dispose(): void;
 }

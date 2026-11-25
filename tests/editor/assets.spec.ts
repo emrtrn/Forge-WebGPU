@@ -20,6 +20,7 @@ const disk = (path: string) => join(project, ...path.split("/"));
 const json = async (path: string) => JSON.parse(await readFile(disk(path), "utf8"));
 const write = (path: string, value: unknown) => writeFile(disk(path), JSON.stringify(value));
 const species = async (name: string) => JSON.parse(await readFile(join(REPO, "content/packs/starter/procgen/trees", `${name}.treerecipe.json`), "utf8"));
+const SHEET = `ast_${"d".repeat(32)}`;
 const comparison = `${FOLDER}/comparison.treerecipe.json`, comparisonId = `ast_${"a".repeat(31)}6`;
 
 test.beforeAll(async () => {
@@ -36,6 +37,7 @@ export default defineGameModule({ id:'starter.assets', features:[defineFeature({
   await write(`${FOLDER}/grove.treerecipe.json`, { ...tree, id: `ast_${"a".repeat(31)}5`, variants: [1], impostor: { ...tree.impostor, views: 4, frameSize: "64" } });
   const family = JSON.parse(await readFile(join(REPO, "content/packs/starter/procgen/trees/Broadleaf/Broadleaf.plantfamily.json"), "utf8"));
   await write(`${FOLDER}/family.plantfamily.json`, { ...family, id: `ast_${"a".repeat(31)}9` });
+  await write(`${FOLDER}/page.familysheet.json`, { schema: "forge.familySheet/1", id: SHEET, entries: [] });
   const rock = JSON.parse(await readFile(join(REPO, "content/packs/starter/procgen/rocks/RockRounded.rockrecipe.json"), "utf8"));
   await write(`${FOLDER}/boulder.rockrecipe.json`, { ...rock, id: `ast_${"a".repeat(31)}8`, variants: [4, 5], lods: [2, 1] });
   await write(`${FOLDER}/tree2.treerecipe.json`, { schema: "forge.treeRecipe/1", id: `ast_${"a".repeat(31)}7`, variants: [7] });
@@ -175,6 +177,52 @@ test("plant family previews prototypes, LODs and a single plant beside foliage i
     if (season === "winter") await preview.getByLabel("Snow").fill("0.8");
     await previewShot(page, `family-foliage-${season}`, info);
   }
+  await close(page); expect(errors).toEqual([]);
+});
+
+test("family sheet lists generated recipes, shows their output, keeps an answer for that output and reads Changed after a new one", async ({ page }, info) => {
+  test.setTimeout(150000);
+  const errors = await open(page);
+  await asset(page, "page.familysheet.json");
+  await expect(page.getByTestId("family-sheet-list")).toContainText("No recipe is listed");
+  await page.getByTestId("family-sheet-add-all").click();
+  const broadleaf = page.locator('[data-testid="family-sheet-card"][data-recipe="ast_1cc830feab66656728f8bf965079b68a"]');
+  const angular = page.locator('[data-testid="family-sheet-card"]').filter({ hasText: "RockAngular" });
+  await expect(broadleaf).toBeVisible();
+  // A recipe with no output is not listed by itself; picked by hand it cannot be approved.
+  await expect(page.getByTestId("family-sheet-list")).not.toContainText("Poplar");
+  await page.getByTestId("family-sheet-add").click();
+  await page.locator(".details-picker").getByText("Poplar").first().click();
+  const poplar = page.locator('[data-testid="family-sheet-card"]').filter({ hasText: "Poplar" });
+  await expect(poplar).toContainText("not generated");
+  await expect(poplar.getByTestId("family-sheet-approve")).toBeDisabled();
+  await poplar.getByTestId("family-sheet-remove").click();
+  // The card's output in the preview: a plant and a rock.
+  const preview = page.getByTestId("asset-editor-preview"), labels = page.getByTestId("preview-labels").locator("span");
+  const ready = () => expect(preview).toHaveAttribute("data-preview-ready", "1", { timeout: 60000 });
+  await broadleaf.locator(".asset-component-node").click(); await ready();
+  await expect(labels).toHaveText(["Seed 1", "Seed 2", "Seed 3"]);
+  await preview.getByLabel("View").selectOption("lods"); await ready();
+  await expect(labels).toHaveText(["LOD 0", "LOD 1", "LOD 2", "Impostor"]);
+  await previewShot(page, "sheet-broadleaf", info);
+  await angular.locator(".asset-component-node").click(); await ready();
+  await expect(labels).toHaveText(["LOD 0", "LOD 1", "LOD 2"]);
+  await previewShot(page, "sheet-rock", info);
+  await broadleaf.getByTestId("family-sheet-approve").click();
+  await expect(broadleaf).toHaveAttribute("data-state", "approved");
+  await angular.getByTestId("family-sheet-reject").click();
+  await angular.getByTestId("family-sheet-note").fill("too sharp"); await angular.getByTestId("family-sheet-note").press("Tab");
+  await save(page);
+  const saved = (await json(`${FOLDER}/page.familysheet.json`)).entries as { recipe: string; status: string; digest: string; note: string }[];
+  const approved = saved.find((entry) => entry.status === "approved")!;
+  expect(approved).toMatchObject({ recipe: "ast_1cc830feab66656728f8bf965079b68a", digest: expect.stringMatching(/^[0-9a-f]{32}$/) });
+  expect(saved.find((entry) => entry.status === "rejected")).toMatchObject({ note: "too sharp" });
+  await close(page);
+  // Another output than the approved one: the page says so when it is opened again.
+  await write(`${FOLDER}/page.familysheet.json`, { schema: "forge.familySheet/1", id: SHEET, entries: saved.map((entry) => entry === approved ? { ...entry, digest: "0".repeat(32) } : entry) });
+  await asset(page, "page.familysheet.json");
+  await expect(broadleaf).toHaveAttribute("data-state", "changed");
+  await expect(angular).toHaveAttribute("data-state", "rejected");
   await close(page); expect(errors).toEqual([]);
 });
 

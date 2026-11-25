@@ -16,8 +16,8 @@ export interface FamilyPreviewReaders {
   readonly foliageType: (raw: unknown) => FoliageTypeFieldsRead | null;
 }
 
-/** LODs a batch draws at most, the impostor included. */
-const IMPOSTOR_LOD = 99;
+/** A forced LOD past every batch's last: the impostor, when there is one. */
+export const IMPOSTOR_LOD = 99;
 
 export function createFamilyPreview(ctx: AssetPreviewContext, readers: FamilyPreviewReaders): AssetPreviewController {
   const doc = ctx.container.ownerDocument;
