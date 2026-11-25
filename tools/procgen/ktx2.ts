@@ -13,7 +13,7 @@
 // flipping material samples is stored flipped (`flipY`); one read with its own
 // coordinates (an impostor atlas) is stored as is.
 
-import { encodeToKTX2 } from "ktx2-encoder";
+import * as encoder from "ktx2-encoder";
 
 export interface Ktx2Options {
   /** Colour data (sRGB transfer, perceptual error metric); false for linear data (normals, depth, thresholds). */
@@ -33,7 +33,7 @@ export async function encodeRgbaKtx2(width: number, height: number, rgba: Uint8A
   const log = console.log;
   console.log = () => {};
   try {
-    return await encodeToKTX2(new Uint8Array(0), {
+    return await encoder.encodeToKTX2(new Uint8Array(0), {
       isUASTC: true,
       uastcLDRQualityLevel: UASTC_EFFORT,
       needSupercompression: true,
@@ -46,5 +46,41 @@ export async function encodeRgbaKtx2(width: number, height: number, rgba: Uint8A
     });
   } finally {
     console.log = log;
+  }
+}
+
+/** What the encoder module's own transcoder offers (its types cover encoding only). */
+interface Ktx2Reader {
+  isValid(): boolean;
+  getWidth(): number;
+  getHeight(): number;
+  startTranscoding(): boolean | number;
+  getImageTranscodedSizeInBytes(level: number, layer: number, face: number, format: number): number;
+  transcodeImage(out: Uint8Array, level: number, layer: number, face: number, format: number, unused: number, channel0: number, channel1: number): boolean | number;
+  close(): void;
+  delete(): void;
+}
+interface Ktx2Module { KTX2File: new (bytes: Uint8Array) => Ktx2Reader; transcoder_texture_format: { cTFRGBA32: { value: number } } }
+
+const KTX2_MAGIC = [0xab, 0x4b, 0x54, 0x58, 0x20, 0x32, 0x30, 0xbb];
+export const isKtx2 = (bytes: Uint8Array): boolean => KTX2_MAGIC.every((value, index) => bytes[index] === value);
+
+let reader: Promise<Ktx2Module> | undefined;
+
+/** The full-size image of a Basis Universal KTX2 file, rows as stored. For tools that need pixels (HLOD's colours). */
+export async function decodeKtx2Rgba(bytes: Uint8Array): Promise<{ width: number; height: number; data: Uint8Array }> {
+  // Exported by the package's Node entry; its types leave it out.
+  reader ??= new (encoder as unknown as { NodeBasisEncoder: new () => { init(): Promise<Ktx2Module> } }).NodeBasisEncoder().init();
+  const basis = await reader;
+  const file = new basis.KTX2File(bytes);
+  try {
+    if (!file.isValid() || !file.startTranscoding()) throw new Error("not a Basis Universal KTX2 texture");
+    const format = basis.transcoder_texture_format.cTFRGBA32.value;
+    const data = new Uint8Array(file.getImageTranscodedSizeInBytes(0, 0, 0, format));
+    if (!file.transcodeImage(data, 0, 0, 0, format, 0, -1, -1)) throw new Error("KTX2 texture did not decode");
+    return { width: file.getWidth(), height: file.getHeight(), data };
+  } finally {
+    file.close();
+    file.delete();
   }
 }

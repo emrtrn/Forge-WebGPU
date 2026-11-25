@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import { NodeIO } from "@gltf-transform/core";
 import sharp from "sharp";
+import { encodeRgbaKtx2 } from "../procgen/ktx2.ts";
 import { splitLevel, stringifyDocument } from "../../src/core/index.ts";
 import { hlodClusterSourceHash, normalizeHlodIndex } from "../../src/engine/world/hlod.ts";
 import { cross, dot, normalize, sub } from "../../src/engine/math/affine.ts";
@@ -140,6 +141,20 @@ test("texture colour uses Forge's decoded average in linear space times GLTF fac
   const color = (await proxy(result.files, "0_0")).getAttribute("COLOR_0")!.getElement(0, []);
   expect(color[0]).toBeCloseTo(.21586 * .5, 4); expect(color[1]).toBeCloseTo(.051269, 4); expect(color[2]).toBeCloseTo(.014444, 4);
   expect((await new NodeIO().readBinary(result.files.get("hlod/0_0.glb")!)).getRoot().listTextures()).toEqual([]);
+});
+
+test("a KTX2 texture colours the proxy like an image file (generated surfaces)", async () => {
+  const source = await fixture(), texture = `ast_${"7".repeat(32)}` as typeof MODEL;
+  const pixels = new Uint8Array(64 * 64 * 4);
+  for (let i = 0; i < pixels.length; i += 4) pixels.set([128, 64, 32, 255], i);
+  source.set("content/stone.ktx2", await encodeRgbaKtx2(64, 64, pixels, { srgb: true }));
+  source.set("content/stone.ktx2.meta.json", encode(meta(texture, "forge.texture@1")));
+  source.set("content/grey.material.json", encode({ schema: "forge.material/1", id: GREY, baseColor: "#ffffff", baseColorTexture: texture }));
+  source.set("content/cube.glb.meta.json", encode(meta(MODEL, "forge.model@2", { materials: [GREY] })));
+  const result = await buildLevelHlod(FOLDER, await inputOf(source), { ratio: 1 });
+  expect(result.warnings).toEqual([]);
+  const color = (await proxy(result.files, "0_0")).getAttribute("COLOR_0")!.getElement(0, []);
+  [.21586, .051269, .014444].forEach((value, index) => expect(Math.abs(color[index]! - value)).toBeLessThan(0.01));
 });
 
 test("mirrored non-uniform matrices correct winding", async () => {

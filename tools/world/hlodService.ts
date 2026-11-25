@@ -29,7 +29,8 @@ export interface HlodJobResult {
   message?: string;
 }
 interface Cache {
-  version: 1;
+  /** 2: KTX2 textures colour the proxies (1 left them at the material factor, white for the generated rocks). */
+  version: 2;
   stamp: string;
   inputs: Revisions;
   outputs: Revisions;
@@ -42,7 +43,7 @@ const revisionMap = (value: unknown): value is Revisions => value !== null && ty
 async function readCache(path: string): Promise<Cache | null> {
   try {
     const value = JSON.parse(await readFile(path, "utf8")) as Partial<Cache>;
-    if (value.version !== 1 || typeof value.stamp !== "string" || !revisionMap(value.inputs) || !revisionMap(value.outputs) ||
+    if (value.version !== 2 || typeof value.stamp !== "string" || !revisionMap(value.inputs) || !revisionMap(value.outputs) ||
       typeof value.publication !== "string" || typeof value.completedAt !== "string" || !value.report ||
       ![value.report.cells, value.report.triangles, value.report.skippedPlacements, value.report.buildMs, value.report.totalMs]
         .every((number) => Number.isFinite(number) && number >= 0) || !Array.isArray(value.report.warnings) ||
@@ -152,7 +153,7 @@ export async function runHlodJob(request: HlodJobRequest, control?: { readonly c
       throw error;
     }
     const finalReport = { ...report, totalMs: Math.round(performance.now() - started) };
-    const entry: Cache = { version: 1, stamp: fingerprint.stamp, inputs,
+    const entry: Cache = { version: 2, stamp: fingerprint.stamp, inputs,
       // A missing index reads as null in outputRevisions; an empty publication matches that.
       outputs: { [HLOD_INDEX_FILE]: null, ...Object.fromEntries([...result.files].map(([path, bytes]) => [path, fileRevision(bytes)])) },
       publication, completedAt, report: finalReport };

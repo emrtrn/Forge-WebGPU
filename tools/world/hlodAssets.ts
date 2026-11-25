@@ -10,6 +10,7 @@ import type { Mat4 } from "../../src/engine/math/affine.ts";
 import { transformZoneBox, type ZoneBox } from "../../src/engine/world/zones.ts";
 import { contentPath, resourcePath, type HlodBuildIO, type HlodInput } from "./hlodInput.ts";
 import { ensureNormals } from "./hlodMath.ts";
+import { decodeKtx2Rgba, isKtx2 } from "../procgen/ktx2.ts";
 
 export type RGB = [number, number, number];
 export const multiplyColor = (a: readonly number[], b: readonly number[]): RGB => [a[0]! * b[0]!, a[1]! * b[1]!, a[2]! * b[2]!];
@@ -70,7 +71,10 @@ export async function createHlodAssets(input: HlodInput, warn: Warn) {
       try {
         const image = await bytes();
         if (!image) throw new Error("Missing texture image");
-        const pixels = await sharp(image).resize({ width: 32, height: 32, fit: "inside", withoutEnlargement: true })
+        // sharp reads no KTX2 (the generated surfaces and atlases): decoded first, then the same path.
+        const decoded = isKtx2(image) ? await decodeKtx2Rgba(image) : null;
+        const source = decoded ? sharp(decoded.data, { raw: { width: decoded.width, height: decoded.height, channels: 4 } }) : sharp(image);
+        const pixels = await source.resize({ width: 32, height: 32, fit: "inside", withoutEnlargement: true })
           .toColourspace("srgb").ensureAlpha().raw().toBuffer();
         return averageLinearColor(pixels, 4);
       } catch (cause) {
