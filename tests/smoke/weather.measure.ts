@@ -5,8 +5,9 @@
 // Derekavak P2 (terrain, foliage) and L03 (static meshes, no terrain), each in
 // the same states: clear and dry, rain, snow, and the covered surface (wet,
 // snow). The states are measured in interleaved rounds, because one GPU time
-// drifts by a few tenths of a millisecond between two runs: a state's number is
-// the mean of its rounds, the spread of the rounds is recorded with it. Every
+// drifts by a few tenths of a millisecond between two runs, and a whole round can
+// jump: a state's GPU number is the median of its rounds' means, recorded with
+// every round. Every
 // later step of phase W is compared with the W0 record (the states before
 // anything falls). Each switch also counts the pipelines and shader modules it
 // made: a weather change must make none once the state has been drawn.
@@ -25,7 +26,7 @@ import { git, isOptionalHlodMiss, openSmokeLevel } from "./smokePage.ts";
 const FRAME_MS = 1000 / 60;
 const WARM_FRAMES = 30;
 const FRAMES = 120;
-const ROUNDS = 3;
+const ROUNDS = 5;
 
 interface Step { ran: boolean; cpuMs: number; gpuMs: number | null; submitMs: number | null }
 interface State { id: string; weather: string; intensity: number; surface: Record<string, number> }
@@ -116,13 +117,13 @@ test("weather: cost of each state, pipelines made by the switches", async ({ pag
         scene: sceneId, pose: poseId, state: state.id,
         submitMs: { mean: round(mean(list.flatMap((r) => r.submit))), p95: round(percentile(list.flatMap((r) => r.submit), 0.95)) },
         cpuMs: { mean: round(mean(list.flatMap((r) => r.cpu))), p95: round(percentile(list.flatMap((r) => r.cpu), 0.95)) },
-        gpuMs: gpuMeans.length ? { mean: round(mean(gpuMeans)), min: round(Math.min(...gpuMeans)), max: round(Math.max(...gpuMeans)) } : null,
+        gpuMs: gpuMeans.length ? { median: round(percentile(gpuMeans, 0.5)), min: round(Math.min(...gpuMeans)), max: round(Math.max(...gpuMeans)), rounds: gpuMeans.map(round) } : null,
         // First round: the state's own first use. Later rounds must be 0.
         pipelines: list.map((r) => r.pipelines), shaderModules: list.map((r) => r.shaderModules),
       };
       results.push(result);
       console.log(`${sceneId} ${state.id}: submit ${result.submitMs.mean} / p95 ${result.submitMs.p95} ms, main ${result.cpuMs.mean} / p95 ${result.cpuMs.p95} ms, `
-        + `gpu ${result.gpuMs?.mean ?? "-"} ms (rounds ${result.gpuMs?.min ?? "-"}..${result.gpuMs?.max ?? "-"}), pipelines +${result.pipelines.join(" +")}`);
+        + `gpu ${result.gpuMs?.median ?? "-"} ms (rounds ${result.gpuMs?.min ?? "-"}..${result.gpuMs?.max ?? "-"}), pipelines +${result.pipelines.join(" +")}`);
     }
     results.push({ scene: sceneId, gpuMemoryMiB: Math.round(memory.liveBytes / 1048576 * 10) / 10 });
   }

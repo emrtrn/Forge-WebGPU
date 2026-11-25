@@ -660,9 +660,12 @@ yüzeyiyle biter.
       alanlar, onları çizen adımda nötr varsayılanla eklenir (çalışmayan ayar görünmez). Oyun
       WES'e SDK'dan ilk kez ulaşır: `WorldEnvironmentServiceKey` (0.1.16). `precipitationOf`
       yağışın tek okuması. W5'in saf modeli öne alındı (`surfaceCondition.ts`, Codex; kuralları
-      alanları belirler, henüz bağlı değil). Taban: hava
-      değişiminde pipeline ve shader modülü +0; süreler bitki oturumunun GPU koşularıyla iki kez
-      çakıştı, temiz kayıt bekliyor.
+      alanları belirler, henüz bağlı değil). Taban
+      (`2026-11-25T16-21-57-686Z-weather.json`, R1, gerçek WebGPU, beş turun medyanı): GPU açık /
+      yağmur / kar / ıslak / karlı Derekavak P2 2,78 / 3,12 / 3,04 / 2,97 / 2,96 ms, L03 0,37 / 0,36 /
+      0,34 / 0,37 / 0,37 ms; P2 gönderim 1,2–1,4, ana iş parçacığı 1,7–1,9 ms; hava değişiminde
+      pipeline ve shader modülü +0. Turlar P2'de 2,4–3,9 ms arası oynar: 0,5 ms'nin altındaki fark
+      tek koşudan okunmaz.
       **Kutu mekanizma onayıyla kapanır.**
 - [ ] **W1 Yağış görseli.** TRAA denemesi → seçim; yağmur ve kar hacimleri, rüzgâr,
       ışık / sis, kalite. *Kapı:* HV-01, 02'nin açık alan kısmı; GPU bütçesi. — C
