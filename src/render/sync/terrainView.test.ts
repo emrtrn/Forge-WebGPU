@@ -43,7 +43,7 @@ describe("terrain view", () => {
     const probe = view.heightProbe();
     const version = material.version;
     for (const [snowCoverage, wetness] of [[1, 0], [0, 1], [.5, .7], [0, 0]]) {
-      view.setSurfaceCover({ state: { snowCoverage: snowCoverage!, wetness: wetness! }, settings: WORLD_ENVIRONMENT_DEFAULTS.surface });
+      view.setSurfaceCover({ state: { snowCoverage: snowCoverage!, wetness: wetness!, puddleFill: 0, snowDepth: 0 }, settings: WORLD_ENVIRONMENT_DEFAULTS.surface });
     }
     view.setSurfaceCover(null);
     expect(view.mesh.geometry).toBe(geometry);

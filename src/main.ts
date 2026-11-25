@@ -284,7 +284,9 @@ async function start(): Promise<void> {
         return actor ? { id: actor.id, name: actor.name, transform: structuredClone(actor.transform) } : null;
       },
       setHour: (hour: number) => environment()?.setHour(hour),
-      setSurface: (surface: { snowCoverage?: number; wetness?: number }) => environment()?.setSurface(surface),
+      setSurface: (surface: { snowCoverage?: number; wetness?: number; puddleFill?: number; snowDepth?: number }) => environment()?.setSurface(surface),
+      /** Plan phase W: the weather at once. */
+      setWeather: (preset: "clear" | "cloudy" | "rain" | "snow" | "fog", intensity?: number) => environment()?.setWeather(preset, intensity),
       /** Vegetation plan PG2: the season at once, or a timed change in simulation seconds. */
       setSeason: (season: "spring" | "summer" | "autumn" | "winter") => environment()?.setSeason(season),
       transitionSeason: (request: { season: "spring" | "summer" | "autumn" | "winter"; seconds: number }) => {

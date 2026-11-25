@@ -5,7 +5,7 @@ import {
 } from "../../core/index.ts";
 import { WorldEnvironmentController } from "../../engine/environment/worldEnvironmentController.ts";
 import { SURFACE_RATES } from "../../engine/environment/surfaceAccumulation.ts";
-import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
+import { WorldEnvironmentKey, WorldEnvironmentServiceKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
 import { resolveWorldWind } from "../../engine/environment/worldWind.ts";
 import { assembleLevel } from "../../runtime/assembler.ts";
 import { createWorld } from "../../runtime/world.ts";
@@ -18,7 +18,7 @@ const options = { strict: true, registry, resolveClass: () => undefined };
 const actor = "act_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" as ActorId;
 const level = (surface = {}) => normalizeLevel({ schema: "forge.level/1", id: "lvl_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
   settings: { wind: { directionDeg: 90, strength: .5, gust: .2 } },
-  actors: [{ id: actor, spatiallyLoaded: false, components: { environment: { type: "forge.worldEnvironment@2", surface } } }],
+  actors: [{ id: actor, spatiallyLoaded: false, components: { environment: { type: "forge.worldEnvironment@3", surface } } }],
 }, options).value!;
 
 describe("WES simulation cover, PV-WES-06/07", () => {
@@ -28,7 +28,7 @@ describe("WES simulation cover, PV-WES-06/07", () => {
     c.setSurfaceTarget({ snowCoverage: 1, wetness: 1 });
     await c.transitionTo({ hour: 23, seconds: 0 });
     c.setSeason("winter"); c.setWeather("snow");
-    expect(c.getState().surface).toEqual({ snowCoverage: .2, wetness: .3 });
+    expect(c.getState().surface).toEqual({ snowCoverage: .2, wetness: .3, puddleFill: 0, snowDepth: 0 });
     const done = c.transitionTo({ hour: 6, seconds: 2 });
     c.advance(1);
     expect(c.getState().surface.snowCoverage).toBeCloseTo(.21, 12);
@@ -63,15 +63,54 @@ describe("WES simulation cover, PV-WES-06/07", () => {
   });
 
   test("v1 migration and runtime defaults preserve a neutral level and the explicit units/rates", () => {
-    expect(WorldEnvironment.version).toBe(2);
+    expect(WorldEnvironment.version).toBe(3);
     const normalized = normalizeLevel({ schema: "forge.level/1", id: level().id,
       actors: [{ id: actor, components: { environment: { type: "forge.worldEnvironment@1", hour: 7 } } }],
     }, options);
     expect(normalized.issues).toEqual([]);
     const component = normalized.value!.actors[0]!;
     if (component.class !== null) throw new Error("plain actor");
-    expect(component.components.environment).toMatchObject({ type: "forge.worldEnvironment@2", hour: 7,
+    expect(component.components.environment).toMatchObject({ type: "forge.worldEnvironment@3", hour: 7,
       surface: { snowCoverage: 0, wetness: 0, ...SURFACE_RATES }, wind: { useLevelWind: true } });
+  });
+
+  test("v2 levels and v2 saves migrate: no authored change, the new live amounts start at zero", () => {
+    const v2 = normalizeLevel({ schema: "forge.level/1", id: level().id,
+      actors: [{ id: actor, components: { environment: { type: "forge.worldEnvironment@2", surface: { wetness: .5 } } } }],
+    }, options);
+    expect(v2.issues).toEqual([]);
+    const component = v2.value!.actors[0]!;
+    if (component.class !== null) throw new Error("plain actor");
+    expect(component.components.environment).toMatchObject({ type: "forge.worldEnvironment@3", surface: { wetness: .5 } });
+    expect(component.components.environment).not.toHaveProperty("liveEnvironment");
+    const c = new WorldEnvironmentController();
+    c.load({});
+    c.restore({ hour: 8, season: "winter", weather: { preset: "snow", intensity: .5 }, surface: { snowCoverage: .6, wetness: .1 }, surfaceTarget: { snowCoverage: .7, wetness: .1 } });
+    expect(c.getState().surface).toEqual({ snowCoverage: .6, wetness: .1, puddleFill: 0, snowDepth: 0 });
+    expect(c.getSurfaceTarget()).toEqual({ snowCoverage: .7, wetness: .1 });
+  });
+
+  test("precipitation is the live weather's; the SDK service answers without a World Environment", () => {
+    const world = createWorld({ ...options, features: [feature] }); world.init();
+    const service = world.services.require(WorldEnvironmentServiceKey);
+    expect(service.current()).toBeNull();
+    expect(service.precipitation()).toEqual({ rain: 0, snow: 0 });
+    service.setWeather("rain");
+    expect(service.precipitation()).toEqual({ rain: 0, snow: 0 });
+    assembleLevel(world, level(), options); world.beginPlay();
+    service.setWeather("rain", .7);
+    expect(service.precipitation()).toEqual({ rain: .7, snow: 0 });
+    service.setWeather("snow", 2);
+    expect(service.precipitation()).toEqual({ rain: 0, snow: 1 });
+    for (const preset of ["clear", "cloudy", "fog"] as const) {
+      service.setWeather(preset);
+      expect(service.precipitation()).toEqual({ rain: 0, snow: 0 });
+    }
+    // Amounts clamp to their ranges; depth is metres and never becomes a target.
+    service.setSurface({ puddleFill: 3, snowDepth: 9, wetness: NaN });
+    expect(service.getState().surface).toEqual({ snowCoverage: 0, wetness: 0, puddleFill: 1, snowDepth: 2 });
+    expect(service.getSurfaceTarget()).toEqual({ snowCoverage: 0, wetness: 0 });
+    world.dispose();
   });
 
   test("A7 save/load retains live amounts and targets, then continues; runtime preview never changes the level bytes", () => {
@@ -79,7 +118,8 @@ describe("WES simulation cover, PV-WES-06/07", () => {
     const before = JSON.stringify(doc);
     const world = createWorld({ ...options, features: [feature] }); world.init(); assembleLevel(world, doc, options); world.beginPlay();
     const c = world.services.require(WorldEnvironmentKey).controller;
-    expect(c.getState().surface).toEqual({ snowCoverage: .2, wetness: .3 });
+    expect(c.getState().surface).toEqual({ snowCoverage: .2, wetness: .3, puddleFill: 0, snowDepth: 0 });
+    c.setSurface({ puddleFill: .4, snowDepth: .25 });
     c.setSurfaceTarget({ snowCoverage: 1, wetness: 0 });
     c.setHour(18); c.setSeason("spring");
     for (let i = 0; i < 10; i++) world.tick(.1);
@@ -112,7 +152,7 @@ describe("WES simulation cover, PV-WES-06/07", () => {
     expect(resolveWorldWind(world.context).strength).toBeCloseTo(.85);
     world.removeActors([actor]);
     expect(resolveWorldWind(world.context)).toMatchObject({ directionDeg: 90, strength: .5, gust: .2 });
-    world.context.spawnActors([{ id: actor, components: { environment: { type: "forge.worldEnvironment@2",
+    world.context.spawnActors([{ id: actor, components: { environment: { type: "forge.worldEnvironment@3",
       wind: { useLevelWind: false, directionDeg: 180, strength: .2, gust: 0 } } } }]);
     expect(resolveWorldWind(world.context)).toMatchObject({ directionDeg: 180, strength: .2, gust: 0 });
     world.dispose();

@@ -78,7 +78,11 @@ interface JsonAssetTypeDef<M>
 
 type LevelId = `lvl_${string}`
 
-const SDK_VERSION: "0.1.15"
+interface Precipitation
+  rain: number
+  snow: number
+
+const SDK_VERSION: "0.1.16"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -90,6 +94,8 @@ interface SaveStateDef<M>
   readonly migrations: MigrationMap
   readonly name: string
   readonly version: number
+
+type Season = "spring" | "summer" | "autumn" | "winter"
 
 interface ServiceKey<T>
   readonly kind: "serviceKey"
@@ -126,9 +132,23 @@ interface SubsystemInstance
   endPlay?: ((reason: EndPlayReason) => void) | undefined
   tick?: ((group: TickGroup, dt: number) => void) | undefined
 
+interface SurfaceAmount
+  snowCoverage: number
+  wetness: number
+
+interface SurfaceCondition
+  puddleFill: number
+  snowCoverage: number
+  snowDepth: number
+  wetness: number
+
 const TICK_GROUPS: readonly ["prePhysics", "physics", "postPhysics", "renderSync"]
 
 type TickGroup = "prePhysics" | "physics" | "postPhysics" | "renderSync"
+
+interface TimeTransitionRequest
+  readonly hour: number
+  readonly seconds: number
 
 interface Transform
   p: Vec3
@@ -141,6 +161,8 @@ type Vec3 = [number, number, number]
 
 type Vec4 = [number, number, number, number]
 
+type WeatherPreset = "clear" | "cloudy" | "rain" | "snow" | "fog"
+
 interface WorldActor
   readonly components: ComponentMap
   readonly id: `act_${string}`
@@ -148,6 +170,32 @@ interface WorldActor
   readonly origin: "level" | "spawned"
   readonly parent: `act_${string}` | null
   transform: Transform
+
+interface WorldEnvironmentService
+  current: () => Readonly<WorldEnvironmentState> | null
+  getState: () => Readonly<WorldEnvironmentState>
+  getSurfaceTarget: () => Readonly<SurfaceAmount>
+  onChanged: (listener: (state: Readonly<WorldEnvironmentState>) => void) => () => void
+  precipitation: () => Readonly<Precipitation>
+  readonly transitioning: boolean
+  setHour: (hour: number) => void
+  setSeason: (season: Season) => void
+  setSurface: (partial: Partial<SurfaceCondition>) => void
+  setSurfaceTarget: (partial: Partial<SurfaceAmount>) => void
+  setWeather: (preset: WeatherPreset, intensity?: number) => void
+  transitionSeason: (request: { season: Season; seconds: number; }) => Promise<boolean>
+  transitionTo: (request: TimeTransitionRequest) => Promise<boolean>
+
+const WorldEnvironmentServiceKey: import("src/core/index").ServiceKey<WorldEnvironmentService>
+
+interface WorldEnvironmentState
+  hour: number
+  season: Season
+  seasonFrom?: Season | undefined
+  seasonProgress?: number | undefined
+  seasonSeconds?: number | undefined
+  surface: SurfaceCondition
+  weather: { preset: WeatherPreset; intensity: number; }
 
 type WorldState = "created" | "initialized" | "playing" | "ended" | "disposed"
 
@@ -202,12 +250,12 @@ function vec4(options: VectorOptions<4>): VectorField<4>
 
 const ADD_ACTOR_CATEGORIES: readonly [{ readonly label: "Lights"; readonly icon: "light"; }, { readonly label: "Shapes"; readonly icon: "shape"; }, { readonly label: "Volumes"; readonly icon: "volume"; }, { readonly label: "Visual Effects"; readonly icon: "reflection"; }, { readonly label: "Terrain"; readonly icon: "terrain"; }, { readonly label: "Sounds"; readonly icon: "sound"; }, { readonly label: "UI"; readonly icon: "widget"; }, { readonly label: "Gameplay"; readonly icon: "gameplay"; }, { readonly label: "Vehicles"; readonly icon: "vehicle"; }]
 
-type ActorTypeIcon = "mesh" | "character" | "light" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic"
+type ActorTypeIcon = "light" | "mesh" | "character" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic"
 
 interface AddActorEntry
   readonly category: string
   readonly components: Readonly<Record<string, Readonly<{ type: string; } & Record<string, unknown>>>>
-  readonly icon: "mesh" | "character" | "light" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic"
+  readonly icon: "light" | "mesh" | "character" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic"
   readonly key: string
   readonly label: string
   readonly lift?: number | undefined
@@ -245,7 +293,7 @@ interface AssetEditorPresentation
 
 interface AssetPlacement
   readonly components: Readonly<Record<string, Readonly<{ type: string; } & Record<string, unknown>>>>
-  readonly icon?: "mesh" | "character" | "light" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic" | undefined
+  readonly icon?: "light" | "mesh" | "character" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic" | undefined
   readonly lift?: number | undefined
   readonly restOnSurface?: boolean | undefined
   readonly rotation?: readonly [number, number, number] | undefined
@@ -266,8 +314,8 @@ type AssetPublisher = (path: string, base: string, document: Readonly<Record<str
 
 interface ComponentPresentation
   readonly details?: "tool" | "embedded" | undefined
-  readonly icon: "mesh" | "character" | "light" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic" | ((data: Readonly<Record<string, unknown>>) => ActorTypeIcon)
-  readonly outliner: "mesh" | "character" | "light" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
+  readonly icon: "light" | "mesh" | "character" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic" | ((data: Readonly<Record<string, unknown>>) => ActorTypeIcon)
+  readonly outliner: "light" | "mesh" | "character" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
 
 type DetailsExtension = (context: DetailsExtensionContext) => { readonly element: HTMLElement; dispose?(): void; }
 
@@ -311,9 +359,9 @@ interface NewAssetTemplate
 
 const OUTLINER_TYPES: readonly [{ readonly type: "mesh"; readonly label: "Meshes"; }, { readonly type: "character"; readonly label: "Characters"; }, { readonly type: "light"; readonly label: "Lights"; }, { readonly type: "environment"; readonly label: "Environment"; }, { readonly type: "volume"; readonly label: "Volumes"; }, { readonly type: "terrain"; readonly label: "Terrain"; }, { readonly type: "gameplay"; readonly label: "Gameplay"; }, { readonly type: "widget"; readonly label: "Widgets"; }]
 
-type OutlinerType = "mesh" | "character" | "light" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
+type OutlinerType = "light" | "mesh" | "character" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
 
-const SDK_VERSION: "0.1.15"
+const SDK_VERSION: "0.1.16"
 
 function defineFeatureEditor(options: FeatureEditorOptions): FeatureEditorDef
 

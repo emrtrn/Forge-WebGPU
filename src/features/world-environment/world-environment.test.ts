@@ -12,7 +12,7 @@ describe("world environment schema", () => {
   test("defaults preserve Forge's lighting and neutral cover; wind inherits the level", () => {
     const d = WORLD_ENVIRONMENT_DEFAULTS;
     expect(createComponent(WorldEnvironment)).toMatchObject({
-      type: "forge.worldEnvironment@2", hour: d.time.hour, season: d.season, weather: d.weather, sunPath: d.sunPath, night: d.night,
+      type: "forge.worldEnvironment@3", hour: d.time.hour, season: d.season, weather: d.weather, sunPath: d.sunPath, night: d.night,
       surface: { snowCoverage: 0, wetness: 0 }, wind: { useLevelWind: true },
     });
     expect(SEASONS).toEqual(FORGE_SEASONS);

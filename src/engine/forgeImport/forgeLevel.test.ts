@@ -181,7 +181,7 @@ describe("importForgeLevel", () => {
     expect(component(1)).toEqual({ type: "forge.skyLight@1", intensity: 0.5, ambientColor: "#ece6da", ambientIntensity: 1.1, backgroundColor: "#d7d7c7" });
     expect(component(2)).toEqual({ type: "forge.cloudLayer@1", color: "#ffffff", coverage: 0.4, density: 0.85, softness: 0.3, scale: 2, speed: 0.1 });
     expect(component(3)).toMatchObject({
-      type: "forge.worldEnvironment@2", hour: 10, season: "summer", weather: { preset: "rain", intensity: 0.5 },
+      type: "forge.worldEnvironment@3", hour: 10, season: "summer", weather: { preset: "rain", intensity: 0.5 },
       sunPath: { azimuthDeg: 96.056, noonElevationDeg: 60, sunriseHour: 6, sunsetHour: 18 },
       night: { moonIntensity: 0.1, moonColor: "#9fb4ff", ambientIntensity: 1.5 },
     });

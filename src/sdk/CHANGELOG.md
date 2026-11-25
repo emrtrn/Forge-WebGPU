@@ -8,6 +8,17 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.16
+
+API: 362cbad47a0e51fa
+
+`WorldEnvironmentServiceKey` (plan phase W): a game reads and changes the level's
+hour, season and weather through `world.services`: `current()` (null without a
+World Environment), `precipitation()` (rain and snow, 0..1), `transitionTo`,
+`transitionSeason`, `setWeather`, `setSurface` / `setSurfaceTarget`. The surface
+state carries `puddleFill` and `snowDepth`; both stay 0 until the weather drives
+them (phase W5).
+
 ## 0.1.15
 
 API: 746e548859aa3406

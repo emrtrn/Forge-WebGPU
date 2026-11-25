@@ -3,13 +3,14 @@
 Günün saati, mevsim ve hava (Forge WebGL'in WES'i). Level'daki güneşi,
 gökyüzünü, sisi ve bulutları kendi değerlerini değiştirmeden yeniden yorumlar.
 
-- `schema.ts`: `forge.worldEnvironment@1`: sabit `hour`, `season`,
+- `schema.ts`: `forge.worldEnvironment@3`: sabit `hour`, `season`,
   `weather`, `sunPath`, `night` (Forge'un alan biçimi ve aralıkları). Sürekli
-  gün döngüsü yok (karar 8); zamanlı geçiş Faz 3 adım 7'de. Kar / ıslaklık
-  örtüsü 5a'da, rüzgâr 5c'de.
+  gün döngüsü yok (karar 8); saat ve mevsim zamanlı geçer. Kar / ıslaklık
+  örtüsü, rüzgâr, canlı durum (su birikimi ve kar yüksekliği plan Faz W).
 - `runtime.ts`: tekili taşınmış `WorldEnvironmentController`'a yükler ve
-  `WorldEnvironmentKey` servisiyle verir (`src/engine/environment`); oynanış
-  saati / havayı oradan değiştirir.
+  `WorldEnvironmentKey` servisiyle verir (`src/engine/environment`); oyun
+  kodu aynı denetleyiciyi SDK'nın `WorldEnvironmentServiceKey`'iyle alır (saat,
+  mevsim, hava, yağış, yüzey).
 - `render.ts`: gece dolgu ışığı. Yorumun kendisi (`resolveEnvironment`)
   render katmanında her karede bir kez hesaplanır (`src/render/sync/
   environment.ts`), bağlamalar `ctx.environment.override`'ı okur.

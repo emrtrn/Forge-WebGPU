@@ -151,7 +151,7 @@
     },
     "components": {
       "environment": {
-        "type": "forge.worldEnvironment@2",
+        "type": "forge.worldEnvironment@3",
         "hour": 9,
         "season": "summer",
         "surface": {

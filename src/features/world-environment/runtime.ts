@@ -12,7 +12,7 @@
 import { defineSubsystem } from "../../core/index.ts";
 import { normalizeWorldEnvironment, resolveWorldEnvironment, type ResolvedWorldEnvironment } from "../../engine/environment/worldEnvironment.ts";
 import { WorldEnvironmentController } from "../../engine/environment/worldEnvironmentController.ts";
-import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
+import { WorldEnvironmentKey, WorldEnvironmentServiceKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
 import { WorldEnvironment, type WorldEnvironmentData } from "./schema.ts";
 
 /** The component in Forge's layout shape, which the ported controller and resolver read. */
@@ -64,6 +64,7 @@ export const WorldEnvironmentSubsystem = defineSubsystem({
       runtime.environment = resolveWorldEnvironment(normalizeWorldEnvironment(layout).environment);
     };
     ctx.services.provide(WorldEnvironmentKey, runtime);
+    ctx.services.provide(WorldEnvironmentServiceKey, controller);
     return {
       actorsAdded: refresh,
       actorsRemoved: refresh,

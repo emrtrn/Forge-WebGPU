@@ -354,7 +354,7 @@ describe("import:forge", () => {
       const path = join(project, "content/levels/Valley/level.json");
       const target = JSON.parse(await readFile(path, "utf8"));
       const wes = target.actors.find((actor: { components: { environment?: unknown } }) => actor.components.environment).components.environment;
-      expect(wes).toMatchObject({ type: "forge.worldEnvironment@2",
+      expect(wes).toMatchObject({ type: "forge.worldEnvironment@3",
         surface: { snowCoverage: .45, wetness: .7, snowAltitudeEnabled: true, snowMinAltitude: 30, snowColor: "#ddeeff" },
         wind: { useLevelWind: false, directionDeg: 270, strength: .8, gust: .2 } });
       expect(result.levels[0]!.report.notConverted.some((entry) => /worldEnvironment\.(surface|wind)$|worldSettings.wind/.test(entry.field))).toBe(false);

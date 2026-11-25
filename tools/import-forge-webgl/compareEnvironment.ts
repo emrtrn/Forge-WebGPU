@@ -27,7 +27,7 @@ export async function compareEnvironment(source: ForgeSource, sourcePath: string
   for (const actor of Array.isArray(target.actors) ? target.actors : []) {
     if (!isJsonObject(actor) || !isJsonObject(actor.components)) continue;
     for (const component of Object.values(actor.components)) {
-      if (isJsonObject(component) && component.type === "forge.worldEnvironment@2") targetWes = component;
+      if (isJsonObject(component) && component.type === "forge.worldEnvironment@3") targetWes = component;
     }
   }
   const env = resolveWorldEnvironment(normalizeWorldEnvironment(wes).environment);

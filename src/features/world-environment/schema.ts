@@ -14,6 +14,10 @@
 // (`transitionTo`, phase 3 step 7). Forge's `dayLengthMinutes` has no field.
 // V2 (5a step 7) adds independent cover targets/rates, A7 live state and wind;
 // vegetation consumes the common state in 5c.
+// V3 (plan phase W): the live surface also has standing water (`puddleFill`)
+// and snow depth. Version 3 stays open while phase W runs: its steps add
+// fields with neutral defaults (no new version), each with the step that
+// draws it.
 
 import { bool, color, defineComponent, enumOf, num, object, WindFields, type ComponentData } from "../../core/index.ts";
 
@@ -35,7 +39,7 @@ const weatherFields = () => ({
 
 export const WorldEnvironment = defineComponent(
   "forge.worldEnvironment",
-  2,
+  3,
   {
     hour: num({
       min: 0,
@@ -202,7 +206,8 @@ export const WorldEnvironment = defineComponent(
     singleton: true,
     // V1 had neither cover nor wind. The normalizer adds their neutral
     // defaults. Identity is deliberately partial-safe for overrides/saves.
-    migrations: { 1: (data) => ({ ...data }) },
+    // V2 -> 3 only adds live state with defaults.
+    migrations: { 1: (data) => ({ ...data }), 2: (data) => ({ ...data }) },
     state: {
       liveEnvironment: object({
         initialized: bool({ default: false }),
@@ -213,7 +218,11 @@ export const WorldEnvironment = defineComponent(
         seasonProgress: num({ min: 0, max: 1, default: 1 }),
         seasonSeconds: num({ min: 0, default: 0 }),
         weather: object(weatherFields()),
-        surface: object(amounts()),
+        surface: object({
+          ...amounts(),
+          puddleFill: num({ min: 0, max: 1, default: 0 }),
+          snowDepth: num({ min: 0, max: 2, default: 0 }),
+        }),
         surfaceTarget: object(amounts()),
       }),
     },

@@ -2,6 +2,7 @@
 import type { ResolvedCloudLayer } from "../legacy/cloudLayer.ts";
 import type { ResolvedHeightFog } from "../legacy/heightFog.ts";
 import type { Vec3 } from "../legacy/layout.ts";
+import type { SurfaceCondition } from "./surfaceCondition.ts";
 import { evaluateSunLight, hexToLinear, lerp, smoothstep, TWILIGHT_DEG } from "./sunPath.ts";
 import { weatherFactors } from "./weatherPresets.ts";
 import type { ResolvedWorldEnvironment, Season, WeatherPreset } from "./worldEnvironment.ts";
@@ -30,7 +31,8 @@ export interface WorldEnvironmentState {
   seasonProgress?: number;
   seasonSeconds?: number;
   weather: { preset: WeatherPreset; intensity: number };
-  surface: { snowCoverage: number; wetness: number };
+  /** The visible surface (plan phase W); targets and authored defaults cover snowCoverage / wetness only. */
+  surface: SurfaceCondition;
 }
 
 /** The authored values WES adjusts, already resolved from their layout actors. */
@@ -82,7 +84,7 @@ export function stateFromDefaults(env: ResolvedWorldEnvironment): WorldEnvironme
     hour: env.time.hour,
     season: env.season,
     weather: { ...env.weather },
-    surface: { snowCoverage: env.surface.snowCoverage, wetness: env.surface.wetness },
+    surface: { snowCoverage: env.surface.snowCoverage, wetness: env.surface.wetness, puddleFill: 0, snowDepth: 0 },
   };
 }
 

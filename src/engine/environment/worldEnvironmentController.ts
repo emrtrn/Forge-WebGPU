@@ -14,6 +14,8 @@ import {
   type TimeTransitionRequest,
 } from "./timeTransition.ts";
 import { WorldClock } from "./worldClock.ts";
+import { precipitationOf } from "./precipitation.ts";
+import type { Precipitation, SurfaceCondition } from "./surfaceCondition.ts";
 import { advanceSurface, SURFACE_RATES, type SurfaceAmount, type SurfaceRates } from "./surfaceAccumulation.ts";
 import {
   normalizeWorldEnvironment,
@@ -24,13 +26,21 @@ import {
   type WeatherPreset,
 } from "./worldEnvironment.ts";
 
+/** The deepest snow any level may have, metres (plan phase W, HK4). */
+export const SNOW_DEPTH_LIMIT = 2;
+
 /**
  * What gameplay may ask of the World Environment at runtime (WES v0.3 §5.6).
  * A game module (Layer 3) changes weather or time through this; the engine
  * never changes the weather on its own until K5.
  */
 export interface WorldEnvironmentService {
+  /** The live state; null when the level has no (visible) World Environment. */
+  current(): Readonly<WorldEnvironmentState> | null;
+  /** The live state; throws where `current` is null. */
   getState(): Readonly<WorldEnvironmentState>;
+  /** What falls now: rain and snow, 0..1 each (none without a World Environment). */
+  precipitation(): Readonly<Precipitation>;
   /** Jumps to the hour at once; ends a running transition (its promise resolves false). */
   setHour(hour: number): void;
   /**
@@ -54,7 +64,8 @@ export interface WorldEnvironmentService {
   transitionSeason(request: { season: Season; seconds: number }): Promise<boolean>;
   /** K1: the change is immediate; timed transitions arrive with precipitation (K3). */
   setWeather(preset: WeatherPreset, intensity?: number): void;
-  setSurface(partial: Partial<WorldEnvironmentState["surface"]>): void;
+  /** Sets amounts at once; snow coverage and wetness become their own targets. `snowDepth` is in metres. */
+  setSurface(partial: Partial<SurfaceCondition>): void;
   /** Changes the target; accumulation/melt/wetting/drying use simulation seconds. */
   setSurfaceTarget(partial: Partial<SurfaceAmount>): void;
   getSurfaceTarget(): Readonly<SurfaceAmount>;
@@ -91,7 +102,7 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
     if (env.hidden) return;
     this.clock = new WorldClock(env.time.hour, env.time.dayLengthMinutes);
     this.state = stateFromDefaults(env);
-    this.surfaceTarget = { ...this.state.surface };
+    this.surfaceTarget = { snowCoverage: this.state.surface.snowCoverage, wetness: this.state.surface.wetness };
     this.surfaceRates = { ...rates };
     this.emit();
   }
@@ -140,7 +151,7 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
     if (this.state) {
       const surface = advanceSurface(this.state.surface, this.surfaceTarget, this.surfaceRates, simulationSeconds);
       if (surface.snowCoverage !== this.state.surface.snowCoverage || surface.wetness !== this.state.surface.wetness) {
-        this.state = { ...this.state, surface };
+        this.state = { ...this.state, surface: { ...this.state.surface, ...surface } };
         this.emit();
       }
     }
@@ -168,6 +179,10 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
   getState(): Readonly<WorldEnvironmentState> {
     if (!this.state) throw new Error("world environment: the level has no active World Environment");
     return this.state;
+  }
+
+  precipitation(): Readonly<Precipitation> {
+    return precipitationOf(this.state?.weather);
   }
 
   setHour(hour: number): void {
@@ -232,15 +247,15 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
     this.emit();
   }
 
-  setSurface(partial: Partial<WorldEnvironmentState["surface"]>): void {
+  setSurface(partial: Partial<SurfaceCondition>): void {
     if (!this.state) return;
     const surface = { ...this.state.surface };
-    for (const key of ["snowCoverage", "wetness"] as const) {
+    for (const key of ["snowCoverage", "wetness", "puddleFill", "snowDepth"] as const) {
       const value = partial[key];
-      if (value !== undefined && Number.isFinite(value)) surface[key] = Math.min(1, Math.max(0, value));
+      if (value !== undefined && Number.isFinite(value)) surface[key] = Math.min(key === "snowDepth" ? SNOW_DEPTH_LIMIT : 1, Math.max(0, value));
     }
     this.state = { ...this.state, surface };
-    this.surfaceTarget = { ...surface };
+    this.surfaceTarget = { snowCoverage: surface.snowCoverage, wetness: surface.wetness };
     this.emit();
   }
 
@@ -256,7 +271,7 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
   getSurfaceTarget(): Readonly<SurfaceAmount> { return { ...this.surfaceTarget }; }
 
   /** A7: restore the common WES state; no elapsed time or historical effects. */
-  restore(state: WorldEnvironmentState & { surfaceTarget: SurfaceAmount }): void {
+  restore(state: Omit<WorldEnvironmentState, "surface"> & { surface: Partial<SurfaceCondition>; surfaceTarget: SurfaceAmount }): void {
     this.setHour(state.hour);
     this.setSeason(state.season);
     // A season change saved mid-way goes on from where it was (no history replayed).

@@ -6,6 +6,7 @@ describe("@forge/sdk", () => {
     expect(Object.keys(sdk).sort()).toEqual([
       "SDK_VERSION",
       "TICK_GROUPS",
+      "WorldEnvironmentServiceKey",
       "actorRef",
       "array",
       "assetRef",

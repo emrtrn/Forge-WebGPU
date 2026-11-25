@@ -33,7 +33,7 @@ import { SURFACE_RATES } from "../environment/surfaceAccumulation.ts";
 export const SKY_ATMOSPHERE_TAG = "forge.skyAtmosphere@1";
 export const SKY_LIGHT_TAG = "forge.skyLight@1";
 export const CLOUD_LAYER_TAG = "forge.cloudLayer@1";
-export const WORLD_ENVIRONMENT_TAG = "forge.worldEnvironment@2";
+export const WORLD_ENVIRONMENT_TAG = "forge.worldEnvironment@3";
 export const POST_PROCESS_TAG = "forge.postProcess@1";
 
 /** Forge's `SKY_ATMOSPHERE_DEFAULTS` (engine/scene/skyAtmosphere.ts). */

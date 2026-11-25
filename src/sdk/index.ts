@@ -63,6 +63,15 @@ export type {
   WorldState,
 } from "../core/index.ts";
 
+// The World Environment: hour, season, weather, what falls, the visible surface
+export { WorldEnvironmentServiceKey } from "../engine/environment/worldEnvironmentRuntime.ts";
+export type { WorldEnvironmentService } from "../engine/environment/worldEnvironmentController.ts";
+export type { WorldEnvironmentState } from "../engine/environment/environmentResolve.ts";
+export type { Precipitation, SurfaceCondition } from "../engine/environment/surfaceCondition.ts";
+export type { Season, WeatherPreset } from "../engine/environment/worldEnvironment.ts";
+export type { TimeTransitionRequest } from "../engine/environment/timeTransition.ts";
+export type { SurfaceAmount } from "../engine/environment/surfaceAccumulation.ts";
+
 // The game module
 export { defineGameModule } from "../runtime/gameModule.ts";
 export type { GameModuleDef } from "../runtime/gameModule.ts";
