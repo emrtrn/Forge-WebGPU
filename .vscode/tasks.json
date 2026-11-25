@@ -13,7 +13,7 @@
         "-File",
         "${workspaceFolder}/tools/open-dev-server.ps1",
         "-Path",
-        "/?editor&level=content/levels/Derekavak",
+        "/?editor&level=content/levels/Main",
         "-Project",
         "${env:TEMP}/forge-webgpu-reference-editor/webgpu-scenes",
         "-MirrorFrom",
@@ -32,7 +32,7 @@
     },
     {
       "label": "Open Editor (Reference)",
-      "detail": "The same editable reference copy, L03 in the editor on 5183; existing edits are preserved",
+      "detail": "The same editable reference copy, Main in the editor on 5183; existing edits are preserved",
       "type": "process",
       "command": "powershell",
       "args": [
@@ -42,7 +42,7 @@
         "-File",
         "${workspaceFolder}/tools/open-dev-server.ps1",
         "-Path",
-        "/?editor&level=content/levels/L03",
+        "/?editor&level=content/levels/Main",
         "-Project",
         "${env:TEMP}/forge-webgpu-reference-editor/webgpu-scenes",
         "-MirrorFrom",
