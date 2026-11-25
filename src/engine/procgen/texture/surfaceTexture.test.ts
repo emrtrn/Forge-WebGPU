@@ -52,8 +52,8 @@ test("normalization fills defaults and clamps valid entries", () => {
   assert.equal(normalized.seed, 4294967293);
   assert.equal(normalized.size, 128);
   assert.deepEqual(normalized.layers, [
-    { kind: "ridged", scale: 64, octaves: 1, gain: 1, weight: 0, blend: "add", threshold: 1, softness: 0 },
-    { kind: "cellular", scale: 2, octaves: 4, gain: 0.5, weight: 2, blend: "add", threshold: 0.5, softness: 1 },
+    { kind: "ridged", scale: 64, stretch: 1, invert: false, octaves: 1, gain: 1, weight: 0, blend: "add", threshold: 1, softness: 0 },
+    { kind: "cellular", scale: 2, stretch: 1, invert: false, octaves: 4, gain: 0.5, weight: 2, blend: "add", threshold: 0.5, softness: 1 },
   ]);
   assert.deepEqual(normalized.colorRamp, [{ at: 0, color: [0, 0, 0] }, { at: 1, color: [0, 0.2, 1] }]);
   assert.deepEqual([normalized.normalStrength, ...normalized.roughness, normalized.aoStrength, normalized.metalness], [16, 0, 1, 1, 0]);
@@ -204,3 +204,22 @@ test("a three-layer 512x512 bake completes within the sanity budget", () => {
   assert.equal(result.height.length, 512 * 512);
   assert.ok(performance.now() - start < 10_000);
 }, 12_000);
+
+test("stretch runs the features across the tile and keeps its edges whole; invert turns a layer over", () => {
+  const layer = { kind: "gradient", scale: 4, octaves: 2, gain: 0.5, weight: 1, blend: "add", threshold: 0.5, softness: 1 };
+  const bake = (extra: Record<string, unknown>) => bakeSurfaceTexture({ seed: 2, size: 64, layers: [{ ...layer, ...extra }] }).height;
+  /** Mean step between neighbours along one axis, wrapping around the tile. */
+  const step = (height: Float32Array, dx: number, dy: number) => {
+    let sum = 0;
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) sum += Math.abs(height[y * 64 + x]! - height[(y + dy) % 64 * 64 + (x + dx) % 64]!);
+    return sum / 4096;
+  };
+  const across = bake({ stretch: 4 });
+  assert.ok(step(across, 0, 1) > step(across, 1, 0) * 2);
+  // No seam: the wrapped step is like any other.
+  const seam = Array.from({ length: 64 }, (_, x) => Math.abs(across[x]! - across[63 * 64 + x]!)).reduce((a, b) => a + b) / 64;
+  assert.ok(seam < step(across, 0, 1) * 2);
+  assert.deepStrictEqual(bake({ stretch: 1, invert: false }), bake({}));
+  const plain = bake({}), turned = bake({ invert: true });
+  assert.ok(plain.every((value, i) => Math.abs(value + turned[i]! - 1) < 1e-5));
+});

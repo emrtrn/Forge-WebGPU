@@ -190,29 +190,35 @@ function broadTile(params: SprayParams, canvas: Canvas, random: RandomStream): v
 function needleTile(params: SprayParams, canvas: Canvas, random: RandomStream): void {
   const { size } = canvas, leafColor = srgb(params.leafColor), twigColor = srgb(params.twigColor);
   const needle = Math.min(0.2, params.leafLength / params.length) * size, thick = Math.max(0.55, needle * params.leafWidth / 2);
-  const { main, twigs } = branchlet(random, 15, 1, 0.47);
-  const shoots: Twig[] = twigs.flatMap((twig) => {
+  // Long needles sit in tufts on the outer part of a few shoots (a pine's); short ones line many (a spruce's).
+  const tufted = needle > 0.07 * size, bare = tufted ? 0.45 : 0;
+  const { main, twigs } = branchlet(random, tufted ? 8 : 15, 1, 0.47);
+  const shoots: Twig[] = tufted ? twigs : twigs.flatMap((twig) => {
     const at = random.range(0.4, 0.6), x = twig.ax + (twig.bx - twig.ax) * at, y = twig.ay + (twig.by - twig.ay) * at;
     const angle = Math.atan2(twig.by - twig.ay, twig.bx - twig.ax) * random.range(0.25, 0.5), length = Math.hypot(twig.bx - twig.ax, twig.by - twig.ay) * 0.3;
     return [twig, { ax: x, ay: y, bx: Math.min(0.955, x + Math.cos(angle) * length), by: clamp(y + Math.sin(angle) * length, 0.045, 0.955), order: random.next() }];
   }).sort((a, b) => a.order - b.order);
   const [mx, my] = main(0), [ex, ey] = main(1);
   shoots.push({ ax: mx, ay: my, bx: ex, by: ey, order: 2 });
-  const gap = Math.max(1.6, 0.0066 * size);
+  // Long needles stand apart: a tuft is spiky, not a fan.
+  const gap = Math.max(1.6, 0.0066 * size, needle * 0.075);
   const draw = (shoot: Twig, depth: number): void => {
     const ax = shoot.ax * size, ay = shoot.ay * size, dx = shoot.bx * size - ax, dy = shoot.by * size - ay, length = Math.hypot(dx, dy), angle = Math.atan2(dy, dx);
     stalk(canvas, ax, ay, ax + dx, ay + dy, 0.0045 * size, 0.002 * size, twigColor, 0.8);
-    const count = Math.max(3, Math.round(length / gap));
+    const count = Math.max(3, Math.round(length * (1 - bare) / gap));
     for (let k = 0; k < count; k++) for (const side of [-1, 1]) {
-      const u = (k + (side > 0 ? 0.5 : 0)) / count, turn = angle + side * random.range(0.4, 1), reach = needle * random.range(0.72, 1.18);
-      const x = ax + dx * u, y = ay + dy * u, tone = (0.7 + 0.4 * depth) * random.range(0.86, 1.12) * (0.94 + 0.2 * u);
+      const u = bare + (1 - bare) * (k + (side > 0 ? 0.5 : 0)) / count, turn = angle + side * random.range(0.4, 1), x = ax + dx * u, y = ay + dy * u;
+      // None leaves its tile.
+      const room = (at: number, step: number): number => (Math.abs(step) < 1e-6 ? Infinity : Math.max(0, ((step > 0 ? 0.985 * size : 0.015 * size) - at) / step));
+      const reach = Math.min(needle * random.range(0.72, 1.18), room(x, Math.cos(turn)), room(y, Math.sin(turn)));
+      const tone = (0.7 + 0.4 * depth) * random.range(0.86, 1.12) * (0.94 + 0.2 * u);
       stalk(canvas, x, y, x + Math.cos(turn) * reach, y + Math.sin(turn) * reach, thick, thick * 0.55, scaled(leafColor, tone), 0.7);
     }
   };
   shoots.forEach((shoot, i) => draw(shoot, i / shoots.length));
   // Denser until the tile is covered: more side shoots over the same twigs.
-  for (let round = 0; round < 24 && coverageOf(canvas) < SPRAY_COVERAGE; round++) {
-    const twig = shoots[Math.floor(random.next() * shoots.length)]!, t = random.range(0.1, 0.9), x = twig.ax + (twig.bx - twig.ax) * t, y = twig.ay + (twig.by - twig.ay) * t;
+  for (let round = 0; round < 64 && coverageOf(canvas) < SPRAY_COVERAGE; round++) {
+    const twig = shoots[Math.floor(random.next() * shoots.length)]!, t = random.range(Math.max(0.1, bare), 0.9), x = twig.ax + (twig.bx - twig.ax) * t, y = twig.ay + (twig.by - twig.ay) * t;
     const angle = Math.atan2(twig.by - twig.ay, twig.bx - twig.ax) + (random.next() < 0.5 ? -1 : 1) * random.range(0.3, 0.8), length = random.range(0.07, 0.16);
     draw({ ax: x, ay: y, bx: clamp(x + Math.cos(angle) * length, 0.03, 0.955), by: clamp(y + Math.sin(angle) * length, 0.045, 0.955), order: 0 }, 0.5 + 0.5 * random.next());
   }
@@ -221,27 +227,35 @@ function needleTile(params: SprayParams, canvas: Canvas, random: RandomStream): 
 /** Fills uncovered texels from their covered neighbours, so filtering at the cut does not pull in black. */
 function bleed(canvas: Canvas, passes: number): void {
   const { size, color, alpha, normal } = canvas, filled = Uint8Array.from(alpha, (a) => (a > 0.02 ? 1 : 0));
-  for (let pass = 0; pass < passes; pass++) {
+  const beside = (i: number): number[] => {
+    const x = i % size, out: number[] = [];
+    if (x + 1 < size) out.push(i + 1);
+    if (x > 0) out.push(i - 1);
+    if (i + size < filled.length) out.push(i + size);
+    if (i >= size) out.push(i - size);
+    return out;
+  };
+  // Ring by ring outward from the covered texels.
+  let ring: number[] = [];
+  filled.forEach((value, i) => { if (value && beside(i).some((j) => !filled[j])) ring.push(i); });
+  const seen = Uint8Array.from(filled);
+  for (let pass = 0; pass < passes && ring.length > 0; pass++) {
     const next: number[] = [];
-    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-      const i = y * size + x;
-      if (filled[i]) continue;
-      let n = 0;
+    for (const i of ring) for (const j of beside(i)) if (!seen[j]) { seen[j] = 1; next.push(j); }
+    for (const i of next) {
       const sum = [0, 0, 0, 0, 0];
-      for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-        const xx = x + ox, yy = y + oy, j = yy * size + xx;
-        if (xx < 0 || yy < 0 || xx >= size || yy >= size || !filled[j]) continue;
+      let n = 0;
+      for (const j of beside(i)) {
+        if (!filled[j]) continue;
         n++;
         for (let k = 0; k < 3; k++) sum[k]! += color[j * 3 + k]!;
         for (let k = 0; k < 2; k++) sum[3 + k]! += normal[j * 2 + k]!;
       }
-      if (n === 0) continue;
       for (let k = 0; k < 3; k++) color[i * 3 + k] = sum[k]! / n;
       for (let k = 0; k < 2; k++) normal[i * 2 + k] = sum[3 + k]! / n;
-      next.push(i);
     }
-    if (next.length === 0) return;
     for (const i of next) filled[i] = 1;
+    ring = next;
   }
 }
 

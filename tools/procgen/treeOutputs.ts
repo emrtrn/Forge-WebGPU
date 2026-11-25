@@ -1,16 +1,14 @@
 // `forge generate` for a `forge.treeRecipe` (vegetation plan PG2 / PG3, §5.2,
 // §6.4; user decision 2026-11-18: one GLB per LOD, wood and leaves two
 // material slots). Beside `<dir>/<stem>.treerecipe.json`, in `<dir>/<stem>/`:
-// - `<stem>_leaf.ktx2`: the leaf atlas (engine/procgen/tree/treeCards.ts): the
-//   leaf card (engine/procgen/texture/leafTexture.ts) and the species'
-//   branch-tip card library, baked from the first seed's tree; stored for the
-//   leaf material's V flip (ktx2.ts); generator version 6: the spray atlas
-//   (texture/sprayTexture.ts) and beside it `<stem>_leaf_normal.ktx2`;
-// - per seed and LOD `<stem>_<seed>_lod<i>.glb`: primitive 0 the wood (slot 0,
-//   bark UVs), primitive 1 the leaf cards or, on a `clusters` LOD, the
-//   branch-tip cards (slot 1, atlas UVs); both carry `_WIND` (trunk bend,
-//   branch sway, phase, flutter) and the leaves `_LEAF` (shedding threshold,
-//   colour variety), stable across LODs;
+// - `<stem>_leaf.ktx2` and `<stem>_leaf_normal.ktx2`: the spray atlas
+//   (engine/procgen/texture/sprayTexture.ts), stored for the leaf material's V
+//   flip (ktx2.ts);
+// - per seed and LOD `<stem>_<seed>_lod<i>.glb` (meshopt, glbCompress.ts; user
+//   decision 2026-11-25): primitive 0 the wood (slot 0, bark UVs), primitive 1
+//   the spray cards (slot 1, atlas UVs); both carry `_WIND` (trunk bend, branch
+//   sway, phase, flutter) and `_LEAF` (shedding threshold, on wood the share of
+//   the twig tint; crown light), stable across LODs;
 // - per seed `<stem>_<seed>_impostor_{albedo,normal}.ktx2`: the prototype's
 //   impostor (engine/procgen/tree/treeImpostor.ts: wood left, leaves right);
 // - `<stem>.plantfamily.json`: one prototype per seed (its LOD chain,
@@ -24,11 +22,11 @@ import type { JsonObject } from "../../src/core/index.ts";
 import { writeGlb, type GlbPrimitive } from "../../src/engine/procgen/glb.ts";
 import { meshBounds } from "../../src/engine/procgen/mesh.ts";
 import { defaultTreeLeafMaterial, treeRecipeAtlas } from "../../src/engine/procgen/tree/treeRecipe.ts";
-import { treeOutputVersion } from "../../src/engine/procgen/tree/treeGrowth.ts";
 import { generateTree } from "../../src/engine/procgen/tree/treeGenerator.ts";
 import { bakeTreeImpostor } from "../../src/engine/procgen/tree/treeImpostor.ts";
 import { treeImpostorSurfaces, type TreeLooks } from "../../src/engine/procgen/tree/treeLook.ts";
-import { binaryWithMeta, documentOutput, GENERATED_MODEL_OPTIMIZE, outputId, round, type Output } from "./outputs.ts";
+import { compressGlb } from "./glbCompress.ts";
+import { binaryWithMeta, documentOutput, GENERATED_MODEL_OPTIMIZE, GENERATOR_VERSIONS, outputId, round, type Output } from "./outputs.ts";
 import { encodeRgbaKtx2 } from "./ktx2.ts";
 
 const toLinear = (byte: number): number => { const c = byte / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
@@ -60,11 +58,10 @@ export async function treeOutputs(
   looks: TreeLooks = { wood: null, leaf: null },
 ): Promise<Output[]> {
   const outputs: Output[] = [];
-  const version = treeOutputVersion(data.generatorVersion);
-  const shrub = version === 5;
+  const version = GENERATOR_VERSIONS.tree, shrub = data.habit === "shrub";
   const generated = { recipe: recipeId, generator: "tree", generatorVersion: version };
   const materials = { ...data.materials as { wood: string | null; leaf: string | null } };
-  const leaf = defaultTreeLeafMaterial(recipeId, version, materials.leaf);
+  const leaf = defaultTreeLeafMaterial(recipeId, materials.leaf);
   if (leaf) {
     documentOutput(outputs, `${folder}/${stem}_leaf.material.json`, leaf);
     materials.leaf = leaf.id;
@@ -79,39 +76,34 @@ export async function treeOutputs(
   const leafBytes = await encodeRgbaKtx2(leafAtlas.size, leafAtlas.size, leafAtlas.rgba, { srgb: true, flipY: looks.leaf?.flipY ?? true });
   const leafTextureId = outputId(recipeId, "tree/leafTexture");
   binaryWithMeta(outputs, `${folder}/${stem}_leaf.ktx2`, leafTextureId, "forge.texture@2", leafBytes, { anisotropy: 4, mipmaps: true }, generated);
-  let normalBytes = 0;
-  if (leafAtlas.normal) {
-    const bytes = await encodeRgbaKtx2(leafAtlas.size, leafAtlas.size, leafAtlas.normal, { srgb: false, flipY: looks.leaf?.flipY ?? true });
-    normalBytes = bytes.length;
-    binaryWithMeta(outputs, `${folder}/${stem}_leaf_normal.ktx2`, outputId(recipeId, "tree/leafNormal"), "forge.texture@2", bytes, { anisotropy: 4, mipmaps: true }, generated);
-  }
-  stats.push(`${stem}_leaf.ktx2: ${leafAtlas.size} × ${leafAtlas.size} (${leafAtlas.normal ? "sprays + normals" : `leaf + ${leafAtlas.atlas.clusters.length} branch-tip cards`}), ${leafBytes.length + normalBytes} bytes, ${Math.round(performance.now() - leafStarted)} ms`);
+  const normalBytes = await encodeRgbaKtx2(leafAtlas.size, leafAtlas.size, leafAtlas.normal, { srgb: false, flipY: looks.leaf?.flipY ?? true });
+  binaryWithMeta(outputs, `${folder}/${stem}_leaf_normal.ktx2`, outputId(recipeId, "tree/leafNormal"), "forge.texture@2", normalBytes, { anisotropy: 4, mipmaps: true }, generated);
+  stats.push(`${stem}_leaf.ktx2: ${leafAtlas.size} × ${leafAtlas.size} (sprays + normals), ${leafBytes.length + normalBytes.length} bytes, ${Math.round(performance.now() - leafStarted)} ms`);
 
-  const impostorLooks = treeImpostorSurfaces(looks, leafAtlas);
+  const impostorLooks = treeImpostorSurfaces(looks, leafAtlas, data);
 
   const familyId = outputId(recipeId, "tree/family");
   const prototypes: JsonObject[] = [];
   for (const [prototype, seed] of seeds.entries()) {
     const started = performance.now();
-    const result = generateTree({ ...data, seed }, { atlas: leafAtlas.atlas });
+    const result = generateTree({ ...data, seed });
     if (!result.ok) throw new Error(`seed ${seed}: ${result.report.message}`);
     const lodIds: string[] = [];
     let height = 0;
-    result.lods.forEach((mesh, lod) => {
+    for (const [lod, mesh] of result.lods.entries()) {
       const name = `${stem}_${seed}_lod${lod}`;
-      const primitives: GlbPrimitive[] = [{ mesh: mesh.wood, uvs: mesh.wood.uvs, material: 0, attributes: { _WIND: { data: mesh.wood.attributes.wind, size: 4 }, ...(mesh.wood.attributes.leaf ? { _LEAF: { data: mesh.wood.attributes.leaf, size: 2 as const } } : {}) } }];
+      const primitives: GlbPrimitive[] = [{ mesh: mesh.wood, uvs: mesh.wood.uvs, material: 0, attributes: { _WIND: { data: mesh.wood.attributes.wind, size: 4 }, _LEAF: { data: mesh.wood.attributes.leaf, size: 2 } } }];
       if (mesh.leaves) {
         primitives.push({
           mesh: mesh.leaves, uvs: mesh.leaves.uvs, material: 1,
-          attributes: { _WIND: { data: mesh.leaves.attributes.wind, size: 4 }, _LEAF: { data: mesh.leaves.attributes.leaf!, size: 2 } },
+          attributes: { _WIND: { data: mesh.leaves.attributes.wind, size: 4 }, _LEAF: { data: mesh.leaves.attributes.leaf, size: 2 } },
         });
       }
-      const cardMode = lods[lod]?.leafCards;
-      const bytes = writeGlb({
+      const bytes = await compressGlb(writeGlb({
         nodes: [{ name, primitives, extras: { forgeGenerated: { recipe: recipeId, seed, lod } } }],
-        materials: [{ name: "Wood", baseColor: [0.35, 0.27, 0.2, 1], roughness: 0.9 }, { name: "Leaf", baseColor: [0.3, 0.45, 0.16, 1], roughness: 0.8, doubleSided: version === 6 || cardMode === "clustersMaterialBackfaces" }],
+        materials: [{ name: "Wood", baseColor: [0.35, 0.27, 0.2, 1], roughness: 0.9 }, { name: "Leaf", baseColor: [0.3, 0.45, 0.16, 1], roughness: 0.8, doubleSided: true }],
         generator: `Forge procgen tree ${version}`,
-      });
+      }));
       const id = outputId(recipeId, `tree/${seed}/lod${lod}`);
       lodIds.push(id);
       binaryWithMeta(outputs, `${folder}/${name}.glb`, id, "forge.model@2", bytes, {
@@ -119,9 +111,9 @@ export async function treeOutputs(
       }, generated);
       if (lod === 0) height = Math.max(meshBounds(mesh.wood).max[1], mesh.leaves ? meshBounds(mesh.leaves).max[1] : 0);
       const lodStats = result.stats[lod]!;
-      stats.push(`${name}.glb: wood ${lodStats.wood.triangles}, leaves ${lodStats.leaves?.triangles ?? 0} triangles${version !== 6 && (cardMode === "clusters" || cardMode === "clustersMaterialBackfaces") ? " (branch-tip cards)" : ""}${result.crown ? `, leaf area index ${(result.crown.leafArea[lod]! / result.crown.referenceArea).toFixed(1)}` : ""}`);
-    });
-    stats.push(`seed ${seed}: ${result.stems} stems, ${result.clusters} leaf clusters, ${Math.round(performance.now() - started)} ms`);
+      stats.push(`${name}.glb: wood ${lodStats.wood.triangles}, leaves ${lodStats.leaves?.triangles ?? 0} triangles, leaf area index ${(result.crown.leafArea[lod]! / result.crown.referenceArea).toFixed(1)}, ${bytes.length} bytes`);
+    }
+    stats.push(`seed ${seed}: ${result.stems} stems, ${result.sprays} sprays, ${Math.round(performance.now() - started)} ms`);
 
     let impostor: JsonObject = { albedo: null, normal: null, views: 8, screenSize: 0.03, color: null };
     if (!shrub && impostorSettings.enabled) {
@@ -153,7 +145,7 @@ export async function treeOutputs(
       mesh: lodIds[0]!,
       family: familyId,
       prototype,
-      radius: round(result.crown ? result.crown.radius : result.height * 0.3),
+      radius: round(result.crown.radius),
       scaleMin: 0.85,
       scaleMax: 1.15,
       alignToNormal: false,
@@ -170,7 +162,8 @@ export async function treeOutputs(
     generatorVersion: version,
     prototypes,
     materials: { wood: materials.wood, leaf: materials.leaf },
-    collider: shrub || data.collision === "none" ? "none" : "trunk",
+    twigTint: (data.bark as JsonObject).twigTint,
+    collider: data.collision === "none" ? "none" : "trunk",
     sway: data.sway as JsonObject,
     response: data.response as JsonObject,
   });

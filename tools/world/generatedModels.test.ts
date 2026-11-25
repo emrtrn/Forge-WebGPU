@@ -96,10 +96,6 @@ test("a project recipe a brief names is generated when it has no output, and lef
   expect((await stat(family)).mtimeMs).toBe(before);
   expect(again.level.level.actors).toEqual(first.level.level.actors);
 
-  // A pack's recipe without output is reported, never written into the pack or the project.
-  brief.data.models.find((model) => model.role === "vegetation.tree")!.recipe = (JSON.parse(await readFile(join(engineRoot, "content/packs/starter/procgen/trees/Poplar.treerecipe.json"), "utf8")) as { id: string }).id;
-  await writeFile(join(project, path), JSON.stringify(brief));
-  expect((await build()).build.deferred).toContain("generated models with no output, placed as placeholders: vegetation.tree: Poplar");
   brief.data.models.find((model) => model.role === "vegetation.tree")!.recipe = `ast_${"9".repeat(32)}`;
   await writeFile(join(project, path), JSON.stringify(brief));
   await expect(build()).rejects.toThrow(/no model recipe in the project: ast_9/);

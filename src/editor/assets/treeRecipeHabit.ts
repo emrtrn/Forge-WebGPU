@@ -6,13 +6,9 @@ import type { AssetDocument } from "./assetDocument.ts";
 
 const presets = { broadleaf, conifer, shrub };
 
+/** Another habit's skeleton differs in spray and proportions too: the starter's recipe of that habit. */
 export function treeHabitDraft(document: AssetDocument, habit: unknown, catalog: AssetCatalog): AssetDocument | null {
-  if (habit !== "broadleaf" && habit !== "conifer" && habit !== "shrub") return null;
-  const wasShrub = document.generatorVersion === 5;
-  // The crown generator's two habits differ in spray and proportions too.
-  const crown = document.generatorVersion === 6 && document.habit !== habit;
-  if (wasShrub === (habit === "shrub") && !crown) return null;
-
+  if ((habit !== "broadleaf" && habit !== "conifer" && habit !== "shrub") || document.habit === habit) return null;
   const preset = presets[habit];
   const available = (guid: string | null) => guid !== null && catalog.label(guid) !== null ? guid : null;
   const wood = (document.materials as { wood: string | null }).wood;

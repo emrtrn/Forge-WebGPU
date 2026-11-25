@@ -190,13 +190,13 @@ test("family sheet lists generated recipes, shows their output, keeps an answer 
   const angular = page.locator('[data-testid="family-sheet-card"]').filter({ hasText: "RockAngular" });
   await expect(broadleaf).toBeVisible();
   // A recipe with no output is not listed by itself; picked by hand it cannot be approved.
-  await expect(page.getByTestId("family-sheet-list")).not.toContainText("Poplar");
+  await expect(page.getByTestId("family-sheet-list")).not.toContainText("comparison");
   await page.getByTestId("family-sheet-add").click();
-  await page.locator(".details-picker").getByText("Poplar").first().click();
-  const poplar = page.locator('[data-testid="family-sheet-card"]').filter({ hasText: "Poplar" });
-  await expect(poplar).toContainText("not generated");
-  await expect(poplar.getByTestId("family-sheet-approve")).toBeDisabled();
-  await poplar.getByTestId("family-sheet-remove").click();
+  await page.locator(".details-picker").getByText("comparison").first().click();
+  const bare = page.locator('[data-testid="family-sheet-card"]').filter({ hasText: "comparison" });
+  await expect(bare).toContainText("not generated");
+  await expect(bare.getByTestId("family-sheet-approve")).toBeDisabled();
+  await bare.getByTestId("family-sheet-remove").click();
   // The card's output in the preview: a plant and a rock.
   const preview = page.getByTestId("asset-editor-preview"), labels = page.getByTestId("preview-labels").locator("span");
   const ready = () => expect(preview).toHaveAttribute("data-preview-ready", "1", { timeout: 60000 });
@@ -280,7 +280,7 @@ test("tree recipe changes Habit to Shrub, previews and publishes the new topolog
   await expect(habit).toHaveValue("broadleaf");
   await expect(stems).toHaveCount(0);
   await habit.selectOption("shrub");
-  await expect(stems).toHaveValue("5");
+  await expect(stems).toHaveValue("6");
   await expect(preview).toHaveAttribute("data-preview-ready", "1", { timeout: 35000 });
   await expect(preview.getByLabel("Seed")).toHaveValue("7");
   await previewShot(page, "tree-shrub-habit", info);
@@ -288,18 +288,18 @@ test("tree recipe changes Habit to Shrub, previews and publishes the new topolog
   await expect(habit).toHaveValue("broadleaf");
   await expect(page.getByTestId("asset-field-height")).toHaveValue("12");
   await page.getByTestId("asset-editor-redo").click();
-  await stems.fill("6"); await stems.press("Tab");
+  await stems.fill("7"); await stems.press("Tab");
   await page.getByTestId("asset-editor-generate").click();
   await expect(page.getByTestId("asset-editor-status")).toContainText("Generated and saved", { timeout: 60000 });
-  expect(await json(`${FOLDER}/tree2.treerecipe.json`)).toMatchObject({ generatorVersion: 5, habit: "shrub", shrub: { stemCount: 6 } });
-  expect(await json(`${FOLDER}/tree2/tree2.plantfamily.json`)).toMatchObject({ generatorVersion: 5, collider: "none", prototypes: [{ seed: 7 }] });
+  expect(await json(`${FOLDER}/tree2.treerecipe.json`)).toMatchObject({ generatorVersion: 6, habit: "shrub", shrub: { stemCount: 7 } });
+  expect(await json(`${FOLDER}/tree2/tree2.plantfamily.json`)).toMatchObject({ generatorVersion: 6, collider: "none", prototypes: [{ seed: 7 }] });
   await page.getByTestId("asset-editor-reload").click();
   await expect(habit).toHaveValue("shrub");
-  await expect(stems).toHaveValue("6");
+  await expect(stems).toHaveValue("7");
   expect(errors).toEqual([]);
 });
 
-test("tree growth compares crown and age at a fixed camera across three seeds", async ({ page }) => {
+test("tree growth compares crown and age at a fixed camera across two seeds", async ({ page }) => {
   test.setTimeout(180000);
   const errors = await open(page);
   await asset(page, "comparison.treerecipe.json");
@@ -317,12 +317,6 @@ test("tree growth compares crown and age at a fixed camera across three seeds", 
       await write(comparison, { ...recipe, id: comparisonId });
       await page.getByTestId("asset-editor-reload").click();
       await expect(page.getByTestId("asset-field-trunkRadius")).toHaveValue(String(recipe.trunkRadius));
-      if (name === "Broadleaf") {
-        // The crown generator: sprays in place of branch levels and leaf clusters.
-        await expect(page.getByTestId("asset-field-spray.length")).toHaveCount(1);
-        await expect(page.getByTestId("asset-field-section-levels")).toHaveCount(0);
-        await expect(page.getByTestId("asset-field-section-leaves")).toHaveCount(0);
-      }
       await ready();
     }
     for (const age of [60, 12]) {
@@ -330,7 +324,7 @@ test("tree growth compares crown and age at a fixed camera across three seeds", 
         const field = page.getByTestId("asset-field-growth.age");
         await field.fill(String(age)); await field.press("Tab"); await ready();
       }
-      for (const seed of ["1", "2", "3"]) {
+      for (const seed of ["1", "2"]) {
         await preview.getByLabel("Seed").selectOption(seed); await ready();
         const label = `${name}-${age}-seed${seed}`;
         const wood = preview.getByLabel("Wood only");

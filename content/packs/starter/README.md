@@ -15,6 +15,12 @@ worldbuilder pack requires this one.
   (triplanar + `variation`), `RockAngular` / `RockRounded.rockrecipe.json`;
   çıktıları yanlarındaki klasörlerde, `npm run forge -- generate --pack starter
   --recipe <dosya> --force` ile yeniden üretilir (aynı baytlar).
+- `procgen/trees/`: prosedürel ağaç ve çalı ön ayarları (vegetation plan PG5b):
+  `Broadleaf`, `Maple`, `Birch`, `Oak`, `Poplar`, `Pine`, `Conifer` (ladin) ve
+  `Hazel` (çalı) `.treerecipe.json`; kabuklar `Bark`, `BarkBirch`, `BarkPine`,
+  `BarkSmooth.surfacetexturerecipe.json` ve `M_Bark*.material.json`. Yeni beş tür
+  2, ötekiler 3 prototip; LOD GLB'leri meshopt'lu (kullanıcı kararı 2026-11-25).
+- `procgen/grass/`: `MeadowGrass.grassrecipe.json`.
 - `starter-content/`, `DevelopmentContent/`: Forge WebGL assets the engine's
   ported code names by id (World Builder's temporary materials and their
   textures, particle flipbooks, water normal, noise, UI / footstep / impact /

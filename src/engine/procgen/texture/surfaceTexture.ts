@@ -8,6 +8,8 @@ export interface SurfaceNoiseLayer {
   kind: (typeof SURFACE_NOISE_KINDS)[number];
   /** Integer features per tile, 1..64. */
   scale: number;
+  /** Features along V over those along U: below 1 they run up the tile, above 1 across it. 1/16..16. */
+  stretch: number;
   octaves: number; // 1..8
   gain: number; // 0..1
   weight: number; // 0..2
@@ -15,6 +17,8 @@ export interface SurfaceNoiseLayer {
   threshold: number; // 0..1
   /** Smoothstep width around threshold. A width of 1 bypasses the remap. */
   softness: number;
+  /** Peaks become hollows. */
+  invert: boolean;
 }
 
 export interface SurfaceColorStop { at: number; color: readonly [number, number, number] }
@@ -46,8 +50,8 @@ export interface SurfaceTextureResult {
 }
 
 const DEFAULT_LAYERS: readonly SurfaceNoiseLayer[] = [
-  { kind: "gradient", scale: 5, octaves: 4, gain: 0.55, weight: 1, blend: "add", threshold: 0.5, softness: 1 },
-  { kind: "cellular", scale: 9, octaves: 3, gain: 0.5, weight: 0.35, blend: "add", threshold: 0.5, softness: 1 },
+  { kind: "gradient", scale: 5, stretch: 1, invert: false, octaves: 4, gain: 0.55, weight: 1, blend: "add", threshold: 0.5, softness: 1 },
+  { kind: "cellular", scale: 9, stretch: 1, invert: false, octaves: 3, gain: 0.5, weight: 0.35, blend: "add", threshold: 0.5, softness: 1 },
 ];
 const DEFAULT_RAMP: readonly SurfaceColorStop[] = [
   { at: 0, color: [0.22, 0.22, 0.21] },
@@ -73,7 +77,7 @@ export function normalizeSurfaceTextureParams(input: Readonly<Record<string, unk
     const kind = SURFACE_NOISE_KINDS.find(value => value === entry.kind);
     if (!kind) continue;
     layers.push({
-      kind, scale: Math.round(field(entry.scale, 5, 1, 64)), gain: field(entry.gain, 0.5),
+      kind, scale: Math.round(field(entry.scale, 5, 1, 64)), stretch: field(entry.stretch, 1, 1 / 16, 16), invert: entry.invert === true, gain: field(entry.gain, 0.5),
       octaves: Math.round(field(entry.octaves, 3, 1, 8)), weight: field(entry.weight, 1, 0, 2),
       blend: SURFACE_BLENDS.find(value => value === entry.blend) ?? "add",
       threshold: field(entry.threshold, 0.5), softness: field(entry.softness, 1),
@@ -99,27 +103,28 @@ export function normalizeSurfaceTextureParams(input: Readonly<Record<string, unk
   };
 }
 
-function cellularFbm(x: number, y: number, period: number, octaves: number, gain: number, seed: number): number {
+function cellularFbm(x: number, y: number, period: number, periodY: number, octaves: number, gain: number, seed: number): number {
   let sum = 0, total = 0, amplitude = 1;
   for (let octave = 0; octave < octaves && amplitude !== 0; octave++) {
-    sum += amplitude * periodicCellular2(x, y, period, seed + octave * 101);
+    sum += amplitude * periodicCellular2(x, y, period, seed + octave * 101, periodY);
     total += amplitude;
     amplitude *= gain;
     x *= LACUNARITY;
     y *= LACUNARITY;
     period *= LACUNARITY;
+    periodY *= LACUNARITY;
   }
   return sum / total;
 }
 
 function sampleLayer(layer: SurfaceNoiseLayer, u: number, v: number, seed: number): number {
   const { kind, scale, octaves, gain, threshold, softness, weight } = layer;
-  const x = u * scale, y = v * scale;
+  const scaleY = Math.max(1, Math.round(scale * layer.stretch)), x = u * scale, y = v * scaleY;
   let value: number;
   if (kind === "cellular") {
-    value = cellularFbm(x, y, scale, octaves, gain, seed);
+    value = cellularFbm(x, y, scale, scaleY, octaves, gain, seed);
   } else {
-    const gradient = periodicFbm2(x, y, scale, octaves, LACUNARITY, gain, seed);
+    const gradient = periodicFbm2(x, y, scale, octaves, LACUNARITY, gain, seed, scaleY);
     value = kind === "ridged" ? 1 - Math.abs(gradient) : gradient * 0.5 + 0.5;
   }
   if (softness === 0) value = value >= threshold ? 1 : 0;
@@ -127,7 +132,7 @@ function sampleLayer(layer: SurfaceNoiseLayer, u: number, v: number, seed: numbe
     const t = clamp((value - threshold) / softness + 0.5, 0, 1);
     value = t * t * (3 - 2 * t);
   }
-  return value * weight;
+  return (layer.invert ? 1 - value : value) * weight;
 }
 
 function bakeHeight({ size, seed, layers }: SurfaceTextureParams): Float32Array {

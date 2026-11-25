@@ -43,7 +43,6 @@ import { binaryWithMeta, GENERATED_MODEL_OPTIMIZE, GENERATOR_VERSIONS, outputId,
 import { decodePng } from "./png.ts";
 import { encodeRgbaKtx2 } from "./ktx2.ts";
 import { treeOutputs } from "./treeOutputs.ts";
-import { treeOutputVersion } from "../../src/engine/procgen/tree/treeGrowth.ts";
 import { defaultTreeLeafMaterial } from "../../src/engine/procgen/tree/treeRecipe.ts";
 import type { GrassRecipeData } from "../../src/features/plant/schema.ts";
 import { grassOutputs } from "./grassOutputs.ts";
@@ -256,12 +255,7 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
   const draft = options.editorDraft;
   if (draft) {
     const drafted = recipeGenerator(entry.type);
-    const version = draft.document.generatorVersion;
-    // An explicit Habit edit can switch the topology while retaining the recipe identity.
-    const switchingTopology = (version === 5) !== (doc.generatorVersion === 5)
-      && (version === 5 ? draft.document.habit === "shrub" : draft.document.habit === "broadleaf" || draft.document.habit === "conifer");
-    if (!drafted || draft.document.id !== entry.id || (drafted === "tree" && version !== doc.generatorVersion && !switchingTopology))
-      throw new Error("Unsupported recipe identity or generator version.");
+    if (!drafted || draft.document.id !== entry.id) throw new Error("Unsupported recipe identity.");
     const checked = normalizeJsonAsset(def, draft.document, { strict: true });
     if (!checked.ok || !checked.value) throw new Error(checked.issues.map(issue => `${issue.path} ${issue.message}`).join("\n"));
     doc = checked.value as JsonObject;
@@ -308,7 +302,7 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
     const materials = (doc.materials ?? {}) as { wood?: string | null; leaf?: string | null };
     const looks = {
       wood: await materialLook(options, target, materials.wood ?? null, own, warnings),
-      leaf: defaultTreeLeafMaterial(entry.id, doc.generatorVersion, materials.leaf) ? null
+      leaf: defaultTreeLeafMaterial(entry.id, materials.leaf) ? null
         : await materialLook(options, target, materials.leaf ?? null, own, warnings),
     };
     outputs = await treeOutputs(entry.id, doc, folder, stem, stats, looks);
@@ -404,7 +398,7 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
       if (draft) publication = result;
     }
     return {
-      recipe: label, generator, generatorVersion: generator === "tree" ? treeOutputVersion(doc.generatorVersion) : GENERATOR_VERSIONS[generator],
+      recipe: label, generator, generatorVersion: GENERATOR_VERSIONS[generator],
       files, removed, stats, warnings, milliseconds: Math.round(performance.now() - started), ...(publication ? { publication } : {}),
     };
   } finally {

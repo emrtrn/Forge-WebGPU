@@ -7,10 +7,9 @@
 // many as its share and its triangle cap allow, and grows them about their
 // tips so the leaf area stays; the silhouette does not swell with it.
 //
-// Attributes: `_WIND` as the older generators (trunk bend, sway, phase,
-// flutter), here with the sway rising as the wood thins and the phase shared
-// by a whole limb, so a branch stays on its limb; `_LEAF` on leaves and wood:
-// the spray's shedding threshold (0 on wood) and the crown light of the place
+// Attributes: `_WIND` (trunk bend, sway, phase, flutter), the sway rising as the wood thins and the phase shared by a whole
+// limb, so a branch stays on its limb; `_LEAF`: the spray's shedding threshold
+// (on wood the share of the twig colour) and the crown light of the place
 // (crownLight.ts), which the shader darkens by. Leaf normals are the crown's,
 // the same on both sides of a card: the material draws both.
 
@@ -19,9 +18,8 @@ import { cross, dot, unit, type Vec3 } from "../../vector.ts";
 import { meshStats } from "../../stats.ts";
 import { addTube, hash01, TreeMeshBuilder, type TreeLodMesh } from "../treeMesh.ts";
 import type { TreeResult } from "../treeGenerator.ts";
-import { TREE_PRESETS, type TreeParams } from "../treeParams.ts";
-import { addScaled, createStemSampler } from "../treeSkeleton.ts";
-import { CROWN_TRIANGLE_CAPS, normalizeCrownParams, SPRAY_COVERAGE, targetLeafAreaIndex, type CrownParams } from "./crownParams.ts";
+import { addScaled, createStemSampler } from "../stems.ts";
+import { CROWN_TRIANGLE_CAPS, normalizeCrownParams, SHRUB_TRIANGLE_CAPS, SPRAY_COVERAGE, targetLeafAreaIndex, type CrownParams } from "./crownParams.ts";
 import { createCrownLight, type CrownSample } from "./crownLight.ts";
 import { buildCrownSkeleton, perpendicularPart, type CrownSkeleton, type SpraySite } from "./crownSkeleton.ts";
 
@@ -69,9 +67,8 @@ export function buildCrown(params: CrownParams): CrownTree | { error: string } {
     Math.max(0.16, Math.min(0.8, 0.045 * skeleton.height)),
   );
   const sprays = placed.map((s): Spray => ({ ...s, base2: lightAt(s.base), tip2: lightAt(addScaled(s.base, s.dir, s.length)) }));
-  // The one order every LOD keeps its sprays from: a spray with no room to grow (a conifer's top) goes before one
-  // that can stand in for its neighbours.
-  const rank = new Map(sprays.map((s) => [s.id, hash01(`${s.id}/keep`) * Math.max(0.15, Math.min(1, ((s.reach ?? Infinity) / s.length - 1) / 1.2))]));
+  // The one order every LOD keeps its sprays from.
+  const rank = new Map(sprays.map((s) => [s.id, hash01(`${s.id}/keep`) * (s.keep ?? 1)]));
   sprays.sort((a, b) => rank.get(a.id)! - rank.get(b.id)! || (a.id < b.id ? -1 : 1));
   return { params, skeleton, sprays, lightAt };
 }
@@ -96,15 +93,14 @@ function addSpray(builder: TreeMeshBuilder, tree: CrownTree, spray: Spray, grow:
   for (let row = 0; row <= rows; row++) for (let column = 0; column <= columns; column++) {
     const along = row / rows, side = columns === 1 ? column * 2 - 1 : column - 1;
     let p = addScaled(addScaled(base, spray.dir, along * length), across, side * half);
-    if (columns > 1) p = addScaled(p, up, side === 0 ? 0.1 * half : -0.24 * half);
+    if (columns > 1) p = addScaled(p, up, side === 0 ? 0.16 * half : -0.36 * half);
     p = addScaled(p, [0, 1, 0], -params.spray.droop * 0.6 * along * along * length);
     const open = unit(addScaled(addScaled([0, 0, 0], spray.base2.normal, 1 - along), spray.tip2.normal, along));
-    let face = unit(addScaled(up, across, columns > 1 ? side * 0.4 : 0));
+    let face = unit(addScaled(up, across, columns > 1 ? side * 0.5 : 0));
     if (dot(face, open) < 0) face = [-face[0], -face[1], -face[2]];
     const light = spray.base2.light + (spray.tip2.light - spray.base2.light) * along;
-    builder.leaf.push(shed, Math.max(0, Math.min(1, light * (0.94 + 0.12 * tone))));
     vertices.push(builder.addVertex(p, unit(addScaled(open, face, 0.45)), u0 + span * along, v0 + span * (flip * side * 0.5 + 0.5),
-      [Math.min(1, Math.max(0, p[1] / params.height)) ** 2, Math.min(1, sway + 0.15 * along), phase, 0.25 + 0.75 * along]));
+      [bendOf(params, p), Math.min(1, sway + 0.15 * along), phase, 0.25 + 0.75 * along], [shed, Math.max(0, Math.min(1, light * (0.94 + 0.12 * tone)))]));
   }
   const stride = columns + 1;
   for (let row = 0; row < rows; row++) for (let column = 0; column < columns; column++) {
@@ -116,6 +112,7 @@ function addSpray(builder: TreeMeshBuilder, tree: CrownTree, spray: Spray, grow:
 }
 
 /** 0 on the trunk's base, near 1 on a twig: thin wood sways, and a joint has one value on both sides. */
+const bendOf = (params: CrownParams, p: Vec3): number => Math.min(1, Math.max(0, p[1] / params.height)) ** 2;
 const swayOf = (params: CrownParams, radius: number): number => Math.max(0, 1 - Math.sqrt(Math.min(1, radius / params.trunkRadius))) ** 1.5;
 
 interface LodPlan { tubes: { index: number; segments: number; spans: number }[]; wood: number; sprays: number }
@@ -135,39 +132,29 @@ function planLod(tree: CrownTree, lod: number, cap: number): LodPlan {
   return { tubes, wood, sprays: Math.max(0, Math.min(room, Math.round(settings.leafFraction * sprays.length))) };
 }
 
-/** Wood's `_LEAF`: it never sheds and darkens with the crown around it. */
-function woodLight(tree: CrownTree, positions: Float32Array): Float32Array {
-  const out = new Float32Array(positions.length / 3 * 2);
-  for (let v = 0; v < positions.length / 3; v++) out[v * 2 + 1] = tree.lightAt([positions[v * 3]!, positions[v * 3 + 1]!, positions[v * 3 + 2]!]).light;
-  return out;
-}
-
 export function generateCrownTree(input: Readonly<Record<string, unknown>>, options?: { triangleCaps?: readonly number[] }): TreeResult {
   const params = normalizeCrownParams(input), tree = buildCrown(params);
   if ("error" in tree) return { ok: false, report: { code: "skeleton", message: tree.error } };
   const { skeleton, sprays } = tree;
-  const plans: LodPlan[] = [];
+  const plans: LodPlan[] = [], caps = params.habit === "shrub" ? SHRUB_TRIANGLE_CAPS : CROWN_TRIANGLE_CAPS;
   for (let lod = 0; lod < params.lods.length; lod++) {
     const requested = options?.triangleCaps?.[lod];
-    const cap = requested !== undefined && Number.isFinite(requested) ? Math.max(0, Math.floor(requested)) : CROWN_TRIANGLE_CAPS[Math.min(lod, CROWN_TRIANGLE_CAPS.length - 1)]!;
+    const cap = requested !== undefined && Number.isFinite(requested) ? Math.max(0, Math.floor(requested)) : caps[Math.min(lod, caps.length - 1)]!;
     const plan = planLod(tree, lod, cap);
     if (plan.wood > cap) return { ok: false, report: { code: "budget", lod, message: `LOD${lod} requests ${plan.wood} wood triangles; cap is ${cap}` } };
     plans.push(plan);
   }
-  // addTube reads the older generators' parameters for its wind only: replaced below.
-  const tubeParams: TreeParams = { ...TREE_PRESETS.broadleaf, height: params.height, trunkRadius: params.trunkRadius };
+  // How much of the twig colour the wood has: none above twice and a half the twig's radius.
+  const twigOf = (radius: number): number => (params.twigRadius > 0 ? Math.max(0, Math.min(1, (2.5 - radius / params.twigRadius) / 1.5)) : 0);
   const leafArea: number[] = [];
   const lods = plans.map((plan, lod): TreeLodMesh => {
     const wood = new TreeMeshBuilder(), leaves = new TreeMeshBuilder();
     for (const tube of plan.tubes) {
-      const stem = skeleton.stems[tube.index]!, first = wood.wind.length / 4;
-      addTube(wood, tubeParams, stem, tube, createStemSampler(stem));
-      const phase = hash01(skeleton.stems[stem.limb]!.id), ring = tube.segments + 1;
-      for (let v = first; v < wood.wind.length / 4; v++) {
-        const t = Math.min(1, Math.floor((v - first) / ring) / tube.spans);
-        wood.wind[v * 4 + 1] = swayOf(params, stem.radii[0]! + (stem.radii.at(-1)! - stem.radii[0]!) * t);
-        wood.wind[v * 4 + 2] = phase;
-      }
+      const stem = skeleton.stems[tube.index]!, phase = hash01(skeleton.stems[stem.limb]!.id), r0 = stem.radii[0]!, r1 = stem.radii.at(-1)!;
+      addTube(wood, stem, tube, createStemSampler(stem), (p, t, radius) => ({
+        wind: [bendOf(params, p), swayOf(params, r0 + (r1 - r0) * t), phase, 0],
+        leaf: [twigOf(radius), tree.lightAt(p).light],
+      }));
     }
     const grow = plan.sprays > 0 ? Math.min(MAX_GROWTH, Math.sqrt(sprays.length / plan.sprays)) : 1;
     let area = 0;
@@ -175,13 +162,11 @@ export function generateCrownTree(input: Readonly<Record<string, unknown>>, opti
       area += addSpray(leaves, tree, spray, grow, lod);
     }
     leafArea.push(area);
-    const woodMesh = wood.build();
-    woodMesh.attributes.leaf = woodLight(tree, woodMesh.positions);
-    return { wood: woodMesh, leaves: plan.sprays > 0 ? leaves.build() : null };
+    return { wood: wood.build(), leaves: plan.sprays > 0 ? leaves.build() : null };
   });
   const stats = lods.map((mesh) => {
     const wood = meshStats(mesh.wood), leaves = mesh.leaves ? meshStats(mesh.leaves) : null;
     return { wood, leaves, triangles: wood.triangles + (leaves?.triangles ?? 0) };
   });
-  return { ok: true, lods, stats, height: skeleton.height, stems: skeleton.stems.length, clusters: sprays.length, crown: { leafArea, referenceArea: skeleton.referenceArea, radius: Math.max(skeleton.radius[0], skeleton.radius[2]) } };
+  return { ok: true, lods, stats, height: skeleton.height, stems: skeleton.stems.length, sprays: sprays.length, crown: { leafArea, referenceArea: skeleton.referenceArea, radius: Math.max(skeleton.radius[0], skeleton.radius[2]) } };
 }

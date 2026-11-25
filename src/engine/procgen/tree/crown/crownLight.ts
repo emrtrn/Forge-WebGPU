@@ -5,7 +5,7 @@
 // clump shades as a clump and the two sides of a card alike.
 
 import { unit, type Vec3 } from "../../vector.ts";
-import { addScaled } from "../treeSkeleton.ts";
+import { addScaled } from "../stems.ts";
 
 export interface CrownSample { light: number; normal: Vec3 }
 

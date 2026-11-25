@@ -1,0 +1,82 @@
+{
+  "schema": "forge.surfaceTextureRecipe/1",
+  "id": "ast_c675c8a547d0df00bfad5e980b000786",
+  "generatorVersion": 1,
+  "size": "512",
+  "seed": 7,
+  "layers": [
+    {
+      "kind": "gradient",
+      "scale": 4,
+      "stretch": 0.5,
+      "octaves": 4,
+      "gain": 0.5,
+      "weight": 1,
+      "blend": "add",
+      "threshold": 0.5,
+      "softness": 1,
+      "invert": false
+    },
+    {
+      "kind": "gradient",
+      "scale": 24,
+      "stretch": 0.22,
+      "octaves": 3,
+      "gain": 0.5,
+      "weight": 0.55,
+      "blend": "add",
+      "threshold": 0.5,
+      "softness": 1,
+      "invert": false
+    },
+    {
+      "kind": "ridged",
+      "scale": 5,
+      "stretch": 0.2,
+      "octaves": 2,
+      "gain": 0.5,
+      "weight": 0.45,
+      "blend": "add",
+      "threshold": 0.72,
+      "softness": 0.5,
+      "invert": true
+    },
+    {
+      "kind": "gradient",
+      "scale": 12,
+      "stretch": 3,
+      "octaves": 2,
+      "gain": 0.5,
+      "weight": 0.2,
+      "blend": "add",
+      "threshold": 0.5,
+      "softness": 1,
+      "invert": false
+    }
+  ],
+  "colorRamp": [
+    {
+      "at": 0,
+      "color": "#4a3f36"
+    },
+    {
+      "at": 0.3,
+      "color": "#6f6155"
+    },
+    {
+      "at": 0.6,
+      "color": "#8f7f70"
+    },
+    {
+      "at": 1,
+      "color": "#b0a08f"
+    }
+  ],
+  "normalStrength": 3,
+  "roughness": [
+    0.92,
+    0.78
+  ],
+  "aoStrength": 0.45,
+  "metalness": 0
+}

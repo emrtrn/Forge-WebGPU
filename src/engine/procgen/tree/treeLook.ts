@@ -29,7 +29,7 @@ export function materialLookOf(doc: JsonObject, texture: MaterialLook["texture"]
 
 export interface TreeLooks { readonly wood: MaterialLook | null; readonly leaf: MaterialLook | null }
 
-export function treeImpostorSurfaces(looks: TreeLooks, atlas: { readonly size: number; readonly rgba: Uint8Array }): { wood: TreeImpostorSurface; leaf: TreeImpostorSurface } {
+export function treeImpostorSurfaces(looks: TreeLooks, atlas: { readonly size: number; readonly rgba: Uint8Array }, recipe: JsonObject): { wood: TreeImpostorSurface; leaf: TreeImpostorSurface } {
   const surfaceOf = (look: MaterialLook | null, fallback: readonly [number, number, number], alphaTest: number): TreeImpostorSurface => ({
     color: look?.color ?? fallback,
     texture: look?.texture === "leafAtlas" ? { width: atlas.size, height: atlas.size, rgba: atlas.rgba } : look?.texture ?? null,
@@ -38,7 +38,7 @@ export function treeImpostorSurfaces(looks: TreeLooks, atlas: { readonly size: n
     alphaTest: look ? look.alphaTest : alphaTest,
   });
   return {
-    wood: surfaceOf(looks.wood, [0.35, 0.27, 0.2], 0),
+    wood: { ...surfaceOf(looks.wood, [0.35, 0.27, 0.2], 0), twigTint: srgbTriple(String((recipe.bark as JsonObject | undefined)?.twigTint ?? "#ffffff")) },
     // Without a leaf material the GLB's own "Leaf" colour over the atlas, as the model draws.
     leaf: surfaceOf(looks.leaf ?? { color: [1, 1, 1], texture: "leafAtlas", tiling: [1, 1], flipY: true, alphaTest: 0.5 }, [1, 1, 1], 0.5),
   };

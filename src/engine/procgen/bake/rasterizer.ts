@@ -34,6 +34,8 @@ export interface BakeSurface {
   threshold?: Float32Array;
   /** Default true; false culls triangles whose winding faces away (CCW = front). */
   doubleSided?: boolean;
+  /** Multiplies the colour, per vertex as much as `share` (0..1) says. */
+  blend?: { readonly color: readonly [number, number, number]; readonly share: Float32Array };
   /** Per vertex, 0..1: written to the normal output's blue in place of the depth. */
   shade?: Float32Array;
   /** The normals hold on both sides of a triangle (a crown's): a back face keeps its own. Default false. */
@@ -154,7 +156,7 @@ export function rasterize(surfaces: readonly BakeSurface[], camera: BakeCamera, 
     const alphaTest = (surface.alphaTest ?? (texture ? 0.5 : 0)) * 255;
     const tint = surface.color ?? [1, 1, 1];
     const doubleSided = surface.doubleSided ?? true;
-    const uvs = surface.uvs, threshold = surface.threshold, shade = surface.shade;
+    const uvs = surface.uvs, threshold = surface.threshold, shade = surface.shade, blend = surface.blend;
 
     for (let t = 0; t + 2 < indices.length; t += 3) {
       let a = indices[t]!, b = indices[t + 1]!, c = indices[t + 2]!;
@@ -187,6 +189,12 @@ export function rasterize(surfaces: readonly BakeSurface[], camera: BakeCamera, 
           const l0 = w0 / total, l1 = w1 / total, l2 = w2 / total;
           const depth = pd[a]! * l0 + pd[b]! * l1 + pd[c]! * l2;
           if (depth < -halfDepth || depth > halfDepth) continue;
+          const index = sy * sw + sx;
+          // A surface without thresholds counts as 0: it never sheds.
+          const value = threshold ? threshold[a]! * l0 + threshold[b]! * l1 + threshold[c]! * l2 : 0;
+          const nearest = depth < target.depth[index]!;
+          // Hidden, and no smaller threshold: nothing to write, whatever its alpha.
+          if (!nearest && !(value < target.extra[index]!)) continue;
           let r = 255, g = 255, bl = 255, alpha = 255;
           if (texture && uvs) {
             const u = uvs[a * 2]! * l0 + uvs[b * 2]! * l1 + uvs[c * 2]! * l2;
@@ -195,19 +203,20 @@ export function rasterize(surfaces: readonly BakeSurface[], camera: BakeCamera, 
             r = texel[0]!; g = texel[1]!; bl = texel[2]!; alpha = texel[3]!;
           }
           if (alpha < alphaTest) continue;
-          const index = sy * sw + sx;
-          // A surface without thresholds counts as 0: it never sheds.
-          const value = threshold ? threshold[a]! * l0 + threshold[b]! * l1 + threshold[c]! * l2 : 0;
           if (value < target.extra[index]!) target.extra[index] = value;
-          if (!(depth < target.depth[index]!)) continue;
+          if (!nearest) continue;
           target.depth[index] = depth;
+          if (blend) {
+            const share = blend.share[a]! * l0 + blend.share[b]! * l1 + blend.share[c]! * l2;
+            r *= 1 + (blend.color[0] - 1) * share; g *= 1 + (blend.color[1] - 1) * share; bl *= 1 + (blend.color[2] - 1) * share;
+          }
           target.color[index * 3] = r * tint[0];
           target.color[index * 3 + 1] = g * tint[1];
           target.color[index * 3 + 2] = bl * tint[2];
           let nx = normals[a * 3]! * l0 + normals[b * 3]! * l1 + normals[c * 3]! * l2;
           let ny = normals[a * 3 + 1]! * l0 + normals[b * 3 + 1]! * l1 + normals[c * 3 + 1]! * l2;
           let nz = normals[a * 3 + 2]! * l0 + normals[b * 3 + 2]! * l1 + normals[c * 3 + 2]! * l2;
-          const length = Math.hypot(nx, ny, nz) || 1;
+          const length = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
           nx = nx / length * flip; ny = ny / length * flip; nz = nz / length * flip;
           target.normal[index * 3] = nx;
           target.normal[index * 3 + 1] = ny;

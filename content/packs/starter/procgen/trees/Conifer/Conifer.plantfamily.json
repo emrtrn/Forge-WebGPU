@@ -24,9 +24,9 @@
         "normal": "ast_77735e68b655fab457880f23d20affda",
         "views": 8,
         "screenSize": 0.08,
-        "color": "#58763a"
+        "color": "#59783b"
       },
-      "height": 14.02223
+      "height": 14.02553
     },
     {
       "seed": 2,
@@ -49,7 +49,7 @@
         "normal": "ast_b1fe1ae7edccb7684e883811ac0cd063",
         "views": 8,
         "screenSize": 0.08,
-        "color": "#58763a"
+        "color": "#59783b"
       },
       "height": 14.00003
     },
@@ -74,7 +74,7 @@
         "normal": "ast_f690a1595c781e7b8ec6628f6387f79e",
         "views": 8,
         "screenSize": 0.08,
-        "color": "#58763a"
+        "color": "#59783b"
       },
       "height": 14.0001
     }
@@ -83,6 +83,7 @@
     "wood": "ast_4b4adfbe01f0389bf3a0269a3533244c",
     "leaf": "ast_77e54da6b9185f7c5be134bfb21ea5a3"
   },
+  "twigTint": "#e0d2c2",
   "collider": "trunk",
   "sway": {
     "amplitude": 0.15,

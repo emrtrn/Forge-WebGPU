@@ -18,7 +18,7 @@
 // ranges). A material refers to the textures; the shader's share of the
 // hybrid path (large-scale variation) is the material's `variation` group.
 
-import { array, assetRef, color, defineJsonAssetType, enumOf, num, object, vec2, vec3, type FieldValues, type JsonAssetDoc } from "../../core/index.ts";
+import { array, assetRef, bool, color, defineJsonAssetType, enumOf, num, object, vec2, vec3, type FieldValues, type JsonAssetDoc } from "../../core/index.ts";
 
 export const ROCK_SHAPES = ["rounded", "angular"] as const;
 export const RECIPE_COLLISIONS = ["none", "hull"] as const;
@@ -68,12 +68,14 @@ const noiseLayer = object(
   {
     kind: enumOf(SURFACE_NOISE_KINDS, { default: "gradient", labels: { gradient: "Gradient", ridged: "Ridged", cellular: "Cellular" }, hint: "Gürültü türü: yumuşak, sırtlı ya da hücresel (çatlak, taneli)." }),
     scale: num({ min: 1, max: 64, default: 4, step: 1, hint: "Doku başına özellik sayısı (tamsayı; doku döşenebilir kalır)." }),
+    stretch: num({ min: 0.0625, max: 16, default: 1, hint: "Dikey özellik sayısı, yataya oranla: 1'in altında özellikler dikeyde uzar (kabuk oluğu), üstünde yatay şeritleşir (huş)." }),
     octaves: num({ min: 1, max: 8, default: 4, step: 1, hint: "Gürültü katmanı sayısı." }),
     gain: num({ min: 0, max: 1, default: 0.5, hint: "Her katmanın genlik çarpanı." }),
     weight: num({ min: 0, max: 2, default: 1, hint: "Bu katmanın yüksekliğe katkısı." }),
     blend: enumOf(SURFACE_BLENDS, { default: "add", labels: { add: "Add", multiply: "Multiply", max: "Max", min: "Min" }, hint: "Önceki katmanlarla nasıl birleşir (ilk katmanda yok sayılır)." }),
     threshold: num({ min: 0, max: 1, default: 0.5, hint: "Eşik: değer bunun çevresinde keskinleşir." }),
     softness: num({ min: 0, max: 1, default: 1, hint: "Eşik geçişinin yumuşaklığı (1 eşik yok)." }),
+    invert: bool({ default: false, hint: "Tepeyi çukur yapar: hücre kenarlarından çatlak." }),
   },
   { label: "Layer" },
 );
@@ -84,8 +86,8 @@ export const SurfaceTextureRecipeFields = {
   size: enumOf(SURFACE_TEXTURE_SIZES, { default: "512", labels: { 256: "256", 512: "512", 1024: "1024", 2048: "2048" }, hint: "Dokunun kenarı, piksel." }),
   layers: array(noiseLayer, {
     default: [
-      { kind: "gradient", scale: 4, octaves: 5, gain: 0.5, weight: 1, blend: "add", threshold: 0.5, softness: 1 },
-      { kind: "cellular", scale: 8, octaves: 2, gain: 0.5, weight: 0.45, blend: "add", threshold: 0.5, softness: 1 },
+      { kind: "gradient", scale: 4, stretch: 1, octaves: 5, gain: 0.5, weight: 1, blend: "add", threshold: 0.5, softness: 1, invert: false },
+      { kind: "cellular", scale: 8, stretch: 1, octaves: 2, gain: 0.5, weight: 0.45, blend: "add", threshold: 0.5, softness: 1, invert: false },
     ],
     hint: "Yüksekliği kuran gürültü katmanları, sırayla birleşir.",
   }),

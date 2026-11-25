@@ -20,6 +20,7 @@ import type { TreeImpostor } from "../../engine/procgen/tree/treeImpostor.ts";
 import type { PlantResponseProfile } from "../../engine/plant/plantResponse.ts";
 import { createSurfaceMaterial, surfaceTextureSlots, type SurfaceMaterialData } from "../materials/surfaceMaterial.ts";
 import { impostorPart } from "../plant/impostorMaterial.ts";
+import { linearFromHex } from "../plant/plantFamilies.ts";
 import type { WorldResources } from "../resources/worldResources.ts";
 import type { AssetPreviewContext } from "./assetPreview.ts";
 import { createAssetPreviewControls } from "./assetPreviewControls.ts";
@@ -112,7 +113,7 @@ export function createRecipePreview(ctx: AssetPreviewContext, kind: RecipePrevie
     return { amplitude: own.amplitude, frequency: own.frequency, height: Math.max(height, 0.01), source: "vertex" as const };
   };
   /** The slots' names are the GLB's, so the family draw matches by them. */
-  const familyOf = () => ({ id: "preview", wood: null, leaf: null, crown: kind === "tree" && recipe.generatorVersion === 6, response: response() });
+  const familyOf = () => ({ id: "preview", wood: null, leaf: null, crown: kind === "tree", twigTint: linearFromHex(String((recipe.bark as JsonObject | undefined)?.twigTint)) ?? [1, 1, 1] as const, response: response() });
   const shade = (material: NodeMaterial, name: string, origin: Vector3, seed: number, height: number): void => {
     if (kind === "rock") return;
     material.name = name;
@@ -191,14 +192,14 @@ export function createRecipePreview(ctx: AssetPreviewContext, kind: RecipePrevie
       if (column.label) places.push({ text: column.label, position: new Vector3(origin.x + (box.min.x + box.max.x) / 2, 0, 0) });
     });
     labels.set(places);
-    const layout = `${view.value}:${columns.length}:${recipe.generatorVersion === 5}`;
+    const layout = `${view.value}:${columns.length}:${recipe.habit === "shrub"}`;
     if (framed !== layout) { controls.frame(subject, columns.length > 1); framed = layout; }
     const first = shown.meshes.prototypes.find((entry) => entry.seed === columns[0]?.seed);
     const triangles = columns.reduce((sum, column) => sum + (column.lod?.triangles ?? 0), 0);
     stats.value = `${triangles.toLocaleString("en-US")} triangles · ${first?.detail ?? ""} · ${shown.meshes.milliseconds} ms CPU${shown.draft ? " · draft atlas" : ""}`;
-    const settings = kind === "tree" && recipe.generatorVersion !== 5 ? recipe.impostor as { enabled: boolean; views: number; frameSize: string } : null;
+    const settings = kind === "tree" && recipe.habit !== "shrub" ? recipe.impostor as { enabled: boolean; views: number; frameSize: string } : null;
     const bytes = familyMemory({
-      atlasSize: shown.draft ? null : shown.meshes.atlas?.size ?? null, atlasTextures: shown.meshes.atlas?.normal ? 2 : 1,
+      atlasSize: shown.draft ? null : shown.meshes.atlas?.size ?? null, atlasTextures: 2,
       impostor: settings?.enabled ? { views: settings.views, frameSize: Number(settings.frameSize) } : null,
       prototypes: new Set(recipe.variants as number[]).size || 1, meshBytes: first?.bytes ?? 0,
     });
@@ -222,7 +223,7 @@ export function createRecipePreview(ctx: AssetPreviewContext, kind: RecipePrevie
       }
       const ids = recipe.materials as JsonObject;
       const body = typeof ids.wood === "string" ? await resources.material(ids.wood) : own(new MeshStandardNodeMaterial({ color: new Color(0.35, 0.27, 0.2), roughness: 0.9 }));
-      const generated = defaultTreeLeafMaterial(ctx.guid, recipe.generatorVersion, ids.leaf);
+      const generated = defaultTreeLeafMaterial(ctx.guid, ids.leaf);
       if (!ctx.materialType || (!generated && typeof ids.leaf !== "string")) {
         return { body, leaf: own(new MeshStandardNodeMaterial({ color: new Color(0.3, 0.45, 0.16), roughness: 0.8 })), leafSideByLod: true, dispose };
       }
@@ -245,7 +246,7 @@ export function createRecipePreview(ctx: AssetPreviewContext, kind: RecipePrevie
     }
   };
 
-  const wantsImpostor = () => kind === "tree" && view.value === "lods" && recipe.generatorVersion !== 5 && (recipe.impostor as { enabled: boolean }).enabled;
+  const wantsImpostor = () => kind === "tree" && view.value === "lods" && recipe.habit !== "shrub" && (recipe.impostor as { enabled: boolean }).enabled;
 
   /** The materials the impostor bake reads, with their generated textures' recipes. */
   const previewMaterial = async (resources: WorldResources, guid: unknown): Promise<PreviewMaterial | null> => {
@@ -263,7 +264,7 @@ export function createRecipePreview(ctx: AssetPreviewContext, kind: RecipePrevie
     const resources = ctx.host.resources(`recipe-preview-looks:${ctx.guid}:${current}`);
     try {
       const ids = recipe.materials as JsonObject;
-      const leaf = defaultTreeLeafMaterial(ctx.guid, recipe.generatorVersion, ids.leaf) ? null : await previewMaterial(resources, ids.leaf);
+      const leaf = defaultTreeLeafMaterial(ctx.guid, ids.leaf) ? null : await previewMaterial(resources, ids.leaf);
       const wood = await previewMaterial(resources, ids.wood);
       if (disposed || current !== ticket) return;
       post({ kind: "impostor", ticket: current, recipe, seed, wood, leaf });

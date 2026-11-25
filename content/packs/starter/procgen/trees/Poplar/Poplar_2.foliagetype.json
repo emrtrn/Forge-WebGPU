@@ -1,0 +1,55 @@
+{
+  "schema": "forge.foliageType/1",
+  "id": "ast_8ec568693b1f496dbdf82c98b7090822",
+  "mesh": "ast_85070f74f927cd95afc9a973c4477963",
+  "family": "ast_90224669ebd08f6a0a962308cd9acec3",
+  "prototype": 1,
+  "radius": 2.70864,
+  "density": 1,
+  "scaleMin": 0.85,
+  "scaleMax": 1.15,
+  "randomYaw": true,
+  "alignToNormal": false,
+  "zOffsetMin": 0,
+  "zOffsetMax": 0,
+  "slopeMin": 0,
+  "slopeMax": 90,
+  "heightLimit": {
+    "enabled": false,
+    "min": -10000,
+    "max": 10000
+  },
+  "castShadow": true,
+  "collision": true,
+  "cullStart": 0,
+  "cullEnd": 0,
+  "sway": {
+    "enabled": true,
+    "source": "vertex",
+    "amplitude": 0.5,
+    "height": 23.32291,
+    "frequency": 0.32
+  },
+  "fadeSpread": 0,
+  "far": {
+    "distance": 0,
+    "tint": 0
+  },
+  "lods": [
+    {
+      "mesh": "ast_8b3eb3a2b9c78d66c2106f19f6a85db4",
+      "screenSize": 0.42
+    },
+    {
+      "mesh": "ast_2124b26da4da80aaecf1a92d1f77fd9e",
+      "screenSize": 0.17
+    }
+  ],
+  "impostor": {
+    "albedo": "ast_c446fa070e5d39d447c0c3b22f47c94a",
+    "normal": "ast_8878207d4745940062ae5b7c1ff60833",
+    "views": 8,
+    "screenSize": 0.08,
+    "color": "#6a8935"
+  }
+}

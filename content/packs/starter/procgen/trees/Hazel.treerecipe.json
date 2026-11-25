@@ -1,33 +1,108 @@
 {
-  "schema": "forge.treeRecipe/2",
+  "schema": "forge.treeRecipe/3",
   "id": "ast_87bb62bab8604e289363f8780ac6f60e",
-  "generatorVersion": 5,
+  "generatorVersion": 6,
   "habit": "shrub",
-  "shrub": { "stemCount": 5, "spread": 0.62 },
-  "variants": [1, 2, 3],
-  "height": 1.65,
-  "trunkRadius": 0.036,
-  "taper": 0.05,
-  "flare": 0.28,
-  "crownStart": 0.29,
-  "irregularity": 0.82,
-  "levels": [
-    { "count": 4, "angle": 52, "angleVariation": 22, "lengthRatio": 0.44, "start": 0.25, "radiusRatio": 0.53, "bend": 0.34, "wobble": 0.48 },
-    { "count": 2, "angle": 53, "angleVariation": 26, "lengthRatio": 0.63, "start": 0.22, "radiusRatio": 0.49, "bend": 0.24, "wobble": 0.38 }
+  "variants": [
+    1,
+    2,
+    3
   ],
-  "leaves": {
-    "perStem": 5,
-    "size": [0.45, 0.40],
-    "cards": 2,
-    "texture": { "kind": "broad", "count": 8, "leafColor": "#52742d" }
+  "height": 1.65,
+  "trunkRadius": 0.03,
+  "flare": 0.2,
+  "crownStart": 0.08,
+  "irregularity": 0.7,
+  "shrub": {
+    "stemCount": 6,
+    "spread": 0.7
+  },
+  "growth": {
+    "age": 12,
+    "matureAge": 12,
+    "width": 1.15,
+    "widestPoint": 0.5,
+    "fullness": 0.6,
+    "leaderDominance": 0.3,
+    "clumping": 0.6,
+    "droop": 0.1
+  },
+  "bark": {
+    "twigTint": "#f0e4d4",
+    "twigRadius": 0.01
+  },
+  "spray": {
+    "length": 0.5,
+    "aspect": 0.82,
+    "droop": 0.16,
+    "leafShape": "ovate",
+    "leafLength": 0.085,
+    "leafWidth": 0.78,
+    "leafColor": "#5f8430",
+    "twigColor": "#4d3826",
+    "textureSize": "512"
   },
   "lods": [
-    { "radialSegments": 7, "ringsPerMeter": 2, "minRadius": 0, "leafFraction": 0.68, "leafCards": "leaves", "screenSize": 1 },
-    { "radialSegments": 4, "ringsPerMeter": 0.85, "minRadius": 0.009, "leafFraction": 0.9, "leafCards": "clustersMaterialBackfaces", "screenSize": 0.22 },
-    { "radialSegments": 3, "ringsPerMeter": 0.5, "minRadius": 0.03, "leafFraction": 1, "leafCards": "clustersMaterialBackfaces", "screenSize": 0.08 }
+    {
+      "radialSegments": 5,
+      "ringsPerMeter": 5,
+      "minRadius": 0,
+      "leafFraction": 1,
+      "screenSize": 1
+    },
+    {
+      "radialSegments": 3,
+      "ringsPerMeter": 2,
+      "minRadius": 0.009,
+      "leafFraction": 0.8,
+      "screenSize": 0.22
+    },
+    {
+      "radialSegments": 3,
+      "ringsPerMeter": 0.5,
+      "minRadius": 0.5,
+      "leafFraction": 0.3,
+      "screenSize": 0.08
+    }
   ],
-  "materials": { "wood": "ast_4b4adfbe01f0389bf3a0269a3533244c", "leaf": null },
-  "sway": { "amplitude": 0.13, "frequency": 0.44 },
+  "response": {
+    "habit": "deciduous",
+    "spring": {
+      "foliage": 0.8,
+      "tint": "#9ccf6a"
+    },
+    "summer": {
+      "foliage": 1,
+      "tint": "#ffffff"
+    },
+    "autumn": {
+      "foliage": 0.7,
+      "tint": "#d9a03a"
+    },
+    "winter": {
+      "foliage": 0,
+      "tint": "#ffffff"
+    },
+    "windFlex": 1,
+    "snow": {
+      "wood": 0.6,
+      "leaf": 0.8
+    },
+    "wetness": 0.5
+  },
   "collision": "none",
-  "impostor": { "enabled": false }
+  "impostor": {
+    "enabled": false,
+    "views": 8,
+    "frameSize": "128",
+    "screenSize": 0.08
+  },
+  "materials": {
+    "wood": "ast_4b4adfbe01f0389bf3a0269a3533244c",
+    "leaf": null
+  },
+  "sway": {
+    "amplitude": 0.13,
+    "frequency": 0.44
+  }
 }

@@ -27,7 +27,7 @@
     "enabled": true,
     "source": "vertex",
     "amplitude": 0.15,
-    "height": 14.02223,
+    "height": 14.02553,
     "frequency": 0.3
   },
   "fadeSpread": 0,
@@ -50,6 +50,6 @@
     "normal": "ast_77735e68b655fab457880f23d20affda",
     "views": 8,
     "screenSize": 0.08,
-    "color": "#58763a"
+    "color": "#59783b"
   }
 }

@@ -1,0 +1,103 @@
+{
+  "schema": "forge.treeRecipe/3",
+  "id": "ast_5322d2eb85d37fe9fdcff8321a57b180",
+  "generatorVersion": 6,
+  "habit": "broadleaf",
+  "variants": [
+    1,
+    2
+  ],
+  "height": 21,
+  "trunkRadius": 0.42,
+  "flare": 0.7,
+  "crownStart": 0.2,
+  "irregularity": 0.62,
+  "growth": {
+    "age": 80,
+    "matureAge": 80,
+    "width": 0.66,
+    "widestPoint": 0.48,
+    "fullness": 0.72,
+    "leaderDominance": 0.36,
+    "clumping": 0.5,
+    "droop": 0
+  },
+  "bark": {
+    "twigTint": "#cbbdb0",
+    "twigRadius": 0.06
+  },
+  "spray": {
+    "length": 0.8,
+    "aspect": 0.88,
+    "droop": 0.16,
+    "leafShape": "palmate",
+    "leafLength": 0.115,
+    "leafWidth": 0.62,
+    "leafColor": "#8ba845",
+    "twigColor": "#5c4433",
+    "textureSize": "512"
+  },
+  "lods": [
+    {
+      "radialSegments": 14,
+      "ringsPerMeter": 3,
+      "minRadius": 0,
+      "leafFraction": 1,
+      "screenSize": 0.5
+    },
+    {
+      "radialSegments": 7,
+      "ringsPerMeter": 1,
+      "minRadius": 0.024,
+      "leafFraction": 0.6,
+      "screenSize": 0.42
+    },
+    {
+      "radialSegments": 4,
+      "ringsPerMeter": 0.4,
+      "minRadius": 0.07,
+      "leafFraction": 0.12,
+      "screenSize": 0.17
+    }
+  ],
+  "response": {
+    "habit": "deciduous",
+    "spring": {
+      "foliage": 0.8,
+      "tint": "#b4d86a"
+    },
+    "summer": {
+      "foliage": 1,
+      "tint": "#ffffff"
+    },
+    "autumn": {
+      "foliage": 0.7,
+      "tint": "#d8652c"
+    },
+    "winter": {
+      "foliage": 0,
+      "tint": "#ffffff"
+    },
+    "windFlex": 1,
+    "snow": {
+      "wood": 0.6,
+      "leaf": 0.8
+    },
+    "wetness": 0.5
+  },
+  "impostor": {
+    "enabled": true,
+    "views": 8,
+    "frameSize": "128",
+    "screenSize": 0.08
+  },
+  "materials": {
+    "wood": "ast_a32b68ea49d59b067aa0cd4df3efc9ee",
+    "leaf": null
+  },
+  "sway": {
+    "amplitude": 0.35,
+    "frequency": 0.28
+  },
+  "collision": "trunk"
+}

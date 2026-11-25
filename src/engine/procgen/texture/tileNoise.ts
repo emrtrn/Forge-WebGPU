@@ -31,9 +31,9 @@ function dot(x: number, y: number, fx: number, fy: number, seed: number): number
 const fade = (t: number): number => t * t * t * (t * (t * 6 - 15) + 10);
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
-function gradientAt(x: number, y: number, period: number, seed: number): number {
+function gradientAt(x: number, y: number, period: number, periodY: number, seed: number): number {
   const ix = Math.floor(x), iy = Math.floor(y);
-  const nextX = (ix + 1) % period, nextY = (iy + 1) % period;
+  const nextX = (ix + 1) % period, nextY = (iy + 1) % periodY;
   const fx = x - ix, fy = y - iy;
   const u = fade(fx), v = fade(fy);
   return lerp(
@@ -45,19 +45,19 @@ function gradientAt(x: number, y: number, period: number, seed: number): number 
 
 /** Periodic 2D gradient noise with quintic fade, roughly [-1, 1]. */
 export function periodicNoise2(x: number, y: number, period: number, seed: number): number {
-  return gradientAt(tileCoordinate(x, period), tileCoordinate(y, period), period, seed);
+  return gradientAt(tileCoordinate(x, period), tileCoordinate(y, period), period, period, seed);
 }
 
 /** Periodic Worley F1 in cell units, clamped to [0, 1]. */
-export function periodicCellular2(x: number, y: number, period: number, seed: number): number {
+export function periodicCellular2(x: number, y: number, period: number, seed: number, periodY = period): number {
   x = tileCoordinate(x, period);
-  y = tileCoordinate(y, period);
+  y = tileCoordinate(y, periodY);
   const ix = Math.floor(x), iy = Math.floor(y);
   const fx = x - ix, fy = y - iy;
   let closestSquared = 1;
   // Any cell outside this neighborhood is at least one cell unit away.
   for (let dy = -1; dy <= 1; dy++) {
-    const cellY = wrap(iy + dy, period);
+    const cellY = wrap(iy + dy, periodY);
     for (let dx = -1; dx <= 1; dx++) {
       const bits = hash(wrap(ix + dx, period), cellY, seed);
       const offsetX = dx + ((bits & 0xffff) + 0.5) / 65536 - fx;
@@ -69,18 +69,19 @@ export function periodicCellular2(x: number, y: number, period: number, seed: nu
 }
 
 /** Amplitude-normalized periodic fBm. Lacunarity is an integer of at least two. */
-export function periodicFbm2(x: number, y: number, period: number, octaves: number, lacunarity: number, gain: number, seed: number): number {
+export function periodicFbm2(x: number, y: number, period: number, octaves: number, lacunarity: number, gain: number, seed: number, periodY = period): number {
   x = tileCoordinate(x, period);
-  y = tileCoordinate(y, period);
+  y = tileCoordinate(y, periodY);
   const count = Math.min(10, Math.max(1, Math.floor(octaves) || 1));
   let sum = 0, total = 0, amplitude = 1;
   for (let octave = 0; octave < count && amplitude !== 0; octave++) {
-    sum += amplitude * gradientAt(x, y, period, seed + octave * 101);
+    sum += amplitude * gradientAt(x, y, period, periodY, seed + octave * 101);
     total += amplitude;
     amplitude *= gain;
     x *= lacunarity;
     y *= lacunarity;
     period *= lacunarity;
+    periodY *= lacunarity;
   }
   return sum / total;
 }

@@ -103,25 +103,17 @@ export function createAssetEditor(options: AssetEditorOptions) {
       const formOptions = { assetLabel: (id: string) => options.catalog.label(id), pickAsset, warn: status };
       const fieldsForEditor = filterAssetFields(adapter.fields, presentation?.handledFields ?? []);
       const treeFields = {
-        legacy: fieldsForEditor.filter(field => !["growth", "shrub", "spray"].includes(field.key)),
-        growth: fieldsForEditor.filter(field => field.key !== "shrub" && field.key !== "spray"),
-        shrub: fieldsForEditor.filter(field => !["growth", "collision", "impostor", "spray"].includes(field.key)),
-        crown: fieldsForEditor.filter(field => !["shrub", "levels", "leaves"].includes(field.key)),
+        tree: fieldsForEditor.filter(field => field.key !== "shrub"),
+        shrub: fieldsForEditor.filter(field => field.key !== "collision" && field.key !== "impostor"),
       };
       const fieldsForDraft = () => {
         if (key !== "forge.treeRecipe") return fieldsForEditor;
-        const version = opened.value().generatorVersion;
-        return version === 6 ? treeFields.crown : version === 5 ? treeFields.shrub : version === 4 ? treeFields.growth : treeFields.legacy;
+        return opened.value().habit === "shrub" ? treeFields.shrub : treeFields.tree;
       };
       let visible = fieldsForDraft();
-      const formValue = () => {
-        const value = opened.value();
-        // Early shrub recipes used the default Broadleaf label with the shrub generator.
-        return key === "forge.treeRecipe" && value.generatorVersion === 5 && value.habit !== "shrub" ? { ...value, habit: "shrub" } : value;
-      };
       const uiState = key === "forge.treeRecipe" ? {
         collapsed: new Map(fieldsForEditor.filter(field => field.kind === "array" || field.kind === "object")
-          .map(field => [`asset-field-section-${field.key}`, !["variants", "growth", "shrub", "spray"].includes(field.key)])),
+          .map(field => [`asset-field-section-${field.key}`, !["variants", "growth", "shrub", "bark", "spray"].includes(field.key)])),
         linkedScales: new Set<string>(),
       } : undefined;
       let form: FormView | null = null, mode = arrayFields(visible).some((entry) => { const list = getAtPath(opened.value(), entry.path); return Array.isArray(list) && list.length > 50; }) ? "table" : "form";
@@ -142,7 +134,7 @@ export function createAssetEditor(options: AssetEditorOptions) {
         if (mode === "table") {
           table = createAssetTable({ document: doc, session: opened, fields: visible, formOptions }); formHost.append(table.element);
         } else {
-          form = createFormView({ document: doc, fields: visible, value: formValue(), disabled: !asset.writable, testIdPrefix: "asset-field", ...formOptions,
+          form = createFormView({ document: doc, fields: visible, value: opened.value(), disabled: !asset.writable, testIdPrefix: "asset-field", ...formOptions,
             ...(uiState ? { uiState } : {}),
             onChange: (change) => {
               if (key === "forge.treeRecipe" && change.path.length === 1 && change.path[0] === "habit") {
@@ -240,7 +232,7 @@ export function createAssetEditor(options: AssetEditorOptions) {
         title.textContent = `${asset.name}${opened.dirty() ? " *" : ""} · ${contentTypeLabel(asset.type)}${asset.writable ? "" : " · Read Only"}`;
         if (generate) generate.disabled = !asset.writable || opened.busy();
         save.disabled = !asset.writable || !opened.dirty() || opened.busy(); undo.disabled = !opened.canUndo(); redo.disabled = !opened.canRedo(); reload.disabled = opened.busy(); compare.disabled = !asset.writable || opened.busy(); fields.inert = opened.busy();
-        form?.update(formValue()); table?.update(); extension?.update?.();
+        form?.update(opened.value()); table?.update(); extension?.update?.();
         if (preview && lastPreviewValue !== opened.value()) {
           lastPreviewValue = opened.value();
           const active = preview;

@@ -23,15 +23,15 @@ const exists = (path: string) => access(join(project, path)).then(() => true, ()
 
 test("an editor conflict or an over-budget tree preserves the recipe and publishes no family", async () => {
   const recipe = "content/rocks/draft.treerecipe.json";
-  const document = { schema: "forge.treeRecipe/1", id: "ast_00000000000000000000000000000ace", generatorVersion: 1 };
+  const document = { schema: "forge.treeRecipe/3", id: "ast_00000000000000000000000000000ace", generatorVersion: 6 };
   const original = JSON.stringify(document);
   await writeFile(join(project, recipe), original);
   const target = { engineRoot, projectRoot: project, recipe, force: true };
   await expect(generateFromRecipe({ ...target, editorDraft: { base: "0000000000000000", document } }))
     .rejects.toMatchObject({ response: { status: "conflict" } });
-  const levels = [{ count: 64 }, { count: 64 }];
-  await expect(generateFromRecipe({ ...target, editorDraft: { base: fileRevision(original), document: { ...document, levels } } }))
-    .rejects.toThrow(/Stem cap/);
+  const lods = [1, 0.4].map((screenSize) => ({ radialSegments: 32, ringsPerMeter: 16, minRadius: 0, leafFraction: 1, screenSize }));
+  await expect(generateFromRecipe({ ...target, editorDraft: { base: fileRevision(original), document: { ...document, lods } } }))
+    .rejects.toThrow(/wood triangles; cap is 5000/);
   expect(await readFile(join(project, recipe), "utf8")).toBe(original);
   expect(await exists("content/rocks/draft")).toBe(false);
 });
@@ -100,28 +100,28 @@ describe("forge generate (tree)", () => {
       variants: [2], growth: { ...source.growth, age: 12 }, impostor: { enabled: false } };
     await writeFile(join(project, recipe), JSON.stringify(doc));
     const result = await generateFromRecipe({ engineRoot, projectRoot: project, recipe });
-    expect(result.generatorVersion).toBe(4);
+    expect(result.generatorVersion).toBe(6);
     const read = async (name: string) => JSON.parse(await readFile(join(folder, name), "utf8"));
     const leaf = await read("sapling_leaf.material.json"), atlas = await read("sapling_leaf.ktx2.meta.json");
     const family = await read("sapling.plantfamily.json"), model = await read("sapling_2_lod0.glb.meta.json");
     expect(leaf).toMatchObject({ baseColorTexture: atlas.id, alphaMode: "mask", side: "double" });
-    expect(family).toMatchObject({ generatorVersion: 4, materials: { leaf: leaf.id } });
+    expect(family).toMatchObject({ generatorVersion: 6, materials: { leaf: leaf.id }, twigTint: source.bark.twigTint });
     expect(model.import.materials[1]).toBe(leaf.id);
-    expect(family.prototypes[0].height).toBeLessThan(9);
+    expect(family.prototypes[0].height).toBeLessThan(source.height * 0.75);
   }, 60000);
   test("writes the leaf atlas, two-slot LOD models, impostors, the family and its foliage types; a rerun writes the same bytes", async () => {
-    await writeFile(join(project, TREE), `${JSON.stringify({ schema: "forge.treeRecipe/1", id: "ast_00000000000000000000000000000def", variants: [2] })}\n`);
+    await writeFile(join(project, TREE), `${JSON.stringify({ schema: "forge.treeRecipe/3", id: "ast_00000000000000000000000000000def", variants: [2] })}\n`);
     const first = await generateFromRecipe({ engineRoot, projectRoot: project, recipe: TREE });
     expect(first.generator).toBe("tree");
-    expect(first.generatorVersion).toBe(3);
+    expect(first.generatorVersion).toBe(6);
     const names = (await readdir(join(project, "content/rocks/oak"))).sort();
     expect(names).toEqual([
       "oak.plantfamily.json", "oak_2.foliagetype.json",
       "oak_2_impostor_albedo.ktx2", "oak_2_impostor_albedo.ktx2.meta.json", "oak_2_impostor_normal.ktx2", "oak_2_impostor_normal.ktx2.meta.json",
       "oak_2_lod0.glb", "oak_2_lod0.glb.meta.json", "oak_2_lod1.glb", "oak_2_lod1.glb.meta.json", "oak_2_lod2.glb", "oak_2_lod2.glb.meta.json",
-      "oak_leaf.ktx2", "oak_leaf.ktx2.meta.json",
+      "oak_leaf.ktx2", "oak_leaf.ktx2.meta.json", "oak_leaf.material.json", "oak_leaf_normal.ktx2", "oak_leaf_normal.ktx2.meta.json",
     ]);
-    // The leaf atlas: 4 × 4 tiles of the 256 px leaf card; the impostor 8 × 8 views of 128 px, wood and leaves side by side.
+    // The leaf atlas: 2 × 2 spray tiles of 512 px; the impostor 8 × 8 views of 128 px, wood and leaves side by side.
     // KTX2 (header: pixel size, level count, Zstandard = 2): UASTC with its mip chain.
     const ktx2 = async (name: string): Promise<number[]> => {
       const view = new DataView((await readFile(join(project, `content/rocks/oak/${name}`))).buffer);
@@ -133,12 +133,14 @@ describe("forge generate (tree)", () => {
     const glb = readGlb(new Uint8Array(await readFile(join(project, "content/rocks/oak/oak_2_lod0.glb"))));
     const [wood, leaves] = glb.json.meshes[0].primitives;
     expect([wood.material, leaves.material]).toEqual([0, 1]);
+    expect(glb.json.extensionsRequired).toContain("EXT_meshopt_compression");
+    expect(Object.keys(wood.attributes).sort()).toEqual(["NORMAL", "POSITION", "TEXCOORD_0", "_LEAF", "_WIND"]);
     expect(Object.keys(leaves.attributes).sort()).toEqual(["NORMAL", "POSITION", "TEXCOORD_0", "_LEAF", "_WIND"]);
     const family = JSON.parse(await readFile(join(project, "content/rocks/oak/oak.plantfamily.json"), "utf8"));
     const type = JSON.parse(await readFile(join(project, "content/rocks/oak/oak_2.foliagetype.json"), "utf8"));
     expect(type).toMatchObject({ family: family.id, prototype: 0, sway: { enabled: true, source: "vertex" } });
     expect(family.prototypes[0].lods).toHaveLength(3);
-    expect(family.prototypes[0].impostor).toMatchObject({ views: 8, screenSize: 0.03 });
+    expect(family.prototypes[0].impostor).toMatchObject({ views: 8, screenSize: 0.08 });
     expect(type.impostor).toEqual(family.prototypes[0].impostor);
     expect(family.prototypes[0].height).toBeGreaterThan(8);
     const registry = await loadEngineRegistry(engineRoot);

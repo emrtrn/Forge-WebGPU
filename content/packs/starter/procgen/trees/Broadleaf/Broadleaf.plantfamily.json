@@ -26,7 +26,7 @@
         "screenSize": 0.08,
         "color": "#5f7a2a"
       },
-      "height": 12.44021
+      "height": 12.17852
     },
     {
       "seed": 2,
@@ -49,9 +49,9 @@
         "normal": "ast_031ce36f9d4fdb62b20470e76b9e90dd",
         "views": 8,
         "screenSize": 0.08,
-        "color": "#5f7b2a"
+        "color": "#5f7a2a"
       },
-      "height": 12.50889
+      "height": 12.58856
     },
     {
       "seed": 3,
@@ -76,13 +76,14 @@
         "screenSize": 0.08,
         "color": "#5f7b2a"
       },
-      "height": 12.34454
+      "height": 12.51081
     }
   ],
   "materials": {
     "wood": "ast_4b4adfbe01f0389bf3a0269a3533244c",
     "leaf": "ast_b66b68747837e847808bd672bdf34e8a"
   },
+  "twigTint": "#e8dccb",
   "collider": "trunk",
   "sway": {
     "amplitude": 0.25,

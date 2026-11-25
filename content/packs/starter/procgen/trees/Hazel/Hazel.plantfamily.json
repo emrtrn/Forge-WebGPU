@@ -1,7 +1,7 @@
 {
   "schema": "forge.plantFamily/1",
   "id": "ast_2231908d20865d18b0d180b126a7bf2f",
-  "generatorVersion": 5,
+  "generatorVersion": 6,
   "prototypes": [
     {
       "seed": 1,
@@ -26,7 +26,7 @@
         "screenSize": 0.03,
         "color": null
       },
-      "height": 2.46123
+      "height": 1.9677
     },
     {
       "seed": 2,
@@ -51,7 +51,7 @@
         "screenSize": 0.03,
         "color": null
       },
-      "height": 2.59881
+      "height": 2.0974
     },
     {
       "seed": 3,
@@ -76,13 +76,14 @@
         "screenSize": 0.03,
         "color": null
       },
-      "height": 2.46746
+      "height": 1.97373
     }
   ],
   "materials": {
     "wood": "ast_4b4adfbe01f0389bf3a0269a3533244c",
     "leaf": "ast_9781b7ded11dba72de405108528f628e"
   },
+  "twigTint": "#f0e4d4",
   "collider": "none",
   "sway": {
     "amplitude": 0.13,
@@ -100,7 +101,7 @@
     },
     "autumn": {
       "foliage": 0.7,
-      "tint": "#d98b3a"
+      "tint": "#d9a03a"
     },
     "winter": {
       "foliage": 0,
@@ -111,6 +112,8 @@
       "wood": 0.6,
       "leaf": 0.8
     },
-    "wetness": 0.5
+    "wetness": 0.5,
+    "translucency": 1,
+    "crownDepth": 1
   }
 }

@@ -9,7 +9,6 @@ import { scanRoots } from "../assets/scan.ts";
 
 const REPO = resolve(fileURLToPath(new URL(".", import.meta.url)), "../..");
 const BROADLEAF = "ast_1cc830feab66656728f8bf965079b68a" as AssetId;
-const POPLAR_FOLDER = "content/packs/starter/procgen/trees";
 
 describe("recipe links", async () => {
   const registry = await loadEngineRegistry(REPO);
@@ -30,9 +29,6 @@ describe("recipe links", async () => {
   });
 
   test("a recipe without output, and one whose leaf material reads another recipe's atlas", () => {
-    const poplar = recipeLinks(index, idOf(`${POPLAR_FOLDER}/Poplar.treerecipe.json`))!;
-    expect([poplar.built, poplar.digest, poplar.prototypes]).toEqual([false, null, []]);
-    expect(poplar.notes).toEqual([]);
     expect(recipeLinks(index, idOf("trees/M_Bark.material.json"))).toBeNull();
 
     const copy = `ast_${"c".repeat(32)}` as AssetId;
@@ -43,6 +39,8 @@ describe("recipe links", async () => {
       jsonAssets: new Map([...index.jsonAssets, [copy, { ...index.jsonAssets.get(BROADLEAF)!, id: copy }]]),
       references: [...index.references, ...index.references.filter((reference) => reference.from === BROADLEAF).map((reference) => ({ ...reference, from: copy }))],
     };
-    expect(recipeLinks(copied, copy)!.notes).toEqual(["M_Leaf reads the leaf atlas of Broadleaf: this recipe's leaf texture does not change it."]);
+    const links = recipeLinks(copied, copy)!;
+    expect([links.built, links.digest, links.prototypes]).toEqual([false, null, []]);
+    expect(links.notes).toEqual(["M_Leaf reads the leaf atlas of Broadleaf: this recipe's leaf texture does not change it."]);
   });
 });

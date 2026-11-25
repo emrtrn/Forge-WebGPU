@@ -1,12 +1,9 @@
-import { meshStats } from "../stats.ts";
+// `forge.treeRecipe` to LOD meshes: the crown generator (crown/, vegetation
+// plan PG5b, §9.8).
+
 import type { MeshStats } from "../stats.ts";
-import { clusterLibrary, leafAtlasOf } from "./treeCards.ts";
-import { buildTreeLod, planTreeLod } from "./treeMesh.ts";
-import type { LeafAtlas, TreeLodMesh } from "./treeMesh.ts";
-import { CROWN_GENERATOR_VERSION } from "./crown/crownParams.ts";
 import { generateCrownTree } from "./crown/crownTree.ts";
-import { recipeTreeStructure } from "./treeGrowth.ts";
-import { SHRUB_TRIANGLE_CAPS, type TreeParams } from "./treeParams.ts";
+import type { TreeLodMesh } from "./treeMesh.ts";
 
 export interface TreeReport {
   code: "budget" | "skeleton";
@@ -20,45 +17,11 @@ export type TreeResult = {
   stats: { wood: MeshStats; leaves: MeshStats | null; triangles: number }[];
   height: number;
   stems: number;
-  clusters: number;
-  /** Generator version 6: each LOD's leaf area (m²), and what its index is taken over. */
-  crown?: { leafArea: readonly number[]; referenceArea: number; radius: number };
+  sprays: number;
+  /** Each LOD's leaf area (m²), and what its index is taken over. */
+  crown: { leafArea: readonly number[]; referenceArea: number; radius: number };
 } | { ok: false; report: TreeReport };
 
-const TRIANGLE_CAPS = [20000, 5000, 800, 800];
-
-export function generateTree(
-  input: Readonly<Record<string, unknown>> | TreeParams,
-  options?: {
-    triangleCaps?: readonly number[];
-    /** The species' leaf atlas (treeCards.ts): leaf cards in its leaf tile, `clusterCards` LODs from its library. Without one, leaf cards span the whole texture and the cards come from this tree's own library (geometry only). */
-    atlas?: LeafAtlas;
-  },
-): TreeResult {
-  const recipe = { ...input } as Readonly<Record<string, unknown>>;
-  if (recipe.generatorVersion === CROWN_GENERATOR_VERSION) return generateCrownTree(recipe, options);
-  const { params, skeleton } = recipeTreeStructure(recipe);
-  if ("error" in skeleton) return { ok: false, report: { code: "skeleton", message: skeleton.error } };
-
-  const atlas = options?.atlas ?? (params.lods.some((lod) => lod.clusterCards)
-    ? { ...leafAtlasOf(clusterLibrary(params, skeleton)), leaf: [0, 0, 1, 1] as const }
-    : undefined);
-  const plans: ReturnType<typeof planTreeLod>[] = [];
-  for (const [lod, settings] of params.lods.entries()) {
-    const requested = options?.triangleCaps?.[lod];
-    const builtInCap = params.shrub ? SHRUB_TRIANGLE_CAPS[lod]! : TRIANGLE_CAPS[lod]!;
-    const requestedCap = requested !== undefined && Number.isFinite(requested) ? Math.max(0, Math.floor(requested)) : builtInCap;
-    const cap = params.shrub ? Math.min(builtInCap, requestedCap) : requestedCap;
-    const plan = planTreeLod(params, skeleton, settings, settings.clusterCards && (atlas?.clusters.length ?? 0) > 0, params.shrub ? cap : undefined);
-    if (plan.triangles > cap) return { ok: false, report: {
-      code: "budget", lod, message: `LOD${lod} requests ${plan.triangles} triangles; cap is ${cap}`,
-    } };
-    plans.push(plan);
-  }
-  const lods = params.lods.map((lod, i) => buildTreeLod(params, skeleton, lod, plans[i]!, atlas));
-  const stats = lods.map(lod => {
-    const wood = meshStats(lod.wood), leaves = lod.leaves ? meshStats(lod.leaves) : null;
-    return { wood, leaves, triangles: wood.triangles + (leaves?.triangles ?? 0) };
-  });
-  return { ok: true, lods, stats, height: params.height, stems: skeleton.stems.length, clusters: plans[0]!.clusters };
+export function generateTree(recipe: Readonly<Record<string, unknown>>, options?: { triangleCaps?: readonly number[] }): TreeResult {
+  return generateCrownTree(recipe, options);
 }

@@ -20,6 +20,7 @@ export interface PlantFamilyFieldsRead {
     readonly height: number;
   }[];
   readonly materials: { readonly wood: string | null; readonly leaf: string | null };
+  readonly twigTint: string;
   readonly response: PlantResponseProfile;
   readonly sway: { readonly amplitude: number; readonly frequency: number };
 }
@@ -81,7 +82,7 @@ export function familyPrototype(family: PlantFamilyFieldsRead, guid: string, pro
   return {
     mesh: chain[0]!.mesh,
     lods: chain.slice(1),
-    plant: { id: guid, wood: family.materials.wood, leaf: family.materials.leaf, crown: family.generatorVersion === 6, response: family.response },
+    plant: { id: guid, wood: family.materials.wood, leaf: family.materials.leaf, crown: family.generatorVersion >= 6, twigTint: linearFromHex(family.twigTint) ?? [1, 1, 1], response: family.response },
     impostor: impostorRef(entry.impostor),
     height: entry.height,
     sway: { amplitude: family.sway.amplitude, height: Math.max(entry.height, 0.01), frequency: family.sway.frequency, source: "vertex" },

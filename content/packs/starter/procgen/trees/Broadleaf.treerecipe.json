@@ -1,5 +1,5 @@
 {
-  "schema": "forge.treeRecipe/2",
+  "schema": "forge.treeRecipe/3",
   "id": "ast_1cc830feab66656728f8bf965079b68a",
   "generatorVersion": 6,
   "habit": "broadleaf",
@@ -19,7 +19,13 @@
     "width": 0.78,
     "widestPoint": 0.45,
     "fullness": 0.8,
-    "leaderDominance": 0.42
+    "leaderDominance": 0.42,
+    "clumping": 0.5,
+    "droop": 0
+  },
+  "bark": {
+    "twigTint": "#e8dccb",
+    "twigRadius": 0.04
   },
   "spray": {
     "length": 0.68,
@@ -55,16 +61,6 @@
       "screenSize": 0.17
     }
   ],
-  "impostor": {
-    "enabled": true,
-    "views": 8,
-    "frameSize": "128",
-    "screenSize": 0.08
-  },
-  "materials": {
-    "wood": "ast_4b4adfbe01f0389bf3a0269a3533244c",
-    "leaf": "ast_b66b68747837e847808bd672bdf34e8a"
-  },
   "response": {
     "habit": "deciduous",
     "spring": {
@@ -89,6 +85,16 @@
       "leaf": 0.8
     },
     "wetness": 0.5
+  },
+  "impostor": {
+    "enabled": true,
+    "views": 8,
+    "frameSize": "128",
+    "screenSize": 0.08
+  },
+  "materials": {
+    "wood": "ast_4b4adfbe01f0389bf3a0269a3533244c",
+    "leaf": "ast_b66b68747837e847808bd672bdf34e8a"
   },
   "sway": {
     "amplitude": 0.25,

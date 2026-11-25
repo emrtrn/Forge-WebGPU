@@ -1,5 +1,5 @@
 {
-  "schema": "forge.treeRecipe/2",
+  "schema": "forge.treeRecipe/3",
   "id": "ast_fd4f39c78d58ef550273be682359d194",
   "generatorVersion": 6,
   "habit": "conifer",
@@ -19,7 +19,13 @@
     "width": 0.46,
     "widestPoint": 0.2,
     "fullness": 0.75,
-    "leaderDominance": 1
+    "leaderDominance": 1,
+    "clumping": 0.45,
+    "droop": 0
+  },
+  "bark": {
+    "twigTint": "#e0d2c2",
+    "twigRadius": 0.02
   },
   "spray": {
     "length": 0.6,
@@ -55,16 +61,6 @@
       "screenSize": 0.17
     }
   ],
-  "impostor": {
-    "enabled": true,
-    "views": 8,
-    "frameSize": "128",
-    "screenSize": 0.08
-  },
-  "materials": {
-    "wood": "ast_4b4adfbe01f0389bf3a0269a3533244c",
-    "leaf": "ast_77e54da6b9185f7c5be134bfb21ea5a3"
-  },
   "response": {
     "habit": "evergreen",
     "spring": {
@@ -89,6 +85,16 @@
       "leaf": 0.9
     },
     "wetness": 0.5
+  },
+  "impostor": {
+    "enabled": true,
+    "views": 8,
+    "frameSize": "128",
+    "screenSize": 0.08
+  },
+  "materials": {
+    "wood": "ast_4b4adfbe01f0389bf3a0269a3533244c",
+    "leaf": "ast_77e54da6b9185f7c5be134bfb21ea5a3"
   },
   "sway": {
     "amplitude": 0.15,

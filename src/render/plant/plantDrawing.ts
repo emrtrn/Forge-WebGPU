@@ -42,6 +42,8 @@ export interface PlantFamilyDraw {
   readonly leaf: string | null;
   /** Meshes of the crown generator (version 6): crown light, crown normals, light through the leaves. */
   readonly crown: boolean;
+  /** A crown's thin wood: what its bark's colour is multiplied by (linear). */
+  readonly twigTint: readonly [number, number, number];
   readonly response: PlantResponseProfile;
 }
 
@@ -149,7 +151,7 @@ export function plantWorld(world: Pick<RenderWorldView, "services" | "components
         const isLeaf = name === family.leaf || (family.leaf === null && name === "Leaf");
         const isWood = name === family.wood || (family.wood === null && name === "Wood");
         if (isLeaf) leafNodes(material, look, instance.seed, snowColor, family.crown, role);
-        else if (isWood) woodNodes(material, look, snowColor, family.crown);
+        else if (isWood) woodNodes(material, look, snowColor, family.crown ? family.twigTint : null);
         return swayHook?.(material, instance, role);
       };
     },
@@ -193,9 +195,13 @@ function leafNodes(material: NodeMaterial, look: Appearance, seed: Node<"uint">,
   if (lit.roughnessNode) lit.roughnessNode = (lit.roughnessNode as Node<"float">).mul(float(1).sub(look.wet.mul(0.4)));
 }
 
-function woodNodes(material: NodeMaterial, look: Appearance, snowColor: Node<"vec3">, crown: boolean): void {
+function woodNodes(material: NodeMaterial, look: Appearance, snowColor: Node<"vec3">, twigTint: readonly [number, number, number] | null): void {
   const { rgb: bark, a } = rgbOf(material);
-  const rgb = crown ? bark.mul(crownShade(attribute("_leaf", "vec2").y, look.crownDepth)) : bark;
+  let rgb = bark;
+  if (twigTint) {
+    const crown = attribute("_leaf", "vec2");
+    rgb = bark.mul(mix(vec3(1, 1, 1), vec3(twigTint[0], twigTint[1], twigTint[2]), crown.x)).mul(crownShade(crown.y, look.crownDepth));
+  }
   material.colorNode = vec4(surfaceCover(rgb, look.snowWood, look.wet, snowColor, 0.35, 0.85), a);
   const lit = material as unknown as Lit;
   if (lit.roughnessNode) lit.roughnessNode = (lit.roughnessNode as Node<"float">).mul(float(1).sub(look.wet.mul(0.5)));

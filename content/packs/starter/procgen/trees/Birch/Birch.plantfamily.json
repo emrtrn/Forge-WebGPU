@@ -1,0 +1,94 @@
+{
+  "schema": "forge.plantFamily/1",
+  "id": "ast_5bdae60889896e7c287b16b6f11a7eb0",
+  "generatorVersion": 6,
+  "prototypes": [
+    {
+      "seed": 1,
+      "lods": [
+        {
+          "mesh": "ast_3971606d3063fd3998b3103d7602a998",
+          "screenSize": 1
+        },
+        {
+          "mesh": "ast_c177809cfd13afa2595bdbcff6b247bd",
+          "screenSize": 0.42
+        },
+        {
+          "mesh": "ast_4cdad8b5d8c897818c670d3ef435d763",
+          "screenSize": 0.17
+        }
+      ],
+      "impostor": {
+        "albedo": "ast_9ad253d522aeff6b65b58b5bc16cab93",
+        "normal": "ast_b0508b587352f7799e4c4d01e7a4ee84",
+        "views": 8,
+        "screenSize": 0.08,
+        "color": "#7e9f37"
+      },
+      "height": 17.74209
+    },
+    {
+      "seed": 2,
+      "lods": [
+        {
+          "mesh": "ast_2886d3e2584ff9f141744cc01a3fc2cb",
+          "screenSize": 1
+        },
+        {
+          "mesh": "ast_583c692e381c955c15fc7230c6abab42",
+          "screenSize": 0.42
+        },
+        {
+          "mesh": "ast_3609913a9b528c17d780fb0f0b4c7733",
+          "screenSize": 0.17
+        }
+      ],
+      "impostor": {
+        "albedo": "ast_8bf85bb1fefe2fe2836a740fc26f7d84",
+        "normal": "ast_3fbaf762575195e65aa553d1fb0a122e",
+        "views": 8,
+        "screenSize": 0.08,
+        "color": "#7e9f37"
+      },
+      "height": 17.6033
+    }
+  ],
+  "materials": {
+    "wood": "ast_448db188747c351c89a057dbd030b6a5",
+    "leaf": "ast_0eac428debec1f61c82f7a72f5ad2983"
+  },
+  "twigTint": "#6b4a3c",
+  "collider": "trunk",
+  "sway": {
+    "amplitude": 0.4,
+    "frequency": 0.36
+  },
+  "response": {
+    "habit": "deciduous",
+    "spring": {
+      "foliage": 0.8,
+      "tint": "#b9dc74"
+    },
+    "summer": {
+      "foliage": 1,
+      "tint": "#ffffff"
+    },
+    "autumn": {
+      "foliage": 0.7,
+      "tint": "#e6b93c"
+    },
+    "winter": {
+      "foliage": 0,
+      "tint": "#ffffff"
+    },
+    "windFlex": 1.3,
+    "snow": {
+      "wood": 0.6,
+      "leaf": 0.8
+    },
+    "wetness": 0.5,
+    "translucency": 1,
+    "crownDepth": 1
+  }
+}
