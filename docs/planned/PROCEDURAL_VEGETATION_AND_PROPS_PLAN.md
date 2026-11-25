@@ -1,6 +1,7 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.21 · 2026-11-25 (PG5b adım 1–4'ün kullanıcı görsel kabulü; sırada adım 5–6, §9.8).
+**Sürüm:** v0.22 · 2026-11-25 (PG5b adım 5: türler, tek üretici; kullanıcı görsel kabulü; sırada adım 6, §9.8).
+Önceki: v0.21 (PG5b adım 1–4'ün kullanıcı görsel kabulü).
 Önceki: v0.20 (PG5b adım 1–4: taç üreticisi, sprey, yaprak ışığı, LOD).
 Önceki: v0.19 (PG5b açıldı: taç kalitesi, üretici sürümü 6; kullanıcı kararları).
 Önceki: v0.18 · 2026-11-25 (PG5 editörü ve World Builder bağlantısı, §9.7; görsel kabul bekleniyor).
@@ -15,7 +16,7 @@ taş doku tarifi, triplanar + `variation`, A / C ölçümü).
 
 **Önceki sürüm:** v0.6 · 2026-11-14 (WES ile birleşik bitki ailesi, ortak çalışma
 zamanı davranışı ve 5c ile birlikte ilerleyen üretim dilimi; kullanıcı kararı).
-**Durum:** PG0–PG3 uygulandı (5c ile, 2026-11-17 – 2026-11-19). PG4, çok saplı Hazel ve şerit/demet MeadowGrass için WebGPU doğrulaması ve kullanıcı görsel onayıyla kapandı (2026-11-22, §9.5–9.6). PG5'in kodu ve teknik kapısı tamam (2026-11-25, §9.7); ağaçların görünümü kabul edilmedi, PG5b açık (§9.8). PG6–PG7 ileride.
+**Durum:** PG0–PG3 uygulandı (5c ile, 2026-11-17 – 2026-11-19). PG4, çok saplı Hazel ve şerit/demet MeadowGrass için WebGPU doğrulaması ve kullanıcı görsel onayıyla kapandı (2026-11-22, §9.5–9.6). PG5'in kodu ve teknik kapısı tamam (2026-11-25, §9.7); PG5b'de adım 1–5 kabul edildi, 6 açık (§9.8). PG6–PG7 ileride.
 Başlama koşulu §2'de.
 **İlgili belgeler:** [yeniden inşa planı](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
 sırası; küçük üretim dilimi 5c ile birlikte, tam araçlar 5d ile ilerler),
@@ -1089,8 +1090,7 @@ değişir). Yakın ağacın LOD0 tavanı 20 k yerine **40 k** üçgen, yalnız i
 - *İskelet.* Geniş yapraklı: taç zarfı (boy, genişlik, en geniş nokta, taç başlangıcı,
   doluluk, düzensizlik) içinde çekim noktalarına doğru büyüme (space colonization), dal
   kalınlığı boru modeliyle, ana gövde baskınlığı tarifte. İğne yapraklı: sık kat dalları,
-  altta sarkan üstte kalkan eğri. Var olan **Growth** alanları kullanılır; sürüm 6'da
-  `levels` formda görünmez.
+  altta sarkan üstte kalkan eğri. Var olan **Growth** alanları kullanılır.
 - *Sprey.* Tür başına 2 × 2 karo: yapraklı dalcığın rengi + alfası ve normali, CPU'da.
   Sprey sayısı hedef LAI'den çıkar (Fullness), kart alanı LOD'lar boyunca korunur;
   bütçeye sığmayan sayı, kartlar büyütülerek indirilir.
@@ -1128,8 +1128,45 @@ GPU eski 1,8–5,0 → yeni 1,7–8,1 ms; orman içi pozlarda ≈ +2–3 ms. Imp
 (silüet IoU 0,79–0,97), foliageFar / Wind / Ring gerçek WebGPU ve WebGL'de; editör `assets` +
 `worldBuilder` gerçek WebGPU'da.
 
-**Sınırlar.** Impostor yakına zorlandığında bulanık (128 px). Broadleaf ve Conifer dışındaki
-tarifler (Hazel, Oak, Poplar) eski iskelette. Kullanıcı görsel kabulü: 2026-11-25.
+**Sınırlar (adım 1–4).** Impostor yakına zorlandığında bulanık (128 px). Kullanıcı görsel kabulü:
+2026-11-25.
+
+**Adım 5 · türler (2026-11-25, `e1891dd`).** Kararlar (kullanıcı, öneriler gibi): LOD GLB'leri
+meshopt'lu, yeni türler 2 prototip (Broadleaf / Conifer / Hazel 3); sürüm 1–4 (ve 5) tarifleri
+okunurken 6'ya göçer; Hazel yeni görünüme taşınır, eski yol kalkar; ladin ayrı tarif değil, Conifer.
+
+- *Tek üretici.* `treeGrowth`, `treeCards`, `treeParams`, `leafTexture` ve eski iskelet silindi.
+  `crown/`: `crownEnvelope` (taç zarfı, dal kütleleri), `spreadingSkeleton` (yayılan ağaç, açık taçlı
+  çam, çalı), `coniferSkeleton` (kat dalları). `forge.treeRecipe/3`: `levels` / `leaves` yok; göç boy,
+  gövde, tohum, materyal, tepki, GUID ve (sürüm 4'te) growth'u korur, çıktı yeniden üretilene kadar
+  eskisi gibi çizilir.
+- *Taç.* Her tohumda dokuz dal kütlesi (`growth.clumping`), boş gövde çevresinde yükselen ana dallar
+  (leaderDominance azaldıkça), sarkan / kalkan ince dal (`growth.droop`). Ladin gövdesinde katlar arası
+  sürgün. Uzun iğneler dalcık ucunda tutam.
+- *Kabuk.* `forge.surfaceTextureRecipe` katmanlarında `stretch` (dikey / yatay ayrı ölçek) ve `invert`;
+  `BarkBirch`, `BarkPine`, `BarkSmooth` + materyalleri. `bark.twigTint` / `twigRadius`: ince dalın kabuk
+  çarpanı (`_LEAF`.x odunda, `forge.plantFamily.twigTint`), impostor'da da.
+- *Süre.* Impostor bake ≈ 6 → 1,1 s (gizli parça doku okumadan elenir), sprey atlası 0,5–2,5 s; doku
+  başına ≈ 2 s KTX2 ayrı. UASTC RDO (< %2) ve ETC1S (normal 27 dB, alfa 30 dB) ölçülüp elendi.
+
+| | Üçgen LOD0 / 1 / 2 (prototip 1) | LAI LOD0 / 2 | Çıktı |
+|---|---:|---:|---:|
+| Broadleaf (3) | 35,7 k / 5,0 k / 800 | 6,1 / 6,2 | 9,1 MB |
+| Conifer (3) | 25,3 k / 4,2 k / 800 | 7,4 / 6,9 | 7,9 MB |
+| Maple (2) | 40,0 k / 5,0 k / 800 | 5,8 / 5,7 | 6,8 MB |
+| Birch (2) | 31,9 k / 5,0 k / 728 | 4,7 / 4,7 | 5,7 MB |
+| Oak (2) | 40,0 k / 5,0 k / 799 | 5,9 / 5,0 | 6,6 MB |
+| Poplar (2) | 23,9 k / 4,4 k / 484 | 7,1 / 7,0 | 5,0 MB |
+| Pine (2) | 33,5 k / 5,0 k / 800 | 5,5 / 5,4 | 6,2 MB |
+| Hazel (3, çalı) | 2,9 k / 0,5 k / 99 | 4,9 / 5,1 | 1,6 MB |
+
+Taç testi sekiz tarifte (beş tohum): LAI ≥ 4, alan farkı ≤ %20, tavanlar. Smoke: plants, impostors,
+foliageFar, foliageWind (WebGPU + WebGL); editör assets + worldBuilder gerçek WebGPU'da.
+`measure:forest` yaz: gönderim 1,56 / ana iş parçacığı 2,10 / GPU 3,32 ms (G6 içinde). Son üretimin kış
+ve yürüyüş sayıları makinede başka oturum çalışırken alındı, geçersiz; son taç değişikliğinden önceki
+sakin koşu: kış 1,37 / 1,86, yürüyüş 2,03 / 3,32 ms. Adım 6'da boş makinede yeniden ölçülür.
+*Sınırlar:* impostor yakına zorlanınca bulanık ve üzerinde çapraz gölge izi; yapraksız kışta LOD1'den
+sonra ince dallar düşer. Kullanıcı görsel kabulü: 2026-11-25.
 
 ---
 
@@ -1326,8 +1363,8 @@ kullanıcıda).
   - [x] **2 Dal dokusu.** Sprey atlası (renk + alfa + normal), kabuk (dikey oluk).
   - [x] **3 Yaprak ışığı.** Taç normali, geçirgenlik, iç kararma; impostor aynı kuralda.
   - [x] **4 LOD.** Eşikler, alan koruma, LAI / örtü testleri, 40 k LOD0.
-  - [ ] **5 Türler.** Akçaağaç, huş, meşe, kavak, çam, ladin; kabuklar; Oak / Poplar sürüm 6'ya,
-        eski iskelet sürümleri (1–4) kalkar.
+  - [x] **5 Türler.** Akçaağaç, huş, meşe, kavak, çam, ladin (Conifer), Hazel; kabuklar; eski iskelet
+        sürümleri (1–5) kalktı (`e1891dd`; kabul 2026-11-25).
   - [ ] **6 World Builder.** Örtülerde karışık tür, orman yoğunluğu, genç ağaç, orman altı.
 - [ ] **PG6 Ölü odun, döküntü, iğne yapraklı.** *Kapı:* kütük ve döküntü
       bağlı ağaç tarifinden türüyor; PG2'nin iğne yapraklı örneği daha geniş
@@ -1390,6 +1427,9 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 | PG5 · starter çıktıları | Hazel ve MeadowGrass; Oak / Poplar C aşamasının kabulünü bekler (kullanıcı, 2026-11-25) |
 | PG5b · yeni üretici | Sürüm 6 starter Broadleaf / Conifer'in yerine geçer; GUID'ler aynı (kullanıcı, 2026-11-25) |
 | PG5b · LOD0 tavanı | 40.000 üçgen, yalnız ilk 30–40 m; LOD1 / LOD2 tavanı aynı (kullanıcı, 2026-11-25) |
+| PG5b · paket boyutu | LOD GLB'leri meshopt'lu; yeni türler 2 prototip, Broadleaf / Conifer / Hazel 3 (kullanıcı, 2026-11-25) |
+| PG5b · eski üretici sürümleri | 1–5 tarifleri okunurken taç üreticisine göçer (`forge.treeRecipe/3`); çıktı yeniden üretilene kadar kalır (kullanıcı, 2026-11-25) |
+| PG5b · Hazel ve ladin | Hazel taç üreticisine taşındı; ladin ayrı tarif değil, Conifer (kullanıcı, 2026-11-25) |
 | Üretilmiş dokuların sıkıştırması | `forge generate` ağaç atlaslarını ve yüzey dokusu tariflerini (kabuk, kaya) doğrudan KTX2 (UASTC + Zstd, mip'li) yazar; PNG yok (kullanıcı, 2026-11-19). Çalışma anında bake edilen GLB atlası RGBA8 kalır |
 
 **Açık:** yok (PK7 PG3'te ölçümle kapandı).
@@ -1465,6 +1505,7 @@ kurallarına göre yeniden yazılır.
 
 | Tarih | Sürüm | Not |
 |---|---|---|
+| 2026-11-25 | v0.22 | PG5b adım 5 (`e1891dd`): sekiz tarif taç üreticisinde, meshopt, kabuklar, eski sürümler kalktı; kullanıcı görsel kabulü. Adım 6 yeni oturumda |
 | 2026-11-25 | v0.21 | PG5b adım 1–4 kullanıcı görsel kabulü; adım 5–6 yeni oturumda |
 | 2026-11-25 | v0.20 | PG5b adım 1–4 (`4279194`): LAI 6,2 / 7,5 bütün LOD'larda, `measure:forest` G6'da; adım 5–6 ve görsel kabul açık |
 | 2026-11-25 | v0.19 | PG5b açıldı (§9.8): World_1 denetimi (LAI 0,08–0,57), klonda deneme, kullanıcı kararları (yer değiştirme, 40 k LOD0). Kod yok |
