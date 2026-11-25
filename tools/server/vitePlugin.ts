@@ -19,8 +19,9 @@
 //   FORGE_ENGINE_CONTENT=1; plan phase 4 step 6g, decision 6): every pack is a
 //   root, and the engine's content and the packs are written.
 
-import { join, relative, resolve } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import type { Plugin } from "vite";
+import { CACHE_DIRECTORY } from "../assets/cache.ts";
 import { loadEngineRegistry } from "../assets/engineRegistry.ts";
 import { writeProjectTsconfig } from "../project/check.ts";
 import { gameFeatures, installGameSchemas } from "../project/gameSchemas.ts";
@@ -66,7 +67,11 @@ export function forgeServerPlugin(options: ForgeServerPluginOptions = {}): Plugi
       const env2 = options.projectRoot === undefined ? process.env : { FORGE_PROJECT_ROOT: options.projectRoot };
       project = await resolveDevProject(engineRoot, env2);
       if (building) return;
-      return { server: { fs: { allow: [engineRoot, project.root] } } };
+      // Vite's watcher crawls its root: `.forge-cache` (measurement copies, captures; gigabytes) held the start
+      // for 20-30 s. A project served from inside it keeps its watch.
+      const cache = join(engineRoot, CACHE_DIRECTORY);
+      const ignored = project.root.startsWith(cache + sep) ? [] : [`${cache.split(sep).join("/")}/**`];
+      return { server: { fs: { allow: [engineRoot, project.root] }, watch: { ignored } } };
     },
     resolveId(id) {
       if (id === GAME_MODULE_ID) return RESOLVED_GAME_MODULE;
