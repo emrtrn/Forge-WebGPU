@@ -64,6 +64,8 @@ interface ActorBase {
   pivot?: Vec3;
   /** Editor-only Lock Movement (`ActorLockField`); absent is unlocked. */
   locked?: true;
+  /** Editor-only Outliner folder (`ActorFolderField`, `World/Fences`); absent is the level root. */
+  folder?: string;
 }
 
 export interface PlainActor extends ActorBase {

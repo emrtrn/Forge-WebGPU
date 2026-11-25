@@ -19,13 +19,15 @@
 //   centre under their common parent (else the level root); the roots move
 //   under it keeping their world placement. Ungroup moves a group's children
 //   to the group's parent the same way and removes the group. A group is a
-//   plain actor without components that has children.
+//   plain actor without components that has children. It takes the Outliner
+//   folder its members share, and an ungroup leaves them in it.
 // - A viewport click on something inside a group selects the outermost group
 //   (Forge selected a group's members together).
 
 import { createId, parseComponentTypeTag, type ActorDoc, type ActorId, type ClassResolver, type SchemaRegistry, type Vec3 } from "../../core/index.ts";
 import { dragRoots } from "../gizmo/dragSession.ts";
 import { composeMat4, transformPoint } from "../math/affine.ts";
+import { withFolder } from "./folders.ts";
 import { reparentActors, transformUnder, worldMatrixOf, type ActorLookup } from "./hierarchy.ts";
 
 export const CLIPBOARD_SCHEMA = "forge.actors/1";
@@ -223,6 +225,8 @@ export function groupActors(context: OpsContext, ids: readonly ActorId[], name =
     parent,
     spatiallyLoaded: roots.every((doc) => doc.spatiallyLoaded),
     transform,
+    // The folder its members share (only a root is in one).
+    ...(parent === null && roots[0]!.folder !== undefined && roots.every((doc) => doc.folder === roots[0]!.folder) ? { folder: roots[0]!.folder } : {}),
     components: {},
   };
   const lookup: ActorLookup = (id) => (id === group.id ? group : context.lookup(id));
@@ -261,7 +265,12 @@ export function ungroupActors(context: OpsContext, ids: readonly ActorId[]): Ung
   for (const group of groups) {
     const kids = (children.get(group) ?? []).filter((id) => !groups.has(id));
     const target = keptParent(context.lookup(group)!.parent);
-    docs.push(...reparentActors(context.lookup, kids, target).docs);
+    const moved = reparentActors(context.lookup, kids, target).docs;
+    // Back at the root they stay in the (outermost dissolved) group's folder.
+    let outer = context.lookup(group)!;
+    while (outer.parent !== null && groups.has(outer.parent)) outer = context.lookup(outer.parent)!;
+    const folder = outer.folder ?? "";
+    docs.push(...(target === null ? moved.map((doc) => withFolder(doc, folder)) : moved));
   }
   return { docs, removed: [...groups] };
 }

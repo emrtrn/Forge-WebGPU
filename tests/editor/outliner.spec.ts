@@ -6,10 +6,14 @@
 // at 50.000 is `npm run bench:outliner`, not the gate). Levels are written
 // into this run's temporary project copy (D14).
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { shape, writeLevel, row, openEditor, IDENTITY } from "./support.ts";
+import { shape, writeLevel, row, openEditor, projectPath, IDENTITY } from "./support.ts";
 
 const SMALL = "content/levels/outliner-smoke";
+/** The folder test saves: a level of its own. */
+const FOLDERS = "content/levels/outliner-folders";
 const LARGE = "content/levels/outliner-large";
 const id = (n: number): string => `act_${n.toString(16).padStart(32, "0")}`;
 const PROPS = id(1);
@@ -28,14 +32,17 @@ const actor = (actorId: string, name: string, parent: string | null, p: number[]
   components,
 });
 
+const smallActors = () => [
+  actor(PROPS, "Props", null, [4, 0, 0], {}),
+  actor(CUBE_A, "Cube A", PROPS, [1, 0.5, 0], { shape: shape("cube") }),
+  actor(CUBE_B, "Cube B", PROPS, [-1, 0.5, 0], { shape: shape("sphere") }),
+  actor(LAMP, "Lamp", null, [0, 3, 0], { light: { type: "forge.pointLight@1", parent: null, local: IDENTITY } }),
+  actor(CRATE, "Crate", null, [0, 0.5, 6], { shape: shape("cube") }),
+];
+
 test.beforeAll(() => {
-  writeLevel(SMALL, "lvl_0000000000000000000000000000a001", [
-    actor(PROPS, "Props", null, [4, 0, 0], {}),
-    actor(CUBE_A, "Cube A", PROPS, [1, 0.5, 0], { shape: shape("cube") }),
-    actor(CUBE_B, "Cube B", PROPS, [-1, 0.5, 0], { shape: shape("sphere") }),
-    actor(LAMP, "Lamp", null, [0, 3, 0], { light: { type: "forge.pointLight@1", parent: null, local: IDENTITY } }),
-    actor(CRATE, "Crate", null, [0, 0.5, 6], { shape: shape("cube") }),
-  ]);
+  writeLevel(SMALL, "lvl_0000000000000000000000000000a001", smallActors());
+  writeLevel(FOLDERS, "lvl_0000000000000000000000000000a003", smallActors());
   writeLevel(
     LARGE,
     "lvl_0000000000000000000000000000a002",
@@ -116,6 +123,55 @@ test("rename, drag-and-drop parenting and Lock Movement are undo steps", async (
   await page.getByTestId("editor-undo").click();
   await expect(row(page, CRATE).locator("strong")).toHaveText("Crate");
   await expect(page.getByTestId("editor-undo")).toBeDisabled();
+  expect(errors).toEqual([]);
+});
+
+test("folders: New Folder takes the selection, rows are dragged in and out, rename and remove keep the actors; each is an undo step and is saved", async ({ page }) => {
+  const errors = await open(page, FOLDERS);
+  const folder = (path: string) => page.locator(`[data-testid="outliner-folder"][data-folder="${path}"]`);
+  await row(page, CRATE).click();
+  await row(page, CRATE).click({ button: "right" });
+  page.once("dialog", (dialog) => void dialog.accept("Yard / Goods"));
+  await page.getByTestId("outliner-menu-folder").click();
+  await expect(folder("Yard")).toContainText("1 actor");
+  await expect(row(page, CRATE)).toBeVisible();
+
+  // A root, then a parented child: the child leaves its parent and keeps its place (Props is at x = 4).
+  await row(page, LAMP).dragTo(folder("Yard/Goods"));
+  await row(page, CUBE_A).dragTo(folder("Yard"));
+  await expect(folder("Yard")).toContainText("3 actors");
+  await row(page, CUBE_A).click();
+  await expect(page.getByTestId("detail-transform.p[0]")).toHaveValue("5");
+
+  // Closed, it hides what is in it; a selection made elsewhere is revealed.
+  await folder("Yard").click();
+  await expect(row(page, LAMP)).toHaveCount(0);
+  await folder("Yard").click();
+  await folder("Yard").click({ button: "right" });
+  await page.getByTestId("outliner-folder-select").click();
+  await expect(page.getByTestId("outliner-summary")).toHaveText("5 actors (3 selected)");
+  await folder("Yard").getByTestId("outliner-lock").click();
+  await expect(row(page, LAMP).getByTestId("outliner-lock")).toHaveClass(/on/);
+  await page.getByTestId("editor-undo").click();
+  await expect(row(page, LAMP).getByTestId("outliner-lock")).not.toHaveClass(/on/);
+
+  await folder("Yard/Goods").click({ button: "right" });
+  page.once("dialog", (dialog) => void dialog.accept("Stock"));
+  await page.getByTestId("outliner-folder-rename").click();
+  await expect(folder("Yard/Stock")).toContainText("2 actors");
+  await page.getByTestId("editor-undo").click();
+  await expect(folder("Yard/Goods")).toContainText("2 actors");
+  await page.getByTestId("editor-redo").click();
+  await folder("Yard").click({ button: "right" });
+  await page.getByTestId("outliner-folder-remove").click();
+  await expect(folder("Yard")).toHaveCount(0);
+  await expect(folder("Stock")).toContainText("2 actors");
+
+  await page.getByTestId("editor-save").click();
+  await expect(page.getByTestId("editor-status")).toHaveText(/^Saved /);
+  const saved = JSON.parse(readFileSync(join(projectPath(FOLDERS), "level.json"), "utf8")) as { actors: { id: string; folder?: string; parent: string | null }[] };
+  expect(saved.actors.filter((one) => one.folder !== undefined).map((one) => [one.id, one.folder])).toEqual([[LAMP, "Stock"], [CRATE, "Stock"]]);
+  expect(saved.actors.find((one) => one.id === CUBE_A)!.parent).toBeNull();
   expect(errors).toEqual([]);
 });
 

@@ -143,7 +143,7 @@ function fieldsOf(context: CommandContext, type: string): string[] | null {
   return [...(def.spatial ? ["local"] : []), ...Object.keys(def.fields)];
 }
 
-const ACTOR_FIELDS = ["name", "spatiallyLoaded", "locked", "pivot", "transform"];
+const ACTOR_FIELDS = ["name", "spatiallyLoaded", "locked", "folder", "pivot", "transform"];
 
 /** `doc` with one assignment applied, as Details applies a field edit. */
 function assign(context: CommandContext, doc: ActorDoc, assignment: Assignment): ActorDoc {

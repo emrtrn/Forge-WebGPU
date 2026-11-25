@@ -4,7 +4,7 @@
 // its kind icon, meta, actions and toggles. No redesign. Two changes the
 // virtualised list needs: rows sit absolutely in a sizer as tall as the whole
 // list (fixed 40 px, Forge's row height), and a row with children has a
-// collapse chevron in front of its icon.
+// collapse chevron in front of its icon. Folder rows are new (2026-11-25).
 
 export const OUTLINER_CSS = `
 .outliner-pane[hidden] { display: none; }
@@ -190,6 +190,23 @@ export const OUTLINER_CSS = `
 .outliner-row.active {
   background: var(--forge-accent-soft);
   box-shadow: inset 2px 0 0 var(--forge-accent);
+}
+
+.outliner-row.is-folder .outliner-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.outliner-row.is-folder .outliner-meta small {
+  display: block;
+  flex: none;
+  color: var(--forge-text-dim);
+  font-size: 11px;
+}
+
+.outliner-row.is-folder .outliner-kind {
+  color: #f1c36b;
 }
 
 .outliner-row.is-hidden .outliner-meta {

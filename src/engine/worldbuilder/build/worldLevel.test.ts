@@ -1,10 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { isId, TerrainAssetType, WorldRecipeAssetType } from "../../../core/index.ts";
+import { type ActorDoc, isId, TerrainAssetType, WorldRecipeAssetType } from "../../../core/index.ts";
 import type { LayoutPlacement } from "../../legacy/layout.ts";
 import { createFlatWorldTerrain } from "../../terrain/worldTerrainCreate.ts";
 import { createWorldRecipe } from "../recipe.ts";
 import type { WorldBuild } from "./worldBuild.ts";
-import { eulerXyzQuaternion, placementTransform, stableHex, worldLevel } from "./worldLevel.ts";
+import { eulerXyzQuaternion, placementTransform, stableHex, worldFolder, worldLevel } from "./worldLevel.ts";
 
 const LEVEL = "lvl_0123456789abcdef0123456789abcdef";
 
@@ -46,6 +46,30 @@ describe("worldLevel", () => {
     expect(skyLight).toEqual({ type: "forge.skyLight@1", intensity: 0.5, ambientColor: "#ece6da", ambientIntensity: 1.1, backgroundColor: "#a9c9df" });
     expect(sun).toMatchObject({ type: "forge.directionalLight@1", color: "#fff4e6", intensity: 4.2, castShadow: true, atmosphereSun: true });
     expect(look[2]!.transform).toMatchObject({ p: [3, 9, 4], r: eulerXyzQuaternion(-48, 35, 0) });
+  });
+
+  test("built into a level, its settings and scene settings actors stay and no look is added; a look only a dark level gets", () => {
+    const settings = { cellSize: 64, wind: { directionDeg: 10, strength: 1, gust: 0 }, viewDistance: 900, loadRange: 200, landmarkDistance: 5 };
+    const fog = {
+      id: `act_${"f".repeat(32)}`, name: "My Fog", class: null, parent: null, spatiallyLoaded: false,
+      transform: { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] }, components: { fog: { type: "forge.heightFog@1" } },
+    } as ActorDoc;
+    const names = (look: boolean) => {
+      const { level } = worldLevel(buildWith([]), { levelId: LEVEL, terrainId: "valley", keep: { settings, actors: [fog], look } });
+      expect(level.settings).toEqual(settings);
+      return level.actors.map((actor) => actor.name);
+    };
+    expect(names(true)).toEqual(["Valley", "My Fog"]);
+    expect(names(false)).toEqual(["Valley", "My Fog", "Sky Atmosphere", "Sky Light", "Sun"]);
+  });
+
+  test("placements are in an Outliner folder by role; the terrain and the look are at the root", () => {
+    const level = worldLevel(buildWith([{ assetId: "shape:cube", placements: [house] }]), { levelId: LEVEL, terrainId: "valley" });
+    expect(level.level.actors.filter((actor) => actor.folder !== undefined).map((actor) => [actor.name, actor.folder])).toEqual([["House", "World/Buildings"]]);
+    expect([
+      worldFolder("open.square", "buildings"), worldFolder("structure.retainingWall", "buildings"), worldFolder("vegetation.tree", ""), worldFolder("prop.rock", ""),
+      worldFolder("prop.fence.picket", "fences"), worldFolder("prop.light.street", "furniture"), worldFolder("", ""),
+    ]).toEqual(["World/Buildings", "World/Structures", "World/Vegetation", "World/Rocks", "World/Fences", "World/Furniture", "World/Other"]);
   });
 
   test("a plant group becomes single plants of the family, each with its own stable seed and role", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
-  asksForWater, DEFAULT_RANDOM_WORLD_CHOICES, freeWorldName, overviewCameraPose, parseRandomWorldEvent, plainFolderName, randomWorldRequest,
+  asksForWater, DEFAULT_RANDOM_WORLD_CHOICES, overviewCameraPose, parseRandomWorldEvent, plainFolderName, randomWorldRequest, worldTargetProblem,
   readRandomWorldChoices, settleRandomWorldChoices,
 } from "./randomWorldChoices.ts";
 
@@ -26,10 +26,13 @@ describe("random world choices", () => {
     });
   });
 
-  test("folder names and the first free one", () => {
+  test("folder names, and the levels a world can be built into", () => {
     expect(["My World", "a-1_b.c"].every(plainFolderName)).toBe(true);
     expect(["", ".a", "a ", "a.", "a/b", "dünya"].some(plainFolderName)).toBe(false);
-    expect(freeWorldName((name) => name === "World_1" || name === "World_2")).toBe("World_3");
+    expect(worldTargetProblem("content/levels/My World")).toBeNull();
+    expect(worldTargetProblem("engine:content/packs/starter/levels/a")).toContain("projenin");
+    expect(worldTargetProblem("main")).toContain("projenin");
+    expect(worldTargetProblem("content/levels/dünya")).toContain("karakter");
   });
 
   test("event lines: known ones are read, anything else is not an event", () => {

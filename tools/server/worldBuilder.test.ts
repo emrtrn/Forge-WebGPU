@@ -95,7 +95,7 @@ describe("World Builder endpoints", () => {
 
   test("a missing pack is said, added to the manifest with what it requires, and the server restarts", async () => {
     await open({ packs: [] });
-    expect(await state()).toEqual({ readOnly: false, levels: "content/levels", missing: ["starter", "worldbuilder"], restarting: false, building: false });
+    expect(await state()).toEqual({ readOnly: false, missing: ["starter", "worldbuilder"], restarting: false, building: false });
     expect((await post("world-random", { out: "content/levels/A", world: WORLD })).status).toBe(409);
     const added = await post("world-builder/pack");
     expect(await added.json()).toEqual({ added: ["starter", "worldbuilder"] });

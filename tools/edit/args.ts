@@ -13,7 +13,7 @@
 // (`act_3fa2`). A class is its GUID or its file (`content/classes/door.actorclass.json`).
 // A path starts at a component's local id (`light.intensity`,
 // `shape.local.p[1]`) or at `actor.` for the actor's own fields
-// (`actor.name`, `actor.locked`). A value is JSON; anything that does not
+// (`actor.name`, `actor.locked`, `actor.folder=World/Props`). A value is JSON; anything that does not
 // parse as JSON is a string (`color=#ff8800`, `primitive=cube`). Rotations
 // are XYZ degrees. Transforms are the actor's own (in its parent's space, as
 // Details shows them; at the level root that is the world).

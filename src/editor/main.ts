@@ -111,6 +111,7 @@ import { createLandscapeSplines, LandscapeSplinesKey } from "./landscape/landsca
 import { createLandscapeSplineTool, type LandscapeSplineTool } from "./landscape/landscapeSplineTool.ts";
 import { createLandscapeTool, type LandscapeTool } from "./landscape/landscapeTool.ts";
 import { createLandscapeSave } from "./landscape/landscapeSave.ts";
+import { isSceneSettingsActor } from "../engine/worldbuilder/build/sceneSettings.ts";
 import { createWorldBuilder } from "./worldBuilder/worldBuilder.ts";
 
 const helperModules = import.meta.glob<{ default?: EditorRenderBindingDef; assetPreviews?: readonly AssetPreviewRegistration[] }>("../features/*/editorRender.ts", { eager: true });
@@ -527,8 +528,9 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     };
     const worldBuilder = createWorldBuilder({
       document: doc, host: shell.root, area: () => shell.viewport.getBoundingClientRect(), storage, session: tabStorage(doc), client: options.client,
-      projectName: options.projectName, level: options.level, exists: (path) => (content.index().folder(path) ?? content.index().byFile(path)) !== undefined,
-      dirty: () => session.dirty() > 0, openLevel, status: (message, tone) => shell.status(message, tone),
+      projectName: options.projectName, level: options.level,
+      replaces: () => session.level.cellKeys().length > 0 || session.level.level.actors.some((actor) => !isSceneSettingsActor(actor, { registry, resolveClass })),
+      dirty: () => session.dirty() > 0, save: () => session.save(), openLevel, status: (message, tone) => shell.status(message, tone),
     });
     const snapOf = tools;
     // A Content Browser asset dragged into the viewport (step 6f) is placed under its own key.

@@ -8,18 +8,22 @@
 // the save service. The level is a folder: `level.json`, `cells.json`,
 // `cells/`, `terrain/<id>.terrain.json` with its tiles, and
 // `<folder>.worldrecipe.json`. An existing level is replaced only with `force`
-// (it may hold editor changes) and keeps its level id. A recipe of the project
+// (it may hold editor changes) and keeps its level id, its settings and its
+// scene settings actors (user decision 2026-11-25). A recipe of the project
 // the brief or cover names is generated first when it has no output.
 
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join, posix } from "node:path";
 import {
+  CELLS_DIR,
   createId,
   fileLabel,
   GroundCoverAssetType,
   isId,
   isJsonObject,
   LEVEL_FILE,
+  normalizeLevel,
+  normalizeLevelCell,
   RegionProfileAssetType,
   stringifyDocument,
   WorldBriefAssetType,
@@ -29,7 +33,8 @@ import {
 import { readSheetEntries } from "../../src/engine/plant/familySheet.ts";
 import { recipeGenerator } from "../../src/engine/procgen/recipeOutputs.ts";
 import { buildWorldFromBrief, worldRecipes, type WorldBuild } from "../../src/engine/worldbuilder/build/worldBuild.ts";
-import { worldLevel, type WorldLevel } from "../../src/engine/worldbuilder/build/worldLevel.ts";
+import { hasLook, sceneSettingsActors } from "../../src/engine/worldbuilder/build/sceneSettings.ts";
+import { worldLevel, type WorldLevel, type WorldLevelOptions } from "../../src/engine/worldbuilder/build/worldLevel.ts";
 import { generatedSources } from "../../src/engine/worldbuilder/generatedModels.ts";
 import { normalizeGroundCover, type GroundCover } from "../../src/engine/worldbuilder/groundCover.ts";
 import { normalizeRegionProfile, regionProfileAssetIds, type RegionProfile } from "../../src/engine/worldbuilder/regionProfile.ts";
@@ -68,21 +73,40 @@ export function projectRelative(path: string, label: string): string {
   return normalized;
 }
 
-async function existingLevelId(projectRoot: string, folder: string): Promise<LevelId | null | undefined> {
-  let text: string;
-  try {
-    text = await readFile(join(projectRoot, folder, LEVEL_FILE), "utf8");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+interface ExistingLevel {
+  /** Null when the document names no usable id. */
+  readonly id: LevelId | null;
+  /** Its settings and scene settings actors, for the level built over it. */
+  readonly keep: WorldLevelOptions["keep"];
+}
+
+/** The level in `folder`, or undefined when there is none. */
+async function existingLevel(project: WorldProject, folder: string): Promise<ExistingLevel | undefined> {
+  const readJson = async (path: string): Promise<unknown> => {
+    const text = await readFile(join(project.root, folder, path), "utf8");
+    try {
+      return JSON.parse(text) as unknown;
+    } catch (error) {
+      throw new Error(`existing level ${folder}/${path} is not JSON: ${(error as Error).message}`);
+    }
+  };
+  const missing = (error: NodeJS.ErrnoException): undefined => {
+    if (error.code === "ENOENT") return undefined;
     throw error;
+  };
+  const json = await readJson(LEVEL_FILE).catch(missing);
+  if (json === undefined) return undefined;
+  const options = { strict: false, registry: project.registry, resolveClass: project.index.resolveClass };
+  const persistent = normalizeLevel(json, options).value;
+  if (!persistent) return { id: isJsonObject(json) && isId(json.id, "level") ? json.id : null, keep: undefined };
+  // A scene settings actor can stand in a cell (a directional light left spatially loaded).
+  const actors = [...persistent.actors];
+  const cells = (await readdir(join(project.root, folder, CELLS_DIR)).catch(missing)) ?? [];
+  for (const name of cells.filter((one) => one.endsWith(".json")).sort()) {
+    actors.push(...(normalizeLevelCell(await readJson(`${CELLS_DIR}/${name}`), options).value?.actors ?? []));
   }
-  let json: unknown;
-  try {
-    json = JSON.parse(text);
-  } catch (error) {
-    throw new Error(`existing level ${folder}/${LEVEL_FILE} is not JSON: ${(error as Error).message}`);
-  }
-  return isJsonObject(json) && isId(json.id, "level") ? json.id : null;
+  const kept = sceneSettingsActors(actors, options);
+  return { id: persistent.id, keep: { settings: persistent.settings, actors: kept, look: hasLook(kept, options) } };
 }
 
 /** The entries of every family sheet of the project (its packs' too). */
@@ -116,11 +140,11 @@ export async function runWorldBrief(options: WorldBriefRunOptions): Promise<Worl
   if (!brief) throw new Error(`invalid world brief ${briefPath}:\n  ${issues.join("\n  ")}`);
   if (issues.length) throw new Error(`invalid world brief ${briefPath}:\n  ${issues.join("\n  ")}`);
 
-  const previous = await existingLevelId(options.projectRoot, folder);
+  const previous = await existingLevel(project, folder);
   if (previous !== undefined && !options.force) {
     throw new Error(`${folder}/${LEVEL_FILE} exists; it may hold editor changes. Rerun with --force to rebuild it from the brief.`);
   }
-  const levelId = previous ?? createId("level");
+  const levelId = previous?.id ?? createId("level");
 
   let profile: RegionProfile | null = null;
   if (brief.regionProfile) {
@@ -155,7 +179,7 @@ export async function runWorldBrief(options: WorldBriefRunOptions): Promise<Worl
     brief, profile, cover, generated, assetIdForFile: (file) => (isId(file, "asset") ? (project.index.entries.has(file) ? file : null) : project.assetIdOf(file)), onProgress: options.onProgress,
   });
   options.onProgress?.("files");
-  const level = worldLevel(build, { levelId, terrainId: brief.terrain.id });
+  const level = worldLevel(build, { levelId, terrainId: brief.terrain.id, keep: previous?.keep });
   const name = posix.basename(folder);
   const { written, removed } = await writeWorld(project, {
     folder,

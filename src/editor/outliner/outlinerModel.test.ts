@@ -1,11 +1,12 @@
 import { describe, expect, test } from "vitest";
 import type { ActorId } from "../../core/index.ts";
 import { OUTLINER_TYPES, type OutlinerType } from "../host/featureEditor.ts";
-import { outlinerRows, rangeIds, revealScrollTop, visibleWindow, type OutlinerSource } from "./outlinerModel.ts";
+import { folderChain, freeFolder, outlinerRows as rowsOf, rangeIds, revealScrollTop, visibleWindow, type OutlinerQuery, type OutlinerSource } from "./outlinerModel.ts";
 
 const ALL = new Set<OutlinerType>(OUTLINER_TYPES.map((entry) => entry.type));
-const item = (id: string, parent: string | null = null, type: OutlinerType = "mesh", name = id): OutlinerSource => ({ id: id as ActorId, parent: parent as ActorId | null, name, type });
-const show = (rows: ReturnType<typeof outlinerRows>) => rows.map((row) => `${"  ".repeat(row.depth)}${row.id}${row.hasChildren ? (row.expanded ? " -" : " +") : ""}`);
+const item = (id: string, parent: string | null = null, type: OutlinerType = "mesh", name = id, folder = ""): OutlinerSource => ({ id: id as ActorId, parent: parent as ActorId | null, name, type, folder });
+const outlinerRows = (items: readonly OutlinerSource[], query: Omit<OutlinerQuery, "openFolders" | "folders"> & Partial<OutlinerQuery>) => rowsOf(items, { openFolders: new Set<string>(), folders: [], ...query });
+const show = (rows: ReturnType<typeof outlinerRows>) => rows.map((row) => `${"  ".repeat(row.depth)}${row.kind === "folder" ? `[${row.name} ${row.ids.length}]` : row.id}${row.hasChildren ? (row.expanded ? " -" : " +") : ""}`);
 
 // g groups a and b; b holds c. l is a light; d is a root after them.
 const LEVEL = [item("a", "g"), item("g", null, "gameplay", "Group"), item("b", "g"), item("l", null, "light", "Sun"), item("c", "b"), item("d")];
@@ -40,6 +41,45 @@ describe("the Outliner's rows", () => {
     const deep = outlinerRows(chain, { filter: "", types: ALL, collapsed: new Set() });
     expect(rows).toHaveLength(50_000);
     expect(deep.at(-1)?.depth).toBe(19_999);
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+});
+
+describe("folders", () => {
+  // Two fences and a house of a generated world, a child under a house, a lamp at the root.
+  const WORLD = [
+    item("f1", null, "mesh", "f1", "World/Fences"), item("lamp"), item("h", null, "mesh", "h", "World/Buildings"),
+    item("door", "h", "mesh", "door", "Elsewhere"), item("f2", null, "mesh", "f2", "World/Fences"),
+  ];
+  const query = { filter: "", types: ALL, collapsed: new Set<ActorId>() };
+  const open = (...paths: string[]) => ({ ...query, openFolders: new Set(paths) });
+
+  test("folders come first, by name, and start closed; an open one shows its subfolders, then its actors", () => {
+    expect(show(outlinerRows(WORLD, query))).toEqual(["[World 3] +", "lamp"]);
+    expect(show(outlinerRows(WORLD, open("World")))).toEqual(["[World 3] -", "  [Buildings 1] +", "  [Fences 2] +", "lamp"]);
+    expect(show(outlinerRows(WORLD, open("World", "World/Buildings", "World/Fences")))).toEqual(["[World 3] -", "  [Buildings 1] -", "    h -", "      door", "  [Fences 2] -", "    f1", "    f2", "lamp"]);
+    // An open folder inside a closed one is not drawn.
+    expect(show(outlinerRows(WORLD, open("World/Fences")))).toEqual(["[World 3] +", "lamp"]);
+  });
+
+  test("an empty folder of the page's is shown; a search is flat and the type filter empties a folder away", () => {
+    expect(show(outlinerRows(WORLD, { ...query, folders: ["Props"] }))).toEqual(["[Props 0]", "[World 3] +", "lamp"]);
+    expect(show(outlinerRows(WORLD, { ...query, filter: "f" }))).toEqual(["f1", "f2"]);
+    expect(show(outlinerRows(WORLD, { ...query, types: new Set<OutlinerType>(["light"]) }))).toEqual([]);
+  });
+
+  test("a range skips folder rows; the chain opens outermost first; a taken name is numbered", () => {
+    const rows = outlinerRows(WORLD, open("World", "World/Buildings", "World/Fences"));
+    expect(rangeIds(rows, "door" as ActorId, "f1" as ActorId)).toEqual(["door", "f1"]);
+    expect(folderChain("World/Fences/Old")).toEqual(["World", "World/Fences", "World/Fences/Old"]);
+    expect(freeFolder("World", "New Folder", (path) => path === "World/New Folder")).toBe("World/New Folder 2");
+    expect(freeFolder("", "New Folder", () => false)).toBe("New Folder");
+  });
+
+  test("50.000 actors in folders come out in linear time", () => {
+    const many = Array.from({ length: 50_000 }, (_, index) => item(`n${index}`, null, "mesh", `n${index}`, `World/Part ${index % 50}`));
+    const started = performance.now();
+    expect(outlinerRows(many, open("World"))).toHaveLength(51);
     expect(performance.now() - started).toBeLessThan(1_000);
   });
 });

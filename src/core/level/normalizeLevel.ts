@@ -30,7 +30,8 @@ import type { SchemaRegistry } from "../schema/registry.ts";
 import { normalizeOverrides, type ClassResolver } from "./actorClass.ts";
 import { normalizeComponentMap } from "./components.ts";
 import { LEVEL_SCHEMA, type ActorDoc, type ComponentMap, type LevelDoc } from "./model.ts";
-import { ActorLockField, ActorPivotField, ActorStreamingFields, LevelSettingsFields, type LevelSettings } from "./settings.ts";
+import { normalizeFolder } from "./actorFolder.ts";
+import { ActorFolderField, ActorLockField, ActorPivotField, ActorStreamingFields, LevelSettingsFields, type LevelSettings } from "./settings.ts";
 
 export const DEFAULT_ACTOR_NAME = "Actor";
 
@@ -44,7 +45,7 @@ export interface LevelNormalizeOptions extends NormalizeOptions {
 }
 
 const LEVEL_KEYS = ["schema", "id", "settings", "actors"];
-const ACTOR_KEYS = ["id", "name", "class", "parent", "spatiallyLoaded", "transform", "pivot", "locked", "components", "overrides"];
+const ACTOR_KEYS = ["id", "name", "class", "parent", "spatiallyLoaded", "transform", "pivot", "locked", "folder", "components", "overrides"];
 
 /** Null when the document cannot be read as a level at all. */
 export function normalizeLevel(
@@ -218,6 +219,7 @@ function normalizeActor(
     transform: normalizeTransform(raw.transform, IDENTITY_TRANSFORM, childPath(path, "transform"), ctx),
     ...pivotOf(raw.pivot, childPath(path, "pivot"), ctx),
     ...lockedOf(raw.locked, childPath(path, "locked"), ctx),
+    ...folderOf(raw.folder, childPath(path, "folder"), ctx),
   };
   reportUnknownKeys(raw, ACTOR_KEYS, path, ctx, "An actor has no such field; dropped.");
 
@@ -335,4 +337,11 @@ function pivotOf(raw: unknown, path: string, ctx: NormalizeContext): { pivot?: V
 function lockedOf(raw: unknown, path: string, ctx: NormalizeContext): { locked?: true } {
   if (raw === undefined) return {};
   return normalizeValue(ActorLockField, raw, path, ctx) === true ? { locked: true } : {};
+}
+
+/** The actor's Outliner folder, canonical; the document leaves the root ("") out. */
+function folderOf(raw: unknown, path: string, ctx: NormalizeContext): { folder?: string } {
+  if (raw === undefined) return {};
+  const folder = normalizeFolder(normalizeValue(ActorFolderField, raw, path, ctx) as string);
+  return folder === "" ? {} : { folder };
 }

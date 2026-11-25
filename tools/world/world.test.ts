@@ -86,18 +86,52 @@ describe("world:random", () => {
     expect(await text("content/levels/again/level.json")).toBe(level);
     expect(await text("content/levels/again/again.worldbrief.json")).toBe(brief);
 
-    // Foliage painted on the old terrain goes with it; a file that is not the build's stays.
+    // Foliage painted on the old terrain and the old actors' HLOD proxies go with it; a file that is not the build's stays.
     await mkdir(join(project, "content/levels/again/foliage"), { recursive: true });
     await writeFile(join(project, "content/levels/again/foliage/0_0.bin"), "x");
+    await mkdir(join(project, "content/levels/again/hlod"), { recursive: true });
+    await writeFile(join(project, "content/levels/again/hlod/0_0.glb"), "x");
     await writeFile(join(project, "content/levels/again/notes.txt"), "mine");
     // Fewer cells after a smaller world: the stale cell files go, the index follows.
     await run("content/levels/again", { force: true, world: { ...WORLD, settlements: [] } });
     expect(await exists("content/levels/again/foliage/0_0.bin")).toBe(false);
+    expect(await exists("content/levels/again/hlod/0_0.glb")).toBe(false);
     expect(await exists("content/levels/again/notes.txt")).toBe(true);
     await rm(join(project, "content/levels/again/notes.txt"));
     const index = JSON.parse(await text("content/levels/again/cells.json")) as { cells: Record<string, string> };
     expect((await readdir(join(project, "content/levels/again/cells"))).map((name) => name.slice(0, -5)).sort())
       .toEqual(Object.keys(index.cells).sort());
+  });
+
+  test("built into a level made by hand, its settings and environment stay and its objects go", async () => {
+    const id = (n: number) => `act_${String(n).padStart(32, "0")}`;
+    const at = { p: [1, 2, 3], r: [0, 0, 0, 1], s: [1, 1, 1] };
+    const actor = (n: number, name: string, components: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
+      ({ id: id(n), name, class: null, parent: null, spatiallyLoaded: false, transform: at, components, ...extra });
+    const shape = { shape: { type: "forge.shape@2", parent: null, local: { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] }, primitive: "cube" } };
+    const sun = { light: { type: "forge.directionalLight@1", parent: null, local: { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] }, intensity: 9 } };
+    const levelId = `lvl_${"7".repeat(32)}`;
+    await mkdir(join(project, "content/levels/mine/cells"), { recursive: true });
+    await writeFile(join(project, "content/levels/mine/level.json"), JSON.stringify({
+      schema: "forge.level/1", id: levelId, settings: { cellSize: 64, viewDistance: 1234 },
+      actors: [
+        actor(1, "My World", { env: { type: "forge.worldEnvironment@2" } }), actor(2, "Lights", {}), actor(3, "Cube", shape),
+        actor(4, "My Fog", { fog: { type: "forge.heightFog@1" } }, { parent: id(2) }),
+      ],
+    }));
+    // A sun left spatially loaded stands in a cell.
+    await writeFile(join(project, "content/levels/mine/cells/0_0.json"), JSON.stringify({
+      schema: "forge.levelCell/1", level: levelId, cell: "0_0", actors: [actor(5, "My Sun", sun, { spatiallyLoaded: true }), actor(6, "Crate", shape, { spatiallyLoaded: true })],
+    }));
+    const { levelId: built, level } = await run("content/levels/mine", { force: true });
+    expect(built).toBe(levelId);
+    expect(level.level.settings).toMatchObject({ cellSize: 64, viewDistance: 1234 });
+    expect(level.level.actors.filter((one) => /^act_0{20}/.test(one.id)).map((one) => one.name)).toEqual(["My World", "Lights", "My Fog", "My Sun"]);
+    // It has a sun of its own: no greybox look.
+    expect(level.level.actors.some((one) => one.name === "Sky Atmosphere" || one.name === "Sun")).toBe(false);
+    const fog = level.level.actors.find((one) => one.name === "My Fog")!;
+    expect(fog.parent).toBe(id(2));
+    expect(level.level.actors.filter((one) => one.folder?.startsWith("World/")).length).toBe(level.counts.placements);
   });
 
   test("a failed build restores the brief it replaced and removes a new one", async () => {

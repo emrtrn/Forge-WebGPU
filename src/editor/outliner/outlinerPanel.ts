@@ -13,6 +13,13 @@
 //   range from the anchor (Forge). Double click renames (Forge's prompt).
 // - Dragging rows onto a row parents them there, keeping their world
 //   placement (engine/edit/hierarchy.ts; one undo step).
+// - Folders (user decision 2026-11-25, as Unreal): a folder row opens and
+//   closes on a click; its eye and lock act on everything in it; rows and
+//   folders are dragged into it, or to the list's empty part for the root. New
+//   Folder takes the selection along; Rename and Remove Folder are one undo
+//   step and reach the loaded actors only (an unloaded cell keeps its paths).
+//   An empty folder is the page's until something is in it. A selection made
+//   elsewhere opens the folders above it.
 // - The eye hides the actor in the editor's view (session visibility, not
 //   saved); the lock is the actor's Lock Movement (`locked`, one undo step).
 // - New against Forge: a row with children has a collapse chevron (groups are
@@ -22,7 +29,8 @@
 //   (the row joins it first when it was not in it).
 // Text is set with textContent; the only markup is the kit's static icons.
 
-import { assignCells, effectiveComponents, type ActorDoc, type ActorId, type ClassResolver, type ComponentMap, type SchemaRegistry } from "../../core/index.ts";
+import { assignCells, effectiveComponents, folderName, isInFolder, normalizeFolder, parentFolder, rebaseFolder, type ActorDoc, type ActorId, type ClassResolver, type ComponentMap, type SchemaRegistry } from "../../core/index.ts";
+import { moveToFolder, rebaseFolderActors } from "../../engine/edit/folders.ts";
 import { reparentActors } from "../../engine/edit/hierarchy.ts";
 import type { EditCommands } from "../edit/editCommands.ts";
 import type { ActorPresentation, EditorCatalog } from "../host/editorCatalog.ts";
@@ -30,7 +38,7 @@ import { OUTLINER_TYPES, type OutlinerType } from "../host/featureEditor.ts";
 import type { EditorSession } from "../session/editorSession.ts";
 import { openContextMenu } from "../ui/contextMenu.ts";
 import { ACTOR_TYPE_ICONS, UI_ICONS } from "../ui/icons.ts";
-import { outlinerRows, rangeIds, revealScrollTop, visibleWindow, type OutlinerRow, type OutlinerSource } from "./outlinerModel.ts";
+import { folderChain, freeFolder, outlinerRows, rangeIds, revealScrollTop, visibleWindow, type OutlinerFolderRow, type OutlinerRow, type OutlinerSource } from "./outlinerModel.ts";
 
 /** Forge's row height (`.outliner-row` min-height). */
 export const OUTLINER_ROW_HEIGHT = 40;
@@ -138,6 +146,9 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
 
   // --- Rows -----------------------------------------------------------------
   const collapsed = new Set<ActorId>();
+  const openFolders = new Set<string>();
+  /** Folders made in this page; only these show while they are empty. */
+  const ownFolders = new Set<string>();
   let filter = "";
   let rows: OutlinerRow[] = [];
   let rowIndex = new Map<ActorId, number>();
@@ -166,9 +177,9 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
     const actors = editor.level.level.actors;
     parents = new Set<ActorId>();
     for (const actor of actors) if (actor.parent !== null) parents.add(actor.parent);
-    const items: OutlinerSource[] = actors.map((actor) => ({ id: actor.id, parent: actor.parent, name: actor.name, type: presentationOf(actor, parents.has(actor.id)).type }));
-    rows = outlinerRows(items, { filter, types, collapsed });
-    rowIndex = new Map(rows.map((row, index) => [row.id, index]));
+    const items: OutlinerSource[] = actors.map((actor) => ({ id: actor.id, parent: actor.parent, name: actor.name, type: presentationOf(actor, parents.has(actor.id)).type, folder: actor.folder ?? "" }));
+    rows = outlinerRows(items, { filter, types, collapsed, openFolders, folders: ownFolders });
+    rowIndex = new Map(rows.flatMap((row, index) => (row.kind === "actor" ? [[row.id, index] as const] : [])));
     sizer.style.height = `${rows.length * OUTLINER_ROW_HEIGHT}px`;
     empty.hidden = rows.length > 0;
     empty.replaceChildren(el("strong", "", actors.length === 0 ? "No objects" : "No matches"), el("span", "", "Scene"));
@@ -230,8 +241,8 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
       const drawn = pool[slot]!;
       const index = window.start + slot;
       const entry = rows[index];
-      const actor = entry ? editor.level.actor(entry.id) : undefined;
-      if (!entry || !actor) {
+      const actor = entry?.kind === "actor" ? editor.level.actor(entry.id) : undefined;
+      if (!entry || (entry.kind === "actor" && !actor)) {
         drawn.row.hidden = true;
         continue;
       }
@@ -239,12 +250,21 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
       row.hidden = false;
       row.style.top = `${index * OUTLINER_ROW_HEIGHT}px`;
       row.style.paddingLeft = `${8 + entry.depth * INDENT}px`;
-      row.dataset.actorId = actor.id;
       row.dataset.index = String(index);
+      row.classList.toggle("is-folder", entry.kind === "folder");
+      row.classList.remove("drop-target", "is-dragging");
+      paintExpander(drawn, entry);
+      if (entry.kind === "folder") {
+        paintFolder(drawn, entry);
+        continue;
+      }
+      if (!actor) continue;
+      row.dataset.testid = "outliner-row";
+      delete row.dataset.folder;
+      row.dataset.actorId = actor.id;
       const selected = editor.selection.has(actor.id);
       row.classList.toggle("active", selected);
       row.setAttribute("aria-selected", String(selected));
-      row.classList.remove("drop-target", "is-dragging");
       const hidden = editor.visibility.hidden(actor.id);
       row.classList.toggle("is-hidden", hidden);
       const look = presentationOf(actor, parents.has(actor.id));
@@ -261,14 +281,6 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
         row.dataset.cell = cell;
         drawn.detail.textContent += ` · ${cell}`;
       }
-      drawn.expander.style.visibility = entry.hasChildren ? "visible" : "hidden";
-      drawn.expander.setAttribute("aria-label", entry.expanded ? "Collapse" : "Expand");
-      drawn.expander.setAttribute("aria-expanded", String(entry.expanded));
-      const chevron = entry.expanded ? "down" : "right";
-      if (drawn.expander.dataset.chevron !== chevron) {
-        drawn.expander.dataset.chevron = chevron;
-        drawn.expander.innerHTML = entry.expanded ? UI_ICONS.chevronDown : UI_ICONS.chevronRight; // The kit's static SVG.
-      }
       const ownHidden = editor.visibility.has(actor.id);
       setToggle(drawn.hide, ownHidden, ownHidden ? UI_ICONS.eyeOff : UI_ICONS.eye, ownHidden ? "Show object" : "Hide object");
       const locked = actor.locked === true;
@@ -278,6 +290,41 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
     summary.textContent = `${total} actors (${editor.selection.ids().length} selected)`;
     list.dataset.paintMs = (performance.now() - started).toFixed(3);
   }
+
+  const paintExpander = ({ expander }: DrawnRow, entry: OutlinerRow): void => {
+    expander.style.visibility = entry.hasChildren ? "visible" : "hidden";
+    expander.setAttribute("aria-label", entry.expanded ? "Collapse" : "Expand");
+    expander.setAttribute("aria-expanded", String(entry.expanded));
+    const chevron = entry.expanded ? "down" : "right";
+    if (expander.dataset.chevron === chevron) return;
+    expander.dataset.chevron = chevron;
+    expander.innerHTML = entry.expanded ? UI_ICONS.chevronDown : UI_ICONS.chevronRight; // The kit's static SVG.
+  };
+
+  const paintFolder = (drawn: DrawnRow, entry: OutlinerFolderRow): void => {
+    const { row } = drawn;
+    row.dataset.testid = "outliner-folder";
+    row.dataset.folder = entry.path;
+    delete row.dataset.actorId;
+    delete row.dataset.outlinerType;
+    delete row.dataset.cell;
+    row.classList.remove("active");
+    row.setAttribute("aria-selected", "false");
+    const icon = entry.expanded ? "folderOpen" : "folder";
+    if (drawn.kind.dataset.icon !== icon) {
+      drawn.kind.dataset.icon = icon;
+      drawn.kind.innerHTML = UI_ICONS[icon]; // The kit's static SVG.
+    }
+    drawn.name.textContent = entry.name;
+    drawn.name.title = entry.path;
+    drawn.detail.textContent = `${entry.ids.length} actor${entry.ids.length === 1 ? "" : "s"}`;
+    const any = entry.ids.length > 0;
+    const hidden = any && entry.ids.every((id) => editor.visibility.has(id));
+    const locked = any && entry.ids.every((id) => editor.level.actor(id)?.locked === true);
+    row.classList.toggle("is-hidden", hidden);
+    setToggle(drawn.hide, hidden, hidden ? UI_ICONS.eyeOff : UI_ICONS.eye, hidden ? "Show folder" : "Hide folder");
+    setToggle(drawn.lock, locked, locked ? UI_ICONS.lock : UI_ICONS.unlock, locked ? "Unlock folder" : "Lock folder");
+  };
 
   const setToggle = (button: HTMLButtonElement, on: boolean, icon: string, label: string): void => {
     if (button.dataset.on !== String(on)) {
@@ -296,17 +343,107 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
     return row && id ? { row, id } : null;
   };
 
-  const setLocked = (id: ActorId, locked: boolean): void => {
-    const actor = editor.level.actor(id);
-    if (!actor) return;
-    const next: ActorDoc = { ...actor };
-    if (locked) next.locked = true;
-    else delete next.locked;
-    const result = editor.edit(`${locked ? "Lock" : "Unlock"} ${actor.name || actor.id}`, (tx) => tx.setActor(next));
+  /** One undo step of these documents; nothing to change is no step. */
+  const commit = (label: string, docs: readonly ActorDoc[]): boolean => {
+    if (docs.length === 0) return true;
+    const result = editor.edit(label, (tx) => {
+      for (const next of docs) tx.setActor(next);
+    });
     if (!result.ok) status(result.issues.map((issue) => issue.message).join("; "), "error");
+    return result.ok;
+  };
+
+  const setLocked = (ids: readonly ActorId[], locked: boolean, what: string): void => {
+    const docs = ids.flatMap((id) => {
+      const actor = editor.level.actor(id);
+      if (!actor || (actor.locked === true) === locked) return [];
+      const next: ActorDoc = { ...actor };
+      if (locked) next.locked = true;
+      else delete next.locked;
+      return [next];
+    });
+    commit(`${locked ? "Lock" : "Unlock"} ${what}`, docs);
+  };
+
+  // --- Folders ----------------------------------------------------------------
+  const folderOf = (target: EventTarget | null): OutlinerFolderRow | null => {
+    const row = (target as HTMLElement | null)?.closest?.<HTMLElement>(".outliner-row.is-folder");
+    const entry = row ? rows[Number(row.dataset.index)] : undefined;
+    return entry?.kind === "folder" ? entry : null;
+  };
+  const folderKnown = (path: string): boolean =>
+    [...ownFolders].some((own) => isInFolder(own, path)) || editor.level.level.actors.some((actor) => actor.folder !== undefined && isInFolder(actor.folder, path));
+  const openTo = (path: string): void => {
+    for (const one of folderChain(path)) openFolders.add(one);
+  };
+  const toggleFolder = (path: string): void => {
+    if (openFolders.has(path)) openFolders.delete(path);
+    else openFolders.add(path);
+    rebuild();
+  };
+  /** Actors (their roots) into a folder; "" is the level root. */
+  const moveActors = (ids: readonly ActorId[], folder: string): void => {
+    const docs = moveToFolder((id) => editor.level.actor(id), ids, folder);
+    const what = docs.length === 1 ? (docs[0]!.name || docs[0]!.id) : `${docs.length} actors`;
+    openTo(folder);
+    if (!commit(folder === "" ? `Move ${what} out of its folder` : `Move ${what} to ${folder}`, docs) || docs.length === 0) rebuild();
+  };
+  /** Renames or moves a folder (`to` a path), or takes it away (`to` its parent): the actors' paths follow. */
+  const rebaseTo = (from: string, to: string, label: string): void => {
+    if (!commit(label, rebaseFolderActors(editor.level.level.actors, from, to))) return;
+    for (const paths of [ownFolders, openFolders]) {
+      for (const path of [...paths]) {
+        if (!isInFolder(path, from)) continue;
+        paths.delete(path);
+        const next = rebaseFolder(path, from, to);
+        if (next !== "") paths.add(next);
+      }
+    }
+    if (editor.level.cellKeys().some((key) => !editor.level.isLoaded(key))) status("Actors in unloaded cells keep their folder; load the cells to change them too.", "warning");
+    rebuild();
+  };
+  const newFolder = (parent: string, ids: readonly ActorId[]): void => {
+    const suggested = folderName(freeFolder(parent, "New Folder", folderKnown));
+    const name = normalizeFolder(doc.defaultView?.prompt("New folder", suggested) ?? "");
+    if (name === "") return;
+    const path = parent === "" ? name : `${parent}/${name}`;
+    ownFolders.add(path);
+    openTo(parent);
+    if (ids.length > 0) moveActors(ids, path);
+    else rebuild();
+  };
+  const renameFolder = (path: string): void => {
+    const name = normalizeFolder(doc.defaultView?.prompt("Rename folder", folderName(path)) ?? "");
+    const to = parentFolder(path) === "" ? name : `${parentFolder(path)}/${name}`;
+    if (name === "" || to === path) return;
+    rebaseTo(path, to, `Rename folder ${path}`);
+  };
+  const folderMenu = (event: MouseEvent, entry: OutlinerFolderRow): void => {
+    const selected = editor.selection.ids();
+    openContextMenu(
+      doc,
+      { x: event.clientX, y: event.clientY },
+      [
+        { label: "Select Contents", testId: "outliner-folder-select", enabled: entry.ids.length > 0, run: () => editor.selection.set(entry.ids) },
+        { label: "Move Selection Here", testId: "outliner-folder-move", enabled: selected.length > 0, run: () => moveActors(selected, entry.path) },
+        { separator: true },
+        { label: "New Subfolder…", testId: "outliner-folder-new", run: () => newFolder(entry.path, []) },
+        { label: "Rename…", testId: "outliner-folder-rename", run: () => renameFolder(entry.path) },
+        { label: "Remove Folder (Keep Actors)", testId: "outliner-folder-remove", run: () => rebaseTo(entry.path, parentFolder(entry.path), `Remove folder ${entry.path}`) },
+      ],
+      "outliner-menu",
+    );
   };
 
   list.addEventListener("click", (event) => {
+    const folder = folderOf(event.target);
+    if (folder) {
+      const action = (event.target as HTMLElement).closest<HTMLElement>("[data-action]")?.dataset.action;
+      if (action === "hidden") editor.visibility.set(folder.ids, !(folder.ids.length > 0 && folder.ids.every((id) => editor.visibility.has(id))));
+      else if (action === "locked") setLocked(folder.ids, !folder.ids.every((id) => editor.level.actor(id)?.locked === true), folder.path);
+      else toggleFolder(folder.path);
+      return;
+    }
     const hit = rowOf(event.target);
     if (!hit) return;
     const action = (event.target as HTMLElement).closest<HTMLElement>("[data-action]")?.dataset.action;
@@ -321,7 +458,7 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
       return;
     }
     if (action === "locked") {
-      setLocked(hit.id, editor.level.actor(hit.id)?.locked !== true);
+      setLocked([hit.id], editor.level.actor(hit.id)?.locked !== true, editor.level.actor(hit.id)?.name || hit.id);
       return;
     }
     const additive = event.ctrlKey || event.metaKey;
@@ -353,10 +490,18 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
 
   // Forge's row menu (EditorUi `openOutlinerContextMenu`).
   list.addEventListener("contextmenu", (event) => {
-    const hit = rowOf(event.target);
-    if (!hit) return;
     event.preventDefault();
     event.stopPropagation();
+    const folder = folderOf(event.target);
+    if (folder) {
+      folderMenu(event, folder);
+      return;
+    }
+    const hit = rowOf(event.target);
+    if (!hit) {
+      openContextMenu(doc, { x: event.clientX, y: event.clientY }, [{ label: "New Folder…", testId: "outliner-menu-folder", run: () => newFolder("", []) }], "outliner-menu");
+      return;
+    }
     if (!editor.selection.has(hit.id)) {
       anchor = hit.id;
       editor.selection.set([hit.id]);
@@ -383,6 +528,9 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
         { label: "Parent to active", testId: "outliner-menu-parent", enabled: selected.length >= 2, run: () => commands.parentToActive() },
         { label: "Unparent", testId: "outliner-menu-unparent", enabled: parented, run: () => commands.unparent() },
         { separator: true },
+        { label: "New Folder…", testId: "outliner-menu-folder", run: () => newFolder(editor.level.actor(hit.id)?.folder ?? "", selected) },
+        { label: "Remove from Folder", testId: "outliner-menu-unfolder", enabled: selected.some((id) => editor.level.actor(id)?.folder !== undefined), run: () => moveActors(selected, "") },
+        { separator: true },
         { label: "Delete", shortcut: "Delete", danger: true, testId: "outliner-menu-delete", run: () => commands.remove() },
       ],
       "outliner-menu",
@@ -391,7 +539,25 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
 
   // Drag rows onto a row: parent them there (Forge). The whole selection goes when the dragged row is part of it.
   let dragIds: ActorId[] = [];
+  let dragFolder: string | null = null;
+  /** The folder a drop here goes to; null where it goes nowhere (its own folder, inside itself). */
+  const dropFolder = (target: EventTarget | null): string | null => {
+    const folder = folderOf(target)?.path ?? (rowOf(target) ? null : "");
+    if (folder === null || dragFolder === null) return folder;
+    return isInFolder(folder, dragFolder) || folder === parentFolder(dragFolder) ? null : folder;
+  };
   list.addEventListener("dragstart", (event) => {
+    const folder = folderOf(event.target);
+    dragFolder = folder?.path ?? null;
+    if (folder) {
+      dragIds = [];
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", folder.path);
+      }
+      (event.target as HTMLElement).closest(".outliner-row")?.classList.add("is-dragging");
+      return;
+    }
     const hit = rowOf(event.target);
     if (!hit) return;
     const selected = editor.selection.ids();
@@ -404,9 +570,17 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
   });
   list.addEventListener("dragend", () => {
     dragIds = [];
+    dragFolder = null;
     for (const drawn of pool) drawn.row.classList.remove("is-dragging", "drop-target");
   });
   list.addEventListener("dragover", (event) => {
+    if ((dragIds.length > 0 || dragFolder !== null) && dropFolder(event.target) !== null) {
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+      const over = (event.target as HTMLElement).closest(".outliner-row");
+      for (const drawn of pool) drawn.row.classList.toggle("drop-target", drawn.row === over);
+      return;
+    }
     const hit = rowOf(event.target);
     if (!hit || dragIds.length === 0 || dragIds.includes(hit.id)) return;
     event.preventDefault();
@@ -414,9 +588,24 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
     for (const drawn of pool) drawn.row.classList.toggle("drop-target", drawn.row === hit.row);
   });
   list.addEventListener("dragleave", (event) => {
-    rowOf(event.target)?.row.classList.remove("drop-target");
+    (event.target as HTMLElement).closest?.(".outliner-row")?.classList.remove("drop-target");
   });
   list.addEventListener("drop", (event) => {
+    const into = dropFolder(event.target);
+    if (into !== null && (dragIds.length > 0 || dragFolder !== null)) {
+      event.preventDefault();
+      const ids = dragIds;
+      const folder = dragFolder;
+      dragIds = [];
+      dragFolder = null;
+      if (folder === null) moveActors(ids, into);
+      else {
+        const to = into === "" ? folderName(folder) : `${into}/${folderName(folder)}`;
+        openTo(into);
+        rebaseTo(folder, to, `Move folder ${folder}`);
+      }
+      return;
+    }
     const hit = rowOf(event.target);
     const moving = dragIds.filter((id) => id !== hit?.id);
     dragIds = [];
@@ -430,10 +619,7 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
       return;
     }
     const label = result.docs.length === 1 ? `Parent ${result.docs[0]!.name} to ${parent.name}` : `Parent ${result.docs.length} actors to ${parent.name}`;
-    const edit = editor.edit(label, (tx) => {
-      for (const next of result.docs) tx.setActor(next);
-    });
-    if (!edit.ok) status(edit.issues.map((issue) => issue.message).join("; "), "error");
+    commit(label, result.docs);
   });
 
   search.addEventListener("input", () => {
@@ -467,6 +653,14 @@ export function createOutlinerPanel(options: OutlinerPanelOptions): OutlinerPane
     if (next === primary) return;
     primary = next;
     // Reveal a selection made elsewhere (the viewport); a row clicked here is already in view.
+    if (next !== null && filter === "" && !rowIndex.has(next)) {
+      let root = editor.level.actor(next);
+      for (const seen = new Set<ActorId>(); root?.parent != null && !seen.has(root.id); root = editor.level.actor(root.parent)) seen.add(root.id);
+      if (root?.folder !== undefined && folderChain(root.folder).some((path) => !openFolders.has(path))) {
+        openTo(root.folder);
+        rebuild();
+      }
+    }
     const index = next === null ? undefined : rowIndex.get(next);
     if (index === undefined) return;
     const top = revealScrollTop(index, list.scrollTop, list.clientHeight, OUTLINER_ROW_HEIGHT);

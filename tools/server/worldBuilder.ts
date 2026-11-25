@@ -2,7 +2,7 @@
 // Forge WebGL tools/world/randomWorldEndpoint.ts, rewritten for the project's
 // content roots and the save service):
 //
-//   GET  /__forge/world-builder        what the window needs to know: the levels folder, the packs World Builder
+//   GET  /__forge/world-builder        what the window needs to know: the packs World Builder
 //                                      misses, whether a build runs
 //   POST /__forge/world-builder/pack   adds the missing packs to `contentPacks` in forge.project.json (through the
 //                                      save service), then restarts the dev server: its content roots are read at start
@@ -30,8 +30,6 @@ import { ProjectPathError, resolveWritablePath } from "./projectPaths.ts";
 
 export interface WorldBuilderState {
   readonly readOnly: boolean;
-  /** Where generated levels go, project-relative (`content/levels`). */
-  readonly levels: string;
   /** Packs to add to `contentPacks`. */
   readonly missing: readonly string[];
   /** The manifest has them but this server does not read them yet (it restarts for that). */
@@ -118,7 +116,6 @@ export function createWorldBuilderServer(options: {
     // A pack after the ones it requires, as a manifest lists them by hand.
     return (await needed()).filter((pack) => !have.includes(pack)).reverse();
   };
-  const levelsFolder = (): string => `${authoring.policy.writableRoots[0] ?? "content"}/levels`;
   const served = (pack: string): boolean => authoring.readOnlyRoots.some((entry) => entry.label === `${ENGINE_LABEL_PREFIX}${CONTENT_PACKS_DIR}/${pack}`);
 
   const refusal = (status: number, message: string, extra: Record<string, unknown> = {}) => ({ status, body: { message, ...extra } });
@@ -129,7 +126,6 @@ export function createWorldBuilderServer(options: {
       const missing = await missingFrom(manifest);
       return {
         readOnly: options.readOnly,
-        levels: levelsFolder(),
         missing,
         restarting: missing.length === 0 && !(await needed()).every(served),
         building: active !== null,

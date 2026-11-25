@@ -14,8 +14,10 @@
 //   canonical document leaves an origin pivot out.
 // - `locked` (Forge's Lock Movement, same kind of editor data): written only
 //   when true.
+// - `folder` (Unreal's Outliner folders, user decision 2026-11-25): the same
+//   kind of editor data, see actorFolder.ts; written only when it is not empty.
 
-import { bool, num, object, vec3, type FieldValues } from "../schema/fields.ts";
+import { bool, num, object, text, vec3, type FieldValues } from "../schema/fields.ts";
 import { createServiceKey } from "../world/services.ts";
 
 export const DEFAULT_CELL_SIZE = 128;
@@ -90,6 +92,12 @@ export const ActorLockField = bool({
   default: false,
   label: "Lock Movement",
   hint: "Açıkken aktör editörde taşınmaz, döndürülmez, ölçeklenmez (gizmo ve yapıştırma onu atlar). Yalnız editör kullanır; oyun okumaz.",
+});
+
+export const ActorFolderField = text({
+  default: "",
+  label: "Folder",
+  hint: "Aktörün Outliner'daki klasörü (World/Fences). Yalnız editör kullanır; hücresini, konumunu ve oyunu etkilemez.",
 });
 
 export const ActorPivotField = vec3({

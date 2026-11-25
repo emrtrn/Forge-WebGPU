@@ -102,9 +102,12 @@ export function plainFolderName(name: string): boolean {
   return /^[A-Za-z0-9][A-Za-z0-9 _.-]*$/.test(name) && !name.endsWith(".") && !name.endsWith(" ");
 }
 
-/** The first free `World_<n>` (`taken`: a level or folder of that name exists). */
-export function freeWorldName(taken: (name: string) => boolean): string {
-  for (let number = 1; ; number += 1) if (!taken(`World_${number}`)) return `World_${number}`;
+/** Why a world cannot be built into the level in `folder` (the request's rule, `validateRandomWorldRequest`), or null when it can. */
+export function worldTargetProblem(folder: string): string | null {
+  const parts = folder.split("/");
+  if (folder.includes(":") || parts.length < 2) return "Bu level projenin içerik klasöründe değil; World Builder yalnız projenin kendi level'larına kurar.";
+  if (!parts.every(plainFolderName)) return "Level'ın klasör adında kullanılamayan bir karakter var (yalnız harf, rakam, boşluk, _ . -). Level'ı yeniden adlandırın.";
+  return null;
 }
 
 /** The summary of a finished build (`world:random`'s `done` event). */

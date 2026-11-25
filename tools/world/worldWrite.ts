@@ -17,6 +17,8 @@ import {
   cellFileOf,
   FOLIAGE_DIR,
   FOLIAGE_INDEX_FILE,
+  HLOD_DIR,
+  HLOD_INDEX_FILE,
   LEVEL_FILE,
   normalizeLevel,
   splitLevel,
@@ -48,12 +50,13 @@ export interface WorldWriteResult {
 }
 
 /**
- * Files of the folder the build owns: the level, its cells and index, the terrain folder, the recipe, and the
- * painted foliage (it stood on the terrain that is replaced).
+ * Files of the folder the build owns: the level, its cells and index, the terrain folder, the recipe, the
+ * painted foliage (it stood on the terrain that is replaced) and the HLOD proxies (of the actors replaced).
  */
 function ownedByBuild(relative: string): boolean {
   return relative === LEVEL_FILE || relative === CELL_INDEX_FILE || relative.startsWith(`${CELLS_DIR}/`)
-    || relative.startsWith("terrain/") || relative === FOLIAGE_INDEX_FILE || relative.startsWith(`${FOLIAGE_DIR}/`) || relative.endsWith(".worldrecipe.json");
+    || relative.startsWith("terrain/") || relative === FOLIAGE_INDEX_FILE || relative.startsWith(`${FOLIAGE_DIR}/`) || relative.startsWith(HLOD_INDEX_FILE) || relative.startsWith(`${HLOD_DIR}/`)
+    || relative.endsWith(".worldrecipe.json");
 }
 
 async function listFiles(dir: string, relative = ""): Promise<string[]> {

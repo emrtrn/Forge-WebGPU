@@ -368,6 +368,18 @@ describe("the authoring pivot (editor data)", () => {
   });
 });
 
+describe("the Outliner folder (editor data)", () => {
+  test("a folder path is trimmed and kept after the lock; the root writes nothing, a path that is not text is a loss", () => {
+    const result = normalizeLevel(level([plain("a", {}, { folder: " World / Fences/", locked: true }), plain("b", {}, { folder: " / " })]), STRICT);
+    expect(result.issues).toEqual([]);
+    const [foldered, root] = result.value!.actors;
+    expect(foldered).toHaveProperty("folder", "World/Fences");
+    expect(Object.keys(foldered!).slice(6, 8)).toEqual(["locked", "folder"]);
+    expect(root).not.toHaveProperty("folder");
+    expect(summary(normalizeLevel(level([plain("a", {}, { folder: 3 })]), LENIENT).issues)).toEqual(["warning invalid-value actors[0].folder"]);
+  });
+});
+
 describe("Lock Movement (editor data)", () => {
   test("a locked actor keeps `locked: true` after its pivot; an unlocked one writes nothing", () => {
     const result = normalizeLevel(level([plain("a", {}, { locked: true, pivot: [0, 1, 0] }), plain("b", {}, { locked: false })]), STRICT);

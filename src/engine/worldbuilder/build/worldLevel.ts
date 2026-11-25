@@ -13,6 +13,11 @@
  * - The ground cover's plants are `forge.landscapeFoliage` rules on it (5d step 8).
  * - The Player Start is an actor of that name without components until the
  *   Player Start feature (Faz 6).
+ * - Every placement is in an Outliner folder by its role (`World/Fences`; user
+ *   decision 2026-11-25): a label only, so cells stay spatial.
+ * - Built into a level that exists (`keep`), its settings and scene settings
+ *   actors stay (`sceneSettings.ts`); the greybox look below is then added only
+ *   to a level without a sky, Sky Light or sun.
  * - Forge's greybox look (tools/world/worldBriefBuild.ts `GREYBOX_LOOK`: a sun,
  *   a sky, its Sky Light with Forge's background and ambient world settings)
  *   until the user sets light and colour in the editor; never tuned here. It
@@ -22,7 +27,7 @@
  *   terrain's and the recipe's asset ids from their names. A rebuild of the
  *   same level gives the same GUIDs.
  */
-import type { ActorDoc, ActorId, AssetId, DataDocument, LevelDoc, LevelId } from "../../../core/index.ts";
+import type { ActorDoc, ActorId, AssetId, DataDocument, LevelDoc, LevelId, LevelSettings } from "../../../core/index.ts";
 import { LEVEL_SCHEMA, LevelSettingsFields, TerrainAssetType, WorldRecipeAssetType, dataDocument } from "../../../core/index.ts";
 import { environmentActors } from "../../forgeImport/environment.ts";
 import { convertLandscapeFoliageRule, LANDSCAPE_FOLIAGE_TAG } from "../../forgeImport/foliage.ts";
@@ -49,6 +54,23 @@ export const WORLD_GREYBOX_LOOK = {
   lights: [{ id: "sun", type: "directional", position: [3, 9, 4], name: "Sun", rotation: [-48, 35, 0], color: "#fff4e6", intensity: 4.2, castShadow: true }],
 } as const;
 
+/** The Outliner folder of everything World Builder places. */
+export const WORLD_FOLDER = "World";
+
+/** A placement's Outliner folder, from its role (and its stage, for the props a stage owns). */
+export function worldFolder(role: string, stage: string): string {
+  const family = role.split(".")[0];
+  const name = family === "building" || family === "open" ? "Buildings"
+    : family === "structure" ? "Structures"
+    : family === "vegetation" ? "Vegetation"
+    : family === "marker" ? "Markers"
+    : role.startsWith("prop.rock") ? "Rocks"
+    : stage === "fences" || role.startsWith("prop.fence") ? "Fences"
+    : family === "prop" ? "Furniture"
+    : "Other";
+  return `${WORLD_FOLDER}/${name}`;
+}
+
 /** Default level grid (A11). */
 export const WORLD_LEVEL_CELL_SIZE = 128;
 
@@ -57,6 +79,8 @@ export interface WorldLevelOptions {
   /** The terrain's id in the brief (`terrain.id`): its file stem and the key of its ids. */
   terrainId: string;
   cellSize?: number;
+  /** What stays of the level built into (`sceneSettingsActors`); `look`: it has a sky or a sun of its own. */
+  keep?: { readonly settings: LevelSettings; readonly actors: readonly ActorDoc[]; readonly look: boolean } | undefined;
 }
 
 export interface WorldLevel {
@@ -71,7 +95,7 @@ export interface WorldLevel {
 }
 
 export function worldLevel(build: WorldBuild, options: WorldLevelOptions): WorldLevel {
-  const { levelId, terrainId } = options;
+  const { levelId, terrainId, keep } = options;
   const actorId = (key: string): ActorId => `act_${stableHex(`${levelId}/actor/${key}`)}`;
   const assetId = (key: string): AssetId => `ast_${stableHex(`${levelId}/asset/${key}`)}`;
   const terrainAsset = assetId(`terrain/${terrainId}`);
@@ -87,9 +111,14 @@ export function worldLevel(build: WorldBuild, options: WorldLevelOptions): World
     actors.push(playerStartActor(actorId("playerStart"), { p: [...build.playerStart], r: [0, 0, 0, 1], s: [1, 1, 1] }));
   }
   const placed = placementGroupActors(build.groups, { actorId, stageOf: (id) => stageOf[id]?.stage });
-  actors.push(...placed.actors);
+  for (const actor of placed.actors) {
+    const role = actor.class === null ? actor.components.role : undefined;
+    actors.push({ ...actor, folder: worldFolder(String(role?.role ?? ""), String(role?.stage ?? "")) });
+  }
   const look = structuredClone(WORLD_GREYBOX_LOOK) as unknown as Parameters<typeof environmentActors>[0];
-  actors.push(...environmentActors(look, actorId).actors, ...lightActors(forgeLightSources(look, []), actorId).actors);
+  const built = new Set(actors.map((actor) => actor.id));
+  actors.push(...(keep?.actors ?? []).filter((actor) => !built.has(actor.id)));
+  if (!keep?.look) actors.push(...environmentActors(look, actorId).actors, ...lightActors(forgeLightSources(look, []), actorId).actors);
   const { placements, placeholders, meshes } = placed.counts;
 
   const recipe: WorldRecipe = { ...structuredClone(build.recipe), generatedBy: { placements: {}, splines: {} } };
@@ -97,7 +126,7 @@ export function worldLevel(build: WorldBuild, options: WorldLevelOptions): World
     level: {
       schema: LEVEL_SCHEMA,
       id: levelId,
-      settings: {
+      settings: keep ? structuredClone(keep.settings) : {
         cellSize: options.cellSize ?? WORLD_LEVEL_CELL_SIZE,
         wind: { directionDeg: 45, strength: .3, gust: .3 },
         viewDistance: LevelSettingsFields.viewDistance.default,

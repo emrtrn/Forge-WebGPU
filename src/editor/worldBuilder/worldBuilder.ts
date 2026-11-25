@@ -3,10 +3,11 @@
 // choices, a bird's-eye preview that follows them, and Create. User decisions
 // 2026-11-25:
 //
-// - Create builds a new level folder (`content/levels/<Name>`) and opens it
-//   (Forge built into the open level and replaced it). A level that exists is
-//   replaced only after a question; the open generated level's own name is
-//   offered, so its world can be made again.
+// - Create builds into the open level (Forge): the world replaces its terrain,
+//   objects and painted foliage; the level's settings and its scene settings
+//   actors (sky, lights, fog, post process; `build/sceneSettings.ts`) stay.
+//   Unsaved edits are saved first, so an unsaved sky stays too. It asks only
+//   when the level holds something the world replaces.
 // - Rivers, lakes, island and coast can be chosen: the beds and the coast are
 //   shaped now, water is drawn from Faz 7 on; the window says so.
 // - A project without the `worldbuilder` content pack gets an Add Pack button:
@@ -15,14 +16,14 @@
 // The choices are a per-viewer convenience kept in the page's storage, never
 // in the project; the built level keeps its own brief beside it.
 
-import { enumOf, formFields, num, text, type FieldMap, type SaveClient } from "../../core/index.ts";
+import { enumOf, formFields, num, type FieldMap, type SaveClient } from "../../core/index.ts";
 import { SEA_SIDES } from "../../engine/worldbuilder/island.ts";
 import { COVERS, LANDFORMS, MOUNTAIN_HEIGHTS, oceanWorldSizeSupported, ROAD_NETWORKS, SETTLEMENT_TYPES, WORLD_SIZES, worldExtent, type SettlementType, type WorldSize } from "../../engine/worldbuilder/randomWorld.ts";
 import { MAX_RANDOM_WATER } from "../../engine/worldbuilder/randomWater.ts";
 import type { RandomWorldPreview } from "../../engine/worldbuilder/randomWorldPreview.ts";
 import {
-  asksForWater, DEFAULT_RANDOM_WORLD_CHOICES, freeWorldName, isOceanLandform, MAX_RANDOM_SETTLEMENTS, overviewCameraPose, plainFolderName,
-  randomWorldRequest, readRandomWorldChoices, settleRandomWorldChoices, type RandomWorldChoices, type RandomWorldDone,
+  asksForWater, DEFAULT_RANDOM_WORLD_CHOICES, isOceanLandform, MAX_RANDOM_SETTLEMENTS, overviewCameraPose,
+  randomWorldRequest, readRandomWorldChoices, settleRandomWorldChoices, worldTargetProblem, type RandomWorldChoices, type RandomWorldDone,
 } from "../../engine/worldbuilder/randomWorldChoices.ts";
 import { COVER_DENSITY_LEVELS, WORLD_BUILD_STEPS, type WorldBuildStep } from "../../engine/worldbuilder/worldBrief.ts";
 import { storeEditorCameraPose } from "../../render/editor/cameraPoseStore.ts";
@@ -101,11 +102,12 @@ export interface WorldBuilderOptions {
   readonly session: Storage | null;
   readonly client: SaveClient;
   readonly projectName: string;
-  /** The open level's folder. */
+  /** The open level's folder: the world is built into it. */
   readonly level: string;
-  /** Whether a project folder or file is listed (the Content Browser's listing). */
-  readonly exists: (path: string) => boolean;
+  /** The open level holds something the world replaces (anything but its scene settings). */
+  readonly replaces: () => boolean;
   readonly dirty: () => boolean;
+  readonly save: () => Promise<{ readonly ok: boolean; readonly message: string }>;
   /** Opens a level in this page; `confirmed`: unsaved edits were asked about already. */
   readonly openLevel: (folder: string, name: string, confirmed: boolean) => void;
   readonly status: (message: string, tone?: "info" | "warning" | "error") => void;
@@ -184,7 +186,8 @@ export function createWorldBuilder(options: WorldBuilderOptions): WorldBuilder {
     });
     let choices = stored();
     let state: WorldBuilderState | null = null;
-    let name = "";
+    const target = options.level;
+    const problem = worldTargetProblem(target);
     let building = false;
     /** Middle of the last preview's ground heights, for the new level's first view. */
     let groundHeight = 0;
@@ -198,7 +201,6 @@ export function createWorldBuilder(options: WorldBuilderOptions): WorldBuilder {
     pack.hidden = true;
 
     const column = el("div", "random-world-options");
-    const nameHost = el("div");
     const shapeHost = el("div");
     const detailHost = el("div");
     const settlements = el("div", "detail-row");
@@ -218,7 +220,7 @@ export function createWorldBuilder(options: WorldBuilderOptions): WorldBuilder {
       change({ seed });
     });
     const waterNote = el("div", "random-world-water", "Su Faz 7'de geliyor: şimdilik nehir ve göl yatakları ile kıyı araziye işlenir, su çizilmez. Dünya sonra aynı seçimlerle yeniden kurulabilir.", "world-builder-water-note");
-    column.append(nameHost, shapeHost, settlements, detailHost, roll, waterNote);
+    column.append(shapeHost, settlements, detailHost, roll, waterNote);
 
     const preview = el("div", "random-world-preview");
     const canvas = el("canvas", "", undefined, "random-world-preview");
@@ -234,7 +236,7 @@ export function createWorldBuilder(options: WorldBuilderOptions): WorldBuilder {
     const create = el("div", "random-world-create");
     const actions = el("div", "random-world-actions");
     const path = el("span", "random-world-path", undefined, "random-world-level");
-    const createButton = button("Create", "random-world-create", "Dünyayı kur ve aç", () => void createWorld(), "forge-btn-primary");
+    const createButton = button("Create", "random-world-create", "Dünyayı açık level'a kur", () => void createWorld(), "forge-btn-primary");
     actions.append(path, createButton);
     const targetNote = el("div", "random-world-hint", undefined, "random-world-target");
     const progress = el("div", "random-world-progress", undefined, "random-world-progress");
@@ -249,7 +251,6 @@ export function createWorldBuilder(options: WorldBuilderOptions): WorldBuilder {
     root.append(pack, column, preview, create);
     frame.body.append(root);
 
-    const folder = (): string => `${state?.levels ?? "content/levels"}/${name}`;
     const ready = (): boolean => state !== null && !state.readOnly && state.missing.length === 0 && !state.restarting;
 
     const showError = (message: string | null): void => {
@@ -258,14 +259,11 @@ export function createWorldBuilder(options: WorldBuilderOptions): WorldBuilder {
     };
     showError(null);
 
-    /** The target line, the pack line and the buttons, from the state and the name. */
+    /** The target line, the pack line and the buttons. */
     const syncTarget = (): void => {
-      const plain = plainFolderName(name);
-      path.textContent = plain ? folder() : "—";
-      targetNote.textContent = !plain
-        ? "Ad yalnız harf, rakam, boşluk, _ . - içerebilir."
-        : options.exists(folder()) ? "Bu adda bir level var; Create yerini almadan önce sorar." : "Yeni level; kurulunca açılır ve Content Browser'da görünür.";
-      createButton.disabled = building || !plain || !ready();
+      path.textContent = target;
+      targetNote.textContent = problem ?? "Dünya açık level'a kurulur: arazi, nesneler ve boyanmış foliage'ın yerini alır; gökyüzü, ışık, ortam ve level ayarları korunur.";
+      createButton.disabled = building || problem !== null || !ready();
       pack.hidden = state === null || ready();
       if (state && !ready()) {
         packText.textContent = state.readOnly
@@ -338,10 +336,6 @@ export function createWorldBuilder(options: WorldBuilderOptions): WorldBuilder {
     };
     const only = (fields: FieldMap): Record<string, unknown> => Object.fromEntries(Object.keys(fields).map((key) => [key, choices[key as keyof RandomWorldChoices]]));
     const syncForms = (): void => {
-      showForm(nameHost, { name: text({ default: "", label: "Name", hint: "Yeni level'ın adı; klasörü bu adla açılır." }) }, { name }, (next) => {
-        name = String(next.name ?? "").trim();
-        syncTarget();
-      });
       const apply = (next: Record<string, unknown>): void => change(next as Partial<RandomWorldChoices>);
       const shape = shapeFields(choices);
       showForm(shapeHost, shape, only(shape), apply);
@@ -371,13 +365,6 @@ export function createWorldBuilder(options: WorldBuilderOptions): WorldBuilder {
       } catch (error) {
         showError(error instanceof Error ? error.message : String(error));
         return;
-      }
-      if (name === "") {
-        // The open generated level can be made again; else a free name.
-        const open = baseName(options.level);
-        name = options.level === `${state.levels}/${open}` && options.exists(`${options.level}/${open}.worldbrief.json`) ? open
-          : freeWorldName((candidate) => options.exists(`${state!.levels}/${candidate}`));
-        syncForms();
       }
       syncTarget();
       schedulePreview(0);
@@ -413,12 +400,8 @@ export function createWorldBuilder(options: WorldBuilderOptions): WorldBuilder {
       progressLabel.textContent = label;
     };
     const createWorld = async (): Promise<void> => {
-      if (building || !ready() || !plainFolderName(name)) return;
-      const out = folder();
-      const force = options.exists(out);
-      const replacesOpen = out === options.level;
-      const unsaved = replacesOpen && options.dirty() ? "\nKaydedilmemiş değişiklikler de kaybolur." : "";
-      if (force && !view.confirm(`"${out}" yeniden kurulacak ve level'daki her şeyin (arazi, nesneler, boyanmış foliage, elle yapılan değişiklikler) yerini alacak.${unsaved}\nDevam edilsin mi?`)) {
+      if (building || !ready() || problem !== null) return;
+      if (options.replaces() && !view.confirm(`Yeni dünya "${target}" level'ındaki araziyi, nesneleri ve boyanmış foliage'ı silip yerine kurulacak. Gökyüzü, ışık, ortam ve level ayarları korunur.\nDevam edilsin mi?`)) {
         root.dataset.createState = "cancelled";
         return;
       }
@@ -429,13 +412,18 @@ export function createWorldBuilder(options: WorldBuilderOptions): WorldBuilder {
       setProgress(0, "Kurucu başlatılıyor…");
       syncTarget();
       try {
-        const done = await api.build({ out, force, world }, (step) => setProgress((WORLD_BUILD_STEPS.indexOf(step) + 1) / (WORLD_BUILD_STEPS.length + 1), STEP_LABELS[step]));
+        // The build reads the level on disk: unsaved scene settings must be there.
+        if (options.dirty()) {
+          const saved = await options.save();
+          if (!saved.ok) throw new Error(saved.message);
+        }
+        const done = await api.build({ out: target, force: true, world }, (step) => setProgress((WORLD_BUILD_STEPS.indexOf(step) + 1) / (WORLD_BUILD_STEPS.length + 1), STEP_LABELS[step]));
         setProgress(1, `Bitti (${done.seconds} s): ${done.buildings} yapı, ${done.bridges} köprü, ${done.actors} aktör. Level açılıyor…`);
         root.dataset.createState = "done";
         // A new world opens looking over all of it, not at the ground at the origin.
         storeEditorCameraPose(storage, `${options.projectName}/${done.level}`, overviewCameraPose(worldExtent(world.size), groundHeight));
         remember(session, REPORT_KEY, JSON.stringify(done));
-        options.openLevel(done.level, baseName(done.level), replacesOpen);
+        options.openLevel(done.level, baseName(done.level), true);
       } catch (error) {
         root.dataset.createState = "error";
         progress.hidden = true;

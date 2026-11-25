@@ -8,7 +8,6 @@ import type { WorldBuildStep } from "../../engine/worldbuilder/worldBrief.ts";
 /** `GET /__forge/world-builder`. */
 export interface WorldBuilderState {
   readonly readOnly: boolean;
-  readonly levels: string;
   readonly missing: readonly string[];
   readonly restarting: boolean;
   readonly building: boolean;
