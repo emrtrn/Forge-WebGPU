@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.82 · 2026-11-25 — §4.4 aktörün `folder`'ı (Outliner klasörü) ve World Builder'ın açık level'a kurulumu; adım 8'in "yeni level" kararı kalktı.
+**Güncelleme:** v1.83 · 2026-11-25 — §4.9 hava sözleşmesi (plan Faz W; uygulanmadı): yağış ayrı çizim, siper haritası tek kaynak, yüzey durumu dört büyüklük, terrain kar yüksekliği yalnız görünen geometri (öneri).
+
+**Önceki güncelleme:** v1.82 · 2026-11-25 — §4.4 aktörün `folder`'ı (Outliner klasörü) ve World Builder'ın açık level'a kurulumu; adım 8'in "yeni level" kararı kalktı.
 
 **Önceki güncelleme:** v1.81 · 2026-11-25 — §4.4 5d adım 9: `generated` model kaynağı tarif GUID'i, onay sayfası asset'i (`forge.familySheet`), tekil bitki yerleşimi; §4.6 tarif başvuruları.
 
@@ -2212,6 +2214,28 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     matrisi [prosedürel bitki planında](PROCEDURAL_VEGETATION_AND_PROPS_PLAN.md)
     §6.9 / §10 / §11'dedir. Gerçek WebGPU'da üretilmiş ormanla G6, geçişin
     en uzun karesi, GPU süresi, toplam / tepe bellek ve hücre döngüsü ölçülür.
+- **Hava: yağış ve yüzey — sözleşme (plan Faz W, kullanıcı kapsamı 2026-11-25;
+  henüz uygulanmadı; HK1–HK7 açık):**
+  - **Sorumluluk:** WES havanın, yağış şiddetinin (`rain` / `snow`), hava
+    geçişinin ve yüzey durumunun tek otoritesidir. Yüzey durumu saf modeldir
+    (`engine/environment`): `wetness`, `puddleFill`, `snowCoverage`,
+    `snowDepth`; simülasyon saniyesiyle ilerler, saat atlaması süre sayılmaz,
+    A7 canlı durumunda ortak saklanır. `weatherDrivesSurface` açıkken yağış
+    hedefleri sürer; kapalıyken 5a adım 7'nin bağımsız hedefleri geçerlidir.
+  - **Yağış** `features/precipitation`'dadır; 6c'nin partikül sistemine bağlı
+    değildir. Planar yansımaya, Sky Light yakalamasına ve gölgeye girmez.
+  - **Yağış siperi** tek kaynaktır: yukarıdan derinlik haritası (statik mesh, şekil,
+    yol); yağış, yüzey örtüsü, birikinti ve terrain kar yüksekliği onu okur. Yalnız
+    kamera kayınca ya da içerik değişince çizilir.
+  - **Yüzey örtüsü** katkı sırasının `wetness` yuvasındadır ve bütün statik
+    yüzeylere (materyal, GLB materyali, şekil, yol, HLOD proxy'si, ailesiz foliage,
+    terrain) uygulanır; bitki aileleri PG2 tepkisinde kalır. Hava değişimi shader
+    derlemez. Yüzeyin tepkisi `forge.material`'ın `weather` grubundadır.
+  - **Terrain kar yüksekliği** vertex aşamasında yalnız yukarı yer değiştirmedir;
+    authored yükseklik, paint ve fizik materyali yazılmaz, G8 kar 0 iken ölçülür.
+    Collider'ın karı izlememesi öneridir (HK3). Çukur haritası tile'dan türetilir,
+    saklanmaz.
+  - Tasarım, adımlar ve HV-01–12 [plan Faz W'de](FORGE_WEBGPU_REBUILD_PLAN.md).
 - *Terrain:* Faz 3'te salt çizim (spike S2'nin TSL CDLOD'u: yükseklik, 8
   katman, normal, gölge); su birikintisi, tile akışı ve üretim kalitesi 5a'da;
   kıyı ıslaklığı ve kostik su gövdeleriyle Faz 7'de. HLOD 5b'de.

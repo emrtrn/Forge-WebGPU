@@ -74,6 +74,9 @@ geliştirme sunucusunda ayrı bir Node worker'ından aynı CLI üreticisine gide
   aktör / kompakt foliage'ın ortak çevre tepkisi için [mimari rapor §4.9](../planned/FORGE_WEBGPU_ARCHITECTURE.md)
   ve [üretici planı](../planned/PROCEDURAL_VEGETATION_AND_PROPS_PLAN.md) geçerlidir.
   PG0–PG3 ve iki starter aile 5c'de kabul edildi. Tam araçlar 5d'de sürüyor.
+- **Planlanan hava sistemi (Faz W, 2026-11-25; uygulanmadı):** yağış, yağış
+  siperi, ıslanma / kuruma, su birikintisi, terrain kar yüksekliği; sözleşme
+  rapor §4.9'da.
 - Level'da her şey bir aktördür: kalıcı GUID, transform, `parent`, şemalı
   bileşenler (aktör içinde yerel kimlikli, uzamsal olanlar hiyerarşili). Aktör
   sınıfı (`forge.actorClass/1`) prefab'dır; level'daki örnek yalnız sürüm
