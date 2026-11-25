@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.00 · 2026-11-25 — 5d adım 6 (`c3f7f0e`): Foliage fırçası (Select, Lasso, Paint, Erase, Single, Fill, Remove; Select Invalid, Reattach, Reapply, Remove Selected), darbe başına tek undo, level parçası olarak kayıt; hücresiz level'da boyanmış foliage'ın oyunda çizilmemesi düzeltildi. Bükülen yol modeli segment boyunca kendi uzunluğunda tekrarlanır (`ec45418`). Kararlar kullanıcıda (öneriler gibi). Kullanıcı görsel kabulü bekleniyor.
+**Güncelleme:** v2.01 · 2026-11-25 — 5d adım 6'nın ve yol modeli tekrarının görsel kabulü (kullanıcı, 2026-11-25). Sırada adım 8: World Builder penceresi (B13).
+
+**Önceki güncelleme:** v2.00 · 2026-11-25 — 5d adım 6 (`c3f7f0e`): Foliage fırçası (Select, Lasso, Paint, Erase, Single, Fill, Remove; Select Invalid, Reattach, Reapply, Remove Selected), darbe başına tek undo, level parçası olarak kayıt; hücresiz level'da boyanmış foliage'ın oyunda çizilmemesi düzeltildi. Bükülen yol modeli segment boyunca kendi uzunluğunda tekrarlanır (`ec45418`). Kararlar kullanıcıda (öneriler gibi). Kullanıcı görsel kabulü 2026-11-25'te verildi.
 
 **Önceki güncelleme:** v1.99 · 2026-11-25 — 5d adım 4'ün, terrain Details düzeninin, Paint düzeninin ve panel adlarının görsel kabulü (kullanıcı, 2026-11-25). Adım 2–5'in görsel kabulü tamam; sırada adım 6 (B09).
 
@@ -2251,7 +2253,7 @@ ve `landscapeWorld` birer kez kırıldı, tek başına ve bu koşuda geçti), fo
 gizmo gerçek WebGPU'da 9 / 9; `smoke:render`'ın foliageRing, gpuCulling, render, puddle ve
 terrainCollider dosyaları 23 / 23. Sonraya: Play'e kaydedilmemiş foliage (adım 2'deki gibi),
 boyanmış foliage'ın collider'ı (Faz 6). Yol mesh'leri seçilmediği için fırça yolun altındaki
-araziye boyar (Forge gibi). Kullanıcı görsel kabulü bekleniyor.
+araziye boyar (Forge gibi). Kullanıcı görsel kabulü 2026-11-25'te verildi (yol tekrarıyla birlikte).
 
 - [x] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
       Faz 3 karar 1) üretim kalitesine çıkar: morph,
@@ -2697,6 +2699,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-25 | v2.01 | 5d adım 6'nın ve yol modeli tekrarının görsel kabulü (kullanıcı). Sıradaki: 5d adım 8 (B13) |
 | 2026-11-25 | v2.00 | 5d adım 6 (`c3f7f0e`): kararlar (kullanıcı, öneriler gibi: araç seçilince, hedef saklanmaz, 7 araç + eylemler, Fill 20.000); Foliage fırçası, darbe başına undo, level parçası kaydı; hücresiz level'da boyanmış foliage oyunda çizilir. Yol modeli segment boyunca tekrarlanır (`ec45418`, kullanıcı kararı). `foliagePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda. Sıradaki: 5d adım 8 (B13) |
 | 2026-11-25 | v1.99 | 5d adım 4'ün, terrain Details / Paint düzeninin ve panel adlarının görsel kabulü (kullanıcı) |
 | 2026-11-25 | v1.98 | 5d adım 5'in görsel kabulü (kullanıcı). Sıradaki: 5d adım 6 (B09) |
