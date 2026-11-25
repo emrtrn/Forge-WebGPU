@@ -2,27 +2,34 @@
 // dev server and project copy (the window restarts the server, D14): a project
 // without the `worldbuilder` pack adds it with one button; the choices draw a
 // preview; Create builds a new level, opens it and the Content Browser lists
-// it; a level that exists is replaced only after a question.
+// it; a level that exists is replaced only after a question. Its nature comes
+// from the starter pack's recipes (vegetation plan PG5): a single tree and
+// foliage rules of the generated families, edited, saved and read again, and
+// the families no family sheet approves in the status.
 
-import { cp, mkdtemp, readFile, rm } from "node:fs/promises";
+import { cp, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer, type ViteDevServer } from "vite";
 import { expect, test, type Page } from "@playwright/test";
 import { forgeServerPlugin } from "../../tools/server/vitePlugin.ts";
-import { named, openEditor } from "./support.ts";
+import { BACKEND, named, openEditor, row } from "./support.ts";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 /** What the page meets while the server restarts under it. */
 const RESTARTING = [/WebSocket/, /ERR_CONNECTION/, /\[vite\]/, /Failed to fetch/];
 let temp: string, project: string, server: ViteDevServer, base: string;
+const LEVEL = "content/levels/Smoke";
+/** Of the starter pack's recipes: their families and Foliage Types are what the world must name. */
+const PLANTS = ["trees/Broadleaf", "trees/Hazel", "grass/MeadowGrass"].map((name) => join(REPO, "content/packs/starter/procgen", name));
 const text = (path: string) => readFile(join(project, ...path.split("/")), "utf8");
 
 test.beforeAll(async () => {
   temp = await mkdtemp(join(tmpdir(), "forge-world-builder-smoke-"));
   project = join(temp, "game");
   await cp(join(REPO, "samples/starter"), project, { recursive: true });
+  await writeFile(join(project, "content/nature.familysheet.json"), JSON.stringify({ schema: "forge.familySheet/1", id: `ast_${"5".repeat(32)}`, entries: [] }));
   server = await createServer({
     root: REPO, configFile: false, logLevel: "error", plugins: [forgeServerPlugin({ projectRoot: project })],
     resolve: { alias: { "@forge/sdk": join(REPO, "src/sdk/index.ts"), "@forge/editor-sdk": join(REPO, "src/editor-sdk/index.ts") } }, server: { host: "127.0.0.1", port: 0 },
@@ -39,6 +46,29 @@ test.afterAll(async () => {
 const field = (page: Page, key: string) => page.getByTestId(`world-builder-${key}`);
 const panel = (page: Page) => page.getByTestId("random-world-panel");
 
+type Actor = { id: string; name: string; transform: { p: [number, number, number] }; components?: Record<string, { type: string; [field: string]: unknown }> };
+
+/** The level's actors with the file each is stored in (`level.json` or a cell). */
+async function actorsOf(): Promise<(Actor & { file: string })[]> {
+  const files = [`${LEVEL}/level.json`, ...(await readdir(join(project, LEVEL, "cells"))).map((name) => `${LEVEL}/cells/${name}`)];
+  return (await Promise.all(files.map(async (file) => (JSON.parse(await text(file)) as { actors: Actor[] }).actors.map((actor) => ({ ...actor, file }))))).flat();
+}
+const treesOf = async () => (await actorsOf()).filter((actor) => Object.values(actor.components ?? {}).some(({ type }) => type.startsWith("forge.plant@")));
+
+/** Loads the actor's cell (a fresh world's camera looks from afar) and selects the actor. */
+async function selectIn(page: Page, actor: { id: string; name: string; file: string }): Promise<void> {
+  const key = /cells\/(.+)\.json$/.exec(actor.file)![1]!;
+  await page.getByTestId("outliner-wp-tab").click();
+  await page.getByTestId("wp-cell-search").fill(key);
+  const cell = page.getByTestId("wp-cell").filter({ hasText: new RegExp(`^${key}`) });
+  await cell.locator('input[type="checkbox"]').check();
+  await page.getByTestId("wp-load").click();
+  await expect(cell).toHaveAttribute("data-loaded", "true", { timeout: 30_000 });
+  await page.getByTestId("outliner-actors-tab").click();
+  await page.getByTestId("outliner-search").fill(actor.name);
+  await row(page, actor.id).click();
+}
+
 async function openWindow(page: Page): Promise<void> {
   await page.getByTestId("add-actor-button").hover();
   await page.locator(".add-actor-menu").getByText("Terrain", { exact: true }).first().hover();
@@ -47,7 +77,8 @@ async function openWindow(page: Page): Promise<void> {
 }
 
 test("World Builder: add the pack, preview, build a new level and open it, replace only after a question", async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(360_000);
+  await page.addInitScript((level) => localStorage.setItem(`forge.editor.hlod.auto:Starter/${level}`, "false"), LEVEL);
   const errors = await openEditor(page, { base, allow: RESTARTING });
   await openWindow(page);
 
@@ -88,6 +119,8 @@ test("World Builder: add the pack, preview, build a new level and open it, repla
   await expect(page).toHaveURL(/level=content%2Flevels%2FSmoke/, { timeout: 90_000 });
   await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 90_000 });
   await expect(page.getByTestId("editor-status")).toContainText("World built");
+  // The project has a family sheet that lists none of them.
+  await expect(page.getByTestId("editor-status")).toContainText(/Not approved: .*Broadleaf \(pending\)/);
 
   // On disk: the brief beside the level, plant rules on the terrain, rocks and trees from the starter pack.
   const level = JSON.parse(await text("content/levels/Smoke/level.json")) as { id: string; actors: { name: string; components: Record<string, { type: string; rules?: unknown[] }> }[] };
@@ -101,6 +134,46 @@ test("World Builder: add the pack, preview, build a new level and open it, repla
   await page.locator("[data-content-toggle]").click();
   await page.locator('button.folder-row[title="content/levels"]').click();
   await expect(page.locator('[data-asset-path="content/levels/Smoke/level.json"], [data-asset-path="content/levels/Smoke"]').first()).toBeVisible();
+  await page.locator("[data-content-toggle]").click();
+
+  // Nature is generated: the rules name the recipes' Foliage Types, and one tree of the Broadleaf family stands in the settlement.
+  const types = new Map<string, string>(), families = new Map<string, string>();
+  for (const folder of PLANTS) for (const name of await readdir(folder)) {
+    if (!/\.(foliagetype|plantfamily)\.json$/.test(name)) continue;
+    const { id } = JSON.parse(await readFile(join(folder, name), "utf8")) as { id: string };
+    (name.endsWith(".plantfamily.json") ? families : types).set(id, name);
+  }
+  const grown = (terrain.components.foliage!.rules as { foliageType: string }[]).map((rule) => types.get(rule.foliageType));
+  expect(grown).not.toContain(undefined);
+  expect(grown).toEqual(expect.arrayContaining(["MeadowGrass_1.foliagetype.json", "MeadowGrass_3.foliagetype.json", "Hazel_2.foliagetype.json"]));
+  const [tree, ...more] = await treesOf();
+  expect(more).toEqual([]);
+  expect(families.get(tree!.components!.plant!.family as string)).toBe("Broadleaf.plantfamily.json");
+
+  // Edit the tree, save, open the level again: the same family, the new place.
+  await selectIn(page, tree!);
+  const raised = Number((tree!.transform.p[1] + 2).toFixed(2));
+  await page.getByTestId("detail-transform.p[1]").fill(String(raised));
+  await page.getByTestId("detail-transform.p[1]").press("Enter");
+  await page.getByTestId("editor-save").click();
+  await expect(page.getByTestId("editor-status")).toHaveText(/^Saved /);
+  const [saved] = await treesOf();
+  expect(saved).toMatchObject({ id: tree!.id, components: tree!.components });
+  expect(saved!.transform.p[1]).toBeCloseTo(raised, 2);
+  await page.reload();
+  await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 90_000 });
+  await selectIn(page, tree!);
+  await expect(page.getByTestId("detail-transform.p[1]")).toHaveValue(String(raised));
+  await page.getByTestId("forge-canvas").hover();
+  await page.keyboard.press("f");
+  for (let step = 0; step < 14; step += 1) { await page.mouse.wheel(0, 240); await page.waitForTimeout(60); }
+  await page.waitForTimeout(6_000); // Its models and the foliage round it, for the one picture.
+  await page.screenshot({ path: join(REPO, ".forge-cache/world-builder", `nature-${BACKEND}.png`) });
+
+  // The sheet is in the Content Browser.
+  await page.locator("[data-content-toggle]").click();
+  await page.locator('button.folder-row[title="content"]').click();
+  await expect(page.locator('[data-asset-path="content/nature.familysheet.json"]')).toBeVisible();
   await page.locator("[data-content-toggle]").click();
 
   // The window offers the open world's name again: it is replaced only after a question, with its level id.
