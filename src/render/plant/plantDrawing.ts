@@ -14,11 +14,15 @@
 //   snow on up-facing wood and leaves × the family's acceptance (undersides
 //   stay dark); wetness darkens and smooths; the sway from the vertex weights
 //   scaled by the family's flexibility.
+// A crown family (generator version 6, vegetation plan PG5b) also reads the
+// crown light its meshes carry (`_leaf`.y on leaves and wood): the inside
+// darkens, the leaves keep the crown's normals on both sides of a card and let
+// light through (leafLighting.ts).
 // The impostor LOD takes the same appearance per pixel (impostorMaterial.ts).
 // Season changes move uniforms only: no program is rebuilt and nothing is
 // written back to the family, the level or the placements.
 
-import { attribute, clamp, float, hash, max, mix, normalWorld, smoothstep, uniform, vec3, vec4 } from "three/tsl";
+import { attribute, clamp, float, hash, max, mix, negateOnBackSide, normalize, normalViewGeometry, normalWorld, smoothstep, uniform, vec3, vec4 } from "three/tsl";
 import { Color, Vector3, type Node, type NodeMaterial } from "three/webgpu";
 import type { RenderWorldView } from "../sync/renderBinding.ts";
 import { resolveWorldWind } from "../../engine/environment/worldWind.ts";
@@ -27,6 +31,8 @@ import { resolvePlantAppearance, type PlantResponseProfile } from "../../engine/
 import { createFoliageWind, type FoliageSway, type FoliageWind } from "../foliage/foliageWind.ts";
 import type { InstanceShading } from "../gpu/instanceShading.ts";
 import { applyImpostor, isImpostor } from "./impostorMaterial.ts";
+import { crownShade, instanceTone, seasonTint, throughColor } from "./crownShading.ts";
+import { lightLeaves } from "./leafLighting.ts";
 
 /** What drawing needs of a `forge.plantFamily`. */
 export interface PlantFamilyDraw {
@@ -34,6 +40,8 @@ export interface PlantFamilyDraw {
   /** Material GUIDs of slot 0 (wood) and slot 1 (leaves); a slot without one keeps the GLB's ("Wood" / "Leaf"). */
   readonly wood: string | null;
   readonly leaf: string | null;
+  /** Meshes of the crown generator (version 6): crown light, crown normals, light through the leaves. */
+  readonly crown: boolean;
   readonly response: PlantResponseProfile;
 }
 
@@ -50,10 +58,13 @@ interface Appearance {
   readonly snowLeaf: FloatUniform;
   readonly wet: FloatUniform;
   readonly windFlex: FloatUniform;
+  readonly translucency: FloatUniform;
+  readonly crownDepth: FloatUniform;
 }
 
 /** A lit node material's roughness slot (NodeMaterial does not declare it). */
 type Lit = { roughnessNode?: Node | null };
+type Crowned = { normalNode: Node<"vec3"> | null; aoNode: Node<"float"> | null };
 
 export interface PlantWorld {
   readonly wind: FoliageWind;
@@ -84,6 +95,7 @@ export function plantWorld(world: Pick<RenderWorldView, "services" | "components
       entry = {
         profile: family.response,
         foliage: floatUniform(1), tint: vectorUniform(new Vector3(1, 1, 1)), snowWood: floatUniform(0), snowLeaf: floatUniform(0), wet: floatUniform(0), windFlex: floatUniform(1),
+        translucency: floatUniform(1), crownDepth: floatUniform(1),
       };
       appearances.set(family.id, entry);
     } else {
@@ -103,6 +115,8 @@ export function plantWorld(world: Pick<RenderWorldView, "services" | "components
       entry.snowLeaf.value = look.snowLeaf;
       entry.wet.value = look.wet;
       entry.windFlex.value = look.windFlex;
+      entry.translucency.value = look.translucency;
+      entry.crownDepth.value = look.crownDepth;
     }
   };
 
@@ -128,13 +142,14 @@ export function plantWorld(world: Pick<RenderWorldView, "services" | "components
         if (isImpostor(material)) {
           return applyImpostor(material, instance, role, {
             foliage: look.foliage, tint: look.tint, snowWood: look.snowWood, snowLeaf: look.snowLeaf, wet: look.wet, snowColor,
+            crown: family.crown ? { translucency: look.translucency, depth: look.crownDepth } : null,
           });
         }
         const name = (material as { name?: string }).name ?? "";
         const isLeaf = name === family.leaf || (family.leaf === null && name === "Leaf");
         const isWood = name === family.wood || (family.wood === null && name === "Wood");
-        if (isLeaf) leafNodes(material, look, instance.seed, snowColor);
-        else if (isWood) woodNodes(material, look, snowColor);
+        if (isLeaf) leafNodes(material, look, instance.seed, snowColor, family.crown, role);
+        else if (isWood) woodNodes(material, look, snowColor, family.crown);
         return swayHook?.(material, instance, role);
       };
     },
@@ -154,7 +169,7 @@ function surfaceCover(rgb: Node<"vec3">, snow: Node<"float">, wet: Node<"float">
   return mix(rgb.mul(float(1).sub(wet.mul(0.45))), snowColor, clamp(snow.mul(up), 0, 1));
 }
 
-function leafNodes(material: NodeMaterial, look: Appearance, seed: Node<"uint">, snowColor: Node<"vec3">): void {
+function leafNodes(material: NodeMaterial, look: Appearance, seed: Node<"uint">, snowColor: Node<"vec3">, crown: boolean, role: "main" | "shadow" | "camera"): void {
   const leaf = attribute("_leaf", "vec2");
   // Which leaves fall first: the cluster's own threshold, shifted per instance so neighbours do not shed alike.
   // Kept inside (0, 1): no leaf at 0 shown (bare winter), every leaf at 1.
@@ -163,15 +178,24 @@ function leafNodes(material: NodeMaterial, look: Appearance, seed: Node<"uint">,
   material.maskNode = material.maskNode ? (material.maskNode as Node<"bool">).and(keep) : keep;
   material.maskShadowNode = material.maskShadowNode ? (material.maskShadowNode as Node<"bool">).and(keep) : keep;
   const { rgb, a } = rgbOf(material);
-  const spread = float(0.85).add(leaf.y.mul(0.3));
-  const tinted = rgb.mul(look.tint).mul(spread);
+  const shade = crown ? crownShade(leaf.y, look.crownDepth) : null;
+  const tinted = shade ? seasonTint(rgb, look.tint).mul(instanceTone(seed)).mul(shade) : rgb.mul(look.tint).mul(float(0.85).add(leaf.y.mul(0.3)));
+  if (shade && role !== "shadow") {
+    const open = material as unknown as Crowned;
+    // The crown's normal on both sides of a card, with the painted leaves' own tilt over it.
+    const detail = open.normalNode ? open.normalNode.sub(negateOnBackSide(normalViewGeometry)) : null;
+    open.normalNode = detail ? normalize(normalViewGeometry.add(detail)) : normalViewGeometry;
+    open.aoNode = open.aoNode ? open.aoNode.mul(shade) : shade;
+    lightLeaves(material, throughColor(tinted, look.translucency));
+  }
   material.colorNode = vec4(surfaceCover(tinted, look.snowLeaf, look.wet, snowColor, 0.15, 0.6), a);
   const lit = material as unknown as Lit;
   if (lit.roughnessNode) lit.roughnessNode = (lit.roughnessNode as Node<"float">).mul(float(1).sub(look.wet.mul(0.4)));
 }
 
-function woodNodes(material: NodeMaterial, look: Appearance, snowColor: Node<"vec3">): void {
-  const { rgb, a } = rgbOf(material);
+function woodNodes(material: NodeMaterial, look: Appearance, snowColor: Node<"vec3">, crown: boolean): void {
+  const { rgb: bark, a } = rgbOf(material);
+  const rgb = crown ? bark.mul(crownShade(attribute("_leaf", "vec2").y, look.crownDepth)) : bark;
   material.colorNode = vec4(surfaceCover(rgb, look.snowWood, look.wet, snowColor, 0.35, 0.85), a);
   const lit = material as unknown as Lit;
   if (lit.roughnessNode) lit.roughnessNode = (lit.roughnessNode as Node<"float">).mul(float(1).sub(look.wet.mul(0.5)));

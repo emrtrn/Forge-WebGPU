@@ -8,8 +8,9 @@
 // stays leafy exactly while any of its leaves remains.
 //
 // albedo: rgb sRGB colour (the material's colour × its texture), a coverage;
-// normal: rg octahedral object-space normal, b depth (0 nearest), a threshold
-// (leaves) / 0 (wood).
+// normal: rg octahedral object-space normal, b depth (0 nearest) or, where the
+// mesh carries one on both layers (generator version 6), the crown light, a
+// threshold (leaves) / 0 (wood).
 
 import { bakeImpostorAtlas } from "../bake/impostorAtlas.ts";
 import type { BakeSurface, BakeTexture } from "../bake/rasterizer.ts";
@@ -51,15 +52,20 @@ export function bakeTreeImpostor(
   materials: { wood: TreeImpostorSurface; leaf: TreeImpostorSurface },
   options: { views?: number; frameSize?: number; supersample?: number } = {},
 ): TreeImpostor {
+  const column = (mesh: TreeLodMesh["wood"], at: number): Float32Array => mesh.attributes.leaf!.filter((_, i) => i % 2 === at);
+  // Only a crown's wood carries `_LEAF`.
+  const crown = lod0.wood.attributes.leaf !== undefined;
   const surfaces: BakeSurface[] = [{
     mesh: lod0.wood, uvs: uvsOf(lod0.wood.uvs, materials.wood), texture: materials.wood.texture ?? null,
     color: materials.wood.color, alphaTest: materials.wood.alphaTest ?? 0, layer: 0,
+    ...(crown ? { shade: column(lod0.wood, 1) } : {}),
   }];
   if (lod0.leaves) {
     surfaces.push({
       mesh: lod0.leaves, uvs: uvsOf(lod0.leaves.uvs, materials.leaf), texture: materials.leaf.texture ?? null,
       color: materials.leaf.color, alphaTest: materials.leaf.alphaTest ?? 0.5, layer: 1,
-      threshold: lod0.leaves.attributes.leaf!.filter((_, i) => i % 2 === 0),
+      threshold: column(lod0.leaves, 0),
+      ...(crown ? { shade: column(lod0.leaves, 1), keepNormals: true } : {}),
     });
   }
   const atlas = bakeImpostorAtlas(surfaces, { views: options.views ?? 8, frameSize: options.frameSize ?? 128, layers: 2, supersample: options.supersample ?? 2 });

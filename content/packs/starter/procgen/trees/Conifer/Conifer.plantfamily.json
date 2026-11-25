@@ -1,7 +1,7 @@
 {
   "schema": "forge.plantFamily/1",
   "id": "ast_07a452d81c19c7908b08569cde5297e9",
-  "generatorVersion": 3,
+  "generatorVersion": 6,
   "prototypes": [
     {
       "seed": 1,
@@ -12,21 +12,21 @@
         },
         {
           "mesh": "ast_0ed99fe6dfb7f1dd9689cf23042f1e45",
-          "screenSize": 0.2
+          "screenSize": 0.42
         },
         {
           "mesh": "ast_911d429dd44390856f80db22bbe875a9",
-          "screenSize": 0.07
+          "screenSize": 0.17
         }
       ],
       "impostor": {
         "albedo": "ast_d367013ff7d3c92670d77336474ff9d8",
         "normal": "ast_77735e68b655fab457880f23d20affda",
         "views": 8,
-        "screenSize": 0.03,
-        "color": "#1f351d"
+        "screenSize": 0.08,
+        "color": "#58763a"
       },
-      "height": 14
+      "height": 14.02223
     },
     {
       "seed": 2,
@@ -37,21 +37,21 @@
         },
         {
           "mesh": "ast_fa5b8c7e3f4690733be90669a24b3383",
-          "screenSize": 0.2
+          "screenSize": 0.42
         },
         {
           "mesh": "ast_ca73560e0f8f2de1b780534523cab913",
-          "screenSize": 0.07
+          "screenSize": 0.17
         }
       ],
       "impostor": {
         "albedo": "ast_a7876fe9b037107a49e6d198fca045be",
         "normal": "ast_b1fe1ae7edccb7684e883811ac0cd063",
         "views": 8,
-        "screenSize": 0.03,
-        "color": "#1f351d"
+        "screenSize": 0.08,
+        "color": "#58763a"
       },
-      "height": 14
+      "height": 14.00003
     },
     {
       "seed": 3,
@@ -62,21 +62,21 @@
         },
         {
           "mesh": "ast_286545dd48f65267868ead435e45de29",
-          "screenSize": 0.2
+          "screenSize": 0.42
         },
         {
           "mesh": "ast_123a3f6d7a2970d62964de7e5f55bb67",
-          "screenSize": 0.07
+          "screenSize": 0.17
         }
       ],
       "impostor": {
         "albedo": "ast_1168e5e7e8640002d17547a3b913ac8c",
         "normal": "ast_f690a1595c781e7b8ec6628f6387f79e",
         "views": 8,
-        "screenSize": 0.03,
-        "color": "#1f351d"
+        "screenSize": 0.08,
+        "color": "#58763a"
       },
-      "height": 14
+      "height": 14.0001
     }
   ],
   "materials": {
@@ -111,6 +111,8 @@
       "wood": 0.5,
       "leaf": 0.9
     },
-    "wetness": 0.5
+    "wetness": 0.5,
+    "translucency": 1,
+    "crownDepth": 1
   }
 }

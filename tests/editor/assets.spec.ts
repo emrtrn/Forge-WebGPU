@@ -317,26 +317,29 @@ test("tree growth compares crown and age at a fixed camera across three seeds", 
       await write(comparison, { ...recipe, id: comparisonId });
       await page.getByTestId("asset-editor-reload").click();
       await expect(page.getByTestId("asset-field-trunkRadius")).toHaveValue(String(recipe.trunkRadius));
-      if (name === "Broadleaf") await expect(page.getByTestId("asset-field-growth.age")).toHaveCount(0);
+      if (name === "Broadleaf") {
+        // The crown generator: sprays in place of branch levels and leaf clusters.
+        await expect(page.getByTestId("asset-field-spray.length")).toHaveCount(1);
+        await expect(page.getByTestId("asset-field-section-levels")).toHaveCount(0);
+        await expect(page.getByTestId("asset-field-section-leaves")).toHaveCount(0);
+      }
       await ready();
     }
-    for (const age of name === "Broadleaf" ? [0] : [60, 12]) {
+    for (const age of [60, 12]) {
       if (age === 12) {
         const field = page.getByTestId("asset-field-growth.age");
         await field.fill(String(age)); await field.press("Tab"); await ready();
       }
       for (const seed of ["1", "2", "3"]) {
         await preview.getByLabel("Seed").selectOption(seed); await ready();
-        const label = `${name}-${age || "legacy"}-seed${seed}`;
+        const label = `${name}-${age}-seed${seed}`;
         const wood = preview.getByLabel("Wood only");
         await wood.uncheck(); await capture(`${label}-leaf`);
         await wood.check(); await capture(`${label}-wood`);
       }
     }
-    if (name !== "Broadleaf") {
-      await page.getByTestId("asset-editor-undo").click();
-      await expect(page.getByTestId("asset-editor-save")).toBeDisabled();
-    }
+    await page.getByTestId("asset-editor-undo").click();
+    await expect(page.getByTestId("asset-editor-save")).toBeDisabled();
   }
   await close(page); expect(errors).toEqual([]);
 });

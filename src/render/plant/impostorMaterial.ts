@@ -11,6 +11,10 @@
 // left half wood, the right half leaves, normal rg octahedral object-space,
 // leaf alpha the smallest shedding threshold of the pixel's leaves.
 //
+// A crown family's atlas (generator version 6) carries the crown light in the
+// normal texture's blue: both layers darken by it and the leaves let light
+// through, as its meshes do (plantDrawing.ts).
+//
 // With a plant's appearance (render/plant/plantDrawing.ts) the leaves shed
 // per pixel on the same rule as the model's clusters (threshold + the same
 // per-instance shift below the leaves shown; shadow too), take the season
@@ -31,6 +35,8 @@ import {
 } from "three/tsl";
 import { BufferGeometry, DoubleSide, Float32BufferAttribute, Matrix4, MeshStandardNodeMaterial, type Node, type NodeMaterial, type Texture, type Vector3 } from "three/webgpu";
 import type { GpuBatchPart } from "../gpu/gpuDrivenBatch.ts";
+import { crownShade, instanceTone, seasonTint, throughColor } from "./crownShading.ts";
+import { lightLeaves } from "./leafLighting.ts";
 import type { InstanceShadingNodes, InstanceShadingResult } from "../gpu/instanceShading.ts";
 
 /** Material `userData` key of an impostor part: an id into {@link atlases} (three clones `userData` as JSON). */
@@ -63,6 +69,8 @@ export interface ImpostorLook {
   readonly snowLeaf: Node<"float">;
   readonly wet: Node<"float">;
   readonly snowColor: Node<"vec3">;
+  /** A crown family's shading (PG5b); null without one. */
+  readonly crown?: { readonly translucency: Node<"float">; readonly depth: Node<"float"> } | null;
 }
 
 /** The batch part: a quad collapsed onto the sphere centre, opened by {@link applyImpostor}. */
@@ -166,6 +174,7 @@ export function applyImpostor(
   let woodCover: Node<"float"> = float(0), leafCover: Node<"float"> = float(0);
   let woodRgb: V3 = vec3(0, 0, 0), leafRgb: V3 = vec3(0, 0, 0);
   let woodOct: V2 = vec2(0, 0), leafOct: V2 = vec2(0, 0);
+  let woodLight: Node<"float"> = float(0), leafLight: Node<"float"> = float(0);
   const single = atlas.layers === 1;
   frameUv.forEach((entry, k) => {
     const w = [blend.x, blend.y, blend.z][k]!;
@@ -178,12 +187,14 @@ export function applyImpostor(
     leafCover = leafCover.add(cl);
     leafRgb = leafRgb.add(leaf.color.xyz.mul(cl));
     leafOct = leafOct.add(leaf.normal.xy.mul(cl));
+    leafLight = leafLight.add(leaf.normal.z.mul(cl));
     if (single) return;
     const wood = { color: texture(atlas.albedo, at(0)), normal: texture(atlas.normal, at(0)) };
     const cw = w.mul(inFrame).mul(wood.color.w);
     woodCover = woodCover.add(cw);
     woodRgb = woodRgb.add(wood.color.xyz.mul(cw));
     woodOct = woodOct.add(wood.normal.xy.mul(cw));
+    woodLight = woodLight.add(wood.normal.z.mul(cw));
   });
   // Thin twigs bake to partial coverage: the wood keeps a lower cut than the leaves.
   const isLeaf = leafCover.greaterThan(0.3);
@@ -198,9 +209,15 @@ export function applyImpostor(
   material.normalNode = normalize(cameraViewMatrix.mul(vec4(normalWorld, 0)).xyz);
   let leafColor: V3 = leafRgb.div(leafCover.max(1e-4));
   let woodColor: V3 = woodRgb.div(woodCover.max(1e-4));
+  if (look?.crown) {
+    const { depth, translucency } = look.crown;
+    leafColor = seasonTint(leafColor, look.tint).mul(instanceTone(instance.seed)).mul(crownShade(leafLight.div(leafCover.max(1e-4)), depth));
+    woodColor = woodColor.mul(crownShade(woodLight.div(woodCover.max(1e-4)), depth));
+    lightLeaves(material, select(isLeaf, throughColor(leafColor, translucency), vec3(0, 0, 0)));
+  }
   if (look) {
     const up = (from: number, to: number) => smoothstep(from, to, max(normalWorld.y, 0));
-    leafColor = mix(leafColor.mul(look.tint).mul(float(1).sub(look.wet.mul(0.45))), look.snowColor, clamp(look.snowLeaf.mul(up(0.15, 0.6)), 0, 1));
+    leafColor = mix((look.crown ? leafColor : leafColor.mul(look.tint)).mul(float(1).sub(look.wet.mul(0.45))), look.snowColor, clamp(look.snowLeaf.mul(up(0.15, 0.6)), 0, 1));
     woodColor = mix(woodColor.mul(float(1).sub(look.wet.mul(0.45))), look.snowColor, clamp(look.snowWood.mul(up(0.35, 0.85)), 0, 1));
     (material as unknown as { roughnessNode?: Node | null }).roughnessNode = float(0.85).mul(float(1).sub(look.wet.mul(0.45)));
   }

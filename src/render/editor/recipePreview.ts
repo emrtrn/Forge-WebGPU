@@ -112,7 +112,7 @@ export function createRecipePreview(ctx: AssetPreviewContext, kind: RecipePrevie
     return { amplitude: own.amplitude, frequency: own.frequency, height: Math.max(height, 0.01), source: "vertex" as const };
   };
   /** The slots' names are the GLB's, so the family draw matches by them. */
-  const familyOf = () => ({ id: "preview", wood: null, leaf: null, response: response() });
+  const familyOf = () => ({ id: "preview", wood: null, leaf: null, crown: kind === "tree" && recipe.generatorVersion === 6, response: response() });
   const shade = (material: NodeMaterial, name: string, origin: Vector3, seed: number, height: number): void => {
     if (kind === "rock") return;
     material.name = name;
@@ -198,7 +198,7 @@ export function createRecipePreview(ctx: AssetPreviewContext, kind: RecipePrevie
     stats.value = `${triangles.toLocaleString("en-US")} triangles · ${first?.detail ?? ""} · ${shown.meshes.milliseconds} ms CPU${shown.draft ? " · draft atlas" : ""}`;
     const settings = kind === "tree" && recipe.generatorVersion !== 5 ? recipe.impostor as { enabled: boolean; views: number; frameSize: string } : null;
     const bytes = familyMemory({
-      atlasSize: shown.draft ? null : shown.meshes.atlas?.size ?? null,
+      atlasSize: shown.draft ? null : shown.meshes.atlas?.size ?? null, atlasTextures: shown.meshes.atlas?.normal ? 2 : 1,
       impostor: settings?.enabled ? { views: settings.views, frameSize: Number(settings.frameSize) } : null,
       prototypes: new Set(recipe.variants as number[]).size || 1, meshBytes: first?.bytes ?? 0,
     });
@@ -229,10 +229,11 @@ export function createRecipePreview(ctx: AssetPreviewContext, kind: RecipePrevie
       const checked = normalizeJsonAsset(ctx.materialType, generated ?? await resources.json(String(ids.leaf)), { strict: true });
       if (!checked.ok || !checked.value) throw new Error("Invalid leaf material.");
       const fields = checked.value as unknown as SurfaceMaterialData;
-      const slots = new Map<string, Texture>(), ownAtlas = generatedOutputId(ctx.guid, "tree/leafTexture");
+      const slots = new Map<string, Texture>(), ownAtlas = generatedOutputId(ctx.guid, "tree/leafTexture"), ownNormal = generatedOutputId(ctx.guid, "tree/leafNormal");
       for (const { guid, slot, colorSpace } of surfaceTextureSlots(fields)) {
-        if (guid !== ownAtlas) { slots.set(slot, await resources.texture(guid, colorSpace)); continue; }
-        const texture = new DataTexture(meshes.atlas!.rgba, meshes.atlas!.size, meshes.atlas!.size);
+        const pixels = guid === ownAtlas ? meshes.atlas!.rgba : guid === ownNormal ? meshes.atlas!.normal : undefined;
+        if (!pixels) { slots.set(slot, await resources.texture(guid, colorSpace)); continue; }
+        const texture = new DataTexture(pixels, meshes.atlas!.size, meshes.atlas!.size);
         if (colorSpace === "srgb") texture.colorSpace = SRGBColorSpace;
         texture.generateMipmaps = true; texture.minFilter = LinearMipmapLinearFilter; texture.needsUpdate = true;
         slots.set(slot, texture); owned.push(texture);

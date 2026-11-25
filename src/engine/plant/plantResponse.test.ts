@@ -15,7 +15,7 @@ const PROFILE: PlantResponseProfile = {
 const dry = { snowCoverage: 0, wetness: 0 };
 
 test("no WES: the summer target, dry and snowless (the base look)", () => {
-  assert.deepEqual(resolvePlantAppearance(PROFILE, null), { foliage: 1, tint: [1, 1, 1], snowWood: 0, snowLeaf: 0, wet: 0, windFlex: 1.2 });
+  assert.deepEqual(resolvePlantAppearance(PROFILE, null), { foliage: 1, tint: [1, 1, 1], snowWood: 0, snowLeaf: 0, wet: 0, windFlex: 1.2, translucency: 1, crownDepth: 1 });
 });
 
 test("a season change mixes the two targets by WES progress; reached, it is the target", () => {

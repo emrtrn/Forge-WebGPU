@@ -55,6 +55,8 @@ const ResponseField = object(
       { hint: "WES kar örtüsüne tepki; maske dal altını beyazlatmaz." },
     ),
     wetness: num({ min: 0, max: 1, default: 0.5, hint: "Islaklıkta koyulaşma oranı." }),
+    translucency: num({ min: 0, max: 2, default: 1, hint: "Yaprağın arkasından geçen ışık (0 yok); taç üreticisinin (sürüm 6) bitkilerinde." }),
+    crownDepth: num({ min: 0, max: 1, default: 1, hint: "Tacın içinin kararması (0 yok); taç üreticisinin (sürüm 6) bitkilerinde." }),
   },
   { hint: "WES'in mevsim, rüzgâr ve örtü durumuna tepki; aileye geri yazılmaz." },
 );
@@ -141,6 +143,8 @@ export const LEAF_TEXTURE_SIZES = ["128", "256", "512", "1024"] as const;
 export const LEAF_CARD_MODES = ["leaves", "clusters", "clustersMaterialBackfaces"] as const;
 export const IMPOSTOR_FRAME_SIZES = ["64", "128", "256"] as const;
 
+export const SPRAY_LEAF_SHAPES = ["ovate", "lobed", "palmate", "needle"] as const;
+
 const treeLevel = object(
   {
     count: num({ min: 0, max: 64, default: 5, step: 1, hint: "Her ebeveyn sapa düşen dal sayısı." }),
@@ -158,7 +162,7 @@ const treeLevel = object(
 const treeLod = object(
   {
     radialSegments: num({ min: 3, max: 32, default: 8, step: 1, hint: "Gövdenin çevre dilimi; ince dallar daha az." }),
-    ringsPerMeter: num({ min: 0.5, max: 16, default: 2, hint: "Metre başına halka (kıvrım çözünürlüğü)." }),
+    ringsPerMeter: num({ min: 0.1, max: 16, default: 2, hint: "Metre başına halka (kıvrım çözünürlüğü)." }),
     minRadius: num({ min: 0, max: 0.5, default: 0, hint: "Bundan ince dallar ve çocukları düşer, metre." }),
     leafFraction: num({ min: 0, max: 1, default: 1, hint: "Tutulan yaprak kümesi oranı (dal ucu kartlarında kart taşıyan uç dal oranı); tutulanlar alanı koruyacak kadar büyür." }),
     leafCards: enumOf(LEAF_CARD_MODES, {
@@ -189,6 +193,17 @@ export const TreeRecipeFields = {
     fullness: num({ min: 0, max: 1, default: 0.78, hint: "Taç doluluğu, dal ve yaprak kümesi yoğunluğunu belirler." }),
     leaderDominance: num({ min: 0, max: 1, default: 0.55, hint: "Ana gövdenin baskınlığı. Artırdıkça gövde dikleşir ve yan dallar incelir." }),
   }, { label: "Growth", hint: "Yaş ve türe özgü taç biçimi." }),
+  spray: object({
+    length: num({ min: 0.2, max: 3, default: 0.9, hint: "Yapraklı dalcık kartının boyu, metre." }),
+    aspect: num({ min: 0.2, max: 1.5, default: 0.8, hint: "Kartın eni, boyuna oranla." }),
+    droop: num({ min: -1, max: 1, default: 0.12, hint: "Dalcıkların sarkması; eksi değer yukarı kaldırır." }),
+    leafShape: enumOf(SPRAY_LEAF_SHAPES, { default: "ovate", labels: { ovate: "Ovate", lobed: "Lobed", palmate: "Palmate", needle: "Needle" }, hint: "Yaprak biçimi: oval, loblu (meşe), parmaklı (akçaağaç) ya da iğne." }),
+    leafLength: num({ min: 0.01, max: 0.6, default: 0.1, step: 0.005, hint: "Bir yaprağın ya da iğnenin boyu, metre." }),
+    leafWidth: num({ min: 0.02, max: 1.4, default: 0.6, hint: "Yaprağın eni, boyuna oranla." }),
+    leafColor: color({ default: "#668c30", hint: "Yaz yaprağının rengi; mevsim tonu bununla çarpılır." }),
+    twigColor: color({ default: "#4d3826", hint: "Dalcığın rengi." }),
+    textureSize: enumOf(LEAF_TEXTURE_SIZES, { default: "512", labels: { 128: "128", 256: "256", 512: "512", 1024: "1024" }, hint: "Dört kart karosundan birinin kenarı, piksel." }),
+  }, { label: "Spray", hint: "Tacı dolduran yapraklı dalcıklar; sayıları Growth'taki Fullness'tan çıkar." }),
   variants: array(num({ min: 0, max: 4294967295, default: 1, step: 1, hint: "Bu tohum bir prototip üretir." }), { default: [1], hint: "Tohum listesi: her tohum ayrı bir ağaç prototipi." }),
   height: num({ min: 1, max: 60, default: 12, slider: [2, 40], hint: "Ağacın boyu, metre." }),
   trunkRadius: num({ min: 0.02, max: 3, default: 0.3, slider: [0.05, 1.5], hint: "Gövdenin tabandaki yarıçapı, metre." }),

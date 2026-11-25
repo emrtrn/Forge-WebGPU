@@ -31,7 +31,7 @@
   "generated": {
     "recipe": "ast_fd4f39c78d58ef550273be682359d194",
     "generator": "tree",
-    "generatorVersion": 3,
-    "contentHash": "1d6b111dd82733ecb0b5761e1f66b0963816635305d6b61701974976e7159c88"
+    "generatorVersion": 6,
+    "contentHash": "ad77fe5c61d74d3853bb823975d51590f9c3ab73c7a8b84ae7c6bc9ee1725fbf"
   }
 }

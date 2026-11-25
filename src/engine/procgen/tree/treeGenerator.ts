@@ -3,6 +3,8 @@ import type { MeshStats } from "../stats.ts";
 import { clusterLibrary, leafAtlasOf } from "./treeCards.ts";
 import { buildTreeLod, planTreeLod } from "./treeMesh.ts";
 import type { LeafAtlas, TreeLodMesh } from "./treeMesh.ts";
+import { CROWN_GENERATOR_VERSION } from "./crown/crownParams.ts";
+import { generateCrownTree } from "./crown/crownTree.ts";
 import { recipeTreeStructure } from "./treeGrowth.ts";
 import { SHRUB_TRIANGLE_CAPS, type TreeParams } from "./treeParams.ts";
 
@@ -19,6 +21,8 @@ export type TreeResult = {
   height: number;
   stems: number;
   clusters: number;
+  /** Generator version 6: each LOD's leaf area (m²), and what its index is taken over. */
+  crown?: { leafArea: readonly number[]; referenceArea: number; radius: number };
 } | { ok: false; report: TreeReport };
 
 const TRIANGLE_CAPS = [20000, 5000, 800, 800];
@@ -31,7 +35,9 @@ export function generateTree(
     atlas?: LeafAtlas;
   },
 ): TreeResult {
-  const { params, skeleton } = recipeTreeStructure({ ...input });
+  const recipe = { ...input } as Readonly<Record<string, unknown>>;
+  if (recipe.generatorVersion === CROWN_GENERATOR_VERSION) return generateCrownTree(recipe, options);
+  const { params, skeleton } = recipeTreeStructure(recipe);
   if ("error" in skeleton) return { ok: false, report: { code: "skeleton", message: skeleton.error } };
 
   const atlas = options?.atlas ?? (params.lods.some((lod) => lod.clusterCards)

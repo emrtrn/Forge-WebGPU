@@ -13,6 +13,7 @@ import type { PlantFamilyDraw } from "./plantDrawing.ts";
 
 /** The fields of a normalised `forge.plantFamily` the renderer reads (features/plant/schema.ts). */
 export interface PlantFamilyFieldsRead {
+  readonly generatorVersion: number;
   readonly prototypes: readonly {
     readonly lods: readonly { readonly mesh: string | null; readonly screenSize: number }[];
     readonly impostor?: ImpostorSlot;
@@ -80,7 +81,7 @@ export function familyPrototype(family: PlantFamilyFieldsRead, guid: string, pro
   return {
     mesh: chain[0]!.mesh,
     lods: chain.slice(1),
-    plant: { id: guid, wood: family.materials.wood, leaf: family.materials.leaf, response: family.response },
+    plant: { id: guid, wood: family.materials.wood, leaf: family.materials.leaf, crown: family.generatorVersion === 6, response: family.response },
     impostor: impostorRef(entry.impostor),
     height: entry.height,
     sway: { amplitude: family.sway.amplitude, height: Math.max(entry.height, 0.01), frequency: family.sway.frequency, source: "vertex" },

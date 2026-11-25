@@ -103,14 +103,15 @@ export function createAssetEditor(options: AssetEditorOptions) {
       const formOptions = { assetLabel: (id: string) => options.catalog.label(id), pickAsset, warn: status };
       const fieldsForEditor = filterAssetFields(adapter.fields, presentation?.handledFields ?? []);
       const treeFields = {
-        legacy: fieldsForEditor.filter(field => field.key !== "growth" && field.key !== "shrub"),
-        growth: fieldsForEditor.filter(field => field.key !== "shrub"),
-        shrub: fieldsForEditor.filter(field => !["growth", "collision", "impostor"].includes(field.key)),
+        legacy: fieldsForEditor.filter(field => !["growth", "shrub", "spray"].includes(field.key)),
+        growth: fieldsForEditor.filter(field => field.key !== "shrub" && field.key !== "spray"),
+        shrub: fieldsForEditor.filter(field => !["growth", "collision", "impostor", "spray"].includes(field.key)),
+        crown: fieldsForEditor.filter(field => !["shrub", "levels", "leaves"].includes(field.key)),
       };
       const fieldsForDraft = () => {
         if (key !== "forge.treeRecipe") return fieldsForEditor;
         const version = opened.value().generatorVersion;
-        return version === 5 ? treeFields.shrub : version === 4 ? treeFields.growth : treeFields.legacy;
+        return version === 6 ? treeFields.crown : version === 5 ? treeFields.shrub : version === 4 ? treeFields.growth : treeFields.legacy;
       };
       let visible = fieldsForDraft();
       const formValue = () => {
@@ -120,7 +121,7 @@ export function createAssetEditor(options: AssetEditorOptions) {
       };
       const uiState = key === "forge.treeRecipe" ? {
         collapsed: new Map(fieldsForEditor.filter(field => field.kind === "array" || field.kind === "object")
-          .map(field => [`asset-field-section-${field.key}`, !["variants", "growth", "shrub"].includes(field.key)])),
+          .map(field => [`asset-field-section-${field.key}`, !["variants", "growth", "shrub", "spray"].includes(field.key)])),
         linkedScales: new Set<string>(),
       } : undefined;
       let form: FormView | null = null, mode = arrayFields(visible).some((entry) => { const list = getAtPath(opened.value(), entry.path); return Array.isArray(list) && list.length > 50; }) ? "table" : "form";

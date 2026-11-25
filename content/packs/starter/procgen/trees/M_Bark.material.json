@@ -13,7 +13,7 @@
   "useBaseColorAlphaForOpacity": false,
   "emissiveTexture": null,
   "ormTexture": "ast_b55b32fa8766d6afe2e8abd5e416a2d7",
-  "uvTiling": [1, 1],
+  "uvTiling": [2, 0.5],
   "terrainMetersPerRepeat": 0,
   "flipY": false,
   "roughness": 1,

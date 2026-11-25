@@ -9,7 +9,9 @@ const presets = { broadleaf, conifer, shrub };
 export function treeHabitDraft(document: AssetDocument, habit: unknown, catalog: AssetCatalog): AssetDocument | null {
   if (habit !== "broadleaf" && habit !== "conifer" && habit !== "shrub") return null;
   const wasShrub = document.generatorVersion === 5;
-  if (wasShrub === (habit === "shrub")) return null;
+  // The crown generator's two habits differ in spray and proportions too.
+  const crown = document.generatorVersion === 6 && document.habit !== habit;
+  if (wasShrub === (habit === "shrub") && !crown) return null;
 
   const preset = presets[habit];
   const available = (guid: string | null) => guid !== null && catalog.label(guid) !== null ? guid : null;

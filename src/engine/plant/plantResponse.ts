@@ -27,6 +27,10 @@ export interface PlantResponseProfile {
   readonly windFlex: number;
   readonly snow: { readonly wood: number; readonly leaf: number };
   readonly wetness: number;
+  /** Light let through the leaves from behind (generator version 6). */
+  readonly translucency?: number;
+  /** How much the inside of the crown darkens (generator version 6). */
+  readonly crownDepth?: number;
 }
 
 export interface PlantSeasonTarget {
@@ -54,6 +58,8 @@ export interface PlantAppearance {
   /** 0..1: how much wet darkens wood and leaves. */
   readonly wet: number;
   readonly windFlex: number;
+  readonly translucency: number;
+  readonly crownDepth: number;
 }
 
 const clamp01 = (value: number): number => (Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0);
@@ -80,5 +86,7 @@ export function resolvePlantAppearance(profile: PlantResponseProfile, environmen
     snowLeaf: snow * clamp01(profile.snow.leaf),
     wet: clamp01(environment?.surface.wetness ?? 0) * clamp01(profile.wetness),
     windFlex: Number.isFinite(profile.windFlex) ? Math.max(0, profile.windFlex) : 1,
+    translucency: Math.min(2, Math.max(0, profile.translucency ?? 1)),
+    crownDepth: clamp01(profile.crownDepth ?? 1),
   };
 }

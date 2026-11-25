@@ -34,6 +34,10 @@ export interface BakeSurface {
   threshold?: Float32Array;
   /** Default true; false culls triangles whose winding faces away (CCW = front). */
   doubleSided?: boolean;
+  /** Per vertex, 0..1: written to the normal output's blue in place of the depth. */
+  shade?: Float32Array;
+  /** The normals hold on both sides of a triangle (a crown's): a back face keeps its own. Default false. */
+  keepNormals?: boolean;
 }
 
 /** Orthographic camera: an orthonormal basis, `forward` = cross(up, right) into the scene. */
@@ -60,7 +64,7 @@ export interface RasterOptions {
 export interface RasterLayer {
   /** RGBA8: rgb the mean sRGB colour of the covered samples, a = covered / samples. */
   albedo: Uint8Array;
-  /** RGBA8: rg octahedral object-space normal, b depth (0 nearest the camera), a = round(255 × min threshold). */
+  /** RGBA8: rg octahedral object-space normal, b depth (0 nearest the camera) or the surface's `shade`, a = round(255 × min threshold). */
   normal: Uint8Array;
 }
 
@@ -95,6 +99,8 @@ interface SampleLayer {
   color: Float32Array;
   normal: Float32Array;
   extra: Float32Array;
+  /** Negative without a shade. */
+  shade: Float32Array;
 }
 
 function sampleTexture(texture: BakeTexture, u: number, v: number, out: number[]): void {
@@ -125,6 +131,7 @@ export function rasterize(surfaces: readonly BakeSurface[], camera: BakeCamera, 
     color: new Float32Array(count * 3),
     normal: new Float32Array(count * 3),
     extra: new Float32Array(count).fill(Infinity),
+    shade: new Float32Array(count).fill(-1),
   }));
   const { center, right, up, forward, halfWidth, halfHeight, halfDepth } = camera;
   const toX = sw / (2 * halfWidth), toY = sh / (2 * halfHeight);
@@ -147,7 +154,7 @@ export function rasterize(surfaces: readonly BakeSurface[], camera: BakeCamera, 
     const alphaTest = (surface.alphaTest ?? (texture ? 0.5 : 0)) * 255;
     const tint = surface.color ?? [1, 1, 1];
     const doubleSided = surface.doubleSided ?? true;
-    const uvs = surface.uvs, threshold = surface.threshold;
+    const uvs = surface.uvs, threshold = surface.threshold, shade = surface.shade;
 
     for (let t = 0; t + 2 < indices.length; t += 3) {
       let a = indices[t]!, b = indices[t + 1]!, c = indices[t + 2]!;
@@ -167,7 +174,7 @@ export function rasterize(surfaces: readonly BakeSurface[], camera: BakeCamera, 
       // neighbour runs the other way and does not.
       const owns = (x0: number, y0: number, x1: number, y1: number): boolean => y1 - y0 < 0 || (y1 - y0 === 0 && x1 - x0 > 0);
       const ownA = owns(bx, by, cx, cy), ownB = owns(cx, cy, ax, ay), ownC = owns(ax, ay, bx, by);
-      const flip = back ? -1 : 1;
+      const flip = back && !surface.keepNormals ? -1 : 1;
       for (let sy = minY; sy <= maxY; sy++) {
         const y = sy + 0.5;
         for (let sx = minX; sx <= maxX; sx++) {
@@ -205,6 +212,7 @@ export function rasterize(surfaces: readonly BakeSurface[], camera: BakeCamera, 
           target.normal[index * 3] = nx;
           target.normal[index * 3 + 1] = ny;
           target.normal[index * 3 + 2] = nz;
+          target.shade[index] = shade ? shade[a]! * l0 + shade[b]! * l1 + shade[c]! * l2 : -1;
         }
       }
     }
@@ -216,7 +224,7 @@ function resolve(layer: SampleLayer, width: number, height: number, ss: number, 
   const albedo = new Uint8Array(width * height * 4), normal = new Uint8Array(width * height * 4);
   const sw = width * ss, samples = ss * ss;
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
-    let covered = 0, r = 0, g = 0, b = 0, nx = 0, ny = 0, nz = 0, depth = 0, extra = Infinity;
+    let covered = 0, r = 0, g = 0, b = 0, nx = 0, ny = 0, nz = 0, depth = 0, extra = Infinity, shade = 0, shaded = 0;
     for (let j = 0; j < ss; j++) for (let i = 0; i < ss; i++) {
       const index = (y * ss + j) * sw + x * ss + i;
       if (layer.extra[index]! < extra) extra = layer.extra[index]!;
@@ -226,6 +234,7 @@ function resolve(layer: SampleLayer, width: number, height: number, ss: number, 
       r += layer.color[index * 3]!; g += layer.color[index * 3 + 1]!; b += layer.color[index * 3 + 2]!;
       nx += layer.normal[index * 3]!; ny += layer.normal[index * 3 + 1]!; nz += layer.normal[index * 3 + 2]!;
       depth += d;
+      if (layer.shade[index]! >= 0) { shade += layer.shade[index]!; shaded += 1; }
     }
     if (covered === 0) continue;
     const out = (y * width + x) * 4;
@@ -234,7 +243,7 @@ function resolve(layer: SampleLayer, width: number, height: number, ss: number, 
     const length = Math.hypot(nx, ny, nz) || 1;
     const [u, v] = octEncode([nx / length, ny / length, nz / length]);
     normal[out] = byte(u * 255); normal[out + 1] = byte(v * 255);
-    normal[out + 2] = byte((depth / covered + halfDepth) / (2 * halfDepth) * 255);
+    normal[out + 2] = byte((shaded > 0 ? shade / shaded : (depth / covered + halfDepth) / (2 * halfDepth)) * 255);
     normal[out + 3] = Number.isFinite(extra) ? byte(extra * 255) : 0;
   }
   return { albedo, normal };

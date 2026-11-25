@@ -5,6 +5,8 @@
 export interface FamilyMemoryInput {
   /** Leaf atlas edge, pixels; null without one. */
   readonly atlasSize: number | null;
+  /** Textures of that size (the sprays' colour and normals); default 1. */
+  readonly atlasTextures?: number;
   /** Two textures per prototype, wood beside leaves; null without impostors. */
   readonly impostor: { readonly views: number; readonly frameSize: number } | null;
   readonly prototypes: number;
@@ -23,7 +25,7 @@ export interface FamilyMemory {
 const MIP_CHAIN = 4 / 3;
 
 export function familyMemory(input: FamilyMemoryInput): FamilyMemory {
-  const atlas = input.atlasSize === null ? 0 : Math.round(input.atlasSize ** 2 * MIP_CHAIN);
+  const atlas = input.atlasSize === null ? 0 : Math.round(input.atlasSize ** 2 * MIP_CHAIN * (input.atlasTextures ?? 1));
   const edge = input.impostor ? input.impostor.views * input.impostor.frameSize : 0;
   const impostors = Math.round(2 * (2 * edge) * edge * MIP_CHAIN * input.prototypes);
   const meshes = Math.round(input.meshBytes * input.prototypes);

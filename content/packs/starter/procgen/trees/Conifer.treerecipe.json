@@ -1,81 +1,65 @@
 {
-  "schema": "forge.treeRecipe/1",
+  "schema": "forge.treeRecipe/2",
   "id": "ast_fd4f39c78d58ef550273be682359d194",
-  "generatorVersion": 1,
+  "generatorVersion": 6,
   "habit": "conifer",
-  "variants": [1, 2, 3],
-  "height": 14,
-  "trunkRadius": 0.28,
-  "taper": 0.025,
-  "flare": 0.5,
-  "crownStart": 0.21,
-  "irregularity": 0.34,
-  "levels": [
-    {
-      "count": 32,
-      "angle": 91,
-      "angleVariation": 10,
-      "lengthRatio": 0.31,
-      "start": 0,
-      "radiusRatio": 0.4,
-      "bend": 0.17,
-      "wobble": 0.1
-    },
-    {
-      "count": 5,
-      "angle": 38,
-      "angleVariation": 19,
-      "lengthRatio": 0.34,
-      "start": 0.28,
-      "radiusRatio": 0.43,
-      "bend": 0.14,
-      "wobble": 0.13
-    }
+  "variants": [
+    1,
+    2,
+    3
   ],
-  "leaves": {
-    "perStem": 5,
-    "size": [0.5, 0.15],
-    "cards": 2,
-    "clusters": 12,
-    "texture": {
-      "kind": "needle",
-      "count": 22,
-      "leafColor": "#2b4d29",
-      "twigColor": "#3d2e22",
-      "size": "256"
-    }
+  "height": 14,
+  "trunkRadius": 0.2,
+  "flare": 0.5,
+  "crownStart": 0.07,
+  "irregularity": 0.5,
+  "growth": {
+    "age": 60,
+    "matureAge": 60,
+    "width": 0.46,
+    "widestPoint": 0.2,
+    "fullness": 0.75,
+    "leaderDominance": 1
+  },
+  "spray": {
+    "length": 0.6,
+    "aspect": 0.72,
+    "droop": 0.14,
+    "leafShape": "needle",
+    "leafLength": 0.024,
+    "leafWidth": 0.1,
+    "leafColor": "#5b7c3c",
+    "twigColor": "#443327",
+    "textureSize": "512"
   },
   "lods": [
     {
-      "radialSegments": 13,
-      "ringsPerMeter": 4,
+      "radialSegments": 12,
+      "ringsPerMeter": 1.4,
       "minRadius": 0,
       "leafFraction": 1,
-      "leafCards": "leaves",
       "screenSize": 0.5
     },
     {
-      "radialSegments": 8,
-      "ringsPerMeter": 1.5,
-      "minRadius": 0.01,
-      "leafFraction": 0.8,
-      "leafCards": "clusters",
-      "screenSize": 0.2
+      "radialSegments": 6,
+      "ringsPerMeter": 0.6,
+      "minRadius": 0.034,
+      "leafFraction": 0.75,
+      "screenSize": 0.42
     },
     {
       "radialSegments": 4,
-      "ringsPerMeter": 0.65,
-      "minRadius": 0.04,
+      "ringsPerMeter": 0.3,
+      "minRadius": 0.07,
       "leafFraction": 0.2,
-      "leafCards": "clusters",
-      "screenSize": 0.07
+      "screenSize": 0.17
     }
   ],
   "impostor": {
     "enabled": true,
     "views": 8,
     "frameSize": "128",
-    "screenSize": 0.03
+    "screenSize": 0.08
   },
   "materials": {
     "wood": "ast_4b4adfbe01f0389bf3a0269a3533244c",

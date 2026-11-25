@@ -1,91 +1,65 @@
 {
-  "schema": "forge.treeRecipe/1",
+  "schema": "forge.treeRecipe/2",
   "id": "ast_1cc830feab66656728f8bf965079b68a",
-  "generatorVersion": 1,
+  "generatorVersion": 6,
   "habit": "broadleaf",
-  "variants": [1, 2, 3],
-  "height": 12,
-  "trunkRadius": 0.3,
-  "taper": 0.08,
-  "flare": 0.65,
-  "crownStart": 0.39,
-  "irregularity": 0.64,
-  "levels": [
-    {
-      "count": 14,
-      "angle": 84,
-      "angleVariation": 14,
-      "lengthRatio": 0.34,
-      "start": 0.44,
-      "radiusRatio": 0.52,
-      "bend": 0.25,
-      "wobble": 0.25
-    },
-    {
-      "count": 5,
-      "angle": 45,
-      "angleVariation": 20,
-      "lengthRatio": 0.44,
-      "start": 0.35,
-      "radiusRatio": 0.45,
-      "bend": 0.15,
-      "wobble": 0.24
-    },
-    {
-      "count": 3,
-      "angle": 33,
-      "angleVariation": 15,
-      "lengthRatio": 0.48,
-      "start": 0.45,
-      "radiusRatio": 0.42,
-      "bend": 0.12,
-      "wobble": 0.2
-    }
+  "variants": [
+    1,
+    2,
+    3
   ],
-  "leaves": {
-    "perStem": 4,
-    "size": [0.35, 0.35],
-    "cards": 2,
-    "clusters": 12,
-    "texture": {
-      "kind": "broad",
-      "count": 7,
-      "leafColor": "#4d7329",
-      "twigColor": "#4d3826",
-      "size": "256"
-    }
+  "height": 12,
+  "trunkRadius": 0.27,
+  "flare": 0.6,
+  "crownStart": 0.24,
+  "irregularity": 0.6,
+  "growth": {
+    "age": 60,
+    "matureAge": 60,
+    "width": 0.78,
+    "widestPoint": 0.45,
+    "fullness": 0.8,
+    "leaderDominance": 0.42
+  },
+  "spray": {
+    "length": 0.68,
+    "aspect": 0.82,
+    "droop": 0.14,
+    "leafShape": "ovate",
+    "leafLength": 0.095,
+    "leafWidth": 0.62,
+    "leafColor": "#66892f",
+    "twigColor": "#4d3826",
+    "textureSize": "512"
   },
   "lods": [
     {
       "radialSegments": 14,
-      "ringsPerMeter": 4,
+      "ringsPerMeter": 3,
       "minRadius": 0,
       "leafFraction": 1,
-      "leafCards": "leaves",
       "screenSize": 0.5
     },
     {
-      "radialSegments": 8,
-      "ringsPerMeter": 1.6,
-      "minRadius": 0.006,
+      "radialSegments": 7,
+      "ringsPerMeter": 1,
+      "minRadius": 0.022,
       "leafFraction": 0.8,
-      "leafCards": "clusters",
-      "screenSize": 0.2
+      "screenSize": 0.42
     },
     {
-      "radialSegments": 5,
-      "ringsPerMeter": 0.75,
-      "minRadius": 0.034,
-      "leafFraction": 0.2,
-      "leafCards": "clusters",
-      "screenSize": 0.07
+      "radialSegments": 4,
+      "ringsPerMeter": 0.4,
+      "minRadius": 0.07,
+      "leafFraction": 0.16,
+      "screenSize": 0.17
     }
   ],
   "impostor": {
     "enabled": true,
     "views": 8,
     "frameSize": "128",
-    "screenSize": 0.03
+    "screenSize": 0.08
   },
   "materials": {
     "wood": "ast_4b4adfbe01f0389bf3a0269a3533244c",

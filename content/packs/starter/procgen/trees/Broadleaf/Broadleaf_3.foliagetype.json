@@ -4,7 +4,7 @@
   "mesh": "ast_a6a0b155ec0675ee7639e1c04bc20f8a",
   "family": "ast_e6beb70fb2c3ee3f49dc40b4d332462c",
   "prototype": 2,
-  "radius": 3.6,
+  "radius": 4.87458,
   "density": 1,
   "scaleMin": 0.85,
   "scaleMax": 1.15,
@@ -27,9 +27,10 @@
     "enabled": true,
     "source": "vertex",
     "amplitude": 0.25,
-    "height": 13.56947,
+    "height": 12.34454,
     "frequency": 0.35
   },
+  "fadeSpread": 0,
   "far": {
     "distance": 0,
     "tint": 0
@@ -37,18 +38,18 @@
   "lods": [
     {
       "mesh": "ast_6748fa67e9a8e9b1a5d62d580b1888a1",
-      "screenSize": 0.2
+      "screenSize": 0.42
     },
     {
       "mesh": "ast_6d896f75566c8eb0a5442ab99e9b3cca",
-      "screenSize": 0.07
+      "screenSize": 0.17
     }
   ],
   "impostor": {
     "albedo": "ast_d37514fe374e2da436f3431e02cca654",
     "normal": "ast_f0b4b0a115c08c3d9711d2190352ff62",
     "views": 8,
-    "screenSize": 0.03,
-    "color": "#436424"
+    "screenSize": 0.08,
+    "color": "#5f7b2a"
   }
 }

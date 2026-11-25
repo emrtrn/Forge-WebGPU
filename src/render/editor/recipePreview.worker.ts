@@ -69,7 +69,7 @@ export interface PreviewPrototype {
 
 export interface RecipeMeshes {
   readonly prototypes: readonly PreviewPrototype[];
-  readonly atlas: { readonly size: number; readonly rgba: Uint8Array } | null;
+  readonly atlas: { readonly size: number; readonly rgba: Uint8Array; readonly normal?: Uint8Array } | null;
   readonly milliseconds: number;
 }
 
@@ -81,7 +81,7 @@ export type RecipePreviewReply =
 let cached: { key: string; atlas: ReturnType<typeof treeRecipeAtlas> } | null = null;
 
 function atlasOf(recipe: JsonObject, draft: boolean): ReturnType<typeof treeRecipeAtlas> {
-  const key = JSON.stringify([draft, recipe.generatorVersion, recipe.growth, recipe.shrub, (recipe.variants as number[])[0], recipe.habit, recipe.height,
+  const key = JSON.stringify([draft, recipe.generatorVersion, recipe.growth, recipe.shrub, recipe.spray, (recipe.variants as number[])[0], recipe.habit, recipe.height,
     recipe.trunkRadius, recipe.taper, recipe.flare, recipe.crownStart, recipe.irregularity, recipe.levels, recipe.leaves, recipe.lods]);
   if (cached?.key !== key) cached = { key, atlas: treeRecipeAtlas(recipe, draft ? 64 : undefined) };
   return cached.atlas;
@@ -105,7 +105,7 @@ function buildTree(request: MeshRequest): RecipeMeshes {
     return { tree, lods: tree.lods.map((lod, index): PreviewLod => ({
       name: `LOD ${index}`, triangles: tree.stats[index]!.triangles,
       parts: [treePart("wood", lod.wood), ...(lod.leaves ? [treePart("leaf", lod.leaves)] : [])],
-      doubleSided: lods[index]?.leafCards === "clustersMaterialBackfaces",
+      doubleSided: recipe.generatorVersion === 6 || lods[index]?.leafCards === "clustersMaterialBackfaces",
     })) };
   };
   const prototypes = request.seeds.map((seed): PreviewPrototype => {
@@ -115,9 +115,9 @@ function buildTree(request: MeshRequest): RecipeMeshes {
       const full = lodsOf([{ ...settings[0], minRadius: 0, leafFraction: 1, leafCards: "leaves" }, ...settings.slice(1)], seed, [200000]).lods[0]!;
       source = { ...full, name: "Source" };
     }
-    return { seed, source, lods, detail: `${counted(tree.stems, "stems")} · ${counted(tree.clusters, "leaf clusters")}`, bytes: bytesOf(lods) };
+    return { seed, source, lods, detail: `${counted(tree.stems, "stems")} · ${tree.crown ? `${counted(tree.clusters, "sprays")} · leaf area index ${(tree.crown.leafArea[0]! / tree.crown.referenceArea).toFixed(1)}` : counted(tree.clusters, "leaf clusters")}`, bytes: bytesOf(lods) };
   });
-  return { prototypes, atlas: { size: atlas.size, rgba: atlas.rgba.slice() }, milliseconds: Math.round(performance.now() - started) };
+  return { prototypes, atlas: { size: atlas.size, rgba: atlas.rgba.slice(), ...(atlas.normal ? { normal: atlas.normal.slice() } : {}) }, milliseconds: Math.round(performance.now() - started) };
 }
 
 function buildGrass(request: MeshRequest): RecipeMeshes {
@@ -171,7 +171,7 @@ function reply(request: RecipePreviewRequest): { message: RecipePreviewReply; tr
   }
   const schema = String(request.recipe.schema);
   const meshes = schema.startsWith("forge.grassRecipe/") ? buildGrass(request) : schema.startsWith("forge.rockRecipe/") ? buildRock(request) : buildTree(request);
-  const transfer: ArrayBufferLike[] = meshes.atlas ? [meshes.atlas.rgba.buffer] : [];
+  const transfer: ArrayBufferLike[] = meshes.atlas ? [meshes.atlas.rgba.buffer, ...(meshes.atlas.normal ? [meshes.atlas.normal.buffer] : [])] : [];
   for (const { source, lods } of meshes.prototypes) for (const lod of source ? [source, ...lods] : lods) for (const part of lod.parts) {
     for (const data of [part.mesh.positions, part.mesh.normals, part.mesh.indices, part.mesh.colors, part.uvs, part.wind, part.leaf]) if (data) transfer.push(data.buffer);
   }

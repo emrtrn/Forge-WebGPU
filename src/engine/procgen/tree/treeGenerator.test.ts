@@ -17,7 +17,7 @@ test("recipe versions pin historical geometry; growth changes proportions at a f
     assert.equal(treeOutputVersion(version), 3);
     assert.deepEqual(skeleton, buildTreeSkeleton(params));
   }
-  assert.throws(() => treeOutputVersion(6), /Unsupported/);
+  assert.throws(() => treeOutputVersion(7), /Unsupported/);
   const shape = (age: number, width: number, seed = 7) => {
     const result = recipeTreeStructure({ generatorVersion: 4, seed, growth: { age, width } });
     if ("error" in result.skeleton) assert.fail(result.skeleton.error);
