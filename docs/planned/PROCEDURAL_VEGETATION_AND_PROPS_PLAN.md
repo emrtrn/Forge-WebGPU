@@ -1,6 +1,7 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.18 · 2026-11-25 (PG5 editörü ve World Builder bağlantısı, §9.7; görsel kabul bekleniyor).
+**Sürüm:** v0.19 · 2026-11-25 (PG5b açıldı: taç kalitesi, üretici sürümü 6, §9.8; kullanıcı kararları).
+Önceki: v0.18 · 2026-11-25 (PG5 editörü ve World Builder bağlantısı, §9.7; görsel kabul bekleniyor).
 Önceki: v0.17 · 2026-11-22 (PG4 görsel kabul ve kapanış, §9.5–9.6).
 Önceki: v0.16 (şerit/demet ot ve WebGPU yakın–uzak doğrulaması, §9.6).
 Önceki: v0.14 (meşenin iç taç dağılımı ve doğal LOD karşılaştırması, §9.3–9.4).
@@ -12,7 +13,7 @@ taş doku tarifi, triplanar + `variation`, A / C ölçümü).
 
 **Önceki sürüm:** v0.6 · 2026-11-14 (WES ile birleşik bitki ailesi, ortak çalışma
 zamanı davranışı ve 5c ile birlikte ilerleyen üretim dilimi; kullanıcı kararı).
-**Durum:** PG0–PG3 uygulandı (5c ile, 2026-11-17 – 2026-11-19). PG4, çok saplı Hazel ve şerit/demet MeadowGrass için WebGPU doğrulaması ve kullanıcı görsel onayıyla kapandı (2026-11-22, §9.5–9.6). PG5'in kodu ve teknik kapısı tamam (2026-11-25, §9.7); kullanıcı görsel kabulü bekleniyor. PG6–PG7 ileride.
+**Durum:** PG0–PG3 uygulandı (5c ile, 2026-11-17 – 2026-11-19). PG4, çok saplı Hazel ve şerit/demet MeadowGrass için WebGPU doğrulaması ve kullanıcı görsel onayıyla kapandı (2026-11-22, §9.5–9.6). PG5'in kodu ve teknik kapısı tamam (2026-11-25, §9.7); ağaçların görünümü kabul edilmedi, PG5b açık (§9.8). PG6–PG7 ileride.
 Başlama koşulu §2'de.
 **İlgili belgeler:** [yeniden inşa planı](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
 sırası; küçük üretim dilimi 5c ile birlikte, tam araçlar 5d ile ilerler),
@@ -568,7 +569,7 @@ varlıklarla da tutmalıdır.
 
 | Varlık | LOD0 | LOD1 | LOD2 | Uzak |
 |---|---:|---:|---:|---|
-| Büyük ağaç | ≤ 20.000 | ≤ 5.000 | ≤ 800 | Impostor |
+| Büyük ağaç | ≤ 20.000 (sürüm 6: ≤ 40.000, §9.8) | ≤ 5.000 | ≤ 800 | Impostor |
 | Çalı | ≤ 4.000 | ≤ 800 | ≤ 100 | Fade |
 | Ot demeti | ≤ 120 | ≤ 20 | — | Seyrelme + fade |
 | Büyük kaya | ≤ 3.000 | ≤ 600 | ≤ 120 | Fade ya da HLOD |
@@ -1046,6 +1047,57 @@ tek öbekler için seyrek; ayarı örtü belgesinde. `forge.plant` viewport'ta
 tıklanarak seçilmez, Focus aktörün noktasını alır (GPU toplu çizim; Outliner'dan
 seçilir). Oak ve Poplar çıktısız.
 
+### 9.8 PG5b · Taç kalitesi
+
+**Sorun (2026-11-25, kullanıcı).** World Builder'ın kurduğu `World_1`'de ağaçlar
+neredeyse yapraksız görünüyor; referans videonun (Ek A) çok gerisinde. Yaprak alanı
+tacın izdüşümüne bölününce (LAI; kapalı bir ormanda kabaca 4–8):
+
+| | Conifer LOD0 / LOD1 / LOD2 | Broadleaf LOD0 / LOD1 / LOD2 | Oak LOD0 |
+|---|---:|---:|---:|
+| LAI | 0,27 / 0,27 / 0,08 | 0,57 / 0,52 / 0,26 | 2,81 |
+| Üçgen | 14,1 k / 3,2 k / 0,6 k | 17,5 k / 3,4 k / 0,7 k | 16,2 k |
+| LOD0'da odunun payı | %55 | %62 | %58 |
+| Yaprak kartının dolu payı | %15 | %29 | %32 |
+
+1. Yaprak kümeleri yalnız uç sapların dış yarısında; ana dallar ve iç taç boş.
+2. Kart dokusu seyrek; üçgen bütçesinin çoğu odunda, kartların yarısı arka yüz kopyası.
+3. LOD'lar, kart ve impostor aynı seyrek LOD0'dan türüyor; LOD2 alanı da korumuyor.
+   Eşikler uzak: LOD0 ≈ 120 m'ye, LOD1 ≈ 340 m'ye, impostor ≈ 790 m'den sonra.
+4. Yaprak gölgelemesinde ışık geçirgenliği ve taç içi kararma yok; kart normali her
+   yüzde ters döner.
+5. `forest` örtüsü tek ağaç türü ve hektara ≈ 76 ağaç; Oak / Poplar çıktısız.
+
+Alfa mip kaybı ölçüldü ve elendi (karolar mip boyunca aynı örtüyü koruyor). **Süreç
+hatası:** PG2–PG3 kapıları üçgen ve kare süresine baktı; yaprak örtüsünün alt sınırı
+hiçbir kapıda yoktu.
+
+**Deneme (2026-11-25, depo dışında klonda).** Taç hacmini dolduran iskelet + dal boyunca
+dolu "sprey" kartları (yapraklı dalcık) + taç normali, arkadan ışık ve iç kararma: aynı
+yerleşimde LAI 5,9 (Broadleaf) / ≈ 10,8 (Conifer), LOD0 10,5–13,6 k üçgen. Dört World_1
+pozunda 1600 × 900 `high` tek koşuda GPU +0,2–1,3 ms (en çok 6,1 ms). Kareler ve kod
+`.forge-cache/vegetation-v6/` (yerel).
+
+**Kararlar (kullanıcı, 2026-11-25).** Yeni üretici starter Broadleaf / Conifer'in yerine
+geçer (GUID'ler aynı, eski görünüm kalkar; kurulmuş dünyalar yeniden kurulmadan
+değişir). Yakın ağacın LOD0 tavanı 20 k yerine **40 k** üçgen, yalnız ilk 30–40 m için.
+
+**Uygulama: üretici sürümü 6.**
+
+- *İskelet.* Geniş yapraklı: taç zarfı (boy, genişlik, en geniş nokta, taç başlangıcı,
+  doluluk, düzensizlik) içinde çekim noktalarına doğru büyüme (space colonization), dal
+  kalınlığı boru modeliyle, ana gövde baskınlığı tarifte. İğne yapraklı: sık kat dalları,
+  altta sarkan üstte kalkan eğri. Var olan **Growth** alanları kullanılır; sürüm 6'da
+  `levels` formda görünmez.
+- *Sprey.* Tür başına 2 × 2 karo: yapraklı dalcığın rengi + alfası ve normali, CPU'da.
+  Sprey sayısı hedef LAI'den çıkar (Fullness), kart alanı LOD'lar boyunca korunur;
+  bütçeye sığmayan sayı, kartlar büyütülerek indirilir.
+- *Gölgeleme.* Taca göre normal (iki yüzde aynı), yaprak normali, arkadan gelen ışık,
+  taç derinliğine göre kararma (yaprak ve odun); mesh LOD'ları ve impostor aynı kuralda.
+- *Kapı.* LAI alt sınırı bütün LOD'larda testte; LOD'lar arası alan farkı sınırlı.
+
+---
+
 ## 10. Adımlar
 
 Her adım dikey bir dilimdir ve kendi kapısıyla biter. Görsel beğeni kullanıcı
@@ -1232,6 +1284,16 @@ kullanıcıda).
       yeniden aç çalışıyor; onay sayfası Content Browser'da görünüyor.
       **2026-11-25:** kod ve teknik kapı tamam (§9.7). Kutu kullanıcı görsel
       kabulüyle kapanır. Bağlı tariflerin `linked` alanı ilk üreticisiyle PG6'da.
+- [ ] **PG5b Taç kalitesi (§9.8; kullanıcı, 2026-11-25).** *Kapı:* LAI alt sınırı
+      testte; Broadleaf / Conifer World_1'de ve tekil pozda kullanıcı kabulü;
+      `measure:forest` G6'yı tutuyor; PV-WES-01–03 (kış, kar, LOD eşitliği) yeniden.
+  - [ ] **1 Taç.** Sürüm 6 iskeletleri, sprey yerleşimi, LOD zinciri, starter tarifleri.
+  - [ ] **2 Dal dokusu.** Sprey atlası (renk + alfa + normal), kabuk.
+  - [ ] **3 Yaprak ışığı.** Taç normali, geçirgenlik, iç kararma; impostor aynı kuralda.
+  - [ ] **4 LOD.** Eşikler, alan koruma, LAI / örtü testleri, 40 k LOD0.
+  - [ ] **5 Türler.** Akçaağaç, huş, meşe, kavak, çam, ladin; kabuklar; Oak / Poplar sürüm 6'ya,
+        eski iskelet sürümleri (1–4) kalkar.
+  - [ ] **6 World Builder.** Örtülerde karışık tür, orman yoğunluğu, genç ağaç, orman altı.
 - [ ] **PG6 Ölü odun, döküntü, iğne yapraklı.** *Kapı:* kütük ve döküntü
       bağlı ağaç tarifinden türüyor; PG2'nin iğne yapraklı örneği daha geniş
       ön ayarlarla kart bütçesinde. İsteğe bağlı yakın çevre yaprak efekti
@@ -1291,6 +1353,8 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 | PG5 · tekil bitki | Brief'in landmark / prop satırları ve rastgele dünyada yerleşim başına bir `vegetation.tree` (kullanıcı, 2026-11-25) |
 | PG5 · bağlı tarifler | Editörde Related bölümü; `linked` alanı PG6'da (kullanıcı, 2026-11-25) |
 | PG5 · starter çıktıları | Hazel ve MeadowGrass; Oak / Poplar C aşamasının kabulünü bekler (kullanıcı, 2026-11-25) |
+| PG5b · yeni üretici | Sürüm 6 starter Broadleaf / Conifer'in yerine geçer; GUID'ler aynı (kullanıcı, 2026-11-25) |
+| PG5b · LOD0 tavanı | 40.000 üçgen, yalnız ilk 30–40 m; LOD1 / LOD2 tavanı aynı (kullanıcı, 2026-11-25) |
 | Üretilmiş dokuların sıkıştırması | `forge generate` ağaç atlaslarını ve yüzey dokusu tariflerini (kabuk, kaya) doğrudan KTX2 (UASTC + Zstd, mip'li) yazar; PNG yok (kullanıcı, 2026-11-19). Çalışma anında bake edilen GLB atlası RGBA8 kalır |
 
 **Açık:** yok (PK7 PG3'te ölçümle kapandı).
@@ -1366,6 +1430,7 @@ kurallarına göre yeniden yazılır.
 
 | Tarih | Sürüm | Not |
 |---|---|---|
+| 2026-11-25 | v0.19 | PG5b açıldı (§9.8): World_1 denetimi (LAI 0,08–0,57), klonda deneme, kullanıcı kararları (yer değiştirme, 40 k LOD0). Kod yok |
 | 2026-11-25 | v0.18 | PG5: E (`88913ec` `3ce003b` `e4982df`) ve F (`62d153f` `6ef8a9b` `f838402`); kararlar kullanıcıda (öneriler gibi). §9.7. Görsel kabul bekleniyor |
 | 2026-11-22 | v0.17 | MeadowGrass görsel onayı kaydedildi (§9.6). Hazel ve MeadowGrass kabulüyle PG4 kapandı. PG5 açık. |
 | 2026-11-11 | v0.1 | Plan yazıldı; prosedürel üretim kararı ve zamanlama (kullanıcı). Eski araştırma raporu ve kapsam envanteri kaldırıldı. Uygulama yok |

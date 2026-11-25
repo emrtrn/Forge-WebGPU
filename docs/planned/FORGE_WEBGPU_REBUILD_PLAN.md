@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.05 · 2026-11-25 — World Builder açık level'a kurar ve sahne ayarlarını korur; Outliner klasörleri (`5b8f6fa`). Kullanıcı kararı, adım 8'in "yeni level" kararının yerini alır. Adım 8 / 9 ve Faz 5 toplu kabulü kullanıcıda.
+**Güncelleme:** v2.06 · 2026-11-25 — Bitki planı PG5b açıldı (v0.19, §9.8; kullanıcı kararı): ağaçların yaprak örtüsü referansın çok altında (LAI 0,08–0,57); üretici sürümü 6 starter Broadleaf / Conifer'in yerine geçer, LOD0 tavanı 40 k. PG5 görsel kabulü ve Faz 5 toplu kabulü PG5b'yi bekler.
+
+**Önceki güncelleme:** v2.05 · 2026-11-25 — World Builder açık level'a kurar ve sahne ayarlarını korur; Outliner klasörleri (`5b8f6fa`). Kullanıcı kararı, adım 8'in "yeni level" kararının yerini alır. Adım 8 / 9 ve Faz 5 toplu kabulü kullanıcıda.
 
 **Önceki güncelleme:** v2.04 · 2026-11-25 — 5d adım 10, kapının teknik kısmı geçti: tam kapı, editör seti WebGL ve gerçek WebGPU 99 / 99, render smoke'u, terrain / akış / foliage / orman ölçümleri. Bulunan ve düzeltilenler: HLOD'un KTX2 dokuyu okumaması (`eab26b4`), Vite'ın `.forge-cache`'i taraması (`ded16da`), akış ölçüm level'ının paketle büyümesi. Faz 5 toplu görsel + performans kabulü kullanıcıda; kutular ve arşiv kabulü bekliyor.
 
@@ -2046,7 +2048,7 @@ A–F sırasıyla yürür; ağaç tarifi editörü (`ff7ce85`) ve sürümlü bü
 7. ~~Mesh Paint~~ (karar 4: çıkarıldı).
 8. World Builder penceresi, `/__world-random` uç noktası, önizleme worker'ının
    bağlanması; üretilen level Content Browser'da — C. B13.
-9. Bitki tarafı (karar 6) — bitki planının akışıyla (PG5; 2026-11-25, görsel kabul bekleniyor).
+9. Bitki tarafı (karar 6) — bitki planının akışıyla (PG5; 2026-11-25, görsel kabul bekleniyor). Ağaç kalitesi PG5b'de (bitki planı §9.8; kullanıcı, 2026-11-25).
 10. Kapı: araç başına editör smoke'u (düzenle → kaydet → yeniden aç), ertelenen
     5d A'ları yeşil (`worldTerrainMove`'un 1 A'sı adım 4'te; su kullanan 3 A Faz 7'de), Faz 5 toplu görsel + performans kabulü (kullanıcı), ardından Faz 5
     bölümünün arşivi.
