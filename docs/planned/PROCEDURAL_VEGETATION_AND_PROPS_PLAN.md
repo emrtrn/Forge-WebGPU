@@ -1,6 +1,7 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.20 · 2026-11-25 (PG5b adım 1–4: taç üreticisi, sprey, yaprak ışığı, LOD; görsel kabul bekleniyor, §9.8).
+**Sürüm:** v0.21 · 2026-11-25 (PG5b adım 1–4'ün kullanıcı görsel kabulü; sırada adım 5–6, §9.8).
+Önceki: v0.20 (PG5b adım 1–4: taç üreticisi, sprey, yaprak ışığı, LOD).
 Önceki: v0.19 (PG5b açıldı: taç kalitesi, üretici sürümü 6; kullanıcı kararları).
 Önceki: v0.18 · 2026-11-25 (PG5 editörü ve World Builder bağlantısı, §9.7; görsel kabul bekleniyor).
 Önceki: v0.17 · 2026-11-22 (PG4 görsel kabul ve kapanış, §9.5–9.6).
@@ -1128,7 +1129,7 @@ GPU eski 1,8–5,0 → yeni 1,7–8,1 ms; orman içi pozlarda ≈ +2–3 ms. Imp
 `worldBuilder` gerçek WebGPU'da.
 
 **Sınırlar.** Impostor yakına zorlandığında bulanık (128 px). Broadleaf ve Conifer dışındaki
-tarifler (Hazel, Oak, Poplar) eski iskelette. Kullanıcı görsel kabulü bekleniyor.
+tarifler (Hazel, Oak, Poplar) eski iskelette. Kullanıcı görsel kabulü: 2026-11-25.
 
 ---
 
@@ -1464,6 +1465,7 @@ kurallarına göre yeniden yazılır.
 
 | Tarih | Sürüm | Not |
 |---|---|---|
+| 2026-11-25 | v0.21 | PG5b adım 1–4 kullanıcı görsel kabulü; adım 5–6 yeni oturumda |
 | 2026-11-25 | v0.20 | PG5b adım 1–4 (`4279194`): LAI 6,2 / 7,5 bütün LOD'larda, `measure:forest` G6'da; adım 5–6 ve görsel kabul açık |
 | 2026-11-25 | v0.19 | PG5b açıldı (§9.8): World_1 denetimi (LAI 0,08–0,57), klonda deneme, kullanıcı kararları (yer değiştirme, 40 k LOD0). Kod yok |
 | 2026-11-25 | v0.18 | PG5: E (`88913ec` `3ce003b` `e4982df`) ve F (`62d153f` `6ef8a9b` `f838402`); kararlar kullanıcıda (öneriler gibi). §9.7. Görsel kabul bekleniyor |
