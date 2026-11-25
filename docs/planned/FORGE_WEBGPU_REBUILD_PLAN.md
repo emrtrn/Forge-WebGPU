@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.97 · 2026-11-25 — 5d adım 5 (`49d6c09`): Landscape Splines kipi (Draw / Edit Points, birleştir / kapat / dal, yumuşak eğri, segment etkileri, Apply Deform / Apply Paint), tanımdan CPU'da bükülen yol mesh'leri (editör ve oyun; saklanmaz, statik batch). Kararlar kullanıcıda (öneriler gibi); yol süslemeleri Faz 6'ya (D27). Kullanıcı görsel kabulü bekleniyor.
+**Güncelleme:** v1.98 · 2026-11-25 — 5d adım 5'in görsel kabulü (kullanıcı, 2026-11-25). Sırada adım 6: Foliage fırçası (B09).
+
+**Önceki güncelleme:** v1.97 · 2026-11-25 — 5d adım 5 (`49d6c09`): Landscape Splines kipi (Draw / Edit Points, birleştir / kapat / dal, yumuşak eğri, segment etkileri, Apply Deform / Apply Paint), tanımdan CPU'da bükülen yol mesh'leri (editör ve oyun; saklanmaz, statik batch). Kararlar kullanıcıda (öneriler gibi); yol süslemeleri Faz 6'ya (D27). Kullanıcı görsel kabulü 2026-11-25'te verildi (v1.98).
 
 **Önceki güncelleme:** v1.96 · 2026-11-20 — Paint kipi Forge'un Brush / Auto Paint sekmeleriyle, Auto Paint kuralları Landscape Mode içinde; terrain Details'i Name'siz başlar; panel adları Forge'unki (Scene Outliner / World Partition, Details / Foliage) (`2a6ef5e`, kullanıcı isteği).
 
@@ -2208,7 +2210,7 @@ tek başına ve bütün dosya olarak yeniden koşuda geçti; HEAD'de yalnız imp
 Sonraya: yol collider'ı (Faz 6, aynı üreticiden; tanımın `collision` alanı duruyor),
 yeniden içe aktarılan modelin yollarda tazelenmesi (terrain yeniden yüklenince gelir).
 Forge'daki gibi bükülen model segment başına bir kez uzatılır: boyunca halkası
-olmayan model eğriyi yalnız segment uçlarında izler. Kullanıcı görsel kabulü bekleniyor.
+olmayan model eğriyi yalnız segment uçlarında izler. Kullanıcı görsel kabulü 2026-11-25'te verildi.
 
 - [x] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
       Faz 3 karar 1) üretim kalitesine çıkar: morph,
@@ -2654,6 +2656,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-25 | v1.98 | 5d adım 5'in görsel kabulü (kullanıcı). Sıradaki: 5d adım 6 (B09) |
 | 2026-11-25 | v1.97 | 5d adım 5 (`49d6c09`): kararlar (kullanıcı, öneriler gibi: mesh tanımdan üretilir, süsleme Faz 6, iki ayrı Apply, seçim sayfanın ayarlarında, ek ajan komutu yok); Landscape Splines kipi ve yol mesh'leri (saf üretici Codex); içe aktarıcı ve asset dizini spline mesh'lerini tanır. `landscapeSpline.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda. Sıradaki: 5d adım 6 (B09) |
 | 2026-11-20 | v1.96 | Paint kipi Forge'un Brush / Auto Paint sekmeleriyle, Auto Paint kuralları Landscape Mode içinde (`details: "embedded"`), terrain Details'i Name'siz, panel adları Forge'unki (`2a6ef5e`) |
 | 2026-11-20 | v1.95 | Terrain Details Forge'un Landscape düzeninde (`775da8b`, kullanıcı kararı): `details: "tool"` sunumu (SDK 0.1.14), araç düğme ızgarası; seçili terrain üstünde gizmo sürüklemesi düzeltildi |
