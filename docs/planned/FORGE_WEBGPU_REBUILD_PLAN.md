@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.03 · 2026-11-25 — 5d adım 9, bitki tarafı (bitki planı PG5 = E + F; `88913ec` `3ce003b` `e4982df` `62d153f` `6ef8a9b` `f838402`): tarif / aile / onay sayfası önizlemeleri, kaya tarifinin editörden üretimi, World Builder'da `generated` model kaynağı, örtüde tarif başvurusu, tekil bitki ve yerleşim ağacı. Kararlar kullanıcıda (öneriler gibi). Kullanıcı görsel kabulü bekleniyor (adım 8 ile birlikte).
+**Güncelleme:** v2.04 · 2026-11-25 — 5d adım 10, kapının teknik kısmı geçti: tam kapı, editör seti WebGL ve gerçek WebGPU 99 / 99, render smoke'u, terrain / akış / foliage / orman ölçümleri. Bulunan ve düzeltilenler: HLOD'un KTX2 dokuyu okumaması (`eab26b4`), Vite'ın `.forge-cache`'i taraması (`ded16da`), akış ölçüm level'ının paketle büyümesi. Faz 5 toplu görsel + performans kabulü kullanıcıda; kutular ve arşiv kabulü bekliyor.
+
+**Önceki güncelleme:** v2.03 · 2026-11-25 — 5d adım 9, bitki tarafı (bitki planı PG5 = E + F; `88913ec` `3ce003b` `e4982df` `62d153f` `6ef8a9b` `f838402`): tarif / aile / onay sayfası önizlemeleri, kaya tarifinin editörden üretimi, World Builder'da `generated` model kaynağı, örtüde tarif başvurusu, tekil bitki ve yerleşim ağacı. Kararlar kullanıcıda (öneriler gibi). Kullanıcı görsel kabulü bekleniyor (adım 8 ile birlikte).
 
 **Önceki güncelleme:** v2.02 · 2026-11-25 — 5d adım 8 (`54161a3`): World Builder penceresi (Add Actor > Terrain > World Builder…): seçimler, worker önizlemesi, yeni level'a kurulum, eksik paketi tek düğmeyle ekleme; örtü ağaçları ve kayalar GUID'le starter paketinden, bitkiler `forge.landscapeFoliage` kuralı. Kararlar kullanıcıda (öneriler gibi). Kullanıcı görsel kabulü bekleniyor.
 
@@ -2313,6 +2315,54 @@ serpilir (Forge gibi); ot yoğunluğu Forge'un değerleri, tek öbek için seyre
 viewport'ta tıklanıp seçilmez ve Focus (F) aktörün noktasını alır (GPU toplu yolu, PG2'den).
 Kullanıcı görsel kabulü bekleniyor.
 
+*Adım 10, teknik kapı (2026-11-25):* **Kapı** (`ded16da`): 2.733 / 2.733 test, editör
+`forceWebGL` 99 / 99, dist 1 / 1, proje denetimi 3 / 3. Gerçek WebGPU editör seti **99 / 99**.
+Render smoke'u 44 / 45; düşen `impostors (webgl, broadleaf)` tek başına geçti (ilk bakış IoU
+0,718 → 0,904; bilinen kararsız test). **Araç başına düzenle → kaydet → yeniden aç:** `landscape`,
+`landscapePaint`, `landscapeWorld`, `landscapeSpline`, `foliagePaint`, `foliage`, `worldBuilder`,
+`assets` spec'leri. **Ertelenen A:** Faz 5'e ertelenmiş A kalmadı; A 991 / 1.021, kalan 30 Faz 6
+(5), 7 (23) ve 8'de (2). **Collider:** G8 tam çözünürlükte azami 2,93 mm
+(`2026-11-25T09-50-59-981Z-g8.json`).
+
+Ölçümler (RTX 3060, gerçek WebGPU, `high`, DPR 1, commit `ded16da` temiz ağaç):
+
+| Ölçüm | Önceki kayıt | Bugün | Sınır |
+|---|---|---|---|
+| Terrain Derekavak 1440p ort. / p95 | 9,83 / 11,20 | 10,43 / 11,00 ms | 16,6 / 20 |
+| Terrain WbPilotValley 1440p | 4,54 / 5,30 | 4,99 / 5,60 ms | aynı |
+| Terrain Island 1440p | 4,01 / 4,60 | 4,18 / 4,50 ms | aynı |
+| Terrain OpenWorldTest 1440p | 2,04 / 2,50 | 2,08 / 2,40 ms | aynı |
+| Akış ilk uçuş p99 / en uzun kare | 8,5 / 43,6 | 6,0 / 45,3 ms | 20 / 50 |
+| G6 Derekavak P2 gönderim / ana iş parçacığı | 0,99 / 1,49 | 0,86 / 1,30 ms | 3 / 6 |
+| Üretilmiş orman yaz gönderim / ana | 1,16 / 1,67 | 1,47 / 2,01 ms | 3 / 6 |
+| Üretilmiş orman 15 m/s yürüyüş | 1,82 / 3,09 | 1,66 / 2,92 ms | 3 / 6 |
+
+Terrain 25 / 25 bütçede (kayıt `2026-11-25T09-52-39-560Z-terrain-measure.json`; önceki
+`2026-11-16T11-06-51-509Z`). Sahneler o günden beri foliage'ı da çizer; Derekavak'ın soğuk açılışı
+3,27 → 4,93 sn, tekil en uzun kare 58,6 ms. Orman: mevsim geçişinde pipeline +0, shader modülü +0, en uzun
+kare 9,0 ms; GPU belleği 451,3 MiB (tepe = canlı); hücre döngüsünde 2. döngüden sonra sabit (129
+geometri / 60 doku; ilk dönüşte 133 / 67, kayıt `2026-11-25T10-19-28-829Z-forest.json`). Foliage
+`2026-11-25T10-16-28-180Z-foliage.json`.
+
+**Akış ölçümü iki kez koştu.** İlk koşu (`2026-11-25T10-15-39-756Z-streaming.json`) üç ölçütte düştü:
+en uzun kare 50,5 ms (sınır 50) ve GPU geometri sayısı iki karşılaştırmada birebir değil (döngülerde
+264–266, artış yok; önbellek 128 sabit, heap +%1,1). Neden: `bench:streaming-level` projedeki bütün
+modelleri serper, 2026-11-17'den sonra starter'a giren 51 üretilmiş GLB (her LOD ayrı) de rastgele
+static mesh oldu (HLOD 1.643.744 → 18.921.584 üçgen). Üretilmiş modeller varsayılan olarak dışarıda
+bırakıldı (`--generated` geri alır); level birebir eski HLOD üçgenine (1.643.744) döndü ve ölçüm geçti
+(`2026-11-25T10-30-34-485Z-streaming.json`, araç değişikliği commit'lenmeden koştu): geometri / doku on
+döngüde 121 / 30. Ağır level'ın sonucu bilgi olarak kalır.
+
+**Bulunup düzeltilenler:** (1) HLOD üreticisi KTX2 dokuyu okuyamıyordu (sharp): 2026-11-19'dan beri
+üretilmiş kaya, kabuk ve yaprak proxy'leri materyal çarpanına düşüyordu, kayalar beyazdı. `decodeKtx2Rgba`
+(`ktx2-encoder`'ın kendi transcoder'ı, yeni bağımlılık yok), HLOD önbellek sürümü 2: önceden üretilmiş
+HLOD editörde bayat görünür (`eab26b4`). (2) Vite izleyicisi motorun `.forge-cache`'ini (4,3 GB) tarıyordu:
+dev server açılışı 20–31 sn → 2,3 sn; `devProject.test.ts` yük altında 60 sn'yi bu yüzden aşıyordu
+(`ded16da`).
+
+**Kullanıcı kabulü bekleyen:** adım 8 (World Builder penceresi), adım 9 (PG5), Faz 5 toplu görsel +
+performans kabulü. Kabulden sonra 5d ve faz kapısı kutuları işaretlenir, Faz 5 bölümü arşivlenir.
+
 - [x] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
       Faz 3 karar 1) üretim kalitesine çıkar: morph,
       tile seam, 8 boya katmanı, su birikintisi (kıyı ıslaklığı ve kostik
@@ -2757,6 +2807,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-25 | v2.04 | 5d adım 10 teknik kapı: tam kapı (2.733 test, editör 99 + 99 WebGPU), G8, ölçümler bütçede; HLOD KTX2 (`eab26b4`), `.forge-cache` izleyicisi (`ded16da`), akış ölçüm level'ı üretilmiş modelsiz. Faz 5 toplu kabulü kullanıcıda |
 | 2026-11-25 | v2.03 | 5d adım 9 (PG5 E + F, `88913ec` … `f838402`): kararlar (kullanıcı, öneriler gibi); önizlemeler, onay sayfası (SDK 0.1.15), `generated` kaynağı, tekil bitki ve yerleşim ağacı, starter'a Hazel + MeadowGrass çıktısı. `worldBuilder.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda. Sıradaki: adım 10 (5d kapısı, Faz 5 toplu kabulü) |
 | 2026-11-25 | v2.02 | 5d adım 8 (`54161a3`): kararlar (kullanıcı, öneriler gibi: yeni level, su notla, starter bitki / kaya, asset'ler GUID, Add Pack); World Builder penceresi, `/__forge/world-random`, önizleme worker'ı. `worldBuilder.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda. Sıradaki: 5d adım 9 (bitki tarafı, karar 6) |
 | 2026-11-25 | v2.01 | 5d adım 6'nın ve yol modeli tekrarının görsel kabulü (kullanıcı). Sıradaki: 5d adım 8 (B13) |
