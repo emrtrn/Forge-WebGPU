@@ -1,4 +1,7 @@
 // Ported from Forge WebGL src/scene/SceneRuntimeCore.ts. The local frame is the terrain centre.
+// Unlike Forge, a bent model repeats along a segment at about its own length (user decision
+// 2026-11-25) instead of being stretched over it once: the road follows the curve between a
+// segment's points and the model's details keep their length.
 import type { Vec3 } from "../legacy/layout.ts";
 import {
   computeLandscapeSplineMeshInstances,
@@ -54,6 +57,8 @@ export interface RoadMeshBuild {
 const MIN_LENGTH = 1e-6;
 const END_RING_TOLERANCE = 1e-5;
 const WELD_TOLERANCE = 1e-5;
+/** Copies of the model along one segment at most (a tiny model on a long segment). */
+const MAX_COPIES = 256;
 const WORLD_UP: Vec3 = [0, 1, 0];
 const WORLD_FORWARD: Vec3 = [0, 0, 1];
 
@@ -360,11 +365,17 @@ function bendChain(chain: LandscapeSplineMeshChain, model: RoadMeshModel, normal
   const yaw = rotation(chain.yawOffset);
   const extent = forwardExtent(model.parts, yaw);
   function* bendPieces(part: RoadMeshPart): Iterable<RoadMeshPart> {
+    const sourceLength = extent.max - extent.min;
     for (const { distanceStart, distanceEnd } of chain.segments) {
-      const piece = deformPart(part, {
-        ...chain, points, distanceStart, pathDistanceStart: distanceStart, pathDistanceEnd: distanceEnd,
-      }, normalAt, extent, yaw, sampledPath);
-      if (piece) yield piece;
+      const span = distanceEnd - distanceStart;
+      const copies = sourceLength > MIN_LENGTH ? Math.min(MAX_COPIES, Math.max(1, Math.round(span / sourceLength))) : 1;
+      for (let copy = 0; copy < copies; copy += 1) {
+        const start = distanceStart + (span * copy) / copies;
+        // The last copy ends exactly where the next segment starts.
+        const end = copy + 1 === copies ? distanceEnd : distanceStart + (span * (copy + 1)) / copies;
+        const piece = deformPart(part, { ...chain, points, distanceStart: start, pathDistanceStart: start, pathDistanceEnd: end }, normalAt, extent, yaw, sampledPath);
+        if (piece) yield piece;
+      }
     }
   }
   return model.parts.map((part) => mergeAndWeld(bendPieces(part)));

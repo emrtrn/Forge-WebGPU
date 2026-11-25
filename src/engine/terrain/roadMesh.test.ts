@@ -216,7 +216,8 @@ test("terrain-centred geometry stays local and banks with the cross slope at a l
   assert.deepEqual(built.problems, []);
   assert.equal(built.chunks.length, 1);
   const chunk = built.chunks[0]!;
-  assert.equal(rows(chunk.attributes.position!).length, 10);
+  // 18 m and 22 m: two copies of the 10 m model each, two strips a copy.
+  assert.equal(rows(chunk.attributes.position!).length, 18);
   const x = component(chunk, "position", 0);
   const y = component(chunk, "position", 1);
   assert.ok(Math.min(...x) > -52 && Math.max(...x) < -8);
@@ -284,6 +285,21 @@ test("chain resolution reverses compatible segments and stops at branches", () =
   const branch = spline("branch", [[0, 0, 0], [0, 0, 10], [10, 0, 0], [0, 0, -10]]);
   for (const segment of branch.segments) segment.startPointId = "0";
   assert.deepEqual(resolveLandscapeSplineMeshChains(branch).map((chain) => chain.segments.length), [1, 1, 1]);
+});
+
+test("a model repeats along a segment at about its own length, so a long segment follows its curve", () => {
+  const curve = { ...spline("curve", [[4, 0, 4], [4, 0, 34], [34, 0, 34]]), smooth: true };
+  const { chunks } = buildRoadMeshes({ splines: [curve], normalAt: flatNormal }, modelMap(strip([-2, 2])), oneCell);
+  const { totalLength, points } = resolveLandscapeSplineMeshChains(curve, 32)[0]!;
+  const centres = rows(chunks[0]!.attributes.position!).length / 2;
+  assert.ok(Math.abs(centres - 1 - totalLength / 4) <= 1, `${centres} rings over ${totalLength} m`);
+  // Each edge stays half a width (1 m) from the curve, between the points too.
+  for (const [x, , z] of rows(chunks[0]!.attributes.position!)) {
+    const distance = Math.min(...points.map((point) => Math.hypot(point[0] - x!, point[2] - z!)));
+    assert.ok(distance > 0.8 && distance < 1.3, `${distance} m from the curve`);
+  }
+  const uv = component(chunks[0]!, "uv", 1);
+  assert.ok(Math.abs(Math.max(...uv) - totalLength / 4) < 1e-3);
 });
 
 test("closed chains deform the closing segment through its full distance", () => {
@@ -386,8 +402,8 @@ test("model-wide yawed extent keeps a partial model part in its half of the segm
   const road = spline("parts", [[4, 0, 0], [4, 0, 20]], { ...bentMesh, yawOffset: 90 });
   const source = { splines: [road], normalAt: flatNormal };
   const { chunks } = buildRoadMeshes(source, modelMap(xForwardStrip(-5, 0), xForwardStrip(0, 5)), oneCell);
-  assert.deepEqual(chunks.map((chunk) => component(chunk, "position", 2).sort((a, b) => a - b)), [[0, 0, 10, 10], [10, 10, 20, 20]]);
-  assert.deepEqual(chunks.map((chunk) => component(chunk, "uv", 0).sort()), [[0, 0, 1, 1], [1, 1, 2, 2]]);
+  assert.deepEqual(chunks.map((chunk) => component(chunk, "position", 2).sort((a, b) => a - b)), [[0, 0, 5, 5, 10, 10, 15, 15], [5, 5, 10, 10, 15, 15, 20, 20]]);
+  assert.deepEqual(chunks.map((chunk) => component(chunk, "uv", 0).sort()), [[0, 0, 0.5, 0.5, 1, 1, 1.5, 1.5], [0.5, 0.5, 1, 1, 1.5, 1.5, 2, 2]]);
 
   const clamped = deformRoadPart(strip([-10, 10]), path([[0, 0, 0], [0, 0, 20]]), flatNormal, { min: -5, max: 5 });
   assert.ok(clamped);

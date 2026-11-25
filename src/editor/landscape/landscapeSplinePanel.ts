@@ -273,7 +273,7 @@ export function createSplineBlock(doc: Document, editing: TerrainEditing, spline
           meshAsset: assetRef({ assetType: "forge.model", label: "Mesh", hint: "Yol modeli; uzunluğu yerel +Z boyunca olmalı. Boşsa mesh yok." }),
           ...(hasMesh ? {
             meshEnabled: bool({ default: false, label: "Spline Mesh", hint: "Modeli segment boyunca çizer." }),
-            meshDeform: bool({ default: false, label: "Deform Along Curve", hint: "Modeli eğri boyunca büker; kapalıyken parçalar düz dizilir." }),
+            meshDeform: bool({ default: false, label: "Deform Along Curve", hint: "Modeli kendi uzunluğunda tekrarlayıp eğri boyunca büker; kapalıyken parçalar düz dizilir." }),
             meshAlign: bool({ default: false, label: "Align To Terrain", hint: "Modelin yukarı yönü arazinin normali." }),
             meshFit: bool({ default: true, label: "Fit To Segment", hint: "Düz dizilen parça segmentin boyuna uzatılır; kapalıyken Spacing kullanılır." }),
             meshSpacing: num({ default: DEFAULT_SEGMENT_MESH_SPACING, min: 0.01, max: 10000, step: 0.1, slider: [0.5, 50], label: "Spacing (m)", hint: "Fit kapalıyken parçalar arası uzaklık." }),
