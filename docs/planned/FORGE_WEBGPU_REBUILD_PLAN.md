@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.14 · 2026-11-25 — Bitki planı PG5b adım 5 (`e1891dd`, v0.22): türler (Maple, Birch, Oak, Poplar, Pine, Hazel) tek üreticide, meshopt'lu çıktı, eski sürümler kalktı; kullanıcı görsel kabulü. Sırada adım 6 (World Builder örtüleri). Faz W ayrı oturumda sürer.
+**Güncelleme:** v2.15 · 2026-11-25 — Faz W W0 kapandı (kullanıcı tasarım 9'un mekanizmasını onayladı); W1 yağış görseli (`49c76ce`): geç katman, yağmur / kar hacimleri, WES `precipitation` ayarları. Kullanıcı görsel kabulü bekleniyor; sırada W2.
+
+**Önceki güncelleme:** v2.14 · 2026-11-25 — Bitki planı PG5b adım 5 (`e1891dd`, v0.22): türler (Maple, Birch, Oak, Poplar, Pine, Hazel) tek üreticide, meshopt'lu çıktı, eski sürümler kalktı; kullanıcı görsel kabulü. Sırada adım 6 (World Builder örtüleri). Faz W ayrı oturumda sürer.
 
 **Önceki güncelleme:** v2.13 · 2026-11-25 — Faz W W0: `forge.worldEnvironment@3`, SDK `WorldEnvironmentServiceKey` (0.1.16), yağış okuması, saf yüzey durumu modeli (Codex), `measure:weather` tabanı (`cb0a856`). Kalan: tasarım 9'un mekanizma onayı (kullanıcı). Sırada W1.
 
@@ -624,8 +626,8 @@ changelog. Editör önizlemesi yeni büyüklükleri gösterir ve **hızlı oynat
 ("20 dk yağmur" gibi); level'a yazılmaz. Ajan aynı alanları `forge edit set` ile
 yazar.
 
-**9 · Yüzey fiziği sözleşmesi (yön kullanıcının, 2026-11-25; mekanizma öneri, kullanıcı W0'da
-onaylar).** Bugün bir boya katmanının
+**9 · Yüzey fiziği sözleşmesi (yön ve mekanizma kullanıcı onaylı,
+2026-11-25).** Bugün bir boya katmanının
 fizik materyali (`mud`, `sand`, `snow` …) sabittir ve `TerrainSurfaceSampler`
 tekere katman ağırlıklarıyla karışmış profili verir. Boya ve fizik materyali yine
 yazılmaz; **okunan** profil canlı olur:
@@ -655,7 +657,7 @@ yazılmaz; **okunan** profil canlı olur:
 (C: Claude, X: Codex; X'in diff'ini Claude inceler.) Her adım kendi editör
 yüzeyiyle biter.
 
-- [ ] **W0 Sözleşme.** Tasarım 9'un mekanizma onayı (kullanıcı); şema `@3` + geçiş zinciri; SDK;
+- [x] **W0 Sözleşme.** Tasarım 9'un mekanizma onayı (kullanıcı); şema `@3` + geçiş zinciri; SDK;
       ölçüm tabanı (WES açık; WES'siz karşılaştırma HV-10 ile W2'de). — C
       **Kod 2026-11-25 (`cb0a856`):** `@3` yalnız canlı durumu büyütür (`puddleFill`, `snowDepth`;
       0'da kalır), `@1` / `@2` kısmi güvenli kimlikle göçer. Sürüm 3 Faz W boyunca açık: yazılan
@@ -668,9 +670,23 @@ yüzeyiyle biter.
       0,34 / 0,37 / 0,37 ms; P2 gönderim 1,2–1,4, ana iş parçacığı 1,7–1,9 ms; hava değişiminde
       pipeline ve shader modülü +0. Turlar P2'de 2,4–3,9 ms arası oynar: 0,5 ms'nin altındaki fark
       tek koşudan okunmaz.
-      **Kutu mekanizma onayıyla kapanır.**
+      **Mekanizma onayı:** kullanıcı, 2026-11-25.
 - [ ] **W1 Yağış görseli.** TRAA denemesi → seçim; yağmur ve kar hacimleri, rüzgâr,
       ışık / sis, kalite. *Kapı:* HV-01, 02'nin açık alan kısmı; GPU bütçesi. — C
+      **Kod 2026-11-25 (`49c76ce`):** `features/precipitation` (bileşensiz), hareket saf
+      (`precipitationMotion.ts`), çizim `materials/precipitation.ts`: yakın + uzak hacim × yağmur /
+      kar, hacim başına tek instanced çizim, tane başına CPU işi ve buffer yok. Görünüm ayarları
+      WES'in `precipitation` grubunda (adet, görünürlük, hız, boy, salınım, rüzgâr, parlaklık).
+      Renk havanın (sisin) rengidir. *Geç katman* (`pipeline/lateLayer.ts`): pipeline'lı karede AA'dan
+      sonra kendi pass'i, sahne derinliğiyle yumuşak; doğrudan çizimde sahnenin altında, donanım
+      derinliğiyle. Boşken pass atlanır. *TRAA denemesi:* aynı yağmur sahne pass'inde damla tepe
+      parlaklığı 82–86 yerine 68–72, ayrıca MRT'nin normal / hızını ezer; geç katman seçildi.
+      *İlk damla:* çizimler WES varken önceden derlenir, hava değişiminde pipeline +0 (beş yol: SMAA,
+      TRAA, doğrudan; WebGPU ve WebGL2). *Maliyet* (`2026-11-25T16-42-44-611Z-weather.json`; aynı
+      koşuda çizilen / çizilmeyen, turların en düşüğü): Derekavak yağmur +0,23 ms, kar −0,08 ms
+      (gürültü), L03 −0,03 / −0,01 ms; bütçe 0,8. **Sınırlar:** çatı altına ve odaya da yağar (W3);
+      doğrudan çizimde planar yansımaya girmemesi ve asset önizlemesi ayrıca denenmedi; yağış sesi 6c.
+      **Kutu kullanıcı görsel kabulüyle kapanır** (çekimler `render-refs/candidates/precipitation-*`).
 - [ ] **W2 Zamanlı hava geçişi.** Saf geçiş (X) + etken karışımı, Sky Light hızı,
       yağış şiddetinin bağı (C). *Kapı:* HV-03, 10.
 - [ ] **W3 Yağış siperi.** Harita, yenileme koşulları, yağış ve terrain bağı.
@@ -1144,6 +1160,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-25 | v2.15 | Faz W W0 kapandı (kullanıcı tasarım 9'un mekanizmasını onayladı); W1 yağış görseli (`49c76ce`): geç katman, yağmur / kar hacimleri, WES `precipitation` ayarları. Kullanıcı görsel kabulü bekleniyor; sırada W2. |
 | 2026-11-25 | v2.14 | Bitki planı PG5b adım 5 (`e1891dd`, v0.22): türler (Maple, Birch, Oak, Poplar, Pine, Hazel) tek üreticide, meshopt'lu çıktı, eski sürümler kalktı; kullanıcı görsel kabulü. Sırada adım 6 (World Builder örtüleri). Faz W ayrı oturumda sürer. |
 | 2026-11-25 | v2.13 | Faz W W0: `forge.worldEnvironment@3`, SDK `WorldEnvironmentServiceKey` (0.1.16), yağış okuması, saf yüzey durumu modeli (Codex), `measure:weather` tabanı (`cb0a856`). Kalan: tasarım 9'un mekanizma onayı (kullanıcı). Sırada W1. |
 | 2026-11-25 | v2.12 | Faz 5 kapandı (kullanıcı görsel kabulü); bölüm `docs/archive/PHASE_5.md`'de. Faz W başladı: W0. |

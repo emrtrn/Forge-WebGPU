@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.86 · 2026-11-25 — §4.9 hava sözleşmesi W0: `forge.worldEnvironment@3`, SDK `WorldEnvironmentServiceKey`, `surfaceCondition` modeli.
+**Güncelleme:** v1.87 · 2026-11-25 — §4.9 hava sözleşmesi W1: geç katman (AA'dan sonra, alan derinliği ve bloom'dan önce) ve yağış çizimi.
+
+**Önceki güncelleme:** v1.86 · 2026-11-25 — §4.9 hava sözleşmesi W0: `forge.worldEnvironment@3`, SDK `WorldEnvironmentServiceKey`, `surfaceCondition` modeli.
 
 **Önceki güncelleme:** v1.85 · 2026-11-25 — §4.9 hava sözleşmesi: HK8–HK10 kapandı (yağmur katman isterse fiziği değiştirir, boyanmış kar kalıcı, karda karakter Faz 8'de ayrı karar).
 
@@ -2255,6 +2257,14 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     `surfaceCondition.ts` dört büyüklüğün saf modeli (olay noktalarında bölünür,
     adım bağımsız; W5 bağlar). SDK 0.1.16: `WorldEnvironmentServiceKey` (aynı
     denetleyici; WES yoksa `current()` null, istekler etkisiz).
+  - **W1 uygulaması (2026-11-25):** *geç katman* (`render/pipeline/lateLayer.ts`,
+    bağlamaya `ctx.late`): kenar yumuşatmanın geçmişine ve MRT'ye girmemesi gereken
+    saydam çizimler. Pipeline'da AA → geç katman → DoF → bloom; kendi küçük sahnesi,
+    sahnenin sis düğümü, sahne derinliğinden yumuşak görünürlük. Pass'sız karede kökü
+    dünyanın sahnesine asılır, donanım derinliği sınar; geçiş tek uniform, materyal
+    yeniden kurulmaz. Boşken pass çizilmez; içindeki çizimler görünmeden derlenir.
+    `features/precipitation` WES'in canlı yağışını ve `precipitation` ayarlarını
+    okur; hareketin saf yarısı `engine/environment/precipitationMotion.ts`.
   - Tasarım, adımlar ve HV-01–13 [plan Faz W'de](FORGE_WEBGPU_REBUILD_PLAN.md).
 - *Terrain:* Faz 3'te salt çizim (spike S2'nin TSL CDLOD'u: yükseklik, 8
   katman, normal, gölge); su birikintisi, tile akışı ve üretim kalitesi 5a'da;
