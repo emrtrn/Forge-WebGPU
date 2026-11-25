@@ -1,6 +1,7 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.17 · 2026-11-22 (PG4 görsel kabul ve kapanış, §9.5–9.6).
+**Sürüm:** v0.18 · 2026-11-25 (PG5 editörü ve World Builder bağlantısı, §9.7; görsel kabul bekleniyor).
+Önceki: v0.17 · 2026-11-22 (PG4 görsel kabul ve kapanış, §9.5–9.6).
 Önceki: v0.16 (şerit/demet ot ve WebGPU yakın–uzak doğrulaması, §9.6).
 Önceki: v0.14 (meşenin iç taç dağılımı ve doğal LOD karşılaştırması, §9.3–9.4).
 Önceki: v0.11 · 2026-11-19 (kullanıcı PG3 / PV-WES görsel kabulünü verdi; kabuk / kaya
@@ -11,7 +12,7 @@ taş doku tarifi, triplanar + `variation`, A / C ölçümü).
 
 **Önceki sürüm:** v0.6 · 2026-11-14 (WES ile birleşik bitki ailesi, ortak çalışma
 zamanı davranışı ve 5c ile birlikte ilerleyen üretim dilimi; kullanıcı kararı).
-**Durum:** PG0–PG3 uygulandı (5c ile, 2026-11-17 – 2026-11-19). PG4, çok saplı Hazel ve şerit/demet MeadowGrass için WebGPU doğrulaması ve kullanıcı görsel onayıyla kapandı (2026-11-22, §9.5–9.6). PG5 açık. PG6–PG7 ileride.
+**Durum:** PG0–PG3 uygulandı (5c ile, 2026-11-17 – 2026-11-19). PG4, çok saplı Hazel ve şerit/demet MeadowGrass için WebGPU doğrulaması ve kullanıcı görsel onayıyla kapandı (2026-11-22, §9.5–9.6). PG5'in kodu ve teknik kapısı tamam (2026-11-25, §9.7); kullanıcı görsel kabulü bekleniyor. PG6–PG7 ileride.
 Başlama koşulu §2'de.
 **İlgili belgeler:** [yeniden inşa planı](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
 sırası; küçük üretim dilimi 5c ile birlikte, tam araçlar 5d ile ilerler),
@@ -508,7 +509,7 @@ kapanma davranışları ayrı genişlemelerdir.
 
 ## 7. World Builder bağlantısı
 
-### 7.1 Bugünkü durum (Forge WebGL, 2b'de taşınıyor)
+### 7.1 Başlangıçtaki durum (Forge WebGL, 2b'de taşındı)
 
 - Brief'te model satırları: `role`, `source`, `file`, `variant`. Kaynaklar
   `blender | tripo | ready` (`engine/worldbuilder/worldBrief.ts`).
@@ -521,7 +522,9 @@ kapanma davranışları ayrı genişlemelerdir.
 
 Taşınmış hâli başlarken yeniden doğrulanır; adlar değişmiş olabilir.
 
-### 7.2 Önerilen bağlantı
+### 7.2 Bağlantı
+
+1, 2, 3 ve 5 uygulandı (2026-11-25, §9.7); 4 (bağlı tarifler) PG6'da.
 
 1. **Yeni model kaynağı:** `generated`. Satır dosya yolu yerine tarifi
    gösterir; çözümleme bitkilerde aile referansı üretir. Tekil yerleşim bitki
@@ -1007,6 +1010,42 @@ Yerel adaylar [canlı düzenleme](../../.forge-cache/pg4-grass/review/editor-wid
 [sabit pozda fade karşılaştırması](../../.forge-cache/pg4-grass/review/fade-control.png) ve
 [kare başına sayaçlar](../../.forge-cache/pg4-grass/review/camera-metrics.csv).
 
+### 9.7 PG5 · Editör ve World Builder bağlantısı
+
+**Editör (E, 2026-11-25).** Ağaç / çalı / ot / kaya tarifi önizlemesi Source, LOD'lar
+ve impostor'u yan yana ya da bütün tohumları birlikte gösterir; ailenin belleğini
+yazar, mevsim / kar / ıslaklık / rüzgârı yalnız önizlemede dener. Kaya tarifi de
+editörden üretilir. Related bölümü tarifin ailesini, materyal ve doku tariflerini,
+foliage türlerini ve onu kullanan örtüleri açar. Aile önizlemesi prototipleri,
+LOD'ları ve tekil `forge.plant`'i foliage örneğinin yanında dört mevsimde çizer.
+Onay sayfası (`forge.familySheet`) projedeki ve paketlerdeki çıktılı tarifleri
+listeler; kart seçilince çıktısı önizlemede görünür; onay / red / not kaydedilir,
+onaylanan çıktı sonradan değişirse "Changed" olur.
+
+**World Builder (F, 2026-11-25).** Brief'in model satırı `source: "generated"` +
+`recipe` (tarif GUID'i); örtünün bitkisi `recipe`. Kaya rolleri üretilmiş
+modellere, bitki tarifini gösteren landmark / prop rolleri `forge.plant`
+aktörüne, örtü bitkileri prototip başına bir foliage kuralına çözülür (kuralın
+yoğunluğu paylaşılır). Rastgele dünya her yerleşimin meydanına ya da merkezine en
+yakın açık yere bir ağaç koyar (bina, yol ve sudan uzak). Altı örtü tariflere
+bağlı: Broadleaf, Conifer, Hazel, MeadowGrass. Rapor: "no output", "rejected" ve
+"Not approved" satırları (pencere ve CLI).
+
+**Kanıt.** `recipeOutputs` / `recipeLinks` / `recipeMemory` / `familySheet` /
+`worldBuild` / `worldLevel` testleri; `tools/world/generatedModels.test.ts` (yer
+tutucu kaya yok, yerleşim başına bir Broadleaf, her kural aileden; reddedilen
+kurulmuyor; proje tarifi bir kez üretiliyor ve elle düzenlenen ailesi korunuyor;
+paketin çıktısız tarifi raporda). Editör: `assets.spec.ts` (tarif düzenle → üret →
+kaydet → yeniden aç; aile / mevsim; onay sayfası) ve `worldBuilder.spec.ts` (dünya
+kur → ağacı düzenle → kaydet → yeniden aç; sayfa Content Browser'da), WebGL'de ve
+gerçek WebGPU'da. Kontrol çekimi `.forge-cache/world-builder/nature-webgpu.png`.
+
+**Sınırlar.** Çöl çalısının (`desert-shrub`) tarifi yok. Kayalar Forge'daki gibi
+yalnız vadi profilli arazilerde serpilir. Ot yoğunlukları Forge'un değerleri ve
+tek öbekler için seyrek; ayarı örtü belgesinde. `forge.plant` viewport'ta
+tıklanarak seçilmez, Focus aktörün noktasını alır (GPU toplu çizim; Outliner'dan
+seçilir). Oak ve Poplar çıktısız.
+
 ## 10. Adımlar
 
 Her adım dikey bir dilimdir ve kendi kapısıyla biter. Görsel beğeni kullanıcı
@@ -1191,6 +1230,8 @@ kullanıcıda).
       dünyada doğa varlıkları için hazır model yok; kaya rolleri doluyor,
       tekil bitki / foliage aileyi kullanıyor; panel düzenle → üret → kaydet →
       yeniden aç çalışıyor; onay sayfası Content Browser'da görünüyor.
+      **2026-11-25:** kod ve teknik kapı tamam (§9.7). Kutu kullanıcı görsel
+      kabulüyle kapanır. Bağlı tariflerin `linked` alanı ilk üreticisiyle PG6'da.
 - [ ] **PG6 Ölü odun, döküntü, iğne yapraklı.** *Kapı:* kütük ve döküntü
       bağlı ağaç tarifinden türüyor; PG2'nin iğne yapraklı örneği daha geniş
       ön ayarlarla kart bütçesinde. İsteğe bağlı yakın çevre yaprak efekti
@@ -1243,6 +1284,13 @@ verilebilir; tasarım, TSL materyalleri, editör paneli ve inceleme Claude'da.
 | Tarif asset türü | Üretici başına bir şemalı tür (`forge.rockRecipe`, `forge.treeRecipe`, …); ortak alanlar aynı adlarla (kullanıcı, 2026-11-18) |
 | Bitki LOD çıktısı | LOD başına tek GLB; odun ve yaprak iki primitive / materyal slotu; yaprak küme kimliği ve dökülme eşiği köşe niteliğinde (kullanıcı, 2026-11-18) |
 | Mevsimsel uzak temsil (eski PK7) | Odun / yaprak ayrımı: impostor atlasında iki katman, yaprak katmanında dökülme eşiği; ek mevsim atlası yok. Sınırlı mevsim atlası ölçümde bellek ve GPU'da kazanç göstermedi, ara mevsimi ve odun / yaprak tonunu kaybetti (ölçüm 2026-11-19, §10 PG3) |
+| PG5 · aile onayı | Projede ayrı `*.familysheet.json`: tarif, durum, not, onaylanan çıktının özeti; çıktı değişirse "Changed" (kullanıcı, 2026-11-25) |
+| PG5 · onaysız aile | Bekleyen / değişen kullanılır ve raporlanır; reddedilen kurulmaz; sayfası olmayan projede onay aranmaz (kullanıcı, 2026-11-25) |
+| PG5 · `generated` başvurusu | Tarif GUID'i (brief satırı ve örtü bitkisi); prototipler yoğunluğu paylaşır (kullanıcı, 2026-11-25) |
+| PG5 · eksik çıktı | Proje tarifi kurulumda üretilir; var olan çıktıya dokunulmaz; paket tarifi "no output" raporlanır (kullanıcı, 2026-11-25) |
+| PG5 · tekil bitki | Brief'in landmark / prop satırları ve rastgele dünyada yerleşim başına bir `vegetation.tree` (kullanıcı, 2026-11-25) |
+| PG5 · bağlı tarifler | Editörde Related bölümü; `linked` alanı PG6'da (kullanıcı, 2026-11-25) |
+| PG5 · starter çıktıları | Hazel ve MeadowGrass; Oak / Poplar C aşamasının kabulünü bekler (kullanıcı, 2026-11-25) |
 | Üretilmiş dokuların sıkıştırması | `forge generate` ağaç atlaslarını ve yüzey dokusu tariflerini (kabuk, kaya) doğrudan KTX2 (UASTC + Zstd, mip'li) yazar; PNG yok (kullanıcı, 2026-11-19). Çalışma anında bake edilen GLB atlası RGBA8 kalır |
 
 **Açık:** yok (PK7 PG3'te ölçümle kapandı).
@@ -1318,6 +1366,7 @@ kurallarına göre yeniden yazılır.
 
 | Tarih | Sürüm | Not |
 |---|---|---|
+| 2026-11-25 | v0.18 | PG5: E (`88913ec` `3ce003b` `e4982df`) ve F (`62d153f` `6ef8a9b` `f838402`); kararlar kullanıcıda (öneriler gibi). §9.7. Görsel kabul bekleniyor |
 | 2026-11-22 | v0.17 | MeadowGrass görsel onayı kaydedildi (§9.6). Hazel ve MeadowGrass kabulüyle PG4 kapandı. PG5 açık. |
 | 2026-11-11 | v0.1 | Plan yazıldı; prosedürel üretim kararı ve zamanlama (kullanıcı). Eski araştırma raporu ve kapsam envanteri kaldırıldı. Uygulama yok |
 | 2026-11-11 | v0.2 | Tarif A13 veri asset'i, çıktı kalıcı dosya (kullanıcı kararları; PK1 ve PK2 kapandı). §6.7'ye CPU / GPU bake hız karşılaştırması eklendi; PK3 açık |

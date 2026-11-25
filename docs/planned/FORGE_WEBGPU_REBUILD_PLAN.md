@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.02 · 2026-11-25 — 5d adım 8 (`54161a3`): World Builder penceresi (Add Actor > Terrain > World Builder…): seçimler, worker önizlemesi, yeni level'a kurulum, eksik paketi tek düğmeyle ekleme; örtü ağaçları ve kayalar GUID'le starter paketinden, bitkiler `forge.landscapeFoliage` kuralı. Kararlar kullanıcıda (öneriler gibi). Kullanıcı görsel kabulü bekleniyor.
+**Güncelleme:** v2.03 · 2026-11-25 — 5d adım 9, bitki tarafı (bitki planı PG5 = E + F; `88913ec` `3ce003b` `e4982df` `62d153f` `6ef8a9b` `f838402`): tarif / aile / onay sayfası önizlemeleri, kaya tarifinin editörden üretimi, World Builder'da `generated` model kaynağı, örtüde tarif başvurusu, tekil bitki ve yerleşim ağacı. Kararlar kullanıcıda (öneriler gibi). Kullanıcı görsel kabulü bekleniyor (adım 8 ile birlikte).
+
+**Önceki güncelleme:** v2.02 · 2026-11-25 — 5d adım 8 (`54161a3`): World Builder penceresi (Add Actor > Terrain > World Builder…): seçimler, worker önizlemesi, yeni level'a kurulum, eksik paketi tek düğmeyle ekleme; örtü ağaçları ve kayalar GUID'le starter paketinden, bitkiler `forge.landscapeFoliage` kuralı. Kararlar kullanıcıda (öneriler gibi). Kullanıcı görsel kabulü bekleniyor.
 
 **Önceki güncelleme:** v2.01 · 2026-11-25 — 5d adım 6'nın ve yol modeli tekrarının görsel kabulü (kullanıcı, 2026-11-25). Sırada adım 8: World Builder penceresi (B13).
 
@@ -2040,7 +2042,7 @@ A–F sırasıyla yürür; ağaç tarifi editörü (`ff7ce85`) ve sürümlü bü
 7. ~~Mesh Paint~~ (karar 4: çıkarıldı).
 8. World Builder penceresi, `/__world-random` uç noktası, önizleme worker'ının
    bağlanması; üretilen level Content Browser'da — C. B13.
-9. Bitki tarafı (karar 6) — bitki planının akışıyla.
+9. Bitki tarafı (karar 6) — bitki planının akışıyla (PG5; 2026-11-25, görsel kabul bekleniyor).
 10. Kapı: araç başına editör smoke'u (düzenle → kaydet → yeniden aç), ertelenen
     5d A'ları yeşil (`worldTerrainMove`'un 1 A'sı adım 4'te; su kullanan 3 A Faz 7'de), Faz 5 toplu görsel + performans kabulü (kullanıcı), ardından Faz 5
     bölümünün arşivi.
@@ -2286,6 +2288,30 @@ ilgili editör spec'leri WebGL'de 29 / 29, WebGPU'da 7 / 7. Sonraya: su aktörle
 çalı / ot türleri (bitki akışı), World Builder girdilerinin GUID başvurusu (yapılmadı, karar).
 Starter Conifer'ın seyrek iğne yaprağı üretilen ormanda görünür (bitki planı). Kullanıcı
 görsel kabulü bekleniyor.
+
+*Adım 9 kararları (kullanıcı, 2026-11-25, öneriler gibi):* sıra E, sonra F; onay projede ayrı
+`*.familysheet.json` asset'inde (durum, not, onaylanan çıktının özeti); starter'a Hazel ve
+MeadowGrass çıktısı girer (≈ 1 MB), Oak / Poplar C kabulünü bekler; onay bekleyen ya da değişen
+aile kullanılır ve raporlanır, reddedilen kurulmaz; `generated` satır ve örtü bitkisi tarif GUID'i
+gösterir; çıktısı olmayan proje tarifi kurulumda üretilir, paket tarifi raporlanır; tekil bitki
+brief satırlarından ve yerleşim başına bir ağaçtan; `linked` alanı PG6'ya, editörde Related bölümü.
+
+*Adım 9 (2026-11-25):* bitki tarafı; ayrıntı [bitki planı §9.7](PROCEDURAL_VEGETATION_AND_PROPS_PLAN.md#97-pg5--editör-ve-world-builder-bağlantısı).
+**E:** tarif önizlemesi (Source / LOD / impostor yan yana, tohum galerisi, bellek, hava), kaya
+tarifinin editörden üretimi, Related bölümü (`88913ec`); aile ve mevsim önizlemesi, tekil bitki
+foliage'ın yanında (`3ce003b`); `forge.familySheet` onay sayfası, SDK 0.1.15 (`e4982df`).
+**F:** starter çıktıları (`62d153f`); `generated` kaynağı, `engine/worldbuilder/generatedModels.ts`,
+örtünün `plants[].recipe`'i, `forge.plant` yerleşimi, `build/settlementTrees.ts`, eksik proje
+çıktısının üretilmesi (`6ef8a9b`). **Kanıt:** ilgili vitest 337 / 337; `tools` 350 / 351, tek düşen
+SDK sürümü beklentisi `b7f2981` ile düzeltildi; `tools/world/generatedModels.test.ts` (üretilen dünya,
+onay sayfası, proje tarifini üretme); `worldBuilder.spec.ts` (kur → tekil bitki / foliage aileleri →
+düzenle → kaydet → yeniden aç → onay sayfası Content Browser'da, `f838402`) forceWebGL ve gerçek
+WebGPU'da; `assets` / `content` / `engineContent` / `foliage` spec'leri WebGL'de 30 / 30; E2'nin render
+değişikliği için plants / impostors / foliageWind / foliageRing render smoke'u 10 / 10. **Sınırlar:**
+`desert-shrub`'ın tarifi yok; binalar ve çitler yer tutucu; kayalar yalnız vadi profilli arazide
+serpilir (Forge gibi); ot yoğunluğu Forge'un değerleri, tek öbek için seyrek; `forge.plant`
+viewport'ta tıklanıp seçilmez ve Focus (F) aktörün noktasını alır (GPU toplu yolu, PG2'den).
+Kullanıcı görsel kabulü bekleniyor.
 
 - [x] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
       Faz 3 karar 1) üretim kalitesine çıkar: morph,
@@ -2731,6 +2757,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-25 | v2.03 | 5d adım 9 (PG5 E + F, `88913ec` … `f838402`): kararlar (kullanıcı, öneriler gibi); önizlemeler, onay sayfası (SDK 0.1.15), `generated` kaynağı, tekil bitki ve yerleşim ağacı, starter'a Hazel + MeadowGrass çıktısı. `worldBuilder.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda. Sıradaki: adım 10 (5d kapısı, Faz 5 toplu kabulü) |
 | 2026-11-25 | v2.02 | 5d adım 8 (`54161a3`): kararlar (kullanıcı, öneriler gibi: yeni level, su notla, starter bitki / kaya, asset'ler GUID, Add Pack); World Builder penceresi, `/__forge/world-random`, önizleme worker'ı. `worldBuilder.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda. Sıradaki: 5d adım 9 (bitki tarafı, karar 6) |
 | 2026-11-25 | v2.01 | 5d adım 6'nın ve yol modeli tekrarının görsel kabulü (kullanıcı). Sıradaki: 5d adım 8 (B13) |
 | 2026-11-25 | v2.00 | 5d adım 6 (`c3f7f0e`): kararlar (kullanıcı, öneriler gibi: araç seçilince, hedef saklanmaz, 7 araç + eylemler, Fill 20.000); Foliage fırçası, darbe başına undo, level parçası kaydı; hücresiz level'da boyanmış foliage oyunda çizilir. Yol modeli segment boyunca tekrarlanır (`ec45418`, kullanıcı kararı). `foliagePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda. Sıradaki: 5d adım 8 (B13) |

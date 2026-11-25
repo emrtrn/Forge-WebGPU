@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.80 · 2026-11-25 — §4.4 5d adım 8: World Builder penceresi (yeni level'a kurulum, paket ekleme, uç noktalar); §4.6 World Builder girdilerinde asset başvuruları GUID, girdi yolları etiket.
+**Güncelleme:** v1.81 · 2026-11-25 — §4.4 5d adım 9: `generated` model kaynağı tarif GUID'i, onay sayfası asset'i (`forge.familySheet`), tekil bitki yerleşimi; §4.6 tarif başvuruları.
+
+**Önceki güncelleme:** v1.80 · 2026-11-25 — §4.4 5d adım 8: World Builder penceresi (yeni level'a kurulum, paket ekleme, uç noktalar); §4.6 World Builder girdilerinde asset başvuruları GUID, girdi yolları etiket.
 
 **Önceki güncelleme:** v1.79 · 2026-11-25 — §4.4 5d adım 6: boyanmış foliage'ın düzenlenmesi (`FoliagePaintSession`, `LevelFoliageSource.edits`, hedef saklanmaz); spline mesh'i segment boyunca tekrarlanır.
 
@@ -1156,6 +1158,15 @@ features/height-fog/
     --request`), tek kurulum, NDJSON olaylar (`tools/server/worldBuilder.ts`); editör
     (`editor/worldBuilder/`) yalnız istemci. Seçimler tarayıcı depolamasında, dünyanın
     kaydı level'ın yanındaki brief'te.
+  - *Adım 9 kararları (kullanıcı, 2026-11-25, öneriler gibi; PG5):* brief'in `generated` model
+    satırı ve örtünün bitkisi tarif GUID'i gösterir; çıktı GUID'leri tariften türediği için
+    (`engine/procgen/recipeOutputs.ts`) liste tutulmaz. Kaya tarifi static mesh modellerine,
+    ağaç / çalı / ot tarifi `forge.plant` aktörüne ya da foliage türlerine çözülür
+    (`engine/worldbuilder/generatedModels.ts`; yayımlanmış prototipler yoğunluğu paylaşır). Onay
+    `forge.familySheet` asset'inde (tarif, durum, not, onaylanan çıktının özeti); yeniden üretim
+    onu değiştirmez, özet tutmazsa durum "changed" okunur. Sayfası olan projede onaysız aile kurulur
+    ve `review`'da raporlanır, reddedilen kurulmaz. Kurulum yalnız projenin çıktısız tarifini üretir;
+    var olan çıktıya ve pakete dokunmaz.
   - *Terrain Details düzeni (kullanıcı kararı 2026-11-20):* `ComponentPresentation.details:
     "tool"` (SDK 0.1.14): ad, bileşenin Details eki, öteki bileşenler, bileşenin
     kendi alanları en altta kapalı; Class, transform, pivot / yerleşim, Remove,
@@ -1412,7 +1423,7 @@ düşen alan uyarı değil, **hatadır**.
     etiketi: `content/levels/…`, `engine:content/packs/worldbuilder/…`):
     Forge'un normalize fonksiyonları ve kontrolleri yol kuralını sınıyor;
     girdi başvuruları yol etiketi kalır, asset başvuruları GUID'dir (kullanıcı kararı
-    2026-11-25: örtünün `plants[].foliageType`'ı, brief'in `models[].file`'ı; dizin toplar).
+    2026-11-25: örtünün `plants[].foliageType` / `recipe`'i, brief'in `models[].file` / `recipe`'i; dizin toplar).
   - *Dizin:* `src/core/assets` saftır: içerik köklerinin dosya listesini (JSON
     içerikleri ayrıştırılmış) alır, diski `tools/assets` okur. Kurulum: kimlik
     (meta'sız ikili, ikilisiz meta, aynı GUID iki dosyada → yol sırasında ilki
