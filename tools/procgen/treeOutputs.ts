@@ -20,26 +20,15 @@
 // Textures are KTX2 (tools/procgen/ktx2.ts; PG3, user decision 2026-11-19).
 
 import type { JsonObject } from "../../src/core/index.ts";
-import type { BakeTexture } from "../../src/engine/procgen/bake/rasterizer.ts";
 import { writeGlb, type GlbPrimitive } from "../../src/engine/procgen/glb.ts";
 import { meshBounds } from "../../src/engine/procgen/mesh.ts";
 import { defaultTreeLeafMaterial, treeRecipeAtlas } from "../../src/engine/procgen/tree/treeRecipe.ts";
 import { treeOutputVersion } from "../../src/engine/procgen/tree/treeGrowth.ts";
 import { generateTree } from "../../src/engine/procgen/tree/treeGenerator.ts";
-import { bakeTreeImpostor, type TreeImpostorSurface } from "../../src/engine/procgen/tree/treeImpostor.ts";
+import { bakeTreeImpostor } from "../../src/engine/procgen/tree/treeImpostor.ts";
+import { treeImpostorSurfaces, type TreeLooks } from "../../src/engine/procgen/tree/treeLook.ts";
 import { binaryWithMeta, documentOutput, GENERATED_MODEL_OPTIMIZE, outputId, round, type Output } from "./outputs.ts";
 import { encodeRgbaKtx2 } from "./ktx2.ts";
-
-/** How a material looks to the bake (generate.ts reads it from the material document). */
-export interface MaterialLook {
-  /** sRGB 0..1 base colour. */
-  readonly color: readonly [number, number, number];
-  /** Its decoded base colour texture; "leafAtlas" when it is this recipe's own leaf texture. */
-  readonly texture: BakeTexture | "leafAtlas" | null;
-  readonly tiling: readonly [number, number];
-  readonly flipY: boolean;
-  readonly alphaTest: number;
-}
 
 const toLinear = (byte: number): number => { const c = byte / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
 const toSrgbByte = (linear: number): number => {
@@ -67,7 +56,7 @@ function leafMeanHex(rgba: Uint8Array, width: number): string | null {
 
 export async function treeOutputs(
   recipeId: string, data: JsonObject, folder: string, stem: string, stats: string[],
-  looks: { readonly wood: MaterialLook | null; readonly leaf: MaterialLook | null } = { wood: null, leaf: null },
+  looks: TreeLooks = { wood: null, leaf: null },
 ): Promise<Output[]> {
   const outputs: Output[] = [];
   const version = treeOutputVersion(data.generatorVersion);
@@ -91,18 +80,7 @@ export async function treeOutputs(
   binaryWithMeta(outputs, `${folder}/${stem}_leaf.ktx2`, leafTextureId, "forge.texture@2", leafBytes, { anisotropy: 4, mipmaps: true }, generated);
   stats.push(`${stem}_leaf.ktx2: ${leafAtlas.size} × ${leafAtlas.size} (leaf + ${leafAtlas.atlas.clusters.length} branch-tip cards), ${leafBytes.length} bytes, ${Math.round(performance.now() - leafStarted)} ms`);
 
-  const surfaceOf = (look: MaterialLook | null, fallback: readonly [number, number, number], alphaTest: number): TreeImpostorSurface => ({
-    color: look?.color ?? fallback,
-    texture: look?.texture === "leafAtlas" ? { width: leafAtlas.size, height: leafAtlas.size, rgba: leafAtlas.rgba } : look?.texture ?? null,
-    tiling: look?.tiling ?? [1, 1],
-    flipY: look?.flipY ?? true,
-    alphaTest: look ? look.alphaTest : alphaTest,
-  });
-  const impostorLooks = {
-    wood: surfaceOf(looks.wood, [0.35, 0.27, 0.2], 0),
-    // Without a leaf material the GLB's own "Leaf" colour over the atlas, as the model draws.
-    leaf: surfaceOf(looks.leaf ?? { color: [1, 1, 1], texture: "leafAtlas", tiling: [1, 1], flipY: true, alphaTest: 0.5 }, [1, 1, 1], 0.5),
-  };
+  const impostorLooks = treeImpostorSurfaces(looks, leafAtlas);
 
   const familyId = outputId(recipeId, "tree/family");
   const prototypes: JsonObject[] = [];

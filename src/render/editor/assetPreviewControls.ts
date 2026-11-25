@@ -83,14 +83,18 @@ export function createAssetPreviewControls(surface: HTMLElement, camera: Perspec
   surface.addEventListener("pointerup", up, true); surface.addEventListener("pointercancel", up, true);
   surface.addEventListener("wheel", wheel, { capture: true, passive: false }); surface.addEventListener("contextmenu", swallow, true);
   return {
-    frame(subject: Object3D) {
+    /** `front`: a row of columns along X seen head-on, filling the view's width. */
+    frame(subject: Object3D, front = false) {
       subject.updateMatrixWorld(true);
       const box = new Box3().setFromObject(subject);
       if (box.isEmpty()) box.setFromCenterAndSize(new Vector3(), new Vector3(2, 2, 2));
       box.getCenter(target);
       const radius = Math.max(box.getSize(new Vector3()).length() / 2, 0.1);
-      const distance = radius / Math.sin(camera.fov * Math.PI / 360) * 1.1;
-      camera.position.copy(target).addScaledVector(new Vector3(1, 0.75, 1).normalize(), distance);
+      const half = Math.tan(camera.fov * Math.PI / 360), size = box.getSize(new Vector3());
+      const distance = front
+        ? (Math.max(size.y, size.x / camera.aspect) / 2 / half + size.z / 2) * 1.2
+        : radius / Math.sin(camera.fov * Math.PI / 360) * 1.1;
+      camera.position.copy(target).addScaledVector(front ? new Vector3(0, 0.12, 1).normalize() : new Vector3(1, 0.75, 1).normalize(), distance);
       camera.near = distance / 1000; camera.far = distance * 100;
       camera.lookAt(target); camera.updateProjectionMatrix();
     },

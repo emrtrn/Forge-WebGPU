@@ -61,6 +61,8 @@ export interface PlantWorld {
   sync(frame: object, dt: number, camera: { x: number; y: number; z: number } | null): void;
   /** The hook of a family's instances (with its sway, if any). */
   shading(family: PlantFamilyDraw, sway: FoliageSway | null, fadeEnd: number): InstanceShading;
+  /** A drawn family's response edited (an editor preview): its uniforms follow, no program is rebuilt. */
+  setResponse(family: string, response: PlantResponseProfile): void;
 }
 
 const worlds = new WeakMap<object, PlantWorld>();
@@ -112,6 +114,10 @@ export function plantWorld(world: Pick<RenderWorldView, "services" | "components
       if (Number.isFinite(dt) && dt > 0) seconds += dt;
       wind.update(resolveWorldWind(world), seconds, camera ?? { x: 0, y: 0, z: 0 });
       resolve();
+    },
+    setResponse(family, response) {
+      const entry = appearances.get(family);
+      if (entry) entry.profile = response;
     },
     shading(family, sway, fadeEnd) {
       const look = appearanceOf(family);

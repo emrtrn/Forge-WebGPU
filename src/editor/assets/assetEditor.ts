@@ -16,6 +16,9 @@ import { openAssetSession, type AssetSession } from "./assetSession.ts";
 import { arrayFields, createAssetTable } from "./assetTable.ts";
 import { treeHabitDraft } from "./treeRecipeHabit.ts";
 import { createClassTools } from "./classTools.ts";
+import { fetchRecipeLinks } from "./recipeClient.ts";
+import { createRelatedAssets } from "./relatedAssets.ts";
+import { recipeGenerator } from "../../engine/procgen/recipeOutputs.ts";
 
 export interface AssetEditorOptions {
   readonly document: Document;
@@ -127,6 +130,12 @@ export function createAssetEditor(options: AssetEditorOptions) {
       };
       extension = adapter.kind === "class" ? createClassTools(ctx) : presentation?.tools?.(ctx) ?? null;
       if (extension) toolHost.append(extension.element);
+      const related = recipeGenerator(asset.type) === null ? null : createRelatedAssets({
+        document: doc, recipe: asset.id, links: fetchRecipeLinks, alive: () => ticket === generation,
+        canOpen: (id) => { const candidate = options.lookup(id); return candidate !== null && assetDocumentAdapter(candidate, options.registry) !== null; },
+        open: (id) => { const candidate = options.lookup(id); if (candidate) void open(candidate); },
+      });
+      if (related) { toolHost.append(related.element); void related.refresh(); }
       const drawForm = () => {
         table?.dispose(); table = null; form = null; formHost.replaceChildren();
         if (mode === "table") {
@@ -153,15 +162,16 @@ export function createAssetEditor(options: AssetEditorOptions) {
       const save = button("Save", "asset-editor-save", () => void saveNow?.());
       const publish = presentation?.publish;
       const generate = publish ? button(publish.label, "asset-editor-generate", async () => {
-        status("Generating and saving the family…");
+        status("Generating and saving…");
         const result = await opened.save(publish.run);
         if (ticket !== generation) return;
         if (!result.ok) { status(result.message); return; }
         try {
           await options.saved(opened);
+          void related?.refresh();
           const saved = opened.result();
-          status(["Generated and saved the plant family.", ...(saved?.status === "saved" ? saved.warnings.map(w => w.message) : [])].join("\n"));
-        } catch (error) { status(`Family saved. Content refresh failed: ${String(error)}`); }
+          status(["Generated and saved the recipe's output.", ...(saved?.status === "saved" ? saved.warnings.map(w => w.message) : [])].join("\n"));
+        } catch (error) { status(`Saved. Content refresh failed: ${String(error)}`); }
       }) : null;
       const undo = button("Undo", "asset-editor-undo", () => opened.undo());
       const redo = button("Redo", "asset-editor-redo", () => opened.redo());

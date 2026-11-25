@@ -14,7 +14,7 @@ export interface TreeMeshAttributes {
   leaf?: Float32Array;
 }
 
-type TreeMesh = ProcMesh & { uvs: Float32Array; attributes: TreeMeshAttributes };
+export type TreeMesh = ProcMesh & { uvs: Float32Array; attributes: TreeMeshAttributes };
 
 export interface TreeLodMesh {
   wood: TreeMesh;

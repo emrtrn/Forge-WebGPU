@@ -1,7 +1,7 @@
 import type { AssetPreviewRegistration } from "../../render/editor/assetPreview.ts";
-import { createTreePreview } from "../../render/editor/treePreview.ts";
+import { createRecipePreview } from "../../render/editor/recipePreview.ts";
 
 export const assetPreviews: readonly AssetPreviewRegistration[] = [
-  { key: "forge.treeRecipe", create: createTreePreview },
-  { key: "forge.grassRecipe", create: ctx => createTreePreview(ctx, true) },
+  { key: "forge.treeRecipe", create: (ctx) => createRecipePreview(ctx, "tree") },
+  { key: "forge.grassRecipe", create: (ctx) => createRecipePreview(ctx, "grass") },
 ];

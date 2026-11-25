@@ -56,7 +56,8 @@ import type { EditorRenderBindingDef } from "../render/editor/editorBinding.ts";
 import { createEditorViewport } from "../render/editor/editorViewport.ts";
 import { createModelBounds } from "../render/editor/modelBounds.ts";
 import { createThumbnailRenderer } from "../render/editor/thumbnails.ts";
-import { createAssetPreview, type AssetPreviewRegistration } from "../render/editor/assetPreview.ts";
+import type { AssetPreviewRegistration } from "../render/editor/assetPreview.ts";
+import { createAssetPreviews } from "./assets/assetPreviews.ts";
 import { createAssetEditor } from "./assets/assetEditor.ts";
 import { openPicker } from "./details/pickerPopover.ts";
 import { createFoliageEdits } from "./foliage/foliageEdits.ts";
@@ -600,29 +601,9 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
         const guid = current?.class ?? Object.values(current?.components ?? {}).find((component) => component.type.startsWith("forge.staticMesh@"))?.mesh;
         return typeof guid === "string" ? editableAsset(content.index().byId(guid)) : null;
       },
-      preview: (key, asset, container, edit, status) => {
-        const host = viewport.host;
-        if (!host) return null;
-        const context = { host, container, guid: asset.id, urls: options.assetUrls, materialType: options.materialType, readOnly: !asset.writable,
-          edit: (path: readonly (string | number)[], value: unknown, phase: "input" | "commit") => edit("UVW drag", path, value, phase), status,
-          classWorld: (document: Readonly<Record<string, unknown>>) => {
-            const result = normalizeActorClass(document, { strict: true, registry });
-            if (!result.ok || !result.value) throw new Error("Invalid actor class draft.");
-            const cls = result.value;
-            const resolver: ClassResolver = (id) => id === cls.id ? cls : resolveClass(id);
-            const previewWorld = createWorld({ strict: true, registry, resolveClass: resolver, features: [...options.features, host.feature(options.features, "asset-class-preview", { prepare: false })], mode: "editor" });
-            try {
-              previewWorld.init();
-              const actor = normalizeActorDoc({ id: `act_${"f".repeat(32)}`, class: cls.id, name: cls.name, spatiallyLoaded: false }, { strict: true, registry, resolveClass: resolver });
-              if (!actor.ok || !actor.value) throw new Error("Cannot preview this class.");
-              previewWorld.addActors([actor.value], "level"); previewWorld.beginPlay();
-              return { scene: host.world!.scene, frame: (dt: number) => previewWorld.tick(dt), dispose: () => previewWorld.dispose() };
-            } catch (error) { previewWorld.dispose(); throw error; }
-          },
-        };
-        if (key === "forge.actorClass") return createAssetPreview(context, "class");
-        return ASSET_PREVIEWS.find((entry) => entry.key === key)?.create(context) ?? null;
-      },
+      preview: createAssetPreviews({
+        host: () => viewport.host, previews: ASSET_PREVIEWS, registry, features: options.features, resolveClass, assetUrls: options.assetUrls, materialType: options.materialType, catalog: assets,
+      }),
       beforeSave: (opened) => {
         if (opened.adapter.kind !== "class") return null;
         const result = normalizeActorClass(opened.value(), { strict: true, registry });

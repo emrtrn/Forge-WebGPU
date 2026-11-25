@@ -20,6 +20,8 @@ export interface AssetPreviewContext {
   readonly urls: AssetUrls;
   readonly materialType: JsonAssetTypeDef | null;
   readonly readOnly: boolean;
+  /** GUIDs of the project's assets of a type. */
+  readonly assetsOf?: (type: string) => readonly string[];
   readonly classWorld?: (document: Readonly<Record<string, unknown>>) => PreviewClassWorld;
   edit(path: readonly (string | number)[], value: unknown, phase: "input" | "commit"): void;
   status(message: string): void;

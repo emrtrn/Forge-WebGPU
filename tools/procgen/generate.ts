@@ -28,7 +28,9 @@ import {
 } from "../../src/core/index.ts";
 import { writeGlb } from "../../src/engine/procgen/glb.ts";
 import { generateRock } from "../../src/engine/procgen/rock/rockGenerator.ts";
-import { bakeSurfaceTexture } from "../../src/engine/procgen/texture/surfaceTexture.ts";
+import { recipeGenerator } from "../../src/engine/procgen/recipeOutputs.ts";
+import { bakeSurfaceRecipe } from "../../src/engine/procgen/texture/surfaceRecipe.ts";
+import { materialLookOf, type MaterialLook } from "../../src/engine/procgen/tree/treeLook.ts";
 import { engineContentRoots, packWithRequired } from "../assets/engineContent.ts";
 import { loadEngineRegistry } from "../assets/engineRegistry.ts";
 import { fileRevision } from "../assets/revision.ts";
@@ -37,10 +39,10 @@ import { createClassStore, createDocumentCheck } from "../save/documentCheck.ts"
 import { createSaveService, type SaveDelete, type SaveWrite, type SaveResult } from "../save/transaction.ts";
 import { createWritePolicy } from "../server/projectPaths.ts";
 import { openWorldProject } from "../world/worldProject.ts";
-import { binaryWithMeta, GENERATED_MODEL_OPTIMIZE, GENERATOR_VERSIONS, outputId, round, srgbTriple, type GeneratorName, type Output } from "./outputs.ts";
+import { binaryWithMeta, GENERATED_MODEL_OPTIMIZE, GENERATOR_VERSIONS, outputId, round, type GeneratorName, type Output } from "./outputs.ts";
 import { decodePng } from "./png.ts";
 import { encodeRgbaKtx2 } from "./ktx2.ts";
-import { treeOutputs, type MaterialLook } from "./treeOutputs.ts";
+import { treeOutputs } from "./treeOutputs.ts";
 import { treeOutputVersion } from "../../src/engine/procgen/tree/treeGrowth.ts";
 import { defaultTreeLeafMaterial } from "../../src/engine/procgen/tree/treeRecipe.ts";
 import type { GrassRecipeData } from "../../src/features/plant/schema.ts";
@@ -163,20 +165,6 @@ function rockOutputs(recipeId: string, data: JsonObject, folder: string, stem: s
   return outputs;
 }
 
-/** A `forge.surfaceTextureRecipe` baked (the same call for its outputs and for an impostor bake reading them). */
-function bakeSurfaceRecipe(data: JsonObject): ReturnType<typeof bakeSurfaceTexture> {
-  return bakeSurfaceTexture({
-    seed: data.seed,
-    size: Number(data.size),
-    layers: data.layers,
-    colorRamp: ((data.colorRamp as JsonObject[] | undefined) ?? []).map((stop) => ({ at: stop.at, color: srgbTriple(String(stop.color)) })),
-    normalStrength: data.normalStrength,
-    roughness: data.roughness,
-    aoStrength: data.aoStrength,
-    metalness: data.metalness,
-  });
-}
-
 /**
  * Base colour (sRGB), normal and ORM (linear) as KTX2 (ktx2.ts; user decision 2026-11-19, as the tree
  * atlases). Stored as baked: a tiling texture is read by triplanar projection or by a UV material that does
@@ -245,12 +233,7 @@ async function materialLook(options: GenerateOptions, target: Target, guid: stri
       else warnings.push(`texture ${textureId} of material ${guid} is not a generated surface texture or a readable PNG: the impostor uses its colour`);
     }
   }
-  const tiling = Array.isArray(doc.uvTiling) ? doc.uvTiling as [number, number] : [1, 1] as const;
-  return {
-    color: srgbTriple(typeof doc.baseColor === "string" ? doc.baseColor : "#ffffff"),
-    texture, tiling: [tiling[0], tiling[1]], flipY: doc.flipY !== false,
-    alphaTest: doc.alphaMode === "mask" && typeof doc.alphaTest === "number" ? doc.alphaTest : 0,
-  };
+  return materialLookOf(doc, texture);
 }
 
 async function readOrNull(path: string): Promise<Uint8Array | null> {
@@ -272,13 +255,13 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
   if (!def || !isJsonAssetType(def) || !doc) throw new Error(`${label} is not a readable recipe`);
   const draft = options.editorDraft;
   if (draft) {
-    const plantGenerator = entry.type === "forge.grassRecipe" ? "grass" : entry.type === "forge.treeRecipe" ? "tree" : null;
+    const drafted = recipeGenerator(entry.type);
     const version = draft.document.generatorVersion;
     // An explicit Habit edit can switch the topology while retaining the recipe identity.
     const switchingTopology = (version === 5) !== (doc.generatorVersion === 5)
       && (version === 5 ? draft.document.habit === "shrub" : draft.document.habit === "broadleaf" || draft.document.habit === "conifer");
-    if (!plantGenerator || draft.document.id !== entry.id || (plantGenerator === "tree" && version !== doc.generatorVersion && !switchingTopology))
-      throw new Error("Unsupported plant recipe identity or generator version.");
+    if (!drafted || draft.document.id !== entry.id || (drafted === "tree" && version !== doc.generatorVersion && !switchingTopology))
+      throw new Error("Unsupported recipe identity or generator version.");
     const checked = normalizeJsonAsset(def, draft.document, { strict: true });
     if (!checked.ok || !checked.value) throw new Error(checked.issues.map(issue => `${issue.path} ${issue.message}`).join("\n"));
     doc = checked.value as JsonObject;
@@ -286,14 +269,14 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
     const revision = fileRevision(saved);
     if (revision !== draft.base) throw new RecipeSaveConflict([{ path: label, base: draft.base, current: revision }]);
     const materials = doc.materials as JsonObject | undefined;
-    for (const guid of [materials?.wood, materials?.leaf]) {
-      if (typeof guid === "string" && target.index.entries.get(guid)?.type !== "forge.material") throw new Error(`Missing tree material ${guid}`);
+    for (const guid of [materials?.wood, materials?.leaf, doc.material]) {
+      if (typeof guid === "string" && target.index.entries.get(guid)?.type !== "forge.material") throw new Error(`Missing material ${guid}`);
     }
     // A directly placed family can name a prototype by index. Generated foliage types are updated in this transaction.
-    const familyId = outputId(entry.id, `${plantGenerator}/family`);
+    const familyId = outputId(entry.id, `${drafted}/family`);
     const family = target.index.jsonAssets.get(familyId) as JsonObject | undefined;
     const published = (family?.prototypes as JsonObject[] | undefined) ?? [];
-    const types = new Set(published.map(p => outputId(entry.id, `${plantGenerator}/${p.seed}/foliageType`)));
+    const types = new Set(published.map(p => outputId(entry.id, `${drafted}/${p.seed}/foliageType`)));
     const seeds = [...new Set(doc.variants as number[])];
     if (published.some((prototype, i) => prototype.seed !== seeds[i]) && target.index.referrersOf(familyId).some(ref => !types.has(ref.from))) {
       throw new Error("An asset uses this family by prototype index. Keep the published seed order or generate a new recipe.");

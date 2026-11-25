@@ -60,12 +60,14 @@ import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
 import { Worker } from "node:worker_threads";
 import type { GenerateOptions } from "../procgen/generate.ts";
-import { DATA_DOCUMENT_TYPES, type AssetIndex, type JsonObject } from "../../src/core/index.ts";
+import { DATA_DOCUMENT_TYPES, type AssetId, type AssetIndex, type JsonObject } from "../../src/core/index.ts";
 import { buildContentListing } from "../assets/contentListing.ts";
 import { planContentOp, type ContentOp, type ContentPlan } from "../assets/contentOps.ts";
 import { glbOptimizeSettings } from "../assets/glbOptimizeSettings.ts";
 import { fileRevision } from "../assets/revision.ts";
 import { createModelBoundsIndex } from "../assets/modelBounds.ts";
+import { recipeLinks } from "../../src/engine/procgen/recipeLinks.ts";
+import { recipeGenerator } from "../../src/engine/procgen/recipeOutputs.ts";
 import type { ZoneBox } from "../../src/engine/world/zones.ts";
 import { ENGINE_LABEL_PREFIX } from "../assets/engineContent.ts";
 import { engineContentResult } from "./engineContentMode.ts";
@@ -232,18 +234,18 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
   // Uploads do not outlive the server: a save names them within one session.
   await rm(stagingDir, { recursive: true, force: true });
 
-  let bakingPlant = false;
-  const bakePlant = async (req: IncomingMessage, res: ServerResponse) => {
+  let bakingRecipe = false;
+  const bakeRecipe = async (req: IncomingMessage, res: ServerResponse) => {
     let input;
     try { input = JSON.parse((await readBody(req, 256 * 1024)).toString("utf8")); }
-    catch (error) { send(res, error instanceof BodyTooLarge ? 413 : 400, { message: "Invalid plant generation request." }); return; }
+    catch (error) { send(res, error instanceof BodyTooLarge ? 413 : 400, { message: "Invalid generation request." }); return; }
     const { document, base, path } = input ?? {};
     if (typeof path !== "string" || typeof base !== "string" || !THUMBNAIL_REVISION.test(base) || typeof document?.id !== "string") {
-      send(res, 400, { message: "Expected a plant recipe, path and saved revision." }); return;
+      send(res, 400, { message: "Expected a recipe, path and saved revision." }); return;
     }
     const entry = (await current()).index.entries.get(document.id);
-    if (!entry || (entry.type !== "forge.treeRecipe" && entry.type !== "forge.grassRecipe") || `${entry.root}/${entry.path}` !== path) {
-      send(res, 404, { message: "Plant recipe no longer exists at this path." }); return;
+    if (!entry || recipeGenerator(entry.type) === null || `${entry.root}/${entry.path}` !== path) {
+      send(res, 404, { message: "The recipe no longer exists at this path." }); return;
     }
     if (!writableLabel(entry.root)) { send(res, 403, { message: "This recipe is read-only." }); return; }
     const codeRoot = options.engineRoot ?? resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -256,8 +258,8 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
     } else {
       target = { engineRoot: codeRoot, projectRoot: policy.root, recipe: resolveWritablePath(policy, path).relative };
     }
-    if (bakingPlant) { send(res, 409, { message: "Another plant family is being generated." }); return; }
-    bakingPlant = true;
+    if (bakingRecipe) { send(res, 409, { message: "Another recipe is being generated." }); return; }
+    bakingRecipe = true;
     try {
       const result = await new Promise<SaveResult>((accept, reject) => {
         const worker = new Worker(join(codeRoot, "tools/procgen/editorBakeWorker.ts"), {
@@ -265,11 +267,17 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
         });
         worker.once("message", accept);
         worker.once("error", reject);
-        worker.once("exit", code => reject(new Error(`Plant generation ended before replying (${code}).`)));
+        worker.once("exit", code => reject(new Error(`Generation ended before replying (${code}).`)));
       });
       if (result.status === "saved") await authoring.rescan();
       send(res, STATUS_OF[result.status], target.pack ? engineContentResult(result) : result);
-    } finally { bakingPlant = false; }
+    } finally { bakingRecipe = false; }
+  };
+
+  /** A model recipe's output, its digest and what it is connected to (the editor's Related list, the approval page). */
+  const recipeLinksOf = async (url: URL, res: ServerResponse): Promise<void> => {
+    const links = recipeLinks((await current()).index, (url.searchParams.get("id") ?? "") as AssetId);
+    send(res, links ? 200 : 404, links ?? { message: "No model recipe has this id." });
   };
 
   const hlod = async (req: IncomingMessage, url: URL, res: ServerResponse): Promise<void> => {
@@ -611,7 +619,8 @@ export async function createForgeServer(options: ForgeServerOptions): Promise<Fo
     const route = `${req.method ?? "GET"} ${url.pathname}`;
     const routes: Readonly<Record<string, () => Promise<void>>> = {
       "POST /__forge/save": () => save(req, res),
-      "POST /__forge/tree-bake": () => bakePlant(req, res),
+      "POST /__forge/recipe-bake": () => bakeRecipe(req, res),
+      "GET /__forge/recipe-links": () => recipeLinksOf(url, res),
       "POST /__forge/hlod": () => hlod(req, url, res),
       "GET /__forge/hlod": () => hlod(req, url, res),
       "GET /__forge/world-builder": async () => send(res, 200, await worldBuilder.state()),

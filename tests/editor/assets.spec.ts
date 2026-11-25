@@ -34,6 +34,8 @@ export default defineGameModule({ id:'starter.assets', features:[defineFeature({
   await write(`${FOLDER}/surface.material.json`, { schema: "forge.material/1", id: MATERIAL, baseColor: "#aa2200", roughness: 0.5 });
   const tree = JSON.parse(await readFile(join(REPO, "content/packs/starter/procgen/trees/Broadleaf.treerecipe.json"), "utf8"));
   await write(`${FOLDER}/grove.treerecipe.json`, { ...tree, id: `ast_${"a".repeat(31)}5`, variants: [1], impostor: { ...tree.impostor, views: 4, frameSize: "64" } });
+  const rock = JSON.parse(await readFile(join(REPO, "content/packs/starter/procgen/rocks/RockRounded.rockrecipe.json"), "utf8"));
+  await write(`${FOLDER}/boulder.rockrecipe.json`, { ...rock, id: `ast_${"a".repeat(31)}8`, variants: [4, 5], lods: [2, 1] });
   await write(`${FOLDER}/tree2.treerecipe.json`, { schema: "forge.treeRecipe/1", id: `ast_${"a".repeat(31)}7`, variants: [7] });
   await write(comparison, { ...await species("Oak"), id: comparisonId });
   await write(`${FOLDER}/item.actor.json`, { schema: "forge.actorClass/1", id: CLASS, name: "Item", components: { shape: { type: "forge.shape@2", primitive: "cube", color: "#c8c8c8" } } });
@@ -113,6 +115,56 @@ test("tree recipe edits the live variant, publishes a family and reopens the sav
   await close(page); await asset(page, "grove.treerecipe.json");
   await ready(); await expect(height).toHaveValue("11");
   await expect(preview.getByLabel("Seed")).toHaveValue("7"); expect(errors).toEqual([]);
+});
+
+test("tree recipe compares Source, LODs and impostor, shows every seed, the family's memory and the preview's weather", async ({ page }, info) => {
+  test.setTimeout(120000);
+  const errors = await open(page);
+  await asset(page, "grove.treerecipe.json");
+  const preview = page.getByTestId("asset-editor-preview"), labels = page.getByTestId("preview-labels").locator("span");
+  const ready = () => expect(preview).toHaveAttribute("data-preview-ready", "1", { timeout: 60000 });
+  await ready();
+  await expect(page.getByTestId("tree-preview-memory")).toContainText("MiB");
+  await preview.getByLabel("View").selectOption("lods");
+  await ready();
+  await expect(labels).toHaveText([/^Source · /, /^LOD 0 · /, /^LOD 1 · /, /^LOD 2 · /, "Impostor · 2"]);
+  await expect(preview.getByLabel("LOD", { exact: false }).first()).toBeDisabled();
+  await previewShot(page, "tree-side-by-side", info);
+  // The preview's own weather: winter bares a deciduous tree, and the recipe stays as saved.
+  await preview.getByLabel("Season").selectOption("winter");
+  await previewShot(page, "tree-side-by-side-winter", info);
+  await preview.getByLabel("Snow").fill("1");
+  await expect(page.getByTestId("asset-editor-save")).toBeDisabled();
+  await preview.getByLabel("View").selectOption("seeds");
+  await ready();
+  await expect(labels).toHaveText([/^Seed [0-9]+$/]);
+  // Related: the bark recipe behind the wood material opens from here.
+  await expect(page.getByTestId("asset-related-uses")).toContainText("Bark · Surface Texture Recipe");
+  await page.getByTestId("asset-related-uses").getByText("M_Bark", { exact: false }).click();
+  await expect(page.getByTestId("asset-editor")).not.toHaveAttribute("data-asset-id", `ast_${"a".repeat(31)}5`);
+  await close(page); expect(errors).toEqual([]);
+});
+
+test("rock recipe previews its seeds, generates models and reopens the saved draft", async ({ page }, info) => {
+  const errors = await open(page);
+  await asset(page, "boulder.rockrecipe.json");
+  const preview = page.getByTestId("asset-editor-preview");
+  const ready = () => expect(preview).toHaveAttribute("data-preview-ready", "1", { timeout: 35000 });
+  await ready();
+  const cuts = page.getByTestId("asset-field-cuts");
+  await cuts.fill("5"); await cuts.press("Tab"); await ready();
+  await expect(page.getByTestId("rock-preview-stats")).toContainText("320 triangles");
+  await preview.getByLabel("View").selectOption("seeds"); await ready();
+  await expect(page.getByTestId("preview-labels").locator("span")).toHaveText(["Seed 4", "Seed 5"]);
+  await previewShot(page, "rock-gallery", info);
+  await expect(page.getByTestId("asset-related")).toContainText("not generated yet");
+  await page.getByTestId("asset-editor-generate").click();
+  await expect(page.getByTestId("asset-editor-status")).toContainText("Generated and saved", { timeout: 60000 });
+  expect((await json(`${FOLDER}/boulder.rockrecipe.json`)).cuts).toBe(5);
+  expect((await json(`${FOLDER}/boulder/boulder_5_lod1.glb.meta.json`)).generated.recipe).toBe(`ast_${"a".repeat(31)}8`);
+  await expect(page.getByTestId("asset-related-outputs")).toContainText("Generated (2)");
+  await close(page); await asset(page, "boulder.rockrecipe.json"); await ready();
+  await expect(cuts).toHaveValue("5"); expect(errors).toEqual([]);
 });
 
 test("tree recipe previews starter species, seeds and LODs in a read-only pack", async ({ page }, info) => {
