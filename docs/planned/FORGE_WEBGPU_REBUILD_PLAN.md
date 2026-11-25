@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v1.99 · 2026-11-25 — 5d adım 4'ün, terrain Details düzeninin, Paint düzeninin ve panel adlarının görsel kabulü (kullanıcı, 2026-11-25). Adım 2–5'in görsel kabulü tamam; sırada adım 6 (B09).
+**Güncelleme:** v2.00 · 2026-11-25 — 5d adım 6 (`c3f7f0e`): Foliage fırçası (Select, Lasso, Paint, Erase, Single, Fill, Remove; Select Invalid, Reattach, Reapply, Remove Selected), darbe başına tek undo, level parçası olarak kayıt; hücresiz level'da boyanmış foliage'ın oyunda çizilmemesi düzeltildi. Bükülen yol modeli segment boyunca kendi uzunluğunda tekrarlanır (`ec45418`). Kararlar kullanıcıda (öneriler gibi). Kullanıcı görsel kabulü bekleniyor.
+
+**Önceki güncelleme:** v1.99 · 2026-11-25 — 5d adım 4'ün, terrain Details düzeninin, Paint düzeninin ve panel adlarının görsel kabulü (kullanıcı, 2026-11-25). Adım 2–5'in görsel kabulü tamam; sırada adım 6 (B09).
 
 **Önceki güncelleme:** v1.98 · 2026-11-25 — 5d adım 5'in görsel kabulü (kullanıcı, 2026-11-25). Sırada adım 6: Foliage fırçası (B09).
 
@@ -2214,6 +2216,43 @@ yeniden içe aktarılan modelin yollarda tazelenmesi (terrain yeniden yükleninc
 Forge'daki gibi bükülen model segment başına bir kez uzatılır: boyunca halkası
 olmayan model eğriyi yalnız segment uçlarında izler. Kullanıcı görsel kabulü 2026-11-25'te verildi.
 
+*Yol mesh'i tekrarı (2026-11-25, `ec45418`; kullanıcı kararı):* bükülen model segment
+boyunca kendi uzunluğuna en yakın tam sayıda tekrarlanır (en çok 256); Forge bir kez
+uzatıyordu. Yol, segmentin noktaları arasında da eğriyi izler, modelin ayrıntısı uzamaz.
+
+*Adım 6 kararları (kullanıcı, 2026-11-25, öneriler gibi):* sol tık yalnız Foliage
+sekmesinde bir araç seçiliyken fırçanındır (aynı düğme, Esc ya da sekmeden çıkmak
+kapatır); boyanmış örnek hedef yüzeyini saklamaz (hücre biçimi değişmez, filtreler
+yalnız boyarken); kapsam 7 araç + seçim eylemleri (Resource Usage hariç); Fill'de
+Forge'un 20.000 aday sınırı, terrain'in bütün tile'ları yüklenir.
+
+*Adım 6 (2026-11-25, `c3f7f0e`):* Foliage fırçası (B09). Saf kısım Codex'e ayrılmıştı;
+kullanım sınırı dolduğu için Claude yazdı. **Saf kısım:** `engine/foliage/foliagePaint.ts`
+(örnekleme, aralık ızgarası, yerleştirme, reattach / reapply / invalid; dönüş kuaterniyon,
+sayılar Float32'ye tam) ve `foliagePaintSession.ts` (hücre / tür listeleri, yamalar, diskle
+karşılaştırılan kirlilik; boyanan tür kümesi değişince bütün hücre dosyaları yeniden yazılır).
+**Editör:** `editor/foliage/foliageEdits.ts` (level parçasını okur, düzenlemeyi tutar,
+revizyonlarla tek kayıt işlemi; 409'da düzenleme kalır, temizse diski izler),
+`foliageTool.ts` (araçlar; darbeler sırayla, altındaki hücre ve terrain tile'ını bekler),
+`foliagePaintPanel.ts` (Foliage sekmesinde Tools bölümü; tür satırında boyanmış sayı).
+Esc önce seçimi, sonra aracı bırakır; Delete seçili foliage'ı siler. **Çizim:**
+`LevelFoliageSource.edits`: düzenlenen hücre oturumdan, her değişiklikte hemen çizilir.
+Yüzey: `render/editor/surfaceProbe.ts` (alanın parçaları bir kez toplanır, sonra aşağı ışınlar),
+`PickSurface.normal` (terrain'de yüklü tile'ın normali). Forge'dan farklar: darbe deseni
+darbe numarasıyla değişir, statik mesh'te Fill tıklanan aktörü doldurur, etkisiz Erase
+Density yok. **Düzeltme (5c'den):** oyun boyanmış foliage kaynağını yalnız aktör hücresi
+olan level'da veriyordu; hücresiz level'da (yalnız terrain) foliage çizilmiyordu
+(`runtime/boot.ts`). **Kanıt:** `foliagePaint.test.ts`, `foliagePaintSession.test.ts`,
+`foliageTool.test.ts`, `surfaceProbe.test.ts`, `paintedFoliageView.test.ts`; editör smoke'u
+`tests/editor/foliagePaint.spec.ts` (boya + undo / redo → kaydet → sil + undo → lasso, sil →
+Esc → aktör seçimi → Fill → kaydet → yeniden aç → oyunda akış) `forceWebGL`'de ve gerçek
+WebGPU'da; ilgili editör spec'leri WebGL'de 37 / 37 (daha önceki geniş koşuda `details`'in bir testi
+ve `landscapeWorld` birer kez kırıldı, tek başına ve bu koşuda geçti), foliage + landscape +
+gizmo gerçek WebGPU'da 9 / 9; `smoke:render`'ın foliageRing, gpuCulling, render, puddle ve
+terrainCollider dosyaları 23 / 23. Sonraya: Play'e kaydedilmemiş foliage (adım 2'deki gibi),
+boyanmış foliage'ın collider'ı (Faz 6). Yol mesh'leri seçilmediği için fırça yolun altındaki
+araziye boyar (Forge gibi). Kullanıcı görsel kabulü bekleniyor.
+
 - [x] **5a Terrain:** Faz 3'ün terrain salt çizimi (spike S2'nin TSL CDLOD'u,
       Faz 3 karar 1) üretim kalitesine çıkar: morph,
       tile seam, 8 boya katmanı, su birikintisi (kıyı ıslaklığı ve kostik
@@ -2658,6 +2697,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-25 | v2.00 | 5d adım 6 (`c3f7f0e`): kararlar (kullanıcı, öneriler gibi: araç seçilince, hedef saklanmaz, 7 araç + eylemler, Fill 20.000); Foliage fırçası, darbe başına undo, level parçası kaydı; hücresiz level'da boyanmış foliage oyunda çizilir. Yol modeli segment boyunca tekrarlanır (`ec45418`, kullanıcı kararı). `foliagePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda. Sıradaki: 5d adım 8 (B13) |
 | 2026-11-25 | v1.99 | 5d adım 4'ün, terrain Details / Paint düzeninin ve panel adlarının görsel kabulü (kullanıcı) |
 | 2026-11-25 | v1.98 | 5d adım 5'in görsel kabulü (kullanıcı). Sıradaki: 5d adım 6 (B09) |
 | 2026-11-25 | v1.97 | 5d adım 5 (`49d6c09`): kararlar (kullanıcı, öneriler gibi: mesh tanımdan üretilir, süsleme Faz 6, iki ayrı Apply, seçim sayfanın ayarlarında, ek ajan komutu yok); Landscape Splines kipi ve yol mesh'leri (saf üretici Codex); içe aktarıcı ve asset dizini spline mesh'lerini tanır. `landscapeSpline.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda. Sıradaki: 5d adım 6 (B09) |

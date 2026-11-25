@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.78 · 2026-11-25 — §4.4 5d adım 5: spline mesh'leri terrain tanımından çalışma anında üretilir (saklanmaz, statik batch, HLOD proxy'si yok); spline düzenleme ve seçimi; `EditableTerrain.splinesChanged`.
+**Güncelleme:** v1.79 · 2026-11-25 — §4.4 5d adım 6: boyanmış foliage'ın düzenlenmesi (`FoliagePaintSession`, `LevelFoliageSource.edits`, hedef saklanmaz); spline mesh'i segment boyunca tekrarlanır.
+
+**Önceki güncelleme:** v1.78 · 2026-11-25 — §4.4 5d adım 5: spline mesh'leri terrain tanımından çalışma anında üretilir (saklanmaz, statik batch, HLOD proxy'si yok); spline düzenleme ve seçimi; `EditableTerrain.splinesChanged`.
 
 **Önceki güncelleme:** v1.77 · 2026-11-20 — §4.4 5d: `details: "embedded"` (tool aktöründe bileşenin kendi bölümü yok, tool'un eki düzenler); Auto Paint kuralları Landscape Mode > Paint > Auto Paint'te; tool aktörünün Details'i Name'siz.
 
@@ -1134,6 +1136,16 @@ features/height-fog/
     `definitionChanged` terrain'i. `TerrainAssetType` başvuruları spline mesh'lerini
     de sayar. Yol seçilmez (`InstanceBatchOptions.pick: false`). Spline noktasının
     gizmosu görünürken seçimin gizmosu görünmez ve sürüklenmez.
+  - *Yol tekrarı (kullanıcı kararı 2026-11-25, `ec45418`):* bükülen model segment boyunca
+    kendi uzunluğunda tekrarlanır (Forge bir kez uzatıyordu).
+  - *Adım 6 kararları (kullanıcı, 2026-11-25, öneriler gibi):* fırça yalnız Foliage
+    sekmesinde araç seçiliyken sol tıkı alır; boyanmış örnek hedef yüzey saklamaz
+    (level parçasının biçimi değişmez); Fill en çok 20.000 aday, terrain'in bütün
+    tile'ları yüklenir.
+  - *Uygulama (adım 6, `c3f7f0e`):* düzenleme durumu `engine/foliage/foliagePaintSession.ts`
+    (IO'suz), okuma / kayıt / undo `editor/foliage/foliageEdits.ts` (oturum katılımcısı).
+    Bağlama düzenlenen hücreyi `LevelFoliageSource.edits`'ten çizer, ötekiler dosyadan
+    akar; oyunda `edits` yoktur. Kaynak level'ın aktör hücresi olmasa da verilir.
   - *Terrain Details düzeni (kullanıcı kararı 2026-11-20):* `ComponentPresentation.details:
     "tool"` (SDK 0.1.14): ad, bileşenin Details eki, öteki bileşenler, bileşenin
     kendi alanları en altta kapalı; Class, transform, pivot / yerleşim, Remove,
