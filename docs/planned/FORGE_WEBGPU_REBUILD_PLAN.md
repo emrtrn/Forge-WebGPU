@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.10 · 2026-11-25 — Faz W: HK1–HK7 kapandı (kullanıcı, öneriler gibi); terrain yüzey fiziği yağışla değişir (kullanıcı): yüzey fiziği sözleşmesi ve W8 eklendi, kapı W9. Açık: HK8–HK10.
+**Güncelleme:** v2.11 · 2026-11-25 — Faz W: HK8–HK10 kapandı (kullanıcı, öneriler gibi); açık HK yok. Yüzey fiziği mekanizması (tasarım 9) W0'da onaylanır.
+
+**Önceki güncelleme:** v2.10 · 2026-11-25 — Faz W: HK1–HK7 kapandı (kullanıcı, öneriler gibi); terrain yüzey fiziği yağışla değişir (kullanıcı): yüzey fiziği sözleşmesi ve W8 eklendi, kapı W9. Açık: HK8–HK10.
 
 **Önceki güncelleme:** v2.09 · 2026-11-25 — Faz W (hava) açıldı (kullanıcı; yalnız plan): yağış görseli, zamanlı hava geçişi, yağış siperi, statik mesh'te kar / ıslaklık, yağışla ıslanma / kuruma, su birikintisi + halkalar, terrain kar yüksekliği; adımlar W0–W8, HV-01–12.
 
@@ -2615,7 +2617,7 @@ yazılmaz; **okunan** profil canlı olur:
 (C: Claude, X: Codex; X'in diff'ini Claude inceler.) Her adım kendi editör
 yüzeyiyle biter.
 
-- [ ] **W0 Sözleşme.** Aşağıdaki açık kararlar; şema `@3` + geçiş zinciri; SDK;
+- [ ] **W0 Sözleşme.** Tasarım 9'un mekanizma onayı (kullanıcı); şema `@3` + geçiş zinciri; SDK;
       ölçüm tabanı (WES'siz / WES'li, yağışsız). — C
 - [ ] **W1 Yağış görseli.** TRAA denemesi → seçim; yağmur ve kar hacimleri, rüzgâr,
       ışık / sis, kalite. *Kapı:* HV-01, 02'nin açık alan kısmı; GPU bütçesi. — C
@@ -2668,7 +2670,7 @@ sonra gelir.
 
 **Kapalı (kullanıcı, 2026-11-25):** yukarıdaki kapsam 1–9; yağış yüzeyi sürer
 (5a'nın "hava hedefleri değiştirmez" kararı, bağ açıkken geçersiz); statik
-mesh'te kar kalınlığı yok; önce plan. HK1–HK7 öneri olduğu gibi (aynı gün); yüzey
+mesh'te kar kalınlığı yok; önce plan. HK1–HK10 öneri olduğu gibi (aynı gün); yüzey
 fiziği yağışla değişir (kapsam 9, tasarım 9).
 
 | ID | Konu | Karar |
@@ -2680,12 +2682,7 @@ fiziği yağışla değişir (kapsam 9, tasarım 9).
 | HK5 | Birikintinin yeri | Çukur haritası + mikro birikinti kendiliğinden; yazar katman / materyalin birikinti kabulüyle ayarlar; yeni fırça yok |
 | HK6 | Ağaç altı | Bitki siper sayılmaz (orman altına da yağar) |
 | HK7 | Elle konan `forge.puddle` | `forge.puddle` `followWeather` varsayılan kapalı; birikinti bugünkü gibi kalır |
-
-**Açık (W0'dan önce; kullanıcı):**
-
-| ID | Konu | Öneri |
-|---|---|---|
-| HK8 | Yağmur da fiziği değiştirsin mi? | Evet, katman isterse: `wetPhysicalMaterial` (ör. toprak → `mud`) ıslaklık doydukça karışır, kuruyunca döner; varsayılan boş |
+| HK8 | Yağmurun fiziği | Katman isterse değişir: `wetPhysicalMaterial` (ör. toprak → `mud`) ıslaklık doydukça karışır, kuruyunca döner; varsayılan boş |
 | HK9 | Boyanmış `snow` katmanına yağan kar | Üstüne eklenir; eriyince boyanmış kar kalır (kalıcı kar) |
 | HK10 | Karda karakter | W'de ve Faz 8'in ilk diliminde yalnız araç batar ve iz bırakır; karakterin ayak izi ve yavaşlaması Faz 8'de ayrı karar |
 
@@ -3097,6 +3094,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-25 | v2.11 | Faz W: HK8–HK10 kapandı (kullanıcı, öneriler gibi); açık HK yok. Yüzey fiziği mekanizması (tasarım 9) W0'da onaylanır. |
 | 2026-11-25 | v2.10 | Faz W: HK1–HK7 kapandı (kullanıcı, öneriler gibi); terrain yüzey fiziği yağışla değişir (kullanıcı): yüzey fiziği sözleşmesi ve W8 eklendi, kapı W9. Açık: HK8–HK10. |
 | 2026-11-25 | v2.09 | Faz W (hava) açıldı (kullanıcı; yalnız plan): yağış görseli, zamanlı hava geçişi, yağış siperi, statik mesh'te kar / ıslaklık, yağışla ıslanma / kuruma, su birikintisi + halkalar, terrain kar yüksekliği; adımlar W0–W8, HV-01–12. Açık kararlar HK1–HK7 kullanıcıda. |
 | 2026-11-25 | v2.05 | World Builder açık level'a kurar, sahne ayarları kalır; Outliner klasörleri (`5b8f6fa`, kullanıcı kararı; adım 8'in "yeni level" kararı kalktı). İlgili vitest 389, editör spec'leri 21 |
