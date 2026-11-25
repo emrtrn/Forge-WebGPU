@@ -1,0 +1,104 @@
+{
+  "schema": "forge.plantFamily/1",
+  "id": "ast_cc2ad827a058f4144a58a606ffb9ea7a",
+  "generatorVersion": 1,
+  "prototypes": [
+    {
+      "seed": 1,
+      "lods": [
+        {
+          "mesh": "ast_ad2ccd84afe250152a8e7f8bd0ebc0f0",
+          "screenSize": 1
+        },
+        {
+          "mesh": "ast_a1d8974aa49f504d044afa82a8108a07",
+          "screenSize": 0.023
+        }
+      ],
+      "impostor": {
+        "albedo": null,
+        "normal": null,
+        "views": 8,
+        "screenSize": 0.03,
+        "color": null
+      },
+      "height": 0.35632
+    },
+    {
+      "seed": 2,
+      "lods": [
+        {
+          "mesh": "ast_200eb7c69716090a53387a9bfb15bdde",
+          "screenSize": 1
+        },
+        {
+          "mesh": "ast_244103de03674fd15c257eb35a146111",
+          "screenSize": 0.023
+        }
+      ],
+      "impostor": {
+        "albedo": null,
+        "normal": null,
+        "views": 8,
+        "screenSize": 0.03,
+        "color": null
+      },
+      "height": 0.41016
+    },
+    {
+      "seed": 3,
+      "lods": [
+        {
+          "mesh": "ast_442f4cd62c75d5ad2c70c53527f8a921",
+          "screenSize": 1
+        },
+        {
+          "mesh": "ast_7723fab52391a64a54758ee2db0de2a6",
+          "screenSize": 0.023
+        }
+      ],
+      "impostor": {
+        "albedo": null,
+        "normal": null,
+        "views": 8,
+        "screenSize": 0.03,
+        "color": null
+      },
+      "height": 0.36167
+    }
+  ],
+  "materials": {
+    "wood": null,
+    "leaf": null
+  },
+  "collider": "none",
+  "sway": {
+    "amplitude": 0.1596,
+    "frequency": 0.72
+  },
+  "response": {
+    "habit": "evergreen",
+    "spring": {
+      "foliage": 0.8,
+      "tint": "#9ccf6a"
+    },
+    "summer": {
+      "foliage": 1,
+      "tint": "#ffffff"
+    },
+    "autumn": {
+      "foliage": 0.7,
+      "tint": "#d98b3a"
+    },
+    "winter": {
+      "foliage": 0,
+      "tint": "#ffffff"
+    },
+    "windFlex": 1,
+    "snow": {
+      "wood": 0.6,
+      "leaf": 0.8
+    },
+    "wetness": 0.5
+  }
+}

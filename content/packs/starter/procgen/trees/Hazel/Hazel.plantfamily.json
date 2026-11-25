@@ -1,0 +1,116 @@
+{
+  "schema": "forge.plantFamily/1",
+  "id": "ast_2231908d20865d18b0d180b126a7bf2f",
+  "generatorVersion": 5,
+  "prototypes": [
+    {
+      "seed": 1,
+      "lods": [
+        {
+          "mesh": "ast_364a3d571e8d5543bafb8870799c7b74",
+          "screenSize": 1
+        },
+        {
+          "mesh": "ast_aff1a7ec14d6630d02eff1942c69d0bc",
+          "screenSize": 0.22
+        },
+        {
+          "mesh": "ast_ce10c922ec3752009a0b3cd410a297c1",
+          "screenSize": 0.08
+        }
+      ],
+      "impostor": {
+        "albedo": null,
+        "normal": null,
+        "views": 8,
+        "screenSize": 0.03,
+        "color": null
+      },
+      "height": 2.46123
+    },
+    {
+      "seed": 2,
+      "lods": [
+        {
+          "mesh": "ast_a715f4eb27e154f5575828e06b562b5e",
+          "screenSize": 1
+        },
+        {
+          "mesh": "ast_80878a68b50b17746167ba94cb8ebfe0",
+          "screenSize": 0.22
+        },
+        {
+          "mesh": "ast_6e06a021231c9643c14c212005b26cf2",
+          "screenSize": 0.08
+        }
+      ],
+      "impostor": {
+        "albedo": null,
+        "normal": null,
+        "views": 8,
+        "screenSize": 0.03,
+        "color": null
+      },
+      "height": 2.59881
+    },
+    {
+      "seed": 3,
+      "lods": [
+        {
+          "mesh": "ast_844682a3f6ac82c5dafcd9c85f78cc55",
+          "screenSize": 1
+        },
+        {
+          "mesh": "ast_deea6ec0a1bf20039dbc8abd848d621f",
+          "screenSize": 0.22
+        },
+        {
+          "mesh": "ast_f4e4679fa7819a57dfe2d70f866d2fb0",
+          "screenSize": 0.08
+        }
+      ],
+      "impostor": {
+        "albedo": null,
+        "normal": null,
+        "views": 8,
+        "screenSize": 0.03,
+        "color": null
+      },
+      "height": 2.46746
+    }
+  ],
+  "materials": {
+    "wood": "ast_4b4adfbe01f0389bf3a0269a3533244c",
+    "leaf": "ast_9781b7ded11dba72de405108528f628e"
+  },
+  "collider": "none",
+  "sway": {
+    "amplitude": 0.13,
+    "frequency": 0.44
+  },
+  "response": {
+    "habit": "deciduous",
+    "spring": {
+      "foliage": 0.8,
+      "tint": "#9ccf6a"
+    },
+    "summer": {
+      "foliage": 1,
+      "tint": "#ffffff"
+    },
+    "autumn": {
+      "foliage": 0.7,
+      "tint": "#d98b3a"
+    },
+    "winter": {
+      "foliage": 0,
+      "tint": "#ffffff"
+    },
+    "windFlex": 1,
+    "snow": {
+      "wood": 0.6,
+      "leaf": 0.8
+    },
+    "wetness": 0.5
+  }
+}
