@@ -8,6 +8,7 @@
 import { isJsonObject, type AssetId, type AssetIndex, type JsonObject } from "../../core/index.ts";
 import { stableHex } from "../forgeImport/ids.ts";
 import { generatedOutputId } from "./recipeOutput.ts";
+import { treePrototypeKey, treePrototypes } from "./tree/treeRecipe.ts";
 
 export const PLANT_RECIPE_TYPES = ["forge.treeRecipe", "forge.grassRecipe"] as const;
 export const MODEL_RECIPE_TYPES = [...PLANT_RECIPE_TYPES, "forge.rockRecipe"] as const;
@@ -21,6 +22,8 @@ export function recipeGenerator(type: string): RecipeGenerator | null {
 
 export interface RecipePrototype {
   readonly seed: number;
+  /** A tree recipe's young tree: after the mature prototypes. */
+  readonly young: boolean;
   /** LOD 0's model. */
   readonly mesh: AssetId;
   readonly foliageType: AssetId;
@@ -37,8 +40,9 @@ export interface RecipeOutputs {
 
 const outputId = (recipe: string, role: string): AssetId => generatedOutputId(recipe, role) as AssetId;
 
-function prototypeOf(recipe: string, generator: RecipeGenerator, seed: number): RecipePrototype {
-  return { seed, mesh: outputId(recipe, `${generator}/${seed}/lod0`), foliageType: outputId(recipe, `${generator}/${seed}/foliageType`) };
+function prototypeOf(recipe: string, generator: RecipeGenerator, seed: number, young = false): RecipePrototype {
+  const key = treePrototypeKey(seed, young);
+  return { seed, young, mesh: outputId(recipe, `${generator}/${key}/lod0`), foliageType: outputId(recipe, `${generator}/${key}/foliageType`) };
 }
 
 /** Null when `type` is not a model recipe. */
@@ -46,11 +50,11 @@ export function recipeOutputs(recipe: AssetId, type: string, document: Readonly<
   const generator = recipeGenerator(type);
   if (!generator) return null;
   const listed = Array.isArray(document.variants) ? document.variants.filter((seed): seed is number => typeof seed === "number") : [];
-  const seeds = [...new Set(listed.length > 0 ? listed : [1])];
+  const seeds = generator === "tree" ? treePrototypes(document) : [...new Set(listed.length > 0 ? listed : [1])].map((seed) => ({ seed, young: false }));
   return {
     recipe, generator,
     family: generator === "rock" ? null : outputId(recipe, `${generator}/family`),
-    prototypes: seeds.map((seed) => prototypeOf(recipe, generator, seed)),
+    prototypes: seeds.map(({ seed, young }) => prototypeOf(recipe, generator, seed, young)),
   };
 }
 
@@ -90,7 +94,7 @@ export function builtRecipe(index: Index, recipe: AssetId): BuiltRecipe | null {
   const published = outputs.family === null
     ? outputs.prototypes
     : (Array.isArray(family?.prototypes) ? (family.prototypes as unknown[]) : []).map((prototype) =>
-      prototypeOf(recipe, outputs.generator, isJsonObject(prototype) && typeof prototype.seed === "number" ? prototype.seed : NaN));
+      prototypeOf(recipe, outputs.generator, isJsonObject(prototype) && typeof prototype.seed === "number" ? prototype.seed : NaN, isJsonObject(prototype) && prototype.young === true));
   const prototypes = published
     .map((prototype, position) => ({ ...prototype, index: position }))
     .filter((prototype) => index.entries.has(prototype.mesh) && index.entries.has(prototype.foliageType));

@@ -34,7 +34,7 @@ export default defineGameModule({ id:'starter.assets', features:[defineFeature({
   await write(`${FOLDER}/cube.glb.meta.json`, { schema: "forge.assetMeta/1", id: MODEL, type: "forge.model@2", license: "CC0-1.0", source: { origin: "asset editor smoke" }, import: { materials: [MATERIAL] } });
   await write(`${FOLDER}/surface.material.json`, { schema: "forge.material/1", id: MATERIAL, baseColor: "#aa2200", roughness: 0.5 });
   const tree = JSON.parse(await readFile(join(REPO, "content/packs/starter/procgen/trees/Broadleaf.treerecipe.json"), "utf8"));
-  await write(`${FOLDER}/grove.treerecipe.json`, { ...tree, id: `ast_${"a".repeat(31)}5`, variants: [1], impostor: { ...tree.impostor, views: 4, frameSize: "64" } });
+  await write(`${FOLDER}/grove.treerecipe.json`, { ...tree, id: `ast_${"a".repeat(31)}5`, variants: [1], young: { age: 0.2, variants: [9] }, impostor: { ...tree.impostor, views: 4, frameSize: "64" } });
   const family = JSON.parse(await readFile(join(REPO, "content/packs/starter/procgen/trees/Broadleaf/Broadleaf.plantfamily.json"), "utf8"));
   await write(`${FOLDER}/family.plantfamily.json`, { ...family, id: `ast_${"a".repeat(31)}9` });
   await write(`${FOLDER}/page.familysheet.json`, { schema: "forge.familySheet/1", id: SHEET, entries: [] });
@@ -113,9 +113,10 @@ test("tree recipe edits the live variant, publishes a family and reopens the sav
   await page.getByTestId("asset-editor-generate").click();
   await expect(page.getByTestId("asset-editor-status")).toContainText("Generated and saved", { timeout: 60000 });
   const family = await json(`${FOLDER}/grove/grove.plantfamily.json`);
-  expect(family.prototypes.map((p: {seed: number}) => p.seed)).toEqual([7]);
+  expect(family.prototypes.map((p: { seed: number; young: boolean }) => [p.seed, p.young])).toEqual([[7, false], [9, true]]);
   expect(family.prototypes[0].lods).toHaveLength(3);
   expect((await json(`${FOLDER}/grove/grove_7.foliagetype.json`)).family).toBe(family.id);
+  expect(await json(`${FOLDER}/grove/grove_9_young.foliagetype.json`)).toMatchObject({ family: family.id, prototype: 1 });
   await close(page); await asset(page, "grove.treerecipe.json");
   await ready(); await expect(height).toHaveValue("11");
   await expect(preview.getByLabel("Seed")).toHaveValue("7"); expect(errors).toEqual([]);
@@ -141,7 +142,7 @@ test("tree recipe compares Source, LODs and impostor, shows every seed, the fami
   await expect(page.getByTestId("asset-editor-save")).toBeDisabled();
   await preview.getByLabel("View").selectOption("seeds");
   await ready();
-  await expect(labels).toHaveText([/^Seed [0-9]+$/]);
+  await expect(labels).toHaveText([/^Seed [0-9]+$/, "Seed 9 (young)"]);
   // Related: the bark recipe behind the wood material opens from here.
   await expect(page.getByTestId("asset-related-uses")).toContainText("Bark · Surface Texture Recipe");
   await page.getByTestId("asset-related-uses").getByText("M_Bark", { exact: false }).click();
@@ -156,7 +157,7 @@ test("plant family previews prototypes, LODs and a single plant beside foliage i
   const preview = page.getByTestId("asset-editor-preview"), labels = page.getByTestId("preview-labels").locator("span");
   const ready = () => expect(preview).toHaveAttribute("data-preview-ready", "1", { timeout: 60000 });
   await ready();
-  await expect(labels).toHaveText(["Prototype 0", "Prototype 1", "Prototype 2"]);
+  await expect(labels).toHaveText(["Prototype 0", "Prototype 1", "Prototype 2", "Prototype 3", "Prototype 4"]);
   const flex = page.getByTestId("asset-field-response.windFlex");
   await flex.fill("0.5"); await flex.press("Tab");
   await ready(); await save(page);
@@ -201,7 +202,7 @@ test("family sheet lists generated recipes, shows their output, keeps an answer 
   const preview = page.getByTestId("asset-editor-preview"), labels = page.getByTestId("preview-labels").locator("span");
   const ready = () => expect(preview).toHaveAttribute("data-preview-ready", "1", { timeout: 60000 });
   await broadleaf.locator(".asset-component-node").click(); await ready();
-  await expect(labels).toHaveText(["Seed 1", "Seed 2", "Seed 3"]);
+  await expect(labels).toHaveText(["Seed 1", "Seed 2", "Seed 3", "Seed 11 (young)", "Seed 12 (young)"]);
   await preview.getByLabel("View").selectOption("lods"); await ready();
   await expect(labels).toHaveText(["LOD 0", "LOD 1", "LOD 2", "Impostor"]);
   await previewShot(page, "sheet-broadleaf", info);

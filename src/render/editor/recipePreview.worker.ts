@@ -12,13 +12,16 @@ import { generateTree } from "../../engine/procgen/tree/treeGenerator.ts";
 import { bakeTreeImpostor, type TreeImpostor } from "../../engine/procgen/tree/treeImpostor.ts";
 import { materialLookOf, treeImpostorSurfaces, type MaterialLook } from "../../engine/procgen/tree/treeLook.ts";
 import type { TreeMesh } from "../../engine/procgen/tree/treeMesh.ts";
-import { treeRecipeAtlas } from "../../engine/procgen/tree/treeRecipe.ts";
+import { treePrototypeRecipe, treeRecipeAtlas, type TreePrototype } from "../../engine/procgen/tree/treeRecipe.ts";
+
+/** A prototype of the recipe: a tree recipe's young ones have seeds of their own. */
+export type PreviewSeed = Pick<TreePrototype, "seed" | "young" | "key">;
 
 interface MeshRequest {
   readonly kind: "meshes";
   readonly ticket: number;
   readonly recipe: JsonObject;
-  readonly seeds: readonly number[];
+  readonly seeds: readonly PreviewSeed[];
   readonly draft: boolean;
   /** A tree's LOD 0 without its thinning, before the LODs. */
   readonly source: boolean;
@@ -31,7 +34,7 @@ interface ImpostorRequest {
   readonly kind: "impostor";
   readonly ticket: number;
   readonly recipe: JsonObject;
-  readonly seed: number;
+  readonly seed: PreviewSeed;
   readonly wood: PreviewMaterial | null;
   readonly leaf: PreviewMaterial | null;
 }
@@ -59,6 +62,7 @@ export interface PreviewLod {
 
 export interface PreviewPrototype {
   readonly seed: number;
+  readonly key: string;
   readonly source: PreviewLod | null;
   readonly lods: readonly PreviewLod[];
   /** What the generator counts: `295 stems · 2,840 sprays`. */
@@ -97,9 +101,8 @@ function buildTree(request: MeshRequest): RecipeMeshes {
   const started = performance.now();
   const { recipe } = request;
   const atlas = atlasOf(recipe, request.draft);
-  const settings = recipe.lods as JsonObject[];
-  const lodsOf = (lods: readonly JsonObject[], seed: number, triangleCaps?: readonly number[]) => {
-    const tree = generateTree({ ...recipe, lods: [...lods], seed }, triangleCaps ? { triangleCaps } : {});
+  const lodsOf = (own: JsonObject, triangleCaps?: readonly number[]) => {
+    const tree = generateTree(own, triangleCaps ? { triangleCaps } : {});
     if (!tree.ok) throw new Error(tree.report.message);
     return { tree, lods: tree.lods.map((lod, index): PreviewLod => ({
       name: `LOD ${index}`, triangles: tree.stats[index]!.triangles,
@@ -107,14 +110,15 @@ function buildTree(request: MeshRequest): RecipeMeshes {
       doubleSided: true,
     })) };
   };
-  const prototypes = request.seeds.map((seed): PreviewPrototype => {
-    const { tree, lods } = lodsOf(settings, seed);
+  const prototypes = request.seeds.map((prototype): PreviewPrototype => {
+    const own = treePrototypeRecipe(recipe, prototype), settings = own.lods as JsonObject[];
+    const { tree, lods } = lodsOf(own);
     let source: PreviewLod | null = null;
     if (request.source && settings[0] && recipe.habit !== "shrub") {
-      const full = lodsOf([{ ...settings[0], minRadius: 0, leafFraction: 1 }, ...settings.slice(1)], seed, [200000]).lods[0]!;
+      const full = lodsOf({ ...own, lods: [{ ...settings[0], minRadius: 0, leafFraction: 1 }, ...settings.slice(1)] }, [200000]).lods[0]!;
       source = { ...full, name: "Source" };
     }
-    return { seed, source, lods, detail: `${counted(tree.stems, "stems")} · ${counted(tree.sprays, "sprays")} · leaf area index ${(tree.crown.leafArea[0]! / tree.crown.referenceArea).toFixed(1)}`, bytes: bytesOf(lods) };
+    return { seed: prototype.seed, key: prototype.key, source, lods, detail: `${counted(tree.stems, "stems")} · ${counted(tree.sprays, "sprays")} · leaf area index ${(tree.crown.leafArea[0]! / tree.crown.referenceArea).toFixed(1)}`, bytes: bytesOf(lods) };
   });
   return { prototypes, atlas: { size: atlas.size, rgba: atlas.rgba.slice(), normal: atlas.normal.slice() }, milliseconds: Math.round(performance.now() - started) };
 }
@@ -122,11 +126,11 @@ function buildTree(request: MeshRequest): RecipeMeshes {
 function buildGrass(request: MeshRequest): RecipeMeshes {
   const started = performance.now();
   const blades = Math.round(request.recipe.bladeCount as number);
-  const prototypes = request.seeds.map((seed): PreviewPrototype => {
+  const prototypes = request.seeds.map(({ seed, key }): PreviewPrototype => {
     const lods = generateGrass(request.recipe as unknown as GrassShape, seed).map(({ mesh, wind }, index): PreviewLod => ({
       name: `LOD ${index}`, triangles: mesh.indices.length / 3, parts: [{ role: "body", mesh, wind }], doubleSided: true,
     }));
-    return { seed, source: null, lods, detail: counted(blades, "blades"), bytes: bytesOf(lods) };
+    return { seed, key, source: null, lods, detail: counted(blades, "blades"), bytes: bytesOf(lods) };
   });
   return { prototypes, atlas: null, milliseconds: Math.round(performance.now() - started) };
 }
@@ -135,14 +139,14 @@ function buildRock(request: MeshRequest): RecipeMeshes {
   const started = performance.now();
   const { recipe } = request;
   const noise = (recipe.noise ?? {}) as JsonObject;
-  const prototypes = request.seeds.map((seed): PreviewPrototype => {
+  const prototypes = request.seeds.map(({ seed, key }): PreviewPrototype => {
     const rock = generateRock({
       seed, size: recipe.size, shape: recipe.shape, cuts: recipe.cuts, noiseAmplitude: noise.amplitude, noiseScale: noise.scale,
       noiseOctaves: noise.octaves, flattenBottom: recipe.flattenBottom, embedDepth: recipe.embedDepth, lods: recipe.lods,
     });
     if (!rock.ok) throw new Error(rock.report.message);
     const lods = rock.lods.map((mesh, index): PreviewLod => ({ name: `LOD ${index}`, triangles: rock.stats[index]!.triangles, parts: [{ role: "body", mesh }], doubleSided: false }));
-    return { seed, source: null, lods, detail: `${recipe.collision === "hull" ? rock.collider.points.length / 3 : 0} collider points`, bytes: bytesOf(lods) };
+    return { seed, key, source: null, lods, detail: `${recipe.collision === "hull" ? rock.collider.points.length / 3 : 0} collider points`, bytes: bytesOf(lods) };
   });
   return { prototypes, atlas: null, milliseconds: Math.round(performance.now() - started) };
 }
@@ -150,9 +154,9 @@ function buildRock(request: MeshRequest): RecipeMeshes {
 function buildImpostor({ recipe, seed, wood, leaf }: ImpostorRequest): { impostor: TreeImpostor; milliseconds: number } {
   const started = performance.now();
   const atlas = atlasOf(recipe, false);
-  const tree = generateTree({ ...recipe, seed });
+  const own = treePrototypeRecipe(recipe, seed), tree = generateTree(own);
   if (!tree.ok) throw new Error(tree.report.message);
-  const settings = recipe.impostor as { views: number; frameSize: string };
+  const settings = own.impostor as { views: number; frameSize: string };
   const woodTexture = wood?.surface ? bakeSurfaceRecipe(wood.surface) : null;
   const looks = {
     wood: wood ? materialLookOf(wood.document, woodTexture ? { width: woodTexture.size, height: woodTexture.size, rgba: woodTexture.baseColor } : null) : null,

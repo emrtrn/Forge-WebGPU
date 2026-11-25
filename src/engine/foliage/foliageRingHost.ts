@@ -1,10 +1,10 @@
 // Ported from Forge WebGL src/scene/proceduralFoliageRing.ts @ forge-webgl-final (04b5fb23); the model ring only — far billboards and far tint are phase 5c F3; drawing goes through a sink instead of Forge's FoliageRenderBinding.
 import type { TerrainTileLookup } from "../terrain/terrainHeightQuery.ts";
 import { tileKey, type TerrainTileData } from "../terrain/terrainTypes.ts";
-import { foliageRingCellSize, foliageRingRadius, planFoliageRing, type FoliageRingBounds } from "../world/foliageRing.ts";
+import { FOLIAGE_FULL_BANDS, foliageFullCellSize, foliageRingCellSize, foliageRingRadius, planFoliageRing, type FoliageRingBounds } from "../world/foliageRing.ts";
 import type { FoliageCellGenerator, FoliageGeneratorTerrainDef } from "./foliageCellGenerator.ts";
 import type { FoliageTypeParams } from "./foliageTypeParams.ts";
-import type { FoliageRuleParams } from "./proceduralFoliage.ts";
+import { foliageRuleDensity, type FoliageRuleParams } from "./proceduralFoliage.ts";
 
 export interface FoliageRingTerrain {
   readonly id: string;
@@ -22,9 +22,11 @@ export interface FoliageRingRule {
   readonly typeId: string;
   readonly rule: FoliageRuleParams;
   readonly type: FoliageTypeParams;
-  /** The type's authored cull distances, metres (0 = never culls). */
+  /** The type's authored cull distances, metres (0 = never culls), or the stand's reach. */
   readonly cullStart: number;
   readonly cullEnd: number;
+  /** A stand with a reach of its own: neither the distance bands nor the quality's foliage density thin it. */
+  readonly full?: boolean;
   readonly terrain: FoliageRingTerrain;
 }
 
@@ -95,7 +97,7 @@ export class FoliageRing {
     this.warn = options.warn ?? console.warn;
     this.rules = options.rules.map((source) => ({
       source,
-      cellSize: foliageRingCellSize(source.cullEnd, source.rule.density),
+      cellSize: source.full ? foliageFullCellSize(source.cullEnd) : foliageRingCellSize(source.cullEnd, foliageRuleDensity(source.rule)),
       bounds: terrainBounds(source.terrain.def),
       built: new Map(),
       pending: new Map(),
@@ -178,7 +180,10 @@ export class FoliageRing {
       const known = new Map<string, number>();
       for (const [key, { keep }] of state.built) known.set(key, keep);
       for (const [key, { keep }] of state.pending) known.set(key, keep);
-      const plan = planFoliageRing({ center, radius, density, bounds: state.bounds, built: known, cellSize: state.cellSize });
+      const plan = planFoliageRing({
+        center, radius, density: state.source.full && density > 0 ? 1 : density, bounds: state.bounds, built: known, cellSize: state.cellSize,
+        ...(state.source.full ? { bands: FOLIAGE_FULL_BANDS } : {}),
+      });
       for (const key of plan.unload) {
         state.pending.delete(key);
         if (state.built.delete(key)) this.options.sink.remove(foliageRingOwner(id, key));

@@ -9,7 +9,9 @@ import { terrainMaskAt } from "../terrain/terrainMask.ts";
 import type { FoliageTypeParams } from "./foliageTypeParams.ts";
 import type { TerrainMaskBands } from "../terrain/terrainMask.ts";
 import type { TerrainGlobalMap } from "../terrain/terrainGlobalMap.ts";
+import { foliageCellSeed } from "./foliageHash.ts";
 import { makeFoliageRng, passesFoliageFilters, surfaceSlopeDegrees } from "./foliageRoll.ts";
+import { forEachStandSlot, type FoliageStandParams } from "./foliageStand.ts";
 import type { Vec3 } from "../../core/schema/fields.ts";
 
 export interface FoliageSurface {
@@ -118,18 +120,8 @@ export function globalFoliageSurface(
   return surface;
 }
 
+export { foliageCellSeed };
 export const MAX_FOLIAGE_CELL_INSTANCES = 4096;
-
-function mix(value: number): number {
-  value = Math.imul(value ^ (value >>> 16), 0x85ebca6b);
-  value = Math.imul(value ^ (value >>> 13), 0xc2b2ae35);
-  return (value ^ (value >>> 16)) >>> 0;
-}
-
-/** Frozen unsigned 32-bit cell hash; changing it reshuffles existing grass layouts. */
-export function foliageCellSeed(seed: number, cellX: number, cellZ: number): number {
-  return mix(mix((seed >>> 0) ^ Math.imul(cellX | 0, 0x9e3779b1)) ^ Math.imul(cellZ | 0, 0x27d4eb2d));
-}
 
 export interface FoliageCellRequest {
   cellX: number;
@@ -226,11 +218,12 @@ function writeMatrix(matrices: Float32Array, at: number, x: number, y: number, z
 }
 
 /**
- * Generates stable jittered candidates, consuming six random draws before any rejection.
- * The rule's height/slope/noise bands give each candidate a 0..1 mask; it stays only
- * while its fixed `r < keepFraction × mask`, so a narrower band or a lower mask only
- * removes plants and never moves the others. `edgeScale` shrinks a plant toward the
- * band edge (`scale × lerp(edgeScale, 1, mask)`).
+ * Generates stable jittered candidates, consuming six random draws before any rejection
+ * (a `stand` rule: the stand's slots, foliageStand.ts). The rule's height/slope/noise bands
+ * and the ramps of its paint weight give each candidate a 0..1 mask; it stays only while its
+ * fixed `r < keepFraction × mask`, so a narrower band or a lower mask only removes plants and
+ * never moves the others. `edgeScale` shrinks a plant toward the band edge
+ * (`scale × lerp(edgeScale, 1, mask)`).
  */
 export function generateFoliageCell(
   rule: FoliageRuleParams,
@@ -240,36 +233,51 @@ export function generateFoliageCell(
 ): GeneratedFoliageCell {
   const { cellX, cellZ, cellSize, keepFraction } = request;
   if (rule.density <= 0 || keepFraction <= 0 || cellSize <= 0) return { count: 0, matrices: new Float32Array(0) };
-  const rng = makeFoliageRng(foliageCellSeed(rule.seed, cellX, cellZ));
-  const perSide = Math.max(1, Math.round(cellSize * Math.sqrt(rule.density)));
-  const step = cellSize / perSide;
   const maxInstances = Math.max(0, Math.floor(request.maxInstances ?? MAX_FOLIAGE_CELL_INSTANCES));
-  const matrices = new Float32Array(Math.min(perSide * perSide, maxInstances) * 16);
   const bands = landscapeFoliageRuleIsUnbanded(rule) ? null : landscapeFoliageRuleBands(rule);
+  const ramped = foliageRuleHasWeightRamps(rule);
+  const edgeScale = rule.edgeScale ?? LANDSCAPE_FOLIAGE_RULE_BAND_DEFAULTS.edgeScale;
   const noiseSeed = rule.seed | 0;
+  const minX = cellX * cellSize, minZ = cellZ * cellSize;
+  const perSide = Math.max(1, Math.round(cellSize * Math.sqrt(rule.density)));
+  // A stand's slots vary a little from cell to cell round the share's count.
+  const candidates = rule.stand ? Math.ceil(foliageRuleDensity(rule) * cellSize * cellSize * 2) + 64 : perSide * perSide;
+  const limit = Math.min(candidates, maxInstances);
+  const matrices = new Float32Array(limit * 16);
   let count = 0;
-  for (let row = 0; row < perSide && count < maxInstances; row += 1) {
-    for (let col = 0; col < perSide && count < maxInstances; col += 1) {
+  const place = (x: number, z: number, r: number, scaleT: number, yawT: number, offsetT: number): void => {
+    if (r >= keepFraction) return;
+    const weight = surface.layerWeightAt(rule.layerId, x, z);
+    if (weight === null || weight + 1e-6 < rule.minWeight) return;
+    let mask = ramped ? foliageRuleWeightMask(rule, weight) : 1;
+    if (r >= keepFraction * mask) return;
+    const y = surface.heightAt(x, z);
+    const n = surface.normalAt(x, z);
+    if (y === null || n === null || !passesFoliageFilters(type, { position: [x, y, z], normal: n })) return;
+    if (bands) {
+      mask *= terrainMaskAt(bands, y, surfaceSlopeDegrees(n), x, z, noiseSeed);
+      if (r >= keepFraction * mask) return;
+    }
+    const edge = bands || ramped ? edgeScale + (1 - edgeScale) * mask : 1;
+    const scale = (type.scaleMin[0] + (type.scaleMax[0] - type.scaleMin[0]) * scaleT) * edge;
+    const yaw = type.randomYaw ? yawT * 2 * Math.PI : 0;
+    const offset = type.zOffsetMin + (type.zOffsetMax - type.zOffsetMin) * offsetT;
+    writeMatrix(matrices, count * 16, x, y, z, n, type.alignToNormal, yaw, scale, offset);
+    count += 1;
+  };
+  if (rule.stand) {
+    forEachStandSlot(rule.seed, rule.density, rule.stand, minX, minZ, minX + cellSize, minZ + cellSize, (slot) => {
+      place(slot.x, slot.z, slot.r, slot.scaleT, slot.yawT, slot.offsetT);
+      return count < limit;
+    });
+    return { count, matrices: matrices.slice(0, count * 16) };
+  }
+  const rng = makeFoliageRng(foliageCellSeed(rule.seed, cellX, cellZ));
+  const step = cellSize / perSide;
+  for (let row = 0; row < perSide && count < limit; row += 1) {
+    for (let col = 0; col < perSide && count < limit; col += 1) {
       const jx = rng(), jz = rng(), r = rng(), scaleT = rng(), yawT = rng(), offsetT = rng();
-      const x = cellX * cellSize + (col + jx) * step;
-      const z = cellZ * cellSize + (row + jz) * step;
-      if (r >= keepFraction) continue;
-      const weight = surface.layerWeightAt(rule.layerId, x, z);
-      if (weight === null || weight + 1e-6 < rule.minWeight) continue;
-      const y = surface.heightAt(x, z);
-      const n = surface.normalAt(x, z);
-      if (y === null || n === null || !passesFoliageFilters(type, { position: [x, y, z], normal: n })) continue;
-      let edge = 1;
-      if (bands) {
-        const mask = terrainMaskAt(bands, y, surfaceSlopeDegrees(n), x, z, noiseSeed);
-        if (r >= keepFraction * mask) continue;
-        edge = bands.edgeScale + (1 - bands.edgeScale) * mask;
-      }
-      const scale = (type.scaleMin[0] + (type.scaleMax[0] - type.scaleMin[0]) * scaleT) * edge;
-      const yaw = type.randomYaw ? yawT * 2 * Math.PI : 0;
-      const offset = type.zOffsetMin + (type.zOffsetMax - type.zOffsetMin) * offsetT;
-      writeMatrix(matrices, count * 16, x, y, z, n, type.alignToNormal, yaw, scale, offset);
-      count += 1;
+      place(minX + (col + jx) * step, minZ + (row + jz) * step, r, scaleT, yawT, offsetT);
     }
   }
   return { count, matrices: matrices.slice(0, count * 16) };
@@ -375,8 +383,8 @@ export function foliageFarTintMap(
         const weight = global.weights[(Math.floor(source.layer / 4) * texels + i) * 4 + source.layer % 4]! / 255;
         if (weight + 1e-6 < source.rule.minWeight) continue;
         if (!passesFoliageFilters(source.type, { position: [x, y, z], normal })) continue;
-        const mask = source.bands ? terrainMaskAt(source.bands, y, slope, x, z, source.rule.seed | 0) : 1;
-        const cover = 1 - Math.exp(-FAR_TINT_OVERLAP * source.rule.density * source.footprint * source.scale * source.scale);
+        const mask = (source.bands ? terrainMaskAt(source.bands, y, slope, x, z, source.rule.seed | 0) : 1) * foliageRuleWeightMask(source.rule, weight);
+        const cover = 1 - Math.exp(-FAR_TINT_OVERLAP * foliageRuleDensity(source.rule) * source.footprint * source.scale * source.scale);
         const alpha = source.strength * cover * mask;
         if (!(alpha > 0)) continue;
         clear *= 1 - alpha;
@@ -404,6 +412,35 @@ export interface FoliageRuleParams {
   noiseAmount?: number;
   noiseScale?: number;
   edgeScale?: number;
+  /** Paint weight over `minWeight` at which the rule has its full density (absent: at once). */
+  fadeIn?: number;
+  /** Paint weight above which the rule thins out over `fadeOut` (absent: never). */
+  maxWeight?: number;
+  fadeOut?: number;
+  /** The rule is a share of a stand; `density` is then the whole stand's. */
+  stand?: FoliageStandParams;
+}
+
+/** Instances per m² the rule places at full paint. */
+export function foliageRuleDensity(rule: Pick<FoliageRuleParams, "density" | "stand">): number {
+  return rule.stand ? rule.density * Math.max(0, rule.stand.to - rule.stand.from) : rule.density;
+}
+
+function foliageRuleHasWeightRamps(rule: FoliageRuleParams): boolean {
+  return (rule.fadeIn ?? 0) > 0 || (rule.maxWeight ?? 1) < 1;
+}
+
+function smoothstep(value: number): number {
+  const t = Math.min(1, Math.max(0, value));
+  return t * t * (3 - 2 * t);
+}
+
+/** 0..1: how much of the rule's density a paint weight (at or over `minWeight`) has. */
+export function foliageRuleWeightMask(rule: Pick<FoliageRuleParams, "minWeight" | "fadeIn" | "maxWeight" | "fadeOut">, weight: number): number {
+  const fadeIn = rule.fadeIn ?? 0, maxWeight = rule.maxWeight ?? 1, fadeOut = rule.fadeOut ?? 0;
+  const into = fadeIn > 0 ? smoothstep((weight - rule.minWeight) / fadeIn) : 1;
+  if (maxWeight >= 1 || weight <= maxWeight) return into;
+  return fadeOut > 0 ? into * (1 - smoothstep((weight - maxWeight) / fadeOut)) : 0;
 }
 
 /** Values an absent {@link FoliageRuleParams} band field stands for. */

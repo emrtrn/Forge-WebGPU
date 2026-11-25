@@ -77,6 +77,17 @@
       "width": 30,
       "trees": 0.7
     },
+    "stands": [
+      {
+        "id": "wood",
+        "seed": 1501,
+        "patch": 40,
+        "reach": 360,
+        "far": 3000,
+        "tint": 0.5,
+        "detail": 0.65
+      }
+    ],
     "plants": [
       {
         "id": "desert-shrub",
@@ -86,19 +97,60 @@
         "seed": 501
       },
       {
-        "id": "oasis-tree",
+        "id": "oasis-poplar",
+        "layer": "forest",
+        "recipe": "ast_b34f6c4d22964b4eac98354e1d83a256",
+        "density": 0.002,
+        "stand": "wood",
+        "minWeight": 0.35,
+        "fadeIn": 0.35,
+        "edgeScale": 0.75
+      },
+      {
+        "id": "oasis-poplar-young",
+        "layer": "forest",
+        "recipe": "ast_b34f6c4d22964b4eac98354e1d83a256",
+        "density": 0.0008,
+        "stand": "wood",
+        "minWeight": 0.2,
+        "fadeIn": 0.3,
+        "edgeScale": 0.6,
+        "reach": 200,
+        "far": 0,
+        "age": "young",
+        "prototypes": 1
+      },
+      {
+        "id": "oasis-broadleaf",
         "layer": "forest",
         "recipe": "ast_1cc830feab66656728f8bf965079b68a",
-        "density": 0.0035,
-        "minWeight": 0.45,
-        "seed": 502
+        "density": 0.0015,
+        "stand": "wood",
+        "minWeight": 0.35,
+        "fadeIn": 0.35,
+        "edgeScale": 0.75,
+        "prototypes": 2
+      },
+      {
+        "id": "oasis-broadleaf-young",
+        "layer": "forest",
+        "recipe": "ast_1cc830feab66656728f8bf965079b68a",
+        "density": 0.0006,
+        "stand": "wood",
+        "minWeight": 0.2,
+        "fadeIn": 0.3,
+        "edgeScale": 0.6,
+        "reach": 200,
+        "far": 0,
+        "age": "young",
+        "prototypes": 1
       },
       {
         "id": "oasis-grass",
         "layer": "meadow",
         "recipe": "ast_598987d1ddc141e5b8a957d1e3f5fc64",
-        "density": 0.02,
-        "minWeight": 0.5,
+        "density": 1.5,
+        "minWeight": 0.4,
         "seed": 503
       },
       {

@@ -15,7 +15,7 @@ export const TREE_SPECIES: ReadonlyMap<string, AssetDocument> = new Map(Object.e
 
 const HABITS: Readonly<Record<string, string>> = { broadleaf: "Broadleaf", conifer: "Conifer", shrub: "Hazel" };
 /** What stays the recipe's own when it takes a species. */
-const OWN = ["schema", "id", "variants", "materials"];
+const OWN = ["schema", "id", "variants", "young", "materials"];
 
 interface Materials { readonly wood: string | null; readonly leaf: string | null }
 const available = (guid: string | null, catalog: AssetCatalog): string | null => (guid !== null && catalog.label(guid) !== null ? guid : null);
@@ -28,7 +28,7 @@ export function treeSpeciesDraft(document: AssetDocument, name: string, catalog:
   const species = TREE_SPECIES.get(name);
   if (!species) return null;
   const wood = available((species.materials as Materials).wood, catalog) ?? (document.materials as Materials).wood;
-  return { ...species, id: document.id, variants: document.variants, materials: { wood, leaf: null } };
+  return { ...species, id: document.id, variants: document.variants, young: document.young, materials: { wood, leaf: null } };
 }
 
 /** Another habit's skeleton differs in spray and proportions too: the starter's recipe of that habit, its bark and response kept. */

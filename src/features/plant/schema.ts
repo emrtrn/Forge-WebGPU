@@ -67,6 +67,7 @@ export const PlantFamilyFields = {
     object(
       {
         seed: num({ min: 0, max: 4294967295, default: 1, step: 1, hint: "Prototipi üreten tarif tohumu." }),
+        young: bool({ default: false, hint: "Tarifin genç ağacı (üretim aracı yazar)." }),
         lods: array(
           object({
             mesh: assetRef({ assetType: "forge.model", hint: "Bu LOD'un modeli: odun ve yaprak iki materyal slotu." }),
@@ -243,6 +244,10 @@ export const TreeRecipeFields = {
     textureSize: enumOf(SPRAY_TEXTURE_SIZES, { default: "512", labels: { 128: "128", 256: "256", 512: "512", 1024: "1024" }, hint: "Dört kart karosundan birinin kenarı, piksel." }),
   }, { label: "Spray", hint: "Tacı dolduran yapraklı dalcıklar; sayıları Growth'taki Fullness'tan çıkar." }),
   variants: array(num({ min: 0, max: 4294967295, default: 1, step: 1, hint: "Bu tohum bir prototip üretir." }), { default: [1], hint: "Tohum listesi: her tohum ayrı bir ağaç prototipi." }),
+  young: object({
+    age: num({ min: 0.05, max: 0.8, default: 0.2, hint: "Genç ağacın yaşı, tarifteki yaşa oranla." }),
+    variants: array(num({ min: 0, max: 4294967295, default: 1, step: 1, hint: "Bu tohum bir genç ağaç üretir." }), { default: [], hint: "Genç ağaçların tohumları; aynı ailede, olgunlardan sonra." }),
+  }, { label: "Young", hint: "Türün genç ağaçları (yalnız örtülerde, orman altında ve kenarında)." }),
   height: num({ min: 1, max: 60, default: 12, slider: [2, 40], hint: "Ağacın boyu, metre." }),
   trunkRadius: num({ min: 0.02, max: 3, default: 0.27, slider: [0.05, 1.5], hint: "Gövdenin tabandaki yarıçapı, metre." }),
   taper: num({ min: 0.01, max: 1, default: 0.08, hint: "Gövdenin tepedeki kalınlığı, tabana oranla." }),

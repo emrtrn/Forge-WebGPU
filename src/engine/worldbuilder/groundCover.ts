@@ -26,7 +26,9 @@
  * Plants name their foliage type by asset id (plan 5d step 8; Forge WebGL: a
  * file path), or a tree, shrub or grass recipe whose generated prototypes share
  * the rule (vegetation plan PG5); a missing one fails the asset gate like any
- * other reference.
+ * other reference. Plants of one `stand` share a grid (PG5b, foliageStand.ts):
+ * their densities add up, each takes its part of the slots in the cover's
+ * order, so a species listed beside its young trees grows with them.
  * Pure and deterministic.
  */
 import { isId, type AssetId } from "../../core/index.ts";
@@ -94,10 +96,40 @@ export interface CoverPlant {
   foliageType: AssetId | null;
   /** Instead of a type: a tree, shrub or grass recipe whose prototypes share the rule's density (`generatedModels.ts`). */
   recipe?: AssetId;
+  /** With a recipe: its mature prototypes (the default) or its young ones. */
+  age?: "mature" | "young";
+  /** At most this many of the recipe's prototypes (each is a batch of its own); all of them by default. */
+  prototypes?: number;
   /** Instances per m² at full paint. */
   density: number;
   minWeight: number;
+  /** The paint weight's ramps (`FoliageRuleParams`): full density this far over `minWeight`, thinning past `maxWeight`. */
+  fadeIn?: number;
+  maxWeight?: number;
+  fadeOut?: number;
+  /** Plants shrink to this toward the edge of the paint. */
+  edgeScale?: number;
+  /** The stand it belongs to; its seed is the stand's. */
+  stand?: string;
   seed: number;
+  /** Instead of the stand's. */
+  reach?: number;
+  far?: number;
+}
+
+/** Plants that share one grid, and how far they are drawn. */
+export interface CoverStand {
+  id: string;
+  seed: number;
+  /** Species patches, metres (0: none). */
+  patch: number;
+  /** Models to here, then billboards to `far`, metres (0: the foliage types' own distances, no billboards). */
+  reach: number;
+  far: number;
+  /** Far ground tint, 0..1. */
+  tint: number;
+  /** LOD distances are multiplied by it. */
+  detail: number;
 }
 
 export interface GroundCover {
@@ -123,6 +155,7 @@ export interface GroundCover {
   fields?: { reach: number; maxSlopeDeg: number; size: [number, number] };
   /** Snow above the `quantile` of the world's heights, at least `minAbove` over its lowest ground; `treeGap` below it the forest thins out. */
   snow?: { quantile: number; minAbove: number; fade: number; treeGap: number };
+  stands: CoverStand[];
   plants: CoverPlant[];
   /** Rock counts: on high ground and slopes of a valley, by water, and on any steep ground. */
   rocks: { high: number; slopes: number; water: number; outcrops: number };
@@ -136,7 +169,7 @@ export interface CoverDensities {
 
 export const DEFAULT_COVER_DENSITIES: Readonly<CoverDensities> = { forest: "medium", rocks: "medium", fields: "medium" };
 
-const COVER_KEYS = ["schema", "type", "id", "name", "layers", "roles", "rock", "forest", "waterside", "fields", "snow", "plants", "rocks"];
+const COVER_KEYS = ["schema", "type", "id", "name", "layers", "roles", "rock", "forest", "waterside", "fields", "snow", "stands", "plants", "rocks"];
 
 function known(ctx: Ctx, value: Record<string, unknown>, path: string, keys: readonly string[]): void {
   for (const key of Object.keys(value)) if (!keys.includes(key)) issue(ctx, `${path}${path ? "." : ""}${key}`, "is not a ground cover field");
@@ -228,11 +261,30 @@ export function normalizeGroundCover(value: unknown): { cover: GroundCover | nul
     if (!snowLayer) issue(ctx, "roles.snow", "is needed with snow");
   }
 
+  const optionalNumber = (c: Ctx, p: string, raw: Record<string, unknown>, key: string, min: number, max: number): number | undefined =>
+    raw[key] === undefined ? undefined : requireNumber(c, `${p}.${key}`, raw[key], min, max) ?? undefined;
+  const wholeNumber = (c: Ctx, p: string, raw: unknown): number | null =>
+    Number.isInteger(raw) && (raw as number) >= 0 ? raw as number : reject(c, p, "must be a whole number");
+  const stands = value.stands === undefined ? [] : arrayOf(ctx, "stands", value.stands, (c, p, entry): CoverStand | null => {
+    const raw = record(c, p, entry);
+    if (!raw) return null;
+    known(c, raw, p, ["id", "seed", "patch", "reach", "far", "tint", "detail"]);
+    const standId = requireId(c, `${p}.id`, raw.id), seed = wholeNumber(c, `${p}.seed`, raw.seed);
+    if (standId === null || seed === null) return null;
+    return {
+      id: standId, seed, patch: optionalNumber(c, p, raw, "patch", 0, 1000) ?? 0, reach: optionalNumber(c, p, raw, "reach", 0, 5000) ?? 0,
+      far: optionalNumber(c, p, raw, "far", 0, 20000) ?? 0, tint: optionalNumber(c, p, raw, "tint", 0, 1) ?? 0,
+      detail: optionalNumber(c, p, raw, "detail", 0.1, 4) ?? 1,
+    };
+  });
+  const standIds = new Set(stands.map((stand) => stand.id));
+  if (standIds.size !== stands.length) issue(ctx, "stands", "repeats a stand id");
+
   const plantIds = new Set<string>();
   const plants = arrayOf(ctx, "plants", value.plants, (c, p, entry): CoverPlant | null => {
     const raw = record(c, p, entry);
     if (!raw) return null;
-    known(c, raw, p, ["id", "layer", "foliageType", "recipe", "density", "minWeight", "seed"]);
+    known(c, raw, p, ["id", "layer", "foliageType", "recipe", "age", "prototypes", "density", "minWeight", "fadeIn", "maxWeight", "fadeOut", "edgeScale", "stand", "seed", "reach", "far"]);
     const plantId = requireId(c, `${p}.id`, raw.id);
     const layer = layerRef(`${p}.layer`, raw.layer);
     const foliageType = raw.foliageType === undefined || raw.foliageType === null ? null
@@ -243,11 +295,22 @@ export function normalizeGroundCover(value: unknown): { cover: GroundCover | nul
     const density = typeof raw.density === "number" && Number.isFinite(raw.density) && raw.density >= 0 && raw.density <= 10
       ? raw.density : reject(c, `${p}.density`, "must be a number 0..10");
     const minWeight = requireNumber(c, `${p}.minWeight`, raw.minWeight, 0, 1);
-    const seed = Number.isInteger(raw.seed) && (raw.seed as number) >= 0 ? raw.seed as number : reject(c, `${p}.seed`, "must be a whole number");
+    const age = raw.age === undefined ? undefined : raw.age === "young" || raw.age === "mature" ? raw.age : reject(c, `${p}.age`, 'must be "mature" or "young"') ?? undefined;
+    if (age === "young" && !recipe) issue(c, p, "young plants need a recipe");
+    const stand = raw.stand === undefined ? undefined : stands.find((candidate) => candidate.id === raw.stand);
+    if (raw.stand !== undefined && !stand) issue(c, `${p}.stand`, "must name one of the cover's stands");
+    const seed = stand && raw.seed === undefined ? stand.seed : wholeNumber(c, `${p}.seed`, raw.seed);
+    const [fadeIn, maxWeight, fadeOut, edgeScale] = ["fadeIn", "maxWeight", "fadeOut", "edgeScale"].map((key) => optionalNumber(c, p, raw, key, 0, 1));
+    const prototypes = optionalNumber(c, p, raw, "prototypes", 1, 16), reach = optionalNumber(c, p, raw, "reach", 0, 5000), far = optionalNumber(c, p, raw, "far", 0, 20000);
     if (plantId !== null && plantIds.has(plantId)) return reject(c, p, `repeats id "${plantId}"`);
     if (plantId === null || layer === null || recipe === null || (foliageType === null && raw.foliageType) || density === null || minWeight === null || seed === null) return null;
     plantIds.add(plantId);
-    return { id: plantId, layer, foliageType, ...(recipe ? { recipe } : {}), density, minWeight, seed };
+    return {
+      id: plantId, layer, foliageType, ...(recipe ? { recipe } : {}), ...(age ? { age } : {}), ...(prototypes !== undefined ? { prototypes: Math.floor(prototypes) } : {}), density, minWeight, seed,
+      ...(fadeIn !== undefined ? { fadeIn } : {}), ...(maxWeight !== undefined ? { maxWeight } : {}), ...(fadeOut !== undefined ? { fadeOut } : {}),
+      ...(edgeScale !== undefined ? { edgeScale } : {}), ...(stand ? { stand: stand.id } : {}),
+      ...(reach !== undefined ? { reach } : {}), ...(far !== undefined ? { far } : {}),
+    };
   });
 
   const rocksRaw = record(ctx, "rocks", value.rocks) ?? {};
@@ -275,6 +338,7 @@ export function normalizeGroundCover(value: unknown): { cover: GroundCover | nul
       ...(waterside ? { waterside } : {}),
       ...(fields ? { fields } : {}),
       ...(snow ? { snow } : {}),
+      stands,
       plants,
       rocks: { high: high!, slopes: slopes!, water: water!, outcrops: outcrops! },
     },
@@ -421,7 +485,7 @@ export function coverPaint(
   };
 }
 
-/** One foliage rule of a built world: Forge's `LandscapeFoliageRule` fields on the cover's layer. */
+/** One foliage rule of a built world: Forge's `LandscapeFoliageRule` fields on the cover's layer, and a stand's. */
 export interface CoverPlantRule {
   id: string;
   layerId: string;
@@ -429,33 +493,56 @@ export interface CoverPlantRule {
   density: number;
   minWeight: number;
   seed: number;
+  edgeScale?: number;
+  edge?: { fadeIn: number; maxWeight: number; fadeOut: number };
+  stand?: { from: number; to: number; patch: number; reach: number; far: number; tint: number; detail: number };
 }
 
 /** Rule seeds of a recipe's prototypes: far apart, so their cells do not repeat each other's rolls. */
 const PROTOTYPE_SEED_STEP = 1009;
 
+const precise = (value: number): number => Number(value.toPrecision(6));
+
 /**
  * Foliage rules on the cover's layers, and the plants that grow none: without a type or with a recipe that has
  * no output (`missing`), or a recipe the user rejected (`rejected`). A recipe's published prototypes share its
- * density, one rule each.
+ * density, one rule each; a stand's density is its plants' together, shared out in order.
  */
 export function coverPlantRules(cover: GroundCover, densities: CoverDensities, generated: GeneratedSources = () => null): { rules: CoverPlantRule[]; missing: string[]; rejected: string[] } {
   const factor = COVER_DENSITY_FACTOR[densities.forest];
   const missing: string[] = [], rejected: string[] = [];
-  const rules = cover.plants.flatMap((plant): CoverPlantRule[] => {
+  const grown = cover.plants.flatMap((plant) => {
     const source = plant.recipe === undefined ? null : generated(plant.recipe);
-    const types = source ? source.foliageTypes : plant.foliageType === null ? [] : [plant.foliageType];
+    const types = source ? (plant.age === "young" ? source.youngFoliageTypes : source.foliageTypes).slice(0, plant.prototypes) : plant.foliageType === null ? [] : [plant.foliageType];
     if (types.length === 0) {
       (source?.state === "rejected" ? rejected : missing).push(plant.id);
       return [];
     }
     // The forest density thins or thickens the trees as well as the forest's area.
     const density = plant.layer === cover.roles.forest && densities.forest !== "medium" ? plant.density * Math.sqrt(factor) : plant.density;
-    return types.map((foliageTypeId, index) => ({
-      id: index === 0 ? plant.id : `${plant.id}-${index + 1}`, layerId: plant.layer, foliageTypeId,
-      density: Number((density / types.length).toPrecision(6)), minWeight: plant.minWeight, seed: (plant.seed + index * PROTOTYPE_SEED_STEP) >>> 0,
-    }));
+    return [{ plant, types, density }];
   });
+  const totals = new Map<string, number>(), placed = new Map<string, number>();
+  for (const { plant, density } of grown) if (plant.stand) totals.set(plant.stand, (totals.get(plant.stand) ?? 0) + density);
+  /** The next `density` of the stand's slots, as a share of the whole. */
+  const shareOf = (stand: string, density: number): { from: number; to: number } => {
+    const total = totals.get(stand)!, before = placed.get(stand) ?? 0, after = before + density;
+    placed.set(stand, after);
+    return { from: precise(before / total), to: after > total * (1 - 1e-9) ? 1 : precise(after / total) };
+  };
+  const rules = grown.flatMap(({ plant, types, density }) => types.map((foliageTypeId, index): CoverPlantRule => {
+    const { fadeIn = 0, maxWeight = 1, fadeOut = 0, edgeScale = 1 } = plant, stand = cover.stands.find((entry) => entry.id === plant.stand);
+    // The tint stands in for billboards: a plant without them leaves the ground as it is.
+    const far = plant.far ?? stand?.far ?? 0;
+    return {
+      id: index === 0 ? plant.id : `${plant.id}-${index + 1}`, layerId: plant.layer, foliageTypeId,
+      density: precise(stand ? totals.get(stand.id)! : density / types.length), minWeight: plant.minWeight,
+      seed: stand ? stand.seed : (plant.seed + index * PROTOTYPE_SEED_STEP) >>> 0,
+      ...(edgeScale < 1 ? { edgeScale } : {}),
+      ...(fadeIn > 0 || maxWeight < 1 ? { edge: { fadeIn, maxWeight, fadeOut } } : {}),
+      ...(stand ? { stand: { ...shareOf(stand.id, density / types.length), patch: stand.patch, reach: plant.reach ?? stand.reach, far, tint: far > 0 ? stand.tint : 0, detail: stand.detail } } : {}),
+    };
+  }));
   return { rules, missing, rejected };
 }
 

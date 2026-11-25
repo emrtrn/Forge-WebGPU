@@ -75,17 +75,19 @@ export const DEFAULT_REGION_PROFILE = "engine:content/packs/worldbuilder/profile
 
 /**
  * The starter pack's recipes, by asset id (vegetation plan PG5; Forge WebGL named its own starter models by
- * file): angular rocks on the heights and slopes, rounded ones on the slopes and the water banks, and the tree
- * that stands near a settlement's centre.
+ * file): angular rocks on the heights and slopes, rounded ones on the slopes and the water banks, and the trees
+ * that stand near a settlement's centre (they share the settlements).
  */
 const ROCK_ANGULAR = "ast_49952fa42490dda70383d99c0f04f762" as AssetId, ROCK_ROUNDED = "ast_2b01db89c1e2f45f79ae6ce5294aa4bc" as AssetId;
-const BROADLEAF = "ast_1cc830feab66656728f8bf965079b68a" as AssetId;
+const SETTLEMENT_TREES = {
+  Broadleaf: "ast_1cc830feab66656728f8bf965079b68a", Oak: "ast_93f1a5bbde4c4435a2080582620faf3d", Maple: "ast_5322d2eb85d37fe9fdcff8321a57b180", Birch: "ast_a839e8dd91327f16890b5cff658bfeed",
+} as const satisfies Record<string, AssetId>;
 export const DEFAULT_NATURE_MODELS: readonly BriefModel[] = [
   { role: "prop.rock", source: "generated", recipe: ROCK_ANGULAR, variant: "high" },
   { role: "prop.rock", source: "generated", recipe: ROCK_ANGULAR, variant: "slope" },
   { role: "prop.rock", source: "generated", recipe: ROCK_ROUNDED, variant: "slope" },
   { role: "prop.rock", source: "generated", recipe: ROCK_ROUNDED, variant: "river" },
-  { role: "vegetation.tree", source: "generated", recipe: BROADLEAF },
+  ...Object.values(SETTLEMENT_TREES).map((recipe): BriefModel => ({ role: "vegetation.tree", source: "generated", recipe })),
 ];
 
 export interface RandomSettlement {

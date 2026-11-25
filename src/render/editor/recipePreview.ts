@@ -15,7 +15,7 @@ import {
 import { normalizeJsonAsset, type AssetPreviewController, type JsonObject } from "../../core/index.ts";
 import { generatedOutputId } from "../../engine/procgen/recipeOutput.ts";
 import { familyMemory, memoryText } from "../../engine/procgen/recipeMemory.ts";
-import { defaultTreeLeafMaterial } from "../../engine/procgen/tree/treeRecipe.ts";
+import { defaultTreeLeafMaterial, treePrototypes } from "../../engine/procgen/tree/treeRecipe.ts";
 import type { TreeImpostor } from "../../engine/procgen/tree/treeImpostor.ts";
 import type { PlantResponseProfile } from "../../engine/plant/plantResponse.ts";
 import { createSurfaceMaterial, surfaceTextureSlots, type SurfaceMaterialData } from "../materials/surfaceMaterial.ts";
@@ -26,7 +26,7 @@ import type { AssetPreviewContext } from "./assetPreview.ts";
 import { createAssetPreviewControls } from "./assetPreviewControls.ts";
 import { createPreviewEnvironment, NEUTRAL_RESPONSE, previewControl, shadePreviewMesh } from "./previewEnvironment.ts";
 import { createPreviewLabels } from "./previewLabels.ts";
-import type { PreviewLod, PreviewMaterial, PreviewPart, PreviewPrototype, RecipeMeshes, RecipePreviewReply, RecipePreviewRequest } from "./recipePreview.worker.ts";
+import type { PreviewLod, PreviewMaterial, PreviewPart, PreviewSeed, RecipeMeshes, RecipePreviewReply, RecipePreviewRequest } from "./recipePreview.worker.ts";
 
 export type RecipePreviewKind = "tree" | "grass" | "rock";
 
@@ -42,6 +42,9 @@ function geometryOf({ mesh, uvs, wind, leaf }: PreviewPart): BufferGeometry {
   geometry.setIndex(new BufferAttribute(mesh.indices, 1));
   return geometry;
 }
+
+/** A prototype's key as the panel names it: `3`, `3 (young)`. */
+const seedLabel = (key: string): string => key.replace("_young", " (young)");
 
 /** What one request drew with: materials the columns clone, and what they took. */
 interface Look {
@@ -96,7 +99,7 @@ export function createRecipePreview(ctx: AssetPreviewContext, kind: RecipePrevie
   let recipe: JsonObject, ticket = 0, disposed = false;
   let worker: Worker | null = null, working = false, startTimer = 0, fullTimer = 0;
   let shown: Shown | null = null;
-  let impostor: { readonly seed: number; readonly look: Look; readonly baked: TreeImpostor; readonly textures: readonly Texture[] } | null = null;
+  let impostor: { readonly key: string; readonly look: Look; readonly baked: TreeImpostor; readonly textures: readonly Texture[] } | null = null;
 
   const drawn: { dispose(): void }[] = [];
   const clearMeshes = () => {
@@ -120,22 +123,21 @@ export function createRecipePreview(ctx: AssetPreviewContext, kind: RecipePrevie
     shadePreviewMesh(environment.plants.shading(familyOf(), sway(height), 0), material, origin, seed);
   };
 
-  interface Column { readonly label: string; readonly lod: PreviewLod | null; readonly seed: number }
+  interface Column { readonly label: string; readonly lod: PreviewLod | null; readonly seed: number; readonly key: string }
   const columnsOf = (state: Shown): Column[] => {
-    const prototype = (seed: number): PreviewPrototype | undefined => state.meshes.prototypes.find((entry) => entry.seed === seed);
-    const one = prototype(Number(variants.value)) ?? state.meshes.prototypes[0];
+    const one = state.meshes.prototypes.find((entry) => entry.key === variants.value) ?? state.meshes.prototypes[0];
     if (!one) return [];
     if (view.value === "seeds") {
-      return state.meshes.prototypes.map((entry) => ({ label: `Seed ${entry.seed}`, seed: entry.seed, lod: entry.lods[Math.min(Number(levels.value), entry.lods.length - 1)] ?? null }));
+      return state.meshes.prototypes.map((entry) => ({ label: `Seed ${seedLabel(entry.key)}`, seed: entry.seed, key: entry.key, lod: entry.lods[Math.min(Number(levels.value), entry.lods.length - 1)] ?? null }));
     }
     if (view.value === "lods") {
       const all = one.source ? [one.source, ...one.lods] : one.lods;
       return [
-        ...all.map((lod) => ({ label: `${lod.name} · ${lod.triangles.toLocaleString("en-US")}`, seed: one.seed, lod })),
-        ...(impostor?.seed === one.seed ? [{ label: "Impostor · 2", seed: one.seed, lod: null }] : []),
+        ...all.map((lod) => ({ label: `${lod.name} · ${lod.triangles.toLocaleString("en-US")}`, seed: one.seed, key: one.key, lod })),
+        ...(impostor?.key === one.key ? [{ label: "Impostor · 2", seed: one.seed, key: one.key, lod: null }] : []),
       ];
     }
-    return [{ label: "", seed: one.seed, lod: one.lods[Number(levels.value)] ?? one.lods[0] ?? null }];
+    return [{ label: "", seed: one.seed, key: one.key, lod: one.lods[Number(levels.value)] ?? one.lods[0] ?? null }];
   };
 
   const meshOf = (part: PreviewPart, lod: PreviewLod, look: Look, origin: Vector3, seed: number, height: number): Mesh => {
@@ -194,14 +196,14 @@ export function createRecipePreview(ctx: AssetPreviewContext, kind: RecipePrevie
     labels.set(places);
     const layout = `${view.value}:${columns.length}:${recipe.habit === "shrub"}`;
     if (framed !== layout) { controls.frame(subject, columns.length > 1); framed = layout; }
-    const first = shown.meshes.prototypes.find((entry) => entry.seed === columns[0]?.seed);
+    const first = shown.meshes.prototypes.find((entry) => entry.key === columns[0]?.key);
     const triangles = columns.reduce((sum, column) => sum + (column.lod?.triangles ?? 0), 0);
     stats.value = `${triangles.toLocaleString("en-US")} triangles · ${first?.detail ?? ""} · ${shown.meshes.milliseconds} ms CPU${shown.draft ? " · draft atlas" : ""}`;
     const settings = kind === "tree" && recipe.habit !== "shrub" ? recipe.impostor as { enabled: boolean; views: number; frameSize: string } : null;
     const bytes = familyMemory({
       atlasSize: shown.draft ? null : shown.meshes.atlas?.size ?? null, atlasTextures: 2,
       impostor: settings?.enabled ? { views: settings.views, frameSize: Number(settings.frameSize) } : null,
-      prototypes: new Set(recipe.variants as number[]).size || 1, meshBytes: first?.bytes ?? 0,
+      prototypes: seedsOf().length, young: kind === "tree" ? seedsOf().filter((entry) => entry.young).length : 0, meshBytes: first?.bytes ?? 0,
     });
     memory.value = shown.draft ? "" : `GPU ≈ ${memoryText(bytes.total)} (textures ${memoryText(bytes.atlas + bytes.impostors)})`;
   };
@@ -259,7 +261,7 @@ export function createRecipePreview(ctx: AssetPreviewContext, kind: RecipePrevie
   };
 
   const requestImpostor = async () => {
-    const current = ++ticket, seed = Number(variants.value);
+    const current = ++ticket, seed = selectedSeed();
     stats.value += " · baking impostor…";
     const resources = ctx.host.resources(`recipe-preview-looks:${ctx.guid}:${current}`);
     try {
@@ -302,7 +304,7 @@ export function createRecipePreview(ctx: AssetPreviewContext, kind: RecipePrevie
       texture.generateMipmaps = true; texture.magFilter = LinearFilter; texture.minFilter = LinearMipmapLinearFilter; texture.needsUpdate = true;
       return texture;
     });
-    impostor = { seed: Number(variants.value), look: shown.look, baked, textures };
+    impostor = { key: variants.value, look: shown.look, baked, textures };
     show();
     stats.value += ` · impostor ${milliseconds} ms`;
     ready = true;
@@ -333,10 +335,11 @@ export function createRecipePreview(ctx: AssetPreviewContext, kind: RecipePrevie
     window.clearTimeout(startTimer); window.clearTimeout(fullTimer);
     if (working || close) { worker?.terminate(); worker = null; working = false; }
   };
-  const seedsOf = (): number[] => { const seeds = [...new Set(recipe.variants as number[])]; return seeds.length > 0 ? seeds : [1]; };
+  const seedsOf = (): PreviewSeed[] => treePrototypes(recipe);
+  const selectedSeed = (): PreviewSeed => seedsOf().find((entry) => entry.key === variants.value) ?? seedsOf()[0]!;
   const run = (draft: boolean) => post({
     kind: "meshes", ticket: ++ticket, recipe, draft,
-    seeds: view.value === "seeds" ? seedsOf() : [Number(variants.value)], source: view.value === "lods" && !draft,
+    seeds: view.value === "seeds" ? seedsOf() : [selectedSeed()], source: view.value === "lods" && !draft,
   }, draft);
   const schedule = (editing: boolean) => {
     stop(); ticket++; ready = false; ctx.container.dataset.previewReady = "0";
@@ -358,7 +361,7 @@ export function createRecipePreview(ctx: AssetPreviewContext, kind: RecipePrevie
       const previous = recipe;
       recipe = value as JsonObject;
       const seeds = seedsOf(), at = variants.selectedIndex;
-      variants.replaceChildren(...seeds.map((seed) => option(String(seed), String(seed))));
+      variants.replaceChildren(...seeds.map(({ key }) => option(key, seedLabel(key))));
       variants.selectedIndex = Math.max(0, Math.min(at, seeds.length - 1));
       // A response or sway edit changes no geometry: the same meshes, shaded again.
       const shape = (entry: JsonObject) => JSON.stringify({ ...entry, response: null, sway: null, collision: null });

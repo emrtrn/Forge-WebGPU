@@ -15,7 +15,7 @@ import { runRandomWorld, type RandomWorldRunOptions } from "./randomWorldRun.ts"
 import { runWorldBrief } from "./worldBriefRun.ts";
 
 const engineRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const BROADLEAF = "ast_1cc830feab66656728f8bf965079b68a", ROCK_ANGULAR = "ast_49952fa42490dda70383d99c0f04f762";
+const BROADLEAF = "ast_1cc830feab66656728f8bf965079b68a", OAK = "ast_93f1a5bbde4c4435a2080582620faf3d", MAPLE = "ast_5322d2eb85d37fe9fdcff8321a57b180", BIRCH = "ast_a839e8dd91327f16890b5cff658bfeed", ROCK_ANGULAR = "ast_49952fa42490dda70383d99c0f04f762";
 const SHEET = "content/nature.familysheet.json";
 const WORLD: RandomWorldRunOptions["world"] = {
   seed: 5, size: "small", landform: "mountains", mountainHeight: "medium",
@@ -46,12 +46,14 @@ test("a random world's nature is generated: no placeholder rock, a single tree p
   const { actors } = level.level;
   const plants = componentsOf(actors, "forge.plant");
   expect(plants).toHaveLength(2);
-  expect(plants.every((plant) => plant.family === generatedOutputId(BROADLEAF, "tree/family"))).toBe(true);
+  const families = new Map([BROADLEAF, OAK, MAPLE, BIRCH].map((recipe) => [generatedOutputId(recipe, "tree/family"), recipe]));
+  // Mature prototypes only: the young ones come after them.
+  expect(plants.every((plant) => families.has(plant.family as string) && (plant.prototype as number) < (plant.family === generatedOutputId(BROADLEAF, "tree/family") ? 3 : 2))).toBe(true);
   const rocks = actors.filter((actor) => Object.values(actor.class === null ? actor.components : {}).some((component) => component.role === "prop.rock"));
   expect(rocks.length).toBeGreaterThan(0);
   expect(componentsOf(rocks, "forge.shape")).toEqual([]);
-  // Trees, shrubs and grass: three prototypes each.
-  expect(build.foliage.map((rule) => rule.id)).toEqual(expect.arrayContaining(["grove-broadleaf", "grove-broadleaf-3", "grove-bush-2", "meadow-grass-3"]));
+  // Shrubs and grass: three prototypes each; the cover asks for two of the trees and one of the young ones.
+  expect(build.foliage.map((rule) => rule.id)).toEqual(expect.arrayContaining(["grove-broadleaf", "grove-broadleaf-2", "grove-oak-2", "grove-broadleaf-young", "grove-bush-2", "meadow-grass-3"]));
   expect(build.deferred.filter((line) => /foliage|generated/.test(line))).toEqual([]);
   expect(build.review).toEqual([]);
 });
@@ -77,7 +79,7 @@ test("a project recipe a brief names is generated when it has no output, and lef
   await run("content/levels/own");
   const path = "content/levels/own/own.worldbrief.json";
   const brief = JSON.parse(await readFile(join(project, path), "utf8")) as { data: { models: { role: string; recipe: string }[]; props: object[] } };
-  brief.data.models.find((model) => model.role === "vegetation.tree")!.recipe = id;
+  brief.data.models = [...brief.data.models.filter((model) => model.role !== "vegetation.tree"), { role: "vegetation.tree", source: "generated", recipe: id } as (typeof brief.data.models)[number]];
   brief.data.props = [{ id: "lone-bush", role: "vegetation.tree", at: [30, 40], rotationDeg: 0, scale: 1, collision: false }];
   await writeFile(join(project, path), JSON.stringify(brief));
 

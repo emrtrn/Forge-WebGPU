@@ -18,8 +18,8 @@ import type { ScatterPlacement } from "./temporarySteps.ts";
 export const SETTLEMENT_TREE_ROLE = "vegetation.tree";
 
 const SQUARE_ROLE = "open.square";
-/** Clear of a building's pad, a road's centre line, the water's edge, metres. */
-const CLEAR = { pad: 4, road: 8, water: 6 } as const;
+/** Clear of a building's pad (room for an old tree's crown, or at least its trunk), a road's centre line, the water's edge, metres. */
+const CLEAR = { pad: [8, 4], road: 8, water: 6 } as const;
 const RING = { first: 8, step: 4, last: 80, spots: 16 } as const;
 
 function segmentDistance([x, z]: WorldPoint, a: readonly number[], b: readonly number[]): number {
@@ -34,9 +34,9 @@ export function settlementTrees(
 ): { placements: ScatterPlacement[]; warnings: string[] } {
   const placements: ScatterPlacement[] = [], warnings: string[] = [];
   if (!brief.models.some((model) => model.role === SETTLEMENT_TREE_ROLE)) return { placements, warnings };
-  const pads = recipe.generated.pads.map((pad) => ({ polygon: pad.polygon, height: pad.height, falloff: CLEAR.pad }));
+  const padsOf = (falloff: number) => recipe.generated.pads.map((pad) => ({ polygon: pad.polygon, height: pad.height, falloff }));
   const roads = splines.flatMap((spline) => spline.points.slice(1).map((point, i) => [spline.points[i]!.position, point.position] as const));
-  const clear = (at: WorldPoint): boolean => {
+  const clear = (pads: ReturnType<typeof padsOf>) => (at: WorldPoint): boolean => {
     if (pads.some((pad) => padWeight(pad, at[0], at[1]) > 0)) return false;
     if (roads.some(([a, b]) => segmentDistance(at, a, b) < CLEAR.road)) return false;
     const river = terrain.water(at[0], at[1]), lake = terrain.lake(at[0], at[1]);
@@ -56,7 +56,7 @@ export function settlementTrees(
         spots.push([centre[0] + Math.cos(angle) * reach, centre[1] + Math.sin(angle) * reach]);
       }
     }
-    const at = spots.find(clear);
+    const at = CLEAR.pad.map((room) => spots.find(clear(padsOf(room)))).find((spot) => spot !== undefined);
     if (!at) { warnings.push(`settlement ${settlement.id}: no clear spot for its tree`); continue; }
     const id = `${settlement.id}-tree`;
     placements.push({

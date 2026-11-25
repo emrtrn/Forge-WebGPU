@@ -208,6 +208,8 @@ export interface GpuDrivenBatchOptions {
   readonly instanceShading?: InstanceShading;
   /** Enables stable per-instance distance fade offsets in this batch's shaders. */
   readonly staggeredFade?: boolean;
+  /** `renderOrder` of each LOD's main draws (near LODs first: what they cover is not shaded again); default 0. */
+  readonly lodOrder?: readonly number[];
 }
 
 /** The fade band and LOD starts, in measured distance (the owner applies the quality scales). */
@@ -217,6 +219,8 @@ export interface GpuBatchDistances {
   readonly cullEnd: number;
   readonly fadeSpread?: number;
   readonly lodStarts: readonly number[];
+  /** The shadow views' LOD starts (default the same): a coarser LOD casts. */
+  readonly shadowLodStarts?: readonly number[];
 }
 
 export interface GpuDrivenBatch {
@@ -250,6 +254,8 @@ export interface GpuDrivenBatch {
   setZoneMode(mode: ZoneMode): void;
   /** The CPU reference's view of this batch (bounds, distances) as the GPU culls it. */
   readonly cullBatch: InstanceCullBatch;
+  /** The same for the shadow views (their LOD starts). */
+  readonly shadowCullBatch: InstanceCullBatch;
   /**
    * Uploads instance changes and each view's uniforms; returns the dispatches,
    * in order. `views[0]` is the main camera; shadow views are skipped without
@@ -268,6 +274,12 @@ interface Draw {
   readonly material: Material;
   readonly start: number;
   readonly count: number;
+}
+
+/** Whether some distance draws LOD `lod` (a start at or under the one before it, or past the cull end, leaves none). */
+export function lodHasRange(starts: readonly number[], lod: number, cullEnd: number): boolean {
+  const from = lod === 0 ? 0 : starts[lod - 1]!;
+  return from < cullEnd && (starts[lod] ?? Infinity) > from;
 }
 
 /** The part's draws: one per material group, or the whole index for a single material. */
@@ -353,6 +365,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
   const count = uniform(0, "uint");
   const cullEnd = uniform(NO_CULL_DISTANCE);
   const lodStarts = uniform(new Vector4(NO_CULL_DISTANCE, NO_CULL_DISTANCE, NO_CULL_DISTANCE, NO_CULL_DISTANCE));
+  const shadowLodStarts = uniform(new Vector4(NO_CULL_DISTANCE, NO_CULL_DISTANCE, NO_CULL_DISTANCE, NO_CULL_DISTANCE));
   const bounds = uniform(new Vector4(...options.bounds.center, options.bounds.radius));
   const fade = uniform(new Vector2(NO_CULL_DISTANCE * 0.5, NO_CULL_DISTANCE));
   const fadeSpread = uniform(0);
@@ -361,6 +374,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
 
   const views: View[] = [];
   let prepared = 0;
+  let lastDraws = 0;
   let zoneMode: ZoneMode = "visible";
   let bundleUpdates = 0;
   let bundleDirty = false;
@@ -450,7 +464,8 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       }
       If(keep, () => {
         let lod: Node<"uint"> = uint(0);
-        for (let k = 0; k < lodCount - 1; k += 1) lod = lod.add(select(distanceVar.greaterThanEqual([lodStarts.x, lodStarts.y, lodStarts.z][k]!), uint(1), uint(0)));
+        const starts = shadow ? shadowLodStarts : lodStarts;
+        for (let k = 0; k < lodCount - 1; k += 1) lod = lod.add(select(distanceVar.greaterThanEqual([starts.x, starts.y, starts.z][k]!), uint(1), uint(0)));
         const lodVar = lod.toVar();
         const slot = atomicAdd(counters.element(lodVar), uint(1)).toVar();
         visibleWrite.element(lodVar.mul(uint(capacity)).add(slot)).assign(instanceIndex);
@@ -529,6 +544,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       mesh.receiveShadow = !shadow;
       mesh.matrixAutoUpdate = false;
       mesh.layers.set(view.layer);
+      if (!shadow) mesh.renderOrder = options.lodOrder?.[draw.lod] ?? 0;
       if (options.source !== undefined) mesh.userData[SCENE_SOURCE_KEY] = options.source;
       (bundle && !material.transparent ? bundle : options.parent).add(mesh);
       view.meshes.push(mesh);
@@ -539,7 +555,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
   const batch: GpuDrivenBatch = {
     name: options.name,
     path: "gpu",
-    get uncountedDraws() { return drawCount * prepared; },
+    get uncountedDraws() { return lastDraws; },
     instances,
     get meshes() { return views[0]?.meshes ?? []; },
     get allMeshes() { return views.flatMap((view) => view.meshes); },
@@ -548,7 +564,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
     lodTriangles,
     get views() { return prepared; },
     get viewLayers() { return views.slice(0, prepared).map(view => view.layer); },
-    get lastDraws() { return drawCount * prepared; },
+    get lastDraws() { return lastDraws; },
     get bundleUpdates() { return bundleUpdates; },
     get zoneMode() { return zoneMode; },
     setZoneMode(mode) {
@@ -557,18 +573,21 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       if (mode === "hidden") for (const view of views) for (const mesh of view.meshes) mesh.visible = false;
     },
     setDistances(next) {
-      if (next.lodStarts.length !== lodCount - 1) throw new Error(`gpu batch ${options.name}: ${lodCount - 1} LOD starts`);
+      if (next.lodStarts.length !== lodCount - 1 || (next.shadowLodStarts ?? next.lodStarts).length !== lodCount - 1) throw new Error(`gpu batch ${options.name}: ${lodCount - 1} LOD starts`);
       distances = next;
       const end = Math.min(next.cullEnd, NO_CULL_DISTANCE);
       cullEnd.value = end;
       fadeSpread.value = next.fadeSpread ?? 0;
       // A band without width is a hard cut at the end: the compute pass culls there already.
       fade.value.set(Math.min(next.fadeStart, end * 0.999999), end);
-      lodStarts.value.set(...([0, 1, 2, 3].map((k) => next.lodStarts[k] ?? NO_CULL_DISTANCE) as [number, number, number, number]));
+      const four = (starts: readonly number[]) => [0, 1, 2, 3].map((k) => starts[k] ?? NO_CULL_DISTANCE) as [number, number, number, number];
+      lodStarts.value.set(...four(next.lodStarts));
+      shadowLodStarts.value.set(...four(next.shadowLodStarts ?? next.lodStarts));
     },
     get cullBatch() {
       return { center: options.bounds.center, radius: options.bounds.radius, distanceMode: options.distanceMode, cullEnd: Math.min(distances.cullEnd, NO_CULL_DISTANCE), lodStarts: distances.lodStarts };
     },
+    get shadowCullBatch() { return { ...batch.cullBatch, lodStarts: distances.shadowLodStarts ?? distances.lodStarts }; },
     get fadeSpread() { return options.staggeredFade ? distances.fadeSpread ?? 0 : 0; },
     prepare(list) {
       if (colorBuffer && options.instanceColors && colorVersion !== options.instanceColors.version) {
@@ -582,6 +601,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       if (next !== prepared) bundleDirty = true;
       prepared = next;
       const dispatches: ComputeNode[] = [];
+      lastDraws = 0;
       for (let index = 0; index < prepared; index += 1) {
         const view = views[index] ?? (views[index] = createView(index));
         const source = accepted[index]!;
@@ -598,7 +618,13 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         view.casterRadii.set(source.minCasterRadius ?? 0, threshold(1), threshold(2), threshold(3));
         view.casterEnds.set(profile?.splits[0] ?? NO_CULL_DISTANCE, profile?.splits[1] ?? NO_CULL_DISTANCE, profile?.splits[2] ?? NO_CULL_DISTANCE);
         // A zone that only casts draws its shadow views (R9b).
-        for (const mesh of view.meshes) mesh.visible = zoneMode !== "shadow" || view.role === "shadow";
+        const shown = zoneMode !== "shadow" || view.role === "shadow";
+        const starts = view.role === "shadow" ? distances.shadowLodStarts ?? distances.lodStarts : distances.lodStarts;
+        view.meshes.forEach((mesh, at) => {
+          const { lod, material } = draws[at]!;
+          mesh.visible = shown && lodHasRange(starts, lod, distances.cullEnd);
+          if (mesh.visible) lastDraws += drawPasses(material);
+        });
         dispatches.push(...view.dispatches);
       }
       for (let index = prepared; index < views.length; index += 1) for (const mesh of views[index]!.meshes) mesh.visible = false;

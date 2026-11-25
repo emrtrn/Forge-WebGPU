@@ -26,11 +26,12 @@ function smallBrief(): WorldBrief {
 }
 
 /** Every recipe named is built: two prototypes each, plants as family prototypes. */
-const PLANTS = new Set(["ast_1cc830feab66656728f8bf965079b68a"]);
+const PLANTS = new Set(["ast_1cc830feab66656728f8bf965079b68a", "ast_93f1a5bbde4c4435a2080582620faf3d", "ast_5322d2eb85d37fe9fdcff8321a57b180", "ast_a839e8dd91327f16890b5cff658bfeed"]);
 const GENERATED: GeneratedSources = (recipe) => ({
   recipe, name: "Recipe", state: "built", approval: null,
   placements: [0, 1].map((index) => (PLANTS.has(recipe) ? plantAssetId(recipe, index) : `ast_${"0".repeat(31)}${index + 1}`)),
   foliageTypes: [0, 1].map((index): AssetId => `ast_${"f".repeat(31)}${index + 1}`),
+  youngFoliageTypes: [0, 1].map((index): AssetId => `ast_${"e".repeat(31)}${index + 1}`),
 });
 
 function build(brief: WorldBrief, generated: GeneratedSources = () => null, onProgress?: (step: WorldBuildStep) => void): WorldBuild {
@@ -85,7 +86,7 @@ describe("buildWorldFromBrief", () => {
     const groups = [1, 2].map((digit) => withModels.groups.find((group) => group.assetId === `ast_${"0".repeat(31)}${digit}`)!.placements);
     expect(groups.flat().map((placement) => placement.id).sort()).toEqual(rocks.map((placement) => placement.id).sort());
     expect(groups.every((group) => group.length > 0 && group.every((placement) => placement.color === undefined))).toBe(true);
-    const rejected = build(brief, (recipe) => ({ ...GENERATED(recipe)!, state: "rejected", approval: "rejected", placements: [], foliageTypes: [] }));
+    const rejected = build(brief, (recipe) => ({ ...GENERATED(recipe)!, state: "rejected", approval: "rejected", placements: [], foliageTypes: [], youngFoliageTypes: [] }));
     expect(rejected.deferred.some((line) => line.startsWith("generated models rejected on a family sheet, placed as placeholders: prop.rock"))).toBe(true);
     expect(rejected.foliage).toEqual([]);
     expect(rejected.review).toEqual([]);
@@ -104,6 +105,11 @@ describe("buildWorldFromBrief", () => {
       const site = result.recipe.generated.sites[0]!;
       expect(Math.hypot(x - site.center[0], z - site.center[1])).toBeLessThan(120);
     }
+    // Species share the trees by their ids: the same ones every build, more than one kind over many settlements.
+    const many = { ...brief, props: Array.from({ length: 40 }, (_, index) => ({ id: `tree-${index}`, role: "vegetation.tree", at: [index, 0] as [number, number], rotationDeg: 0, scale: 1, collision: true })) } as WorldBrief;
+    const kinds = build(many, GENERATED).groups.filter((group) => group.assetId.startsWith("plant:"));
+    expect(kinds.length).toBeGreaterThan(5);
+    expect(kinds).toEqual(build(many, GENERATED).groups.filter((group) => group.assetId.startsWith("plant:")));
     const bare = { ...brief, models: brief.models.filter((model) => model.role !== "vegetation.tree") };
     expect(build(bare, GENERATED).groups.some((group) => group.assetId.startsWith("plant:"))).toBe(false);
   });
@@ -114,9 +120,24 @@ describe("buildWorldFromBrief", () => {
     const result = build(brief, GENERATED);
     const grown = cover.plants.filter((plant) => plant.recipe !== undefined);
     expect(grown.length).toBeGreaterThan(3);
-    expect(result.foliage.map((rule) => rule.id)).toEqual(grown.flatMap((plant) => [plant.id, `${plant.id}-2`]));
-    expect(result.foliage[0]!.density).toBeCloseTo(grown[0]!.density / 2);
-    expect(new Set(result.foliage.map((rule) => rule.seed)).size).toBe(result.foliage.length);
+    expect(result.foliage.map((rule) => rule.id)).toEqual(grown.flatMap((plant) => (plant.prototypes === 1 ? [plant.id] : [plant.id, `${plant.id}-2`])));
+    for (const rule of result.foliage) {
+      const plant = grown.find((entry) => rule.id === entry.id || rule.id === `${entry.id}-2`)!;
+      const type = plant.age === "young" ? "e" : "f";
+      expect(rule.foliageTypeId.startsWith(`ast_${type.repeat(31)}`)).toBe(true);
+      // Its own density, whole or as its share of the stand's.
+      expect(rule.stand ? rule.density * (rule.stand.to - rule.stand.from) : rule.density).toBeCloseTo(plant.density / (plant.prototypes === 1 ? 1 : 2), 6);
+    }
+    // A stand: one seed and density, its shares end to end; the other rules' seeds differ.
+    const wood = result.foliage.filter((rule) => rule.seed === cover.stands[0]!.seed);
+    expect(wood.length).toBeGreaterThan(6);
+    expect(new Set(wood.map((rule) => rule.density)).size).toBe(1);
+    expect([wood[0]!.stand!.from, wood.at(-1)!.stand!.to]).toEqual([0, 1]);
+    wood.slice(1).forEach((rule, index) => expect(rule.stand!.from).toBe(wood[index]!.stand!.to));
+    expect(wood.some((rule) => rule.stand!.far > 0 && rule.stand!.tint > 0)).toBe(true);
+    expect(wood.every((rule) => rule.stand!.far > 0 || rule.stand!.tint === 0)).toBe(true);
+    const alone = result.foliage.filter((rule) => !rule.stand);
+    expect(new Set(alone.map((rule) => rule.seed)).size).toBe(alone.length);
     expect(result.foliage.every((rule) => cover.layers.some((layer) => layer.id === rule.layerId) && isId(rule.foliageTypeId, "asset"))).toBe(true);
     const without = build(brief);
     expect(without.foliage).toEqual([]);

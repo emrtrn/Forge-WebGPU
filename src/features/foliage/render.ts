@@ -27,6 +27,7 @@
 //   (engine/foliage/foliageFarHost.ts), drawn by render/foliage/farBillboards.ts: a generated plant's baked
 //   atlas, an imported model's baked once at run time. A type with a far tint darkens its terrain toward the
 //   plants' colour past the cull distance (the terrain surface's `setFarTint`).
+// - Stands (PG5b): a rule with a stand's reach draws its type with that reach and far distance, unthinned.
 // - Wind (PG2): a type with `sway.enabled` sways in the world's WES / level
 //   wind (render/foliage/foliageWind.ts), simulation time (a paused world
 //   stands still), every view and both draw paths.
@@ -37,10 +38,10 @@
 
 import { Group, PerspectiveCamera, Vector3, type Camera } from "three/webgpu";
 import { LevelSettingsKey, normalizeJsonAsset, parseComponentTypeTag, type ActorId, type WorldActor } from "../../core/index.ts";
-import { foliageRuleParamsOf, foliageTypeParamsOf, type FoliageTypeAssetFields } from "../../engine/foliage/foliageAsset.ts";
+import { foliageRuleParamsOf, foliageStandReach, foliageTypeParamsOf, type FoliageTypeAssetFields } from "../../engine/foliage/foliageAsset.ts";
 import type { FoliageCellGenerator } from "../../engine/foliage/foliageCellGenerator.ts";
 import { FoliageFar, foliageRuleHasFarBillboards, worldGlobalMap, type FoliageFarRule, type FoliageFarTerrain } from "../../engine/foliage/foliageFarHost.ts";
-import { FoliageRing, type FoliageRingRule, type FoliageRingTerrain } from "../../engine/foliage/foliageRingHost.ts";
+import { FoliageRing } from "../../engine/foliage/foliageRingHost.ts";
 import { LevelFoliageSourceKey, type LevelFoliageSource } from "../../engine/foliage/levelFoliageSource.ts";
 import { plantWorld } from "../../render/plant/plantDrawing.ts";
 import { readFamilyPrototype, type PlantFamilyFieldsRead } from "../../render/plant/plantFamilies.ts";
@@ -72,6 +73,13 @@ interface LoadedType {
   readonly draw: FoliageTypeDraw;
   readonly data: FoliageTypeData;
   /** Its far billboards; null without a far distance past its cull distance. */
+  readonly far: FarBillboardType | null;
+}
+
+/** A rule with what it draws: its type's, or with a stand's own reach a draw of its own (the type's stays as other rules use it). */
+interface RuleDraw {
+  readonly source: FoliageFarRule;
+  readonly draw: FoliageTypeDraw;
   readonly far: FarBillboardType | null;
 }
 
@@ -255,24 +263,36 @@ export default defineRenderBinding({
       }
     };
 
-    /** The far billboards and tint of a placement's rules; null when no rule has either. */
-    const startFar = (entry: Placed, terrain: FoliageFarTerrain, types: Map<string, LoadedType | null>, target: FarBillboards): FoliageFar | null => {
-      const rules: FoliageFarRule[] = [];
-      for (const rule of entry.rules) {
-        const type = typeof rule.foliageType === "string" ? types.get(rule.foliageType) : undefined;
-        if (!type || !(type.far || type.data.far.tint > 0)) continue;
-        rules.push({
-          id: rule.id, typeId: type.draw.id, rule: foliageRuleParamsOf(rule), type: foliageTypeParamsOf(type.data as unknown as FoliageTypeAssetFields),
-          cullStart: type.data.cullStart, cullEnd: type.data.cullEnd, farDistance: type.far?.farDistance ?? 0, terrain,
-        });
+    const ruleDraws = (entry: Placed, terrain: FoliageFarTerrain, types: Map<string, LoadedType | null>): RuleDraw[] => entry.rules.flatMap((rule): RuleDraw[] => {
+      const type = typeof rule.foliageType === "string" ? types.get(rule.foliageType) : undefined;
+      if (!type) return [];
+      const { data } = type, reach = foliageStandReach(rule.stand);
+      const params = foliageTypeParamsOf(data as unknown as FoliageTypeAssetFields);
+      const source = { id: rule.id, rule: foliageRuleParamsOf(rule), terrain };
+      if (!reach) {
+        const { cullStart, cullEnd } = data;
+        return [{ source: { ...source, typeId: type.draw.id, type: params, cullStart, cullEnd, farDistance: type.far?.farDistance ?? 0 }, draw: type.draw, far: type.far }];
       }
+      const { cullStart, cullEnd, far: farDistance, tint } = reach;
+      const id = `${type.draw.id}@${cullEnd}-${farDistance}-${reach.detail}`;
+      const far: FarBillboardType | null = farDistance > 0
+        ? { id, mesh: type.draw.mesh, impostor: type.draw.impostor ?? null, plant: type.draw.plant ?? null, cullStart, cullEnd, farDistance } : null;
+      // The billboards take the impostor's place: the ring draws meshes to its reach.
+      const draw: FoliageTypeDraw = { ...type.draw, id, cullStart, cullEnd, fadeSpread: 0, stand: { lodScale: reach.detail }, ...(far ? { impostor: null } : {}) };
+      return [{ source: { ...source, typeId: id, type: { ...params, farTint: tint }, cullStart, cullEnd, farDistance, full: true }, draw, far }];
+    });
+
+    /** The far billboards and tint of a placement's rules; null when no rule has either. */
+    const startFar = (entry: Placed, draws: readonly RuleDraw[], target: FarBillboards): FoliageFar | null => {
+      const rules = draws.filter(({ source, far }) => far || (source.type.farTint ?? 0) > 0);
       if (rules.length === 0) return null;
       const prefix = `${entry.actor}/`;
+      const types = new Map(draws.map(({ source, far }) => [source.typeId, far]));
       return new FoliageFar({
-        rules,
+        rules: rules.map(({ source }) => source),
         sink: {
           set(owner, typeId, matrices, count) {
-            const far = types.get(typeId)?.far;
+            const far = types.get(typeId);
             if (!far) return 0;
             target.set(far, prefix + owner, matrices.subarray(0, count * 16));
             return count;
@@ -286,25 +306,17 @@ export default defineRenderBinding({
       });
     };
 
-    const startRing = (entry: Placed, terrain: FoliageRingTerrain, types: Map<string, LoadedType | null>, target: FoliageBatches): FoliageRing => {
-      const rules: FoliageRingRule[] = [];
-      for (const rule of entry.rules) {
-        const type = typeof rule.foliageType === "string" ? types.get(rule.foliageType) : undefined;
-        if (!type) continue;
-        rules.push({
-          id: rule.id, typeId: type.draw.id, rule: foliageRuleParamsOf(rule), type: foliageTypeParamsOf(type.data as unknown as FoliageTypeAssetFields),
-          cullStart: type.data.cullStart, cullEnd: type.data.cullEnd, terrain,
-        });
-      }
+    const startRing = (entry: Placed, draws: readonly RuleDraw[], target: FoliageBatches): FoliageRing => {
       const prefix = `${entry.actor}/`;
+      const types = new Map(draws.map(({ draw }) => [draw.id, draw]));
       return new FoliageRing({
-        rules,
+        rules: draws.map(({ source }) => source),
         generator: generator(),
         sink: {
           set(owner, typeId, matrices, count) {
-            const type = types.get(typeId);
-            if (!type) return 0;
-            target.set(type.draw, prefix + owner, matrices.subarray(0, count * 16));
+            const draw = types.get(typeId);
+            if (!draw) return 0;
+            target.set(draw, prefix + owner, matrices.subarray(0, count * 16));
             return count;
           },
           remove(owner) {
@@ -389,11 +401,13 @@ export default defineRenderBinding({
             entry.ring?.dispose();
             entry.far?.dispose();
             entry.planned = null;
-            const terrain = { id: entry.actor, def: surface.def, tiles: surface.tiles, existingTiles: surface.existingTiles };
-            entry.ring = startRing(entry, terrain, entry.types, target);
             // The far map's heights are relative to the datum; the far surface reads world heights.
-            entry.far = farBillboards
-              ? startFar(entry, { ...terrain, global: worldGlobalMap(surface.global, surface.def.origin[1]) }, entry.types, farBillboards) : null;
+            const draws = ruleDraws(entry, {
+              id: entry.actor, def: surface.def, tiles: surface.tiles, existingTiles: surface.existingTiles,
+              global: worldGlobalMap(surface.global, surface.def.origin[1]),
+            }, entry.types);
+            entry.ring = startRing(entry, draws, target);
+            entry.far = farBillboards ? startFar(entry, draws, farBillboards) : null;
             entry.surfaceVersion = surface.version;
           }
           const plan = entry.planned;

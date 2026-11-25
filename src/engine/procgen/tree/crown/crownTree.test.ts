@@ -1,9 +1,11 @@
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
 import { test } from "vitest";
+import type { JsonObject } from "../../../../core/index.ts";
 import { validateMesh } from "../../mesh.ts";
 import { bakeSprayAtlas } from "../../texture/sprayTexture.ts";
 import { generateTree, type TreeResult } from "../treeGenerator.ts";
+import { treePrototypeRecipe } from "../treeRecipe.ts";
 import { CROWN_TRIANGLE_CAPS, normalizeCrownParams, SHRUB_TRIANGLE_CAPS, SPRAY_COVERAGE, type LeafShape } from "./crownParams.ts";
 import { buildCrown } from "./crownTree.ts";
 
@@ -36,6 +38,23 @@ for (const name of ["Broadleaf", "Maple", "Birch", "Oak", "Poplar", "Pine", "Con
           assert.equal(leaf.length, count * 2);
           assert.ok(leaf.every((value) => value >= 0 && value <= 1));
         }
+      });
+    }
+  });
+}
+
+for (const name of ["Broadleaf", "Maple", "Birch", "Oak", "Poplar", "Pine", "Conifer"]) {
+  test(`${name}: its young trees hold a leafy crown in every LOD with a fraction of the triangles`, () => {
+    const data = recipe(name) as unknown as JsonObject, young = (data.young as { variants: number[] }).variants;
+    const mature = grown(treePrototypeRecipe(data, { seed: 1, young: false }));
+    assert.ok(young.length > 0);
+    for (const seed of [...young, 1, 2, 3, 40, 41]) {
+      const tree = grown(treePrototypeRecipe(data, { seed, young: true })), { leafArea, referenceArea } = tree.crown;
+      assert.ok(tree.height < mature.height * 0.55 && tree.stats[0]!.triangles < mature.stats[0]!.triangles * 0.75, `${tree.height} m, ${tree.stats[0]!.triangles} triangles`);
+      tree.lods.forEach((_, lod) => {
+        assert.ok(tree.stats[lod]!.triangles <= CROWN_TRIANGLE_CAPS[lod]!);
+        assert.ok(leafArea[lod]! / referenceArea >= 4, `seed ${seed} LOD${lod}: leaf area index ${leafArea[lod]! / referenceArea}`);
+        assert.ok(Math.abs(leafArea[lod]! / leafArea[0]! - 1) <= 0.2, `seed ${seed} LOD${lod}: ${leafArea[lod]! / leafArea[0]!} of LOD0's leaf area`);
       });
     }
   });

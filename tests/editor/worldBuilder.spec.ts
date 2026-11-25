@@ -24,7 +24,7 @@ let temp: string, project: string, server: ViteDevServer, base: string;
 const LEVEL = "content/levels/Smoke";
 const LEVEL_ID = `lvl_${"5".repeat(32)}`, ENVIRONMENT = `act_${"5".repeat(32)}`;
 /** Of the starter pack's recipes: their families and Foliage Types are what the world must name. */
-const PLANTS = ["trees/Broadleaf", "trees/Hazel", "grass/MeadowGrass"].map((name) => join(REPO, "content/packs/starter/procgen", name));
+const PLANTS = ["trees/Broadleaf", "trees/Oak", "trees/Maple", "trees/Birch", "trees/Poplar", "trees/Hazel", "grass/MeadowGrass"].map((name) => join(REPO, "content/packs/starter/procgen", name));
 const text = (path: string) => readFile(join(project, ...path.split("/")), "utf8");
 
 test.beforeAll(async () => {
@@ -145,7 +145,7 @@ test("World Builder: add the pack, preview, build into the open level keeping it
   await expect(page.locator('[data-asset-path="content/levels/Smoke/level.json"], [data-asset-path="content/levels/Smoke"]').first()).toBeVisible();
   await page.locator("[data-content-toggle]").click();
 
-  // Nature is generated: the rules name the recipes' Foliage Types, and one tree of the Broadleaf family stands in the settlement.
+  // Nature is generated: the rules name the recipes' Foliage Types, and one tree of a starter family stands in the settlement.
   const types = new Map<string, string>(), families = new Map<string, string>();
   for (const folder of PLANTS) for (const name of await readdir(folder)) {
     if (!/\.(foliagetype|plantfamily)\.json$/.test(name)) continue;
@@ -154,10 +154,10 @@ test("World Builder: add the pack, preview, build into the open level keeping it
   }
   const grown = (terrain.components.foliage!.rules as { foliageType: string }[]).map((rule) => types.get(rule.foliageType));
   expect(grown).not.toContain(undefined);
-  expect(grown).toEqual(expect.arrayContaining(["MeadowGrass_1.foliagetype.json", "MeadowGrass_3.foliagetype.json", "Hazel_2.foliagetype.json"]));
+  expect(grown).toEqual(expect.arrayContaining(["MeadowGrass_1.foliagetype.json", "MeadowGrass_3.foliagetype.json", "Hazel_2.foliagetype.json", "Poplar_1.foliagetype.json", "Poplar_11_young.foliagetype.json"]));
   const [tree, ...more] = await treesOf();
   expect(more).toEqual([]);
-  expect(families.get(tree!.components!.plant!.family as string)).toBe("Broadleaf.plantfamily.json");
+  expect(families.get(tree!.components!.plant!.family as string)).toMatch(/^(Broadleaf|Oak|Maple|Birch)\.plantfamily\.json$/);
 
   // Edit the tree, save, open the level again: the same family, the new place.
   await selectIn(page, tree!);

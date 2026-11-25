@@ -20,9 +20,10 @@ describe("recipe links", async () => {
     const links = recipeLinks(index, BROADLEAF)!;
     expect(links.built).toBe(true);
     expect(links.digest).toMatch(/^[0-9a-f]{32}$/);
-    expect(links.prototypes.map((prototype) => prototype.index)).toEqual([0, 1, 2]);
+    expect(links.prototypes.map((prototype) => prototype.index)).toEqual([0, 1, 2, 3, 4]);
+    expect(links.prototypes.map((prototype) => prototype.young)).toEqual([false, false, false, true, true]);
     expect(links.uses.map((link) => link.name)).toEqual(expect.arrayContaining(["M_Bark", "M_Leaf", "Bark"]));
-    expect(links.outputs.filter((link) => link.type === "forge.foliageType")).toHaveLength(3);
+    expect(links.outputs.filter((link) => link.type === "forge.foliageType")).toHaveLength(5);
     expect(links.outputs.map((link) => link.id)).toContain(links.family);
     expect(links.usedBy.some((link) => link.type === "forge.groundCover")).toBe(true);
     expect(links.notes).toEqual([]);

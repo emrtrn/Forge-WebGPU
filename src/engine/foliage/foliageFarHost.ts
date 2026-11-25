@@ -13,11 +13,11 @@
 // it or its start distance changes.
 
 import { tileKey } from "../terrain/terrainTypes.ts";
-import { FOLIAGE_FAR_BLOCK_SIZE, FOLIAGE_RING_BANDS, foliageRingCellSize, planFarFoliage, type FoliageRingBounds } from "../world/foliageRing.ts";
+import { FOLIAGE_FAR_BLOCK_SIZE, FOLIAGE_RING_BANDS, foliageFullCellSize, foliageRingCellSize, planFarFoliage, type FoliageRingBounds } from "../world/foliageRing.ts";
 import { foliageFadeWindow } from "../world/instanceCulling.ts";
 import type { FoliageRingRule, FoliageRingSink, FoliageRingTerrain } from "./foliageRingHost.ts";
 import {
-  foliageFarTintMap, generateFoliageBlock, globalFoliageSurface,
+  foliageFarTintMap, foliageRuleDensity, generateFoliageBlock, globalFoliageSurface,
   type FoliageFarTintMap, type FoliageFarTintSource, type FoliageGlobalMap,
 } from "./proceduralFoliage.ts";
 
@@ -101,7 +101,7 @@ export class FoliageFar {
     this.rules = options.rules.filter(foliageRuleHasFarBillboards).map((source) => ({
       source,
       // The ring's cell size: a block is ring cells, so a billboard stands where the ring's model stood.
-      cellSize: foliageRingCellSize(source.cullEnd, source.rule.density),
+      cellSize: source.full ? foliageFullCellSize(source.cullEnd) : foliageRingCellSize(source.cullEnd, foliageRuleDensity(source.rule)),
       bounds: terrainBounds(source.terrain),
       blocks: new Map(),
     }));
@@ -154,8 +154,10 @@ export class FoliageFar {
   }
 
   private plan(center: readonly [number, number], cullScale: number, density: number, budget: number): void {
+    // Every species of a stand has its own blocks: together they get one rule's budget.
+    let standBudget = budget;
     for (const state of this.rules) {
-      const { id, typeId, rule, type, cullStart, cullEnd, farDistance } = state.source;
+      const { id, typeId, rule, type, cullStart, cullEnd, farDistance, full } = state.source;
       // The live terrain (replaceTerrain swaps it), not the one the rule started with.
       const terrain = this.terrains.get(state.source.terrain.id)!;
       const global = terrain.global;
@@ -164,7 +166,8 @@ export class FoliageFar {
       if (!window) continue;
       const farEnd = farDistance * (cullScale > 0 ? cullScale : 1);
       // The ring's outermost band: a billboard shows exactly the plants the last models showed.
-      const keep = FOLIAGE_RING_BANDS[FOLIAGE_RING_BANDS.length - 1]!.keep * Math.min(1, Math.max(0, density));
+      const quality = Math.min(1, Math.max(0, density));
+      const keep = full ? Math.ceil(quality) : FOLIAGE_RING_BANDS[FOLIAGE_RING_BANDS.length - 1]!.keep * quality;
       const plan = planFarFoliage({ center, nearRadius: window[0], farRadius: farEnd, bounds: state.bounds, built: new Set(state.blocks.keys()) });
       for (const key of plan.unload) {
         state.blocks.delete(key);
@@ -184,7 +187,7 @@ export class FoliageFar {
       // Hand-off rebuilds first: a stale block near the models shows in the wrong place.
       let built = 0;
       for (const block of [...stale, ...plan.build]) {
-        if (built >= budget) break;
+        if (built >= (full ? standBudget : budget)) break;
         const resident = blockTilesResident(terrain, block.blockX, block.blockZ);
         const surface = globalFoliageSurface(terrain.def, global, terrain.tiles);
         const generated = generateFoliageBlock(rule, type, surface, {
@@ -197,6 +200,7 @@ export class FoliageFar {
         state.blocks.set(block.key, { count, keep, exact: surface.exact || resident });
         built += 1;
       }
+      if (full) standBudget -= built;
     }
   }
 

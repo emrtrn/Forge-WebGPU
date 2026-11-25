@@ -1,0 +1,37 @@
+{
+  "schema": "forge.assetMeta/1",
+  "id": "ast_714c481182f1b790931b884ed5273eea",
+  "type": "forge.model@2",
+  "license": "LicenseRef-forge-project",
+  "source": {
+    "origin": "generated",
+    "author": "",
+    "url": ""
+  },
+  "import": {
+    "materials": ["ast_4b4adfbe01f0389bf3a0269a3533244c", "ast_b66b68747837e847808bd672bdf34e8a"],
+    "uvw": {
+      "mapType": "none",
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1]
+    },
+    "vertexColors": [],
+    "optimize": {
+      "enabled": false,
+      "maxTextureSize": 1024,
+      "keepNormals": true,
+      "meshopt": false,
+      "stripTextures": false
+    },
+    "collision": {
+      "convex": []
+    }
+  },
+  "generated": {
+    "recipe": "ast_1cc830feab66656728f8bf965079b68a",
+    "generator": "tree",
+    "generatorVersion": 6,
+    "contentHash": "d94d01cc9ee41db19817eb4e9fee52d7d10c6dcb3fd2e45668197d771309d529"
+  }
+}

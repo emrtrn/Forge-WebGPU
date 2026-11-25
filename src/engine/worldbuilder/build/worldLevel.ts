@@ -103,7 +103,10 @@ export function worldLevel(build: WorldBuild, options: WorldLevelOptions): World
   const stageOf = build.recipe.generatedBy.placements;
   const terrain = terrainActor(actorId(`terrain/${terrainId}`), build.def.name, build.def, terrainAsset);
   if (terrain.class === null && build.foliage.length) {
-    const rules = build.foliage.map((rule) => convertLandscapeFoliageRule({ ...rule }, rule.foliageTypeId));
+    const rules = build.foliage.map(({ edge, stand, ...rule }) => ({
+      ...convertLandscapeFoliageRule({ ...rule }, rule.foliageTypeId),
+      ...(edge ? { edge } : {}), ...(stand ? { stand: { enabled: true, ...stand } } : {}),
+    }));
     terrain.components = { ...terrain.components, foliage: { type: LANDSCAPE_FOLIAGE_TAG, rules } };
   }
   const actors: ActorDoc[] = [terrain];

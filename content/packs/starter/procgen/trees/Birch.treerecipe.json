@@ -7,6 +7,13 @@
     1,
     2
   ],
+  "young": {
+    "age": 0.2,
+    "variants": [
+      11,
+      12
+    ]
+  },
   "height": 18,
   "trunkRadius": 0.2,
   "flare": 0.35,

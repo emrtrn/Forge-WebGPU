@@ -31,6 +31,8 @@ import type { ImpostorRef } from "../plant/plantFamilies.ts";
 import { applyImpostor, impostorPart, isImpostor } from "../plant/impostorMaterial.ts";
 import type { InstanceShading } from "../gpu/instanceShading.ts";
 
+/** Near LODs first, all before the ground (the sky is -1): what a near crown covers is not shaded again. */
+const LOD_ORDER = [-0.9, -0.8, -0.7, -0.6];
 /** LODs a batch draws at most (gpuDrivenBatch: three LOD starts). */
 const MAX_BATCH_LODS = 4;
 
@@ -52,6 +54,8 @@ export interface FoliageTypeDraw {
   readonly plant?: PlantFamilyDraw | null;
   /** The baked impostor (PG3): drawn as the last LOD from its screen size. */
   readonly impostor?: ImpostorRef | null;
+  /** A stand's draw (PG5b): LOD distances × `lodScale`, LODs past the first cast shadows. */
+  readonly stand?: { readonly lodScale: number };
   /** The editor's comparisons: this LOD at any distance (the last when it has fewer; the impostor is the last). */
   readonly forcedLod?: number;
 }
@@ -115,7 +119,7 @@ const sameSway = (a: FoliageSway | null | undefined, b: FoliageSway | null | und
 
 const sameType = (a: FoliageTypeDraw, b: FoliageTypeDraw): boolean =>
   sameSway(a.sway, b.sway) && JSON.stringify(a.plant ?? null) === JSON.stringify(b.plant ?? null) && JSON.stringify(a.impostor ?? null) === JSON.stringify(b.impostor ?? null) && a.mesh === b.mesh && a.castShadow === b.castShadow && a.cullStart === b.cullStart && a.cullEnd === b.cullEnd
-  && a.fadeSpread === b.fadeSpread && a.forcedLod === b.forcedLod && a.lods.length === b.lods.length
+  && a.fadeSpread === b.fadeSpread && a.stand?.lodScale === b.stand?.lodScale && a.forcedLod === b.forcedLod && a.lods.length === b.lods.length
   && a.lods.every((lod, index) => lod.mesh === b.lods[index]!.mesh && lod.screenSize === b.lods[index]!.screenSize);
 
 /**
@@ -163,10 +167,17 @@ export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBat
       });
       return;
     }
+    const meshLods = entry.type.lods.length, lodScale = entry.type.stand?.lodScale ?? 1;
     const lodStarts = lodStartsOfScreenSizes(entry.radius, screenSizes, quality.verticalFov)
+      // The finest LOD costs most: it takes the whole scale, the next its root; the impostor keeps its own distance.
+      .map((start, index) => (index < meshLods ? start * (index === 0 ? lodScale : Math.sqrt(lodScale)) : start))
       // Ascending, as the batch requires.
       .map((start, index, all) => Math.max(start, index > 0 ? all[index - 1]! : 0));
-    entry.batch.setDistances({ fadeStart: window?.[0] ?? NO_CULL_DISTANCE, cullEnd: window?.[1] ?? NO_CULL_DISTANCE, fadeSpread, lodStarts });
+    // One LOD coarser in the shadow maps, never the impostor before its distance.
+    const shadowLodStarts = entry.type.stand && meshLods > 0 ? lodStarts.map((start, index) => (index === 0 ? 0 : index < meshLods ? lodStarts[index - 1]! : start)) : undefined;
+    entry.batch.setDistances({
+      fadeStart: window?.[0] ?? NO_CULL_DISTANCE, cullEnd: window?.[1] ?? NO_CULL_DISTANCE, fadeSpread, lodStarts, ...(shadowLodStarts ? { shadowLodStarts } : {}),
+    });
   };
 
   const shadingOf = (type: FoliageTypeDraw): InstanceShading | null => {
@@ -209,7 +220,7 @@ export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBat
       entry.batch = options.gpuDriven.createBatch({
         name: `foliage/${entry.type.id}`, parent: options.parent, lods: lods.map((lod) => lod.parts),
         bounds: { center: [sphere.center.x, sphere.center.y, sphere.center.z], radius: sphere.radius },
-        distanceMode: "origin", castShadow: entry.type.castShadow, source: options.source ?? "foliage",
+        distanceMode: "origin", castShadow: entry.type.castShadow, source: options.source ?? "foliage", lodOrder: LOD_ORDER,
         ...(entry.type.fadeSpread ? { staggeredFade: true } : {}),
         ...(options.bundle !== undefined ? { bundle: options.bundle } : {}),
         ...(capacity > 0 ? { capacity } : {}),

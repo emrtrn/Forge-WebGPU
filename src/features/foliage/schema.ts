@@ -155,7 +155,28 @@ const LandscapeFoliageRule = object(
       },
       { hint: "Yoğunluk gürültüsü." },
     ),
-    edgeScale: num({ min: 0, max: 1, default: 1, hint: "Band kenarında ölçek çarpanı (1 değişmez; ör. ağaç sınırında bodur ağaçlar)." }),
+    edgeScale: num({ min: 0, max: 1, default: 1, hint: "Band ve boya kenarında ölçek çarpanı (1 değişmez; ör. ağaç sınırında bodur ağaçlar)." }),
+    edge: object(
+      {
+        fadeIn: num({ min: 0, max: 1, default: 0, hint: "Boya ağırlığı en düşük değerin bu kadar üstüne çıkınca yoğunluk tam olur (0 keskin kenar)." }),
+        maxWeight: num({ min: 0, max: 1, default: 1, hint: "Boya bu ağırlığı aşınca kural seyrelir (1 kapalı; ör. yalnız orman kenarında çalı)." }),
+        fadeOut: num({ min: 0, max: 1, default: 0, hint: "En yüksek ağırlıktan sonra sıfıra inen geçiş." }),
+      },
+      { hint: "Boya katmanının kenarında seyrelme; kalan bitkiler yerinden oynamaz." },
+    ),
+    stand: object(
+      {
+        enabled: bool({ default: false, hint: "Aynı tohumlu ve yoğunluklu kurallar tek ızgarayı bölüşür: ağaçlar türleri ne olursa olsun aralıklı durur." }),
+        from: num({ min: 0, max: 1, default: 0, hint: "Kuralın meşceredeki payının başı." }),
+        to: num({ min: 0, max: 1, default: 1, hint: "Payın sonu; yoğunluk bütün meşcerenindir." }),
+        patch: num({ min: 0, max: 1000, default: 0, slider: [0, 200], hint: "Tür yamalarının boyu, metre (0 kapalı); yakın paylar birlikte büyür." }),
+        reach: num({ min: 0, max: 5000, default: 0, slider: [0, 1000], hint: "Modeller bu uzaklığa kadar seyrelmeden çizilir, metre (0: türün kendi uzaklıkları). Kalite profili ölçekler." }),
+        far: num({ min: 0, max: 20000, default: 0, slider: [0, 5000], hint: "Reach'ten sonra bu uzaklığa kadar kameraya dönük kart, metre (0 kapalı)." }),
+        tint: num({ min: 0, max: 1, default: 0, hint: "Reach'ten sonra arazinin bitkinin rengine koyulaşması." }),
+        detail: num({ min: 0.1, max: 4, default: 1, slider: [0.25, 2], hint: "Yakın LOD uzaklıklarının çarpanı; küçüldükçe ayrıntılı modeller daha yakında kalır (Reach gerekir)." }),
+      },
+      { hint: "Meşcere: ortak ızgara, tür payı ve kendi erişimi." },
+    ),
   },
   { label: "Rule" },
 );

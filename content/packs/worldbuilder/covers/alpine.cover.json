@@ -79,14 +79,60 @@
       "fade": 25,
       "treeGap": 40
     },
+    "stands": [
+      {
+        "id": "wood",
+        "seed": 1601,
+        "patch": 60,
+        "reach": 360,
+        "far": 3000,
+        "tint": 0.5,
+        "detail": 0.65
+      },
+      {
+        "id": "understory",
+        "seed": 1602
+      },
+      {
+        "id": "thicket",
+        "seed": 1603
+      }
+    ],
     "plants": [
       {
         "id": "alpine-conifer",
         "layer": "forest",
         "recipe": "ast_fd4f39c78d58ef550273be682359d194",
-        "density": 0.0042,
-        "minWeight": 0.45,
-        "seed": 601
+        "density": 0.027,
+        "stand": "wood",
+        "minWeight": 0.25,
+        "fadeIn": 0.5,
+        "edgeScale": 0.45,
+        "prototypes": 2
+      },
+      {
+        "id": "alpine-conifer-young",
+        "layer": "forest",
+        "recipe": "ast_fd4f39c78d58ef550273be682359d194",
+        "density": 0.009,
+        "stand": "wood",
+        "minWeight": 0.2,
+        "fadeIn": 0.3,
+        "edgeScale": 0.5,
+        "reach": 200,
+        "far": 0,
+        "age": "young",
+        "prototypes": 1
+      },
+      {
+        "id": "alpine-pine",
+        "layer": "forest",
+        "recipe": "ast_40de720fed962028044e4665a1a828c6",
+        "density": 0.004,
+        "stand": "wood",
+        "minWeight": 0.25,
+        "fadeIn": 0.5,
+        "edgeScale": 0.45
       },
       {
         "id": "alpine-bush",
@@ -94,14 +140,27 @@
         "recipe": "ast_87bb62bab8604e289363f8780ac6f60e",
         "density": 0.001,
         "minWeight": 0.5,
-        "seed": 603
+        "fadeIn": 0.3,
+        "stand": "understory"
+      },
+      {
+        "id": "alpine-edge-bush",
+        "layer": "forest",
+        "recipe": "ast_87bb62bab8604e289363f8780ac6f60e",
+        "density": 0.003,
+        "minWeight": 0.12,
+        "fadeIn": 0.12,
+        "maxWeight": 0.5,
+        "fadeOut": 0.25,
+        "edgeScale": 0.7,
+        "stand": "thicket"
       },
       {
         "id": "alpine-grass",
         "layer": "meadow",
         "recipe": "ast_598987d1ddc141e5b8a957d1e3f5fc64",
-        "density": 0.015,
-        "minWeight": 0.5,
+        "density": 1.0,
+        "minWeight": 0.4,
         "seed": 604
       },
       {

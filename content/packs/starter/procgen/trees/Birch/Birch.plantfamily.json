@@ -5,6 +5,7 @@
   "prototypes": [
     {
       "seed": 1,
+      "young": false,
       "lods": [
         {
           "mesh": "ast_3971606d3063fd3998b3103d7602a998",
@@ -30,6 +31,7 @@
     },
     {
       "seed": 2,
+      "young": false,
       "lods": [
         {
           "mesh": "ast_2886d3e2584ff9f141744cc01a3fc2cb",
@@ -52,6 +54,58 @@
         "color": "#7e9f37"
       },
       "height": 17.6033
+    },
+    {
+      "seed": 11,
+      "young": true,
+      "lods": [
+        {
+          "mesh": "ast_e5ba763810048231bfba959a1651fa42",
+          "screenSize": 1
+        },
+        {
+          "mesh": "ast_8db7164119ba8ac372b1c1cd7dbe4e81",
+          "screenSize": 0.42
+        },
+        {
+          "mesh": "ast_afb57e4c0dfa35e9d28d91d9bccb1350",
+          "screenSize": 0.17
+        }
+      ],
+      "impostor": {
+        "albedo": "ast_7b70a5eefea0aad49f980381721491b4",
+        "normal": "ast_786e2ce4beefcd3d8676199f516c1f52",
+        "views": 8,
+        "screenSize": 0.04,
+        "color": "#7ea037"
+      },
+      "height": 9.30603
+    },
+    {
+      "seed": 12,
+      "young": true,
+      "lods": [
+        {
+          "mesh": "ast_bd13181707b1c868a328c0c9d059b661",
+          "screenSize": 1
+        },
+        {
+          "mesh": "ast_fc7ad0559135e8e7a2eaf7c411023ddb",
+          "screenSize": 0.42
+        },
+        {
+          "mesh": "ast_f27a98421448d158f92776f5506af6e7",
+          "screenSize": 0.17
+        }
+      ],
+      "impostor": {
+        "albedo": "ast_30598e13053fd9dec9cb38fcdad27934",
+        "normal": "ast_e79a11d013079f5f4c8b8f5ecec74ed4",
+        "views": 8,
+        "screenSize": 0.04,
+        "color": "#7e9f37"
+      },
+      "height": 9.00826
     }
   ],
   "materials": {

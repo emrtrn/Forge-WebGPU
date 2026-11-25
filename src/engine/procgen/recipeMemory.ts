@@ -10,6 +10,8 @@ export interface FamilyMemoryInput {
   /** Two textures per prototype, wood beside leaves; null without impostors. */
   readonly impostor: { readonly views: number; readonly frameSize: number } | null;
   readonly prototypes: number;
+  /** Of those, young trees: an impostor of half the frames' edge, meshes of about their share. */
+  readonly young?: number;
   /** Vertex + index bytes of one prototype's LODs. */
   readonly meshBytes: number;
 }
@@ -23,12 +25,14 @@ export interface FamilyMemory {
 }
 
 const MIP_CHAIN = 4 / 3;
+const YOUNG_IMPOSTOR = 0.25, YOUNG_MESHES = 0.4;
 
 export function familyMemory(input: FamilyMemoryInput): FamilyMemory {
   const atlas = input.atlasSize === null ? 0 : Math.round(input.atlasSize ** 2 * MIP_CHAIN * (input.atlasTextures ?? 1));
   const edge = input.impostor ? input.impostor.views * input.impostor.frameSize : 0;
-  const impostors = Math.round(2 * (2 * edge) * edge * MIP_CHAIN * input.prototypes);
-  const meshes = Math.round(input.meshBytes * input.prototypes);
+  const young = input.young ?? 0, mature = input.prototypes - young;
+  const impostors = Math.round(2 * (2 * edge) * edge * MIP_CHAIN * (mature + young * YOUNG_IMPOSTOR));
+  const meshes = Math.round(input.meshBytes * (mature + young * YOUNG_MESHES));
   return { atlas, impostors, meshes, total: atlas + impostors + meshes };
 }
 

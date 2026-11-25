@@ -83,37 +83,144 @@
       "maxSlopeDeg": 9,
       "size": [35, 90]
     },
+    "stands": [
+      {
+        "id": "wood",
+        "seed": 1301,
+        "patch": 60,
+        "reach": 360,
+        "far": 3000,
+        "tint": 0.5,
+        "detail": 0.65
+      },
+      {
+        "id": "understory",
+        "seed": 1302
+      },
+      {
+        "id": "thicket",
+        "seed": 1303
+      }
+    ],
     "plants": [
       {
         "id": "wood-broadleaf",
         "layer": "forest",
         "recipe": "ast_1cc830feab66656728f8bf965079b68a",
-        "density": 0.0022,
-        "minWeight": 0.5,
-        "seed": 301
+        "density": 0.003,
+        "stand": "wood",
+        "minWeight": 0.35,
+        "fadeIn": 0.35,
+        "edgeScale": 0.75,
+        "prototypes": 2
       },
       {
-        "id": "wood-conifer",
+        "id": "wood-broadleaf-young",
         "layer": "forest",
-        "recipe": "ast_fd4f39c78d58ef550273be682359d194",
+        "recipe": "ast_1cc830feab66656728f8bf965079b68a",
+        "density": 0.0015,
+        "stand": "wood",
+        "minWeight": 0.2,
+        "fadeIn": 0.3,
+        "edgeScale": 0.6,
+        "reach": 200,
+        "far": 0,
+        "age": "young",
+        "prototypes": 1
+      },
+      {
+        "id": "wood-maple",
+        "layer": "forest",
+        "recipe": "ast_5322d2eb85d37fe9fdcff8321a57b180",
+        "density": 0.0015,
+        "stand": "wood",
+        "minWeight": 0.35,
+        "fadeIn": 0.35,
+        "edgeScale": 0.75
+      },
+      {
+        "id": "wood-maple-young",
+        "layer": "forest",
+        "recipe": "ast_5322d2eb85d37fe9fdcff8321a57b180",
         "density": 0.0008,
-        "minWeight": 0.55,
-        "seed": 302
+        "stand": "wood",
+        "minWeight": 0.2,
+        "fadeIn": 0.3,
+        "edgeScale": 0.6,
+        "reach": 200,
+        "far": 0,
+        "age": "young",
+        "prototypes": 1
+      },
+      {
+        "id": "wood-oak",
+        "layer": "forest",
+        "recipe": "ast_93f1a5bbde4c4435a2080582620faf3d",
+        "density": 0.0015,
+        "stand": "wood",
+        "minWeight": 0.35,
+        "fadeIn": 0.35,
+        "edgeScale": 0.75
+      },
+      {
+        "id": "wood-poplar",
+        "layer": "forest",
+        "recipe": "ast_b34f6c4d22964b4eac98354e1d83a256",
+        "density": 0.002,
+        "stand": "wood",
+        "minWeight": 0.35,
+        "fadeIn": 0.35,
+        "edgeScale": 0.75
+      },
+      {
+        "id": "wood-poplar-young",
+        "layer": "forest",
+        "recipe": "ast_b34f6c4d22964b4eac98354e1d83a256",
+        "density": 0.0008,
+        "stand": "wood",
+        "minWeight": 0.2,
+        "fadeIn": 0.3,
+        "edgeScale": 0.6,
+        "reach": 200,
+        "far": 0,
+        "age": "young",
+        "prototypes": 1
       },
       {
         "id": "wood-bush",
         "layer": "forest",
         "recipe": "ast_87bb62bab8604e289363f8780ac6f60e",
-        "density": 0.0012,
+        "density": 0.004,
         "minWeight": 0.5,
-        "seed": 303
+        "fadeIn": 0.3,
+        "stand": "understory"
+      },
+      {
+        "id": "wood-edge-bush",
+        "layer": "forest",
+        "recipe": "ast_87bb62bab8604e289363f8780ac6f60e",
+        "density": 0.015,
+        "minWeight": 0.12,
+        "fadeIn": 0.12,
+        "maxWeight": 0.5,
+        "fadeOut": 0.25,
+        "edgeScale": 0.7,
+        "stand": "thicket"
+      },
+      {
+        "id": "wood-grass",
+        "layer": "forest",
+        "recipe": "ast_598987d1ddc141e5b8a957d1e3f5fc64",
+        "density": 0.5,
+        "minWeight": 0.3,
+        "seed": 306
       },
       {
         "id": "meadow-grass",
         "layer": "meadow",
         "recipe": "ast_598987d1ddc141e5b8a957d1e3f5fc64",
-        "density": 0.02,
-        "minWeight": 0.5,
+        "density": 1.2,
+        "minWeight": 0.4,
         "seed": 304
       },
       {

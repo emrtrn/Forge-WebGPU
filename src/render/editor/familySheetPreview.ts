@@ -33,16 +33,17 @@ export function createFamilySheetPreview(ctx: AssetPreviewContext, readers: Fami
   const resources = ctx.host.resources(`family-sheet:${ctx.guid}`);
   let selected: string | null = null, links: RecipeLinks | null = null, disposed = false, ticket = 0;
 
-  const drawsOf = async (shown: RecipeLinks): Promise<{ seed: number; lods: number; impostor: boolean; draw: FoliageTypeDraw }[]> => {
+  const seedName = ({ seed, young }: { readonly seed: number; readonly young: boolean }): string => (young ? `${seed} (young)` : String(seed));
+  const drawsOf = async (shown: RecipeLinks): Promise<{ seed: string; lods: number; impostor: boolean; draw: FoliageTypeDraw }[]> => {
     const family = shown.family === null ? null : readers.family(await resources.json(shown.family) as JsonObject);
     const found = await Promise.all(shown.prototypes.map(async (entry) => {
       if (family) {
         const read = familyPrototype(family, shown.family!, entry.index);
-        return read ? { seed: entry.seed, lods: read.lods.length + 1, impostor: read.impostor !== null, draw: plantDraw(read, shown.family!, entry.index, false) } : null;
+        return read ? { seed: seedName(entry), lods: read.lods.length + 1, impostor: read.impostor !== null, draw: plantDraw(read, shown.family!, entry.index, false) } : null;
       }
       const type = readers.foliageType(await resources.json(entry.foliageType));
       const draw = type ? foliageTypeDraw(entry.foliageType, { ...type, castShadow: false, cullStart: 0, cullEnd: 0 }, null) : null;
-      return draw ? { seed: entry.seed, lods: draw.lods.length + 1, impostor: false, draw } : null;
+      return draw ? { seed: seedName(entry), lods: draw.lods.length + 1, impostor: false, draw } : null;
     }));
     return found.flatMap((entry) => (entry ? [entry] : []));
   };
@@ -53,7 +54,7 @@ export function createFamilySheetPreview(ctx: AssetPreviewContext, readers: Fami
     const draws = await drawsOf(shown);
     if (disposed || current !== ticket) return;
     const at = Math.max(0, prototype.selectedIndex);
-    prototype.replaceChildren(...draws.map((entry, index) => new Option(String(entry.seed), String(index))));
+    prototype.replaceChildren(...draws.map((entry, index) => new Option(entry.seed, String(index))));
     prototype.selectedIndex = Math.min(at, draws.length - 1);
     const one = draws[prototype.selectedIndex];
     const columns: StageColumn[] = view.value === "lods" && one

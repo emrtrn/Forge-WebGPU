@@ -2,7 +2,8 @@
 // brief's model row or a cover's plant names a recipe (tree, shrub, grass,
 // rock), and the build takes what the recipe generated: a rock's models as
 // static meshes, a plant's family as `forge.plant` actors or its Foliage Types
-// as rules. Its published prototypes share the placements. A recipe without
+// as rules. Its published prototypes share the placements (a tree's young ones
+// only a cover's plant that asks for them). A recipe without
 // output, or one the user rejected on a family sheet, gives the placeholder
 // (no rule); one listed but not approved is used and reported.
 
@@ -18,10 +19,12 @@ export interface GeneratedSource {
   readonly state: "built" | "missing" | "rejected";
   /** The user's answer; null when the project has no family sheet. */
   readonly approval: SheetState | null;
-  /** Placement asset ids, one per prototype: models, or `plant:` ids. Empty unless built. */
+  /** Placement asset ids, one per mature prototype: models, or `plant:` ids. Empty unless built. */
   readonly placements: readonly string[];
-  /** One per prototype. Empty unless built. */
+  /** One per mature prototype. Empty unless built. */
   readonly foliageTypes: readonly AssetId[];
+  /** One per young prototype (a tree recipe's `young` seeds). */
+  readonly youngFoliageTypes: readonly AssetId[];
 }
 
 export type GeneratedSources = (recipe: AssetId) => GeneratedSource | null;
@@ -42,12 +45,13 @@ export function generatedSources(index: Pick<AssetIndex, "entries" | "jsonAssets
       // With a page in the project a recipe it does not list waits for an answer too.
       const approval = sheets.length > 0 ? recipeState(sheets, recipe, built.digest) ?? "pending" : null;
       const state = approval === "rejected" ? "rejected" : built.built ? "built" : "missing";
-      const prototypes = state === "built" ? built.prototypes : [];
+      const published = state === "built" ? built.prototypes : [], prototypes = published.filter((prototype) => !prototype.young);
       const { family } = built.outputs;
       source = {
         recipe, name: path.slice(path.lastIndexOf("/") + 1).split(".")[0]!, state, approval,
         placements: prototypes.map((prototype) => (family === null ? prototype.mesh : plantAssetId(family, prototype.index))),
         foliageTypes: prototypes.map((prototype) => prototype.foliageType),
+        youngFoliageTypes: published.flatMap((prototype) => (prototype.young ? [prototype.foliageType] : [])),
       };
     }
     read.set(recipe, source);

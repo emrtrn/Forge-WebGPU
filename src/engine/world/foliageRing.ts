@@ -28,6 +28,8 @@ export const FOLIAGE_RING_BANDS: readonly { readonly upTo: number; readonly keep
   { upTo: 2 / 3, keep: 0.5 },
   { upTo: Infinity, keep: 0.25 },
 ];
+/** A ring that does not thin: a stand with a reach of its own (its far billboards take over instead). */
+export const FOLIAGE_FULL_BANDS: typeof FOLIAGE_RING_BANDS = [{ upTo: Infinity, keep: 1 }];
 
 export interface FoliageRingBounds {
   minX: number;
@@ -70,6 +72,11 @@ export function foliageRingCellSize(cullEnd: number, density: number): number {
   return size;
 }
 
+/** A full ring's cell (a stand's layout does not depend on it): fewer batches of work than its density would give. */
+export function foliageFullCellSize(reach: number): number {
+  return reach >= 192 ? 128 : 64;
+}
+
 /**
  * The ring radius for a rule: its type's cull distance × the quality scale, or
  * the whole surface for a type that never culls — capped at
@@ -81,9 +88,9 @@ export function foliageRingRadius(cullEnd: number, cullScale: number, bounds: Fo
   return extent > 2 * FOLIAGE_RING_MAX_RADIUS ? { radius: FOLIAGE_RING_MAX_RADIUS, capped: true } : { radius: Infinity, capped: false };
 }
 
-function bandIndex(distance: number, radius: number): number {
+function bandIndex(bands: typeof FOLIAGE_RING_BANDS, distance: number, radius: number): number {
   const ratio = radius === Infinity ? 0 : distance / radius;
-  return FOLIAGE_RING_BANDS.findIndex((band) => ratio < band.upTo);
+  return bands.findIndex((band) => ratio < band.upTo);
 }
 
 /**
@@ -98,8 +105,10 @@ export function planFoliageRing(options: {
   bounds: FoliageRingBounds;
   built: ReadonlyMap<string, number>;
   cellSize?: number;
+  /** Defaults to {@link FOLIAGE_RING_BANDS}. */
+  bands?: typeof FOLIAGE_RING_BANDS;
 }): FoliageRingPlan {
-  const { center, radius, bounds, built } = options;
+  const { center, radius, bounds, built, bands = FOLIAGE_RING_BANDS } = options;
   const size = options.cellSize ?? FOLIAGE_RING_CELL_SIZE;
   const density = Math.min(1, Math.max(0, options.density));
   if (density <= 0 || !(radius > 0)) return { build: [], unload: [...built.keys()] };
@@ -121,15 +130,15 @@ export function planFoliageRing(options: {
         const current = built.get(key);
         if (distance > retainRange || (current === undefined && distance > radius)) continue;
         retained.add(key);
-        let band = bandIndex(distance, radius);
+        let band = bandIndex(bands, distance, radius);
         if (current !== undefined) {
-          const currentBand = FOLIAGE_RING_BANDS.findIndex((entry) => entry.keep * density === current);
-          const near = bandIndex(Math.max(0, distance - margin), radius);
-          const far = bandIndex(distance + margin, radius);
+          const currentBand = bands.findIndex((entry) => entry.keep * density === current);
+          const near = bandIndex(bands, Math.max(0, distance - margin), radius);
+          const far = bandIndex(bands, distance + margin, radius);
           if (currentBand >= near && currentBand <= far) continue;
           band = Math.min(Math.max(band, near), far);
         }
-        const keepFraction = FOLIAGE_RING_BANDS[band]!.keep * density;
+        const keepFraction = bands[band]!.keep * density;
         if (current === keepFraction) continue;
         build.push({ key, cellX, cellZ, keepFraction, distance });
       }

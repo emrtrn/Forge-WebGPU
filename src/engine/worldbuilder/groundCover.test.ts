@@ -67,4 +67,20 @@ export function registerGroundCoverTests(check: Check): void {
   });
 }
 
+test("a cover's stands: unknown stands, young plants without a recipe and unknown fields are refused", () => {
+  const raw = structuredClone(JSON.parse(readFileSync("content/packs/worldbuilder/covers/forest.cover.json", "utf8")) as { data: Record<string, unknown> }).data;
+  const { cover, issues } = normalizeGroundCover(raw);
+  assert.deepEqual(issues, []);
+  const young = cover!.plants.filter((plant) => plant.age === "young");
+  assert.ok(young.length >= 4 && young.every((plant) => plant.stand === "wood" && plant.far === 0 && plant.seed === cover!.stands[0]!.seed));
+  const trees = cover!.plants.filter((plant) => plant.stand === "wood" && plant.age !== "young");
+  assert.ok(trees.length >= 6 && trees.reduce((sum, plant) => sum + plant.density, 0) > 0.015, "a mixed closed forest");
+  const plant = { id: "x", layer: "forest", foliageType: null, density: 1, minWeight: 0.5, seed: 1 };
+  const refused = normalizeGroundCover({ ...raw, stands: [{ id: "wood", seed: 1 }, { id: "wood", seed: 2, colour: 1 }], plants: [{ ...plant, stand: "grove", age: "young" }] }).issues.join();
+  assert.match(refused, /stands: repeats a stand id/);
+  assert.match(refused, /colour: is not a ground cover field/);
+  assert.match(refused, /plants\[0\]\.stand: must name one of the cover's stands/);
+  assert.match(refused, /young plants need a recipe/);
+});
+
 registerGroundCoverTests(test as unknown as Parameters<typeof registerGroundCoverTests>[0]);

@@ -27,6 +27,18 @@ test("a recipe's outputs derive from its GUID and seeds", () => {
   assert.equal(recipeOutputs(RECIPE, "forge.surfaceTextureRecipe", {}), null);
 });
 
+test("a tree's young prototypes come after its mature ones, their roles their own", () => {
+  const tree = recipeOutputs(RECIPE, "forge.treeRecipe", { variants: [1, 2], young: { age: 0.2, variants: [1, 1, 9] } })!;
+  assert.deepEqual(tree.prototypes.map((p) => [p.seed, p.young]), [[1, false], [2, false], [1, true], [9, true]]);
+  assert.equal(tree.prototypes[2]!.foliageType, id("tree/1_young/foliageType"));
+  assert.equal(recipeOutputs(RECIPE, "forge.treeRecipe", { habit: "shrub", variants: [1], young: { variants: [2] } })!.prototypes.length, 1);
+  const built = builtRecipe(indexOf("forge.treeRecipe", {}, {
+    entries: [id("tree/1/lod0"), id("tree/1/foliageType"), id("tree/1_young/lod0"), id("tree/1_young/foliageType")],
+    family: { prototypes: [{ seed: 1 }, { seed: 1, young: true }] },
+  }), RECIPE)!;
+  assert.deepEqual(built.prototypes.map((p) => [p.young, p.index]), [[false, 0], [true, 1]]);
+});
+
 test("a plant's published prototypes follow its family, not the recipe's draft", () => {
   const family = { prototypes: [{ seed: 7 }, { seed: 2 }] };
   const index = indexOf("forge.treeRecipe", { variants: [2, 9] }, {

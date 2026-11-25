@@ -167,7 +167,7 @@ function title(id: string): string {
 
 /**
  * Model rows by role and variant; the first row of a role without a variant is
- * its default. A row whose file is not an asset, or whose recipe has no usable
+ * its default (generated ones share the placements: a settlement's trees are of several species). A row whose file is not an asset, or whose recipe has no usable
  * output, gives the placeholder; a generated row stands for its prototypes.
  */
 function modelResolver(models: readonly BriefModel[], assetIdForFile: (file: string) => string | null, generated: GeneratedSources) {
@@ -189,10 +189,12 @@ function modelResolver(models: readonly BriefModel[], assetIdForFile: (file: str
     assetId(role: string, variant: string | null, pick = 0): string | null {
       const rows = models.filter((model) => model.role === role && (variant === null || model.variant === variant));
       if (rows.length === 0) return null;
-      const candidates = variant === null
-        ? ids.get(rows.find((row) => row.variant === undefined) ?? rows[0]!)!
-        : rows.flatMap((row) => ids.get(row)!);
-      return candidates[Math.min(candidates.length - 1, Math.floor(pick * candidates.length))]!;
+      const at = <T>(list: readonly T[], share: number): T => list[Math.min(list.length - 1, Math.floor(share * list.length))]!;
+      if (variant !== null) return at(rows.flatMap((row) => ids.get(row)!), pick);
+      const first = rows.find((row) => row.variant === undefined) ?? rows[0]!;
+      const shared = first.source === "generated" ? rows.filter((row) => row.source === "generated" && row.variant === first.variant) : [first];
+      // The row, then (from what is left of the pick) its prototype.
+      return at(ids.get(at(shared, pick))!, (pick * shared.length) % 1);
     },
   };
 }

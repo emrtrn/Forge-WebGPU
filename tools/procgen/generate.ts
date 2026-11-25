@@ -22,14 +22,16 @@ import {
   normalizeAssetMeta,
   normalizeJsonAsset,
   stringifyDocument,
+  type AssetId,
   type AssetIndex,
   type JsonObject,
   type SchemaRegistry,
 } from "../../src/core/index.ts";
 import { writeGlb } from "../../src/engine/procgen/glb.ts";
 import { generateRock } from "../../src/engine/procgen/rock/rockGenerator.ts";
-import { recipeGenerator } from "../../src/engine/procgen/recipeOutputs.ts";
+import { recipeGenerator, recipeOutputs } from "../../src/engine/procgen/recipeOutputs.ts";
 import { bakeSurfaceRecipe } from "../../src/engine/procgen/texture/surfaceRecipe.ts";
+import { treePrototypeKey } from "../../src/engine/procgen/tree/treeRecipe.ts";
 import { materialLookOf, type MaterialLook } from "../../src/engine/procgen/tree/treeLook.ts";
 import { engineContentRoots, packWithRequired } from "../assets/engineContent.ts";
 import { loadEngineRegistry } from "../assets/engineRegistry.ts";
@@ -270,9 +272,10 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
     const familyId = outputId(entry.id, `${drafted}/family`);
     const family = target.index.jsonAssets.get(familyId) as JsonObject | undefined;
     const published = (family?.prototypes as JsonObject[] | undefined) ?? [];
-    const types = new Set(published.map(p => outputId(entry.id, `${drafted}/${p.seed}/foliageType`)));
-    const seeds = [...new Set(doc.variants as number[])];
-    if (published.some((prototype, i) => prototype.seed !== seeds[i]) && target.index.referrersOf(familyId).some(ref => !types.has(ref.from))) {
+    const keyOf = (p: JsonObject): string => treePrototypeKey(p.seed as number, p.young === true);
+    const types = new Set(published.map(p => outputId(entry.id, `${drafted}/${keyOf(p)}/foliageType`)));
+    const drawn = recipeOutputs(entry.id as AssetId, entry.type, doc)!.prototypes.map(p => treePrototypeKey(p.seed, p.young));
+    if (published.some((prototype, i) => keyOf(prototype) !== drawn[i]) && target.index.referrersOf(familyId).some(ref => !types.has(ref.from))) {
       throw new Error("An asset uses this family by prototype index. Keep the published seed order or generate a new recipe.");
     }
   }
@@ -321,8 +324,8 @@ export async function generateFromRecipe(options: GenerateOptions): Promise<Gene
     if (generator === "tree" && path === `${folder}/${stem}_leaf.material.json` && id === outputId(entry.id, "tree/leafMaterial")) return true;
     const prefix = `${folder}/${stem}_`, suffix = ".foliagetype.json";
     const middle = path.startsWith(prefix) && path.endsWith(suffix) ? path.slice(prefix.length, -suffix.length) : "";
-    const seed = /^\d+$/.test(middle) ? middle : undefined;
-    return generator !== "surfaceTexture" && seed !== undefined && id === outputId(entry.id, `${generator}/${Number(seed)}/foliageType`);
+    const seed = /^\d+(_young)?$/.test(middle) ? middle : undefined;
+    return generator !== "surfaceTexture" && seed !== undefined && id === outputId(entry.id, `${generator}/${seed}/foliageType`);
   };
 
   // The save writes documents canonically (every field, schema order): compare and write that text.

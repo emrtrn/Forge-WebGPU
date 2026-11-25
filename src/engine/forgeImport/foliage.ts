@@ -124,6 +124,10 @@ const RULE_RANGES = {
   heightFalloff: [0, 500], slope: [0, 90], slopeFalloff: [0, 45], noiseAmount: [0, 1], noiseScale: [1, 500], edgeScale: [0, 1],
 } as const;
 
+/** What Forge's rules have none of, at the schema's defaults. */
+const OPEN_EDGE = { fadeIn: 0, maxWeight: 1, fadeOut: 0 };
+const NO_STAND = { enabled: false, from: 0, to: 1, patch: 0, reach: 0, far: 0, tint: 0, detail: 1 };
+
 /** One rule's `forge.landscapeFoliage` entry (Forge's `normalizeLandscapeFoliageRule` + bands). */
 export function convertLandscapeFoliageRule(raw: JsonObject, foliageType: string): JsonObject {
   const band = (key: string, [min, max]: readonly [number, number], fallback: number): number => clamp(finite(raw[key], fallback), min, max);
@@ -142,6 +146,8 @@ export function convertLandscapeFoliageRule(raw: JsonObject, foliageType: string
     },
     noise: { amount: band("noiseAmount", RULE_RANGES.noiseAmount, 0), scale: band("noiseScale", RULE_RANGES.noiseScale, 20) },
     edgeScale: band("edgeScale", RULE_RANGES.edgeScale, 1),
+    edge: { ...OPEN_EDGE },
+    stand: { ...NO_STAND },
   };
 }
 

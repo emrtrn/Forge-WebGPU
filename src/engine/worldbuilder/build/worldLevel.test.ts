@@ -121,10 +121,15 @@ describe("worldLevel", () => {
 
   test("the cover's plant rules are landscape foliage on the terrain actor; none, no component", () => {
     const foliageType = "ast_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" as const;
-    const build = { ...buildWith([]), foliage: [{ id: "wood", layerId: "forest", foliageTypeId: foliageType, density: 0.002, minWeight: 0.5, seed: 7 }] };
+    const build = { ...buildWith([]), foliage: [{ id: "wood", layerId: "forest", foliageTypeId: foliageType, density: 0.002, minWeight: 0.5, seed: 7 }, {
+      id: "oak", layerId: "forest", foliageTypeId: foliageType, density: 0.02, minWeight: 0.3, seed: 8, edgeScale: 0.7,
+      edge: { fadeIn: 0.3, maxWeight: 1, fadeOut: 0 }, stand: { from: 0, to: 0.25, patch: 60, reach: 400, far: 3000, tint: 0.5, detail: 0.65 },
+    }] };
     const [terrain] = worldLevel(build, { levelId: LEVEL, terrainId: "valley" }).level.actors;
     expect(terrain!.class === null && terrain!.components.foliage).toMatchObject({
-      type: "forge.landscapeFoliage@1", rules: [{ id: "wood", layer: "forest", foliageType, density: 0.002, minWeight: 0.5, seed: 7 }],
+      type: "forge.landscapeFoliage@1", rules: [{ id: "wood", layer: "forest", foliageType, density: 0.002, minWeight: 0.5, seed: 7, stand: { enabled: false } }, {
+        id: "oak", edgeScale: 0.7, edge: { fadeIn: 0.3 }, stand: { enabled: true, from: 0, to: 0.25, patch: 60, reach: 400, far: 3000, tint: 0.5, detail: 0.65 },
+      }],
     });
     const [bare] = worldLevel(buildWith([]), { levelId: LEVEL, terrainId: "valley" }).level.actors;
     expect(bare!.class === null && bare!.components.foliage).toBeUndefined();

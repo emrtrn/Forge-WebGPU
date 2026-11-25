@@ -126,6 +126,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         mesh.receiveShadow = !shadow;
         mesh.matrixAutoUpdate = false;
         mesh.layers.set(view.layer);
+        if (!shadow) mesh.renderOrder = options.lodOrder?.[lod] ?? 0;
         if (options.source !== undefined) mesh.userData[SCENE_SOURCE_KEY] = options.source;
         mesh.userData[CPU_FADE_KEY] = shown;
         options.parent.add(mesh);
@@ -157,12 +158,13 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       if (mode === "hidden") for (const view of views) for (const { mesh } of view.meshes) mesh.visible = false;
     },
     setDistances(next) {
-      if (next.lodStarts.length !== lodCount - 1) throw new Error(`gpu batch ${options.name}: ${lodCount - 1} LOD starts`);
+      if (next.lodStarts.length !== lodCount - 1 || (next.shadowLodStarts ?? next.lodStarts).length !== lodCount - 1) throw new Error(`gpu batch ${options.name}: ${lodCount - 1} LOD starts`);
       distances = next;
     },
     get cullBatch() {
       return { center: options.bounds.center, radius: options.bounds.radius, distanceMode: options.distanceMode, cullEnd: Math.min(distances.cullEnd, NO_CULL_DISTANCE), lodStarts: distances.lodStarts };
     },
+    get shadowCullBatch() { return { ...batch.cullBatch, lodStarts: distances.shadowLodStarts ?? distances.lodStarts }; },
     get fadeSpread() { return options.staggeredFade ? distances.fadeSpread ?? 0 : 0; },
     prepare(list) {
       instances.flush();
@@ -183,7 +185,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
           view.role = source.role; view.layer = source.layer;
           buildView(view, index);
         }
-        const result = cullInstanceCounts(matrices, instances.count, cull, source, fadeOffset);
+        const result = cullInstanceCounts(matrices, instances.count, source.role === "shadow" ? batch.shadowCullBatch : cull, source, fadeOffset);
         // R9b: the zone masks as the GPU reads them (extras.z, the view's mask).
         const masks = options.zoneMasks?.array as Uint32Array | undefined;
         const base = source.role === "shadow" ? ZONE_MASK_WORDS : 0;
