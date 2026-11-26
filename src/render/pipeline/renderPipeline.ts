@@ -50,6 +50,7 @@ import {
   float,
   getViewPosition,
   luminance,
+  materialAlphaTest,
   max,
   mix,
   mrt,
@@ -80,7 +81,7 @@ import { ao, type default as GTAONode } from "three/examples/jsm/tsl/display/GTA
 import { rgbShift } from "three/examples/jsm/tsl/display/RGBShiftNode.js";
 import { smaa } from "three/examples/jsm/tsl/display/SMAANode.js";
 import { ssgi, type default as SSGINode } from "three/examples/jsm/tsl/display/SSGINode.js";
-import { ssr } from "three/examples/jsm/tsl/display/SSRNode.js";
+import { ssr, type default as SSRNode } from "three/examples/jsm/tsl/display/SSRNode.js";
 import { traa } from "three/examples/jsm/tsl/display/TRAANode.js";
 import type { LateLayer } from "./lateLayer.ts";
 import type { FrameOutput, OutputToneMapping, PostProcessSettings } from "./output.ts";
@@ -96,10 +97,10 @@ export const AO_RADIUS_SCALE = 0.1;
 /** Forge's Bokeh scales; their ratio is the distance to full blur per unit of `maxBlur / aperture`. */
 const DOF_APERTURE_SCALE = 0.0002;
 const DOF_MAXBLUR_SCALE = 0.01;
-/** SSR settings of the phase 1 measurement (spike S3). */
-const SSR_SETTINGS = { quality: 0.5, maxDistance: 50, thickness: 0.5, blurQuality: 2 } as const;
+/** SSR settings of the phase 1 measurement (spike S3); quality and thickness are authored (`SSR_DEFAULTS`). */
+const SSR_SETTINGS = { maxDistance: 50, blurQuality: 2 } as const;
 /** The Post Process `ssr` group's defaults (schema), for data written before it. */
-export const SSR_DEFAULTS = { maxRoughness: 0.6, intensity: 1 } as const;
+export const SSR_DEFAULTS = { maxRoughness: 0.6, intensity: 1, quality: 0.5, thickness: 0.5 } as const;
 /** SSR fades out over the last 30 % of `maxRoughness`. */
 const SSR_ROUGHNESS_FADE = 0.7;
 /** Floor of the SSR node's built-in grazing term in the weight's division (head-on views). */
@@ -115,14 +116,17 @@ const SSR_HIT_EDGE = 0.05;
  * environment BRDF of its F0 / F90 (IOR, specular intensity and metalness
  * included; zero on unlit materials) at its roughness, divided by that
  * grazing term, faded out towards `maxRoughness`. Every lit material then
- * reflects by its roughness and Fresnel.
+ * reflects by its roughness and Fresnel, except alpha-tested ones (grass,
+ * leaves, fences: thin cut-outs SSR hits only now and then, so they flicker;
+ * user decision 2026-11-26), which keep their environment reflection.
  */
 function ssrWeight(maxRoughness: Node<"float">): F {
   const nDotV = dot(normalView, positionViewDirection).clamp(1e-4, 1);
   const reflectance = luminance(EnvironmentBRDF({ dotNV: nDotV, specularColor: specularColorBlended, specularF90, roughness }));
   const grazing = max(float(1).sub(nDotV.mul(nDotV)), SSR_MIN_GRAZING);
   const fade = float(1).sub(smoothstep(maxRoughness.mul(SSR_ROUGHNESS_FADE), maxRoughness, roughness));
-  return reflectance.div(grazing).min(1).mul(fade) as F;
+  const solid = float(1).sub(materialAlphaTest.greaterThan(0).select(float(1), float(0)));
+  return reflectance.div(grazing).min(1).mul(fade).mul(solid) as F;
 }
 /** SSGI's medium preset of the phase 1 measurement (spike S3). */
 const SSGI_SETTINGS = { sliceCount: 2, stepCount: 8 } as const;
@@ -234,6 +238,7 @@ function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: Pip
   const outputs: Record<string, Node> = { output };
   if (targets.has("normal")) outputs.normal = packNormalToRGB(normalView);
   if (targets.has("velocity")) outputs.velocity = velocity;
+  let reflectionNode: SSRNode | null = null;
   const ssrMaxRoughness = uniform(SSR_DEFAULTS.maxRoughness);
   const ssrIntensity = uniform(SSR_DEFAULTS.intensity);
   /** The Sky Light's PMREM SSR replaces; a change of it rebuilds the pipeline (`render`). */
@@ -291,11 +296,13 @@ function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: Pip
       roughnessNode: specular.g as F,
       reflectNonMetals: true,
       stochastic: false,
+      binaryRefine: plan.ssrRefine,
       camera,
     });
-    reflection.quality.value = SSR_SETTINGS.quality;
+    reflectionNode = reflection;
+    reflection.quality.value = SSR_DEFAULTS.quality;
     reflection.maxDistance.value = SSR_SETTINGS.maxDistance;
-    reflection.thickness.value = SSR_SETTINGS.thickness;
+    reflection.thickness.value = SSR_DEFAULTS.thickness;
     reflection.blurQuality = SSR_SETTINGS.blurQuality;
     reflection.resolutionScale = plan.ssrResolutionScale;
     disposables.push(reflection);
@@ -375,6 +382,10 @@ function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: Pip
       u.aoIntensity.value = post.ao.intensity;
       ssrMaxRoughness.value = post.ssr?.maxRoughness ?? SSR_DEFAULTS.maxRoughness;
       ssrIntensity.value = post.ssr?.intensity ?? SSR_DEFAULTS.intensity;
+      if (reflectionNode) {
+        reflectionNode.quality.value = post.ssr?.quality ?? SSR_DEFAULTS.quality;
+        reflectionNode.thickness.value = post.ssr?.thickness ?? SSR_DEFAULTS.thickness;
+      }
       ssrCamera.projectionInverse.value.copy(camera.projectionMatrixInverse);
       ssrCamera.world.value.copy(camera.matrixWorld);
       ssrCamera.environmentIntensity.value = scene.environmentIntensity;

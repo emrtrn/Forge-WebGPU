@@ -29,7 +29,7 @@ export interface PostProcessSettings extends PostProcessGates {
   readonly toneMapping: OutputToneMapping;
   readonly bloom: { readonly enabled: boolean; readonly threshold: number; readonly intensity: number; readonly radius: number };
   /** SSR tuning; absent in data written before it: the defaults (`SSR_DEFAULTS`). */
-  readonly ssr?: { readonly maxRoughness: number; readonly intensity: number };
+  readonly ssr?: { readonly maxRoughness: number; readonly intensity: number; readonly quality?: number; readonly thickness?: number; readonly refine?: boolean };
   readonly saturation: number;
   readonly contrast: number;
   readonly temperature: number;

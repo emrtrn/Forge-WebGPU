@@ -14,7 +14,7 @@ describe("post process schema", () => {
       toneMapping: "aces",
       antialias: "none",
       reflection: "off",
-      ssr: { maxRoughness: 0.6, intensity: 1 },
+      ssr: { maxRoughness: 0.6, intensity: 1, quality: 0.5, thickness: 0.5, refine: true },
       bloom: { enabled: false, threshold: 1, intensity: 1, radius: 1 },
       saturation: 1,
       contrast: 1,
@@ -39,7 +39,7 @@ describe("post process schema", () => {
     };
     walk(formOf(PostProcess).fields, "");
     expect(rows).toEqual([
-      "Exposure 0..4", "Tonemapper", "Anti-aliasing", "Reflection", "SSR.Max Roughness 0.05..1", "SSR.Intensity 0..2",
+      "Exposure 0..4", "Tonemapper", "Anti-aliasing", "Reflection", "SSR.Max Roughness 0.05..1", "SSR.Intensity 0..2", "SSR.Quality 0.25..1", "SSR.Thickness 0.05..2", "SSR.Refine",
       "Bloom.Enabled", "Bloom.Threshold 0..2", "Bloom.Intensity 0..5", "Bloom.Radius 0..2",
       "Saturation 0..2", "Contrast 0..2", "Temperature -1..1", "Tint -1..1",
       "Vignette.Enabled", "Vignette.Intensity 0..2", "Vignette.Offset 0..2",

@@ -67,6 +67,8 @@ export interface PipelinePlan {
   readonly aoResolutionScale: number;
   /** SSR render scale (`half` 0.5, `full` 1). */
   readonly ssrResolutionScale: number;
+  /** SSR's sub-step hit refinement (Post Process `ssr.refine`): compiled into its shader. */
+  readonly ssrRefine: boolean;
   /** The bloom node's render scale: its own half size, halved again on a half resolution profile. */
   readonly bloomResolutionScale: number;
   /** Identity: the pipeline is rebuilt when it changes. */
@@ -90,7 +92,7 @@ export function bloomResolutionScale(qualityScale: number): number {
 }
 
 const DIRECT: PipelinePlan = {
-  direct: true, passes: [], mrt: [], mrtBytes: 0, aoResolutionScale: 1, ssrResolutionScale: 1, bloomResolutionScale: 0.5, key: "direct",
+  direct: true, passes: [], mrt: [], mrtBytes: 0, aoResolutionScale: 1, ssrResolutionScale: 1, ssrRefine: false, bloomResolutionScale: 0.5, key: "direct",
 };
 
 /**
@@ -125,6 +127,7 @@ export function planPipeline(post: PostProcessSettings | null, quality: QualityS
   const mrt = MRT_TARGETS.filter((target) => needs[target.name]);
   const aoResolutionScale = ao ? quality.aoResolutionScale : 1;
   const ssrResolutionScale = ssr ? (quality.ssrAllowed === "full" ? 1 : 0.5) : 1;
+  const ssrRefine = ssr && post.ssr?.refine !== false;
   const bloomScale = post.bloom.enabled ? bloomResolutionScale(quality.bloomResolutionScale) : 0.5;
   return {
     direct: false,
@@ -133,7 +136,8 @@ export function planPipeline(post: PostProcessSettings | null, quality: QualityS
     mrtBytes: mrtBytesPerSample(mrt),
     aoResolutionScale,
     ssrResolutionScale,
+    ssrRefine,
     bloomResolutionScale: bloomScale,
-    key: `${passes.join(",")}|ao${aoResolutionScale}|ssr${ssrResolutionScale}|bloom${bloomScale}`,
+    key: `${passes.join(",")}|ao${aoResolutionScale}|ssr${ssrResolutionScale}${ssrRefine ? "r" : ""}|bloom${bloomScale}`,
   };
 }

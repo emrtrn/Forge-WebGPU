@@ -61,8 +61,11 @@ export const PostProcess = defineComponent(
           hint: "Bu roughness'ın üstündeki yüzeyler SSR almaz, ortam yansımasıyla kalır. Daha pürüzsüz yüzeyler daha net yansıtır.",
         }),
         intensity: amount(0, 2, 1, "SSR yansımasının gücü: 1 fiziksel (malzemenin Fresnel yansıması), 0 yalnız ortam yansıması."),
+        quality: num({ min: 0.25, max: 1, default: 0.5, step: 0.05, label: "Quality", hint: "Işın adım sayısı: 0,5 = 32 adım, 1 = 64 adım. Yüksek değer ince nesnelerdeki (çimen) kopuk ve titreyen yansımayı azaltır, GPU maliyeti artar." }),
+        thickness: num({ min: 0.05, max: 2, default: 0.5, step: 0.05, label: "Thickness", hint: "Işının bir yüzeyin arkasından geçerken isabet sayıldığı kalınlık, metre. Düşük değer yanlış isabetleri ve koyu şeritleri azaltır, fazla düşükse yansımada boşluklar açılır." }),
+        refine: bool({ default: true, label: "Refine", hint: "İsabet noktasını adımlar arasında inceltir: basamaklanma ve titreme azalır, biraz GPU maliyeti ekler. Değişince görüntü hattı bir kez yeniden kurulur." }),
       },
-      { label: "SSR", hint: "Ekran uzayı yansımaları: her malzeme roughness'ına göre yansıtır; yakalanan yerde ortam yansımasının yerine geçer. Reflection SSR iken geçerli." },
+      { label: "SSR", hint: "Ekran uzayı yansımaları: her malzeme roughness'ına göre yansıtır; yakalanan yerde ortam yansımasının yerine geçer. Alfa kesimli ince yüzeyler (çimen, yaprak) kendileri SSR almaz. Reflection SSR iken geçerli; TRAA titremeyi en çok azaltır." },
     ),
     bloom: object(
       {
