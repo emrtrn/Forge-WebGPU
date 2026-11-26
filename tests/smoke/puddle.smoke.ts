@@ -119,7 +119,7 @@ test("puddle: a basin ahead of the camera fills, draws and reflects the scene", 
       parent: null,
       spatiallyLoaded: true,
       transform: { p: [basin.x, basin.y + depth, basin.z], r: [0, 0, 0, 1], s: [1, 1, 1] },
-      components: { puddle: { type: "forge.puddle@1", size: 32, reflectionQuality: "high", windNormal: normalId, windNormalStrength: .2 } },
+      components: { puddle: { type: "forge.puddle@1", size: 32, followWeather: false, reflectionQuality: "high", windNormal: normalId, windNormalStrength: .2 } },
     }]);
     await expect.poll(async () => (await dev(page).result(id!))?.status, { timeout: 30_000 }).not.toBe("loading");
     result = (await dev(page).result(id!))!;

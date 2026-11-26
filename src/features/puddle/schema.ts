@@ -13,6 +13,11 @@
 //   Environment's wind (phase 5a step 7); the wheel ripples' settings are kept
 //   here, their behaviour comes with vehicles (phase 6 / 8).
 //
+// - `followWeather` (user decision 2026-11-26): the authored level is the
+//   full puddle; the World Environment's live standing water (`puddleFill`,
+//   rain fills it, drying empties it) lowers the water by (1 - fill) x its
+//   deepest point, so the shallow edges dry first. No World Environment: full.
+//
 // The fill's outcome (ready, dry, open boundary, ...) is published by the
 // render binding as `PuddleStatusKey`, which the editor's Details reads.
 
@@ -23,6 +28,10 @@ export const Puddle = defineComponent(
   1,
   {
     size: num({ min: 1, max: 128, default: 12, step: 0.5, label: "Working Area (m)", hint: "Suyun dolabileceği kare alanın kenarı, metre. Terrain ızgarasına oturtulur; en çok 128 hücre ve 128 m." }),
+    followWeather: bool({
+      default: true, label: "Follow Weather",
+      hint: "Su, World Environment'ın birikinti doluluğunu (Puddle Fill) izler: yağmurda dolar, kurudukça çekilir, önce sığ kenarlar kurur. Yazılan seviye tam doluluktur. World Environment yoksa su hep doludur; kapalıyken de.",
+    }),
     color: color({ default: "#504a35", hint: "Suyun rengi." }),
     opacity: num({ min: 0, max: 1, default: 0.82, step: 0.01, hint: "Bulanıklığın derinlikle ne kadar hızlı arttığını ölçekler." }),
     roughness: num({ min: 0.04, max: 1, default: 0.13, step: 0.01, hint: "Yüzeyin pürüzlülüğü; yansımanın ne kadar dağıldığı." }),

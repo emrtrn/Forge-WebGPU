@@ -13,7 +13,9 @@
 //   (1 - strength) of its intensity and the capture is added with the water's
 //   Schlick Fresnel, sampled with Forge's small roughness-wide footprint.
 // Wind (phase 5a step 7, puddleWind.ts) bends both the normal and the planar
-// lookup through the reflection camera. Wheel rings follow in phase 6 / 8.
+// lookup through the reflection camera. The weather lowers the water
+// (`setWaterDrop`, user decision 2026-11-26): the surface sinks and its depth
+// shrinks by the same amount, so the shore recedes into the hollow. Wheel rings follow in phase 6 / 8.
 
 import * as THREE from "three/webgpu";
 import * as TSLTyped from "three/tsl";
@@ -56,6 +58,8 @@ export interface PuddleMaterial {
   setReflection(reflection: PuddleReflection | null): void;
   readonly reflection: PuddleReflection | null;
   setWindNormal(texture: THREE.Texture | null): void;
+  /** Lowers the water `metres` below its filled level (weather fill): the shallow edges dry first. Uniform only. */
+  setWaterDrop(metres: number): void;
   updateWind(wind: ResolvedWind, seconds: number, appearance: Partial<PuddleWindSettings>, x: number, z: number): void;
   readonly windMotion: ReturnType<typeof createPuddleWind>["motion"];
   dispose(): void;
@@ -74,7 +78,9 @@ export function createPuddleMaterial(appearance: PuddleAppearance): PuddleMateri
   const wind = createPuddleWind();
   let windNormal: THREE.Texture | null = null;
 
-  const depth = attribute("puddleDepth", "float");
+  const uDrop = uniform(0);
+  // The fill's depth below the filled level, less the weather's drop: where it reaches 0 the water ends.
+  const depth = attribute("puddleDepth", "float").sub(uDrop);
   // Optical thickness comes from the actual live bed: shallow water stays
   // translucent, longer paths hide the bed in suspended mud.
   const thickness = max(float(0), depth).mul(uMudDensity).mul(uOpacity.div(0.82));
@@ -84,6 +90,7 @@ export function createPuddleMaterial(appearance: PuddleAppearance): PuddleMateri
   material.name = "puddle";
   material.colorNode = mix(uColor, uMudColor, mud.mul(0.85));
   material.opacityNode = mud.mul(smoothstep(0, 0.006, depth));
+  material.positionNode = TSL.positionLocal.sub(vec3(0, uDrop, 0));
 
   const apply = (): void => {
     const surface = wind.nodes(depth, uRoughness);
@@ -123,6 +130,9 @@ export function createPuddleMaterial(appearance: PuddleAppearance): PuddleMateri
     material,
     windMotion: wind.motion,
     updateWind: wind.update,
+    setWaterDrop(metres) {
+      uDrop.value = Math.max(0, metres);
+    },
     setWindNormal(next) {
       if (next === windNormal) return;
       windNormal = next;

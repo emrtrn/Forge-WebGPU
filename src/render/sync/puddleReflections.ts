@@ -39,6 +39,8 @@ interface Entry {
   readonly mesh: THREE.Mesh;
   readonly material: PuddleMaterial;
   settings: PuddleReflectionSettings;
+  /** How far the weather lowered the water below `settings.level` (m); the capture plane follows. */
+  drop: number;
 }
 
 interface Source {
@@ -150,8 +152,19 @@ export class PuddleReflections {
   set(mesh: THREE.Mesh, material: PuddleMaterial, settings: PuddleReflectionSettings): void {
     const entry = this.entries.get(mesh);
     if (entry) entry.settings = settings;
-    else this.entries.set(mesh, { mesh, material, settings });
+    else this.entries.set(mesh, { mesh, material, settings, drop: 0 });
     this.invalidate();
+  }
+
+  /**
+   * Lowers a puddle's water `drop` metres below its level (the weather's fill): its capture's
+   * plane follows, keyed still by the level, so nothing is recreated or recompiled.
+   */
+  setDrop(mesh: THREE.Mesh, drop: number): void {
+    const entry = this.entries.get(mesh);
+    if (!entry || entry.drop === drop) return;
+    entry.drop = drop;
+    this.placeSources();
   }
 
   remove(mesh: THREE.Mesh): void {
@@ -244,7 +257,23 @@ export class PuddleReflections {
     for (const [key, group] of visible) {
       if (!this.sources.has(key)) this.sources.set(key, this.create(group.level, group.quality, this.root, this.views));
     }
+    this.placeSources();
     this.assign(wanted);
+  }
+
+  /** Each capture's plane at its puddles' mean water level (their level less the weather's drop). */
+  private placeSources(): void {
+    for (const [key, source] of this.sources) {
+      let sum = 0;
+      let count = 0;
+      for (const { settings, drop } of this.entries.values()) {
+        const quality = this.effective(settings);
+        if (!quality || this.key(settings, quality) !== key) continue;
+        sum += settings.level - drop;
+        count += 1;
+      }
+      if (count > 0) source.target.position.y = sum / count;
+    }
   }
 
   private assign(wanted: ReadonlySet<string>): void {

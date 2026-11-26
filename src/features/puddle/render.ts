@@ -17,6 +17,11 @@
 // - The outcome of each fill is published as `PuddleStatusKey` (the editor's
 //   Details shows it). Readiness waits for every puddle's first outcome.
 //
+// - Weather fill (`followWeather`, user decision 2026-11-26): the fill above is
+//   the full puddle; each frame the World Environment's live `puddleFill`
+//   lowers the water by (1 - fill) x its deepest point (a uniform; the planar
+//   capture's plane follows), hidden once it is empty. No refill, no rebuild.
+//
 // Wind uses the common WES/level resolver and simulation time (step 7).
 // Wheel ripples arrive with vehicles (phase 6 / 8), the deformed bed with 8.
 
@@ -35,6 +40,7 @@ import { tagActorObject } from "../../render/sync/pickTags.ts";
 import { componentWorldMatrix } from "../../render/sync/transforms.ts";
 import { createPuddleWindNormal } from "../../render/sync/puddleWindNormal.ts";
 import { resolveWorldWind } from "../../engine/environment/worldWind.ts";
+import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
 import { Puddle, PuddleStatusKey, type PuddleData, type PuddleResult } from "./schema.ts";
 
 /** Fill work per frame, as Forge's cooperative jobs. */
@@ -64,6 +70,22 @@ interface Placed {
   terrainKey: string | null;
   busy: (() => void) | null;
   removed: boolean;
+  /** The published surface has water, and its deepest point (m): the weather's drop scales by it. */
+  surface: boolean;
+  maxDepth: number;
+  /** The weather's drop below the filled level now (m), and the fill shown in the status (%, null: not following). */
+  drop: number;
+  shownFill: number | null;
+}
+
+/** The share of the full puddle the weather leaves: 1 when it does not follow, or the world has no World Environment. */
+export function puddleWeatherFill(followWeather: boolean | undefined, liveFill: number | null): number {
+  if (followWeather === false || liveFill === null || !Number.isFinite(liveFill)) return 1;
+  return Math.min(1, Math.max(0, liveFill));
+}
+
+function readyMessage(area: number, fill: number | null): string {
+  return `${area.toFixed(2)} m² · Hazır.${fill === null ? "" : ` Hava doluluğu %${fill}.`}`;
 }
 
 function appearanceOf(data: PuddleData): PuddleAppearance {
@@ -172,6 +194,26 @@ export default defineRenderBinding({
       });
     };
 
+    /** The live standing water (0..1) of the World Environment; null without one. */
+    const liveFill = (): number | null => ctx.world.services.get(WorldEnvironmentKey)?.controller.current()?.surface.puddleFill ?? null;
+
+    /** Lowers the water by the weather's fill; `force` after a new surface. Uniforms and the capture plane only. */
+    const applyWeather = (entry: Placed, force = false, live = liveFill()): void => {
+      const fill = puddleWeatherFill(entry.data.followWeather, live);
+      const drop = (1 - fill) * entry.maxDepth;
+      if (force || Math.abs(drop - entry.drop) > 1e-4) {
+        entry.drop = drop;
+        entry.material.setWaterDrop(drop);
+        reflections.setDrop(entry.mesh, drop);
+      }
+      entry.mesh.visible = entry.surface && drop < entry.maxDepth - 1e-4;
+      const shown = entry.data.followWeather === false || live === null ? null : Math.round(fill * 100);
+      if (shown !== entry.shownFill) {
+        entry.shownFill = shown;
+        if (entry.result.status === "ready") entry.result = { ...entry.result, message: readyMessage(entry.result.area, shown) };
+      }
+    };
+
     /** Takes a finished fill: a new surface, a cleared one, or the old one kept. */
     const publish = (entry: Placed, level: number, data: TerrainPuddleGeometry): void => {
       if (data.status === "ready" || data.status === "dry") {
@@ -185,12 +227,17 @@ export default defineRenderBinding({
         }
         entry.mesh.geometry.dispose();
         entry.mesh.geometry = geometry;
-        entry.mesh.visible = data.positions.length > 0;
+        entry.surface = data.positions.length > 0;
+        let deepest = 0;
+        for (const depth of data.depths) deepest = Math.max(deepest, depth);
+        entry.maxDepth = deepest;
+        entry.drop = -1;
       }
-      const message = data.status === "ready" ? `${data.area.toFixed(2)} m² · Hazır.` : MESSAGES[data.status];
       reflections.set(entry.mesh, entry.material, {
         level, mode: entry.data.reflectionMode, quality: entry.data.reflectionQuality, planarStrength: entry.data.planarReflectionStrength,
       });
+      applyWeather(entry, true);
+      const message = data.status === "ready" ? readyMessage(data.area, entry.shownFill) : MESSAGES[data.status];
       settle(entry, { status: data.status, area: data.area, message });
     };
 
@@ -209,6 +256,7 @@ export default defineRenderBinding({
         id: `${actor.id}/${key}`, actor, key, data, mesh, material,
         result: { status: "loading", area: 0, message: MESSAGES.loading },
         revision: 0, job: null, terrainKey: null, busy: null, removed: false,
+        surface: false, maxDepth: 0, drop: -1, shownFill: null,
       };
       placed.set(entry.id, entry);
       entry.windNormal.update(data.windNormal);
@@ -270,7 +318,9 @@ export default defineRenderBinding({
       sync(frame) {
         if (Number.isFinite(frame.dt) && frame.dt > 0) simulationSeconds += frame.dt;
         const wind = resolveWorldWind(ctx.world);
+        const live = liveFill();
         for (const entry of placed.values()) {
+          applyWeather(entry, false, live);
           const { seed } = placement(ctx, entry.actor, entry.key);
           entry.material.updateWind(wind, simulationSeconds, entry.data, seed[0], seed[1]);
         }

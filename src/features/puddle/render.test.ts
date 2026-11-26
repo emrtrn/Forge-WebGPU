@@ -11,6 +11,7 @@ import { createFlatTerrainTile, tileKey, type TerrainTileData, type WorldTerrain
 import type { TerrainData, TerrainTileReader } from "../../render/resources/terrains.ts";
 import type { WorldResources } from "../../render/resources/worldResources.ts";
 import type { RenderBindingContext } from "../../render/sync/renderBinding.ts";
+import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
 import binding from "./render.ts";
 import { Puddle, PuddleStatusKey, type PuddleData } from "./schema.ts";
 
@@ -54,7 +55,7 @@ function bowl(streams: boolean) {
   return { terrain, reads };
 }
 
-function harness(options: { streams?: boolean; puddle?: Partial<PuddleData>; at?: [number, number, number]; terrain?: boolean } = {}) {
+function harness(options: { streams?: boolean; puddle?: Partial<PuddleData>; at?: [number, number, number]; terrain?: boolean; weather?: { fill: number } } = {}) {
   const { terrain, reads } = bowl(options.streams ?? false);
   const terrainActor = {
     id: "act_00000000000000000000000000000001" as ActorId, name: "Bowl",
@@ -83,6 +84,8 @@ function harness(options: { streams?: boolean; puddle?: Partial<PuddleData>; at?
     track: <T,>(work: Promise<T>) => work,
   } as unknown as WorldResources;
   const services = createServices();
+  const weather = options.weather;
+  if (weather) services.provide(WorldEnvironmentKey, { controller: { current: () => ({ surface: { puddleFill: weather.fill }, weather: { preset: "clear", intensity: 0 }, season: "summer" }) } } as never);
   const root = new Group();
   const quality = { ...resolveQualitySettings("high") };
   const ctx = {
@@ -239,6 +242,29 @@ describe("puddle binding", () => {
     await settle();
     expect(status()!.status).toBe("dry");
     expect(meshes()[0]!.visible).toBe(false);
+  });
+
+  test("weather fill: the World Environment's standing water lowers the water until it is gone; not following, or no World Environment, stays full", async () => {
+    const weather = { fill: 1 };
+    const { meshes, status, settle, frame, move } = harness({ weather });
+    await settle();
+    expect(meshes()[0]!.visible).toBe(true);
+    expect(status()!.message).toContain("%100");
+    weather.fill = 0.5;
+    frame();
+    expect(meshes()[0]!.visible).toBe(true);
+    expect(status()!.message).toContain("%50");
+    weather.fill = 0;
+    frame();
+    expect(meshes()[0]!.visible).toBe(false);
+    expect(status()!.status).toBe("ready");
+    move([0, 4.3, 0], { followWeather: false });
+    frame();
+    expect(meshes()[0]!.visible).toBe(true);
+    expect(status()!.message).not.toContain("%");
+    const without = harness();
+    await without.settle();
+    expect(without.meshes()[0]!.visible).toBe(true);
   });
 
   test("no terrain under the seed, or none at all, is reported; removal gives the terrain back", async () => {
