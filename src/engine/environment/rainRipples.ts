@@ -31,7 +31,7 @@ export interface WaterRippleSettings {
   readonly windRippleStrength: number;
 }
 
-export const WATER_RIPPLE_DEFAULTS: WaterRippleSettings = { rippleStrength: 1, rippleSize: 0.25, rippleDensity: 0.6, windRippleStrength: 1 };
+export const WATER_RIPPLE_DEFAULTS: WaterRippleSettings = { rippleStrength: 2, rippleSize: 1, rippleDensity: 1, windRippleStrength: 2 };
 export const WATER_RIPPLE_RANGES = {
   rippleStrength: [0, 2], rippleSize: [0.05, 1], rippleDensity: [0, 1], windRippleStrength: [0, 2],
 } as const satisfies Record<keyof WaterRippleSettings, readonly [number, number]>;
@@ -47,8 +47,10 @@ export const RIPPLE_JITTER = 0.25;
 export const RIPPLE_SLOPE = 0.35;
 /** Layers: cell size multiplier, clock offset (periods), hash offset. */
 export const RIPPLE_LAYERS = [[1, 0, 0], [0.73, 0.37, 17.3], [1.37, 0.71, 41.9]] as const;
-/** Full rings up to this distance (m) and none past the second, at the default size; both scale with `rippleSize`. */
+/** Full rings up to this distance (m) and none past the second, at `RIPPLE_FADE_SIZE`; both scale with `rippleSize`. */
 export const RIPPLE_FADE = [15, 40] as const;
+/** The ring cell size (m) `RIPPLE_FADE` is tuned for; independent of the default size. */
+export const RIPPLE_FADE_SIZE = 0.25;
 /** A wet patch (not a puddle) shows this share of the rings. */
 export const RIPPLE_PATCH_SHARE = 0.15;
 /** The clock wraps here (s): float precision on the GPU; a wrap is one frame's jump in a pattern nobody follows. */
@@ -81,7 +83,7 @@ export function rippleClock(seconds: number): number {
 
 /** How much of the rings shows at `distance` (m) from the camera. */
 export function rippleDistanceFade(distance: number, rippleSize = WATER_RIPPLE_DEFAULTS.rippleSize): number {
-  const scale = rippleSize / WATER_RIPPLE_DEFAULTS.rippleSize;
+  const scale = rippleSize / RIPPLE_FADE_SIZE;
   return 1 - smoothstep(RIPPLE_FADE[0] * scale, RIPPLE_FADE[1] * scale, distance);
 }
 

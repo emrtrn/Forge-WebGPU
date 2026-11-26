@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
-  RIPPLE_CLOCK_WRAP, RIPPLE_FADE, RIPPLE_JITTER, RIPPLE_RADIUS, RIPPLE_WIDTH, WATER_RIPPLE_DEFAULTS, rainRippleSlopeAt, rippleActiveShare,
+  RIPPLE_CLOCK_WRAP, RIPPLE_FADE, RIPPLE_FADE_SIZE, RIPPLE_JITTER, RIPPLE_RADIUS, RIPPLE_WIDTH, WATER_RIPPLE_DEFAULTS, rainRippleSlopeAt, rippleActiveShare,
   rippleClock, rippleDistanceFade, rippleFootprintFade, rippleStrengthNow, ringProfileSlope,
 } from "./rainRipples.ts";
 import { MATERIAL_WEATHER_DEFAULTS, surfaceWeatherAt, type SurfaceResponseSettings } from "./surfaceResponse.ts";
@@ -42,11 +42,11 @@ describe("rain rings (plan phase W6, HV-06: rings only in rain)", () => {
 
   test("they fade with distance (gone at the far edge, scaled by the ring size) and where a pixel outgrows a ring", () => {
     expect(rippleDistanceFade(0)).toBe(1);
-    expect(rippleDistanceFade(RIPPLE_FADE[0])).toBe(1);
-    expect(rippleDistanceFade(RIPPLE_FADE[1])).toBe(0);
+    expect(rippleDistanceFade(RIPPLE_FADE[0], RIPPLE_FADE_SIZE)).toBe(1);
+    expect(rippleDistanceFade(RIPPLE_FADE[1], RIPPLE_FADE_SIZE)).toBe(0);
     let previous = 1;
     for (let d = 0; d <= 50; d += 0.5) {
-      const fade = rippleDistanceFade(d);
+      const fade = rippleDistanceFade(d, RIPPLE_FADE_SIZE);
       expect(fade).toBeLessThanOrEqual(previous + 1e-12);
       previous = fade;
     }

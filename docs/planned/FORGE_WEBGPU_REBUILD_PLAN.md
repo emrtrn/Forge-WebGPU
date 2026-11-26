@@ -941,7 +941,7 @@ yüzeyiyle biter.
       `cover.nodes()`'un normal yolundan alır (terrain.ts'e dokunulmadı). *Rüzgâr:* materyal birikintisinde
       `forge.puddle`'ın prosedürel tepeleri (yön, paket / esinti gürültüsü, `PuddleWindMotion` fazı); doku detayı yok
       (piksel dalında örtük türevli doku okunamaz) ve tohum merkezi olmadığı için kıvrımsız. *Ayarlar:* WES `surface`
-      `rippleStrength` (0–2, 1), `rippleSize` (0,05–1 m, 0,25), `rippleDensity` (0–1, 0,6), `windRippleStrength` (0–2, 1);
+      `rippleStrength` (0–2, 2), `rippleSize` (0,05–1 m, 1), `rippleDensity` (0–1, 1), `windRippleStrength` (0–2, 2);
       `@3`'e, sürüm artmadı; Details şemadan (Rain Ripple Strength / Size / Density, Wind Ripple Strength). *Materyal:*
       `forge.material` `weather.puddleAccept` artık yama, birikinti ve halkayı çarpar (dördüncü `materialReference`;
       koyulaşma kalır); terrain katmanında alan yok, 1. *Girdi:* render dünyası yüzey girdisini (WES durumu, ayarlar,

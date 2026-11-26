@@ -13,7 +13,7 @@ import { Vector2, Vector4 } from "three/webgpu";
 import * as TSLTyped from "three/tsl";
 import { PuddleWindMotion } from "../../engine/environment/puddleWind.ts";
 import {
-  RIPPLE_FADE, RIPPLE_JITTER, RIPPLE_LAYERS, RIPPLE_PERIOD, RIPPLE_RADIUS, RIPPLE_SLOPE, RIPPLE_WIDTH, WATER_RIPPLE_DEFAULTS,
+  RIPPLE_FADE, RIPPLE_FADE_SIZE, RIPPLE_JITTER, RIPPLE_LAYERS, RIPPLE_PERIOD, RIPPLE_RADIUS, RIPPLE_SLOPE, RIPPLE_WIDTH, WATER_RIPPLE_DEFAULTS,
   rippleActiveShare, rippleClock, rippleSetting, rippleStrengthNow, type WaterRippleSettings,
 } from "../../engine/environment/rainRipples.ts";
 import { PUDDLE_WIND_DEFAULTS } from "../../engine/terrain/puddleWater.ts";
@@ -132,7 +132,7 @@ export function createWaterRipples() {
       const size = rippleSetting(settings, "rippleSize");
       const clock = rippleClock(input?.seconds ?? 0);
       rain.value.set(rippleStrengthNow(input?.rain ?? 0, settings), rippleActiveShare(input?.rain ?? 0, settings), size, clock);
-      const scale = size / WATER_RIPPLE_DEFAULTS.rippleSize;
+      const scale = size / RIPPLE_FADE_SIZE;
       fade.value.set(RIPPLE_FADE[0] * scale, RIPPLE_FADE[1] * scale);
       const w = input?.wind ?? null;
       const windStrength = rippleSetting(settings, "windRippleStrength");
