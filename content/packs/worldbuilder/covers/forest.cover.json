@@ -17,8 +17,8 @@
       {
         "id": "forest",
         "name": "Forest Floor",
-        "color": "#3f4f2c",
-        "material": "ast_2b965fe6c9e2c168ee0a2cf0ee81633b",
+        "color": "#807058",
+        "material": "ast_b28b29e19d664efd81d42d55934a8aed",
         "physicalMaterial": "default"
       },
       {
@@ -229,7 +229,11 @@
         "layer": "forest",
         "recipe": "ast_598987d1ddc141e5b8a957d1e3f5fc64",
         "density": 0.5,
-        "minWeight": 0.3,
+        "minWeight": 0.13,
+        "fadeIn": 0.25,
+        "maxWeight": 0.65,
+        "fadeOut": 0.45,
+        "edgeScale": 0.7,
         "seed": 106
       },
       {
@@ -245,7 +249,9 @@
         "layer": "meadow",
         "recipe": "ast_598987d1ddc141e5b8a957d1e3f5fc64",
         "density": 1.5,
-        "minWeight": 0.4,
+        "minWeight": 0.18,
+        "fadeIn": 0.48,
+        "edgeScale": 0.65,
         "seed": 105
       }
     ],

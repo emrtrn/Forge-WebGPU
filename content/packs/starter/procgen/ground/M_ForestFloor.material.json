@@ -1,0 +1,13 @@
+{
+  "schema": "forge.material/1",
+  "id": "ast_b28b29e19d664efd81d42d55934a8aed",
+  "materialType": "standard",
+  "baseColor": "#ffffff",
+  "baseColorTexture": "ast_faa20e54d92046eeae3c34727bdd9f46",
+  "normalTexture": "ast_53ca01b0ac6b458c92012411465bd4df",
+  "terrainMetersPerRepeat": 1.6,
+  "uvTiling": [1, 1],
+  "flipY": true,
+  "roughness": 0.93,
+  "metalness": 0
+}

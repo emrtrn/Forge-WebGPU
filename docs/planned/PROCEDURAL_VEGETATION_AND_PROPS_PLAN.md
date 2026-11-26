@@ -1,6 +1,7 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.23 · 2026-11-26 (PG5b adım 6: karışık orman, genç ağaç, örtüler; kullanıcı görsel kabulü; PG5b ve PG5 kapandı, §9.8).
+**Sürüm:** v0.24 · 2026-11-26 (orman zemini çalışması başladı, §9.9).
+Önceki: v0.23 · 2026-11-26 (PG5b adım 6, karışık orman ve genç ağaçlar için kullanıcı görsel kabulü).
 Önceki: v0.22 · 2026-11-25 (PG5b adım 5: türler, tek üretici; kullanıcı görsel kabulü).
 Önceki: v0.21 (PG5b adım 1–4'ün kullanıcı görsel kabulü).
 Önceki: v0.20 (PG5b adım 1–4: taç üreticisi, sprey, yaprak ışığı, LOD).
@@ -1217,6 +1218,43 @@ tekrarlamadı, nedeni bulunmadı. Kullanıcı görsel kabulü: 2026-11-26.
 
 ---
 
+### 9.9 Orman zemini ve çayır geçişi
+
+[ImageGen hedef görseli](../research/forest-floor/reference.webp) kullanıcının editör
+kadrajından üretildi. Soldaki geniş gövdenin altında humus ve kuru yapraklar
+görülüyor. Açıklıkta ot demetleri arasında toprak seçiliyor. Aradaki eğrelti
+grupları orman kenarını belirginleştiriyor.
+
+| Sıra | Uygulama | Görsel kontrol |
+|---|---|---|
+| 1 | World Builder `Forest` örtüsündeki `forest` katmanına döşenebilir humus, kuru yaprak ve ince dal materyali bağla. | Yakın planda yapraklar santimetre ölçeğinde okunmalı. Geniş planda göze çarpan dikiş veya düzenli desen görülmemeli. |
+| 2 | Çayır ve orman otlarının yoğunluğunu boya ağırlığıyla kademelendir. Orman içinde humus açıkta kalsın. | Aynı ışıkta açıklık, kenar ve iç bölge ayırt edilmeli. Tam örtüdeki az sayıdaki demet de kontrol edilmeli. |
+| 3 | Kenarda küçük eğrelti grupları, seyrek düşmüş dallar ve kısmen gömülü taşlar yerleştir. | Yürüyüş yüksekliğinde ölçekler okunmalı, ağaç aralarındaki görüş açıklığı korunmalı. |
+| 4 | Geniş yapraklı ve ince gövdeli iki ağacın kök boğazını, yerleşim yüksekliğini ve temas gölgesini yakından incele. Bulgulara göre model veya yerleşimi düzelt. | Gövde eğimli zeminde de toprağa oturmalı. |
+
+İlk karşılaştırmada aynı dünya tohumu, kamera, yaz mevsimi ve ışıkla üç kare
+alınır: önceki görünüm, yalnız materyal, materyal ve ot kuralları. Editör
+ızgarası kapatılır. Orman içinden bir yakın çekim dokunun ölçeğini gösterir.
+Tarif yeni üretilen dünyalara uygulanır. Kaydedilmiş dünyalar kendi terrain
+materyalini ve foliage kurallarını saklar.
+
+**İlk uygulama, 26 Kasım 2026.** İlk iki adım `Forest` ön ayarında uygulandı.
+Starter paketindeki `M_ForestFloor` için renk ve normal haritaları aynı
+tohumdan üretiliyor (`node tools/procgen/forestFloor.ts`). 512 × 512 piksellik
+karo zeminde 1,6 m kaplıyor. Humus üzerinde yaklaşık 2–9 cm uzunlukta yaprak
+parçaları ve ince dallar var. Terrain katman dizisi piksel okuduğu için
+haritalar PNG. Orman boyası tam ağırlıktayken ot kuralı adayların yaklaşık
+%13'ünü geçiriyor; orta ağırlıkta (%50) tamamını geçiriyor. Çayır otu kendi
+boyası arttıkça kademeli olarak tam yoğunluğa ulaşıyor.
+
+[WebGPU karşılaştırması](../research/forest-floor/comparison.webp) `World_3`
+brief'inin ayrı bir kopyasından alındı (tohum 37687, 1200 × 800, High).
+İki kamera konumunda üçer çekim var. Alt sırada gövdeler arasındaki yeşil
+zemin yerini yaprak örtüsüne bırakıyor. Üst sırada kenardaki otlar korunuyor.
+Referansa göre gölgeli iç bölge hâlâ koyu ve tekdüze. Sonraki geçişte eğrelti
+ve odunsu döküntüleri küçük gruplar hâlinde ekleyip aynı pozlarda incele.
+Kök boğazı kontrolü ve kullanıcı görsel kabulü açık.
+
 ## 10. Adımlar
 
 Her adım dikey bir dilimdir ve kendi kapısıyla biter. Görsel beğeni kullanıcı
@@ -1557,6 +1595,7 @@ kurallarına göre yeniden yazılır.
 
 | Tarih | Sürüm | Not |
 |---|---|---|
+| 2026-11-26 | v0.24 | Orman zemini, kenar bitkileri ve gövde temasını kapsayan çalışma açıldı (§9.9). |
 | 2026-11-26 | v0.23 | PG5b adım 6 (`8710f0c`): meşcere yerleşimi, genç ağaçlar, altı örtü; ölçüm §9.8; kullanıcı görsel kabulü. PG5b ve PG5 kapandı |
 | 2026-11-25 | v0.22 | PG5b adım 5 (`e1891dd`): sekiz tarif taç üreticisinde, meshopt, kabuklar, eski sürümler kalktı; kullanıcı görsel kabulü. Adım 6 yeni oturumda |
 | 2026-11-25 | v0.21 | PG5b adım 1–4 kullanıcı görsel kabulü; adım 5–6 yeni oturumda |

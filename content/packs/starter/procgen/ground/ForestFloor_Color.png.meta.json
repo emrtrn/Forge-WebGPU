@@ -1,0 +1,8 @@
+{
+  "schema": "forge.assetMeta/1",
+  "id": "ast_faa20e54d92046eeae3c34727bdd9f46",
+  "type": "forge.texture@2",
+  "license": "LicenseRef-forge-project",
+  "source": { "origin": "Forge procedural bake: tools/procgen/forestFloor.ts", "author": "Forge", "url": "" },
+  "import": { "anisotropy": 8, "mipmaps": true }
+}
