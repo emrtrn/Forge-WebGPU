@@ -81,8 +81,9 @@ import { ao, type default as GTAONode } from "three/examples/jsm/tsl/display/GTA
 import { rgbShift } from "three/examples/jsm/tsl/display/RGBShiftNode.js";
 import { smaa } from "three/examples/jsm/tsl/display/SMAANode.js";
 import { ssgi, type default as SSGINode } from "three/examples/jsm/tsl/display/SSGINode.js";
-import { ssr, type default as SSRNode } from "three/examples/jsm/tsl/display/SSRNode.js";
+import type SSRNode from "three/examples/jsm/tsl/display/SSRNode.js";
 import { traa } from "three/examples/jsm/tsl/display/TRAANode.js";
+import { coverageSsr } from "./coverageSsr.ts";
 import type { LateLayer } from "./lateLayer.ts";
 import type { FrameOutput, OutputToneMapping, PostProcessSettings } from "./output.ts";
 import { planPipeline, type PipelinePlan } from "./pipelinePlan.ts";
@@ -105,8 +106,6 @@ export const SSR_DEFAULTS = { maxRoughness: 0.6, intensity: 1, quality: 0.5, thi
 const SSR_ROUGHNESS_FADE = 0.7;
 /** Floor of the SSR node's built-in grazing term in the weight's division (head-on views). */
 const SSR_MIN_GRAZING = 0.05;
-/** World distance (m) over which a blurred hit's alpha reaches full coverage. */
-const SSR_HIT_EDGE = 0.05;
 
 /**
  * The SSR weight the scene pass writes (`specular` R; plan decision
@@ -291,7 +290,7 @@ function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: Pip
 
   if (has("ssr") && normal) {
     const specular = scenePass.getTextureNode("specular");
-    const reflection = ssr(color, depth, normal, {
+    const reflection = coverageSsr(color, depth, normal, {
       metalnessNode: specular.r as F,
       roughnessNode: specular.g as F,
       reflectNonMetals: true,
@@ -309,7 +308,9 @@ function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: Pip
     let reflected = reflection.rgb as V3;
     // Where a ray hit, SSR takes the place of the environment reflection the scene pass already lit:
     // the Sky Light's PMREM at the pixel's reflected direction and roughness, by the same weight and
-    // grazing term the SSR node applied, is taken out (plan decision 2026-11-26).
+    // grazing term the SSR node applied, is taken out (plan decision 2026-11-26). The SSR alpha is the
+    // share it replaces (coverage × distance fade, `coverageSsr.ts`), blurred alongside the colour, so a
+    // partly covered texel takes out only as much as it adds.
     if (environment) {
       const viewPosition = getViewPosition(screenUV, depth.x as F, ssrCamera.projectionInverse);
       const viewNormal = (normal as unknown as { sample(uv: Node): V3 }).sample(screenUV);
@@ -317,8 +318,7 @@ function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: Pip
       const reflectWorld = ssrCamera.world.mul(vec4(reflect(viewPosition.normalize(), viewNormal), 0)).xyz;
       const radiance = pmremTexture(environment, reflectWorld, specular.g).rgb.mul(ssrCamera.environmentIntensity);
       const share = specular.r.mul(float(1).sub(nDotV.mul(nDotV)));
-      const hit = smoothstep(0, SSR_HIT_EDGE, reflection.a);
-      reflected = reflected.sub(radiance.mul(share).mul(hit)) as V3;
+      reflected = reflected.sub(radiance.mul(share).mul(reflection.a)) as V3;
     }
     rgb = max(rgb.add(reflected.mul(ssrIntensity)), 0) as V3;
   }
