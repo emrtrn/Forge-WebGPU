@@ -69,7 +69,7 @@ describe("terrain source", () => {
     expect(terrain.tiles!.get("0_0")!.heights[0]).toBeCloseTo(tiles.get("0_0")!.heights[0]!, 2);
     expect([terrain.global.map.width, terrain.global.map.height]).toEqual([2 * 64 / 4 + 1, 64 / 4 + 1]);
     const [meadow, rock, bare] = terrain.layers;
-    expect(meadow).toEqual({ color: "#c8c2a7", texture, scale: terrainLayerScale(256, 0, [2, 1]), roughness: 0.6, flipY: true, normalTexture: null, roughnessTexture: null, detail: null });
+    expect(meadow).toEqual({ color: "#c8c2a7", texture, scale: terrainLayerScale(256, 0, [2, 1]), roughness: 0.6, flipY: true, normalTexture: null, roughnessTexture: null, detail: null, weather: { wetting: 1, porosity: 0.5, snowAccept: 1, wetPhysicalMaterial: null } });
     // A material that fails paints with the layer's colour; a layer without one too.
     expect(rock).toMatchObject({ color: "#8b8a84", texture: null, roughness: 1 });
     expect(bare).toMatchObject({ color: "#123456", texture: null, roughness: 1 });

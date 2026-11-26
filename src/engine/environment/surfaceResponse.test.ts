@@ -140,7 +140,7 @@ describe("patchy drying (plan phase W5, HV-05)", () => {
   });
 
   test("hollows dry last; the noise breaks the ground into patches", () => {
-    for (const [x, z] of [[0, 0], [12.5, -3], [-40, 77]]) {
+    for (const [x, z] of [[0, 0], [12.5, -3], [-40, 77]] as const) {
       expect(dryingLateness(x, z, 1)).toBe(1);
       expect(dryingLateness(x, z, 0.5)).toBeGreaterThanOrEqual(dryingLateness(x, z, 0));
     }
