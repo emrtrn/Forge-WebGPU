@@ -1,5 +1,6 @@
 // Ported from Forge WebGL engine/environment/wind.ts @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
-import { weatherFactors } from "./weatherPresets.ts";
+import { liveWeatherFactors } from "./weatherPresets.ts";
+import type { WeatherTransitionFields } from "./weatherTransition.ts";
 import type { Season, WeatherPreset } from "./worldEnvironment.ts";
 
 /**
@@ -45,8 +46,9 @@ export const SEASON_WIND_MULTIPLIER: Readonly<Record<Season, number>> = {
 };
 
 /** The live World Environment inputs wind reacts to. */
-export interface WindEnvironmentState {
+export interface WindEnvironmentState extends Partial<WeatherTransitionFields> {
   season: Season;
+  /** The weather, or the target of a running transition (`weatherFrom` .. `weatherProgress`). */
   weather: { preset: WeatherPreset; intensity: number };
 }
 
@@ -97,7 +99,7 @@ export function resolveWind(
   let strength = worldEnvironmentWind?.strength ?? worldSettingsWind?.strength ?? WIND_DEFAULTS.strength;
   let gust = worldEnvironmentWind?.gust ?? worldSettingsWind?.gust ?? WIND_DEFAULTS.gust;
   if (environment) {
-    const weather = weatherFactors(environment.weather.preset, environment.weather.intensity);
+    const weather = liveWeatherFactors(environment);
     strength *= weather.windStrengthMultiplier * (SEASON_WIND_MULTIPLIER[environment.season] ?? 1);
     gust += weather.windGustAdd;
   }

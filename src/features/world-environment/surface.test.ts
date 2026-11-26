@@ -122,7 +122,11 @@ describe("WES simulation cover, PV-WES-06/07", () => {
     c.setSurface({ puddleFill: .4, snowDepth: .25 });
     c.setSurfaceTarget({ snowCoverage: 1, wetness: 0 });
     c.setHour(18); c.setSeason("spring");
+    // A weather change saved half way goes on from there (plan phase W2).
+    c.setWeather("snow", .8);
+    void c.transitionWeather({ preset: "rain", seconds: 4 });
     for (let i = 0; i < 10; i++) world.tick(.1);
+    expect(c.getState().weatherProgress).toBeCloseTo(.25, 9);
     const base = doc.actors[0]!;
     if (base.class !== null) throw new Error("plain actor");
     const savedActor = captureActorState(base, world.context.actor(actor)!, registry)!;
@@ -137,6 +141,10 @@ describe("WES simulation cover, PV-WES-06/07", () => {
     expect(resumed.getSurfaceTarget()).toEqual(c.getSurfaceTarget());
     next.tick(.1); world.tick(.1);
     expect(resumed.getState()).toEqual(c.getState());
+    for (let i = 0; i < 30; i++) { next.tick(.1); world.tick(.1); }
+    expect(resumed.getState()).toEqual(c.getState());
+    expect(resumed.getState()).not.toHaveProperty("weatherProgress");
+    expect(resumed.precipitation()).toEqual({ rain: 1, snow: 0 });
     // Immediate editor preview, including Make Default's absence, is transient.
     c.setSurface({ snowCoverage: 1, wetness: 1 });
     expect(JSON.stringify(doc)).toBe(before);

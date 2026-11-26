@@ -8,6 +8,20 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.17
+
+API: f3e1fb19d6dc763a
+
+`transitionWeather({ preset, intensity?, seconds })` on the World Environment
+service (plan phase W2): the weather changes over simulation seconds, fog,
+clouds, sun, wind and precipitation blending from where they are (rain and snow
+both fall while one turns into the other). It resolves true when reached; a new
+weather change, `setWeather`, the level ending or a missing World Environment
+resolve it false; no seconds sets the weather at once. While it runs, the live
+state carries `weatherFrom` (a `WeatherMix`: the shares of the presets it
+started from), `weatherProgress` and `weatherSeconds`, and `weather` is the
+target. A save taken mid-way resumes from there.
+
 ## 0.1.16
 
 API: 362cbad47a0e51fa

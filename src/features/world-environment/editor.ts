@@ -7,6 +7,8 @@
 // world's World Environment and never saved. Make Default writes them into
 // the level (one undo step); Reset goes back to the level's. Cover sliders
 // preview the amount directly; only Make Default changes authored targets.
+// A weather button with a transition time (plan phase W2) runs the timed
+// change (`transitionWeather`); the time itself is never saved or undone.
 import { componentTypeTag } from "../../core/index.ts";
 import { defineFeatureEditor, type DetailsExtensionContext } from "../../editor-sdk/index.ts";
 import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
@@ -88,8 +90,30 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
   const seasons = choices("Season", SEASONS, "wes-preview-season", (season) => controller()?.setSeason(season as WorldEnvironmentData["season"]));
   const weathers = choices("Weather", WEATHER_PRESETS, "wes-preview-weather", (preset) => {
     const live = controller()?.current();
-    controller()?.setWeather(preset as WorldEnvironmentData["weather"]["preset"], live?.weather.intensity);
+    const seconds = Number(transition.value);
+    const target = preset as WorldEnvironmentData["weather"]["preset"];
+    if (seconds > 0) void controller()?.transitionWeather({ preset: target, intensity: live?.weather.intensity ?? 1, seconds });
+    else controller()?.setWeather(target, live?.weather.intensity);
   });
+  // The preview's transition time, beside the weather buttons (not a level value).
+  const transition = el("input");
+  transition.type = "number";
+  transition.min = "0";
+  transition.max = "600";
+  transition.step = "1";
+  transition.value = "0";
+  transition.dataset.testid = "wes-preview-transition";
+  transition.setAttribute("aria-label", "Transition");
+  transition.title = "Hava geçiş süresi (simülasyon saniyesi); 0 anında değiştirir. Kaydedilmez.";
+  transition.addEventListener("change", () => {
+    const value = Number(transition.value);
+    transition.value = String(Number.isFinite(value) ? Math.min(600, Math.max(0, value)) : 0);
+  });
+  const transitionBox = el("span", "wes-preview-buttons");
+  const progress = el("span", "detail-hint", "");
+  progress.dataset.testid = "wes-preview-transition-progress";
+  transitionBox.append(transition, el("span", "detail-hint", "s"), progress);
+  row("Transition", transitionBox);
   const intensity = el("input", "param-slider");
   intensity.type = "range";
   intensity.min = "0";
@@ -127,7 +151,7 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
   const update = (): void => {
     const live = controller()?.current() ?? null;
     missing.hidden = live !== null;
-    for (const control of [hour, play, speed, intensity, snow, wetness, makeDefault, reset, ...seasons, ...weathers]) control.disabled = live === null;
+    for (const control of [hour, play, speed, intensity, transition, snow, wetness, makeDefault, reset, ...seasons, ...weathers]) control.disabled = live === null;
     if (!live) return;
     if (doc.activeElement !== hour) hour.value = String(live.hour);
     hourLabel.textContent = formatHour(live.hour);
@@ -135,10 +159,12 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
     for (const button of seasons) button.classList.toggle("on", button.dataset.value === live.season);
     for (const button of weathers) button.classList.toggle("on", button.dataset.value === live.weather.preset);
     if (doc.activeElement !== intensity) intensity.value = String(live.weather.intensity);
+    const changing = live.weatherProgress !== undefined && live.weatherProgress < 1;
+    progress.textContent = changing ? `${Math.round(live.weatherProgress! * 100)}%` : "";
     if (doc.activeElement !== snow) snow.value = String(live.surface.snowCoverage);
     if (doc.activeElement !== wetness) wetness.value = String(live.surface.wetness);
     const level = authored();
-    const modified = Math.abs(live.hour - level.hour) > 1e-6 || live.season !== level.season || live.weather.preset !== level.weather.preset || Math.abs(live.weather.intensity - level.weather.intensity) > 1e-6
+    const modified = Math.abs(live.hour - level.hour) > 1e-6 || live.season !== level.season || changing || live.weather.preset !== level.weather.preset || Math.abs(live.weather.intensity - level.weather.intensity) > 1e-6
       || Math.abs(live.surface.snowCoverage - level.surface.snowCoverage) > 1e-6 || Math.abs(live.surface.wetness - level.surface.wetness) > 1e-6;
     makeDefault.disabled = !modified;
     reset.disabled = !modified;
@@ -160,6 +186,8 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
     const live = controller()?.current();
     if (!live) return;
     playing = false;
+    // A running weather change is live state: its target becomes the level's weather, shown at once.
+    if (live.weatherProgress !== undefined) controller()?.setWeather(live.weather.preset, live.weather.intensity);
     ctx.edit("Make preview default", { hour: Number(live.hour.toFixed(2)), season: live.season, weather: { preset: live.weather.preset, intensity: live.weather.intensity },
       // The authored amounts only: standing water and snow depth are live state.
       surface: { ...authored().surface, snowCoverage: live.surface.snowCoverage, wetness: live.surface.wetness } });

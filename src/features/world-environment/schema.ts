@@ -18,6 +18,8 @@
 // and snow depth. Version 3 stays open while phase W runs: its steps add
 // fields with neutral defaults (no new version), each with the step that
 // draws it.
+// W2: a weather change saved mid-way (live `weatherFrom` / `weatherProgress` /
+// `weatherSeconds`) goes on from where it was.
 
 import { bool, color, defineComponent, enumOf, num, object, WindFields, type ComponentData } from "../../core/index.ts";
 
@@ -244,6 +246,16 @@ export const WorldEnvironment = defineComponent(
         seasonProgress: num({ min: 0, max: 1, default: 1 }),
         seasonSeconds: num({ min: 0, default: 0 }),
         weather: object(weatherFields()),
+        // A timed weather change (plan phase W2): the mix it started from (shares
+        // of the presets, the rest is clear); absent fields read as "reached".
+        weatherFrom: object({
+          cloudy: num({ min: 0, max: 1, default: 0 }),
+          rain: num({ min: 0, max: 1, default: 0 }),
+          snow: num({ min: 0, max: 1, default: 0 }),
+          fog: num({ min: 0, max: 1, default: 0 }),
+        }),
+        weatherProgress: num({ min: 0, max: 1, default: 1 }),
+        weatherSeconds: num({ min: 0, default: 0 }),
         surface: object({
           ...amounts(),
           puddleFill: num({ min: 0, max: 1, default: 0 }),

@@ -13,7 +13,8 @@
 //   based reflections and ambient bounce, at `intensity`), only with a sky.
 //   Captured when the scattering or the sun changes; under the World
 //   Environment by Forge's recapture policy (by how far the sun moved), at
-//   most every 0.1 s while the sun moves and once more where it stops
+//   most every 0.1 s while the sun moves or the weather changes over time,
+//   and once more where it stops
 //   (engine/environment/recaptureRate.ts, plan phase 3 step 7), with the
 //   brightness bridged between captures. Each capture renders into the same
 //   PMREM, so the materials keep their environment. Its flat ambient light and the
@@ -117,7 +118,9 @@ export default defineRenderBinding({
         }
         const key = scatteringKey(scattering);
         const sunNow: [number, number, number] = [sun.x, sun.y, sun.z];
-        let recapture = captured === null || key !== capturedScattering || (override !== null) !== capturedOverride;
+        // A weather transition moves the haze every frame: its captures follow the rate limit (the captureKey).
+        const scatteringChanged = key !== capturedScattering && !override?.weatherTransitioning;
+        let recapture = captured === null || scatteringChanged || (override !== null) !== capturedOverride;
         if (!recapture && override) {
           recapture = decideRecapture({
             last: lastCapture,
@@ -125,6 +128,7 @@ export default defineRenderBinding({
             now: clock,
             previousSun: sunBefore,
             request: { sunDirection: override.sunDirection, sunElevationDeg: override.sunElevationDeg, captureKey: override.captureKey },
+            gradual: override.weatherTransitioning,
           });
         } else if (!recapture) {
           recapture = angleBetweenDeg(capturedSun, sunNow) >= STATIC_RECAPTURE_ANGLE_DEG;

@@ -292,6 +292,15 @@ async function start(): Promise<void> {
       },
       /** Plan phase W: the weather at once. */
       setWeather: (preset: "clear" | "cloudy" | "rain" | "snow" | "fog", intensity?: number) => environment()?.setWeather(preset, intensity),
+      /** Plan phase W2: a timed weather change; its outcome lands in `transitions[index]`. */
+      transitionWeather(request: { preset: "clear" | "cloudy" | "rain" | "snow" | "fog"; intensity?: number; seconds: number }) {
+        const entry: { reached: boolean | null } = { reached: null };
+        transitions.push(entry);
+        void (environment()?.transitionWeather(request) ?? Promise.resolve(false)).then((reached) => {
+          entry.reached = reached;
+        });
+        return transitions.length - 1;
+      },
       /** Vegetation plan PG2: the season at once, or a timed change in simulation seconds. */
       setSeason: (season: "spring" | "summer" | "autumn" | "winter") => environment()?.setSeason(season),
       transitionSeason: (request: { season: "spring" | "summer" | "autumn" | "winter"; seconds: number }) => {
@@ -302,6 +311,10 @@ async function start(): Promise<void> {
       captureBench: (count: number) => (viewer.host ? benchmarkSkyCapture(viewer.host, count) : Promise.resolve(null)),
       /** Spawns actors from raw documents (normalised as an edit's); their ids. */
       spawn: (raw: unknown[]) => booted.world.context.spawnActors(raw).map((actor) => actor.id),
+      /** Removes actors of the running world (plan phase W2: a level measured without its World Environment). */
+      destroy: (ids: string[]) => booted.world.context.destroyActors(ids as Parameters<typeof booted.world.context.destroyActors>[0]),
+      /** The ids of the actors that carry a World Environment. */
+      worldEnvironmentActors: () => booted.world.context.componentsOf("forge.worldEnvironment").map((entry) => entry.actor.id),
       /** Plan 5c R9a: overrides level settings for this session (e.g. a test interior's). */
       levelSettings: (patch: Partial<LevelSettings>) => {
         const holder = booted.world.services.get(LevelSettingsKey);

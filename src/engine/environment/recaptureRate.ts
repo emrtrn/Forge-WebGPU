@@ -17,7 +17,10 @@
 //   (3 degrees at high sun) behind; a stopped hour would keep it for good.
 //
 // A weather or season change (`captureKey`) still captures at once, and a
-// scrubbed clock never captures (Forge).
+// scrubbed clock never captures (Forge). A timed weather change (plan phase
+// W2) changes the key every frame: while it runs (`gradual`), a new key waits
+// the same interval; its end is a key change that is no longer gradual, so
+// the resting weather is captured at once.
 
 import type { Vec3 } from "../legacy/layout.ts";
 import { angleBetweenDeg, shouldRecapture, type CaptureRecord, type CaptureRequest } from "./recapturePolicy.ts";
@@ -38,12 +41,15 @@ export interface RecaptureInput {
   /** The sun of the previous frame; null on the first. */
   readonly previousSun: Vec3 | null;
   readonly request: CaptureRequest;
+  /** The key changes gradually (a running weather transition): rate-limited like a moving sun. */
+  readonly gradual?: boolean;
 }
 
 export function decideRecapture(input: RecaptureInput): boolean {
   const { last, request } = input;
   if (request.scrubbing) return false;
-  if (!last || request.captureKey !== last.captureKey) return true;
+  if (!last) return true;
+  if (request.captureKey !== last.captureKey) return !input.gradual || input.now - input.lastAt >= MIN_RECAPTURE_INTERVAL_SECONDS - 1e-9;
   const moving = input.previousSun === null || angleBetweenDeg(input.previousSun, request.sunDirection) > MOVED_ANGLE_DEG;
   if (!moving) return angleBetweenDeg(last.sunDirection, request.sunDirection) >= SETTLE_RECAPTURE_ANGLE_DEG;
   return input.now - input.lastAt >= MIN_RECAPTURE_INTERVAL_SECONDS - 1e-9 && shouldRecapture(last, request);

@@ -4,7 +4,8 @@ import type { ResolvedHeightFog } from "../legacy/heightFog.ts";
 import type { Vec3 } from "../legacy/layout.ts";
 import type { SurfaceCondition } from "./surfaceCondition.ts";
 import { evaluateSunLight, hexToLinear, lerp, smoothstep, TWILIGHT_DEG } from "./sunPath.ts";
-import { weatherFactors } from "./weatherPresets.ts";
+import { mixedWeatherFactors, WEATHER_PRESET_TABLE, weatherFactors } from "./weatherPresets.ts";
+import { liveWeatherMix, WEATHER_SHARES, weatherTransitionRunning, type WeatherMix } from "./weatherTransition.ts";
 import type { ResolvedWorldEnvironment, Season, WeatherPreset } from "./worldEnvironment.ts";
 
 /**
@@ -30,7 +31,16 @@ export interface WorldEnvironmentState {
   seasonFrom?: Season;
   seasonProgress?: number;
   seasonSeconds?: number;
+  /** The weather shown, or being moved to while a transition runs (`weatherProgress` < 1). */
   weather: { preset: WeatherPreset; intensity: number };
+  /**
+   * A timed weather change (plan phase W2, weatherTransition.ts): from the mix
+   * `weatherFrom` to `weather`, `weatherProgress` 0..1 of `weatherSeconds`
+   * simulation seconds. Absent: the weather has been reached.
+   */
+  weatherFrom?: WeatherMix;
+  weatherProgress?: number;
+  weatherSeconds?: number;
   /** The visible surface (plan phase W); targets and authored defaults cover snowCoverage / wetness only. */
   surface: SurfaceCondition;
 }
@@ -70,6 +80,12 @@ export interface ResolvedEnvironment {
   surface: WorldEnvironmentState["surface"];
   /** Changes when the IBL must be recaptured regardless of the sun angle (§6.4). */
   captureKey: string;
+  /**
+   * A weather transition runs: `captureKey` changes every frame, so the Sky
+   * Light captures at the rate limit of a moving sun (recaptureRate.ts), and
+   * once more when it ends (plan phase W2).
+   */
+  weatherTransitioning: boolean;
 }
 
 const NIGHT_FOG_SCALE = 0.1;
@@ -94,7 +110,9 @@ export function resolveEnvironment(
   state: WorldEnvironmentState,
 ): ResolvedEnvironment {
   const sun = evaluateSunLight(state.hour, env);
-  const weather = weatherFactors(state.weather.preset, state.weather.intensity);
+  // A running transition mixes the presets; without one, the preset's factors as they always were.
+  const mix = weatherTransitionRunning(state) ? liveWeatherMix(state) : null;
+  const weather = mix ? mixedWeatherFactors(mix) : weatherFactors(state.weather.preset, state.weather.intensity);
 
   let light: ResolvedEnvironment["light"] = null;
   if (authored.sun) {
@@ -113,7 +131,7 @@ export function resolveEnvironment(
   let fog: ResolvedHeightFog | null = null;
   if (authored.fog) {
     const f = authored.fog;
-    const weathered = mixHex(f.color, weather.fogTint, weather.fogTintMix);
+    const weathered = mix ? mixFogTints(f.color, mix) : mixHex(f.color, weather.fogTint, weather.fogTintMix);
     const lit = scaleHex(weathered, lerp(NIGHT_FOG_SCALE, 1, sun.daylight));
     const density = weather.fogDensityMultiplier;
     fog = {
@@ -130,9 +148,11 @@ export function resolveEnvironment(
   let cloud: ResolvedCloudLayer | null = null;
   if (authored.cloud) {
     const c = authored.cloud;
-    const coverage = weather.cloudCoverageMin === null
-      ? c.coverage
-      : lerp(c.coverage, Math.max(c.coverage, weather.cloudCoverageMin), weather.weight);
+    const coverage = mix
+      ? mixedCoverage(c.coverage, mix)
+      : weather.cloudCoverageMin === null
+        ? c.coverage
+        : lerp(c.coverage, Math.max(c.coverage, weather.cloudCoverageMin), weather.weight);
     const lit = scaleHex(c.color, lerp(NIGHT_CLOUD_SCALE, 1, sun.daylight));
     cloud = { ...c, coverage, color: mixHex(lit, TWILIGHT_CLOUD_TINT, 0.4 * sun.twilightWarmth) };
   }
@@ -154,7 +174,7 @@ export function resolveEnvironment(
     },
     stars: {
       brightness: env.night.starBrightness * smoothstep(0, 12, -sun.sunElevationDeg)
-        * (state.weather.preset === "fog" ? lerp(1, 0.05, weather.weight) : 1),
+        * (mix ? lerp(1, FOG_STAR_FLOOR, mix.fog ?? 0) : state.weather.preset === "fog" ? lerp(1, FOG_STAR_FLOOR, weather.weight) : 1),
       density: env.night.starDensity,
       size: env.night.starSize,
     },
@@ -164,8 +184,41 @@ export function resolveEnvironment(
     exposureMultiplier: lerp(NIGHT_EXPOSURE, 1, sun.daylight),
     season: state.season,
     surface: { ...state.surface },
-    captureKey: `${state.weather.preset}:${round3(weather.weight)}:${state.season}`,
+    captureKey: mix
+      ? `mix:${WEATHER_SHARES.map((preset) => round3(mix[preset] ?? 0)).join(",")}:${state.season}`
+      : `${state.weather.preset}:${round3(weather.weight)}:${state.season}`,
+    weatherTransitioning: mix !== null,
   };
+}
+
+/** Stars left in full fog. */
+const FOG_STAR_FLOOR = 0.05;
+
+/** Cloud coverage under a mix: each share raises it toward its preset's minimum (one share is the preset's `lerp`). */
+function mixedCoverage(coverage: number, mix: WeatherMix): number {
+  let out = coverage;
+  for (const preset of WEATHER_SHARES) {
+    const min = WEATHER_PRESET_TABLE[preset].cloudCoverageMin;
+    const w = mix[preset] ?? 0;
+    if (min !== null && w > 0) out += (Math.max(coverage, min) - coverage) * w;
+  }
+  return out;
+}
+
+/** The fog colour under a mix: each share tints it toward its preset's tint (one share is {@link mixHex}). */
+function mixFogTints(hex: string, mix: WeatherMix): string {
+  const base = parseHex(hex);
+  const out: [number, number, number] = [...base];
+  let tinted = false;
+  for (const preset of WEATHER_SHARES) {
+    const full = WEATHER_PRESET_TABLE[preset];
+    const t = full.fogTintMix * (mix[preset] ?? 0);
+    if (!(t > 0)) continue;
+    tinted = true;
+    const tint = parseHex(full.fogTint);
+    for (let i = 0; i < 3; i++) out[i] = out[i]! + (tint[i]! - base[i]!) * t;
+  }
+  return tinted ? toHex(out) : hex;
 }
 
 function round3(value: number): number {

@@ -82,7 +82,7 @@ interface Precipitation
   rain: number
   snow: number
 
-const SDK_VERSION: "0.1.16"
+const SDK_VERSION: "0.1.17"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -161,7 +161,16 @@ type Vec3 = [number, number, number]
 
 type Vec4 = [number, number, number, number]
 
+type WeatherMix = { readonly cloudy?: number; readonly rain?: number; readonly snow?: number; readonly fog?: number; }
+
 type WeatherPreset = "clear" | "cloudy" | "rain" | "snow" | "fog"
+
+type WeatherShare = "cloudy" | "rain" | "snow" | "fog"
+
+interface WeatherTransitionRequest
+  readonly intensity?: number | undefined
+  readonly preset: WeatherPreset
+  readonly seconds: number
 
 interface WorldActor
   readonly components: ComponentMap
@@ -185,6 +194,7 @@ interface WorldEnvironmentService
   setWeather: (preset: WeatherPreset, intensity?: number) => void
   transitionSeason: (request: { season: Season; seconds: number; }) => Promise<boolean>
   transitionTo: (request: TimeTransitionRequest) => Promise<boolean>
+  transitionWeather: (request: WeatherTransitionRequest) => Promise<boolean>
 
 const WorldEnvironmentServiceKey: import("src/core/index").ServiceKey<WorldEnvironmentService>
 
@@ -196,6 +206,9 @@ interface WorldEnvironmentState
   seasonSeconds?: number | undefined
   surface: SurfaceCondition
   weather: { preset: WeatherPreset; intensity: number; }
+  weatherFrom?: Readonly<Partial<Record<import("src/sdk/index").WeatherShare, number>>> | undefined
+  weatherProgress?: number | undefined
+  weatherSeconds?: number | undefined
 
 type WorldState = "created" | "initialized" | "playing" | "ended" | "disposed"
 
@@ -361,7 +374,7 @@ const OUTLINER_TYPES: readonly [{ readonly type: "mesh"; readonly label: "Meshes
 
 type OutlinerType = "light" | "mesh" | "character" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
 
-const SDK_VERSION: "0.1.16"
+const SDK_VERSION: "0.1.17"
 
 function defineFeatureEditor(options: FeatureEditorOptions): FeatureEditorDef
 

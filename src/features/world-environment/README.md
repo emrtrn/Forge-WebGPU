@@ -5,7 +5,8 @@ gökyüzünü, sisi ve bulutları kendi değerlerini değiştirmeden yeniden yor
 
 - `schema.ts`: `forge.worldEnvironment@3`: sabit `hour`, `season`,
   `weather`, `sunPath`, `night` (Forge'un alan biçimi ve aralıkları). Sürekli
-  gün döngüsü yok (karar 8); saat ve mevsim zamanlı geçer. Kar / ıslaklık
+  gün döngüsü yok (karar 8); saat, mevsim ve hava zamanlı geçer (hava: ön
+  ayarların payları karışır, `engine/environment/weatherTransition.ts`). Kar / ıslaklık
   örtüsü, rüzgâr, canlı durum (su birikimi ve kar yüksekliği plan Faz W).
 - `runtime.ts`: tekili taşınmış `WorldEnvironmentController`'a yükler ve
   `WorldEnvironmentKey` servisiyle verir (`src/engine/environment`); oyun
@@ -16,3 +17,5 @@ gökyüzünü, sisi ve bulutları kendi değerlerini değiştirmeden yeniden yor
   environment.ts`), bağlamalar `ctx.environment.override`'ı okur.
 - `feature.ts`: bileşeni ve alt sistemi kurar; `render.ts`'i anmaz.
 - `editor.ts`: editördeki görünüşü (`defineFeatureEditor`): Forge'un Outliner ikonu ve tür grubu.
+  Önizleme şeridinde hava düğmelerinin altında geçiş süresi (`Transition`, saniye;
+  0 anında): kaydedilmez, Undo'ya girmez.

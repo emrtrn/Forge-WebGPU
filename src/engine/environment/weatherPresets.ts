@@ -1,4 +1,5 @@
 // Ported from Forge WebGL engine/environment/weatherPresets.ts @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
+import { liveWeatherMix, WEATHER_SHARES, weatherTransitionRunning, type WeatherMix, type WeatherStateLike } from "./weatherTransition.ts";
 import type { WeatherPreset } from "./worldEnvironment.ts";
 
 /**
@@ -56,6 +57,43 @@ export function weatherFactors(preset: WeatherPreset, intensity: number): Weathe
     windStrengthMultiplier: mix(1, full.windStrengthMultiplier),
     windGustAdd: full.windGustAdd * w,
   };
+}
+
+/**
+ * A mix of presets (plan phase W2: a timed transition, weatherTransition.ts):
+ * each preset's share moves the factors from clear by its full change, summed.
+ * One share reproduces {@link weatherFactors} exactly (the same operations in
+ * the same order). The colour and coverage of a mix have no single tint or
+ * minimum: `fogTint` and `cloudCoverageMin` are the largest share's, for
+ * display only; environmentResolve.ts mixes them per share.
+ */
+export function mixedWeatherFactors(mix: WeatherMix): WeatherFactors {
+  const clear = WEATHER_PRESET_TABLE.clear;
+  const out: WeatherFactors = { ...clear };
+  let largest = 0;
+  for (const preset of WEATHER_SHARES) {
+    const w = mix[preset] ?? 0;
+    if (!(w > 0)) continue;
+    const full = WEATHER_PRESET_TABLE[preset];
+    out.weight += w;
+    out.fogDensityMultiplier += (full.fogDensityMultiplier - clear.fogDensityMultiplier) * w;
+    out.fogTintMix += full.fogTintMix * w;
+    out.sunIntensityMultiplier += (full.sunIntensityMultiplier - clear.sunIntensityMultiplier) * w;
+    out.skyTurbidityAdd += full.skyTurbidityAdd * w;
+    out.windStrengthMultiplier += (full.windStrengthMultiplier - clear.windStrengthMultiplier) * w;
+    out.windGustAdd += full.windGustAdd * w;
+    if (w > largest) {
+      largest = w;
+      out.fogTint = full.fogTint;
+      out.cloudCoverageMin = full.cloudCoverageMin;
+    }
+  }
+  return out;
+}
+
+/** The live weather's factors: the preset's, or the mix of a running transition. */
+export function liveWeatherFactors(state: WeatherStateLike): WeatherFactors {
+  return weatherTransitionRunning(state) ? mixedWeatherFactors(liveWeatherMix(state)) : weatherFactors(state.weather.preset, state.weather.intensity);
 }
 
 /** Whether a preset needs a Cloud Layer / Height Fog / Sky Atmosphere actor to show (§7.2). */

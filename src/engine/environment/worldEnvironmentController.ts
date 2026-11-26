@@ -1,7 +1,9 @@
 // Ported from Forge WebGL engine/environment/worldEnvironmentController.ts @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
 // Added here (plan phase 3 step 7): the timed hour transition (`transitionTo`,
 // timeTransition.ts), which `advance` runs; Forge's methods are unchanged
-// apart from `setHour` / `load` ending a running transition.
+// apart from `setHour` / `load` ending a running transition. The timed season
+// (vegetation plan PG2) and weather (plan phase W2, weatherTransition.ts)
+// changes follow the same rules.
 import type { LayoutWorldEnvironment } from "../legacy/layout.ts";
 import type { WorldEnvironmentState } from "./environmentResolve.ts";
 import { stateFromDefaults } from "./environmentResolve.ts";
@@ -14,7 +16,8 @@ import {
   type TimeTransitionRequest,
 } from "./timeTransition.ts";
 import { WorldClock } from "./worldClock.ts";
-import { precipitationOf } from "./precipitation.ts";
+import { livePrecipitation } from "./precipitation.ts";
+import { advanceWeatherProgress, startWeatherTransition, WEATHER_SHARES, type WeatherMix, type WeatherTransitionRequest } from "./weatherTransition.ts";
 import type { Precipitation, SurfaceCondition } from "./surfaceCondition.ts";
 import { advanceSurface, SURFACE_RATES, type SurfaceAmount, type SurfaceRates } from "./surfaceAccumulation.ts";
 import {
@@ -25,6 +28,16 @@ import {
   type Season,
   type WeatherPreset,
 } from "./worldEnvironment.ts";
+
+/** A saved mix as the live one holds it: its positive shares only (a save lists all four). */
+function sharesOf(mix: WeatherMix): WeatherMix {
+  const out: Partial<Record<(typeof WEATHER_SHARES)[number], number>> = {};
+  for (const share of WEATHER_SHARES) {
+    const value = mix[share];
+    if (value !== undefined && Number.isFinite(value) && value > 0) out[share] = Math.min(1, value);
+  }
+  return out;
+}
 
 /** The deepest snow any level may have, metres (plan phase W, HK4). */
 export const SNOW_DEPTH_LIMIT = 2;
@@ -62,8 +75,18 @@ export interface WorldEnvironmentService {
    * reached, false when cut short. No seconds, or the same season, sets it at once.
    */
   transitionSeason(request: { season: Season; seconds: number }): Promise<boolean>;
-  /** K1: the change is immediate; timed transitions arrive with precipitation (K3). */
+  /** Sets the weather at once; ends a running weather change (its promise resolves false). */
   setWeather(preset: WeatherPreset, intensity?: number): void;
+  /**
+   * Moves to the weather (`intensity` 0..1, default 1) over `seconds` of
+   * simulation time (plan phase W2): fog, clouds, sun, wind and precipitation
+   * blend from where they are, eased in and out; rain and snow both fall
+   * while one turns into the other. Resolves true when reached, false when a
+   * new weather change, `setWeather` or the level ending cut it short, or
+   * when the level has no World Environment. No seconds, or the weather
+   * already shown, sets it at once.
+   */
+  transitionWeather(request: WeatherTransitionRequest): Promise<boolean>;
   /** Sets amounts at once; snow coverage and wetness become their own targets. `snowDepth` is in metres. */
   setSurface(partial: Partial<SurfaceCondition>): void;
   /** Changes the target; accumulation/melt/wetting/drying use simulation seconds. */
@@ -89,11 +112,13 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
   private transition: TimeTransition | null = null;
   private settle: ((reached: boolean) => void) | null = null;
   private settleSeason: ((reached: boolean) => void) | null = null;
+  private settleWeather: ((reached: boolean) => void) | null = null;
 
   /** Starts from a level's actor; null (no actor, or a hidden one) leaves no state. */
   load(actor: LayoutWorldEnvironment | null | undefined, rates: SurfaceRates = SURFACE_RATES): void {
     this.endTransition(false);
     this.endSeason(false);
+    this.endWeather(false);
     this.clock = null;
     this.state = null;
     this.stateRevision += 1;
@@ -148,6 +173,12 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
       this.emit();
       if (progress >= 1) this.endSeason(true);
     }
+    if (this.state && this.state.weatherProgress !== undefined && this.state.weatherProgress < 1) {
+      const progress = advanceWeatherProgress(this.state.weatherProgress, this.state.weatherSeconds ?? 0, simulationSeconds);
+      this.state = progress >= 1 ? this.weatherArrived(this.state) : { ...this.state, weatherProgress: progress };
+      this.emit();
+      if (progress >= 1) this.endWeather(true);
+    }
     if (this.state) {
       const surface = advanceSurface(this.state.surface, this.surfaceTarget, this.surfaceRates, simulationSeconds);
       if (surface.snowCoverage !== this.state.surface.snowCoverage || surface.wetness !== this.state.surface.wetness) {
@@ -182,7 +213,7 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
   }
 
   precipitation(): Readonly<Precipitation> {
-    return precipitationOf(this.state?.weather);
+    return livePrecipitation(this.state);
   }
 
   setHour(hour: number): void {
@@ -243,8 +274,39 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
 
   setWeather(preset: WeatherPreset, intensity = 1): void {
     if (!this.state || !WEATHER_PRESETS.includes(preset) || !Number.isFinite(intensity)) return;
-    this.state = { ...this.state, weather: { preset, intensity: Math.min(1, Math.max(0, intensity)) } };
+    this.endWeather(false);
+    this.state = { ...this.weatherArrived(this.state), weather: { preset, intensity: Math.min(1, Math.max(0, intensity)) } };
     this.emit();
+  }
+
+  transitionWeather(request: WeatherTransitionRequest): Promise<boolean> {
+    const intensity = request.intensity ?? 1;
+    if (!this.state || !WEATHER_PRESETS.includes(request.preset) || !Number.isFinite(intensity)) return Promise.resolve(false);
+    const weather = { preset: request.preset, intensity: Math.min(1, Math.max(0, intensity)) };
+    const next = startWeatherTransition(this.state, weather, request.seconds);
+    if (!next) {
+      // No time, or already there: the weather is set at once, and that is reaching it.
+      this.setWeather(weather.preset, weather.intensity);
+      return Promise.resolve(true);
+    }
+    this.endWeather(false);
+    this.state = { ...this.state, ...next, weather };
+    this.emit();
+    return new Promise((resolve) => {
+      this.settleWeather = resolve;
+    });
+  }
+
+  /** The state with its weather reached (no change running). */
+  private weatherArrived(state: WorldEnvironmentState): WorldEnvironmentState {
+    const { weatherFrom: _from, weatherProgress: _progress, weatherSeconds: _seconds, ...rest } = state;
+    return rest;
+  }
+
+  private endWeather(reached: boolean): void {
+    const settle = this.settleWeather;
+    this.settleWeather = null;
+    settle?.(reached);
   }
 
   setSurface(partial: Partial<SurfaceCondition>): void {
@@ -280,6 +342,11 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
       this.emit();
     }
     this.setWeather(state.weather.preset, state.weather.intensity);
+    // So does a weather change, from the mix it started at.
+    if (this.state && state.weatherFrom !== undefined && (state.weatherProgress ?? 1) < 1 && (state.weatherSeconds ?? 0) > 0) {
+      this.state = { ...this.state, weatherFrom: sharesOf(state.weatherFrom), weatherProgress: state.weatherProgress!, weatherSeconds: state.weatherSeconds! };
+      this.emit();
+    }
     this.setSurface(state.surface);
     this.setSurfaceTarget(state.surfaceTarget);
   }

@@ -70,6 +70,7 @@ export type { WorldEnvironmentState } from "../engine/environment/environmentRes
 export type { Precipitation, SurfaceCondition } from "../engine/environment/surfaceCondition.ts";
 export type { Season, WeatherPreset } from "../engine/environment/worldEnvironment.ts";
 export type { TimeTransitionRequest } from "../engine/environment/timeTransition.ts";
+export type { WeatherMix, WeatherShare, WeatherTransitionRequest } from "../engine/environment/weatherTransition.ts";
 export type { SurfaceAmount } from "../engine/environment/surfaceAccumulation.ts";
 
 // The game module

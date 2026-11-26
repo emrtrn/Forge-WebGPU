@@ -196,5 +196,8 @@ export function groupThousands(value: number): string {
 export function formatWorldEnvironment(state: WorldEnvironmentState): string {
   const minutes = Math.floor(state.hour * 60) % (24 * 60);
   const clock = `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
-  return `world env: ${clock} ${state.season} ${state.weather.preset} ${state.weather.intensity.toFixed(2)}`;
+  const weather = `${state.weather.preset} ${state.weather.intensity.toFixed(2)}`;
+  // A running weather change shows its target and how far it is.
+  const progress = state.weatherProgress !== undefined && state.weatherProgress < 1 ? ` (${Math.round(state.weatherProgress * 100)}%)` : "";
+  return `world env: ${clock} ${state.season} ${weather}${progress}`;
 }

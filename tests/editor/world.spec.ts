@@ -135,6 +135,16 @@ test("the World Environment preview never dirties the level; Make Default writes
   await expect(page.getByTestId("wes-preview-weather-clear")).toHaveClass(/\bon\b/);
   await expect(page.getByTestId("wes-preview-reset")).toBeDisabled();
 
+  // A timed weather change (plan phase W2): the time is the preview's, never undone; Reset ends it.
+  await page.getByTestId("wes-preview-transition").fill("30");
+  await page.getByTestId("wes-preview-weather-snow").click();
+  await expect(page.getByTestId("wes-preview-weather-snow")).toHaveClass(/\bon\b/);
+  await expect(page.getByTestId("wes-preview-transition-progress")).toHaveText(/^\d+%$/);
+  await expect(page.getByTestId("editor-undo")).toBeDisabled();
+  await page.getByTestId("wes-preview-reset").click();
+  await expect(page.getByTestId("wes-preview-transition-progress")).toHaveText("");
+  await expect(page.getByTestId("wes-preview-weather-clear")).toHaveClass(/\bon\b/);
+
   await page.getByTestId("wes-preview-play").click();
   await expect(page.getByTestId("wes-preview-play")).toHaveText("Pause");
   await expect(label).not.toHaveText("12:00");
@@ -186,6 +196,10 @@ test("cover preview stays out of level bytes and Play state", async ({ page, con
       slider.dispatchEvent(new Event("input", { bubbles: true }));
     });
   }
+  // A running weather change is preview state too.
+  await page.getByTestId("wes-preview-transition").fill("60");
+  await page.getByTestId("wes-preview-weather-rain").click();
+  await expect(page.getByTestId("wes-preview-transition-progress")).toHaveText(/^\d+%$/);
   await expect(page.getByTestId("editor-save")).toBeDisabled();
   await page.keyboard.press("Control+s");
   expect(readFileSync(path, "utf8")).toBe(before);
@@ -193,8 +207,10 @@ test("cover preview stays out of level bytes and Play state", async ({ page, con
   await page.getByTestId("editor-play").click();
   const game = await opened;
   await expect(game.getByTestId("forge-canvas")).toHaveAttribute("data-forge-ready", "1", { timeout: 60_000 });
-  const state = await game.evaluate(() => (window as unknown as { __forgeDev: { environmentState(): { surface: unknown } } }).__forgeDev.environmentState());
+  const state = await game.evaluate(() => (window as unknown as { __forgeDev: { environmentState(): { surface: unknown; weather: unknown } } }).__forgeDev.environmentState());
   expect(state.surface).toEqual({ snowCoverage: 0, wetness: 0, puddleFill: 0, snowDepth: 0 });
+  expect(state.weather).toEqual({ preset: "clear", intensity: 1 });
+  expect(state).not.toHaveProperty("weatherProgress");
   expect(readFileSync(path, "utf8")).toBe(before);
   await game.close();
   expect(errors).toEqual([]);
