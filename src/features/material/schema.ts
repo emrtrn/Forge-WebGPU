@@ -28,7 +28,7 @@
 //
 // Plan phase W4, added with neutral defaults (old files read as they are):
 // - `weather`: how the surface takes the World Environment's wetness and snow
-//   (engine/environment/surfaceResponse.ts). `puddleAccept` is drawn in W6.
+//   (engine/environment/surfaceResponse.ts). `puddleAccept` scales the wet patches, puddles and their ripples (W6).
 
 import {
   assetRef,
@@ -239,7 +239,7 @@ export const MaterialFields = {
       wetting: unit(1, "Yüzeyin ıslaklıktan aldığı pay: 0 hiç ıslanmaz (kapalı cam, plastik), 1 tam."),
       porosity: unit(0.5, "Gözeneklilik: 0 sert yüzey ıslanınca parlar (metal, cila), 1 gözenekli yüzey koyulaşır, mat kalır (toprak, tuğla)."),
       snowAccept: unit(1, "Karın tuttuğu pay: 0 kar tutmaz, 1 tam."),
-      puddleAccept: unit(1, "Düz yüzeyde su birikintisi kabulü (Faz W6 çizer): 0 hiç birikmez, 1 tam."),
+      puddleAccept: unit(1, "Düz yüzeyde su birikintisi kabulü: ıslak yama, birikinti ve yağmur halkası bununla çarpılır. 0 hiç birikmez (yalnız koyulaşır), 1 tam."),
     },
     { hint: "Havaya tepki (Faz W): yağışla ıslanma ve karlanma. Islanma ve kar kabulü 0 ise materyal havadan hiç etkilenmez." },
   ),

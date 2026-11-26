@@ -163,7 +163,7 @@ export interface MaterialWeather {
   readonly porosity: number;
   /** How much of the snow it takes, 0..1. */
   readonly snowAccept: number;
-  /** How much standing water it may hold (phase W6), 0..1. */
+  /** How much standing water it holds (plan phase W6): its wet patches, puddles and their ripples, 0..1. */
   readonly puddleAccept: number;
 }
 
@@ -287,7 +287,8 @@ export function surfaceAmountAt(
 
 /**
  * The wetness, snow, wet patch and puddle a point shows: the surface amount × its face's share × open sky × the
- * material's acceptance. Patches and puddles need flat ground (`poolShare`) and darken the point at least as much.
+ * material's acceptance (patches and puddles also × `puddleAccept`). Patches and puddles need flat ground
+ * (`poolShare`) and darken the point at least as much.
  */
 export function surfaceWeatherAt(
   amount: SurfaceWeatherAmount,
@@ -298,7 +299,7 @@ export function surfaceWeatherAt(
 ): { wet: number; snow: number; patch: number; pool: number } {
   const open = 1 - clamp01(point.covered);
   const accept = open * clamp01(material.wetting);
-  const flat = poolShare(point.normal[1], settings.puddleMaxSlopeDeg) * accept;
+  const flat = poolShare(point.normal[1], settings.puddleMaxSlopeDeg) * accept * clamp01(material.puddleAccept);
   const patch = clamp01(amount.patches ?? 0) * flat;
   const pool = clamp01(amount.puddles ?? 0) * flat;
   const wet = Math.max(clamp01(amount.wetness) * wetShare(point.normal, wind, settings) * accept, patch);

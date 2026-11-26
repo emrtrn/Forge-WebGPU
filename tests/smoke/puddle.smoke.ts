@@ -8,6 +8,9 @@
 // - its fill is ready, with a wet area;
 // - the drawn image changes well beyond the still frame's noise;
 // - its planar reflection renders the scene again (the frame's draw calls grow);
+// - in rain its water takes rain rings (plan phase W6: ring strength 2 moves
+//   it more than 0 under the same rain and wind), and rain and ring settings
+//   compile nothing (WebGPU pipelines +0);
 // - nothing errors on the page.
 // A close look is attached and written to render-refs/candidates/ for the eye;
 // no reference image is compared.
@@ -17,6 +20,7 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { Quaternion, Vector3 } from "three";
 import sharp from "sharp";
+import { gpuMemory, installGpuMemory } from "./gpuMemory.ts";
 import { RENDER_REFS, SMOKE_SCENES } from "./renderScenes.ts";
 import { difference, isOptionalHlodMiss, openSmokeLevel } from "./smokePage.ts";
 
@@ -26,6 +30,11 @@ interface Dev {
   spawn(raw: unknown[]): string[];
   terrainHeights(points: [number, number][]): Promise<(number | null)[]>;
   puddleResult(actor: string): Promise<{ status: string; area: number; message: string } | undefined>;
+  environmentState(): unknown;
+  setWeather(preset: string, intensity: number): void;
+  setSurfaceSettings(settings: Record<string, number>): void;
+  setLateVisible(visible: boolean): void;
+  moveCamera(x: number, y: number, z: number, look?: readonly [number, number, number]): void;
 }
 
 const dev = (page: Page) => ({
@@ -90,6 +99,7 @@ test("puddle: a basin ahead of the camera fills, draws and reflects the scene", 
     normalRequests += 1;
     await route.fulfill({ contentType: "image/png", body: normal });
   });
+  await installGpuMemory(page);
   const scene = SMOKE_SCENES.find((entry) => entry.id === "derekavak")!;
   const pose = scene.poses[0]!;
   const opened = await openSmokeLevel(page, scene.level, pose);
@@ -152,6 +162,42 @@ test("puddle: a basin ahead of the camera fills, draws and reflects the scene", 
   const windChange = await difference(page, windBefore, await waterShot());
   console.log(`wind normal requests ${normalRequests}; 2 simulation seconds image change ${windChange.toFixed(5)}`);
   expect(windChange, "the textured wind ripples animate on the actual GPU").toBeGreaterThan(.001);
+
+  // Plan phase W6: rain rings on the water, seen from 3 m (they fade with distance). The same rain and wind with the
+  // rings at 0 and at 2 (the late layer hidden).
+  const forge = (run: (d: Dev, arg: unknown) => unknown, arg?: unknown) => page.evaluate(([source, value]) => {
+    const fn = new Function("d", "arg", `return (${source})(d, arg);`) as (d: Dev, arg: unknown) => unknown;
+    return fn((window as unknown as { __forgeDev: Dev }).__forgeDev, value);
+  }, [run.toString(), arg] as const);
+  if ((await forge((d) => d.environmentState())) === null) {
+    await dev(page).spawn([{ id: "act_ffffffffffffffffffffffffffffffa7", spatiallyLoaded: false, components: { environment: { type: "forge.worldEnvironment@3", hour: 12 } } }]);
+  }
+  const step = async (count: number) => { for (let i = 0; i < count; i += 1) await forge((d, ms) => d.step(ms as number), 1000 / 60); };
+  await forge((d, at) => { const [x, y, z, l] = at as [number, number, number, [number, number, number]]; d.moveCamera(x, y, z, l); },
+    [basin.x - forward.x * 3, basin.y + 2.5, basin.z - forward.z * 3, [basin.x, basin.y, basin.z]]);
+  await step(6);
+  const before = await gpuMemory(page);
+  await forge((d) => { d.setLateVisible(false); d.setWeather("rain", 1); });
+  const ringMotion = async (strength: number): Promise<number> => {
+    await forge((d, s) => d.setSurfaceSettings({ rippleStrength: s as number, rippleDensity: 1 }), strength);
+    await step(6);
+    await page.waitForTimeout(60);
+    const first = await waterShot();
+    await step(7);
+    await page.waitForTimeout(60);
+    const second = await waterShot();
+    if (strength > 0) writeFileSync(join(RENDER_REFS, "candidates", "puddle-derekavak-rain.png"), await shot());
+    return difference(page, first, second);
+  };
+  const withoutRings = await ringMotion(0);
+  const withRings = await ringMotion(2);
+  await forge((d) => { d.setWeather("clear", 1); d.setSurfaceSettings({ rippleStrength: 1, rippleDensity: 0.6 }); d.setLateVisible(true); });
+  await step(3);
+  const after = await gpuMemory(page);
+  const pipelines = before && after ? after.pipelines - before.pipelines : null;
+  console.log(`rain rings: water change ${withRings.toFixed(5)} with rings, ${withoutRings.toFixed(5)} without; pipelines +${pipelines ?? "-"}`);
+  expect(withRings, "rain rings move the water").toBeGreaterThan(withoutRings * 1.5);
+  if (pipelines !== null) expect(pipelines, "rain and ring settings compile nothing").toBe(0);
   expect(pageErrors).toEqual([]);
   expect(gpuErrors).toEqual([]);
   // The readout is useful evidence, but it covers half the basin in the

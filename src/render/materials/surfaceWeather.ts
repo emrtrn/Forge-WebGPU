@@ -15,7 +15,9 @@
 // - The colour is weathered after three's diffuse setup, so a placement's
 //   instance colour and the mesh's vertex colours tint the surface, never the
 //   snow (`setupDiffuseColor`, kept through `clone()` by the class); roughness,
-//   metalness and (with a normal map) the normal through their node slots.
+//   metalness and the normal through their node slots. The normal is bound
+//   with or without a normal map (plan phase W6: a puddle's ripples bend the
+//   geometry's own); a material without water pays one uniform branch.
 // - A material's response is read per draw (`materialReference`): every
 //   weathered material of a world shares one program shape (two with plan
 //   phase W5: a material with ambient occlusion dries late in its hollows,
@@ -35,7 +37,8 @@ export const MATERIAL_WEATHER_KEY = "forgeWeather";
 const WETTING = "forgeWeatherWetting";
 const POROSITY = "forgeWeatherPorosity";
 const SNOW_ACCEPT = "forgeWeatherSnowAccept";
-const RESPONSE_KEYS = [WETTING, POROSITY, SNOW_ACCEPT] as const;
+const PUDDLE_ACCEPT = "forgeWeatherPuddleAccept";
+const RESPONSE_KEYS = [WETTING, POROSITY, SNOW_ACCEPT, PUDDLE_ACCEPT] as const;
 
 interface WeatherHook {
   /** The world's cover in the program cache key: the hook's nodes are not node slots three hashes. */
@@ -101,6 +104,8 @@ function weatheredCopy(source: Material): Weathered | null {
 export interface SurfaceWeather {
   /** Follows the World Environment (null: none; dry, snowless). Uniforms only. */
   update(input: SurfaceCoverInput | null): void;
+  /** The last input (`update`): terrain and puddles read the same World Environment, rain and clock. */
+  readonly input: SurfaceCoverInput | null;
   /** `source` as this world draws it: a weathered copy, or `source` itself when it takes no weather. */
   material(source: Material): Material;
   /** `material` over a part's material or materials. */
@@ -124,6 +129,7 @@ export function createSurfaceWeather(sheltered?: (position: Node) => Node): Surf
     wetting: materialReference(WETTING, "float"),
     porosity: materialReference(POROSITY, "float"),
     snowAccept: materialReference(SNOW_ACCEPT, "float"),
+    puddleAccept: materialReference(PUDDLE_ACCEPT, "float"),
   };
   const normal = normalWorldGeometry.mul(faceDirection);
   /** The factors and the diffuse hook, without and with the material's ambient occlusion as its hollows. */
@@ -171,11 +177,13 @@ export function createSurfaceWeather(sheltered?: (position: Node) => Node): Surf
     copy[WETTING] = weather.wetting;
     copy[POROSITY] = weather.porosity;
     copy[SNOW_ACCEPT] = weather.snowAccept;
-    const lit = copy as unknown as MeshStandardNodeMaterial & { normalMap?: unknown; bumpMap?: unknown };
+    copy[PUDDLE_ACCEPT] = weather.puddleAccept;
+    const lit = copy as unknown as MeshStandardNodeMaterial;
     lit.roughnessNode = cover.look.roughness(lit.roughnessNode ?? materialRoughness, factors, response);
     lit.metalnessNode = cover.look.metalness(lit.metalnessNode ?? materialMetalness, factors, response);
-    // Only a fine normal is flattened; `normalView` in the normal's own build is the geometry's.
-    if (lit.normalNode || lit.normalMap || lit.bumpMap) lit.normalNode = cover.look.normal(lit.normalNode ?? materialNormal, normalView, factors, response);
+    // A fine normal is flattened (`materialNormal` is the map's, or the geometry's without one; `normalView` in the
+    // normal's own build is the geometry's); a puddle's ripples bend it.
+    lit.normalNode = cover.look.normal(lit.normalNode ?? materialNormal, normalView, factors, response, positionWorld);
     return copy;
   };
 
@@ -188,8 +196,15 @@ export function createSurfaceWeather(sheltered?: (position: Node) => Node): Surf
     return drawn;
   };
 
+  let input: SurfaceCoverInput | null = null;
   return {
-    update: (input) => cover.update(input),
+    update(next) {
+      input = next;
+      cover.update(next);
+    },
+    get input() {
+      return input;
+    },
     material,
     materials: <T extends Material | Material[]>(source: T): T => (Array.isArray(source) ? source.map(material) : material(source)) as T,
     get size() {

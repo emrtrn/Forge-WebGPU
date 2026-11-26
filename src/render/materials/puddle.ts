@@ -15,13 +15,17 @@
 // Wind (phase 5a step 7, puddleWind.ts) bends both the normal and the planar
 // lookup through the reflection camera. The weather lowers the water
 // (`setWaterDrop`, user decision 2026-11-26): the surface sinks and its depth
-// shrinks by the same amount, so the shore recedes into the hollow. Wheel rings follow in phase 6 / 8.
+// shrinks by the same amount, so the shore recedes into the hollow. Rain rings
+// (plan phase W6, waterRipples.ts) follow the live rain, not under the
+// precipitation cover. Wheel rings follow in phase 6 / 8.
 
 import * as THREE from "three/webgpu";
 import * as TSLTyped from "three/tsl";
 import type { ResolvedWind } from "../../engine/environment/wind.ts";
 import type { PuddleWindSettings } from "../../engine/terrain/puddleWater.ts";
 import { createPuddleWind } from "./puddleWind.ts";
+import { createWaterRipples, type WaterRippleInput } from "./waterRipples.ts";
+import { COVER_READ_LIFT } from "../../engine/environment/surfaceResponse.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyNode = any;
@@ -61,11 +65,14 @@ export interface PuddleMaterial {
   /** Lowers the water `metres` below its filled level (weather fill): the shallow edges dry first. Uniform only. */
   setWaterDrop(metres: number): void;
   updateWind(wind: ResolvedWind, seconds: number, appearance: Partial<PuddleWindSettings>, x: number, z: number): void;
+  /** Rain rings (plan phase W6): the live rain, the clock and the World Environment's settings; null none. Uniforms only. */
+  updateRipples(input: WaterRippleInput | null): void;
   readonly windMotion: ReturnType<typeof createPuddleWind>["motion"];
   dispose(): void;
 }
 
-export function createPuddleMaterial(appearance: PuddleAppearance): PuddleMaterial {
+/** `sheltered`: the precipitation cover at a world point (1 under a roof); absent: open sky. */
+export function createPuddleMaterial(appearance: PuddleAppearance, sheltered?: (position: AnyNode) => AnyNode): PuddleMaterial {
   const uColor = uniform(new THREE.Color(appearance.color));
   const uMudColor = uniform(new THREE.Color(appearance.mudColor));
   const uMudDensity = uniform(appearance.mudDensity);
@@ -76,6 +83,7 @@ export function createPuddleMaterial(appearance: PuddleAppearance): PuddleMateri
   const uTexel = uniform(1 / 256);
   let reflection: PuddleReflection | null = null;
   const wind = createPuddleWind();
+  const ripples = createWaterRipples();
   let windNormal: THREE.Texture | null = null;
 
   const uDrop = uniform(0);
@@ -95,7 +103,11 @@ export function createPuddleMaterial(appearance: PuddleAppearance): PuddleMateri
   const apply = (): void => {
     const surface = wind.nodes(depth, uRoughness);
     material.roughnessNode = surface.roughness;
-    const slope = TSL.vec3(surface.gradient.x.negate(), 0, surface.gradient.y.negate());
+    // Rings where the water is (its edge's fade, as the wind's) and the sky is open; no crests (the wind's own above).
+    const open = sheltered ? float(1).sub(sheltered(TSL.positionWorld.add(vec3(0, COVER_READ_LIFT, 0)))) : float(1);
+    const rings = ripples.slope(TSL.positionWorld, smoothstep(0, .025, depth).mul(open), null);
+    const gradient = surface.gradient.add(rings);
+    const slope = TSL.vec3(gradient.x.negate(), 0, gradient.y.negate());
     material.normalNode = TSL.normalize(normalView.add(TSL.cameraViewMatrix.mul(TSL.vec4(slope, 0)).xyz));
     const planar = reflection !== null;
     material.envMapIntensity = appearance.reflectionStrength * (planar ? 1 - appearance.planarReflectionStrength : 1);
@@ -130,6 +142,7 @@ export function createPuddleMaterial(appearance: PuddleAppearance): PuddleMateri
     material,
     windMotion: wind.motion,
     updateWind: wind.update,
+    updateRipples: ripples.update,
     setWaterDrop(metres) {
       uDrop.value = Math.max(0, metres);
     },

@@ -242,7 +242,8 @@ export default defineRenderBinding({
     };
 
     const add = (actor: WorldActor, key: string, data: PuddleData): void => {
-      const material = createPuddleMaterial(appearanceOf(data));
+      const cover = ctx.precipitationCover;
+      const material = createPuddleMaterial(appearanceOf(data), cover ? (position) => cover.coverAt(position) : undefined);
       const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material.material);
       mesh.name = `${actor.name}/${key}`;
       mesh.visible = false;
@@ -319,8 +320,12 @@ export default defineRenderBinding({
         if (Number.isFinite(frame.dt) && frame.dt > 0) simulationSeconds += frame.dt;
         const wind = resolveWorldWind(ctx.world);
         const live = liveFill();
+        // Rain rings (plan phase W6): the world's surface input (rain, clock, settings); none without a World Environment.
+        const surface = ctx.surfaceWeather?.input ?? null;
+        const ripples = surface ? { rain: surface.rain ?? 0, seconds: surface.seconds ?? 0, settings: surface.settings } : null;
         for (const entry of placed.values()) {
           applyWeather(entry, false, live);
+          entry.material.updateRipples(ripples);
           const { seed } = placement(ctx, entry.actor, entry.key);
           entry.material.updateWind(wind, simulationSeconds, entry.data, seed[0], seed[1]);
         }

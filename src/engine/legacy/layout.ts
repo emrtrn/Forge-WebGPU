@@ -121,6 +121,11 @@ export interface LayoutWorldEnvironment {
     wetSpread?: number;
     snowSpread?: number;
     patchSize?: number;
+    /** Plan phase W6: rain rings and the puddles' wind ripples. */
+    rippleStrength?: number;
+    rippleSize?: number;
+    rippleDensity?: number;
+    windRippleStrength?: number;
   };
   /** Faz 6 sway wind; absent falls back to `worldSettings.wind`. Weather and season scale it. */
   wind?: LayoutWind;

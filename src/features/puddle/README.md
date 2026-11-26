@@ -12,6 +12,8 @@ karar 2; Forge WebGL'in kalıcı Puddle'ı).
   Forge'un havza doldurmasını karede 2 ms'lik dilimlerle çalıştırır, yüzeyi
   `render/materials/puddle.ts` ile çizer, planar yansımayı
   `render/sync/puddleReflections.ts` seçer. Sonucu servis olarak yayınlar.
+  Yağarken suda yağmur halkaları (plan W6, `render/materials/waterRipples.ts`;
+  WES'in canlı yağmuru ve `surface.ripple*` ayarları, yağış siperi altında yok).
 - `editor.ts`: Outliner simgesi, Add Actor girişi (bırakılan noktanın 5 cm üstü),
   Details'in altında doldurmanın sonucu.
 - Sonra: rüzgâr dalgacıkları WES rüzgârıyla (5a adım 7), tekerlek dalgacıkları

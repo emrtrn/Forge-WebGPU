@@ -15,6 +15,10 @@
 //   the patch settings (`wetSpread`, `snowSpread`, `patchSize`) or a half,
 //   patchy snow. The probes read full snow / wetness, where the look is the
 //   same at any patch setting (surfaceResponse.ts `patchySnow`).
+// - Plan phase W6 (HV-06: rings only in rain): a puddle on the block's top
+//   and the paving moves between two moments in rain, hardly in clear weather
+//   (the wind's crests off for the reading); the ripple settings and the rain
+//   change no pipeline either.
 // - HV-12: Derekavak's P2 (the far view: HLOD proxies, far terrain) dry / wet /
 //   snowy, for the eye. Candidates `render-refs/candidates/weather-*.png`.
 import { expect, test, type Page } from "@playwright/test";
@@ -82,6 +86,32 @@ async function patches(page: Page, png: Buffer, at: readonly ([number, number] |
       return [red / n, green / n, blue / n] as [number, number, number];
     });
   }, [png.toString("base64"), at, radius] as const);
+}
+
+/** Mean absolute channel difference (0..255) of two screenshots over squares around each pixel. */
+async function pixelChange(page: Page, a: Buffer, b: Buffer, at: readonly ([number, number] | null)[], radius = 24): Promise<number> {
+  return page.evaluate(async ([first, second, points, r]) => {
+    const read = async (base64: string) => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${base64}`;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const context = canvas.getContext("2d")!;
+      context.drawImage(image, 0, 0);
+      return { context, scale: image.width / window.innerWidth };
+    };
+    const [one, two] = [await read(first), await read(second)];
+    let sum = 0, count = 0;
+    for (const point of points) {
+      if (!point) continue;
+      const x = Math.round(point[0] * one.scale) - r, y = Math.round(point[1] * one.scale) - r;
+      const da = one.context.getImageData(x, y, 2 * r + 1, 2 * r + 1).data, db = two.context.getImageData(x, y, 2 * r + 1, 2 * r + 1).data;
+      for (let i = 0; i < da.length; i += 4) { sum += Math.abs(da[i]! - db[i]!) + Math.abs(da[i + 1]! - db[i + 1]!) + Math.abs(da[i + 2]! - db[i + 2]!); count += 3; }
+    }
+    return count > 0 ? sum / count : 0;
+  }, [a.toString("base64"), b.toString("base64"), at, radius] as const);
 }
 
 function shape(index: number, centre: Vec3, size: Vec3, color: string): unknown {
@@ -212,6 +242,25 @@ for (const mode of MODES) {
     await surface(0.7, 0.8);
     candidate(`${mode.name}-top-patchy`, await page.screenshot());
     await evaluate(page, (d) => d.setSurfaceSettings({ wetSpread: 1, snowSpread: 1, patchSize: 1 }));
+    // Plan phase W6 (HV-06): a full puddle on the flat faces; rings only in rain (the wind's crests off for the reading).
+    await evaluate(page, (d) => d.setSurfaceSettings({ puddleCore: 1, rippleStrength: 2, rippleSize: 0.25, rippleDensity: 1, windRippleStrength: 0 }));
+    await evaluate(page, (d) => d.setSurface({ snowCoverage: 0, wetness: 1, puddleFill: 1 }));
+    const ripplePoints = await evaluate(page, (d, p) => d.project(p as Vec3[]), [probes.top, probes.paving]);
+    const moving = async (preset: string, shot: string): Promise<number> => {
+      await evaluate(page, (d, p) => d.setWeather(p as string, 1), preset);
+      await steps(page, 6);
+      await page.waitForTimeout(60);
+      const first = await page.screenshot();
+      await steps(page, 7);
+      await page.waitForTimeout(60);
+      const second = await page.screenshot();
+      candidate(`${mode.name}-top-ripples-${shot}`, second);
+      return pixelChange(page, first, second, ripplePoints);
+    };
+    const ripples = { clear: await moving("clear", "clear"), rain: await moving("rain", "rain") };
+    await evaluate(page, (d) => d.setSurfaceSettings({ windRippleStrength: 1 }));
+    await moving("rain", "rain-wind");
+    await evaluate(page, (d) => { d.setWeather("clear", 1); d.setSurfaceSettings({ puddleCore: 0.5, rippleStrength: 1, rippleDensity: 0.6 }); d.setSurface({ puddleFill: 0 }); });
     await surface(0.5, 0);
     await surface(0, 0);
     const after = mode.webgl ? null : await gpuMemory(page);
@@ -233,7 +282,7 @@ for (const mode of MODES) {
     const fmt = (values: Record<string, number>): string => Object.entries(values).map(([k, v]) => `${k} ${v.toFixed(3)}`).join(", ");
     const rgb = (c: readonly number[]): string => c.map((v) => v.toFixed(0)).join("/");
     console.log(`surface weather ${mode.name}: wet ${fmt(wet)}; snow ${fmt(snow)}; snow top ${rgb(snowTop)} (dry ${rgb(seen.dry!.top!)}), `
-      + `snowy paving ${rgb(groundSnow)}, snowy terrain ${rgb(seen.snow!.terrain!)}; pipelines +${pipelines ?? "-"}`);
+      + `snowy paving ${rgb(groundSnow)}, snowy terrain ${rgb(seen.snow!.terrain!)}; puddle motion clear ${ripples.clear.toFixed(2)} / rain ${ripples.rain.toFixed(2)}; pipelines +${pipelines ?? "-"}`);
     writeFileSync(join(RENDER_REFS, "candidates", `weather-${mode.name}-probes.json`), JSON.stringify({ wet, snow, seen }, null, 1));
 
     expect(wet.top, "the top changes when wet").toBeGreaterThan(0.1);
@@ -251,6 +300,7 @@ for (const mode of MODES) {
     expect(snowTop[0], "snow is not the block's red").toBeLessThanOrEqual(snowTop[2] + 10);
     expect(snow.side, "no snow on a standing face").toBeLessThan(0.05);
     expect(snow.bottom, "no snow on the underside").toBeLessThan(0.02);
+    expect(ripples.rain, "rain rings move the puddles").toBeGreaterThan(Math.max(1, 3 * ripples.clear));
     if (pipelines !== null) expect(pipelines, "surface and weather changes compile nothing").toBe(0);
     expect(errors).toEqual([]);
   });

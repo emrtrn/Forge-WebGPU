@@ -32,6 +32,8 @@ export function forgeWorldEnvironment(data: WorldEnvironmentData) {
       verticalWetting: data.surface.verticalWetting, windwardWetting: data.surface.windwardWetting,
       puddleMaxSlopeDeg: data.surface.puddleMaxSlopeDeg, wetGloss: data.surface.wetGloss, puddleCore: data.surface.puddleCore,
       wetSpread: data.surface.wetSpread, snowSpread: data.surface.snowSpread, patchSize: data.surface.patchSize,
+      rippleStrength: data.surface.rippleStrength, rippleSize: data.surface.rippleSize,
+      rippleDensity: data.surface.rippleDensity, windRippleStrength: data.surface.windRippleStrength,
     },
     weatherSky: { cloudy: { ...data.weatherSky.cloudy }, rain: { ...data.weatherSky.rain }, snow: { ...data.weatherSky.snow }, fog: { ...data.weatherSky.fog } },
     ...(!data.wind.useLevelWind ? { wind: { directionDeg: data.wind.directionDeg, strength: data.wind.strength, gust: data.wind.gust } } : {}),

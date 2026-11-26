@@ -30,6 +30,7 @@ import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRu
 import { createPrecipitationCover, type PrecipitationCover } from "./precipitationCover.ts";
 import { createSurfaceWeather, type SurfaceWeather } from "../materials/surfaceWeather.ts";
 import { resolveWorldWind } from "../../engine/environment/worldWind.ts";
+import { livePrecipitation } from "../../engine/environment/precipitation.ts";
 import type { StaticPath } from "../triangles/staticPath.ts";
 import type { TriangleDrawing } from "../triangles/triangleDrawing.ts";
 import { createDefaultLighting } from "./defaultLighting.ts";
@@ -189,6 +190,8 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       // HLOD proxies (phase 5b): the level's source is provided once the world is assembled.
       let hlod: HlodProxies | null = null;
       let hlodRevision: number | undefined;
+      /** Simulation seconds: the water's ripples (plan phase W6); pause stops it. */
+      let seconds = 0;
       const hlodRoot = new Group();
       hlodRoot.name = "hlod";
       scene.add(hlodRoot);
@@ -231,8 +234,10 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           environment.update();
           const weather = ctx.services.get(WorldEnvironmentKey);
           const live = weather?.controller.current();
+          if (Number.isFinite(dt) && dt > 0) seconds += dt;
+          // One input for every surface of the world: statics here, terrain and puddles read `surfaceWeather.input`.
           surfaceWeather.update(live && weather?.environment
-            ? { state: live.surface, settings: weather.environment.surface, wind: resolveWorldWind(view) }
+            ? { state: live.surface, settings: weather.environment.surface, wind: resolveWorldWind(view), rain: livePrecipitation(live).rain, seconds }
             : null);
           lighting.sync(frame.camera, effectiveQuality(), environment.environment.override);
           outputState.update(environment.environment.override, options.quality());

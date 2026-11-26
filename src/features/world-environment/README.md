@@ -26,7 +26,12 @@ gökyüzünü, sisi ve bulutları kendi değerlerini değiştirmeden yeniden yor
   zeminde (`puddleMaxSlopeDeg`); yamaç yalnız koyulaşır. Kar aynı desenle
   oyuklardan başlar ve parça parça erir (`patchySnow`); `snowSpread` kar
   yamalarının yayılımını, `patchSize` boylarını belirler (yalnız görünüm, 1'de
-  nötr; canlı durum ve model değişmez).
+  nötr; canlı durum ve model değişmez). Halkalar (plan W6): yağarken birikintide
+  ve `forge.puddle` suyunda yağmur halkaları, ıslak yamada çok hafif
+  (`engine/environment/rainRipples.ts`, TSL `render/materials/waterRipples.ts`);
+  sıklık `rippleDensity` × anlık yağmur, uzakta ve siper altında yok, saat
+  simülasyon süresi. Birikintide rüzgâr dalgacığı (`windRippleStrength`).
+  Materyalin `puddleAccept`'i yama, birikinti ve halkayı çarpar. Yalnız uniform.
 - `runtime.ts`: tekili taşınmış `WorldEnvironmentController`'a yükler ve
   `WorldEnvironmentKey` servisiyle verir (`src/engine/environment`); oyun
   kodu aynı denetleyiciyi SDK'nın `WorldEnvironmentServiceKey`'iyle alır (saat,

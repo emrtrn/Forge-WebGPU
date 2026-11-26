@@ -1,6 +1,7 @@
 // Ported from Forge WebGL engine/environment/worldEnvironment.ts @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
 import type { LayoutWorldEnvironment } from "../legacy/layout.ts";
 import { PATCH_SIZE_RANGE, PUDDLE_MAX_SLOPE_DEG, SURFACE_PATTERN_DEFAULTS, WET_GLOSS } from "./surfaceResponse.ts";
+import { WATER_RIPPLE_DEFAULTS, WATER_RIPPLE_RANGES } from "./rainRipples.ts";
 import { WEATHER_SKY_DEFAULTS, type WeatherSkyResponses } from "./weatherPresets.ts";
 import { normalizeLayoutWind } from "./wind.ts";
 
@@ -58,6 +59,12 @@ export interface ResolvedWorldEnvironment {
     snowSpread: number;
     /** Multiplier on the patch noise sizes. */
     patchSize: number;
+    /** Plan phase W6 (rainRipples.ts): the rain rings' strength, cell size (m) and share of falling cells in full rain. */
+    rippleStrength: number;
+    rippleSize: number;
+    rippleDensity: number;
+    /** Plan phase W6: the wind's crests on a material's puddle. */
+    windRippleStrength: number;
   };
   /** Plan phase W2b: the clouds and the sky under each weather. */
   weatherSky: WeatherSkyResponses;
@@ -88,6 +95,7 @@ export const WORLD_ENVIRONMENT_DEFAULTS: ResolvedWorldEnvironment = {
     puddleCore: SURFACE_PATTERN_DEFAULTS.puddleCore!,
     snowSpread: 1,
     patchSize: 1,
+    ...WATER_RIPPLE_DEFAULTS,
   },
   weatherSky: WEATHER_SKY_DEFAULTS,
 };
@@ -253,6 +261,9 @@ export function normalizeWorldEnvironment(value: unknown): WorldEnvironmentNorma
     assign(next, "wetSpread", num(surface.wetSpread, "surface.wetSpread", 0, 1));
     assign(next, "snowSpread", num(surface.snowSpread, "surface.snowSpread", 0, 1));
     assign(next, "patchSize", num(surface.patchSize, "surface.patchSize", PATCH_SIZE_RANGE[0], PATCH_SIZE_RANGE[1]));
+    for (const key of ["rippleStrength", "rippleSize", "rippleDensity", "windRippleStrength"] as const) {
+      assign(next, key, num(surface[key], `surface.${key}`, WATER_RIPPLE_RANGES[key][0], WATER_RIPPLE_RANGES[key][1]));
+    }
     if (Object.keys(next).length > 0) out.surface = next;
   }
 
