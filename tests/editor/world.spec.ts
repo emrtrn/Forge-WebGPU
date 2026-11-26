@@ -98,6 +98,15 @@ test("the World Environment preview never dirties the level; Make Default writes
   await row(page, WES).click();
   const label = page.getByTestId("wes-preview-hour-label");
   await expect(label).toHaveText("12:00");
+  // The form's groups start closed and one is open at a time; the preview leads the panel.
+  const group = (name: string) => page.getByTestId(`detail-environment-section-${name}`);
+  const toggle = (name: string) => group(name).locator(":scope > .detail-section-heading > .detail-section-toggle");
+  await expect(toggle("surface")).toHaveAttribute("aria-expanded", "false");
+  await toggle("wind").click();
+  await toggle("surface").click();
+  await expect(toggle("surface")).toHaveAttribute("aria-expanded", "true");
+  await expect(toggle("wind")).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator('[data-testid="wes-preview"] ~ [data-testid="detail-component-environment"]')).toBeVisible();
   await expect(page.getByTestId("wes-preview-default")).toBeDisabled();
 
   await page.getByTestId("wes-preview-season-winter").click();

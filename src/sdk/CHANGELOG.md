@@ -8,6 +8,15 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.18
+
+API: 82db39f5c4696e11
+
+`ComponentPresentation` (editor SDK) takes `groups: "accordion"` (the form's
+groups start closed, and opening one closes its sibling groups) and
+`extension: "top"` (the Details extension comes first in the panel, above the
+component sections). The World Environment uses both.
+
 ## 0.1.17
 
 API: f3e1fb19d6dc763a

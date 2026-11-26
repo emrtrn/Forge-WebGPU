@@ -277,6 +277,13 @@ export const DETAILS_CSS = `
   justify-self: start;
 }
 
+/* The preview leads the panel: set apart like the actor header above it. */
+.details-panel > .wes-preview {
+  margin-top: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--forge-border-soft);
+}
+
 .wes-preview-buttons {
   display: flex;
   flex-wrap: wrap;

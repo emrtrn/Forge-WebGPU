@@ -67,6 +67,10 @@ export interface ComponentPresentation {
    * own; the tool's extension edits it.
    */
   readonly details?: "tool" | "embedded";
+  /** `accordion`: the form's groups start closed, and opening one closes its sibling groups. */
+  readonly groups?: "accordion";
+  /** `top`: the Details extension comes first in the panel, above the component sections, not below this component's form. */
+  readonly extension?: "top";
 }
 
 /** Forge's Add Actor categories, in its order; a game's own categories come after them. */
@@ -207,6 +211,12 @@ export function defineFeatureEditor(options: FeatureEditorOptions): FeatureEdito
     }
     if (presentation.details !== undefined && presentation.details !== "tool" && presentation.details !== "embedded") {
       throw new SchemaDefinitionError(`${where}: no Details layout "${String(presentation.details)}".`);
+    }
+    if (presentation.groups !== undefined && presentation.groups !== "accordion") {
+      throw new SchemaDefinitionError(`${where}: no group layout "${String(presentation.groups)}".`);
+    }
+    if (presentation.extension !== undefined && presentation.extension !== "top") {
+      throw new SchemaDefinitionError(`${where}: no extension place "${String(presentation.extension)}".`);
     }
     if (!OUTLINER_TYPE_SET.has(presentation.outliner)) {
       throw new SchemaDefinitionError(`${where}: no Outliner type "${String(presentation.outliner)}".`);

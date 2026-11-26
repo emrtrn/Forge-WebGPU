@@ -82,7 +82,7 @@ interface Precipitation
   rain: number
   snow: number
 
-const SDK_VERSION: "0.1.17"
+const SDK_VERSION: "0.1.18"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -327,6 +327,8 @@ type AssetPublisher = (path: string, base: string, document: Readonly<Record<str
 
 interface ComponentPresentation
   readonly details?: "tool" | "embedded" | undefined
+  readonly extension?: "top" | undefined
+  readonly groups?: "accordion" | undefined
   readonly icon: "light" | "mesh" | "character" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic" | ((data: Readonly<Record<string, unknown>>) => ActorTypeIcon)
   readonly outliner: "light" | "mesh" | "character" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
 
@@ -374,7 +376,7 @@ const OUTLINER_TYPES: readonly [{ readonly type: "mesh"; readonly label: "Meshes
 
 type OutlinerType = "light" | "mesh" | "character" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
 
-const SDK_VERSION: "0.1.17"
+const SDK_VERSION: "0.1.18"
 
 function defineFeatureEditor(options: FeatureEditorOptions): FeatureEditorDef
 

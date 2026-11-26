@@ -1,7 +1,8 @@
 // The World Environment feature in the editor: Forge's Outliner icon and type
 // group, its Add Actor entry (one per level: clicked, not dragged), and the
-// Preview strip below its Details form (Forge WebGL worldEnvironmentDetails.ts
-// `previewStrip` @ forge-webgl-final; user decision 2026-11-14): the hour
+// Preview strip at the top of its Details (Forge WebGL worldEnvironmentDetails.ts
+// `previewStrip` @ forge-webgl-final; user decision 2026-11-14; its place and
+// the one-open-at-a-time form groups, user decision 2026-11-26): the hour
 // (scrubbed, or played at 0,25 / 1 / 4 hours a second), the season, the
 // weather and its intensity, shown in the viewport through the editor
 // world's World Environment and never saved. Make Default writes them into
@@ -269,7 +270,7 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
 
 export default defineFeatureEditor({
   feature: "forge.worldEnvironment",
-  components: { "forge.worldEnvironment": { icon: "worldEnvironment", outliner: "environment" } },
+  components: { "forge.worldEnvironment": { icon: "worldEnvironment", outliner: "environment", groups: "accordion", extension: "top" } },
   // A new World Environment lets the weather drive the surface (plan phase W, HK2); the schema's default (off) keeps older levels as they are.
   addActor: [{ key: "forge.worldEnvironment", label: "World Environment", category: "Visual Effects", icon: "worldEnvironment", components: { environment: { type: componentTypeTag(WorldEnvironment), surface: { weatherDrivesSurface: true } } } }],
   details: { "forge.worldEnvironment": previewStrip },

@@ -354,7 +354,7 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
     return box;
   };
 
-  /** The components' sections; a tool component (`details: "tool"`) leads with its extension and ends with its own fields, closed. */
+  /** The components' sections, led by the extensions placed on top; a tool component (`details: "tool"`) leads with its extension and ends with its own fields, closed. */
   const componentBlock = (now: readonly DetailsTarget[], tool: string | null): HTMLElement[] => {
     const blocks: HTMLElement[] = [];
     const lead: HTMLElement[] = [];
@@ -384,6 +384,7 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
       const view = createFormView({
         document: doc,
         uiState,
+        accordion: options.catalog.accordion(section.def.name),
         fields: section.fields,
         value: section.value,
         testIdPrefix: `detail-${section.id}`,
@@ -447,7 +448,7 @@ export function createDetailsPanel(options: DetailsPanelOptions): DetailsPanel {
           },
           status,
         });
-        if (isTool) lead.push(built.element);
+        if (isTool || options.catalog.extensionOnTop(section.def.name)) lead.push(built.element);
         else body.append(built.element);
         if (built.dispose) disposers.push(() => built.dispose!());
       }

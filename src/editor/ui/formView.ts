@@ -77,6 +77,8 @@ export interface FormViewOptions {
   readonly onReset?: (key: string) => void;
   /** Details' compact transform controls and persistent section / scale-link preferences. */
   readonly uiState?: FormUiState;
+  /** Object, array and transform sections start closed, and opening one closes its sibling sections. */
+  readonly accordion?: boolean;
 }
 
 /** What a mixed field shows (Unreal's wording). */
@@ -155,12 +157,28 @@ export function createFormView(options: FormViewOptions): FormView {
 
   const sectionOf = (title: string, hint: string | null, path: FormPath): { section: HTMLElement; body: HTMLElement; heading: HTMLElement } => {
     const key = `${prefix}-section-${pathKey(path)}`;
-    const collapsed = options.uiState?.collapsed.get(key) ?? (options.uiState !== undefined && path.at(-1) === "local");
+    const collapsed = options.uiState?.collapsed.get(key) ?? (options.accordion === true || (options.uiState !== undefined && path.at(-1) === "local"));
     const parts = createSection(doc, title, { testId: key, collapsed });
-    parts.toggle.addEventListener("click", () => options.uiState?.collapsed.set(key, parts.section.classList.contains("collapsed")));
+    parts.toggle.addEventListener("click", () => {
+      const closed = parts.section.classList.contains("collapsed");
+      options.uiState?.collapsed.set(key, closed);
+      if (options.accordion && !closed) closeSiblings(parts.section, parts.toggle);
+    });
     if (hint) parts.toggle.title = hint;
     return parts;
   };
+
+  /** The accordion's other sections at the opened one's level close; a section's own parent stays open. */
+  function closeSiblings(opened: HTMLElement, toggle: HTMLElement): void {
+    for (const sibling of opened.parentElement?.querySelectorAll<HTMLElement>(":scope > .detail-section") ?? []) {
+      if (sibling === opened) continue;
+      sibling.classList.add("collapsed");
+      sibling.querySelector(":scope > .detail-section-heading > .detail-section-toggle")?.setAttribute("aria-expanded", "false");
+      if (sibling.dataset.testid) options.uiState?.collapsed.set(sibling.dataset.testid, true);
+    }
+    // A long section closing above would scroll the opened one out of view.
+    toggle.scrollIntoView({ block: "nearest" });
+  }
 
   function numberRow(field: NumberFormField, path: FormPath, value: unknown, label: string): HTMLElement {
     const row = el("label", "detail-row");
