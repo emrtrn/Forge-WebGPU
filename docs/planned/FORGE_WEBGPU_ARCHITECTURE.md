@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.94 · 2026-11-26 — §4.9 hava sözleşmesi W5 inceltmesi: yamalı kar, yamaların yayılma sınırı (`wetSpread`, `snowSpread`) ve boyu (`patchSize`).
+**Güncelleme:** v1.95 · 2026-11-26 — §4.9 SSR roughness + Fresnel ağırlığıyla ve ortam yansımasının yerine (MRT `specular`, Post Process `ssr`); hava sözleşmesi W5 sonrası: ıslaklık üç kademe (koyulaşma, ıslak yama, ayna birikinti; yalnız düz zeminde), `forge.puddle` `followWeather` (kullanıcı kararları).
+
+**Önceki güncelleme:** v1.94 · 2026-11-26 — §4.9 hava sözleşmesi W5 inceltmesi: yamalı kar, yamaların yayılma sınırı (`wetSpread`, `snowSpread`) ve boyu (`patchSize`).
 
 **Önceki güncelleme:** v1.93 · 2026-11-26 — §4.9 hava sözleşmesi W5: hava bağı (`weatherDrivesSurface`, yüzey modeli canlı yağışla), yamalı kuruma, terrain katmanının `weather`'ı.
 
@@ -2130,10 +2132,22 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
 - *Pipeline:* MRT'li sahne pass'i → GTAO / SSGI / SSR → TRAA → bloom / DoF →
   tonemap + pozlama; profil ya da Post Process değişince yeniden kurulur, her
   karede değil. **MRT bütçesi:** biçim sıkıştırma, `requiredLimits` yok:
-  output RGBA16F (8) + normal RGBA8 (8) + velocity RG16F (4) + metalrough RG8
+  output RGBA16F (8) + normal RGBA8 (8) + velocity RG16F (4) + specular RG8
   (2) + diffuse RGBA8 (8) = 30 ≤ 32 bayt / örnek; bir test her profilin
   toplamını sınar. Post Process `reflection: off | ssr`, `antialias: none |
   traa | smaa`.
+- *SSR (kullanıcı kararları, 2026-11-26):* three'nin ayna SSR'ı (`stochastic: false`)
+  isabeti MRT'nin R kanalıyla ve 1 − (N·V)² terimiyle ağırlıklandırır. `specular`
+  hedefinin R'si (eski `metalrough`) metalness değil, materyalin kendi speküler
+  yansımasıdır: F0 / F90'ın (`specularColorBlended`, `specularF90`) split-sum ortam
+  BRDF'i roughness'ta, o terime bölünmüş, `ssr.maxRoughness`'a doğru sönen; ışıksız
+  materyalde 0, alfa kesimli materyalde 0 (çimen, yaprak: titreme); G'si roughness.
+  Her ışıklı materyal roughness ve Fresnel'iyle yansıtır. Kompozitte isabet olan
+  pikselde Sky Light PMREM'inin yansıyan yöndeki radyansı aynı ağırlıkla çıkarılır:
+  SSR ortam yansımasının yerine geçer (yaklaşık: materyalin `envMapIntensity`'si ve
+  speküler AO hesaba girmez). Sahnenin ortamı değişince pipeline yeniden kurulur.
+  Post Process `ssr`: `maxRoughness`, `intensity`, `quality` (32–64 adım),
+  `thickness`, `refine` (`binaryRefine`, plan anahtarında).
 - *Pipeline, uygulama (adım 6, 2026-11-13):* `src/render/pipeline`: `pipelinePlan`
   (üç'süz: geçitlenmiş Post Process + kalite → sıralı pass'lar, MRT hedefleri, bayt,
   yeniden kurma anahtarı), `renderPipeline` (tek three `RenderPipeline`; sahne pass'i
@@ -2342,7 +2356,15 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     durum, hızlar ve yüzey modeli değişmez (birikme `wetness === 1` ister). `patchSize` (0,25–4) gürültünün
     iki katmanını (6 m, 1,7 m) birlikte ölçekler. Üçü 1'de uçlarda görünüm aynı; ara kar artık yamalı (hava
     bağı kapalı level'larda da). Eğim, yükseklik, siper ve materyal payları üstüne çarpılır; bitki aileleri
-    kendi tepkisinde. Ayar değişimi yalnız uniform yazar. *Terrain katmanı:* veri belgesindeki
+    kendi tepkisinde. Ayar değişimi yalnız uniform yazar. *Üç kademe (W5 sonrası, kullanıcı kararları
+    2026-11-26; yukarıdaki yamalı kuruma ve `wetSpread` cümlelerinin yerine geçer):* (1) `wetness` her yüzü
+    eşit koyulaştırır ve eşit kurur, roughness'a dokunmaz; (2) `puddleFill` × `wetSpread` gürültü ve oyuk
+    sırasıyla ıslak yamalar açar, roughness tabanı `wetPatchRoughness` (1 − `wetGloss`, gözeneklilik 0,5'te;
+    × (0,5 + gözeneklilik)); (3) aynı miktarın `puddleCore` payı yamanın iç kısmında birikintidir
+    (`patchyWater`: birikinti her zaman yamanın içinde), roughness 0,03, ince normal geometriye düzleşir.
+    2 ve 3 yalnız eğimi `puddleMaxSlopeDeg`'ten (varsayılan 5°, 5° geçiş, `poolShare`) düz yüzde ve
+    koyulaşmayı en az kendileri kadar yapar. `factors` vec4: koyulaşma, kar, yama, birikinti. Kar deseni
+    değişmedi. *Terrain katmanı:* veri belgesindeki
     katmanın `weather`'ı (`wetting`, `porosity`, `snowAccept`, `wetPhysicalMaterial`; yalnız yazılan alanlar,
     `engine/environment/layerWeather.ts` çözer: boşsa fizik materyalinin varsayılanı, `mud` kar almaz);
     terrain örtüsü katman ağırlıklarıyla karışmış tepkiyle çizilir (katman başına bir uniform). Details:
@@ -2374,6 +2396,12 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     tavan kalite profilinin `terrainWaterQuality`'si. Malzemede Forge'un
     radyans karışımı ortam yoğunluğu (1 − güç) ve Fresnel'li ek terimle. Rüzgâr
     dalgacığı WES `wind`'iyle (adım 7), tekerlek dalgacığı araçlarla (Faz 6 / 8).
+    *Hava doluluğu (Faz W, kullanıcı kararı 2026-11-26):* `followWeather`
+    (varsayılan açık) ile yazılan seviye tam doluluktur; WES'in canlı
+    `puddleFill`'i suyu (1 − doluluk) × en derin nokta kadar indirir (materyal
+    uniform'u: yüzey ve derinlik birlikte iner, kıyı geriler; yeniden doldurma
+    yok), yakalamanın düzlemi seviye anahtarı değişmeden iner (`setDrop`), boş
+    birikinti gizlenir. WES yoksa ya da alan kapalıysa su doludur.
   - *Tile akışı:* terrain aktörü kalıcı katmanda kalır; tile'lar kamera
     çevresinde slot havuzuna (64) akar, uzak alan global haritadan çizilir.
     Tile çözme Web Worker'da (`src/runtime`; `engine` DOM'suz kalır). Editör
