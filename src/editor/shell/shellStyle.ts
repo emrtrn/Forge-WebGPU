@@ -94,14 +94,6 @@ html, body {
   white-space: nowrap;
 }
 
-.editor-brand-text span {
-  overflow: hidden;
-  color: var(--forge-text-secondary);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .editor-logo {
   width: 24px;
   height: 24px;

@@ -506,7 +506,7 @@ test("Ctrl + B and Details' Browse To show the asset; Use Selected takes the bro
   await page.locator(`[data-testid="open-level-item"][data-id="${LEVEL}"]`).click();
   await expect(page).toHaveURL(new RegExp(`level=${encodeURIComponent(LEVEL)}`));
   await expect(page.getByTestId("forge-editor")).toHaveAttribute("data-editor-ready", "1", { timeout: 60_000 });
-  await expect(page.locator(".editor-brand-text")).toContainText(LEVEL);
+  await expect(page.locator(".editor-brand-text")).toHaveText("content-smoke");
 
   // The start level back where the other checks expect it.
   await page.locator("[data-content-toggle]").click();

@@ -86,8 +86,7 @@ export interface ViewportMenus {
 
 export interface ShellOptions {
   readonly document: Document;
-  /** Project and level shown in the top bar. */
-  readonly projectName: string;
+  /** The top bar shows its last segment, the level's name. */
   readonly levelFolder: string;
   /** The project cannot be written (an engine sample): Save stays off. */
   readonly readOnly: boolean;
@@ -168,7 +167,8 @@ export function createShell(options: ShellOptions): EditorShell {
   const logo = el("span", "editor-logo", "F");
   logo.setAttribute("aria-hidden", "true");
   const brandText = el("span", "editor-brand-text");
-  brandText.append(el("strong", "", options.projectName), el("span", "", options.readOnly ? `${options.levelFolder} (read only)` : options.levelFolder));
+  brandText.append(el("strong", "", options.levelFolder.slice(options.levelFolder.lastIndexOf("/") + 1)));
+  brandText.title = options.readOnly ? `${options.levelFolder} (read only)` : options.levelFolder;
   brand.append(logo, brandText);
   const history = el("div", "editor-history-actions");
   const save = iconButton(TOOLBAR_ICONS.save, "Save Level", "editor-save", options.readOnly ? "Bu proje salt okunur (motor örneği); kaydedilmez." : "Değişiklikleri kaydet (Ctrl+S)");

@@ -190,7 +190,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
   doc.title = `${options.projectName} · Editor`;
   const content = await createContentStore((input, init) => fetch(input, init));
   const levelFolder = content.index().folder(options.level);
-  const shell = createShell({ document: doc, projectName: options.projectName, levelFolder: options.level, readOnly: levelFolder ? !levelFolder.writable : options.readOnly });
+  const shell = createShell({ document: doc, levelFolder: options.level, readOnly: levelFolder ? !levelFolder.writable : options.readOnly });
   doc.body.replaceChildren(shell.root);
 
   try {
