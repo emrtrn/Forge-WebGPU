@@ -30,5 +30,12 @@ Yükseklik haritalı arazi (Forge WebGL'deki Landscape aktörü).
   bükülür (`engine/terrain/roadMesh.ts`), 128 m'lik hücre parçaları ve düz
   parçalar statik batch olarak çizilir (`render/sync/roadMeshes.ts`); saklanmaz,
   editörde ve oyunda aynıdır. Kalıcı katmanda oldukları için HLOD proxy'si yok.
+- Hava (plan Faz W W5): boya katmanının `weather`'ı (veri belgesinde, yalnız
+  yazılan alanlar: `wetting`, `porosity`, `snowAccept`, `wetPhysicalMaterial`;
+  `engine/environment/layerWeather.ts`; boşsa fizik materyalinin varsayılanı,
+  `mud` kar almaz). Terrain örtüsü katman ağırlıklarıyla karışmış tepkiyle ve
+  zeminin oyuklarıyla (tile normallerinin ıraksaması) çizilir. Alanlar
+  `TerrainLayerWeatherFields` (şema), Landscape > Paint'te etkin katmanın
+  Weather'ı; tek Undo.
 - Algoritmalar `src/engine/terrain`'de; üretim kalitesi 5a'da, collider Faz 6'da
   gelir (akış o zaman fizikle paylaşılan bir alt sisteme taşınır).

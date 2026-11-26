@@ -299,6 +299,10 @@ async function start(): Promise<void> {
       },
       setHour: (hour: number) => environment()?.setHour(hour),
       setSurface: (surface: { snowCoverage?: number; wetness?: number; puddleFill?: number; snowDepth?: number }) => environment()?.setSurface(surface),
+      /** Plan phase W5: the weather link on or off for this run (the level's own setting is read on load). */
+      setWeatherDrivesSurface: (on: boolean) => environment()?.setWeatherDrivesSurface(on),
+      /** Plan phase W5: runs the World Environment ahead by simulation seconds without drawing (minutes of rain in one call). */
+      advanceEnvironment: (seconds: number) => environment()?.advance(seconds),
       /** Plan phase W: the late layer (rain, snow) drawn or not, to compare in one session. */
       setLateVisible: (visible: boolean) => {
         const root = viewer.host?.world?.late?.root;

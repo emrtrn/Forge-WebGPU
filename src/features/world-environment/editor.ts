@@ -9,12 +9,20 @@
 // preview the amount directly; only Make Default changes authored targets.
 // A weather button with a transition time (plan phase W2) runs the timed
 // change (`transitionWeather`); the time itself is never saved or undone.
+// Plan phase W5: the surface's four amounts are shown, and Simulate runs the
+// World Environment ahead by a span of simulation time ("20 min of rain")
+// over a few seconds, so wetting, drying and melting can be watched; like the
+// rest of the preview it is never saved and never undone.
 import { componentTypeTag } from "../../core/index.ts";
 import { defineFeatureEditor, type DetailsExtensionContext } from "../../editor-sdk/index.ts";
 import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
 import { SEASONS, WEATHER_PRESETS, WorldEnvironment, type WorldEnvironmentData } from "./schema.ts";
 
 const PREVIEW_SPEEDS = [0.25, 1, 4] as const;
+/** Simulate's spans, simulation minutes. */
+const SIMULATE_MINUTES = [1, 5, 20, 60] as const;
+/** Wall-clock seconds a Simulate run takes, whatever its span. */
+const SIMULATE_SECONDS = 4;
 const titleCase = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
 /** `07:30` (Forge's formatHour). */
 export function formatHour(hour: number): string {
@@ -132,6 +140,35 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
   const snow = coverSlider("Snow Coverage", "snowCoverage");
   const wetness = coverSlider("Wetness", "wetness");
 
+  // The live surface (plan phase W5) and Simulate.
+  const surfaceReadout = el("span", "detail-hint", "");
+  surfaceReadout.dataset.testid = "wes-preview-surface";
+  row("Surface", surfaceReadout);
+  const simulateBox = el("span", "wes-preview-buttons");
+  const span = el("select");
+  span.dataset.testid = "wes-preview-simulate-span";
+  for (const minutes of SIMULATE_MINUTES) {
+    const option = el("option", "", `${minutes} min`);
+    option.value = String(minutes * 60);
+    span.append(option);
+  }
+  span.value = String(20 * 60);
+  const simulate = el("button", "detail-action-button", "Run");
+  simulate.type = "button";
+  simulate.dataset.testid = "wes-preview-simulate";
+  simulate.title = `Seçili süreyi (simülasyon zamanı) ${SIMULATE_SECONDS} saniyede oynatır: hava, geçiş ve yüzey ilerler. Kaydedilmez.`;
+  const linkHint = el("span", "detail-hint", "");
+  linkHint.dataset.testid = "wes-preview-surface-link";
+  simulateBox.append(span, simulate, linkHint);
+  row("Simulate", simulateBox);
+  /** Simulation seconds still to run, and how many a wall-clock second runs. */
+  let simulating: { left: number; rate: number } | null = null;
+  simulate.addEventListener("click", () => {
+    const seconds = Number(span.value);
+    simulating = simulating ? null : { left: seconds, rate: seconds / SIMULATE_SECONDS };
+    update();
+  });
+
   const actions = el("div", "wes-preview-buttons");
   const makeDefault = el("button", "detail-action-button", "Make Default");
   makeDefault.type = "button";
@@ -151,7 +188,7 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
   const update = (): void => {
     const live = controller()?.current() ?? null;
     missing.hidden = live !== null;
-    for (const control of [hour, play, speed, intensity, transition, snow, wetness, makeDefault, reset, ...seasons, ...weathers]) control.disabled = live === null;
+    for (const control of [hour, play, speed, intensity, transition, snow, wetness, span, simulate, makeDefault, reset, ...seasons, ...weathers]) control.disabled = live === null;
     if (!live) return;
     if (doc.activeElement !== hour) hour.value = String(live.hour);
     hourLabel.textContent = formatHour(live.hour);
@@ -163,9 +200,14 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
     progress.textContent = changing ? `${Math.round(live.weatherProgress! * 100)}%` : "";
     if (doc.activeElement !== snow) snow.value = String(live.surface.snowCoverage);
     if (doc.activeElement !== wetness) wetness.value = String(live.surface.wetness);
+    const s = live.surface;
+    surfaceReadout.textContent = `wet ${s.wetness.toFixed(2)} · water ${s.puddleFill.toFixed(2)} · snow ${s.snowCoverage.toFixed(2)} · ${(s.snowDepth * 100).toFixed(1)} cm`;
+    simulate.textContent = simulating ? "Stop" : "Run";
     const level = authored();
+    linkHint.textContent = level.surface.weatherDrivesSurface ? "" : "Weather Drives Surface kapalı: yüzey hedefe gider.";
     const modified = Math.abs(live.hour - level.hour) > 1e-6 || live.season !== level.season || changing || live.weather.preset !== level.weather.preset || Math.abs(live.weather.intensity - level.weather.intensity) > 1e-6
-      || Math.abs(live.surface.snowCoverage - level.surface.snowCoverage) > 1e-6 || Math.abs(live.surface.wetness - level.surface.wetness) > 1e-6;
+      || Math.abs(live.surface.snowCoverage - level.surface.snowCoverage) > 1e-6 || Math.abs(live.surface.wetness - level.surface.wetness) > 1e-6
+      || live.surface.puddleFill > 1e-6 || live.surface.snowDepth > 1e-6;
     makeDefault.disabled = !modified;
     reset.disabled = !modified;
   };
@@ -196,6 +238,7 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
     const level = authored();
     const live = controller();
     playing = false;
+    simulating = null;
     live?.setHour(level.hour);
     live?.setSeason(level.season);
     live?.setWeather(level.weather.preset, level.weather.intensity);
@@ -207,6 +250,18 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
     const live = controller();
     const state = live?.current();
     if (playing && live && state) live.setHour((state.hour + Number(speed.value) * dt) % 24);
+    if (simulating && live && state) {
+      // The world's own tick runs one second of this; Simulate adds the rest.
+      const seconds = Math.min(simulating.left, simulating.rate * dt);
+      simulating.left -= seconds;
+      live.advance(Math.max(0, seconds - dt));
+      if (simulating.left <= 0) {
+        simulating = null;
+        update();
+      }
+    } else if (simulating) {
+      simulating = null;
+    }
   });
   update();
   return { element: box, dispose: stopChanged };
@@ -215,6 +270,7 @@ function previewStrip(ctx: DetailsExtensionContext): { element: HTMLElement; dis
 export default defineFeatureEditor({
   feature: "forge.worldEnvironment",
   components: { "forge.worldEnvironment": { icon: "worldEnvironment", outliner: "environment" } },
-  addActor: [{ key: "forge.worldEnvironment", label: "World Environment", category: "Visual Effects", icon: "worldEnvironment", components: { environment: { type: componentTypeTag(WorldEnvironment) } } }],
+  // A new World Environment lets the weather drive the surface (plan phase W, HK2); the schema's default (off) keeps older levels as they are.
+  addActor: [{ key: "forge.worldEnvironment", label: "World Environment", category: "Visual Effects", icon: "worldEnvironment", components: { environment: { type: componentTypeTag(WorldEnvironment), surface: { weatherDrivesSurface: true } } } }],
   details: { "forge.worldEnvironment": previewStrip },
 });

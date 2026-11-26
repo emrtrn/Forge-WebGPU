@@ -3,7 +3,9 @@
 // timeTransition.ts), which `advance` runs; Forge's methods are unchanged
 // apart from `setHour` / `load` ending a running transition. The timed season
 // (vegetation plan PG2) and weather (plan phase W2, weatherTransition.ts)
-// changes follow the same rules.
+// changes follow the same rules. With `weatherDrivesSurface` (plan phase W5)
+// the live precipitation drives the surface (surfaceCondition.ts); without it
+// 5a's independent targets and rates run exactly as before.
 import type { LayoutWorldEnvironment } from "../legacy/layout.ts";
 import type { WorldEnvironmentState } from "./environmentResolve.ts";
 import { stateFromDefaults } from "./environmentResolve.ts";
@@ -18,8 +20,8 @@ import {
 import { WorldClock } from "./worldClock.ts";
 import { livePrecipitation } from "./precipitation.ts";
 import { advanceWeatherProgress, startWeatherTransition, WEATHER_SHARES, type WeatherMix, type WeatherTransitionRequest } from "./weatherTransition.ts";
-import type { Precipitation, SurfaceCondition } from "./surfaceCondition.ts";
-import { advanceSurface, SURFACE_RATES, type SurfaceAmount, type SurfaceRates } from "./surfaceAccumulation.ts";
+import { advanceSurfaceCondition, SURFACE_CONDITION_RATES, type Precipitation, type SurfaceCondition, type SurfaceConditionRates } from "./surfaceCondition.ts";
+import { advanceSurface, type SurfaceAmount } from "./surfaceAccumulation.ts";
 import {
   normalizeWorldEnvironment,
   resolveWorldEnvironment,
@@ -41,6 +43,22 @@ function sharesOf(mix: WeatherMix): WeatherMix {
 
 /** The deepest snow any level may have, metres (plan phase W, HK4). */
 export const SNOW_DEPTH_LIMIT = 2;
+
+/** A level's surface settings the controller reads (the World Environment's `surface` group). */
+export type SurfaceSettings = Partial<SurfaceConditionRates> & { readonly weatherDrivesSurface?: boolean };
+
+const RATE_KEYS = Object.keys(SURFACE_CONDITION_RATES) as (keyof SurfaceConditionRates)[];
+
+/** The level's rates over the defaults (a missing or invalid one is the default; the deepest snow at most the limit). */
+function surfaceRatesOf(settings: SurfaceSettings): SurfaceConditionRates {
+  const rates = { ...SURFACE_CONDITION_RATES };
+  for (const key of RATE_KEYS) {
+    const value = settings[key];
+    if (typeof value === "number" && Number.isFinite(value) && value >= 0) rates[key] = value;
+  }
+  rates.snowMaxDepth = Math.min(SNOW_DEPTH_LIMIT, rates.snowMaxDepth);
+  return rates;
+}
 
 /**
  * What gameplay may ask of the World Environment at runtime (WES v0.3 §5.6).
@@ -89,7 +107,7 @@ export interface WorldEnvironmentService {
   transitionWeather(request: WeatherTransitionRequest): Promise<boolean>;
   /** Sets amounts at once; snow coverage and wetness become their own targets. `snowDepth` is in metres. */
   setSurface(partial: Partial<SurfaceCondition>): void;
-  /** Changes the target; accumulation/melt/wetting/drying use simulation seconds. */
+  /** Changes the target; accumulation/melt/wetting/drying use simulation seconds. Unused while the weather drives the surface. */
   setSurfaceTarget(partial: Partial<SurfaceAmount>): void;
   getSurfaceTarget(): Readonly<SurfaceAmount>;
   onChanged(listener: (state: Readonly<WorldEnvironmentState>) => void): () => void;
@@ -104,7 +122,8 @@ export interface WorldEnvironmentService {
  */
 export class WorldEnvironmentController implements WorldEnvironmentService {
   private surfaceTarget: SurfaceAmount = { snowCoverage: 0, wetness: 0 };
-  private surfaceRates: SurfaceRates = { ...SURFACE_RATES };
+  private surfaceRates: SurfaceConditionRates = { ...SURFACE_CONDITION_RATES };
+  private drivenByWeather = false;
   private clock: WorldClock | null = null;
   private state: WorldEnvironmentState | null = null;
   private readonly listeners = new Set<(state: Readonly<WorldEnvironmentState>) => void>();
@@ -115,7 +134,7 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
   private settleWeather: ((reached: boolean) => void) | null = null;
 
   /** Starts from a level's actor; null (no actor, or a hidden one) leaves no state. */
-  load(actor: LayoutWorldEnvironment | null | undefined, rates: SurfaceRates = SURFACE_RATES): void {
+  load(actor: LayoutWorldEnvironment | null | undefined, surface: SurfaceSettings = SURFACE_CONDITION_RATES): void {
     this.endTransition(false);
     this.endSeason(false);
     this.endWeather(false);
@@ -128,7 +147,8 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
     this.clock = new WorldClock(env.time.hour, env.time.dayLengthMinutes);
     this.state = stateFromDefaults(env);
     this.surfaceTarget = { snowCoverage: this.state.surface.snowCoverage, wetness: this.state.surface.wetness };
-    this.surfaceRates = { ...rates };
+    this.surfaceRates = surfaceRatesOf(surface);
+    this.drivenByWeather = surface.weatherDrivesSurface === true;
     this.emit();
   }
 
@@ -150,6 +170,18 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
     return this.transition !== null;
   }
 
+  /** The level lets the weather drive the surface (`surface.weatherDrivesSurface`, plan phase W5). */
+  get weatherDrivesSurface(): boolean {
+    return this.state !== null && this.drivenByWeather;
+  }
+
+  /** Turns the weather link on or off for this run (measurement, tests); the level's setting is read again on load. */
+  setWeatherDrivesSurface(on: boolean): void {
+    if (!this.state || this.drivenByWeather === on) return;
+    this.drivenByWeather = on;
+    this.emit();
+  }
+
   get revision(): number {
     return this.stateRevision;
   }
@@ -166,6 +198,8 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
    */
   advance(simulationSeconds: number): void {
     if (!Number.isFinite(simulationSeconds) || simulationSeconds <= 0) return;
+    // What fell at the start of the step: with the end's, the surface sees the step's mean (a weather change moves it).
+    const fellBefore = this.drivenByWeather ? livePrecipitation(this.state) : null;
     if (this.state && this.state.seasonProgress !== undefined && this.state.seasonProgress < 1) {
       const seconds = this.state.seasonSeconds ?? 0;
       const progress = seconds > 0 ? Math.min(1, this.state.seasonProgress + simulationSeconds / seconds) : 1;
@@ -179,7 +213,15 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
       this.emit();
       if (progress >= 1) this.endWeather(true);
     }
-    if (this.state) {
+    if (this.state && fellBefore) {
+      const fellAfter = livePrecipitation(this.state);
+      const fell = { rain: (fellBefore.rain + fellAfter.rain) / 2, snow: (fellBefore.snow + fellAfter.snow) / 2 };
+      const surface = advanceSurfaceCondition(this.state.surface, fell, this.surfaceRates, simulationSeconds);
+      if (surface !== this.state.surface) {
+        this.state = { ...this.state, surface: { ...surface } };
+        this.emit();
+      }
+    } else if (this.state) {
       const surface = advanceSurface(this.state.surface, this.surfaceTarget, this.surfaceRates, simulationSeconds);
       if (surface.snowCoverage !== this.state.surface.snowCoverage || surface.wetness !== this.state.surface.wetness) {
         this.state = { ...this.state, surface: { ...this.state.surface, ...surface } };

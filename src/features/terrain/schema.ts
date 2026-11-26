@@ -74,3 +74,17 @@ export const LandscapeAutoPaint = defineComponent(
 );
 
 export type LandscapeAutoPaintData = ComponentData<typeof LandscapeAutoPaint>;
+
+/**
+ * A paint layer's weather response (plan phase W5; stored in the
+ * `forge.terrain` data document's layer as `weather`, only the written
+ * fields; engine/environment/layerWeather.ts resolves it). Landscape Details
+ * draws these; the turn-to physical material is listed there from the
+ * engine's ids. An unwritten field is the layer's physical material's default:
+ * `mud` takes no snow, the rest all of it.
+ */
+export const TerrainLayerWeatherFields = {
+  wetting: num({ min: 0, max: 1, default: 1, step: 0.05, label: "Wetting", hint: "Katmanın ıslaklıktan aldığı pay (0 hiç ıslanmaz)." }),
+  porosity: num({ min: 0, max: 1, default: 0.5, step: 0.05, label: "Porosity", hint: "0 sert (ıslakken parlar), 1 gözenekli (ıslakken koyulaşır)." }),
+  snowAccept: num({ min: 0, max: 1, default: 1, step: 0.05, label: "Snow Accept", hint: "Katmanın kardan aldığı pay; görünen kar ve (W8) fizik aynı değeri okur. Boşsa çamur 0, ötekiler 1." }),
+};

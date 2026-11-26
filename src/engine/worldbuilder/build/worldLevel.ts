@@ -54,6 +54,21 @@ export const WORLD_GREYBOX_LOOK = {
   lights: [{ id: "sun", type: "directional", position: [3, 9, 4], name: "Sun", rotation: [-48, 35, 0], color: "#fff4e6", intensity: 4.2, castShadow: true }],
 } as const;
 
+/**
+ * A World Environment World Builder writes lets the weather drive the surface
+ * (plan phase W, HK2). The greybox look has none today (the brief's season,
+ * weather and hour are not written yet), so this only matters once it does.
+ */
+function weatherDrivesSurface(actor: ActorDoc): ActorDoc {
+  if (actor.class !== null) return actor;
+  const entry = Object.entries(actor.components).find(([, component]) => String(component.type).startsWith("forge.worldEnvironment@"));
+  if (!entry) return actor;
+  const [key, component] = entry;
+  const own = (component as Record<string, unknown>).surface;
+  const surface = typeof own === "object" && own !== null ? own as Record<string, unknown> : {};
+  return { ...actor, components: { ...actor.components, [key]: { ...component, surface: { ...surface, weatherDrivesSurface: true } } } };
+}
+
 /** The Outliner folder of everything World Builder places. */
 export const WORLD_FOLDER = "World";
 
@@ -121,7 +136,7 @@ export function worldLevel(build: WorldBuild, options: WorldLevelOptions): World
   const look = structuredClone(WORLD_GREYBOX_LOOK) as unknown as Parameters<typeof environmentActors>[0];
   const built = new Set(actors.map((actor) => actor.id));
   actors.push(...(keep?.actors ?? []).filter((actor) => !built.has(actor.id)));
-  if (!keep?.look) actors.push(...environmentActors(look, actorId).actors, ...lightActors(forgeLightSources(look, []), actorId).actors);
+  if (!keep?.look) actors.push(...environmentActors(look, actorId).actors.map(weatherDrivesSurface), ...lightActors(forgeLightSources(look, []), actorId).actors);
   const { placements, placeholders, meshes } = placed.counts;
 
   const recipe: WorldRecipe = { ...structuredClone(build.recipe), generatedBy: { placements: {}, splines: {} } };

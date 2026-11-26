@@ -136,6 +136,19 @@ test("Landscape paint: paint, Auto Paint, add and fill a layer, view modes, save
   expect(savedWeights(4).min).toBe(1);
   expect(savedWeights(3).max).toBe(0);
 
+  // Plan phase W5: the active layer's Weather, one undo step per change, saved in the terrain document.
+  const savedWeather = (): unknown =>
+    (JSON.parse(readFileSync(projectPath(DOCUMENT), "utf8")) as { data: { layers: { id: string; weather?: unknown }[] } }).data.layers.find((layer) => layer.id === "layer-1")!.weather;
+  await expect(page.getByTestId("landscape-layer-weather-snowAccept")).toHaveValue("1");
+  await page.getByTestId("landscape-layer-weather-snowAccept").fill("0.25");
+  await page.getByTestId("landscape-layer-weather-snowAccept").press("Enter");
+  await expect(page.getByTestId("landscape-layer-weather-snowAccept")).toHaveValue("0.25");
+  await page.getByTestId("landscape-layer-weather-wetPhysicalMaterial").selectOption("mud");
+  await page.getByTestId("editor-undo").click();
+  await expect(page.getByTestId("landscape-layer-weather-wetPhysicalMaterial")).toHaveValue("none");
+  await save(page);
+  expect(savedWeather()).toEqual({ snowAccept: 0.25 });
+
   // The view modes are an editor preview: switching them changes nothing to save.
   for (const mode of ["height", "slope", "layer", "lit"]) await page.getByTestId("landscape-viewMode").selectOption(mode);
   expect(readFileSync(projectPath(`${LEVEL}/level.json`), "utf8")).not.toContain("viewMode");

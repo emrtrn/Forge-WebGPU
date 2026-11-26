@@ -23,6 +23,7 @@
 // wider, definition. Its paint layers may change (5d step 3: added, removed, a
 // material assigned): `layersFor` resolves the inputs of a changed definition.
 
+import { resolveLayerWeather, type LayerWeather } from "../../engine/environment/layerWeather.ts";
 import { normalizeWorldTerrain } from "../../engine/terrain/terrainDefinition.ts";
 import { validateTerrainGlobalMap } from "../../engine/terrain/terrainGlobalMapFile.ts";
 import { validateTerrainTile } from "../../engine/terrain/terrainLoader.ts";
@@ -65,6 +66,8 @@ export interface TerrainLayerInput {
   readonly roughnessTexture: Texture | null;
   /** Forge's static normal stamps; null when off. */
   readonly detail: TerrainLayerDetail | null;
+  /** How the layer takes wetness and snow (plan phase W5): its `weather`, else its physical material's default; absent: the defaults. */
+  readonly weather?: LayerWeather;
 }
 
 /** A file's bytes and the revision the server reported (null where it reports none). */
@@ -223,7 +226,8 @@ export function createTerrainSource(options: TerrainSourceOptions): TerrainSourc
         return Promise.all(
         target.layers.slice(0, TERRAIN_RENDER_LAYERS).map(async (layer): Promise<TerrainLayerInput> => {
           const own = layer.color ?? "#808080";
-          const plain: TerrainLayerInput = { color: own, texture: null, scale: terrainLayerScale(width, 0, [1, 1]), roughness: 1, flipY: false, normalTexture: null, roughnessTexture: null, detail: null };
+          const weather = resolveLayerWeather({ weather: layer.weather, physicalMaterial: layer.physicalMaterial ?? null });
+          const plain: TerrainLayerInput = { color: own, texture: null, scale: terrainLayerScale(width, 0, [1, 1]), roughness: 1, flipY: false, normalTexture: null, roughnessTexture: null, detail: null, weather };
           if (!layer.material || options.materials === null) return plain;
           try {
             const material = await options.materials.terrainLayer(layer.material);
@@ -238,6 +242,7 @@ export function createTerrainSource(options: TerrainSourceOptions): TerrainSourc
               normalTexture: material.normalTexture,
               roughnessTexture: material.roughnessTexture,
               detail: material.detail,
+              weather,
             };
           } catch (error) {
             warn(`forge render: terrain ${guid} layer ${layer.id} paints with its colour (material ${layer.material})`, error);

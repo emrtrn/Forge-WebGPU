@@ -200,6 +200,12 @@ test("cover preview stays out of level bytes and Play state", async ({ page, con
   await page.getByTestId("wes-preview-transition").fill("60");
   await page.getByTestId("wes-preview-weather-rain").click();
   await expect(page.getByTestId("wes-preview-transition-progress")).toHaveText(/^\d+%$/);
+  // Plan phase W5: Simulate runs 20 minutes ahead in a few seconds (the weather change ends), shown, never saved.
+  await expect(page.getByTestId("wes-preview-surface")).toHaveText(/^wet 0\.90 · water 0\.00 · snow 0\.90 · 0\.0 cm$/);
+  await page.getByTestId("wes-preview-simulate").click();
+  await expect(page.getByTestId("wes-preview-simulate")).toHaveText("Stop");
+  await expect(page.getByTestId("wes-preview-transition-progress")).toHaveText("", { timeout: 15_000 });
+  await expect(page.getByTestId("wes-preview-simulate")).toHaveText("Run", { timeout: 15_000 });
   await expect(page.getByTestId("editor-save")).toBeDisabled();
   await page.keyboard.press("Control+s");
   expect(readFileSync(path, "utf8")).toBe(before);

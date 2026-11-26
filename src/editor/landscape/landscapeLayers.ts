@@ -13,7 +13,8 @@
 //   (engine terrainLayers.ts: a removed layer's weight goes to the others):
 //   whole terrain too, the definition and every tile become dirty, and the
 //   terrain is drawn again with its new layers (`layersChanged`).
-// - A layer's material changes only the definition: no tile is loaded.
+// - A layer's material and weather response change only the definition: no
+//   tile is loaded.
 //
 // Provided to the editor's world (`LandscapeLayersKey`) for the Landscape
 // Details section, which reaches the world's services only.
@@ -27,7 +28,8 @@ import { createTerrainAutoPaintPatches, type TerrainAutoPaintSettings } from "..
 import { createTerrainLayerFillPatches } from "../../engine/terrain/terrainEdit.ts";
 import type { EditableTerrain, TerrainEditing } from "../../engine/terrain/terrainEditing.ts";
 import { applyTerrainLayerState, createTerrainLayerAddition, createTerrainLayerRemoval, type TerrainLayerState } from "../../engine/terrain/terrainLayers.ts";
-import { TERRAIN_MAX_LAYERS } from "../../engine/terrain/terrainTypes.ts";
+import { normalizeTerrainLayerWeather } from "../../engine/terrain/terrainDefinition.ts";
+import { TERRAIN_MAX_LAYERS, type TerrainLayerWeather } from "../../engine/terrain/terrainTypes.ts";
 import type { EditorSession } from "../session/editorSession.ts";
 import { holdWholeTerrain, pushTerrainPatchStep, restoreEdited } from "./landscapeSteps.ts";
 
@@ -43,6 +45,8 @@ export interface LandscapeLayers {
   remove(actor: ActorId, layerId: string): Promise<boolean>;
   /** Assigns (null clears) the layer's `forge.material`. */
   setMaterial(actor: ActorId, layerId: string, material: string | null): boolean;
+  /** Writes the layer's weather response (plan phase W5; undefined clears it to its physical material's default). */
+  setWeather(actor: ActorId, layerId: string, weather: TerrainLayerWeather | undefined): boolean;
   /** Repaints the whole terrain from the rules. */
   autoPaint(actor: ActorId, settings: TerrainAutoPaintSettings): Promise<boolean>;
   /** The actor has its Auto Paint rules (`forge.landscapeAutoPaint`). */
@@ -245,6 +249,27 @@ export function createLandscapeLayers(options: LandscapeLayersOptions): Landscap
         undo: () => apply(before),
         redo: () => apply(next),
       });
+      return true;
+    },
+    setWeather(actor, layerId, weather) {
+      const terrain = terrainOf(actor);
+      const layer = terrain?.session.world.def.layers.find((entry) => entry.id === layerId);
+      if (!terrain || !layer) return false;
+      const next = weather === undefined ? undefined : normalizeTerrainLayerWeather(weather);
+      if (JSON.stringify(layer.weather ?? null) === JSON.stringify(next ?? null)) return false;
+      const before = layer.weather;
+      const { session } = terrain;
+      const apply = (value: TerrainLayerWeather | undefined): void => {
+        const target = session.world.def.layers.find((entry) => entry.id === layerId);
+        if (!target) return;
+        if (value === undefined) delete target.weather;
+        else target.weather = { ...value };
+        session.markDefinitionDirty();
+        const drawn = editing.find(actor);
+        if (drawn?.session === session) void drawn.definitionChanged();
+      };
+      apply(next);
+      editor.pushStep({ label: "Edit Landscape Layer Weather", undo: () => apply(before), redo: () => apply(next) });
       return true;
     },
   };

@@ -22,6 +22,10 @@
 // W4: `surface.verticalWetting` / `windwardWetting`, how wet a standing face gets.
 // W2: a weather change saved mid-way (live `weatherFrom` / `weatherProgress` /
 // `weatherSeconds`) goes on from where it was.
+// W5: `surface.weatherDrivesSurface` (HK2: off in the schema, so older levels
+// stay as they are; Add Actor and World Builder write it on) and the surface
+// model's rates (engine/environment/surfaceCondition.ts): rain wets, snow
+// covers, and when it stops the surface dries and the snow melts.
 
 import { bool, color, defineComponent, enumOf, num, object, WindFields, type ComponentData } from "../../core/index.ts";
 
@@ -73,10 +77,16 @@ export const WorldEnvironment = defineComponent(
     }),
     surface: object({
       ...amounts(),
-      snowAccumulationRate: num({ min: 0, max: 1, default: .01, step: .001, label: "Snow Accumulation (/s)", hint: "Kar hedefe doğru birikir: 0–1 örtü / simülasyon saniyesi. 0 durdurur." }),
-      snowMeltRate: num({ min: 0, max: 1, default: .005, step: .001, label: "Snow Melt (/s)", hint: "Kar hedefe doğru erir: 0–1 örtü / simülasyon saniyesi." }),
-      wettingRate: num({ min: 0, max: 1, default: .1, step: .001, label: "Wetting (/s)", hint: "Islanma hızı: 0–1 örtü / simülasyon saniyesi." }),
-      dryingRate: num({ min: 0, max: 1, default: .01, step: .001, label: "Drying (/s)", hint: "Kuruma hızı: 0–1 örtü / simülasyon saniyesi." }),
+      weatherDrivesSurface: bool({ default: false, label: "Weather Drives Surface", hint: "Açıkken yağış yüzeyi sürer: yağmur ıslatır ve su biriktirir, kar örter ve kalınlaşır; yağış kesilince önce ince ıslaklık, sonra birikinti kurur, kar erir. Kapalıyken örtü yalnız hedefe doğru gider." }),
+      snowAccumulationRate: num({ min: 0, max: 1, default: .01, step: .001, label: "Snow Accumulation (/s)", hint: "Kar örtüsünün artışı: 0–1 örtü / simülasyon saniyesi (hava bağı açıkken tam kar şiddetinde). 0 durdurur." }),
+      snowMeltRate: num({ min: 0, max: 1, default: .005, step: .001, label: "Snow Melt (/s)", hint: "Kar örtüsünün erimesi: 0–1 örtü / simülasyon saniyesi. Hava bağı açıkken kar kalınlığı bitince başlar; yağmur hızlandırır. 0 karı tutar." }),
+      wettingRate: num({ min: 0, max: 1, default: .1, step: .001, label: "Wetting (/s)", hint: "Islanma hızı: 0–1 örtü / simülasyon saniyesi (hava bağı açıkken tam yağmurda)." }),
+      dryingRate: num({ min: 0, max: 1, default: .01, step: .001, label: "Drying (/s)", hint: "İnce ıslaklığın kuruma hızı: 0–1 örtü / simülasyon saniyesi. 0 ıslak tutar." }),
+      puddleFillRate: num({ min: 0, max: 1, default: .005, step: .0005, slider: [0, .05], label: "Puddle Fill (/s)", hint: "Hava bağı: yüzey doyduktan sonra suyun birikme hızı, 0–1 / simülasyon saniyesi (tam yağmurda)." }),
+      puddleDrainRate: num({ min: 0, max: 1, default: .0025, step: .0005, slider: [0, .05], label: "Puddle Drain (/s)", hint: "Hava bağı: birikmiş suyun boşalma hızı; ince ıslaklık kuruduktan sonra başlar. 0 suyu tutar." }),
+      snowDepthRate: num({ min: 0, max: .1, default: .001, step: .0001, slider: [0, .01], label: "Snow Depth (m/s)", hint: "Hava bağı: kar kalınlığının artışı, metre / simülasyon saniyesi (tam kar ve tam örtüde)." }),
+      snowDepthMeltRate: num({ min: 0, max: .1, default: .0005, step: .0001, slider: [0, .01], label: "Snow Depth Melt (m/s)", hint: "Hava bağı: kar kalınlığının erimesi, metre / simülasyon saniyesi; yağmur hızlandırır. 0 karı tutar." }),
+      snowMaxDepth: num({ min: 0, max: 2, default: .4, step: .05, label: "Snow Max Depth (m)", hint: "Hava bağı: karın en çok kalınlığı, metre." }),
       snowColor: color({ default: "#f2f5fa", hint: "Karın rengi." }),
       snowSlopeStartDeg: num({ min: 0, max: 90, default: 30, step: 1, hint: "Kar örtüsünün eğimle azalmaya başladığı açı (derece)." }),
       snowSlopeEndDeg: num({ min: 0, max: 90, default: 55, step: 1, hint: "Karın tutunmadığı eğim (derece)." }),
@@ -85,7 +95,7 @@ export const WorldEnvironment = defineComponent(
       snowAltitudeBlend: num({ min: 0, max: 10000, default: 20, step: 1, hint: "Yükseklik sınırının yumuşak geçişi (metre)." }),
       verticalWetting: num({ min: 0, max: 1, default: .35, step: .01, hint: "Dikey yüzün ıslaklık payı: yukarı bakan yüz tam ıslanır, alta bakan kuru kalır." }),
       windwardWetting: num({ min: 0, max: 1, default: .5, step: .01, hint: "Rüzgârın geldiği yandaki dikey yüzün ek payı (rüzgâr gücü 1'de)." }),
-    }, { hint: "Başlangıç örtüsü ve hedefleri. Saat atlamak birikim süresi değildir; mevsim ve hava hedefleri kendiliğinden değiştirmez." }),
+    }, { hint: "Başlangıç örtüsü ve oranları. Saat atlamak birikim süresi değildir. Hava bağı kapalıyken mevsim ve hava örtüyü değiştirmez." }),
     wind: object({
       useLevelWind: bool({ default: true, label: "Use Level Wind", hint: "Level ayarlarındaki rüzgârı kullan. Kapalıyken aşağıdaki değerler geçerli; hava ve mevsim her iki durumda ölçekler." }),
       ...WindFields,

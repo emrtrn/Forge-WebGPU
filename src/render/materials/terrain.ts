@@ -19,6 +19,11 @@
 // the active layer's weight replace the albedo. Compiled only into an editor
 // terrain (`editorViews`); a game's material has no branch and no uniform.
 //
+// Weather (plan phase W5): the surface cover takes the paint layers' weather
+// response (`weather`, engine/environment/layerWeather.ts) blended by their
+// weights, one uniform per layer, and dries late in the ground's hollows (the
+// tile normals' divergence; the far map has none).
+//
 // The height probe (phase 5a step 5, G8): the same vertex stage and hole cut,
 // each pixel carrying its world position for a float readback
 // (sync/terrainHeightProbe.ts); built only when a measurement asks for it.
@@ -29,6 +34,8 @@
 
 import * as THREE from "three/webgpu";
 import * as TSLTyped from "three/tsl";
+import { LAYER_WEATHER_DEFAULTS } from "../../engine/environment/layerWeather.ts";
+import { CAVITY_CURVATURE } from "../../engine/environment/surfaceResponse.ts";
 import { TERRAIN_RENDER_LAYERS } from "../../engine/terrain/terrainRenderData.ts";
 import type { TerrainLayerInput } from "../resources/terrains.ts";
 import { terrainStaticDetail, type TerrainDetailParams } from "./terrainDetail.ts";
@@ -346,6 +353,12 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
   let total: AnyNode = float(0);
   let rough: AnyNode = float(0);
   let normalSum: AnyNode = vec3(0, 0, 0);
+  // Each layer's weather response (wetting, porosity, snow acceptance), blended like its colour.
+  let responseSum: AnyNode = vec3(0, 0, 0);
+  const layerResponse = (layer: TerrainLayerInput): AnyNode => {
+    const weather = layer.weather ?? LAYER_WEATHER_DEFAULTS;
+    return uniform(new THREE.Vector3(weather.wetting, weather.porosity, weather.snowAccept));
+  };
   const normalMapped = textures.normals !== null;
   input.layers.slice(0, TERRAIN_RENDER_LAYERS).forEach((layer, i) => {
     const w = weightsOf(i);
@@ -389,6 +402,7 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
       normalSum = normalSum.add(n.mul(w));
     }
     sum = sum.add(color.mul(w));
+    responseSum = responseSum.add(layerResponse(layer).mul(w));
     total = total.add(w);
     rough = rough.add(r.mul(w));
   });
@@ -443,7 +457,17 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
   material.normalNode = transformNormalToView(worldNormal);
   // A hole in the far map (no tile covers the sample) is cut, in every pass.
   material.maskNode = useTile.or(globalNormal.b.lessThan(0.5));
-  const surfaceCover = createSurfaceCover(input.sheltered);
+  const firstLayer = input.layers[0];
+  const response = select(painted, responseSum.div(total), firstLayer ? layerResponse(firstLayer) : vec3(1, 0.5, 1));
+  // Hollows: where the ground normal converges (negative divergence) over one tile texel.
+  const cavity = (): AnyNode => {
+    const texel = float(1).div(uTileVertices);
+    const nx = texture(normalTex, tileUv.add(vec2(texel, 0))).depth(slotI).r;
+    const nz = texture(normalTex, tileUv.add(vec2(0, texel))).depth(slotI).g;
+    const divergence = nx.sub(nTile.x).add(nz.sub(nTile.y)).div(uSpacing);
+    return select(useTile, clamp(divergence.negate().mul(CAVITY_CURVATURE), 0, 1), float(0));
+  };
+  const surfaceCover = createSurfaceCover(input.sheltered, { response: { wetting: response.x, porosity: response.y, snowAccept: response.z }, cavity });
   applyContributions(material, { wetness: surfaceCover }, base);
   let probe: THREE.MeshBasicNodeMaterial | null = null;
   return {

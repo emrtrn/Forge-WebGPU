@@ -54,7 +54,7 @@ export const NEW_LEVEL_TEMPLATE: readonly TemplateActor[] = [
   { entry: "forge.sky:light" },
   { entry: "forge.heightFog" },
   { entry: "forge.cloudLayer", fields: { clouds: { coverage: 0.4, density: 0.4, scale: 8, speed: 0.2 } } },
-  { entry: "forge.worldEnvironment", fields: { environment: { hour: 9, surface: { snowAccumulationRate: 0 } } } },
+  { entry: "forge.worldEnvironment", fields: { environment: { hour: 9, surface: { weatherDrivesSurface: true } } } },
   { entry: "forge.postProcess", fields: { post: { antialias: "smaa", bloom: { enabled: true, threshold: 1, intensity: 1, radius: 1 }, ao: { enabled: true, radius: 1, intensity: 1 } } } },
   { entry: "forge.light:directional", name: "Sun", position: [3, 9, 4], fields: { light: { atmosphereSun: true, castShadow: true, cascadedShadows: true } } },
   { entry: "forge.shape:plane", name: "Floor", scale: [4, 1, 4] },

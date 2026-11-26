@@ -53,6 +53,21 @@ export interface WorldTerrainLayerDef {
   physicalMaterial?: string | null;
   /** Layer-local numeric overrides; absent values inherit the built-in preset. */
   physicalMaterialOverrides?: TerrainPhysicalMaterialOverrides;
+  /**
+   * How the layer takes the World Environment's wetness and snow (plan phase W5,
+   * engine/environment/layerWeather.ts); an absent field is its physical
+   * material's default (`mud` takes no snow).
+   */
+  weather?: TerrainLayerWeather;
+}
+
+/** A layer's written weather response: only the fields it overrides. */
+export interface TerrainLayerWeather {
+  wetting?: number;
+  porosity?: number;
+  snowAccept?: number;
+  /** Physical material the layer turns toward as it soaks (phase W8 reads it); absent keeps its own. */
+  wetPhysicalMaterial?: string;
 }
 
 /** Per-tile index entry kept in `terrain.json`, readable without fetching the tile. */

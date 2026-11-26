@@ -11,9 +11,13 @@ import { git, isOptionalHlodMiss, openSmokeLevel } from "./smokePage.ts";
 const PROFILES = (process.env.FORGE_CITY_PROFILES ?? "high,ultra").split(",") as ("high" | "ultra")[];
 if (PROFILES.some(profile => profile !== "high" && profile !== "ultra")) throw new Error("FORGE_CITY_PROFILES must list high and / or ultra.");
 // Plan phase W4: `dry`, `wet` or `snow` adds a World Environment (hour 12) and sets its surface; absent: the level as it is.
-const SURFACES = { dry: { snowCoverage: 0, wetness: 0 }, wet: { snowCoverage: 0, wetness: 1 }, snow: { snowCoverage: 1, wetness: 0 } } as const;
+// W5: `drying`, half dry with standing water (the patchy look, every point reads the noise).
+const SURFACES = {
+  dry: { snowCoverage: 0, wetness: 0 }, wet: { snowCoverage: 0, wetness: 1 }, snow: { snowCoverage: 1, wetness: 0 },
+  drying: { snowCoverage: 0, wetness: 0.5, puddleFill: 0.7 },
+} as const;
 const surface = process.env.FORGE_CITY_SURFACE as keyof typeof SURFACES | undefined;
-if (surface !== undefined && !(surface in SURFACES)) throw new Error("FORGE_CITY_SURFACE must be dry, wet or snow.");
+if (surface !== undefined && !(surface in SURFACES)) throw new Error("FORGE_CITY_SURFACE must be dry, wet, snow or drying.");
 const applySurface = async (page: import("@playwright/test").Page): Promise<void> => {
   if (!surface) return;
   await page.evaluate((state) => {

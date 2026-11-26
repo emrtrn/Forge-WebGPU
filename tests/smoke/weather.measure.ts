@@ -41,8 +41,11 @@ const FRAMES = 120;
 const ROUNDS = 5;
 
 interface Step { ran: boolean; cpuMs: number; gpuMs: number | null; submitMs: number | null; captures: number }
-/** `late: false` draws the same state without its precipitation: the difference is what rain and snow cost. */
-interface State { id: string; weather: string; intensity: number; surface: Record<string, number>; late?: false }
+/**
+ * `late: false` draws the same state without its precipitation: the difference is what rain and snow cost.
+ * `drives`: the weather drives the surface while the state is measured (plan phase W5: wetting, drying).
+ */
+interface State { id: string; weather: string; intensity: number; surface: Record<string, number>; late?: false; drives?: true }
 interface Dev {
   pause(): void;
   step(ms: number): Promise<Step>;
@@ -53,6 +56,7 @@ interface Dev {
   worldEnvironmentActors(): string[];
   setWeather(preset: string, intensity: number): void;
   setSurface(surface: Record<string, number>): void;
+  setWeatherDrivesSurface(on: boolean): void;
   setLateVisible(visible: boolean): void;
   environmentState(): unknown;
   gpuDriven: { level(): Promise<{ pending: number } | null> };
@@ -70,6 +74,9 @@ const STATES: readonly State[] = [
   { id: "snow-undrawn", weather: "snow", intensity: 1, surface: DRY, late: false },
   { id: "rain-wet", weather: "rain", intensity: 1, surface: { ...DRY, wetness: 1, puddleFill: 1 } },
   { id: "snow-covered", weather: "snow", intensity: 1, surface: { ...DRY, snowCoverage: 1, snowDepth: 0.4 } },
+  // Plan phase W5: the surface moves while it is measured (patchy wetness).
+  { id: "rain-wetting", weather: "rain", intensity: 1, surface: { ...DRY, wetness: 0.3 }, drives: true },
+  { id: "clear-drying", weather: "clear", intensity: 1, surface: { ...DRY, wetness: 0.5, puddleFill: 0.7 }, drives: true },
 ];
 const SCENES = [{ scene: "derekavak", pose: "p2" }, { scene: "l03", pose: "p1" }] as const;
 
@@ -112,6 +119,7 @@ test("weather: cost of each state, pipelines made by the switches", async ({ pag
     const set = (state: State) => evaluate(page, (d, arg) => {
       const next = arg as State;
       d.setWeather(next.weather, next.intensity);
+      d.setWeatherDrivesSurface(next.drives === true);
       d.setSurface(next.surface);
       d.setLateVisible(next.late !== false);
     }, state);

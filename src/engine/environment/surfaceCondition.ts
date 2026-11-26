@@ -38,7 +38,7 @@ export const RAIN_MELT = 2;
 export const MELT_WATER = .5;
 
 const nonnegative = (value: number): number => Number.isFinite(value) ? Math.max(0, value) : 0;
-const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
+const clamp01 = (value: number): number => Number.isNaN(value) ? 0 : Math.min(1, Math.max(0, value));
 
 const timeToBound = (distance: number, rate: number): number => distance > 0 && rate > 0 ? distance / rate : Infinity;
 
@@ -74,7 +74,10 @@ export function advanceSurfaceCondition(
   const drying = nonnegative(rates.dryingRate);
   const filling = nonnegative(rates.puddleFillRate);
   const draining = nonnegative(rates.puddleDrainRate);
-  let { wetness, puddleFill, snowCoverage, snowDepth } = current;
+  let wetness = clamp01(current.wetness);
+  let puddleFill = clamp01(current.puddleFill);
+  let snowCoverage = clamp01(current.snowCoverage);
+  let snowDepth = nonnegative(current.snowDepth);
   let remaining = seconds;
 
   // At most two snow bounds and four water bounds can be reached in one call.

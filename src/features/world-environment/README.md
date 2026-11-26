@@ -13,6 +13,13 @@ gökyüzünü, sisi ve bulutları kendi değerlerini değiştirmeden yeniden yor
   `engine/environment/surfaceResponse.ts`): yukarı bakan tam, dikey
   `surface.verticalWetting` (rüzgârın geldiği yan `windwardWetting` kadar fazla),
   alta bakan kuru; yağış siperinin altı kuru ve karsız.
+  Hava bağı (plan W5): `surface.weatherDrivesSurface` açıkken canlı yağış yüzeyi
+  sürer (`engine/environment/surfaceCondition.ts`; yağmur ıslatır, su biriktirir,
+  kar örter ve kalınlaşır; kesilince önce ince ıslaklık, sonra birikinti kurur,
+  kar önce kalınlığını sonra örtüsünü kaybeder, zemin ıslak kalıp kurur); oranlar
+  aynı grupta. Şemada kapalı (eski level'lar 5a'nın hedef + oran yolunda); Add
+  Actor ve yeni level açık yazar. Kuruma yamalıdır: gürültü ve oyuklar geç kurur
+  (`surfaceResponse.ts` `patchyWetness`).
 - `runtime.ts`: tekili taşınmış `WorldEnvironmentController`'a yükler ve
   `WorldEnvironmentKey` servisiyle verir (`src/engine/environment`); oyun
   kodu aynı denetleyiciyi SDK'nın `WorldEnvironmentServiceKey`'iyle alır (saat,
@@ -23,4 +30,5 @@ gökyüzünü, sisi ve bulutları kendi değerlerini değiştirmeden yeniden yor
 - `feature.ts`: bileşeni ve alt sistemi kurar; `render.ts`'i anmaz.
 - `editor.ts`: editördeki görünüşü (`defineFeatureEditor`): Forge'un Outliner ikonu ve tür grubu.
   Önizleme şeridinde hava düğmelerinin altında geçiş süresi (`Transition`, saniye;
-  0 anında): kaydedilmez, Undo'ya girmez.
+  0 anında): kaydedilmez, Undo'ya girmez. `Surface` canlı dört büyüklüğü gösterir,
+  `Simulate` seçili süreyi (1 / 5 / 20 / 60 dk) dört saniyede oynatır; o da kaydedilmez.

@@ -157,16 +157,24 @@
         "surface": {
           "snowCoverage": 0,
           "wetness": 0,
-          "snowAccumulationRate": 0,
+          "weatherDrivesSurface": true,
+          "snowAccumulationRate": 0.01,
           "snowMeltRate": 0.005,
           "wettingRate": 0.1,
           "dryingRate": 0.01,
+          "puddleFillRate": 0.005,
+          "puddleDrainRate": 0.0025,
+          "snowDepthRate": 0.001,
+          "snowDepthMeltRate": 0.0005,
+          "snowMaxDepth": 0.4,
           "snowColor": "#f2f5fa",
           "snowSlopeStartDeg": 30,
           "snowSlopeEndDeg": 55,
           "snowAltitudeEnabled": false,
           "snowMinAltitude": 0,
-          "snowAltitudeBlend": 20
+          "snowAltitudeBlend": 20,
+          "verticalWetting": 0.35,
+          "windwardWetting": 0.5
         },
         "wind": {
           "useLevelWind": true,
@@ -193,6 +201,40 @@
             "speed": 1.3,
             "size": 1,
             "flutter": 1
+          }
+        },
+        "weatherSky": {
+          "cloudy": {
+            "cloudCoverage": 0.7,
+            "cloudDensity": 0.7,
+            "cloudColor": "#c6ccd3",
+            "cloudColorMix": 0.5,
+            "cloudShade": 0.35,
+            "skyOvercast": 0.35
+          },
+          "rain": {
+            "cloudCoverage": 0.9,
+            "cloudDensity": 0.9,
+            "cloudColor": "#7f8791",
+            "cloudColorMix": 0.85,
+            "cloudShade": 0.55,
+            "skyOvercast": 0.75
+          },
+          "snow": {
+            "cloudCoverage": 0.9,
+            "cloudDensity": 0.85,
+            "cloudColor": "#c9cfd7",
+            "cloudColorMix": 0.7,
+            "cloudShade": 0.3,
+            "skyOvercast": 0.65
+          },
+          "fog": {
+            "cloudCoverage": 0,
+            "cloudDensity": 0,
+            "cloudColor": "#b9c0c8",
+            "cloudColorMix": 0,
+            "cloudShade": 0,
+            "skyOvercast": 0.5
           }
         },
         "sunPath": {

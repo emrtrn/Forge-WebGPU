@@ -17,7 +17,9 @@
 //   snow (`setupDiffuseColor`, kept through `clone()` by the class); roughness,
 //   metalness and (with a normal map) the normal through their node slots.
 // - A material's response is read per draw (`materialReference`): every
-//   weathered material of a world shares one program shape.
+//   weathered material of a world shares one program shape (two with plan
+//   phase W5: a material with ambient occlusion dries late in its hollows,
+//   one without by the noise alone).
 
 import { MeshPhysicalNodeMaterial, MeshStandardNodeMaterial, type Material, type NodeMaterial } from "three/webgpu";
 import * as TSLTyped from "three/tsl";
@@ -116,19 +118,36 @@ export function materialWeatherOf(material: Material): MaterialWeather {
 
 export function createSurfaceWeather(sheltered?: (position: Node) => Node): SurfaceWeather {
   const cover = createSurfaceCover(sheltered);
-  const { diffuseColor, faceDirection, materialMetalness, materialNormal, materialReference, materialRoughness, normalView, normalWorldGeometry, positionWorld, vec4 } = TSL;
+  const { diffuseColor, faceDirection, float, materialAO, materialMetalness, materialNormal, materialReference, materialRoughness, normalView, normalWorldGeometry, positionWorld, vec4 } = TSL;
   // One graph for every weathered material of the world: the face's normal (both sides), its acceptance by reference.
   const response: SurfaceResponseNodes = {
     wetting: materialReference(WETTING, "float"),
     porosity: materialReference(POROSITY, "float"),
     snowAccept: materialReference(SNOW_ACCEPT, "float"),
   };
-  const factors = cover.factors(normalWorldGeometry.mul(faceDirection), positionWorld);
-  const hook: WeatherHook = {
-    key: cover.key,
-    diffuse() {
-      diffuseColor.assign(vec4(cover.look.color(diffuseColor.rgb, factors, response), diffuseColor.a));
-    },
+  const normal = normalWorldGeometry.mul(faceDirection);
+  /** The factors and the diffuse hook, without and with the material's ambient occlusion as its hollows. */
+  const shapes = new Map<"plain" | "ao", { factors: Node; hook: WeatherHook }>();
+  const shapeOf = (material: NodeMaterial & { aoNode?: Node | null; aoMap?: unknown }) => {
+    const aoNode = material.aoNode ?? null;
+    const kind = aoNode || material.aoMap ? "ao" : "plain";
+    // A forge.material's own AO node is per material: its graph is too (one program shape: textures are bindings).
+    if (kind === "ao" && aoNode) return build(() => float(1).sub(aoNode), `${cover.key}:ao`);
+    const existing = shapes.get(kind);
+    if (existing) return existing;
+    const made = build(kind === "ao" ? () => float(1).sub(materialAO) : undefined, `${cover.key}:${kind}`);
+    shapes.set(kind, made);
+    return made;
+  };
+  const build = (cavity: (() => Node) | undefined, key: string) => {
+    const factors = cover.factors(normal, positionWorld, cavity);
+    const hook: WeatherHook = {
+      key,
+      diffuse() {
+        diffuseColor.assign(vec4(cover.look.color(diffuseColor.rgb, factors, response), diffuseColor.a));
+      },
+    };
+    return { factors, hook };
   };
 
   const made = new Map<Material, Material>();
@@ -147,6 +166,7 @@ export function createSurfaceWeather(sheltered?: (position: Node) => Node): Surf
     if (materialTakesNoWeather(weather)) return source;
     const copy = weatheredCopy(source);
     if (!copy) return source;
+    const { factors, hook } = shapeOf(copy);
     copy.forgeWeather = hook;
     copy[WETTING] = weather.wetting;
     copy[POROSITY] = weather.porosity;

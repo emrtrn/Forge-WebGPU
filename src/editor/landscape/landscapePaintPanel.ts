@@ -6,6 +6,9 @@
 // Material; the Brush tab adds Fill Layer (the tools and brush are the
 // panel's), the Auto Paint tab the rules: Base Layer, one card per rule
 // (Rule n, its layer and bands, Remove), Add Rule, Seed and Apply Auto Paint.
+// Plan phase W5: below the Material, the active layer's Weather (its
+// wetting, porosity, snow acceptance and the physical material it turns
+// toward when wet), from the terrain schema's fields; one undo step per change.
 //
 // The rules are the actor's `forge.landscapeAutoPaint` (user decision
 // 2026-11-19: saved with the level, an agent writes them with `forge edit
@@ -16,7 +19,10 @@ import { bool, enumOf, formFields, num, type ActorId, type FieldMap } from "../.
 import { defaultTerrainAutoPaintRule, TERRAIN_AUTO_PAINT_RANGES as RANGES } from "../../engine/terrain/terrainAutoPaint.ts";
 import { TERRAIN_MAX_LAYERS } from "../../engine/terrain/terrainTypes.ts";
 import type { EditableTerrain, LandscapePaintPanel, TerrainEditing } from "../../engine/terrain/terrainEditing.ts";
-import type { LandscapeAutoPaintData } from "../../features/terrain/schema.ts";
+import { TerrainLayerWeatherFields, type LandscapeAutoPaintData } from "../../features/terrain/schema.ts";
+import { resolveLayerWeather } from "../../engine/environment/layerWeather.ts";
+import { PHYSICAL_MATERIAL_IDS } from "../../engine/physics/collision.ts";
+import type { TerrainLayerWeather } from "../../engine/terrain/terrainTypes.ts";
 import { createFormView, type FormView } from "../ui/formView.ts";
 import { landscapeAutoPaintSettings } from "./landscapeAutoPaint.ts";
 import type { LandscapeLayers } from "./landscapeLayers.ts";
@@ -83,7 +89,7 @@ export function createLayerBlock(doc: Document, editing: TerrainEditing, layers:
     const active = editing.settings.activeLayerId;
     const activeLayer = defLayers.find((layer) => layer.id === active);
     const materials = layers?.materials() ?? [];
-    const key = JSON.stringify([actor, defLayers.map((layer) => [layer.id, layerLabel(layers, layer), layer.color, layer.material ?? null]), active, fill, layers?.busy ?? false, materials.length]);
+    const key = JSON.stringify([actor, defLayers.map((layer) => [layer.id, layerLabel(layers, layer), layer.color, layer.material ?? null, layer.physicalMaterial ?? null, layer.weather ?? null]), active, fill, layers?.busy ?? false, materials.length]);
     if (key === shown) return;
     shown = key;
     const busy = !layers || layers.busy;
@@ -121,7 +127,37 @@ export function createLayerBlock(doc: Document, editing: TerrainEditing, layers:
         if (change.phase === "commit" && activeLayer) layers?.setMaterial(actor, activeLayer.id, change.value === NONE ? null : String(change.value));
       },
     });
-    const parts: HTMLElement[] = [heading, rows, add, remove, material.element];
+    const resolved = resolveLayerWeather({ weather: activeLayer?.weather, physicalMaterial: activeLayer?.physicalMaterial ?? null });
+    const weatherHeading = el(doc, "div", "detail-hint", "Weather");
+    weatherHeading.title = "Katmanın ıslanması ve karlanması; yazılmamış alan fizik materyalinin varsayılanıdır.";
+    const weather = createFormView({
+      document: doc,
+      fields: formFields({
+        ...TerrainLayerWeatherFields,
+        wetPhysicalMaterial: enumOf([NONE, ...PHYSICAL_MATERIAL_IDS], {
+          default: NONE,
+          labels: { [NONE]: "None (own)" },
+          label: "Wet Physical Material", hint: "Islandıkça karışacağı fizik materyali (ör. toprak -> mud); fizik W8'de okur. None kendi materyali.",
+        }),
+      }),
+      value: { wetting: resolved.wetting, porosity: resolved.porosity, snowAccept: resolved.snowAccept, wetPhysicalMaterial: resolved.wetPhysicalMaterial ?? NONE },
+      testIdPrefix: "landscape-layer-weather",
+      disabled: busy || !activeLayer,
+      warn: (message) => status(message, "warning"),
+      onChange: (change) => {
+        if (change.phase !== "commit" || !activeLayer) return;
+        const next: TerrainLayerWeather = { ...activeLayer.weather };
+        const value = change.next as Record<string, unknown>;
+        for (const field of ["wetting", "porosity", "snowAccept"] as const) {
+          if (Number(value[field]) !== resolved[field]) next[field] = Number(value[field]);
+        }
+        const wet = String(value.wetPhysicalMaterial);
+        if (wet === NONE) delete next.wetPhysicalMaterial;
+        else next.wetPhysicalMaterial = wet;
+        layers?.setWeather(actor, activeLayer.id, next);
+      },
+    });
+    const parts: HTMLElement[] = [heading, rows, add, remove, material.element, weatherHeading, weather.element];
     if (fill) {
       const fillButton = wideButton(doc, "Fill Layer", "landscape-fill-layer", "Bütün terrain'i etkin katmanla doldurur (tek Undo).", () => void layers?.fill(actor, active));
       fillButton.disabled = busy || !activeLayer;

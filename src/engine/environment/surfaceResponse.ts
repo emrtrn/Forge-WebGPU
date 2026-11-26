@@ -32,6 +32,74 @@ export interface SurfaceResponseSettings {
   readonly snowAltitudeBlend: number;
 }
 
+/**
+ * Patchy drying (plan phase W5, design 5): the level's wetness and standing
+ * water are single numbers; a point shows them by how late it dries (`late`,
+ * 0 first .. 1 last). Hollows (a material's ambient occlusion, terrain's
+ * concave ground) and world-space noise dry late, so a drying surface breaks
+ * into wet patches instead of fading evenly; while standing water remains,
+ * the late places stay damp, the rims of the hollows last. At wetness 1 every
+ * point is fully wet, at 0 (and no standing water) every point is dry, so the
+ * look at those ends is W4's.
+ */
+/** Width of the wetness window over which one point dries. */
+export const DRY_BAND = 0.35;
+/** Noise patch sizes (m) and their weights. */
+export const DRY_NOISE = [[6, 0.65], [1.7, 0.35]] as const;
+/** The noise is sharpened through this window so patches have edges. */
+export const DRY_NOISE_EDGE = [0.25, 0.75] as const;
+/** Terrain's concavity (negative divergence of the ground normal, 1/m) that counts as a full hollow is 1 / this. */
+export const CAVITY_CURVATURE = 3;
+
+const fract = (value: number): number => value - Math.floor(value);
+
+/** Dave Hoskins' hash12 (no sine: the GPU's float32 and the CPU agree closely). */
+export function hash12(x: number, y: number): number {
+  let a = fract(x * 0.1031);
+  let b = fract(y * 0.1031);
+  let c = fract(x * 0.1031);
+  const d = a * (b + 33.33) + b * (c + 33.33) + c * (a + 33.33);
+  a += d;
+  b += d;
+  c += d;
+  return fract((a + b) * c);
+}
+
+/** Smooth value noise on the lattice, 0..1. */
+export function valueNoise(x: number, y: number): number {
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const fx = x - ix;
+  const fy = y - iy;
+  const ux = fx * fx * (3 - 2 * fx);
+  const uy = fy * fy * (3 - 2 * fy);
+  const bottom = mix(hash12(ix, iy), hash12(ix + 1, iy), ux);
+  const top = mix(hash12(ix, iy + 1), hash12(ix + 1, iy + 1), ux);
+  return mix(bottom, top, uy);
+}
+
+/** How late a point dries, 0..1: world-space noise, pushed late by its hollowness (`cavity`, 0..1). */
+export function dryingLateness(worldX: number, worldZ: number, cavity = 0): number {
+  let noise = 0;
+  for (const [size, weight] of DRY_NOISE) noise += weight * valueNoise(worldX / size, worldZ / size);
+  const patches = smoothstep(DRY_NOISE_EDGE[0], DRY_NOISE_EDGE[1], noise);
+  return patches + (1 - patches) * clamp01(cavity);
+}
+
+/** Terrain's hollowness from the divergence of its ground normal (1/m; negative is concave). */
+export function cavityFromDivergence(divergence: number): number {
+  return clamp01(-divergence * CAVITY_CURVATURE);
+}
+
+/** The wetness a point shows (before its face's share): the surface's wetness and standing water, by how late it dries. */
+export function patchyWetness(wetness: number, puddleFill: number, late: number): number {
+  const l = clamp01(late);
+  const start = (1 - l) * (1 - DRY_BAND);
+  const film = smoothstep(start, start + DRY_BAND, clamp01(wetness));
+  const pooled = l * smoothstep(start, start + DRY_BAND, clamp01(puddleFill));
+  return Math.max(film, pooled);
+}
+
 /** The wind the rain is driven by: `direction` is the unit XZ vector it blows toward. */
 export interface SurfaceWind {
   readonly direction: readonly [number, number];
@@ -80,7 +148,9 @@ export function smoothstep(edge0: number, edge1: number, x: number): number {
   return t * t * (3 - 2 * t);
 }
 
-const mix = (a: number, b: number, t: number): number => a * (1 - t) + b * t;
+function mix(a: number, b: number, t: number): number {
+  return a * (1 - t) + b * t;
+}
 
 /** The wind's share on a face (0..1 per strength), from the face's horizontal normal. */
 export function windwardShare(normal: Vec3, wind: SurfaceWind | null): number {
@@ -120,6 +190,18 @@ export interface SurfaceWeatherAmount {
   /** The World Environment's surface now (`WorldEnvironmentState.surface`). */
   readonly wetness: number;
   readonly snowCoverage: number;
+}
+
+/** The surface amount a point sees: its patchy wetness (`patchyWetness`) and the level's snow; feed it to `surfaceWeatherAt`. */
+export function surfaceAmountAt(
+  surface: { readonly wetness: number; readonly puddleFill?: number; readonly snowCoverage: number },
+  position: Vec3,
+  cavity = 0,
+): SurfaceWeatherAmount {
+  return {
+    wetness: patchyWetness(surface.wetness, surface.puddleFill ?? 0, dryingLateness(position[0], position[2], cavity)),
+    snowCoverage: surface.snowCoverage,
+  };
 }
 
 /** The wetness and snow a point shows: the surface amount × its face's share × open sky × the material's acceptance. */

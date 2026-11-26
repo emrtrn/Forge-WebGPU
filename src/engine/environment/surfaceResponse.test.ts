@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
-  coverReadPoint, materialTakesNoWeather, MATERIAL_WEATHER_DEFAULTS, snowShare, surfaceWeatherAt, weatheredLook, wetShare,
-  type SurfaceResponseSettings, type Vec3,
+  cavityFromDivergence, coverReadPoint, dryingLateness, hash12, materialTakesNoWeather, MATERIAL_WEATHER_DEFAULTS, patchyWetness, snowShare,
+  surfaceAmountAt, surfaceWeatherAt, valueNoise, weatheredLook, wetShare, type SurfaceResponseSettings, type Vec3,
 } from "./surfaceResponse.ts";
 
 const settings: SurfaceResponseSettings = {
@@ -98,5 +98,65 @@ describe("surface response (plan phase W4, HV-04)", () => {
     expect(middle.color[0]).toBeCloseTo(0.35, 12);
     expect(middle.roughness).toBeCloseTo(0.12, 12);
     expect(weatheredLook(look, { wet: 1, snow: 1 }, 0.5, snowColor)).toEqual({ color: snowColor, roughness: 0.9, metalness: 0 });
+  });
+});
+
+describe("patchy drying (plan phase W5, HV-05)", () => {
+  test("the hash and noise stay in 0..1 and agree with themselves", () => {
+    for (let i = -50; i < 50; i++) {
+      const h = hash12(i * 7.3, i * -2.1);
+      expect(h).toBeGreaterThanOrEqual(0);
+      expect(h).toBeLessThan(1);
+      const n = valueNoise(i * 0.37, i * 0.91);
+      expect(n).toBeGreaterThanOrEqual(0);
+      expect(n).toBeLessThanOrEqual(1);
+    }
+    // Lattice points are the hash itself.
+    expect(valueNoise(3, -4)).toBe(hash12(3, -4));
+  });
+
+  test("full wetness wets every point, none dries every point: W4's look at both ends", () => {
+    for (const late of [0, 0.3, 0.7, 1]) {
+      expect(patchyWetness(1, 0, late)).toBe(1);
+      expect(patchyWetness(0, 0, late)).toBe(0);
+    }
+  });
+
+  test("while it dries, a late point stays wet longer; standing water keeps the late ones damp", () => {
+    for (const wetness of [0.2, 0.5, 0.8]) {
+      expect(patchyWetness(wetness, 0, 0.9)).toBeGreaterThan(patchyWetness(wetness, 0, 0.1));
+    }
+    let previous = 1;
+    for (let w = 1; w >= 0; w -= 0.05) {
+      const value = patchyWetness(w, 0, 0.5);
+      expect(value).toBeLessThanOrEqual(previous + 1e-12);
+      previous = value;
+    }
+    // The film is dry; the hollows hold the water, an early point does not.
+    expect(patchyWetness(0, 1, 1)).toBe(1);
+    expect(patchyWetness(0, 1, 0.6)).toBeCloseTo(0.6, 12);
+    expect(patchyWetness(0, 1, 0)).toBe(0);
+    expect(patchyWetness(0, 0.3, 1)).toBeGreaterThan(patchyWetness(0, 0.3, 0.6));
+  });
+
+  test("hollows dry last; the noise breaks the ground into patches", () => {
+    for (const [x, z] of [[0, 0], [12.5, -3], [-40, 77]]) {
+      expect(dryingLateness(x, z, 1)).toBe(1);
+      expect(dryingLateness(x, z, 0.5)).toBeGreaterThanOrEqual(dryingLateness(x, z, 0));
+    }
+    const samples = Array.from({ length: 400 }, (_, i) => dryingLateness((i % 20) * 1.3, Math.floor(i / 20) * 1.3));
+    expect(Math.min(...samples)).toBeLessThan(0.2);
+    expect(Math.max(...samples)).toBeGreaterThan(0.8);
+    expect(cavityFromDivergence(0.1)).toBe(0);
+    expect(cavityFromDivergence(-0.1)).toBeCloseTo(0.3, 12);
+    expect(cavityFromDivergence(-1)).toBe(1);
+  });
+
+  test("a point's amount is its patchy wetness and the level's snow", () => {
+    const position: Vec3 = [4, 0, -9];
+    const amount = surfaceAmountAt({ wetness: 0.5, puddleFill: 0.2, snowCoverage: 0.3 }, position, 0.4);
+    expect(amount.snowCoverage).toBe(0.3);
+    expect(amount.wetness).toBe(patchyWetness(0.5, 0.2, dryingLateness(4, -9, 0.4)));
+    expect(surfaceAmountAt({ wetness: 1, snowCoverage: 0 }, position).wetness).toBe(1);
   });
 });

@@ -141,7 +141,8 @@ interface Placed {
 
 /** The layers' drawn inputs are the same (id, material, colour): the cache's inputs serve. */
 function sameLayers(a: WorldTerrainLayers, b: WorldTerrainLayers): boolean {
-  return a.length === b.length && a.every((layer, i) => layer.id === b[i]!.id && (layer.material ?? null) === (b[i]!.material ?? null) && layer.color === b[i]!.color);
+  return a.length === b.length && a.every((layer, i) => layer.id === b[i]!.id && (layer.material ?? null) === (b[i]!.material ?? null) && layer.color === b[i]!.color
+    && (layer.physicalMaterial ?? null) === (b[i]!.physicalMaterial ?? null) && JSON.stringify(layer.weather ?? {}) === JSON.stringify(b[i]!.weather ?? {}));
 }
 type WorldTerrainLayers = LoadedTerrain["def"]["layers"];
 

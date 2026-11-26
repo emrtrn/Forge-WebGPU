@@ -4,7 +4,7 @@ import { PHYSICAL_MATERIALS, PHYSICAL_MATERIAL_IDS } from "../physics/collision.
 import { normalizeTerrainSplines } from "./terrainSplineData.ts";
 import {
   isValidTileQuads, parseTileKey, tileKey, TERRAIN_MAX_LAYERS, TERRAIN_MAX_TILES_PER_AXIS,
-  type WorldTerrainDef,
+  type TerrainLayerWeather, type WorldTerrainDef,
 } from "./terrainTypes.ts";
 
 function record(value: unknown, label: string): Record<string, unknown> {
@@ -20,6 +20,28 @@ function finite(value: unknown, label: string): number {
 function text(value: unknown, label: string): string {
   if (typeof value !== "string" || !value.trim() || value.length > 512) throw new Error(`invalid ${label}`);
   return value;
+}
+
+/**
+ * A layer's weather response (plan phase W5): numbers 0..1, a known physical
+ * material to turn toward when wet; only written fields are kept, an empty
+ * group is dropped.
+ */
+export function normalizeTerrainLayerWeather(value: unknown): TerrainLayerWeather | undefined {
+  const input = record(value, "terrain layer weather");
+  const out: TerrainLayerWeather = {};
+  for (const key of ["wetting", "porosity", "snowAccept"] as const) {
+    if (input[key] === undefined) continue;
+    const n = finite(input[key], `terrain layer weather.${key}`);
+    if (n < 0 || n > 1) throw new Error(`terrain layer weather.${key} must be within 0..1`);
+    out[key] = n;
+  }
+  const wet = input.wetPhysicalMaterial;
+  if (wet !== undefined && wet !== null && wet !== "") {
+    if (typeof wet !== "string" || !PHYSICAL_MATERIAL_IDS.includes(wet)) throw new Error("invalid terrain layer weather.wetPhysicalMaterial");
+    out.wetPhysicalMaterial = wet;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 /** Strict shared runtime/save allowlist. Invalid authored data never becomes a flat terrain. */
@@ -64,9 +86,11 @@ export function normalizeWorldTerrain(value: unknown): WorldTerrainDef {
         if (overrides[field.key] !== undefined && !preset?.[field.group]) throw new Error("terrain physical parameter requires a supported material block");
       }
     }
+    const weather = layer.weather === undefined ? undefined : normalizeTerrainLayerWeather(layer.weather);
     return { ...(overrides && Object.keys(overrides).length ? { physicalMaterialOverrides: overrides } : {}), id, name: text(layer.name, "layer name"), color,
       ...(layer.material === null ? { material: null } : layer.material === undefined ? {} : { material: text(layer.material, "layer material") }),
-      ...(physicalMaterial === undefined ? {} : { physicalMaterial }) };
+      ...(physicalMaterial === undefined ? {} : { physicalMaterial }),
+      ...(weather ? { weather } : {}) };
   });
   if (!Array.isArray(input.tiles) || input.tiles.length > tilesX * tilesZ) throw new Error("invalid terrain.tiles");
   const keys = new Set<string>();
