@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.88 · 2026-11-26 — §4.4 foliage: Landscape kuralında meşcere (`stand`) ve boya kenarı (`edge`), aile prototipinde `young`.
+**Güncelleme:** v1.89 · 2026-11-26 — §4.9 hava sözleşmesi W2: zamanlı hava geçişi (ön ayar payları karışımı, Sky Light hız sınırı, A7), SDK 0.1.17.
+
+**Önceki güncelleme:** v1.88 · 2026-11-26 — §4.4 foliage: Landscape kuralında meşcere (`stand`) ve boya kenarı (`edge`), aile prototipinde `young`.
 
 **Önceki güncelleme:** v1.87 · 2026-11-25 — §4.9 hava sözleşmesi W1: geç katman (AA'dan sonra, alan derinliği ve bloom'dan önce) ve yağış çizimi.
 
@@ -2273,6 +2275,15 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     yeniden kurulmaz. Boşken pass çizilmez; içindeki çizimler görünmeden derlenir.
     `features/precipitation` WES'in canlı yağışını ve `precipitation` ayarlarını
     okur; hareketin saf yarısı `engine/environment/precipitationMotion.ts`.
+  - **W2 uygulaması (2026-11-26):** canlı hava *ön ayar paylarının karışımıdır*
+    (`engine/environment/weatherTransition.ts`, `WeatherMix`: `cloudy` / `rain` / `snow` / `fog`,
+    toplam ≤ 1, kalan açık). Canlı durumda `weather` hedeftir; geçişte `weatherFrom` (kalkış
+    karışımı), `weatherProgress`, `weatherSeconds` (A7'de saklanır, yarım geçiş sürer). Yeni geçiş
+    canlı karışımdan başlar. Etkenler pay başına toplanır (`mixedWeatherFactors`); sis rengi, bulut
+    örtüsü ve yıldız `environmentResolve`'da pay başına; tek pay ön ayarla birebir, geçiş yokken eski
+    yol. Rüzgâr `liveWeatherFactors`, yağış `livePrecipitation` okur. Sky Light: `ResolvedEnvironment.weatherTransitioning`
+    açıkken `captureKey` değişimi de 0,1 sn hız sınırındadır (`recaptureRate.ts` `gradual`), bitişte
+    son hava hemen yakalanır. SDK 0.1.17 `transitionWeather`; `setWeather` geçişi bitirir.
   - Tasarım, adımlar ve HV-01–13 [plan Faz W'de](FORGE_WEBGPU_REBUILD_PLAN.md).
 - *Terrain:* Faz 3'te salt çizim (spike S2'nin TSL CDLOD'u: yükseklik, 8
   katman, normal, gölge); su birikintisi, tile akışı ve üretim kalitesi 5a'da;

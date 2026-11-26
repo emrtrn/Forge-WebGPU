@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.17 · 2026-11-26 — Bitki planı PG5b adım 6 (`8710f0c`, v0.23): karışık orman (`stand`), genç ağaçlar, altı World Builder örtüsü; kullanıcı görsel kabulü. PG5b ve PG5 kapandı.
+**Güncelleme:** v2.18 · 2026-11-26 — Faz W W2 zamanlı hava geçişi (`f642867`): ön ayarlar pay olarak karışır, havayı okuyan her yer karışımı görür, Sky Light hız sınırında, yarım geçiş kayıttan sürer; SDK 0.1.17 `transitionWeather`. Kullanıcı görsel kabulü bekleniyor.
+
+**Önceki güncelleme:** v2.17 · 2026-11-26 — Bitki planı PG5b adım 6 (`8710f0c`, v0.23): karışık orman (`stand`), genç ağaçlar, altı World Builder örtüsü; kullanıcı görsel kabulü. PG5b ve PG5 kapandı.
 
 **Önceki güncelleme:** v2.16 · 2026-11-25 — Faz W W1 kapandı (kullanıcı görsel kabulü). Sırada W2: zamanlı hava geçişi (yeni oturumda).
 
@@ -693,6 +695,36 @@ yüzeyiyle biter.
       **Görsel kabul:** kullanıcı, 2026-11-25 (çekimler `render-refs/candidates/precipitation-*`).
 - [ ] **W2 Zamanlı hava geçişi.** Saf geçiş (X) + etken karışımı, Sky Light hızı,
       yağış şiddetinin bağı (C). *Kapı:* HV-03, 10.
+      **Kod 2026-11-26 (`f642867`):** canlı hava bir *karışımdır*: açık olmayan ön ayarların payları
+      (`cloudy` / `rain` / `snow` / `fog`, toplam ≤ 1, kalan açık; `WeatherMix`). Tek hava tek paydır;
+      geçiş kalkış karışımından hedefin karışımına smoothstep'le gider, yarıda gelen yeni geçiş canlı
+      karışımdan başlar (iç içe durum yok, sıçrama yok). Saf yarı `weatherTransition.ts` (Codex; ilerleme
+      simülasyon saniyesiyle, 30 / 60 / 144 Hz ve tek adım 1e-9 içinde aynı). Etkenler pay başına toplanır
+      (`mixedWeatherFactors`); sis rengi, bulut örtüsü ve yıldız pay başına karışır; tek pay ön ayarın
+      kendisiyle birebir aynıdır, geçiş bitince görüntü sıçramaz. Geçiş yokken eski yol olduğu gibi
+      çalışır. Okuyanlar: `environmentResolve` (ışık, sis, bulut, bulanıklık, yıldız, `captureKey`),
+      rüzgâr (`liveWeatherFactors`), yağış (`livePrecipitation`: kar → yağmurda ikisi birlikte), perf
+      göstergesi (hedef + %), editör önizlemesi. *Sky Light:* geçişte `captureKey` her kare değişir;
+      `weatherTransitioning` bayrağıyla anahtar değişimi de 0,1 sn sınırına girer, bitişte bayrak düşer
+      ve son hava hemen yakalanır; anlık `setWeather` ve mevsim eskisi gibi hemen. Sky bağlamasının
+      saçılma anahtarı (bulanıklık) da geçişte bu kurala bırakılır. *Denetleyici + SDK 0.1.17:*
+      `transitionWeather({ preset, intensity?, seconds })` → `Promise<boolean>`, `transitionTo` /
+      `transitionSeason` kurallarıyla; `setWeather` çalışan geçişi `false` ile bitirir; saat, mevsim ve
+      hava geçişleri birbirinden bağımsız. *Kayıt (A7):* canlı durumda `weatherFrom` / `weatherProgress` /
+      `weatherSeconds` (`@3`'e nötr varsayılanla, sürüm artmadı); yarım geçiş kaldığı yerden sürer.
+      Make Default hedefi yazar ve geçişi bitirir; level baytlarına ve Play'e canlı durum girmez
+      (editör smoke'u). *Editör:* önizlemede hava düğmelerinin altında `Transition` (saniye, 0 anında)
+      ve ilerleme yüzdesi; kaydedilmez, Undo'ya girmez.
+      **Ölçüm** (`2026-11-26T07-50-02-771Z-weather-transition.json`, `…07-49-29-854Z-weather.json`; R1,
+      gerçek WebGPU, 60 Hz adımlı): dört geçiş × iki sahne, hepsi hedefe vardı, pipeline ve shader
+      modülü +0. Sky Light 10 sn'lik geçişte 101 yakalama (0,1 sn'de bir + varışta bir; 5 sn'de 51),
+      bittikten sonra 0. Geçiş boyunca GPU ortalaması Derekavak 3,7–3,8 ms (duran hava ~2,5), L03
+      1,4–1,5 ms (~0,35); yakalamalı karede GPU Derekavak ~8,4–8,8 ms, L03 ~4,7–5,0 ms; en uzun ana
+      iş parçacığı karesi Derekavak 5,9–9,9 ms, L03 3,8–6,4 ms. *HV-10:* level'ın WES'i kaldırılıp
+      dönüşümlü turlar: WES yok / yalnız açık hava WES'i GPU Derekavak 2,51 / 2,59 ms, L03 0,34 / 0,38 ms
+      (fark gürültü sınırında); render smoke'u (20 poz) referanslarla aynı.
+      **Sınırlar:** geçiş süresince Sky Light yakalaması saniyede 10 kez ~4–6 ms GPU ekler (karar
+      gereği 0,1 sn; daha seyrek istenirse tek sabit). Yüzey (ıslanma / kar) havaya bağlı değil (W5).
 - [ ] **W3 Yağış siperi.** Harita, yenileme koşulları, yağış ve terrain bağı.
       *Kapı:* HV-02. — C
 - [ ] **W4 Statik mesh örtüsü.** `surfaceCover` v2, `forge.material` `weather`,
@@ -1164,6 +1196,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-26 | v2.18 | Faz W W2 zamanlı hava geçişi (`f642867`): ön ayarlar pay olarak karışır, havayı okuyan her yer karışımı görür, Sky Light hız sınırında, yarım geçiş kayıttan sürer; SDK 0.1.17 `transitionWeather`. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-26 | v2.17 | Bitki planı PG5b adım 6 (`8710f0c`, v0.23): karışık orman (`stand`), genç ağaçlar, altı World Builder örtüsü; kullanıcı görsel kabulü. PG5b ve PG5 kapandı. |
 | 2026-11-25 | v2.16 | Faz W W1 kapandı (kullanıcı görsel kabulü). Sırada W2: zamanlı hava geçişi (yeni oturumda). |
 | 2026-11-25 | v2.15 | Faz W W0 kapandı (kullanıcı tasarım 9'un mekanizmasını onayladı); W1 yağış görseli (`49c76ce`): geç katman, yağmur / kar hacimleri, WES `precipitation` ayarları. Kullanıcı görsel kabulü bekleniyor; sırada W2. |

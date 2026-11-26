@@ -75,7 +75,8 @@ geliştirme sunucusunda ayrı bir Node worker'ından aynı CLI üreticisine gide
   ve [üretici planı](../planned/PROCEDURAL_VEGETATION_AND_PROPS_PLAN.md) geçerlidir.
   PG0–PG3 ve iki starter aile 5c'de kabul edildi. Tam araçlar 5d'de sürüyor.
 - **Hava sistemi (Faz W, sürüyor):** yağış geç katmanda çizilir
-  (`render/pipeline/lateLayer.ts`, AA'dan sonra); yağış siperi, ıslanma /
+  (`render/pipeline/lateLayer.ts`, AA'dan sonra); hava zamanlı geçer, ön ayarlar
+  pay olarak karışır (`engine/environment/weatherTransition.ts`); yağış siperi, ıslanma /
   kuruma, su birikintisi ve terrain kar yüksekliği planda; sözleşme rapor §4.9'da.
 - Level'da her şey bir aktördür: kalıcı GUID, transform, `parent`, şemalı
   bileşenler (aktör içinde yerel kimlikli, uzamsal olanlar hiyerarşili). Aktör
