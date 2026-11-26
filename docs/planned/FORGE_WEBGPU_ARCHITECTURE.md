@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.89 · 2026-11-26 — §4.9 hava sözleşmesi W2: zamanlı hava geçişi (ön ayar payları karışımı, Sky Light hız sınırı, A7), SDK 0.1.17.
+**Güncelleme:** v1.90 · 2026-11-26 — §4.9 hava sözleşmesi W2b: hava bulutları ve gökyüzünü sürer (WES `weatherSky`, kapalı gök, Sky Light).
+
+**Önceki güncelleme:** v1.89 · 2026-11-26 — §4.9 hava sözleşmesi W2: zamanlı hava geçişi (ön ayar payları karışımı, Sky Light hız sınırı, A7), SDK 0.1.17.
 
 **Önceki güncelleme:** v1.88 · 2026-11-26 — §4.4 foliage: Landscape kuralında meşcere (`stand`) ve boya kenarı (`edge`), aile prototipinde `young`.
 
@@ -2284,6 +2286,12 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     yol. Rüzgâr `liveWeatherFactors`, yağış `livePrecipitation` okur. Sky Light: `ResolvedEnvironment.weatherTransitioning`
     açıkken `captureKey` değişimi de 0,1 sn hız sınırındadır (`recaptureRate.ts` `gradual`), bitişte
     son hava hemen yakalanır. SDK 0.1.17 `transitionWeather`; `setWeather` geçişi bitirir.
+  - **W2b uygulaması (2026-11-26, kullanıcı kararı):** bulut ve gökyüzü tepkisi WES'in
+    `weatherSky` grubundadır (ön ayar başına örtü, opaklık, renk, gölge, kapalılık; pay başına
+    karışır, Clear level'ın görünümü). `ResolvedEnvironment` `cloudShade` ve `skyOvercast` taşır:
+    Cloud Layer kalın gövdeyi koyultup güneşe bakan kenarı aydınlatır; gökyüzü ve Sky Light'ın
+    yakalama gökyüzü kendi parlaklığında bulut rengine döner, canlı güneş diski söner. Hacimsel
+    bulut bu sözleşmenin dışında, Faz W'den sonra ayrı karar.
   - Tasarım, adımlar ve HV-01–13 [plan Faz W'de](FORGE_WEBGPU_REBUILD_PLAN.md).
 - *Terrain:* Faz 3'te salt çizim (spike S2'nin TSL CDLOD'u: yükseklik, 8
   katman, normal, gölge); su birikintisi, tile akışı ve üretim kalitesi 5a'da;

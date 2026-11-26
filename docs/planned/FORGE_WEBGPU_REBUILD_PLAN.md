@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.18 · 2026-11-26 — Faz W W2 zamanlı hava geçişi (`f642867`): ön ayarlar pay olarak karışır, havayı okuyan her yer karışımı görür, Sky Light hız sınırında, yarım geçiş kayıttan sürer; SDK 0.1.17 `transitionWeather`. Kullanıcı görsel kabulü bekleniyor.
+**Güncelleme:** v2.19 · 2026-11-26 — Faz W W2b (kullanıcı, 2026-11-26): hava bulutları ve gökyüzünü sürer (`5c38a84`): WES `weatherSky` (ön ayar başına örtü, opaklık, renk, gölge, gök kapalılığı), ışıklı bulut gövdesi, kapalı gök ve Sky Light. W2 ve W2b kullanıcı görsel kabulü bekliyor.
+
+**Önceki güncelleme:** v2.18 · 2026-11-26 — Faz W W2 zamanlı hava geçişi (`f642867`): ön ayarlar pay olarak karışır, havayı okuyan her yer karışımı görür, Sky Light hız sınırında, yarım geçiş kayıttan sürer; SDK 0.1.17 `transitionWeather`. Kullanıcı görsel kabulü bekleniyor.
 
 **Önceki güncelleme:** v2.17 · 2026-11-26 — Bitki planı PG5b adım 6 (`8710f0c`, v0.23): karışık orman (`stand`), genç ağaçlar, altı World Builder örtüsü; kullanıcı görsel kabulü. PG5b ve PG5 kapandı.
 
@@ -725,6 +727,24 @@ yüzeyiyle biter.
       (fark gürültü sınırında); render smoke'u (20 poz) referanslarla aynı.
       **Sınırlar:** geçiş süresince Sky Light yakalaması saniyede 10 kez ~4–6 ms GPU ekler (karar
       gereği 0,1 sn; daha seyrek istenirse tek sabit). Yüzey (ıslanma / kar) havaya bağlı değil (W5).
+- [ ] **W2b Hava → bulut ve gökyüzü** (kullanıcı, 2026-11-26; W2'nin kabulünde bulutların havayla
+      değişmediği görüldü). Cloud Layer'ı havaya tam bağlar; hacimsel bulut (seçenek B) Faz W'den sonra
+      ayrı karar. *Kapı:* HV-03, 10; açık havada görüntü aynı. — C
+      **Kod 2026-11-26 (`5c38a84`):** WES `weatherSky` (`@3`'e, sürüm artmadı): Cloudy / Rain / Snow / Fog
+      başına `cloudCoverage`, `cloudDensity` (en az bu değere çıkar), `cloudColor` + `cloudColorMix`,
+      `cloudShade`, `skyOvercast`; değerlere tam şiddette ulaşılır, pay başına karışır (W2 geçişi de),
+      Clear level'ın görünümüdür. Başlangıç değerleri `WEATHER_SKY_DEFAULTS` (şema aynısını tekrarlar,
+      test eşitliği tutar); ayar kullanıcıda. *Bulut:* gölge açıkken kalın gövde koyulaşır, güneşe bakan
+      ince kenar aydınlanır; 0'da düz renk. *Gökyüzü:* kapalılık gök rengini kendi parlaklığında bulut
+      rengine çevirir, ayı ve yıldızları örter, güneş diskini söndürür; Sky Light yakalaması aynı kapalı
+      gökyüzünü alır (bulut kubbesi yakalamaya çizilmez). Kapalılık `captureKey`'e girer: ayarı değişince
+      yeniden yakalanır. Yalnız uniform; hava değişince shader derlenmez.
+      **Ölçüm** (`2026-11-26T09-25-18-847Z-weather.json`, `…09-25-49-950Z-weather-transition.json`; R1,
+      gerçek WebGPU): Derekavak açık / yağmur / kar GPU 2,06 / 2,21 / 2,10 ms, L03 0,30 / 0,31 / 0,31 ms
+      (fark gürültüde; bulut gürültüsü renk ve opaklık için iki kez hesaplanır, ölçülebilir maliyet yok);
+      pipeline ve shader modülü +0; geçişler W2'deki gibi (101 yakalama / 10 sn). HV-10: WES yok / yalnız
+      açık hava Derekavak 2,26 / 2,30 ms, L03 0,28 / 0,28 ms. Render smoke'u (20 poz) eski referanslarla
+      aynı, yağış smoke'u ve editör `world.spec` gerçek WebGPU'da geçti.
 - [ ] **W3 Yağış siperi.** Harita, yenileme koşulları, yağış ve terrain bağı.
       *Kapı:* HV-02. — C
 - [ ] **W4 Statik mesh örtüsü.** `surfaceCover` v2, `forge.material` `weather`,
@@ -1196,6 +1216,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-26 | v2.19 | Faz W W2b (kullanıcı, 2026-11-26): hava bulutları ve gökyüzünü sürer (`5c38a84`): WES `weatherSky` (ön ayar başına örtü, opaklık, renk, gölge, gök kapalılığı), ışıklı bulut gövdesi, kapalı gök ve Sky Light. W2 ve W2b kullanıcı görsel kabulü bekliyor. |
 | 2026-11-26 | v2.18 | Faz W W2 zamanlı hava geçişi (`f642867`): ön ayarlar pay olarak karışır, havayı okuyan her yer karışımı görür, Sky Light hız sınırında, yarım geçiş kayıttan sürer; SDK 0.1.17 `transitionWeather`. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-26 | v2.17 | Bitki planı PG5b adım 6 (`8710f0c`, v0.23): karışık orman (`stand`), genç ağaçlar, altı World Builder örtüsü; kullanıcı görsel kabulü. PG5b ve PG5 kapandı. |
 | 2026-11-25 | v2.16 | Faz W W1 kapandı (kullanıcı görsel kabulü). Sırada W2: zamanlı hava geçişi (yeni oturumda). |
