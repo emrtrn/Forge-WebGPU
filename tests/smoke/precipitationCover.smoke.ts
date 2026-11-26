@@ -116,7 +116,7 @@ test("precipitation cover: no rain or snow under a roof, dry ground inside, rain
     await evaluate(page, (d) => { d.setLateVisible(true); return d.step(0); });
     return { amount: await difference(page, on, off), on };
   };
-  /** What a snowy, wet surface changes in the picture now (the shapes take none before phase W4). */
+  /** What a snowy, wet surface changes in the picture now (the hut's walls inside are sheltered too, phase W4). */
   const covered = async (): Promise<number> => {
     await evaluate(page, (d) => { d.setSurface({ snowCoverage: 0, wetness: 0 }); return d.step(0); });
     const dry = await shot(page);
@@ -164,7 +164,8 @@ test("precipitation cover: no rain or snow under a roof, dry ground inside, rain
   expect(results["inside snow"], "no snow under the roof").toBeLessThan(results["outside snow"]! * 0.05);
   expect(results["outside ground"], "the open ground turns white and wet").toBeGreaterThan(1);
   expect(results["inside ground"], "the ground inside stays as it is").toBeLessThan(results["outside ground"]! * 0.05);
-  expect(results["inside rain, hut removed"], "without the hut it rains there").toBeGreaterThan(0.1);
+  // Relative to the open rain: the same pose's absolute amount sits at 0.09 - 0.15 with the background (W4 check).
+  expect(results["inside rain, hut removed"], "without the hut it rains there").toBeGreaterThan(results["outside rain"]! * 0.3);
   expect(results["inside rain, hut back"], "the hut back keeps it out").toBeLessThan(results["outside rain"]! * 0.05);
   expect(errors).toEqual([]);
 });

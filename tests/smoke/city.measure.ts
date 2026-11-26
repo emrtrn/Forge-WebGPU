@@ -8,7 +8,22 @@ import { cityDraws, cityFrames, cityHeap, citySettle, cityWalk, requireCityGpu, 
 import { RENDER_REFS, SMOKE_VIEWPORT } from "./renderPaths.ts";
 import { git, isOptionalHlodMiss, openSmokeLevel } from "./smokePage.ts";
 
-const PROFILES = ["high", "ultra"] as const;
+const PROFILES = (process.env.FORGE_CITY_PROFILES ?? "high,ultra").split(",") as ("high" | "ultra")[];
+if (PROFILES.some(profile => profile !== "high" && profile !== "ultra")) throw new Error("FORGE_CITY_PROFILES must list high and / or ultra.");
+// Plan phase W4: `dry`, `wet` or `snow` adds a World Environment (hour 12) and sets its surface; absent: the level as it is.
+const SURFACES = { dry: { snowCoverage: 0, wetness: 0 }, wet: { snowCoverage: 0, wetness: 1 }, snow: { snowCoverage: 1, wetness: 0 } } as const;
+const surface = process.env.FORGE_CITY_SURFACE as keyof typeof SURFACES | undefined;
+if (surface !== undefined && !(surface in SURFACES)) throw new Error("FORGE_CITY_SURFACE must be dry, wet or snow.");
+const applySurface = async (page: import("@playwright/test").Page): Promise<void> => {
+  if (!surface) return;
+  await page.evaluate((state) => {
+    const dev = (window as unknown as { __forgeDev: { environmentState(): unknown; spawn(raw: unknown[]): string[]; setSurface(s: unknown): void } }).__forgeDev;
+    if (dev.environmentState() === null) {
+      dev.spawn([{ id: "act_ffffffffffffffffffffffffffffffa7", spatiallyLoaded: false, components: { environment: { type: "forge.worldEnvironment@3", hour: 12 } } }]);
+    }
+    dev.setSurface(state);
+  }, SURFACES[surface]);
+};
 const ALLOWED_PATHS = ["auto", "instanced", "gpu"] as const;
 const paths = (process.env.FORGE_CITY_PATHS ?? "auto").split(",");
 if (paths.some(path => !ALLOWED_PATHS.some(allowed => allowed === path)) || new Set(paths).size !== paths.length) {
@@ -49,6 +64,7 @@ test("city draw budget baseline", async ({ context, browser }, info) => {
         try {
           await openSmokeLevel(page, fixture.level, pose, startup(path), profile);
           const proof = await requireCityGpu(page, profile);
+          await applySurface(page);
           await citySettle(page);
           await cityFrames(page, WARM_FRAMES);
           const timing = await cityFrames(page, FRAMES);
@@ -93,6 +109,7 @@ test("city draw budget baseline", async ({ context, browser }, info) => {
         const [start, target] = fixture.walk;
         await openSmokeLevel(page, fixture.level, { id: "walk", position: start!, target: target! }, startup(path), profile);
         await requireCityGpu(page, profile);
+        await applySurface(page);
         const startSettleMs = await citySettle(page);
         const before = { ...await page.evaluate(() => window.__forgeDev.streaming()), jsHeap: await cityHeap(page) };
         const timing = await cityWalk(page, fixture.walk, WALK_SPEED);
@@ -119,5 +136,6 @@ test("city draw budget baseline", async ({ context, browser }, info) => {
     },
     warmFrames: WARM_FRAMES, frames: FRAMES, fixture, results, walks,
     ...(focus ? { focusedPoses: focus } : {}),
+    ...(surface ? { surface } : {}), profiles: PROFILES,
   }, null, 2) + "\n", { flag: "wx" });
 });

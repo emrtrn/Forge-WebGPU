@@ -35,6 +35,8 @@
 //   geometry takes `topColor` (`pow(normal.y, topSharpness)`, broken up by the
 //   same noise). One noise sample per pixel.
 // - Contributions (world mask, ...) last, in their fixed order.
+// - `weather` (plan phase W4) rides in `userData`: the world that draws the
+//   material weathers its own copy (surfaceWeather.ts).
 // `sway` (5c) and `terrainDetail` (5a) are drawn in their phases.
 
 import {
@@ -75,6 +77,7 @@ import {
   type Texture,
 } from "three/webgpu";
 import { applyContributions, type MaterialContributions } from "./contributions.ts";
+import { MATERIAL_WEATHER_KEY } from "./surfaceWeather.ts";
 import { triplanarProjection } from "./triplanar.ts";
 
 /** Authored emissive 1 -> 1000 (Forge WebGL's scale, matched by its bloom). */
@@ -144,6 +147,8 @@ export interface SurfaceMaterialData extends Omit<SurfaceLayerData, "baseColor">
     readonly top: number;
     readonly topSharpness: number;
   };
+  /** Absent in older data: the defaults. How the surface takes wetness and snow (plan phase W4, surfaceWeather.ts). */
+  readonly weather?: { readonly wetting: number; readonly porosity: number; readonly snowAccept: number; readonly puddleAccept: number };
 }
 
 /** Texture slots by field path (`baseColorTexture`, `layerBlend.layer1.normalTexture`, `layerBlend.maskTexture`). */
@@ -253,6 +258,8 @@ export function createSurfaceMaterial(
   };
   const material = data.materialType === "basic" ? new MeshBasicNodeMaterial(shared) : new MeshStandardNodeMaterial(shared);
   material.color = new Color(data.baseColor);
+  // The world's surface weather reads it when it weathers the material (plan phase W4).
+  if (data.weather) material.userData[MATERIAL_WEATHER_KEY] = { ...data.weather };
   if (baseMap && !triplanar) {
     bakeSources.set(material, { map: baseMap, tiling: data.uvTiling, flipV: data.flipY && (baseMap as Texture & { isCompressedTexture?: boolean }).isCompressedTexture !== true });
   }

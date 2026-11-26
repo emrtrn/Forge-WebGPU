@@ -83,5 +83,7 @@ export function applyContributions(material: NodeMaterial, contributions: Materi
     const covered = contributions.wetness.nodes(material.colorNode ?? TSL.materialColor, lit.roughnessNode ?? TSL.materialRoughness, baseNormal);
     material.colorNode = covered.color;
     lit.roughnessNode = covered.roughness;
+    // Plan phase W4: snow flattens an explicit fine normal toward the geometry (a material without one has none to flatten).
+    if (lit.normalNode) lit.normalNode = covered.normal(lit.normalNode);
   }
 }

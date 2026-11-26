@@ -28,6 +28,8 @@ import { createWorldResources, type JsonAssetSource, type ModelSource, type Worl
 import type { CameraViews, CoverViewSource, GpuDrivenBatches } from "../gpu/gpuDriven.ts";
 import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
 import { createPrecipitationCover, type PrecipitationCover } from "./precipitationCover.ts";
+import { createSurfaceWeather, type SurfaceWeather } from "../materials/surfaceWeather.ts";
+import { resolveWorldWind } from "../../engine/environment/worldWind.ts";
 import type { StaticPath } from "../triangles/staticPath.ts";
 import type { TriangleDrawing } from "../triangles/triangleDrawing.ts";
 import { createDefaultLighting } from "./defaultLighting.ts";
@@ -62,6 +64,8 @@ export interface RenderWorld {
   readonly late?: LateLayer;
   /** Where rain and snow are blocked (plan phase W3); the host draws it after the cull. */
   readonly cover?: PrecipitationCover;
+  /** Wetness and snow on its static surfaces (plan phase W4). */
+  readonly surfaceWeather?: SurfaceWeather;
 }
 
 export interface RenderFeatureOptions {
@@ -138,6 +142,8 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
         },
         possible: () => ctx.services.get(WorldEnvironmentKey)?.controller.current() != null,
       });
+      // Plan phase W4: every static surface of the world takes the wetness and snow, sheltered by the cover.
+      const surfaceWeather = createSurfaceWeather((position) => cover.coverAt(position));
       const resources = createWorldResources(options.cache, options.name, options.models, options.materials ?? null, options.terrains ?? null, options.textures ?? null, options.jsonAssets ?? null);
       const view: RenderWorldView = {
         services: ctx.services,
@@ -157,7 +163,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       const instances: RenderBindingInstance[] = bindings.map((binding) =>
         binding.create({
           world: view, scene, root, late, resources, lighting, environment: environment.environment, output,
-          capture: options.capture ?? null, quality: effectiveQuality, invalidateReadiness, precipitationCover: cover,
+          capture: options.capture ?? null, quality: effectiveQuality, invalidateReadiness, precipitationCover: cover, surfaceWeather,
           ...(options.prepare ? { prepare: (objects: readonly Object3D[], signal?: AbortSignal) => resources.track(options.prepare!(objects, scene, signal)) } : {}),
           ...(options.triangles ? { triangles: options.triangles } : {}),
           ...(options.staticPath ? { staticPath: options.staticPath } : {}),
@@ -174,7 +180,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
         isActorReady: (id) => readiness.every((instance) => instance.isActorReady!(id)),
       });
       const world: RenderWorld = {
-        name: options.name, scene, root, resources, output, late, cover,
+        name: options.name, scene, root, resources, output, late, cover, surfaceWeather,
         get shadowsEnabled() { return sceneShadowsEnabled(view); },
         levelSettings: () => ctx.services.get(LevelSettingsKey)?.current,
         zones,
@@ -223,13 +229,18 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
             zones.residency.update([cameraPosition.x, cameraPosition.y, cameraPosition.z]);
           }
           environment.update();
+          const weather = ctx.services.get(WorldEnvironmentKey);
+          const live = weather?.controller.current();
+          surfaceWeather.update(live && weather?.environment
+            ? { state: live.surface, settings: weather.environment.surface, wind: resolveWorldWind(view) }
+            : null);
           lighting.sync(frame.camera, effectiveQuality(), environment.environment.override);
           outputState.update(environment.environment.override, options.quality());
           for (const instance of instances) instance.sync?.(frame);
           const source = ctx.services.get(HlodSourceKey);
           if (hlod !== null && source?.revision !== hlodRevision) { hlod.dispose(); hlod = null; cover.invalidate(); }
           if (hlod === null) {
-            if (source) hlod = createHlodProxies(source, hlodRoot, (work) => resources.track(work));
+            if (source) hlod = createHlodProxies(source, hlodRoot, (work) => resources.track(work), surfaceWeather);
             hlodRevision = source?.revision;
           }
           hlod?.sync(frame.camera, ctx.services.get(LevelSettingsKey)?.current, options.viewDistanceMultiplier?.() ?? 1);
@@ -244,6 +255,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           resources.releaseAll();
           options.detach?.(world);
           late.dispose();
+          surfaceWeather.dispose();
           cover.dispose();
           root.clear();
           scene.clear();

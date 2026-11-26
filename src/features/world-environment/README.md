@@ -9,6 +9,10 @@ gökyüzünü, sisi ve bulutları kendi değerlerini değiştirmeden yeniden yor
   ayarların payları karışır, `engine/environment/weatherTransition.ts`). Kar / ıslaklık
   örtüsü, rüzgâr, havanın bulut ve gökyüzü tepkisi (`weatherSky`: ön ayar başına
   örtü, opaklık, renk, gölge, gök kapalılığı; plan W2b), canlı durum (su birikimi ve kar yüksekliği plan Faz W).
+  Islaklık ve kar bütün statik yüzeylere yüzün normaline göre düşer (plan W4,
+  `engine/environment/surfaceResponse.ts`): yukarı bakan tam, dikey
+  `surface.verticalWetting` (rüzgârın geldiği yan `windwardWetting` kadar fazla),
+  alta bakan kuru; yağış siperinin altı kuru ve karsız.
 - `runtime.ts`: tekili taşınmış `WorldEnvironmentController`'a yükler ve
   `WorldEnvironmentKey` servisiyle verir (`src/engine/environment`); oyun
   kodu aynı denetleyiciyi SDK'nın `WorldEnvironmentServiceKey`'iyle alır (saat,

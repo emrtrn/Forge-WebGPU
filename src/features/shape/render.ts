@@ -65,6 +65,8 @@ export default defineRenderBinding({
           ...(ctx.triangles ? { triangles: ctx.triangles, ...(ctx.staticPath ? { staticPath: ctx.staticPath } : {}) } : {}),
           // Plan phase W3: a shape blocks rain and snow.
           ...(ctx.precipitationCover ? { precipitationCover: true, coverChanged: () => ctx.precipitationCover!.invalidate() } : {}),
+          // Plan phase W4: it gets wet and snowy.
+          ...(ctx.surfaceWeather ? { weather: ctx.surfaceWeather } : {}),
         }),
         keys: [resourceKey.shape(primitive), shapeMaterialKey(SHAPE_BASE_COLOR, doubleSided)],
         disposed: false,

@@ -29,7 +29,9 @@
 // - Each mesh carries its instance -> actor table (pickTags.ts) for picking.
 //
 // Geometry and materials are the batch owner's (cache uses); the batch owns
-// only its instanced meshes and their buffers.
+// only its instanced meshes and their buffers. With the world's surface
+// weather (plan phase W4) a part draws that world's weathered copy of its
+// material (surfaceWeather.ts owns it), on the instanced and the LOD path.
 
 import { Box3, Color, InstancedBufferAttribute, InstancedMesh, Matrix4, Sphere, Vector3, type BufferGeometry, type Camera, type Material, type Object3D } from "three/webgpu";
 import type { ActorId, WorldActor, WorldActorChange } from "../../core/index.ts";
@@ -41,6 +43,7 @@ import type { LodPiece, TriangleBinding, TriangleDrawing } from "../triangles/tr
 import { lodParts, s12Candidate, type StaticPath } from "../triangles/staticPath.ts";
 import type { InstancedShadowCasters } from "./shadowCasterLayers.ts";
 import { markCover, setDrawLayer, ZONE_HIDDEN_LAYER, ZONE_SHADOW_LAYER, type ZoneMode } from "../gpu/gpuDrivenBatch.ts";
+import type { SurfaceWeather } from "../materials/surfaceWeather.ts";
 
 export interface InstancePart {
   readonly geometry: BufferGeometry;
@@ -94,6 +97,8 @@ export interface InstanceBatchOptions {
   /** Its meshes block rain and snow (plan phase W3: statics, shapes, roads); `coverChanged` hears every drawn change. */
   readonly precipitationCover?: boolean;
   readonly coverChanged?: () => void;
+  /** The world's wetness and snow (plan phase W4): its parts draw the weathered copies of their materials, on both paths. */
+  readonly weather?: SurfaceWeather;
 }
 
 const WHITE = new Color(1, 1, 1);
@@ -307,8 +312,9 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
           return casterFade?.material(detailed) ?? detailed;
         };
         meshes = parts.map((part, partIndex) => {
-          const material = lodOf[partIndex] ? part.material
-            : Array.isArray(part.material) ? part.material.map(materialOf) : materialOf(part.material);
+          const own = options.weather ? options.weather.materials(part.material) : part.material;
+          const material = lodOf[partIndex] ? own
+            : Array.isArray(own) ? own.map(materialOf) : materialOf(own);
           const mesh = new InstancedMesh(part.geometry, material, capacity);
           mesh.name = `${options.name}/${part.name}`;
           mesh.castShadow = options.castShadow;

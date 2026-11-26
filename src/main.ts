@@ -250,6 +250,18 @@ async function start(): Promise<void> {
         if (look) viewer.camera.lookAt(look[0], look[1], look[2]);
         viewer.camera.updateMatrixWorld();
       },
+      /** Plan phase W4: world points as page pixels (CSS) through the game camera; null behind it or off the canvas. */
+      project(points: readonly (readonly [number, number, number])[]) {
+        const canvas = viewer.host?.canvas;
+        if (!canvas) return points.map(() => null);
+        const rect = canvas.getBoundingClientRect();
+        viewer.camera.updateMatrixWorld();
+        return points.map(([x, y, z]) => {
+          const v = viewer.camera.position.clone().set(x, y, z).project(viewer.camera);
+          if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) return null;
+          return [rect.left + ((v.x + 1) / 2) * rect.width, rect.top + ((1 - v.y) / 2) * rect.height] as [number, number];
+        });
+      },
       /** One frame `ms` after the last: its CPU time, GPU time, Sky Light captures and hour. */
       async step(ms: number) {
         const before = viewer.host?.captures ?? { count: 0, cpuMs: 0 };

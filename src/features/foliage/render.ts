@@ -182,6 +182,7 @@ export default defineRenderBinding({
       batches = createFoliageBatches({
         gpuDriven: ctx.gpuDriven, resources: ctx.resources, parent: group,
         quality: { cullScale: ctx.quality().foliageCullDistanceScale, verticalFov: fovOf(camera) }, wind: plants.wind, plants,
+        ...(ctx.surfaceWeather ? { weather: ctx.surfaceWeather } : {}),
       });
       farBillboards = createFarBillboards({ gpuDriven: ctx.gpuDriven, resources: ctx.resources, parent: group, cullScale: ctx.quality().foliageCullDistanceScale, plants });
       // An atlas came in: the tints use its colour (sent at the next plan).

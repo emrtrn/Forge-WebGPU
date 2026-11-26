@@ -19,6 +19,7 @@
 // fields with neutral defaults (no new version), each with the step that
 // draws it.
 // W2b: `weatherSky`, how each weather changes the clouds and the sky.
+// W4: `surface.verticalWetting` / `windwardWetting`, how wet a standing face gets.
 // W2: a weather change saved mid-way (live `weatherFrom` / `weatherProgress` /
 // `weatherSeconds`) goes on from where it was.
 
@@ -82,6 +83,8 @@ export const WorldEnvironment = defineComponent(
       snowAltitudeEnabled: bool({ default: false, hint: "Kar örtüsünü en düşük dünya yüksekliğiyle sınırla." }),
       snowMinAltitude: num({ min: -100000, max: 100000, default: 0, step: 1, hint: "Kar örtüsünün başladığı dünya Y yüksekliği (metre)." }),
       snowAltitudeBlend: num({ min: 0, max: 10000, default: 20, step: 1, hint: "Yükseklik sınırının yumuşak geçişi (metre)." }),
+      verticalWetting: num({ min: 0, max: 1, default: .35, step: .01, hint: "Dikey yüzün ıslaklık payı: yukarı bakan yüz tam ıslanır, alta bakan kuru kalır." }),
+      windwardWetting: num({ min: 0, max: 1, default: .5, step: .01, hint: "Rüzgârın geldiği yandaki dikey yüzün ek payı (rüzgâr gücü 1'de)." }),
     }, { hint: "Başlangıç örtüsü ve hedefleri. Saat atlamak birikim süresi değildir; mevsim ve hava hedefleri kendiliğinden değiştirmez." }),
     wind: object({
       useLevelWind: bool({ default: true, label: "Use Level Wind", hint: "Level ayarlarındaki rüzgârı kullan. Kapalıyken aşağıdaki değerler geçerli; hava ve mevsim her iki durumda ölçekler." }),

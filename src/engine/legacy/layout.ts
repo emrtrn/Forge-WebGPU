@@ -109,6 +109,9 @@ export interface LayoutWorldEnvironment {
     /** World Y; null = no altitude limit. */
     snowMinAltitude?: number | null;
     snowAltitudeBlend?: number;
+    /** Plan phase W4: a standing face's share of the wetness, and the extra on the side the wind comes from. */
+    verticalWetting?: number;
+    windwardWetting?: number;
   };
   /** Faz 6 sway wind; absent falls back to `worldSettings.wind`. Weather and season scale it. */
   wind?: LayoutWind;

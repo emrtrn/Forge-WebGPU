@@ -19,5 +19,11 @@ Yüzey materyali: şemalı JSON asset türü (mimari §4.6, §4.9; Faz 3 karar 5
 - Çizim render katmanında (`src/render/materials/`): bir materyal GUID'i ve
   katkı imzasıyla bir node material olur (`material:<guid>:<imza>`).
   `sway` 5c'de, `terrainDetail` 5a'da çizilir.
+- `weather` (Faz W4, nötr varsayılanla; eski dosyalar olduğu gibi okunur):
+  ıslanma payı, gözeneklilik (sert yüzey ıslanınca parlar, gözenekli koyulaşır),
+  kar kabulü, birikinti kabulü (W6 çizer). Kural saf
+  `engine/environment/surfaceResponse.ts`'te; çizim dünyanın
+  `render/materials/surfaceWeather.ts`'i. Islanma ve kar kabulü 0 ise materyal
+  havaya hiç bağlanmaz.
 - Forge level'larının materyalleri içe aktarıcıyla gelir
   (`src/engine/forgeImport/forgeMaterial.ts`: Forge'un normalize'ı okuyucu).

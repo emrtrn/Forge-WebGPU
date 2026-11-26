@@ -62,6 +62,7 @@
 import { Box3, Vector3 } from "three/webgpu";
 import { parseComponentTypeTag, type ActorId, type WorldActor } from "../../core/index.ts";
 import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
+import { resolveWorldWind } from "../../engine/environment/worldWind.ts";
 import { tagSceneSource } from "../../engine/perf/sceneCost.ts";
 import { raycastTerrain, terrainFaceNormalAt, terrainSmoothNormalAt } from "../../engine/terrain/terrainHeightQuery.ts";
 import { createTerrainEditWorld } from "../../engine/terrain/terrainEdit.ts";
@@ -408,7 +409,7 @@ export default defineRenderBinding({
         const quality = ctx.quality();
         const runtime = ctx.world.services.get(WorldEnvironmentKey);
         const state = runtime?.controller.current();
-        const cover = state && runtime?.environment ? { state: state.surface, settings: runtime.environment.surface } : null;
+        const cover = state && runtime?.environment ? { state: state.surface, settings: runtime.environment.surface, wind: resolveWorldWind(ctx.world) } : null;
         const landscape = ctx.world.services.get(TerrainEditingKey)?.settings;
         for (const entry of placed.values()) {
           const { view, stream } = entry;

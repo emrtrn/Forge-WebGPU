@@ -41,6 +41,10 @@ export interface ResolvedWorldEnvironment {
     snowSlopeEndDeg: number;
     snowMinAltitude: number | null;
     snowAltitudeBlend: number;
+    /** Plan phase W4 (surfaceResponse.ts): a standing face's share of the wetness, 0..1. */
+    verticalWetting: number;
+    /** Plan phase W4: the extra share on the side the wind comes from, at wind strength 1, 0..1. */
+    windwardWetting: number;
   };
   /** Plan phase W2b: the clouds and the sky under each weather. */
   weatherSky: WeatherSkyResponses;
@@ -63,6 +67,8 @@ export const WORLD_ENVIRONMENT_DEFAULTS: ResolvedWorldEnvironment = {
     snowSlopeEndDeg: 55,
     snowMinAltitude: null,
     snowAltitudeBlend: 20,
+    verticalWetting: 0.35,
+    windwardWetting: 0.5,
   },
   weatherSky: WEATHER_SKY_DEFAULTS,
 };
@@ -220,6 +226,8 @@ export function normalizeWorldEnvironment(value: unknown): WorldEnvironmentNorma
     if (surface.snowMinAltitude === null) next.snowMinAltitude = null;
     else assign(next, "snowMinAltitude", num(surface.snowMinAltitude, "surface.snowMinAltitude", -100000, 100000));
     assign(next, "snowAltitudeBlend", num(surface.snowAltitudeBlend, "surface.snowAltitudeBlend", 0, 10000));
+    assign(next, "verticalWetting", num(surface.verticalWetting, "surface.verticalWetting", 0, 1));
+    assign(next, "windwardWetting", num(surface.windwardWetting, "surface.windwardWetting", 0, 1));
     if (Object.keys(next).length > 0) out.surface = next;
   }
 

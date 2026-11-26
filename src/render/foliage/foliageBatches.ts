@@ -29,6 +29,7 @@ import type { FoliageSway, FoliageWind } from "./foliageWind.ts";
 import type { PlantFamilyDraw, PlantWorld } from "../plant/plantDrawing.ts";
 import type { ImpostorRef } from "../plant/plantFamilies.ts";
 import { applyImpostor, impostorPart, isImpostor } from "../plant/impostorMaterial.ts";
+import type { SurfaceWeather } from "../materials/surfaceWeather.ts";
 import type { InstanceShading } from "../gpu/instanceShading.ts";
 
 /** Near LODs first, all before the ground (the sky is -1): what a near crown covers is not shaded again. */
@@ -93,6 +94,8 @@ export interface FoliageBatchesOptions {
   readonly wind?: FoliageWind;
   /** The world's plant drawing (family appearance); without it a family type draws unshaded. */
   readonly plants?: PlantWorld;
+  /** The world's wetness and snow (plan phase W4): a type without a plant family (a rock) takes it; a family keeps its own response. */
+  readonly weather?: SurfaceWeather;
 }
 
 interface Owned {
@@ -197,8 +200,11 @@ export function createFoliageBatches(options: FoliageBatchesOptions): FoliageBat
     const world = options.resources;
     const lodParts = (guid: string) => loadModelParts(world, guid, entry.keys);
     try {
-      const lods = await Promise.all([entry.type.mesh, ...entry.type.lods.map((lod) => lod.mesh)].map(lodParts));
+      const loaded = await Promise.all([entry.type.mesh, ...entry.type.lods.map((lod) => lod.mesh)].map(lodParts));
       if (entry.disposed) return;
+      // Plan phase W4: a type without a family (a rock) is a static surface; its impostor is not weathered.
+      const weather = entry.type.plant ? null : options.weather ?? null;
+      const lods = weather ? loaded.map((lod) => ({ ...lod, parts: lod.parts.map((part) => ({ ...part, material: weather.materials(part.material) })) })) : loaded;
       const sphere = lods[0]!.sphere;
       const impostor = entry.type.impostor;
       if (impostor && lods.length < MAX_BATCH_LODS) {

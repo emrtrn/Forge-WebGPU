@@ -18,6 +18,8 @@
 //   not the `vertexColors` flag: three's meshlet pipeline refuses materials
 //   with that flag (decision 10 keeps that path open). Proxies carry no
 //   normals (plan R8.0: they blocked simplification) and shade flat.
+//   They get wet and snowy as the statics they stand for (plan phase W4,
+//   HV-12): the world's surface weather draws its copy of the material.
 //
 // - Landmarks (plan 5c R8.4): the level's landmark proxy is read once and drawn
 //   as one mesh. Each vertex carries its placement's origin (`_center`); a
@@ -31,6 +33,7 @@
 // quality multiplier. Read it so proxies and real geometry share the range.
 
 import { Mesh, MeshStandardNodeMaterial, type BufferGeometry, type Camera, type Group } from "three/webgpu";
+import type { SurfaceWeather } from "../materials/surfaceWeather.ts";
 import { attribute, cameraPosition, max, positionLocal, select, uniform } from "three/tsl";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { distanceToWorldCell } from "../../core/grid/worldGrid.ts";
@@ -105,8 +108,10 @@ async function parseProxy(bytes: ArrayBuffer): Promise<BufferGeometry | null> {
   return geometry;
 }
 
-/** `track` counts a read toward readiness (the cache's `track`). */
-export function createHlodProxies(source: HlodSource, parent: Group, track: <T>(work: Promise<T>) => Promise<T> = (work) => work): HlodProxies {
+/** `track` counts a read toward readiness (the cache's `track`); `weather` wets and snows the proxies as the statics they stand for (plan phase W4, HV-12). */
+export function createHlodProxies(
+  source: HlodSource, parent: Group, track: <T>(work: Promise<T>) => Promise<T> = (work) => work, weather?: SurfaceWeather,
+): HlodProxies {
   const material = new MeshStandardNodeMaterial({ roughness: 1, metalness: 0, flatShading: true });
   material.colorNode = attribute<"vec3">("color", "vec3");
   // Landmarks: shown between the view distance and the landmark distance, pulled inside the far plane.
@@ -162,7 +167,7 @@ export function createHlodProxies(source: HlodSource, parent: Group, track: <T>(
           proxy.failed = true;
           return;
         }
-        const mesh = new Mesh(geometry, drawWith);
+        const mesh = new Mesh(geometry, weather ? weather.material(drawWith) : drawWith);
         // The landmark mesh's bounds reach past the far plane; its vertices are pulled in.
         if (drawWith === landmarkMaterial) mesh.frustumCulled = false;
         mesh.name = `HLOD ${proxy.file}`;

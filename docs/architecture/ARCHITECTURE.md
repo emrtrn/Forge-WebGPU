@@ -78,7 +78,10 @@ geliştirme sunucusunda ayrı bir Node worker'ından aynı CLI üreticisine gide
   (`render/pipeline/lateLayer.ts`, AA'dan sonra); hava zamanlı geçer, ön ayarlar
   pay olarak karışır (`engine/environment/weatherTransition.ts`), bulut ve gökyüzü
   havaya bağlıdır (WES `weatherSky`); yağış siperi yukarıdan iki kademeli derinlik
-  haritasıdır (`render/sync/precipitationCover.ts`; yağış ve terrain örtüsü okur); ıslanma /
+  haritasıdır (`render/sync/precipitationCover.ts`; yağış ve yüzey örtüsü okur); ıslaklık
+  ve kar terrain'le aynı kuralla bütün statik yüzeylere yüzün normaline göre düşer (saf
+  kural `engine/environment/surfaceResponse.ts`, çizim dünyanın
+  `render/materials/surfaceWeather.ts`'i, tepki `forge.material` `weather`); yağışla ıslanma /
   kuruma, su birikintisi ve terrain kar yüksekliği planda; sözleşme rapor §4.9'da.
 - Level'da her şey bir aktördür: kalıcı GUID, transform, `parent`, şemalı
   bileşenler (aktör içinde yerel kimlikli, uzamsal olanlar hiyerarşili). Aktör
