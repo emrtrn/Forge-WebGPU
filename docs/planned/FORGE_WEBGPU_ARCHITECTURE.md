@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.95 · 2026-11-26 — §4.9 SSR roughness + Fresnel ağırlığıyla ve ortam yansımasının yerine (MRT `specular`, Post Process `ssr`); hava sözleşmesi W5 sonrası: ıslaklık üç kademe (koyulaşma, ıslak yama, ayna birikinti; yalnız düz zeminde), `forge.puddle` `followWeather` (kullanıcı kararları).
+**Güncelleme:** v1.96 · 2026-11-26 — §4.9 hava sözleşmesi W6: yağmur halkaları (ortak düğüm, CPU ikizi; sıklık anlık yağmurla, uzakta ve siper altında yok, simülasyon saati) birikintide ve `forge.puddle` suyunda; materyal birikintisinde rüzgâr tepeleri; `puddleAccept` çizilir; render dünyasının tek yüzey girdisi.
+
+**Önceki güncelleme:** v1.95 · 2026-11-26 — §4.9 SSR roughness + Fresnel ağırlığıyla ve ortam yansımasının yerine (MRT `specular`, Post Process `ssr`); hava sözleşmesi W5 sonrası: ıslaklık üç kademe (koyulaşma, ıslak yama, ayna birikinti; yalnız düz zeminde), `forge.puddle` `followWeather` (kullanıcı kararları).
 
 **Önceki güncelleme:** v1.94 · 2026-11-26 — §4.9 hava sözleşmesi W5 inceltmesi: yamalı kar, yamaların yayılma sınırı (`wetSpread`, `snowSpread`) ve boyu (`patchSize`).
 
@@ -2371,6 +2373,18 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     Landscape > Paint'te etkin katmanın Weather'ı (`TerrainLayerWeatherFields`), tek Undo. Fizik profilinin
     canlı olması W8. *Editör:* önizleme dört büyüklüğü gösterir, `Simulate` seçili süreyi dört saniyede oynatır;
     kaydedilmez, Undo'ya girmez.
+  - **W6 uygulaması (2026-11-26):** *yağmur halkaları* ortak düğümdür (TSL `render/materials/waterRipples.ts`, saf
+    kural ve CPU ikizi `engine/environment/rainRipples.ts`): hücre karmalı üç katman, katman başına tek hücre (halka
+    hücresinden taşmaz). Sıklık `surface.rippleDensity` × canlı yağmur (`livePrecipitation`, geçiş karışımı dahil);
+    yağmur bitince halka durur, su kalır. Uzaklıkla ve piksel izine göre söner; saat render dünyasının simülasyon
+    saniyesidir (pause durdurur). Materyal birikintisinde (`factors.w`), ıslak yamada hafif ve `forge.puddle` suyunda
+    çizilir; siper ve düzlük maskeleri `factors`'tan, `forge.puddle`'da `coverAt`'ten. Materyal birikintisi
+    `forge.puddle`'ın prosedürel rüzgâr tepelerini de alır (`windRippleStrength`). Ayarlar WES `surface`'te
+    (`rippleStrength`, `rippleSize`, `rippleDensity`, `windRippleStrength`; `@3`). `forge.material`
+    `weather.puddleAccept` yama, birikinti ve halkayı çarpar. Render dünyası yüzey girdisini (durum, ayarlar,
+    rüzgâr, yağmur, saat) bir kez kurar (`SurfaceWeather.input`); terrain ve `forge.puddle` onu okur. Statik
+    yüzeylerde normal her ağırlanan materyalde bağlanır. Yalnız uniform: hava ve ayar değişimi shader derlemez;
+    birikintisiz piksel yalnız maskeyi karşılaştırır.
   - Tasarım, adımlar ve HV-01–13 [plan Faz W'de](FORGE_WEBGPU_REBUILD_PLAN.md).
 - *Terrain:* Faz 3'te salt çizim (spike S2'nin TSL CDLOD'u: yükseklik, 8
   katman, normal, gölge); su birikintisi, tile akışı ve üretim kalitesi 5a'da;
