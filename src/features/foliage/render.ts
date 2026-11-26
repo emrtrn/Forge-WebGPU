@@ -57,8 +57,10 @@ import { defineRenderBinding } from "../../render/sync/renderBinding.ts";
 import { terrainSurface } from "../../render/sync/terrainSurfaces.ts";
 import { FoliageTypeAssetType, LandscapeFoliage, type FoliageTypeData, type LandscapeFoliageData } from "./schema.ts";
 
-/** Ring cells built per frame once a placement is ready (Forge: one, with a worker). */
+/** Ring cells built per frame once a placement is ready (Forge: one, with a worker); more within CELLS_FRAME_MS. */
 const CELLS_PER_FRAME = 2;
+/** Main-thread time per frame for building more finished ring cells than CELLS_PER_FRAME, ms. */
+const CELLS_FRAME_MS = 3;
 /**
  * The ring is planned again when the camera moved this far (m), when cells are pending or the quality
  * changed, and at least every REPLAN_FRAMES frames (tiles that streamed in). Forge planned every frame; the
@@ -393,6 +395,8 @@ export default defineRenderBinding({
           farBillboards?.setQuality(quality.foliageCullDistanceScale);
         }
         const center: [number, number] = [cameraPosition.x, cameraPosition.z];
+        const cellsUntil = performance.now() + CELLS_FRAME_MS;
+        const moreCells = (): boolean => performance.now() < cellsUntil;
         syncPainted(target, center);
         for (const entry of placed.values()) {
           const surface = terrainSurface(ctx.scene, entry.actor);
@@ -415,7 +419,7 @@ export default defineRenderBinding({
           const due = !plan || entry.filling || entry.ring.snapshot().pending > 0 || plan.quality !== qualityKey
             || plan.frames >= REPLAN_FRAMES || Math.hypot(center[0] - plan.x, center[1] - plan.z) >= REPLAN_DISTANCE;
           if (due) {
-            entry.ring.update(center, quality.foliageCullDistanceScale, quality.grassDensity, entry.filling ? Infinity : CELLS_PER_FRAME);
+            entry.ring.update(center, quality.foliageCullDistanceScale, quality.grassDensity, entry.filling ? Infinity : CELLS_PER_FRAME, moreCells);
             entry.far?.update(center, quality.foliageCullDistanceScale, quality.grassDensity, entry.filling ? Infinity : FAR_BLOCKS_PER_PLAN);
             entry.planned = { x: center[0], z: center[1], quality: qualityKey, frames: 0 };
           } else {

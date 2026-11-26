@@ -111,12 +111,16 @@ export class FoliageRing {
     }
   }
 
-  /** Plans the rings, requests new cells and builds at most `budget` finished ones. */
-  update(center: readonly [number, number], cullScale: number, density: number, budget = 1): void {
+  /**
+   * Plans the rings, requests new cells and builds `budget` finished ones, then more while `more` says so
+   * (the caller's time budget: a slow frame must not slow the ring down to a few cells a second, and cells
+   * built in one frame grow a batch once instead of once a frame).
+   */
+  update(center: readonly [number, number], cullScale: number, density: number, budget = 1, more?: () => boolean): void {
     if (this.disposed) return;
     this.syncTiles();
     this.plan(center, cullScale, density, this.options.maxInFlight ?? 8);
-    this.apply(budget);
+    this.apply(budget, more);
   }
 
   /** Generates and builds every cell in range with resident tiles at once. */
@@ -215,9 +219,9 @@ export class FoliageRing {
     }
   }
 
-  private apply(budget: number): void {
+  private apply(budget: number, more?: () => boolean): void {
     let applied = 0;
-    while (applied < budget && this.ready.length > 0) {
+    while (this.ready.length > 0 && (applied < budget || (more?.() ?? false))) {
       const result = this.ready.shift()!;
       const state = this.rules[result.rule]!;
       // Unloaded or re-requested since: drop this answer.

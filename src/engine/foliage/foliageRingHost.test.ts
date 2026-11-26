@@ -188,6 +188,23 @@ test("moving across bands rebuilds at the new keep fraction within budget and un
   assert.deepEqual(ring.snapshot(), { cells: 0, instances: 0, pending: 0 });
 });
 
+test("update builds its budget first, then more finished cells while the caller's time lasts", async () => {
+  const { terrain } = makeTerrain();
+  const generator = new RecordingGenerator();
+  const sink = new RecordingSink();
+  const ring = new FoliageRing({ rules: [makeRule(terrain)], sink, generator });
+  await ring.prepare(CENTER, 1, 1);
+  const moved = [80, 16] as const;
+  ring.update(moved, 1, 1, 0);
+  await waitForJobs();
+  let asked = 0;
+  ring.update(moved, 1, 1, 1, () => asked++ < 1);
+  assert.equal(sink.sets.length, 5);
+  assert.equal(ring.snapshot().pending, 1);
+  ring.update(moved, 1, 1, 0, () => false);
+  assert.equal(sink.sets.length, 5);
+});
+
 test("update respects the in-flight cap and prepare applies replies in completion order", async () => {
   const { terrain } = makeTerrain();
   const generator = new RecordingGenerator();

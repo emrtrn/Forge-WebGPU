@@ -56,6 +56,12 @@
 //   per frame is uniforms and GPU buffers.
 // - The instance buffers growing replaces the compute nodes, materials and
 //   meshes (`GpuInstances.generation`); nothing else does.
+// - Nothing batch-specific is a shader constant: the capacity and the draw
+//   and LOD counts are uniforms, and the compute nodes carry no name (three
+//   writes a node's name into the WGSL as a comment). three keys programs by
+//   their WGSL text and Dawn its pipelines by their descriptor, so batches of
+//   one source material share them and a growth rebuild compiles nothing new
+//   (World Builder forests compiled ~600 pipelines on first view before).
 // - WebGPU only: the WebGL2 test backend has no compute atomics or indirect
 //   draws; there `gpuDriven.ts` builds the CPU twin (`cpuDrivenBatch.ts`).
 
@@ -369,6 +375,9 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
   const bounds = uniform(new Vector4(...options.bounds.center, options.bounds.radius));
   const fade = uniform(new Vector2(NO_CULL_DISTANCE * 0.5, NO_CULL_DISTANCE));
   const fadeSpread = uniform(0);
+  const capacityNode = uniform(instances.capacity, "uint");
+  const lodCountNode = uniform(lodCount, "uint");
+  const drawsNode = uniform(draws.length, "uint");
   const scaled = options.distanceMode === "scaled";
   let distances: GpuBatchDistances = { fadeStart: NO_CULL_DISTANCE, cullEnd: NO_CULL_DISTANCE, lodStarts: [] };
 
@@ -432,9 +441,8 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
 
     const counters = storage(view.counters, "uint", lodCount).toAtomic();
     const reset = Fn(() => {
-      If(instanceIndex.lessThan(uint(lodCount)), () => { atomicStore(counters.element(instanceIndex), uint(0)); });
+      If(instanceIndex.lessThan(lodCountNode), () => { atomicStore(counters.element(instanceIndex), uint(0)); });
     })().compute(lodCount, [WORKGROUP]);
-    reset.name = `${label} reset`;
 
     const visibleWrite = storage(visibleBuffer, "uint", capacity * lodCount);
     const matrixCull = storage(instances.matrixBuffer, "mat4", capacity).toReadOnly();
@@ -468,20 +476,18 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         for (let k = 0; k < lodCount - 1; k += 1) lod = lod.add(select(distanceVar.greaterThanEqual([starts.x, starts.y, starts.z][k]!), uint(1), uint(0)));
         const lodVar = lod.toVar();
         const slot = atomicAdd(counters.element(lodVar), uint(1)).toVar();
-        visibleWrite.element(lodVar.mul(uint(capacity)).add(slot)).assign(instanceIndex);
+        visibleWrite.element(lodVar.mul(capacityNode).add(slot)).assign(instanceIndex);
       });
     })().compute(capacity, [WORKGROUP]);
-    cull.name = `${label} cull`;
 
     const countersRead = storage(view.counters, "uint", lodCount).toReadOnly();
     const drawLod = storage(drawLodBuffer, "uint", draws.length).toReadOnly();
     const args = storage(view.args, "uint", draws.length * ARGS);
     const writeArgs = Fn(() => {
-      If(instanceIndex.lessThan(uint(draws.length)), () => {
+      If(instanceIndex.lessThan(drawsNode), () => {
         args.element(instanceIndex.mul(uint(ARGS)).add(uint(1))).assign(countersRead.element(drawLod.element(instanceIndex)));
       });
     })().compute(draws.length, [WORKGROUP]);
-    writeArgs.name = `${label} args`;
     view.dispatches = [reset, cull, writeArgs];
 
     const sources = new Map<string, NodeMaterial>();
@@ -491,7 +497,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       if (!material) {
         material = cloneNodeMaterial(renderer, draw.material, options.name);
         // The vertex's instance: its LOD's visible list at instance_index; the fragment reads it flat.
-        const slot = varying(visibleRead.element(uint(draw.lod * capacity).add(instanceIndex)), "vForgeGpuInstance");
+        const slot = varying(visibleRead.element(uint(draw.lod).mul(capacityNode).add(instanceIndex)), "vForgeGpuInstance");
         const instanceMatrix = matrixRead.element(slot);
         const world = instanceMatrix.mul(uniform(draw.part.local.clone()));
         if (options.instanceShading) {
@@ -596,6 +602,8 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       }
       instances.flush();
       count.value = instances.count;
+      // Every view drawn this frame is (re)built below for this capacity; the others are hidden.
+      capacityNode.value = instances.capacity;
       const accepted = list.filter((view) => view.role !== "shadow" || options.castShadow !== false).slice(0, maxViews);
       const next = accepted.length;
       if (next !== prepared) bundleDirty = true;

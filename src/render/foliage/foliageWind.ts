@@ -14,7 +14,8 @@
 //   fast and small. A mesh without the attribute falls back to `height`.
 //
 // Wind and time are uniforms shared by every batch of a world: a wind change
-// never rebuilds a program.
+// never rebuilds a program. A type's sway and fade end are uniforms too, so
+// types of one material share their programs (three keys them by WGSL text).
 
 import { attribute, cos, distance, dot, float, Fn, sin, smoothstep, uniform, vec2, vec3 } from "three/tsl";
 import { Vector2, Vector3, type Node } from "three/webgpu";
@@ -37,6 +38,15 @@ export interface FoliageWind {
 
 const TAU = 6.2831853;
 
+/** One type's sway as shader inputs: uniforms, not constants (the program is shared). */
+interface SwayNodes {
+  readonly amplitude: Node<"float">;
+  readonly height: Node<"float">;
+  readonly frequency: Node<"float">;
+  /** Null: never fades. */
+  readonly fadeEnd: Node<"float"> | null;
+}
+
 export function createFoliageWind(): FoliageWind {
   const time = uniform(0);
   const direction = uniform(new Vector2(0, 1));
@@ -44,32 +54,32 @@ export function createFoliageWind(): FoliageWind {
   const gust = uniform(0);
   const viewOrigin = uniform(new Vector3());
 
-  const common = (instance: InstanceShadingNodes, sway: FoliageSway, fadeEnd: number) => {
-    const fade = fadeEnd > 0 ? float(1).sub(smoothstep(fadeEnd * 0.75, fadeEnd, distance(instance.origin, viewOrigin))) : float(1);
+  const common = (instance: InstanceShadingNodes, sway: SwayNodes) => {
+    const fade = sway.fadeEnd ? float(1).sub(smoothstep(sway.fadeEnd.mul(0.75), sway.fadeEnd, distance(instance.origin, viewOrigin))) : float(1);
     const phase = dot(instance.origin.xz, vec2(0.37, 0.23));
     const wave = float(0.5).add(sin(dot(instance.origin.xz, direction).mul(0.08).sub(time.mul(1.3))).mul(0.5));
     const gusting = gust.mul(wave).mul(wave);
-    const flutter = sin(time.mul(TAU * sway.frequency).add(phase));
+    const flutter = sin(time.mul(sway.frequency.mul(TAU)).add(phase));
     const downwind = vec3(direction.x, 0, direction.y);
     return { fade, phase, gusting, flutter, downwind };
   };
 
-  const heightOffset = (instance: InstanceShadingNodes, sway: FoliageSway, fadeEnd: number): Node<"vec3"> => {
-    const { fade, gusting, flutter, downwind } = common(instance, sway, fadeEnd);
-    const mask = instance.template.y.div(Math.max(sway.height, 1e-4)).clamp(0, 1);
-    const amount = float(sway.amplitude).mul(strength).mul(mask.mul(mask)).mul(fade).mul(float(0.6).add(flutter.mul(0.4)).add(gusting));
+  const heightOffset = (instance: InstanceShadingNodes, sway: SwayNodes): Node<"vec3"> => {
+    const { fade, gusting, flutter, downwind } = common(instance, sway);
+    const mask = instance.template.y.div(sway.height).clamp(0, 1);
+    const amount = sway.amplitude.mul(strength).mul(mask.mul(mask)).mul(fade).mul(float(0.6).add(flutter.mul(0.4)).add(gusting));
     return downwind.mul(amount);
   };
 
-  const vertexOffset = (instance: InstanceShadingNodes, sway: FoliageSway, fadeEnd: number): Node<"vec3"> => {
-    const { fade, gusting, flutter, downwind } = common(instance, sway, fadeEnd);
+  const vertexOffset = (instance: InstanceShadingNodes, sway: SwayNodes): Node<"vec3"> => {
+    const { fade, gusting, flutter, downwind } = common(instance, sway);
     const weights = attribute("_wind", "vec4");
-    const scale = float(sway.amplitude).mul(strength).mul(fade);
+    const scale = sway.amplitude.mul(strength).mul(fade);
     const lean = weights.x.mul(float(0.6).add(flutter.mul(0.4)).add(gusting));
-    const branchPhase = time.mul(TAU * sway.frequency * 1.7).add(weights.z.mul(TAU));
+    const branchPhase = time.mul(sway.frequency.mul(TAU * 1.7)).add(weights.z.mul(TAU));
     const branch = weights.y.mul(sin(branchPhase)).mul(float(0.5).add(gusting));
     // Leaves: a small fast flutter, partly vertical, its own phase.
-    const leafPhase = time.mul(TAU * sway.frequency * 4.3).add(weights.z.mul(TAU * 3));
+    const leafPhase = time.mul(sway.frequency.mul(TAU * 4.3)).add(weights.z.mul(TAU * 3));
     const leaf = weights.w.mul(0.08).mul(strength).mul(fade);
     return downwind.mul(scale.mul(lean.add(branch))).add(vec3(cos(leafPhase), sin(leafPhase.mul(1.3)), sin(leafPhase)).mul(leaf));
   };
@@ -83,13 +93,17 @@ export function createFoliageWind(): FoliageWind {
       viewOrigin.value.set(view.x, view.y, view.z);
     },
     shading(sway, fadeEnd, scale) {
+      const nodes: SwayNodes = {
+        amplitude: uniform(sway.amplitude), height: uniform(Math.max(sway.height, 1e-4)), frequency: uniform(sway.frequency),
+        fadeEnd: fadeEnd > 0 ? uniform(fadeEnd) : null,
+      };
       return (_material, instance) => {
         if (sway.amplitude <= 0) return;
         const worldOffset = sway.source === "vertex"
           // The geometry's attributes are part of the program key: branch per geometry.
           ? Fn((builder) => ((builder as unknown as { geometry?: { getAttribute(name: string): unknown } }).geometry?.getAttribute("_wind")
-            ? vertexOffset(instance, sway, fadeEnd) : heightOffset(instance, sway, fadeEnd)))() as unknown as Node<"vec3">
-          : heightOffset(instance, sway, fadeEnd);
+            ? vertexOffset(instance, nodes) : heightOffset(instance, nodes)))() as unknown as Node<"vec3">
+          : heightOffset(instance, nodes);
         return { worldOffset: scale ? worldOffset.mul(scale) : worldOffset };
       };
     },
