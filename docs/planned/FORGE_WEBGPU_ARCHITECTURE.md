@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.93 · 2026-11-26 — §4.9 hava sözleşmesi W5: hava bağı (`weatherDrivesSurface`, yüzey modeli canlı yağışla), yamalı kuruma, terrain katmanının `weather`'ı.
+**Güncelleme:** v1.94 · 2026-11-26 — §4.9 hava sözleşmesi W5 inceltmesi: yamalı kar, yamaların yayılma sınırı (`wetSpread`, `snowSpread`) ve boyu (`patchSize`).
+
+**Önceki güncelleme:** v1.93 · 2026-11-26 — §4.9 hava sözleşmesi W5: hava bağı (`weatherDrivesSurface`, yüzey modeli canlı yağışla), yamalı kuruma, terrain katmanının `weather`'ı.
 
 **Önceki güncelleme:** v1.92 · 2026-11-26 — §4.9 hava sözleşmesi W4: statik yüzey örtüsü (normal payı, dünyanın yüzey havası, diffuse sonrası kanca, `forge.material` `weather`).
 
@@ -2333,7 +2335,14 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     `patchyWetness` / `dryingLateness`, TSL `surfaceCover.ts` aynı formül): bir nokta seviyenin ıslaklığını ve
     birikmiş suyunu ne kadar geç kuruduğuyla görür; geç kuruyan yerler dünya gürültüsü (iki oktav) ve oyuklardır
     (statikte materyalin AO'su, terrain'de tile normallerinin ıraksaması; uzak haritada yok). Uçlarda (0 / 1)
-    görünüm W4'le aynı. Yalnız uniform; hava değişimi shader derlemez. *Terrain katmanı:* veri belgesindeki
+    görünüm W4'le aynı. Yalnız uniform; hava değişimi shader derlemez. *Yayılma sınırı ve yamalı kar*
+    (W5 inceltmesi): kar da aynı desenden (`patchySnow`, aynı gürültü ve oyuk sırası; gürültü pikselde bir
+    kez) önce oyuklarda tutar, parça parça erir. Görünümün girdisi canlı büyüklük × `surface.wetSpread`
+    (ıslaklık ve birikinti) / `snowSpread` (kar), 0–1, varsayılan 1: yamalar o orana kadar yayılır, canlı
+    durum, hızlar ve yüzey modeli değişmez (birikme `wetness === 1` ister). `patchSize` (0,25–4) gürültünün
+    iki katmanını (6 m, 1,7 m) birlikte ölçekler. Üçü 1'de uçlarda görünüm aynı; ara kar artık yamalı (hava
+    bağı kapalı level'larda da). Eğim, yükseklik, siper ve materyal payları üstüne çarpılır; bitki aileleri
+    kendi tepkisinde. Ayar değişimi yalnız uniform yazar. *Terrain katmanı:* veri belgesindeki
     katmanın `weather`'ı (`wetting`, `porosity`, `snowAccept`, `wetPhysicalMaterial`; yalnız yazılan alanlar,
     `engine/environment/layerWeather.ts` çözer: boşsa fizik materyalinin varsayılanı, `mud` kar almaz);
     terrain örtüsü katman ağırlıklarıyla karışmış tepkiyle çizilir (katman başına bir uniform). Details:
