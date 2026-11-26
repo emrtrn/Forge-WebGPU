@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.20 · 2026-11-26 — Faz W W2 ve W2b kapandı (kullanıcı görsel kabulü). Sırada W3: yağış siperi.
+**Güncelleme:** v2.21 · 2026-11-26 — Faz W W3 yağış siperi (`41247b8`): iki kademeli yukarıdan derinlik haritası (statik, şekil, yol, HLOD), GPU güdümlü culling'de `cover` görünümü; çatı altında yağış, terrain'de kar / ıslaklık yok. Kullanıcı görsel kabulü bekleniyor.
+
+**Önceki güncelleme:** v2.20 · 2026-11-26 — Faz W W2 ve W2b kapandı (kullanıcı görsel kabulü). Sırada W3: yağış siperi.
 
 **Önceki güncelleme:** v2.19 · 2026-11-26 — Faz W W2b (kullanıcı, 2026-11-26): hava bulutları ve gökyüzünü sürer (`5c38a84`): WES `weatherSky` (ön ayar başına örtü, opaklık, renk, gölge, gök kapalılığı), ışıklı bulut gövdesi, kapalı gök ve Sky Light. W2 ve W2b kullanıcı görsel kabulü bekliyor.
 
@@ -751,6 +753,36 @@ yüzeyiyle biter.
       **Görsel kabul:** kullanıcı, 2026-11-26.
 - [ ] **W3 Yağış siperi.** Harita, yenileme koşulları, yağış ve terrain bağı.
       *Kapı:* HV-02. — C
+      **Kod 2026-11-26 (`41247b8`):** saf yarı `engine/environment/precipitationCover.ts` (Codex):
+      kademeler 64 m / 256 m, 1024², merkez texel'e oturur; kamera kenarın 1/8'i kadar kayınca ya da
+      100 m inip çıkınca yeniden yerleşir; dilim kameranın 500 m üstünden 300 m altına; kenarın %15'inde
+      yakın kademe uzağa devreder, uzak kademe söner; yüzeyin 25 cm altı tam örtülü. CPU referans
+      örnekleyici shader'la aynı formül. Çizim `render/sync/precipitationCover.ts`: dünyanın sahnesi
+      yukarıdan ortografik kamerayla, gölge geçişi malzemesiyle (three her materyalin örnek konumunu
+      korur), iki yüz, derinlik dokusuna. Çizilenler: statik / şekil / yol batch'leri ve HLOD proxy'leri
+      (CPU mesh'lerde `COVER_LAYER`, katman değişiminde korunur) ve GPU güdümlü batch'lerin `cover`
+      görünümü (gölge görünümü gibi çizilir, yalnız `precipitationCover` batch'leri alır; bitki ve
+      terrain girmez). Gelip giden görünüm, batch'in aynı rol ve katmanda kurulmuş yuvasını yeniden
+      kullanır (`reuseView`): yansıma ya da siper açılıp kapanınca görünüm yeniden kurulmaz. Ne zaman:
+      yalnız yağış ya da ıslak / karlı yüzey varken, kamera kademeyi aşınca ya da içerik değişince
+      (aktör ekleme / silme / değişme, hazırlanan batch, HLOD; saniyede en çok dört); duran karede 0.
+      Yağış yokken içerik değişince saniyede en çok bir kez önden çizilir (kimse okumaz): ilk damla
+      pipeline derlemez (`compileAsync` bazı nesnelerin gölge malzemesi pipeline'ını ilk çizime
+      bırakıyordu). Tüketiciler: yağış tanesi vertex aşamasında siperin altında söner, tamamen
+      örtülüyse çizilmez; terrain örtüsünde kar ve ıslaklık siper altında yok. Statik mesh örtüsü W4,
+      birikinti W6, kar yüksekliği W7 aynı `coverAt`'i okur.
+      **Kanıt:** `precipitationCover.smoke.ts` (gerçek WebGPU, Derekavak'ta dev kancasıyla kapılı kulübe):
+      içeride yağmur / kar 0,000 (dışarıda 0,19–0,22), içeride zemin farkı 0,000 (dışarıda 9,86), kapıda
+      dışarısı yağar; kulübe kaldırılınca aynı yerde yağmur 0,11–0,17, geri gelince 0. Çekimler
+      `render-refs/candidates/cover-*.png`. Yağış smoke'u beş yolda ilk damla pipeline +0. Ölçüm
+      (`2026-11-26T10-27-47-819Z-weather-cover.json`; R1, 60 Hz adımlı, kamera 30 m/sn yürür): 240
+      karede 17 kademe çizimi; çizen kare GPU'su Derekavak 4,36 / diğer 4,14 ms, L03 0,31 / 0,36 ms
+      (bütçe 1,0 ms; fark gürültü düzeyinde); duran karede çizim 0. Hava durumları ve geçişler
+      (`…10-27-00-040Z-weather.json`, `…10-27-32-009Z-weather-transition.json`) W2b'deki gibi, pipeline +0.
+      **Sınırlar:** akışla gelen hücre testi gerçek hücre döngüsüyle değil aktör ekleme / silmeyle
+      yapıldı (aynı yol: `actorsAdded` / `actorsRemoved`); HLOD proxy'sinin uzaklıkla görünürlük
+      değişimi siperi tazelemez (bir sonraki yerleşimde gelir); WebGL2'de satır yönü çevrilir, ayrıca
+      sınanmadı; statik mesh'in kendisi henüz ıslanmaz / karlanmaz (W4).
 - [ ] **W4 Statik mesh örtüsü.** `surfaceCover` v2, `forge.material` `weather`,
       bütün statik yollar + HLOD, dikey ıslanma. *Kapı:* HV-04, 12; statik ölçüm. — C
 - [ ] **W5 Yağışla ıslanma, karlanma, kuruma.** Yüzey durumu modeli (W0'da) + hava
@@ -1220,6 +1252,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-26 | v2.21 | Faz W W3 yağış siperi (`41247b8`): iki kademeli yukarıdan derinlik haritası (statik, şekil, yol, HLOD), GPU güdümlü culling'de `cover` görünümü; çatı altında yağış, terrain'de kar / ıslaklık yok. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-26 | v2.20 | Faz W W2 ve W2b kapandı (kullanıcı görsel kabulü). Sırada W3: yağış siperi. |
 | 2026-11-26 | v2.19 | Faz W W2b (kullanıcı, 2026-11-26): hava bulutları ve gökyüzünü sürer (`5c38a84`): WES `weatherSky` (ön ayar başına örtü, opaklık, renk, gölge, gök kapalılığı), ışıklı bulut gövdesi, kapalı gök ve Sky Light. W2 ve W2b kullanıcı görsel kabulü bekliyor. |
 | 2026-11-26 | v2.18 | Faz W W2 zamanlı hava geçişi (`f642867`): ön ayarlar pay olarak karışır, havayı okuyan her yer karışımı görür, Sky Light hız sınırında, yarım geçiş kayıttan sürer; SDK 0.1.17 `transitionWeather`. Kullanıcı görsel kabulü bekleniyor. |

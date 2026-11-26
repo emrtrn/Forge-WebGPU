@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.90 · 2026-11-26 — §4.9 hava sözleşmesi W2b: hava bulutları ve gökyüzünü sürer (WES `weatherSky`, kapalı gök, Sky Light).
+**Güncelleme:** v1.91 · 2026-11-26 — §4.9 hava sözleşmesi W3: yağış siperi (iki kademe, gölge geçişi malzemesi, GPU güdümlü `cover` görünümü, `COVER_LAYER`).
+
+**Önceki güncelleme:** v1.90 · 2026-11-26 — §4.9 hava sözleşmesi W2b: hava bulutları ve gökyüzünü sürer (WES `weatherSky`, kapalı gök, Sky Light).
 
 **Önceki güncelleme:** v1.89 · 2026-11-26 — §4.9 hava sözleşmesi W2: zamanlı hava geçişi (ön ayar payları karışımı, Sky Light hız sınırı, A7), SDK 0.1.17.
 
@@ -2292,6 +2294,18 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     Cloud Layer kalın gövdeyi koyultup güneşe bakan kenarı aydınlatır; gökyüzü ve Sky Light'ın
     yakalama gökyüzü kendi parlaklığında bulut rengine döner, canlı güneş diski söner. Hacimsel
     bulut bu sözleşmenin dışında, Faz W'den sonra ayrı karar.
+  - **W3 uygulaması (2026-11-26):** yağış siperi render dünyasının parçasıdır
+    (`RenderWorld.cover`, `render/sync/precipitationCover.ts`; bağlamalara
+    `ctx.precipitationCover`: `coverAt(position)` TSL ve `invalidate()`). Host onu GPU güdümlü
+    culling'den sonra, karenin çiziminden önce çizer. Yukarıdan ortografik kamera, sahne gölge
+    geçişi malzemesiyle (`isShadowPassMaterial`, iki yüz) derinliğe çizilir. Siper olanlar CPU
+    mesh'lerde `COVER_LAYER` ile (statik / şekil / yol batch'i, HLOD), GPU güdümlü batch'lerde
+    `cover` rolüyle (gölge görünümü gibi, yalnız `precipitationCover` seçenekli batch'ler) seçilir;
+    katman düzeni `gpuDrivenBatch.ts`'te (cover görünümleri 26–27, `COVER_LAYER` 28). Batch'ler
+    gelip giden görünümün yuvasını rol + katmanla yeniden kullanır. Yalnız yağış / ıslak / karlı
+    yüzeyde, kamera kademeyi aşınca ya da içerik değişince çizilir; yağış yokken içerik değişimi
+    önden çizilir (ilk damla derlemez). Saf yerleşim ve CPU referansı
+    `engine/environment/precipitationCover.ts`.
   - Tasarım, adımlar ve HV-01–13 [plan Faz W'de](FORGE_WEBGPU_REBUILD_PLAN.md).
 - *Terrain:* Faz 3'te salt çizim (spike S2'nin TSL CDLOD'u: yükseklik, 8
   katman, normal, gölge); su birikintisi, tile akışı ve üretim kalitesi 5a'da;
