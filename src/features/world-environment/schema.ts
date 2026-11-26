@@ -18,6 +18,7 @@
 // and snow depth. Version 3 stays open while phase W runs: its steps add
 // fields with neutral defaults (no new version), each with the step that
 // draws it.
+// W2b: `weatherSky`, how each weather changes the clouds and the sky.
 // W2: a weather change saved mid-way (live `weatherFrom` / `weatherProgress` /
 // `weatherSeconds`) goes on from where it was.
 
@@ -38,6 +39,20 @@ const weatherFields = () => ({
   preset: enumOf(WEATHER_PRESETS, { default: "clear" }),
   intensity: num({ min: 0, max: 1, default: 1 }),
 });
+
+/**
+ * How one weather changes the clouds and the sky (plan phase W2b). The
+ * defaults repeat engine/environment/weatherPresets.ts WEATHER_SKY_DEFAULTS
+ * (a schema imports only core; a test keeps them equal).
+ */
+const skyResponse = (name: string, d: { cloudCoverage: number; cloudDensity: number; cloudColor: string; cloudColorMix: number; cloudShade: number; skyOvercast: number }) => object({
+  cloudCoverage: num({ min: 0, max: 1, default: d.cloudCoverage, step: 0.05, hint: "Bulut örtüsü en az bu orana çıkar (0–1). 0 level'ınkini bırakır." }),
+  cloudDensity: num({ min: 0, max: 1, default: d.cloudDensity, step: 0.05, hint: "Bulut opaklığı en az bu değere çıkar (0–1). 0 level'ınkini bırakır." }),
+  cloudColor: color({ default: d.cloudColor, hint: "Bu havada bulutların rengi; kapalı gökyüzü de bu renge döner." }),
+  cloudColorMix: num({ min: 0, max: 1, default: d.cloudColorMix, step: 0.05, hint: "Bulut renginin bu renge ne kadar döndüğü (0 level'ın rengi)." }),
+  cloudShade: num({ min: 0, max: 1, default: d.cloudShade, step: 0.05, hint: "Kalın bulut gövdeleri koyulaşır, güneşe bakan kenarlar aydınlanır. 0 düz renk." }),
+  skyOvercast: num({ min: 0, max: 1, default: d.skyOvercast, step: 0.05, hint: "Gökyüzü kendi parlaklığında bulut rengine döner, güneş diski söner; Sky Light da bu gökyüzünü yakalar." }),
+}, { hint: `${name} havasında bulutlar ve gökyüzü.` });
 
 export const WorldEnvironment = defineComponent(
   "forge.worldEnvironment",
@@ -114,6 +129,15 @@ export const WorldEnvironment = defineComponent(
         ),
       },
       { hint: "Yağışın görünüşü. Ne kadar yağdığını hava (Weather) belirler." },
+    ),
+    weatherSky: object(
+      {
+        cloudy: skyResponse("Cloudy", { cloudCoverage: 0.7, cloudDensity: 0.7, cloudColor: "#c6ccd3", cloudColorMix: 0.5, cloudShade: 0.35, skyOvercast: 0.35 }),
+        rain: skyResponse("Rain", { cloudCoverage: 0.9, cloudDensity: 0.9, cloudColor: "#7f8791", cloudColorMix: 0.85, cloudShade: 0.55, skyOvercast: 0.75 }),
+        snow: skyResponse("Snow", { cloudCoverage: 0.9, cloudDensity: 0.85, cloudColor: "#c9cfd7", cloudColorMix: 0.7, cloudShade: 0.3, skyOvercast: 0.65 }),
+        fog: skyResponse("Fog", { cloudCoverage: 0, cloudDensity: 0, cloudColor: "#b9c0c8", cloudColorMix: 0, cloudShade: 0, skyOvercast: 0.5 }),
+      },
+      { label: "Weather Sky", hint: "Her havanın bulutlara ve gökyüzüne etkisi. Değerlere hava tam şiddetteyken ulaşılır; Clear level'ın kendi görünümüdür. Cloud Layer yoksa bulut değişmez." },
     ),
     sunPath: object(
       {

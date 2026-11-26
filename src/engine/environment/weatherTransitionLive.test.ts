@@ -164,6 +164,28 @@ describe("weather transition: every reader sees the mix", () => {
     expect(windHalf.strength).toBeCloseTo(0.5 * (1 + 0.7 * 0.5), 9);
   });
 
+  test("W2b: the weather drives the clouds' opacity, colour and shading and the sky's overcast; clear leaves them", () => {
+    const at = (preset: (typeof WEATHER_PRESETS)[number], intensity = 1) => resolveAt({ ...stateFromDefaults(env), weather: { preset, intensity } });
+    const clear = at("clear");
+    expect(clear.cloud).toMatchObject({ coverage: cloud.coverage, density: cloud.density });
+    expect(clear.cloudShade).toBe(0);
+    expect(clear.skyOvercast).toEqual({ amount: 0, tint: [1, 1, 1] });
+    const rain = at("rain");
+    const response = env.weatherSky.rain;
+    expect(rain.cloud!.coverage).toBeCloseTo(response.cloudCoverage, 12);
+    expect(rain.cloud!.density).toBeCloseTo(response.cloudDensity, 12);
+    expect(rain.cloud!.color).not.toBe(clear.cloud!.color);
+    expect(rain.cloudShade).toBeCloseTo(response.cloudShade, 12);
+    expect(rain.skyOvercast.amount).toBeCloseTo(response.skyOvercast, 12);
+    expect(rain.captureKey).not.toBe(at("rain", 1).captureKey.replace(/:o.*$/, ""));
+    // Half the weather is half the way; an authored response wins over the defaults.
+    expect(at("rain", 0.5).skyOvercast.amount).toBeCloseTo(response.skyOvercast * 0.5, 12);
+    const tuned = resolveWorldEnvironment(normalizeWorldEnvironment({ weatherSky: { rain: { skyOvercast: 0.2, cloudColor: "#FF0000" }, fog: { cloudShade: 2 } } }).environment);
+    expect(tuned.weatherSky.rain).toMatchObject({ skyOvercast: 0.2, cloudColor: "#ff0000", cloudDensity: response.cloudDensity });
+    expect(tuned.weatherSky.fog.cloudShade).toBe(1);
+    expect(resolveEnvironment(authored, tuned, { ...stateFromDefaults(tuned), weather: { preset: "rain", intensity: 1 } }).skyOvercast).toEqual({ amount: 0.2, tint: [1, 0, 0] });
+  });
+
   test("the Sky Light: a gradual key waits the interval, the resting weather captures at once", () => {
     const request = { sunDirection: [0, 1, 0] as [number, number, number], sunElevationDeg: 90, captureKey: "mix:0,0.1,0,0:summer" };
     const last = { ...request, captureKey: "mix:0,0.09,0,0:summer" };

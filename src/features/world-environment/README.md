@@ -7,7 +7,8 @@ gökyüzünü, sisi ve bulutları kendi değerlerini değiştirmeden yeniden yor
   `weather`, `sunPath`, `night` (Forge'un alan biçimi ve aralıkları). Sürekli
   gün döngüsü yok (karar 8); saat, mevsim ve hava zamanlı geçer (hava: ön
   ayarların payları karışır, `engine/environment/weatherTransition.ts`). Kar / ıslaklık
-  örtüsü, rüzgâr, canlı durum (su birikimi ve kar yüksekliği plan Faz W).
+  örtüsü, rüzgâr, havanın bulut ve gökyüzü tepkisi (`weatherSky`: ön ayar başına
+  örtü, opaklık, renk, gölge, gök kapalılığı; plan W2b), canlı durum (su birikimi ve kar yüksekliği plan Faz W).
 - `runtime.ts`: tekili taşınmış `WorldEnvironmentController`'a yükler ve
   `WorldEnvironmentKey` servisiyle verir (`src/engine/environment`); oyun
   kodu aynı denetleyiciyi SDK'nın `WorldEnvironmentServiceKey`'iyle alır (saat,

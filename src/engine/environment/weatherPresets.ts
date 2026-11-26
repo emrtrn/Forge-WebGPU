@@ -96,6 +96,36 @@ export function liveWeatherFactors(state: WeatherStateLike): WeatherFactors {
   return weatherTransitionRunning(state) ? mixedWeatherFactors(liveWeatherMix(state)) : weatherFactors(state.weather.preset, state.weather.intensity);
 }
 
+/**
+ * How one preset changes the clouds and the sky (plan phase W2b), authored on
+ * the World Environment (`weatherSky`). Each value is reached at full share
+ * and blended from the authored look by the preset's share, so clear (no
+ * share) keeps the level as it is.
+ */
+export interface WeatherSkyResponse {
+  /** Cloud coverage is raised to at least this (0 leaves it). */
+  cloudCoverage: number;
+  /** Cloud opacity is raised to at least this (0 leaves it). */
+  cloudDensity: number;
+  /** The clouds' colour under this weather (`#rrggbb`), mixed in by `cloudColorMix`. */
+  cloudColor: string;
+  cloudColorMix: number;
+  /** Thick cloud cores darken, edges toward the sun brighten (0 flat, as authored). */
+  cloudShade: number;
+  /** The sky turns toward its own brightness in the cloud colour: an overcast sky; also the Sky Light's. */
+  skyOvercast: number;
+}
+
+export type WeatherSkyResponses = Record<Exclude<WeatherPreset, "clear">, WeatherSkyResponse>;
+
+/** Starting values (the user tunes them in the editor); the schema repeats them (features/world-environment/schema.ts). */
+export const WEATHER_SKY_DEFAULTS: Readonly<WeatherSkyResponses> = {
+  cloudy: { cloudCoverage: 0.7, cloudDensity: 0.7, cloudColor: "#c6ccd3", cloudColorMix: 0.5, cloudShade: 0.35, skyOvercast: 0.35 },
+  rain: { cloudCoverage: 0.9, cloudDensity: 0.9, cloudColor: "#7f8791", cloudColorMix: 0.85, cloudShade: 0.55, skyOvercast: 0.75 },
+  snow: { cloudCoverage: 0.9, cloudDensity: 0.85, cloudColor: "#c9cfd7", cloudColorMix: 0.7, cloudShade: 0.3, skyOvercast: 0.65 },
+  fog: { cloudCoverage: 0, cloudDensity: 0, cloudColor: "#b9c0c8", cloudColorMix: 0, cloudShade: 0, skyOvercast: 0.5 },
+};
+
 /** Whether a preset needs a Cloud Layer / Height Fog / Sky Atmosphere actor to show (§7.2). */
 export function weatherPresetRequirements(preset: WeatherPreset): Array<"cloudLayer" | "heightFog" | "skyAtmosphere"> {
   const factors = WEATHER_PRESET_TABLE[preset];

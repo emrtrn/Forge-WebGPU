@@ -12,6 +12,10 @@
 //   Derivatives are taken outside every branch (WGSL uniformity).
 // - The Sky Light capture uses its own plain sky: no moon, no stars, no sun
 //   disc (its HDR core overflowed the half-float cube faces in Forge).
+// - Overcast (plan phase W2b, World Environment weather): both skies turn
+//   toward the atmosphere's own luminance in the cloud colour, covering the
+//   moon and the stars, and the live sun disc fades. Uniforms only; at 0 the
+//   sky is as before.
 
 import {
   abs,
@@ -214,6 +218,30 @@ function starsNode(u: StarUniforms, direction: V3, skyColor: V3): V3 {
   return skyColor.add(select(on, star, vec3(0))) as V3;
 }
 
+// --- Overcast (plan phase W2b) -----------------------------------------------
+
+export interface OvercastUniforms {
+  readonly amount: UniformNode<"float">;
+  /** sRGB 0..1 tint of the overcast sky. */
+  readonly tint: UniformNode<"vec3">;
+}
+
+function overcastUniforms(): OvercastUniforms {
+  return { amount: uniform(0), tint: uniform(new Vector3(1, 1, 1)) };
+}
+
+/** `color` turned toward the atmosphere's luminance in the tint, by the amount. */
+function overcastNode(u: OvercastUniforms, atmosphere: V3, color: V3): V3 {
+  const luminance = dot(atmosphere, vec3(0.2126, 0.7152, 0.0722));
+  return mix(color, (u.tint as unknown as V3).mul(luminance), u.amount) as V3;
+}
+
+function setOvercast(u: OvercastUniforms, overcast: ResolvedEnvironment["skyOvercast"] | null | undefined): void {
+  u.amount.value = overcast?.amount ?? 0;
+  if (overcast) u.tint.value.set(...overcast.tint);
+  else u.tint.value.set(1, 1, 1);
+}
+
 // --- The live sky ----------------------------------------------------------
 
 export interface SkyDome {
@@ -222,6 +250,8 @@ export interface SkyDome {
   apply(scattering: SkyScattering, sunDirection: Vector3): void;
   /** The World Environment's moon and stars; null hides them. */
   applyNight(environment: ResolvedEnvironment | null): void;
+  /** The World Environment's overcast (plan phase W2b); null is a clear sky. */
+  applyOvercast(overcast: ResolvedEnvironment["skyOvercast"] | null): void;
   /** The dome's radiance against the scene (the sky's exposure under a Post Process; 1 otherwise). */
   setRadiance(radiance: number): void;
   /** Keeps the dome around the camera. */
@@ -249,14 +279,17 @@ export function createSkyDome(): SkyDome {
     moonBrightness: uniform(0),
   };
   const radiance = uniform(1);
+  const overcast = overcastUniforms();
   // Diagnostics and tests read the night uniforms and the radiance here.
   mesh.userData.night = { moon, stars };
+  mesh.userData.overcast = overcast;
   mesh.userData.radiance = radiance;
   const atmosphere = mesh.material.colorNode as unknown as Node<"vec4">;
   mesh.material.colorNode = Fn(() => {
     const direction = normalize(positionWorld.sub(cameraPosition)).toVar() as unknown as V3;
-    const starred = starsNode(stars, direction, atmosphere.xyz as unknown as V3);
-    return vec4(moonNode(moon, direction, starred).mul(radiance), 1);
+    const sky = atmosphere.xyz.toVar() as unknown as V3;
+    const starred = starsNode(stars, direction, sky);
+    return vec4(overcastNode(overcast, sky, moonNode(moon, direction, starred)).mul(radiance), 1);
   })();
   return {
     mesh,
@@ -278,6 +311,11 @@ export function createSkyDome(): SkyDome {
       stars.moonBrightness.value = m?.brightness ?? 0;
       if (m) stars.moonDirection.value.set(...m.direction);
     },
+    applyOvercast(value) {
+      setOvercast(overcast, value);
+      // The sun shows through thin cloud only.
+      mesh.showSunDisc.value = 1 - (value?.amount ?? 0);
+    },
     setRadiance(value) {
       radiance.value = value;
     },
@@ -296,6 +334,8 @@ export interface CaptureSky {
   /** The capture scene: the plain sky at the origin. */
   readonly scene: Scene;
   apply(scattering: SkyScattering, sunDirection: Vector3): void;
+  /** The overcast the next capture takes (plan phase W2b); null is a clear sky. */
+  applyOvercast(overcast: ResolvedEnvironment["skyOvercast"] | null): void;
   dispose(): void;
 }
 
@@ -303,11 +343,18 @@ export function createCaptureSky(): CaptureSky {
   const mesh = plainSky();
   mesh.name = "sky-light-capture";
   mesh.showSunDisc.value = 0;
+  const overcast = overcastUniforms();
+  const atmosphere = mesh.material.colorNode as unknown as Node<"vec4">;
+  mesh.material.colorNode = Fn(() => {
+    const sky = atmosphere.xyz.toVar() as unknown as V3;
+    return vec4(overcastNode(overcast, sky, sky), 1);
+  })();
   const scene = new Scene();
   scene.add(mesh);
   return {
     scene,
     apply: (scattering, sunDirection) => applyScattering(mesh, scattering, sunDirection),
+    applyOvercast: (value) => setOvercast(overcast, value),
     dispose() {
       mesh.geometry.dispose();
       mesh.material.dispose();

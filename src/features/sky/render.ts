@@ -109,6 +109,7 @@ export default defineRenderBinding({
         }
         dome.apply(scattering, sun);
         dome.applyNight(override);
+        dome.applyOvercast(override?.skyOvercast ?? null);
         dome.setRadiance(ctx.output.skyRadiance);
         if (frame.camera) dome.follow(frame.camera.position);
 
@@ -136,6 +137,8 @@ export default defineRenderBinding({
         if (recapture) {
           captureSky ??= createCaptureSky();
           captureSky.apply(scattering, sun);
+          // An overcast sky lights the scene grey (plan phase W2b).
+          captureSky.applyOvercast(override?.skyOvercast ?? null);
           // Into the same map: a new texture would rebuild every material that samples it.
           if (captured) captured.recapture(captureSky.scene);
           else captured = ctx.capture.capture(captureSky.scene, SKY_LIGHT_CAPTURE_SIZE);

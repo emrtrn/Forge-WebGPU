@@ -5,6 +5,7 @@ import {
 } from "../../core/index.ts";
 import { WorldEnvironmentController } from "../../engine/environment/worldEnvironmentController.ts";
 import { SURFACE_RATES } from "../../engine/environment/surfaceAccumulation.ts";
+import { WEATHER_SKY_DEFAULTS } from "../../engine/environment/weatherPresets.ts";
 import { WorldEnvironmentKey, WorldEnvironmentServiceKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
 import { resolveWorldWind } from "../../engine/environment/worldWind.ts";
 import { assembleLevel } from "../../runtime/assembler.ts";
@@ -72,6 +73,8 @@ describe("WES simulation cover, PV-WES-06/07", () => {
     if (component.class !== null) throw new Error("plain actor");
     expect(component.components.environment).toMatchObject({ type: "forge.worldEnvironment@3", hour: 7,
       surface: { snowCoverage: 0, wetness: 0, ...SURFACE_RATES }, wind: { useLevelWind: true } });
+    // W2b: the schema repeats the engine's weather sky defaults.
+    expect((component.components.environment as { weatherSky?: unknown }).weatherSky).toEqual(WEATHER_SKY_DEFAULTS);
   });
 
   test("v2 levels and v2 saves migrate: no authored change, the new live amounts start at zero", () => {

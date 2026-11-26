@@ -4,6 +4,7 @@
 // schema components (each subsystem binds to the world with its feature) and
 // deletes src/engine/legacy. Kept inside src/engine (engine-legacy-stays-in-engine).
 import type { LayoutWind } from "../environment/wind.ts";
+import type { WeatherSkyResponse } from "../environment/weatherPresets.ts";
 import type { CollisionEnabled, CollisionObjectChannel, CollisionPresetId, CollisionResponseMap, NavigationRole } from "../physics/collision.ts";
 
 export type Vec3 = [number, number, number];
@@ -111,6 +112,8 @@ export interface LayoutWorldEnvironment {
   };
   /** Faz 6 sway wind; absent falls back to `worldSettings.wind`. Weather and season scale it. */
   wind?: LayoutWind;
+  /** Plan phase W2b: how each weather changes the clouds and the sky; absent fields take the defaults. */
+  weatherSky?: Partial<Record<"cloudy" | "rain" | "snow" | "fog", Partial<WeatherSkyResponse>>>;
 }
 
 /**

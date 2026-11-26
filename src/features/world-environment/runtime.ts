@@ -30,6 +30,7 @@ export function forgeWorldEnvironment(data: WorldEnvironmentData) {
       snowMinAltitude: data.surface.snowAltitudeEnabled ? data.surface.snowMinAltitude : null,
       snowAltitudeBlend: data.surface.snowAltitudeBlend,
     },
+    weatherSky: { cloudy: { ...data.weatherSky.cloudy }, rain: { ...data.weatherSky.rain }, snow: { ...data.weatherSky.snow }, fog: { ...data.weatherSky.fog } },
     ...(!data.wind.useLevelWind ? { wind: { directionDeg: data.wind.directionDeg, strength: data.wind.strength, gust: data.wind.gust } } : {}),
   };
 }

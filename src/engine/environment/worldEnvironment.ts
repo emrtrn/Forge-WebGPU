@@ -1,5 +1,6 @@
 // Ported from Forge WebGL engine/environment/worldEnvironment.ts @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
 import type { LayoutWorldEnvironment } from "../legacy/layout.ts";
+import { WEATHER_SKY_DEFAULTS, type WeatherSkyResponses } from "./weatherPresets.ts";
 import { normalizeLayoutWind } from "./wind.ts";
 
 /**
@@ -41,6 +42,8 @@ export interface ResolvedWorldEnvironment {
     snowMinAltitude: number | null;
     snowAltitudeBlend: number;
   };
+  /** Plan phase W2b: the clouds and the sky under each weather. */
+  weatherSky: WeatherSkyResponses;
 }
 
 export const WORLD_ENVIRONMENT_DEFAULTS: ResolvedWorldEnvironment = {
@@ -61,6 +64,7 @@ export const WORLD_ENVIRONMENT_DEFAULTS: ResolvedWorldEnvironment = {
     snowMinAltitude: null,
     snowAltitudeBlend: 20,
   },
+  weatherSky: WEATHER_SKY_DEFAULTS,
 };
 
 /** Fills every field with its default; `null`/`undefined` reads all defaults. */
@@ -78,6 +82,12 @@ export function resolveWorldEnvironment(
     season: a.season ?? d.season,
     weather: { ...d.weather, ...a.weather },
     surface: { ...d.surface, ...a.surface },
+    weatherSky: {
+      cloudy: { ...d.weatherSky.cloudy, ...a.weatherSky?.cloudy },
+      rain: { ...d.weatherSky.rain, ...a.weatherSky?.rain },
+      snow: { ...d.weatherSky.snow, ...a.weatherSky?.snow },
+      fog: { ...d.weatherSky.fog, ...a.weatherSky?.fog },
+    },
   };
 }
 
@@ -211,6 +221,26 @@ export function normalizeWorldEnvironment(value: unknown): WorldEnvironmentNorma
     else assign(next, "snowMinAltitude", num(surface.snowMinAltitude, "surface.snowMinAltitude", -100000, 100000));
     assign(next, "snowAltitudeBlend", num(surface.snowAltitudeBlend, "surface.snowAltitudeBlend", 0, 10000));
     if (Object.keys(next).length > 0) out.surface = next;
+  }
+
+  const weatherSky = group("weatherSky");
+  if (weatherSky) {
+    const next: NonNullable<LayoutWorldEnvironment["weatherSky"]> = {};
+    for (const preset of ["cloudy", "rain", "snow", "fog"] as const) {
+      const raw = weatherSky[preset];
+      if (raw === undefined) continue;
+      if (!isRecord(raw)) {
+        warnings.push(`worldEnvironment.weatherSky.${preset} must be an object; using the defaults`);
+        continue;
+      }
+      const entry: NonNullable<NonNullable<LayoutWorldEnvironment["weatherSky"]>["rain"]> = {};
+      for (const key of ["cloudCoverage", "cloudDensity", "cloudColorMix", "cloudShade", "skyOvercast"] as const) {
+        assign(entry, key, num(raw[key], `weatherSky.${preset}.${key}`, 0, 1));
+      }
+      assign(entry, "cloudColor", color(raw.cloudColor, `weatherSky.${preset}.cloudColor`));
+      if (Object.keys(entry).length > 0) next[preset] = entry;
+    }
+    if (Object.keys(next).length > 0) out.weatherSky = next;
   }
 
   // Not default-filled by resolveWorldEnvironment: an absent group falls back

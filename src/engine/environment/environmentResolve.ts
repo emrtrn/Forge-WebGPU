@@ -5,7 +5,7 @@ import type { Vec3 } from "../legacy/layout.ts";
 import type { SurfaceCondition } from "./surfaceCondition.ts";
 import { evaluateSunLight, hexToLinear, lerp, smoothstep, TWILIGHT_DEG } from "./sunPath.ts";
 import { mixedWeatherFactors, WEATHER_PRESET_TABLE, weatherFactors } from "./weatherPresets.ts";
-import { liveWeatherMix, WEATHER_SHARES, weatherTransitionRunning, type WeatherMix } from "./weatherTransition.ts";
+import { liveWeatherMix, WEATHER_SHARES, weatherMixOf, weatherTransitionRunning, type WeatherMix } from "./weatherTransition.ts";
 import type { ResolvedWorldEnvironment, Season, WeatherPreset } from "./worldEnvironment.ts";
 
 /**
@@ -74,6 +74,14 @@ export interface ResolvedEnvironment {
   fog: ResolvedHeightFog | null;
   /** The cloud layer to render in place of the authored one; null when there is none. */
   cloud: ResolvedCloudLayer | null;
+  /** Plan phase W2b: thick cloud cores darken and edges toward the sun brighten (0: flat, as authored). */
+  cloudShade: number;
+  /**
+   * Plan phase W2b: the sky turns toward its own brightness in `tint` (sRGB
+   * 0..1) by `amount`, and the sun disc fades: an overcast sky, also in the
+   * Sky Light capture. 0 with clear weather.
+   */
+  skyOvercast: { amount: number; tint: Vec3 };
   /** Multiplier of the tone-mapping exposure (night eye adaptation). */
   exposureMultiplier: number;
   season: Season;
@@ -113,6 +121,12 @@ export function resolveEnvironment(
   // A running transition mixes the presets; without one, the preset's factors as they always were.
   const mix = weatherTransitionRunning(state) ? liveWeatherMix(state) : null;
   const weather = mix ? mixedWeatherFactors(mix) : weatherFactors(state.weather.preset, state.weather.intensity);
+  // The clouds and the sky read the authored response per share (one share is one preset).
+  const shares = mix ?? weatherMixOf(state.weather);
+  const responses = WEATHER_SHARES.flatMap((preset) => {
+    const w = shares[preset] ?? 0;
+    return w > 0 ? [{ w, r: env.weatherSky[preset] }] : [];
+  });
 
   let light: ResolvedEnvironment["light"] = null;
   if (authored.sun) {
@@ -148,13 +162,26 @@ export function resolveEnvironment(
   let cloud: ResolvedCloudLayer | null = null;
   if (authored.cloud) {
     const c = authored.cloud;
-    const coverage = mix
-      ? mixedCoverage(c.coverage, mix)
-      : weather.cloudCoverageMin === null
-        ? c.coverage
-        : lerp(c.coverage, Math.max(c.coverage, weather.cloudCoverageMin), weather.weight);
-    const lit = scaleHex(c.color, lerp(NIGHT_CLOUD_SCALE, 1, sun.daylight));
-    cloud = { ...c, coverage, color: mixHex(lit, TWILIGHT_CLOUD_TINT, 0.4 * sun.twilightWarmth) };
+    let coverage = c.coverage;
+    let density = c.density;
+    for (const { w, r } of responses) {
+      coverage += (Math.max(c.coverage, r.cloudCoverage) - c.coverage) * w;
+      density += (Math.max(c.density, r.cloudDensity) - c.density) * w;
+    }
+    const weathered = mixHexParts(c.color, responses.map(({ w, r }) => [r.cloudColor, r.cloudColorMix * w] as const));
+    const lit = scaleHex(weathered, lerp(NIGHT_CLOUD_SCALE, 1, sun.daylight));
+    cloud = { ...c, coverage, density, color: mixHex(lit, TWILIGHT_CLOUD_TINT, 0.4 * sun.twilightWarmth) };
+  }
+  let cloudShade = 0;
+  let overcast = 0;
+  const tint: Vec3 = [0, 0, 0];
+  for (const { w, r } of responses) {
+    cloudShade += r.cloudShade * w;
+    const t = r.skyOvercast * w;
+    if (!(t > 0)) continue;
+    overcast += t;
+    const rgb = parseHex(r.cloudColor);
+    for (let i = 0; i < 3; i++) tint[i] = tint[i]! + (rgb[i]! / 255) * t;
   }
 
   return {
@@ -181,12 +208,18 @@ export function resolveEnvironment(
     skyTurbidity: authored.sky && !authored.sky.hidden ? authored.sky.turbidity + weather.skyTurbidityAdd : null,
     fog,
     cloud,
+    cloudShade,
+    skyOvercast: overcast > 0
+      ? { amount: Math.min(1, overcast), tint: [tint[0]! / overcast, tint[1]! / overcast, tint[2]! / overcast] }
+      : { amount: 0, tint: [1, 1, 1] },
     exposureMultiplier: lerp(NIGHT_EXPOSURE, 1, sun.daylight),
     season: state.season,
     surface: { ...state.surface },
-    captureKey: mix
+    // The overcast is the World Environment's own: its edits are captured too.
+    captureKey: (mix
       ? `mix:${WEATHER_SHARES.map((preset) => round3(mix[preset] ?? 0)).join(",")}:${state.season}`
-      : `${state.weather.preset}:${round3(weather.weight)}:${state.season}`,
+      : `${state.weather.preset}:${round3(weather.weight)}:${state.season}`)
+      + (overcast > 0 ? `:o${round3(Math.min(1, overcast))},${tint.map((c) => round3(c / overcast)).join(",")}` : ""),
     weatherTransitioning: mix !== null,
   };
 }
@@ -194,28 +227,20 @@ export function resolveEnvironment(
 /** Stars left in full fog. */
 const FOG_STAR_FLOOR = 0.05;
 
-/** Cloud coverage under a mix: each share raises it toward its preset's minimum (one share is the preset's `lerp`). */
-function mixedCoverage(coverage: number, mix: WeatherMix): number {
-  let out = coverage;
-  for (const preset of WEATHER_SHARES) {
-    const min = WEATHER_PRESET_TABLE[preset].cloudCoverageMin;
-    const w = mix[preset] ?? 0;
-    if (min !== null && w > 0) out += (Math.max(coverage, min) - coverage) * w;
-  }
-  return out;
-}
-
 /** The fog colour under a mix: each share tints it toward its preset's tint (one share is {@link mixHex}). */
 function mixFogTints(hex: string, mix: WeatherMix): string {
+  return mixHexParts(hex, WEATHER_SHARES.map((preset) => [WEATHER_PRESET_TABLE[preset].fogTint, WEATHER_PRESET_TABLE[preset].fogTintMix * (mix[preset] ?? 0)] as const));
+}
+
+/** `hex` moved toward each colour by its amount (sRGB bytes, summed); one part is {@link mixHex}, none is `hex`. */
+function mixHexParts(hex: string, parts: readonly (readonly [string, number])[]): string {
   const base = parseHex(hex);
   const out: [number, number, number] = [...base];
   let tinted = false;
-  for (const preset of WEATHER_SHARES) {
-    const full = WEATHER_PRESET_TABLE[preset];
-    const t = full.fogTintMix * (mix[preset] ?? 0);
+  for (const [color, t] of parts) {
     if (!(t > 0)) continue;
     tinted = true;
-    const tint = parseHex(full.fogTint);
+    const tint = parseHex(color);
     for (let i = 0; i < 3; i++) out[i] = out[i]! + (tint[i]! - base[i]!) * t;
   }
   return tinted ? toHex(out) : hex;

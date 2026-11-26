@@ -6,8 +6,11 @@
 // clouds over the Sky Atmosphere. Value noise, five octaves; coverage lowers
 // the threshold, softness widens the band; the lower edge fades with a softened
 // sky-plane projection. The drift clock only moves the noise when `speed` > 0.
+// Weather shading (plan phase W2b, `shade`): the thick core of a cloud
+// darkens and its thin edge brightens toward the sun; at 0 the colour is the
+// flat authored one, as Forge drew it. A uniform: no shader change with the weather.
 
-import { dot, float, floor, Fn, fract, max, mix, normalize, positionLocal, sin, smoothstep, uniform, vec2, vec3 } from "three/tsl";
+import { dot, float, floor, Fn, fract, max, mix, normalize, positionLocal, pow, sin, smoothstep, uniform, vec2, vec3 } from "three/tsl";
 import { BackSide, Color, Mesh, MeshBasicNodeMaterial, SphereGeometry, Vector2, Vector3, type Node, type PerspectiveCamera } from "three/webgpu";
 
 /** Sphere radius around the camera (Forge's CLOUD_DOME_RADIUS). */
@@ -18,6 +21,9 @@ export const CLOUD_DOME_FAR_FRACTION = 0.9;
 const WIND_DIRECTION = new Vector2(1, 0.35).normalize();
 const HORIZON_BLEND_END = 0.45;
 const HORIZON_PROJECTION_FLOOR = 0.35;
+/** At shade 1: how dark a thick core gets, and how much a sunward edge brightens. */
+const CORE_DARKENING = 0.7;
+const EDGE_BRIGHTENING = 0.6;
 
 export interface CloudSettings {
   readonly color: string;
@@ -57,6 +63,8 @@ function fbm(start: V2): F {
 export interface CloudDome {
   readonly mesh: Mesh;
   apply(settings: CloudSettings): void;
+  /** Weather shading (0 flat) and the direction toward the sun. */
+  applyShading(shade: number, sunDirection: Vector3): void;
   /** Centred on the camera and scaled to its far plane. */
   follow(camera: PerspectiveCamera | { position: Vector3; far?: number }): void;
   advance(seconds: number): void;
@@ -72,26 +80,41 @@ export function createCloudDome(): CloudDome {
     scale: uniform(2),
     time: uniform(0),
     wind: uniform(new Vector2(0, 0)),
+    shade: uniform(0),
+    sun: uniform(new Vector3(0, 1, 0)),
   };
   const material = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: BackSide });
   material.fog = false;
-  const shading = Fn(() => {
+  /** The cloud at this pixel: its noise, threshold and band, shared by the colour and the opacity. */
+  const sample = () => {
     // The dome is never rotated: the local direction is the world view direction.
     const dir = normalize(positionLocal).toVar();
-    const horizon = smoothstep(0, 0.18, dir.y).toVar();
     const horizonBlend = smoothstep(0, HORIZON_BLEND_END, dir.y);
     const projectionY = mix(HORIZON_PROJECTION_FLOOR, 1, horizonBlend);
     const plane = dir.xz.div(max(projectionY, 0.0001));
     const p = plane.mul(u.scale).add(u.wind.mul(u.time));
-    const n = fbm(p as V2);
+    const n = fbm(p as V2).toVar();
     const threshold = float(1).sub(u.coverage).toVar();
     const halfWidth = mix(0.02, 0.4, u.softness).toVar();
+    return { dir, n, threshold, halfWidth };
+  };
+  const shading = Fn(() => {
+    const { dir, n, threshold, halfWidth } = sample();
+    const horizon = smoothstep(0, 0.18, dir.y).toVar();
     const cover = smoothstep(threshold.sub(halfWidth), threshold.add(halfWidth), n);
     const alpha = cover.mul(u.density).mul(horizon);
     // Forge discarded below 0.003; fully transparent there instead.
     return alpha.mul(smoothstep(0.003, 0.0031, alpha));
   });
-  material.colorNode = vec3(u.color as unknown as Node<"vec3">);
+  const colour = Fn(() => {
+    const { dir, n, threshold, halfWidth } = sample();
+    // 0 at the edge of a cloud, 1 deep inside it.
+    const core = smoothstep(threshold, threshold.add(halfWidth.mul(2)).add(0.15), n).toVar();
+    const sunward = pow(max(dot(dir, u.sun as unknown as Node<"vec3">), 0), 4);
+    const light = float(1).sub(core.mul(CORE_DARKENING)).add(float(1).sub(core).mul(sunward).mul(EDGE_BRIGHTENING));
+    return vec3(u.color as unknown as Node<"vec3">).mul(mix(float(1), light, u.shade));
+  });
+  material.colorNode = colour();
   material.opacityNode = shading();
   const mesh = new Mesh(new SphereGeometry(CLOUD_DOME_RADIUS, 32, 16), material);
   mesh.name = "cloud-layer";
@@ -108,6 +131,10 @@ export function createCloudDome(): CloudDome {
       u.softness.value = settings.softness;
       u.scale.value = settings.scale;
       u.wind.value.copy(WIND_DIRECTION).multiplyScalar(settings.speed);
+    },
+    applyShading(shade, sunDirection) {
+      u.shade.value = shade;
+      u.sun.value.copy(sunDirection).normalize();
     },
     follow(camera) {
       mesh.position.copy(camera.position);
