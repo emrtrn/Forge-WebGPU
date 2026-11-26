@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.91 · 2026-11-26 — §4.9 hava sözleşmesi W3: yağış siperi (iki kademe, gölge geçişi malzemesi, GPU güdümlü `cover` görünümü, `COVER_LAYER`).
+**Güncelleme:** v1.92 · 2026-11-26 — §4.9 hava sözleşmesi W4: statik yüzey örtüsü (normal payı, dünyanın yüzey havası, diffuse sonrası kanca, `forge.material` `weather`).
+
+**Önceki güncelleme:** v1.91 · 2026-11-26 — §4.9 hava sözleşmesi W3: yağış siperi (iki kademe, gölge geçişi malzemesi, GPU güdümlü `cover` görünümü, `COVER_LAYER`).
 
 **Önceki güncelleme:** v1.90 · 2026-11-26 — §4.9 hava sözleşmesi W2b: hava bulutları ve gökyüzünü sürer (WES `weatherSky`, kapalı gök, Sky Light).
 
@@ -2306,6 +2308,19 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     yüzeyde, kamera kademeyi aşınca ya da içerik değişince çizilir; yağış yokken içerik değişimi
     önden çizilir (ilk damla derlemez). Saf yerleşim ve CPU referansı
     `engine/environment/precipitationCover.ts`.
+  - **W4 uygulaması (2026-11-26):** ıslaklık ve kar bir yüzeye *yüzünün dünya normaliyle* düşer (saf kural ve
+    CPU ikizi `engine/environment/surfaceResponse.ts`; TSL'de `render/materials/surfaceCover.ts` v2 aynı
+    formül): yukarı tam, dikey WES `surface.verticalWetting` (+ rüzgârın geldiği yanda `windwardWetting`),
+    alta bakan kuru; kar eğim + yükseklik; siper noktanın biraz üstünden ve yüzün dışından okunur, altı kuru
+    ve karsız. Materyal tepkisi `forge.material` `weather` (ıslanma, gözeneklilik, kar kabulü, birikinti
+    kabulü — W6); gözenekli koyulaşır, sert parlar. Terrain katkı sırasının `wetness` yuvasında kalır.
+    Diğer statik yüzeyler dünyanın *yüzey havasından* (`render/materials/surfaceWeather.ts`, `RenderWorld`
+    ve bağlamaya `ctx.surfaceWeather`) çizilir: önbellekteki ortak materyalin dünyaya özgü kopyası (siper
+    dünya başına olduğu için); kaynak atılınca ya da dünya gidince atılır. Renk three'nin diffuse
+    kurulumundan sonra uygulanır (sınıf kancası, klonlarla taşınır): yerleşim / köşe rengi karı boyamaz;
+    pürüzlülük, metallik ve ince normal düğüm yuvalarında; tepki materyalden `materialReference`. Instance
+    batch'leri (iki yol + WebGL2 ikizi), HLOD proxy'leri ve ailesiz foliage kopyayı çizer; bitki aileleri
+    PG2'de kalır. Hava yalnız uniform yazar; ıslanma ve kar kabulü 0 olan ve ışıksız materyal bağlanmaz.
   - Tasarım, adımlar ve HV-01–13 [plan Faz W'de](FORGE_WEBGPU_REBUILD_PLAN.md).
 - *Terrain:* Faz 3'te salt çizim (spike S2'nin TSL CDLOD'u: yükseklik, 8
   katman, normal, gölge); su birikintisi, tile akışı ve üretim kalitesi 5a'da;

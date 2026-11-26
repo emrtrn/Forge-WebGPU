@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.22 · 2026-11-26 — Faz W W3 kapandı (kullanıcı görsel kabulü). Sırada W4: statik mesh örtüsü (yeni oturumda).
+**Güncelleme:** v2.23 · 2026-11-26 — Faz W W4 statik mesh örtüsü (`4989204`): ıslaklık ve kar yüzün normaline göre bütün statik yüzeylere (materyal, GLB materyali, şekil, yol, HLOD, ailesiz foliage) ve terrain'e aynı kuralla; `forge.material` `weather`, WES dikey / rüzgâr payı. Kullanıcı görsel kabulü bekleniyor.
+
+**Önceki güncelleme:** v2.22 · 2026-11-26 — Faz W W3 kapandı (kullanıcı görsel kabulü). Sırada W4: statik mesh örtüsü (yeni oturumda).
 
 **Önceki güncelleme:** v2.21 · 2026-11-26 — Faz W W3 yağış siperi (`41247b8`): iki kademeli yukarıdan derinlik haritası (statik, şekil, yol, HLOD), GPU güdümlü culling'de `cover` görünümü; çatı altında yağış, terrain'de kar / ıslaklık yok. Kullanıcı görsel kabulü bekleniyor.
 
@@ -788,6 +790,46 @@ yüzeyiyle biter.
       **Görsel kabul:** kullanıcı, 2026-11-26.
 - [ ] **W4 Statik mesh örtüsü.** `surfaceCover` v2, `forge.material` `weather`,
       bütün statik yollar + HLOD, dikey ıslanma. *Kapı:* HV-04, 12; statik ölçüm. — C
+      **Kod 2026-11-26 (`4989204`):** saf kural `engine/environment/surfaceResponse.ts` (CPU ikizi, testli;
+      küçük ve tanımlı olduğu için Codex'e verilmedi): ıslaklık payı yüzün dünya normalinden, yukarı bakan
+      tam (≈45°'ye kadar), dikey `surface.verticalWetting` (varsayılan 0,35) + rüzgârın geldiği yanda
+      `windwardWetting` × rüzgâr gücü (0,5), alta bakan 30°'de kuru; kar bugünkü eğim + yükseklik maskesi;
+      ikisi de siper altında 0 ve materyalin kabulüyle çarpılır. Siper noktanın 0,2 m üstünden ve yüzün yatay
+      normali boyunca 0,4 m dışarıdan okunur (yüz kendi texel'iyle örtülmez, duvarı yalnız üstündeki saçak
+      örter). Görünüm: ıslak gözenekli yüzey koyulaşır (0,1 + 0,4 × gözeneklilik), sert yüzey parlar
+      (pürüzlülük tabanı 0,04 + 0,16 × gözeneklilik; 0,5'te terrain'in 5a görünümü birebir); kar beyaz,
+      pürüzlülük 0,9, metal değil, ince normali geometriye %80 yumuşatır. *TSL:* `surfaceCover` v2 aynı formül;
+      kuru ve karsız havada tek uniform dalı, siper okunmaz. Terrain katkı sırasının `wetness` yuvasında
+      (rüzgâr girdisiyle); statikler dünyanın `render/materials/surfaceWeather.ts`'i: kaynak materyalin dünyaya
+      özgü kopyası (GLB'nin düz materyali node materyale çevrilir); renk three'nin diffuse kurulumundan
+      **sonra** (alt sınıf kancası, `clone()` korur): yerleşim ve köşe rengi yüzeyi boyar, karı boyamaz;
+      pürüzlülük / metallik / normal düğüm yuvalarında; tepki `materialReference` ile materyal başına.
+      Bağlananlar: instance batch'leri (statik, şekil, yol; instanced ve GPU güdümlü LOD yolu, WebGL2 CPU
+      ikizi), HLOD proxy'leri, ailesiz foliage (kaya; impostor değil). Bitki aileleri PG2'de kalır. *Şema:*
+      `forge.material` `weather` (ıslanma 1, gözeneklilik 0,5, kar kabulü 1, birikinti kabulü 1 — W6 çizer;
+      sürüm aynı, eski dosyalar okunur); ıslanma ve kar kabulü 0 olan materyal kopyalanmaz. WES
+      `surface.verticalWetting` / `windwardWetting` (`@3`'e, sürüm artmadı). Details şemadan. SDK yüzeyi
+      değişmedi (0.1.17).
+      **Kanıt:** `surfaceWeather.smoke.ts` (gerçek WebGPU + WebGL2; Derekavak'ta dev kancasıyla kırmızı küp,
+      tepe plakası, starter kayası; yüzlere dik bakan pozlar, yama renk değişimi): ıslakta üst 0,321 > yan
+      0,062 > alt 0,000, döşeme (statik mesh) 0,261, terrain 0,262, kaya 0,510; karda üst / döşeme / terrain
+      aynı renk (82/136/192; blok kırmızısı karı boyamıyor), dik yan ve alt 0. instanced, `staticPath=gpu` ve
+      WebGL2 aynı sayılar; yüzey ve hava değişiminde pipeline +0. Uzak görünüm (P2, HLOD 10 / 22) çekimleri
+      `render-refs/candidates/weather-far-*.png`, yakın pozlar `weather-<yol>-<poz>-<durum>.png`. Render
+      smoke'u (15), yağış (beş yol, pipeline +0), siper, terrain örtüsü ve editör `world.spec` (gerçek WebGPU)
+      geçti.
+      **Ölçüm** (R1, gerçek WebGPU): `measure:weather` (`2026-11-26T12-28-07-468Z-weather.json`) Derekavak GPU
+      açık / ıslak / karlı 2,46 / 2,39 / 2,49 ms, L03 0,35 / 0,32 / 0,34 ms; gönderim ~1,0, ana iş parçacığı
+      ~1,5 ms (G6 değişmedi); bütün durum ve geçişlerde pipeline ve shader modülü +0. Şehir (`measure:city`,
+      yeni `FORGE_CITY_SURFACE`, high; `…12-34-49-030Z` / `…12-39-48-037Z` / `…12-44-49-250Z-city.json`) kuru /
+      ıslak / karlı GPU sokak 3,49 / 3,46 / 3,72, meydan 4,43 / 4,58 / 4,58, iç 4,67 / 4,94 / 5,01, yüksek
+      4,38 / 4,58 / 4,59 ms (en çok +0,34; bütçe 0,8), draw sayısı aynı.
+      **Sınırlar:** siper en yakın texel'den okunur: siper sınırı (saçak, platform duvarı dibi) 6–25 cm'lik
+      dişlerle görünür (W3'ten). Yüzey ıslaklığı henüz yağışa bağlı değil (W5); önizlemede `setSurface` ile
+      görülür. Ailesiz foliage'ın impostor'ı ve uzak billboard'ları ıslanmaz / karlanmaz. Siper smoke'unun
+      "kulübe kaldırılınca" eşiği mutlak 0,1'den dışarıdaki yağmurun %30'una çekildi: aynı poz W4 bağlıyken
+      ve değilken 0,09–0,10 ölçüyor (eşik sınırdaydı). Ölçüm smoke'unda bir yüzey değişikliği ekranda birkaç
+      kare sonra görünüyor (iki adım yetmedi, altı adım); sebebi ayrıca aranmadı.
 - [ ] **W5 Yağışla ıslanma, karlanma, kuruma.** Yüzey durumu modeli (W0'da) + hava
       bağı, katmanın `weather` alanı ve Details'i, yamalı kuruma, kayıt oyunu (C).
       *Kapı:* HV-05, 08, 09.
@@ -1255,6 +1297,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-26 | v2.23 | Faz W W4 statik mesh örtüsü (`4989204`): ıslaklık ve kar yüzün normaline göre bütün statik yüzeylere (materyal, GLB materyali, şekil, yol, HLOD, ailesiz foliage) ve terrain'e aynı kuralla; `forge.material` `weather`, WES dikey / rüzgâr payı. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-26 | v2.22 | Faz W W3 kapandı (kullanıcı görsel kabulü). Sırada W4: statik mesh örtüsü (yeni oturumda). |
 | 2026-11-26 | v2.21 | Faz W W3 yağış siperi (`41247b8`): iki kademeli yukarıdan derinlik haritası (statik, şekil, yol, HLOD), GPU güdümlü culling'de `cover` görünümü; çatı altında yağış, terrain'de kar / ıslaklık yok. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-26 | v2.20 | Faz W W2 ve W2b kapandı (kullanıcı görsel kabulü). Sırada W3: yağış siperi. |
