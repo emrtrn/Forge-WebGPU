@@ -78,10 +78,37 @@ export function valueNoise(x: number, y: number): number {
   return mix(bottom, top, uy);
 }
 
-/** How late a point dries, 0..1: world-space noise, pushed late by its hollowness (`cavity`, 0..1). */
-export function dryingLateness(worldX: number, worldZ: number, cavity = 0): number {
+/**
+ * How far the patches reach (a W5 refinement, World Environment `surface`):
+ * the look's input is the live amount × its spread, so at spread < 1 the
+ * patches grow from the late places (hollows first) and stop where the spread
+ * ends, while the live state (`wetness`, `puddleFill`, `snowCoverage`) and the
+ * surface model still run to 1. Snow follows the same pattern as wetness: it
+ * settles where the surface dries last and melts open patch by patch.
+ * `patchSize` scales both noise sizes. All three at 1 is the W5 look.
+ */
+export interface SurfacePattern {
+  /** Share of the wetness (and standing water) the look reaches, 0..1. */
+  readonly wetSpread: number;
+  /** Share of the snow coverage the look reaches, 0..1. */
+  readonly snowSpread: number;
+  /** Multiplier on the noise patch sizes (`DRY_NOISE`). */
+  readonly patchSize: number;
+}
+
+export const SURFACE_PATTERN_DEFAULTS: SurfacePattern = { wetSpread: 1, snowSpread: 1, patchSize: 1 };
+/** `patchSize`'s range (schema and normalizer). */
+export const PATCH_SIZE_RANGE = [0.25, 4] as const;
+
+/** A pattern's `patchSize`, clamped to its range. */
+export function patchSizeOf(pattern: Partial<SurfacePattern> | null | undefined): number {
+  return Math.min(PATCH_SIZE_RANGE[1], Math.max(PATCH_SIZE_RANGE[0], pattern?.patchSize ?? 1));
+}
+
+/** How late a point dries, 0..1: world-space noise (sizes × `patchSize`), pushed late by its hollowness (`cavity`, 0..1). */
+export function dryingLateness(worldX: number, worldZ: number, cavity = 0, patchSize = 1): number {
   let noise = 0;
-  for (const [size, weight] of DRY_NOISE) noise += weight * valueNoise(worldX / size, worldZ / size);
+  for (const [size, weight] of DRY_NOISE) noise += weight * valueNoise(worldX / (size * patchSize), worldZ / (size * patchSize));
   const patches = smoothstep(DRY_NOISE_EDGE[0], DRY_NOISE_EDGE[1], noise);
   return patches + (1 - patches) * clamp01(cavity);
 }
@@ -91,13 +118,22 @@ export function cavityFromDivergence(divergence: number): number {
   return clamp01(-divergence * CAVITY_CURVATURE);
 }
 
-/** The wetness a point shows (before its face's share): the surface's wetness and standing water, by how late it dries. */
-export function patchyWetness(wetness: number, puddleFill: number, late: number): number {
+/** How much of a patch shows at `amount` for a point that dries / melts `late` (0 first .. 1 last). */
+function patchAt(amount: number, late: number): number {
+  const start = (1 - late) * (1 - DRY_BAND);
+  return smoothstep(start, start + DRY_BAND, clamp01(amount));
+}
+
+/** The wetness a point shows (before its face's share): the surface's wetness and standing water × `spread`, by how late it dries. */
+export function patchyWetness(wetness: number, puddleFill: number, late: number, spread = 1): number {
   const l = clamp01(late);
-  const start = (1 - l) * (1 - DRY_BAND);
-  const film = smoothstep(start, start + DRY_BAND, clamp01(wetness));
-  const pooled = l * smoothstep(start, start + DRY_BAND, clamp01(puddleFill));
-  return Math.max(film, pooled);
+  const s = clamp01(spread);
+  return Math.max(patchAt(wetness * s, l), l * patchAt(puddleFill * s, l));
+}
+
+/** The snow a point shows (before its face's share): the coverage × `spread`, in wetness's pattern (late places first). */
+export function patchySnow(snowCoverage: number, late: number, spread = 1): number {
+  return patchAt(snowCoverage * clamp01(spread), clamp01(late));
 }
 
 /** The wind the rain is driven by: `direction` is the unit XZ vector it blows toward. */
@@ -192,15 +228,17 @@ export interface SurfaceWeatherAmount {
   readonly snowCoverage: number;
 }
 
-/** The surface amount a point sees: its patchy wetness (`patchyWetness`) and the level's snow; feed it to `surfaceWeatherAt`. */
+/** The surface amount a point sees: its patchy wetness and snow (`patchyWetness`, `patchySnow`); feed it to `surfaceWeatherAt`. */
 export function surfaceAmountAt(
   surface: { readonly wetness: number; readonly puddleFill?: number; readonly snowCoverage: number },
   position: Vec3,
   cavity = 0,
+  pattern: Partial<SurfacePattern> = SURFACE_PATTERN_DEFAULTS,
 ): SurfaceWeatherAmount {
+  const late = dryingLateness(position[0], position[2], cavity, patchSizeOf(pattern));
   return {
-    wetness: patchyWetness(surface.wetness, surface.puddleFill ?? 0, dryingLateness(position[0], position[2], cavity)),
-    snowCoverage: surface.snowCoverage,
+    wetness: patchyWetness(surface.wetness, surface.puddleFill ?? 0, late, pattern.wetSpread ?? 1),
+    snowCoverage: patchySnow(surface.snowCoverage, late, pattern.snowSpread ?? 1),
   };
 }
 

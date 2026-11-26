@@ -112,6 +112,10 @@ export interface LayoutWorldEnvironment {
     /** Plan phase W4: a standing face's share of the wetness, and the extra on the side the wind comes from. */
     verticalWetting?: number;
     windwardWetting?: number;
+    /** W5 refinement: how far the wet and snow patches reach, and the patch size multiplier. */
+    wetSpread?: number;
+    snowSpread?: number;
+    patchSize?: number;
   };
   /** Faz 6 sway wind; absent falls back to `worldSettings.wind`. Weather and season scale it. */
   wind?: LayoutWind;

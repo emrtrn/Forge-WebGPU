@@ -19,7 +19,10 @@ gökyüzünü, sisi ve bulutları kendi değerlerini değiştirmeden yeniden yor
   kar önce kalınlığını sonra örtüsünü kaybeder, zemin ıslak kalıp kurur); oranlar
   aynı grupta. Şemada kapalı (eski level'lar 5a'nın hedef + oran yolunda); Add
   Actor ve yeni level açık yazar. Kuruma yamalıdır: gürültü ve oyuklar geç kurur
-  (`surfaceResponse.ts` `patchyWetness`).
+  (`surfaceResponse.ts` `patchyWetness`). Kar aynı desenle oyuklardan başlar ve
+  parça parça erir (`patchySnow`); `surface.wetSpread` / `snowSpread` yamaların
+  nereye kadar yayılacağını, `patchSize` boylarını belirler (yalnız görünüm, 1'de
+  nötr; canlı durum ve model değişmez).
 - `runtime.ts`: tekili taşınmış `WorldEnvironmentController`'a yükler ve
   `WorldEnvironmentKey` servisiyle verir (`src/engine/environment`); oyun
   kodu aynı denetleyiciyi SDK'nın `WorldEnvironmentServiceKey`'iyle alır (saat,

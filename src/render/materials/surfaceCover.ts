@@ -15,6 +15,9 @@
 // wetness and standing water by how late it dries: world-space noise and its
 // hollowness (a material's ambient occlusion; terrain's concave ground)
 // (`patchyWetness` / `dryingLateness`, the same formulas). Uniforms only.
+// W5 refinement: snow takes the same pattern (`patchySnow`, hollows first),
+// and each amount reaches only its spread (`wetSpread`, `snowSpread`; the live
+// state is unchanged); `patchSize` scales the noise. The noise is built once.
 //
 // In dry, snowless weather the factors are zero behind one uniform branch and
 // the cover is not read. Terrain applies it through the contribution order
@@ -26,7 +29,7 @@ import type { ResolvedWorldEnvironment } from "../../engine/environment/worldEnv
 import type { WorldEnvironmentState } from "../../engine/environment/environmentResolve.ts";
 import {
   COVER_READ_LIFT, COVER_READ_OUT, DRY_BAND, DRY_NOISE, DRY_NOISE_EDGE, MATERIAL_WEATHER_DEFAULTS, SNOW_NORMAL_SOFTEN, SNOW_ROUGHNESS,
-  WET_DARKEN, WET_DOWN_DRY, WET_ROUGHNESS, WET_UP_FULL, type SurfaceWind,
+  WET_DARKEN, WET_DOWN_DRY, WET_ROUGHNESS, WET_UP_FULL, patchSizeOf, type SurfaceWind,
 } from "../../engine/environment/surfaceResponse.ts";
 
 type Node = any;
@@ -63,8 +66,12 @@ export interface SurfaceCoverTerrain {
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 
-/** surfaceResponse.ts `hash12` / `valueNoise` / `dryingLateness` / `patchyWetness`. */
-function patchyWetNode(wetness: Node, puddleFill: Node, position: Node, cavity: Node | null): Node {
+/**
+ * surfaceResponse.ts `hash12` / `valueNoise` / `dryingLateness` / `patchyWetness` / `patchySnow`: the noise once per
+ * pixel, wetness and snow from it. `amount` x snow, y wetness, z standing water (each × its spread); `noiseScale` the
+ * reciprocal noise sizes (× patch size).
+ */
+function patchyNode(amount: Node, noiseScale: Node, position: Node, cavity: Node | null): { wet: Node; snow: Node } {
   const { dot, float, floor, fract, max, mix, smoothstep, vec2, vec3 } = TSL;
   const hash = (p: Node): Node => {
     const p3 = fract(vec3(p.x, p.y, p.x).mul(0.1031));
@@ -79,19 +86,23 @@ function patchyWetNode(wetness: Node, puddleFill: Node, position: Node, cavity: 
     const top = mix(hash(i.add(vec2(0, 1))), hash(i.add(vec2(1, 1))), u.x);
     return mix(bottom, top, u.y);
   };
-  let noise: Node = float(0);
-  for (const [size, weight] of DRY_NOISE) noise = noise.add(valueNoise(position.xz.div(size)).mul(weight));
+  const noise = valueNoise(position.xz.mul(noiseScale.x)).mul(DRY_NOISE[0][1]).add(valueNoise(position.xz.mul(noiseScale.y)).mul(DRY_NOISE[1][1]));
   const patches = smoothstep(DRY_NOISE_EDGE[0], DRY_NOISE_EDGE[1], noise);
   const late = cavity ? patches.add(float(1).sub(patches).mul(cavity)) : patches;
   const start = float(1).sub(late).mul(1 - DRY_BAND);
   const end = start.add(DRY_BAND);
-  return max(smoothstep(start, end, wetness), late.mul(smoothstep(start, end, puddleFill)));
+  return {
+    wet: max(smoothstep(start, end, amount.y), late.mul(smoothstep(start, end, amount.z))),
+    snow: smoothstep(start, end, amount.x),
+  };
 }
 
 export function createSurfaceCover(sheltered?: (position: Node) => Node, terrain?: SurfaceCoverTerrain) {
   const { uniform } = TSL;
-  /** x snow coverage, y wetness, z standing water (plan phase W5). */
+  /** x snow coverage, y wetness, z standing water (plan phase W5), each × its spread (`SurfacePattern`). */
   const amount = uniform(new Vector3());
+  /** The reciprocal sizes of the two noise layers, × patch size. */
+  const noiseScale = uniform(new Vector2(1 / DRY_NOISE[0][0], 1 / DRY_NOISE[1][0]));
   const snowColor = uniform(new Color("#f2f5fa"));
   const slope = uniform(new Vector2(Math.cos(55 * Math.PI / 180), Math.cos(30 * Math.PI / 180)));
   const altitude = uniform(new Vector2(-1000000, 1));
@@ -107,7 +118,7 @@ export function createSurfaceCover(sheltered?: (position: Node) => Node, terrain
     return Fn(() => {
       const out = vec2(0, 0).toVar("forgeWeatherFactors");
       If(amount.x.add(amount.y).add(amount.z).greaterThan(0), () => {
-        const wetness = patchyWetNode(amount.y, amount.z, position, cavity ? cavity() : null);
+        const patchy = patchyNode(amount, noiseScale, position, cavity ? cavity() : null);
         const up = normal.y;
         const facing = max(dot(normal.xz, share.zw).negate(), 0).div(max(length(normal.xz), 0.0001));
         const side = min(share.x.add(share.y.mul(facing)), 1);
@@ -117,7 +128,7 @@ export function createSurfaceCover(sheltered?: (position: Node) => Node, terrain
         // Read above the point and out along the face (surfaceResponse.ts `coverReadPoint`).
         const read = position.add(vec3(normal.x.mul(COVER_READ_OUT), COVER_READ_LIFT, normal.z.mul(COVER_READ_OUT)));
         const open = sheltered ? float(1).sub(sheltered(read)) : float(1);
-        out.assign(vec2(wetness.mul(wetShare).mul(open), amount.x.mul(snowSlope).mul(height).mul(open)));
+        out.assign(vec2(patchy.wet.mul(wetShare).mul(open), patchy.snow.mul(snowSlope).mul(height).mul(open)));
       });
       return out;
     })();
@@ -155,9 +166,16 @@ export function createSurfaceCover(sheltered?: (position: Node) => Node, terrain
     factors,
     look,
     update(input: SurfaceCoverInput | null) {
-      amount.value.set(input?.state.snowCoverage ?? 0, input?.state.wetness ?? 0, input?.state.puddleFill ?? 0);
-      if (!input) return;
-      const s = input.settings;
+      const s = input?.settings;
+      const wetSpread = clamp01(s?.wetSpread ?? 1);
+      amount.value.set(
+        (input?.state.snowCoverage ?? 0) * clamp01(s?.snowSpread ?? 1),
+        (input?.state.wetness ?? 0) * wetSpread,
+        (input?.state.puddleFill ?? 0) * wetSpread,
+      );
+      if (!input || !s) return;
+      const patchSize = patchSizeOf(s);
+      noiseScale.value.set(1 / (DRY_NOISE[0][0] * patchSize), 1 / (DRY_NOISE[1][0] * patchSize));
       snowColor.value.set(s.snowColor);
       const start = Math.min(s.snowSlopeStartDeg, s.snowSlopeEndDeg);
       const end = Math.max(s.snowSlopeStartDeg, s.snowSlopeEndDeg);

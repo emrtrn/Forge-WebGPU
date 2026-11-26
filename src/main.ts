@@ -299,6 +299,11 @@ async function start(): Promise<void> {
       },
       setHour: (hour: number) => environment()?.setHour(hour),
       setSurface: (surface: { snowCoverage?: number; wetness?: number; puddleFill?: number; snowDepth?: number }) => environment()?.setSurface(surface),
+      /** W5 refinement: the resolved surface settings (`wetSpread`, `snowSpread`, `patchSize`…) for this run; the level is not written. */
+      setSurfaceSettings: (settings: Record<string, number>) => {
+        const resolved = booted.world.services.get(WorldEnvironmentKey)?.environment;
+        if (resolved) resolved.surface = { ...resolved.surface, ...settings };
+      },
       /** Plan phase W5: the weather link on or off for this run (the level's own setting is read on load). */
       setWeatherDrivesSurface: (on: boolean) => environment()?.setWeatherDrivesSurface(on),
       /** Plan phase W5: runs the World Environment ahead by simulation seconds without drawing (minutes of rain in one call). */

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
-  cavityFromDivergence, coverReadPoint, dryingLateness, hash12, materialTakesNoWeather, MATERIAL_WEATHER_DEFAULTS, patchyWetness, snowShare,
-  surfaceAmountAt, surfaceWeatherAt, valueNoise, weatheredLook, wetShare, type SurfaceResponseSettings, type Vec3,
+  cavityFromDivergence, coverReadPoint, dryingLateness, hash12, materialTakesNoWeather, MATERIAL_WEATHER_DEFAULTS, PATCH_SIZE_RANGE, patchSizeOf,
+  patchySnow, patchyWetness, snowShare, SURFACE_PATTERN_DEFAULTS, surfaceAmountAt, surfaceWeatherAt, valueNoise, weatheredLook, wetShare, type SurfaceResponseSettings, type Vec3,
 } from "./surfaceResponse.ts";
 
 const settings: SurfaceResponseSettings = {
@@ -152,11 +152,61 @@ describe("patchy drying (plan phase W5, HV-05)", () => {
     expect(cavityFromDivergence(-1)).toBe(1);
   });
 
-  test("a point's amount is its patchy wetness and the level's snow", () => {
+  test("a point's amount is its patchy wetness and patchy snow, in one pattern", () => {
     const position: Vec3 = [4, 0, -9];
+    const late = dryingLateness(4, -9, 0.4);
     const amount = surfaceAmountAt({ wetness: 0.5, puddleFill: 0.2, snowCoverage: 0.3 }, position, 0.4);
-    expect(amount.snowCoverage).toBe(0.3);
-    expect(amount.wetness).toBe(patchyWetness(0.5, 0.2, dryingLateness(4, -9, 0.4)));
-    expect(surfaceAmountAt({ wetness: 1, snowCoverage: 0 }, position).wetness).toBe(1);
+    expect(amount.snowCoverage).toBe(patchySnow(0.3, late));
+    expect(amount.wetness).toBe(patchyWetness(0.5, 0.2, late));
+    expect(surfaceAmountAt({ wetness: 1, snowCoverage: 1 }, position)).toEqual({ wetness: 1, snowCoverage: 1 });
+  });
+});
+
+describe("patch spread and size (W5 refinement)", () => {
+  const grid = Array.from({ length: 400 }, (_, i) => [(i % 20) * 1.3, Math.floor(i / 20) * 1.3] as const);
+
+  test("at the defaults the ends are W4's: none and full snow, none and full wetness, everywhere", () => {
+    for (const late of [0, 0.3, 0.7, 1]) {
+      expect(patchySnow(0, late)).toBe(0);
+      expect(patchySnow(1, late)).toBe(1);
+      expect(patchyWetness(1, 1, late, 1)).toBe(1);
+      expect(patchyWetness(0, 0, late, 1)).toBe(0);
+    }
+    for (const [x, z] of grid) {
+      expect(surfaceAmountAt({ wetness: 1, puddleFill: 1, snowCoverage: 1 }, [x, 0, z], 0, SURFACE_PATTERN_DEFAULTS)).toEqual({ wetness: 1, snowCoverage: 1 });
+      expect(surfaceAmountAt({ wetness: 0, puddleFill: 0, snowCoverage: 0 }, [x, 0, z])).toEqual({ wetness: 0, snowCoverage: 0 });
+    }
+  });
+
+  test("snow settles in the late places (hollows) first and melts open patch by patch", () => {
+    for (const coverage of [0.2, 0.5, 0.8]) expect(patchySnow(coverage, 0.9)).toBeGreaterThan(patchySnow(coverage, 0.1));
+    expect(patchySnow(0.35, 1)).toBe(1);
+    expect(patchySnow(0.35, 0)).toBe(0);
+  });
+
+  test("the spread caps the look even with the live state at 1: some ground stays dry, standing water too", () => {
+    const pattern = { wetSpread: 0.4, snowSpread: 0.4, patchSize: 1 };
+    const seen = grid.map(([x, z]) => surfaceAmountAt({ wetness: 1, puddleFill: 1, snowCoverage: 1 }, [x, 0, z], 0, pattern));
+    for (const key of ["wetness", "snowCoverage"] as const) {
+      const values = seen.map((amount) => amount[key]);
+      expect(Math.min(...values), `${key}: dry ground remains`).toBe(0);
+      expect(Math.max(...values), `${key}: the late places are full`).toBe(1);
+    }
+    // At spread 0 nothing shows; the spread is the share, like the amount below 1.
+    expect(patchyWetness(1, 1, 1, 0)).toBe(0);
+    expect(patchySnow(1, 1, 0)).toBe(0);
+    expect(patchySnow(1, 0.6, 0.5)).toBe(patchySnow(0.5, 0.6));
+    // The spread only grows the patches.
+    for (const late of [0.2, 0.6, 0.9]) expect(patchyWetness(1, 1, late, 0.7)).toBeGreaterThanOrEqual(patchyWetness(1, 1, late, 0.5));
+  });
+
+  test("patch size scales both noise layers", () => {
+    for (const [x, z] of grid.slice(0, 40)) {
+      expect(dryingLateness(x * 2, z * 2, 0, 2)).toBeCloseTo(dryingLateness(x, z, 0, 1), 12);
+      expect(surfaceAmountAt({ wetness: 0.5, snowCoverage: 0.5 }, [x * 3, 0, z * 3], 0, { patchSize: 3 }).wetness)
+        .toBeCloseTo(surfaceAmountAt({ wetness: 0.5, snowCoverage: 0.5 }, [x, 0, z]).wetness, 12);
+    }
+    expect(patchSizeOf({ patchSize: 100 })).toBe(PATCH_SIZE_RANGE[1]);
+    expect(patchSizeOf({ patchSize: 0 })).toBe(PATCH_SIZE_RANGE[0]);
   });
 });

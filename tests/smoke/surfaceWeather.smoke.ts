@@ -11,7 +11,10 @@
 //   not the block's colour), not the standing side nor the underside.
 // - The same in three draw paths: instanced (`auto`), GPU-driven
 //   (`staticPath=gpu`) and WebGL2 (the CPU twin).
-// - Changing the surface and the weather makes no pipeline (WebGPU).
+// - Changing the surface and the weather makes no pipeline (WebGPU); nor do
+//   the patch settings (`wetSpread`, `snowSpread`, `patchSize`) or a half,
+//   patchy snow. The probes read full snow / wetness, where the look is the
+//   same at any patch setting (surfaceResponse.ts `patchySnow`).
 // - HV-12: Derekavak's P2 (the far view: HLOD proxies, far terrain) dry / wet /
 //   snowy, for the eye. Candidates `render-refs/candidates/weather-*.png`.
 import { expect, test, type Page } from "@playwright/test";
@@ -29,6 +32,7 @@ interface Dev {
   step(ms: number): Promise<unknown>;
   setWeather(preset: string, intensity: number): void;
   setSurface(surface: Record<string, number>): void;
+  setSurfaceSettings(settings: Record<string, number>): void;
   setLateVisible(visible: boolean): void;
   moveCamera(x: number, y: number, z: number, look?: readonly [number, number, number]): void;
   project(points: readonly Vec3[]): ([number, number] | null)[];
@@ -202,6 +206,13 @@ for (const mode of MODES) {
       await evaluate(page, (d, p) => d.setWeather(p as string, 1), preset);
       await steps(page, 3);
     }
+    // W5 refinement: the patch spread and size are uniforms too; half snow is patchy (one shot for the eye).
+    await evaluate(page, (d) => d.setSurfaceSettings({ wetSpread: 0.4, snowSpread: 0.5, patchSize: 2 }));
+    await go("top");
+    await surface(0.7, 0.8);
+    candidate(`${mode.name}-top-patchy`, await page.screenshot());
+    await evaluate(page, (d) => d.setSurfaceSettings({ wetSpread: 1, snowSpread: 1, patchSize: 1 }));
+    await surface(0.5, 0);
     await surface(0, 0);
     const after = mode.webgl ? null : await gpuMemory(page);
 
