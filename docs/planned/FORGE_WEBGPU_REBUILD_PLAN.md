@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.24 · 2026-11-26 — Faz W W4 kapandı (kullanıcı görsel kabulü). Sırada W5: yağışla ıslanma, karlanma, kuruma (yeni oturumda).
+**Güncelleme:** v2.25 · 2026-11-26 — Faz W W5 yağışla ıslanma, karlanma, kuruma (`ce38ed2`): WES `weatherDrivesSurface` yüzey modelini canlı yağışla sürer, yamalı kuruma, terrain katmanının `weather`'ı, önizlemede Simulate. Kullanıcı görsel kabulü bekleniyor.
+
+**Önceki güncelleme:** v2.24 · 2026-11-26 — Faz W W4 kapandı (kullanıcı görsel kabulü). Sırada W5: yağışla ıslanma, karlanma, kuruma (yeni oturumda).
 
 **Önceki güncelleme:** v2.23 · 2026-11-26 — Faz W W4 statik mesh örtüsü (`4989204`): ıslaklık ve kar yüzün normaline göre bütün statik yüzeylere (materyal, GLB materyali, şekil, yol, HLOD, ailesiz foliage) ve terrain'e aynı kuralla; `forge.material` `weather`, WES dikey / rüzgâr payı. Kullanıcı görsel kabulü bekleniyor.
 
@@ -836,6 +838,45 @@ yüzeyiyle biter.
 - [ ] **W5 Yağışla ıslanma, karlanma, kuruma.** Yüzey durumu modeli (W0'da) + hava
       bağı, katmanın `weather` alanı ve Details'i, yamalı kuruma, kayıt oyunu (C).
       *Kapı:* HV-05, 08, 09.
+      **Kod 2026-11-26 (`ce38ed2`):** *Hava bağı:* WES `surface.weatherDrivesSurface` (şemada kapalı, HK2;
+      Add Actor ve yeni level şablonu açık yazar, World Builder'ın yazdığı WES de açık olur — greybox bugün WES
+      yazmıyor) ve modelin oranları (`puddleFillRate`, `puddleDrainRate`, `snowDepthRate`, `snowDepthMeltRate`,
+      `snowMaxDepth`; `@3`'e, sürüm artmadı). Açıkken denetleyici `advanceSurfaceCondition`'ı canlı yağışla
+      sürer (adımın başı ve sonu yağışının ortalaması); kapalıyken 5a yolu birebir. Saf model (Codex X1):
+      kayıttan gelen bozuk durum temizlenir; HV-05 sıra testleri ve 1 / 30 / 60 / 144 Hz ile tek adım 1e-9 içinde.
+      Denetleyicide de 30 / 60 / 144 Hz tek adıma 1e-9 içinde eşit, hava geçişinde 30 ile 144 Hz 1e-4 içinde;
+      saat atlaması süre değil, pause durdurur. *Yamalı kuruma:* nokta seviyenin ıslaklığını ve birikmiş suyunu
+      ne kadar geç kuruduğuyla görür (`patchyWetness`, `dryingLateness`; CPU ikizi `surfaceResponse.ts`, TSL
+      `surfaceCover.ts`): iki oktav dünya gürültüsü + oyuklar (statikte materyalin AO'su, terrain'de tile
+      normallerinin ıraksaması). Islaklık 0 / 1 iken görünüm W4'le aynı. *Katman (Codex X2):* `forge.terrain`
+      veri belgesinde katmanın `weather`'ı (`wetting`, `porosity`, `snowAccept`, `wetPhysicalMaterial`; boşsa fizik
+      materyalinin varsayılanı, `mud` kar 0), `layerWeather.ts`; terrain örtüsü katman ağırlıklarıyla karışmış
+      tepkiyle (katman başına uniform; eskiden sabit varsayılan). Details: Landscape > Paint'te etkin katmanın
+      Weather'ı (şemanın `TerrainLayerWeatherFields`'ı), tek Undo. *Kayıt:* canlı dört büyüklük A7'de; kayıt
+      kaldığı yerden sürer, yükleme sonrası iki dünya aynı adımlarla birebir aynı; level baytları değişmez.
+      *Editör:* önizlemede `Surface` (dört büyüklük) ve `Simulate` (1 / 5 / 20 / 60 dk'yı dört saniyede oynatır);
+      kaydedilmez, Undo'ya girmez. Ajan WES alanlarını `forge edit set surface.weatherDrivesSurface=true` ile yazar;
+      katmanın `weather`'ı terrain veri belgesindedir (`forge edit` level'ı yazar). SDK yüzeyi değişmedi (0.1.17).
+      **Kanıt:** `weatherSurface.smoke.ts` (gerçek WebGPU, Derekavak, dev kancası `advanceEnvironment`): yağmur
+      (kuru → ıslanırken → ıslak → birikinti → önce film, sonra su kurur → kuru) ve kar (örter → kalınlaşır → önce
+      kalınlık, sonra örtü erir, zemin ıslak kalıp kurur) serileri, sıra canlı durumdan, görüntü kurudan ayrılıp
+      aynı kuruya döner, pipeline +0; çekimler `render-refs/candidates/w5-<seri>-<n>-<an>-<low|p2>.png`, kayıt
+      `render-refs/runs/*-w5-surface.json`. Render smoke'u (20 poz) referanslarla aynı; yağış (beş yol), siper,
+      terrain örtüsü ve statik hava smoke'ları W4 sayılarıyla birebir; editör `world.spec` (önizleme ve Simulate
+      kayda ve Play'e sızmaz) ve `landscapePaint.spec` (katman Weather'ı, Undo, kayıt) gerçek WebGPU'da geçti.
+      **Ölçüm** (R1, gerçek WebGPU): `measure:weather` (`2026-11-26T13-35-36-367Z-weather.json`; yeni durumlar hava
+      bağı açık, ölçülürken yüzey ilerler) Derekavak GPU açık 2,19 / ıslak 2,42 / karlı 2,38 / ıslanırken 2,46 /
+      kururken 2,60 ms, L03 0,29 / 0,34 / 0,38 / 0,33 / 0,33 ms; gönderim ~0,9–1,0, ana iş parçacığı ~1,4–1,5 ms
+      (G6 değişmedi); bütün durum ve geçişlerde pipeline ve shader modülü +0. Şehir (`measure:city`, high, yeni
+      `FORGE_CITY_SURFACE=drying`: ıslaklık 0,5 + birikinti 0,7; `…13-45-33-906Z` kuru / `…13-54-22-782Z` kururken):
+      sokak 3,38 / 3,84, meydan 4,41 / 4,73, iç 4,74 / 5,02, eşik 5,00 / 5,32, cephe 5,08 / 5,50, yüksek 4,42 /
+      4,85 ms (en çok +0,46; draw sayısı aynı).
+      **Sınırlar:** yamalı kurumanın gürültüsü pikselde iki oktav (sekiz karma): kururken şehirde +0,3–0,46 ms;
+      bütçenin (0,8) W6 birikinti ve W7 kar yüksekliğine kalan payı ~0,35 ms, gerekirse tek oktava iner. Islanma
+      da aynı yamalarla başlar (yön ayrımı yok). Uzak harita ve impostor'da oyuk yok, yalnız gürültü. Terrain
+      katman `weather`'ını değiştirmek terrain görünümünü yeniden kurar (yalnız Details'teki commit'te). Yeni level
+      şablonundaki `snowAccumulationRate: 0` kaldırıldı (hava bağıyla kar hiç birikmezdi).
+      Kullanıcı görsel kabulü bekleniyor.
 - [ ] **W6 Su birikintisi ve halkalar.** Çukur haritası (X) + terrain bağı, mikro
       birikinti, `followWeather`, halka düğümü (C). *Kapı:* HV-06.
 - [ ] **W7 Terrain kar yüksekliği.** CPU ikiziyle. *Kapı:* HV-07, 08. — C
@@ -1300,6 +1341,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-26 | v2.25 | Faz W W5 yağışla ıslanma, karlanma, kuruma (`ce38ed2`): WES `weatherDrivesSurface` yüzey modelini canlı yağışla sürer, yamalı kuruma, terrain katmanının `weather`'ı, önizlemede Simulate. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-26 | v2.24 | Faz W W4 kapandı (kullanıcı görsel kabulü). Sırada W5: yağışla ıslanma, karlanma, kuruma (yeni oturumda). |
 | 2026-11-26 | v2.23 | Faz W W4 statik mesh örtüsü (`4989204`): ıslaklık ve kar yüzün normaline göre bütün statik yüzeylere (materyal, GLB materyali, şekil, yol, HLOD, ailesiz foliage) ve terrain'e aynı kuralla; `forge.material` `weather`, WES dikey / rüzgâr payı. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-26 | v2.22 | Faz W W3 kapandı (kullanıcı görsel kabulü). Sırada W4: statik mesh örtüsü (yeni oturumda). |

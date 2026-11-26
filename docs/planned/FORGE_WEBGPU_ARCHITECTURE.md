@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.92 · 2026-11-26 — §4.9 hava sözleşmesi W4: statik yüzey örtüsü (normal payı, dünyanın yüzey havası, diffuse sonrası kanca, `forge.material` `weather`).
+**Güncelleme:** v1.93 · 2026-11-26 — §4.9 hava sözleşmesi W5: hava bağı (`weatherDrivesSurface`, yüzey modeli canlı yağışla), yamalı kuruma, terrain katmanının `weather`'ı.
+
+**Önceki güncelleme:** v1.92 · 2026-11-26 — §4.9 hava sözleşmesi W4: statik yüzey örtüsü (normal payı, dünyanın yüzey havası, diffuse sonrası kanca, `forge.material` `weather`).
 
 **Önceki güncelleme:** v1.91 · 2026-11-26 — §4.9 hava sözleşmesi W3: yağış siperi (iki kademe, gölge geçişi malzemesi, GPU güdümlü `cover` görünümü, `COVER_LAYER`).
 
@@ -2321,6 +2323,23 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     pürüzlülük, metallik ve ince normal düğüm yuvalarında; tepki materyalden `materialReference`. Instance
     batch'leri (iki yol + WebGL2 ikizi), HLOD proxy'leri ve ailesiz foliage kopyayı çizer; bitki aileleri
     PG2'de kalır. Hava yalnız uniform yazar; ıslanma ve kar kabulü 0 olan ve ışıksız materyal bağlanmaz.
+  - **W5 uygulaması (2026-11-26):** *hava bağı* WES `surface.weatherDrivesSurface`'tadır (şemada kapalı, HK2;
+    Add Actor ve yeni level şablonu açık yazar; World Builder'ın yazdığı WES de açık olur). Açıkken
+    denetleyici `advanceSurfaceCondition`'ı canlı yağışla sürer (adımın başı ve sonu yağışının ortalaması:
+    hava geçişinde kare hızları birlikte kalır); kapalıyken 5a'nın hedef + oran yolu birebir. Oranlar aynı
+    grupta (`puddleFillRate`, `puddleDrainRate`, `snowDepthRate`, `snowDepthMeltRate`, `snowMaxDepth` ≤ 2 m;
+    sürüm artmadı). Saat atlaması süre değil, pause durdurur; durum A7'de, kayıt kaldığı yerden sürer; yüzey
+    uniform olduğu için yeni hücre güncel durumla çizilir. *Yamalı kuruma* (CPU ikizi `surfaceResponse.ts`
+    `patchyWetness` / `dryingLateness`, TSL `surfaceCover.ts` aynı formül): bir nokta seviyenin ıslaklığını ve
+    birikmiş suyunu ne kadar geç kuruduğuyla görür; geç kuruyan yerler dünya gürültüsü (iki oktav) ve oyuklardır
+    (statikte materyalin AO'su, terrain'de tile normallerinin ıraksaması; uzak haritada yok). Uçlarda (0 / 1)
+    görünüm W4'le aynı. Yalnız uniform; hava değişimi shader derlemez. *Terrain katmanı:* veri belgesindeki
+    katmanın `weather`'ı (`wetting`, `porosity`, `snowAccept`, `wetPhysicalMaterial`; yalnız yazılan alanlar,
+    `engine/environment/layerWeather.ts` çözer: boşsa fizik materyalinin varsayılanı, `mud` kar almaz);
+    terrain örtüsü katman ağırlıklarıyla karışmış tepkiyle çizilir (katman başına bir uniform). Details:
+    Landscape > Paint'te etkin katmanın Weather'ı (`TerrainLayerWeatherFields`), tek Undo. Fizik profilinin
+    canlı olması W8. *Editör:* önizleme dört büyüklüğü gösterir, `Simulate` seçili süreyi dört saniyede oynatır;
+    kaydedilmez, Undo'ya girmez.
   - Tasarım, adımlar ve HV-01–13 [plan Faz W'de](FORGE_WEBGPU_REBUILD_PLAN.md).
 - *Terrain:* Faz 3'te salt çizim (spike S2'nin TSL CDLOD'u: yükseklik, 8
   katman, normal, gölge); su birikintisi, tile akışı ve üretim kalitesi 5a'da;
