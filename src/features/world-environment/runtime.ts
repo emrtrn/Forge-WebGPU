@@ -30,7 +30,7 @@ export function forgeWorldEnvironment(data: WorldEnvironmentData) {
       snowMinAltitude: data.surface.snowAltitudeEnabled ? data.surface.snowMinAltitude : null,
       snowAltitudeBlend: data.surface.snowAltitudeBlend,
       verticalWetting: data.surface.verticalWetting, windwardWetting: data.surface.windwardWetting,
-      puddleMaxSlopeDeg: data.surface.puddleMaxSlopeDeg,
+      puddleMaxSlopeDeg: data.surface.puddleMaxSlopeDeg, wetGloss: data.surface.wetGloss, puddleCore: data.surface.puddleCore,
       wetSpread: data.surface.wetSpread, snowSpread: data.surface.snowSpread, patchSize: data.surface.patchSize,
     },
     weatherSky: { cloudy: { ...data.weatherSky.cloudy }, rain: { ...data.weatherSky.rain }, snow: { ...data.weatherSky.snow }, fog: { ...data.weatherSky.fog } },

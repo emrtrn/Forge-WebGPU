@@ -114,6 +114,9 @@ export interface LayoutWorldEnvironment {
     windwardWetting?: number;
     /** Steepest slope (degrees) that holds standing water's gloss. */
     puddleMaxSlopeDeg?: number;
+    /** The wet patches' gloss, and the share of a wet patch that is a puddle. */
+    wetGloss?: number;
+    puddleCore?: number;
     /** W5 refinement: how far the wet and snow patches reach, and the patch size multiplier. */
     wetSpread?: number;
     snowSpread?: number;

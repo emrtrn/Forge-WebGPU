@@ -242,7 +242,8 @@ for (const mode of MODES) {
     expect(wet.bottom, "the underside stays dry").toBeLessThan(0.02);
     expect(wet.paving, "the paving gets wet").toBeGreaterThan(0.1);
     expect(wet.terrain, "the terrain gets wet").toBeGreaterThan(0.1);
-    expect(wet.rock, "the rock gets wet").toBeGreaterThan(0.05);
+    // Wetness alone only darkens (no gloss, user decision 2026-11-26); the probe sits on the rock's part-standing face.
+    expect(wet.rock, "the rock gets wet").toBeGreaterThan(0.03);
     expect(snow.top, "snow on the top").toBeGreaterThan(0.3);
     expect(snow.paving, "snow on the paving").toBeGreaterThan(0.3);
     expect(snow.terrain, "snow on the terrain").toBeGreaterThan(0.3);

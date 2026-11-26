@@ -12,21 +12,20 @@ gökyüzünü, sisi ve bulutları kendi değerlerini değiştirmeden yeniden yor
   Islaklık ve kar bütün statik yüzeylere yüzün normaline göre düşer (plan W4,
   `engine/environment/surfaceResponse.ts`): yukarı bakan tam, dikey
   `surface.verticalWetting` (rüzgârın geldiği yan `windwardWetting` kadar fazla),
-  alta bakan kuru; yağış siperinin altı kuru ve karsız. Durgun suyun parlaklığı
-  yalnız düz zeminde: `surface.puddleMaxSlopeDeg`'ten (varsayılan 5°, 5° geçiş)
-  dik zemin ve duvarlar ıslak film olarak koyulaşır, ayna gibi parlamaz
-  (`poolShare`, `WET_FILM_ROUGHNESS`).
+  alta bakan kuru; yağış siperinin altı kuru ve karsız.
   Hava bağı (plan W5): `surface.weatherDrivesSurface` açıkken canlı yağış yüzeyi
   sürer (`engine/environment/surfaceCondition.ts`; yağmur ıslatır, su biriktirir,
   kar örter ve kalınlaşır; kesilince önce ince ıslaklık, sonra birikinti kurur,
   kar önce kalınlığını sonra örtüsünü kaybeder, zemin ıslak kalıp kurur); oranlar
   aynı grupta. Şemada kapalı (eski level'lar 5a'nın hedef + oran yolunda); Add
-  Actor ve yeni level açık yazar. Islaklık her yüze eşit bir film olarak düşer ve
-  eşit kurur (koyulaşma, hafif parlaklık); yalnız birikinti yamalıdır: gürültü ve
-  oyuklar önce tutar (`surfaceResponse.ts` `patchyPuddles`), yalnız düz zeminde.
-  Kar aynı desenle oyuklardan başlar ve parça parça erir (`patchySnow`);
-  `surface.wetSpread` (Puddle Spread) / `snowSpread` birikinti ve kar yamalarının
-  nereye kadar yayılacağını, `patchSize` boylarını belirler (yalnız görünüm, 1'de
+  Actor ve yeni level açık yazar. Islaklık üç kademedir: (1) ıslaklık her yüzü
+  eşit koyulaştırır, parlatmaz (göl dibindeki kum gibi); (2) birikinti doluluğu
+  gürültü ve oyuklardan başlayan ıslak yamalar açar (`surface.wetSpread`'e kadar,
+  `wetGloss` kadar hafif parlak); (3) her yamanın iç kısmı (`puddleCore`) ayna
+  gibi birikintidir (`surfaceResponse.ts` `patchyWater`). 2 ve 3 yalnız düz
+  zeminde (`puddleMaxSlopeDeg`); yamaç yalnız koyulaşır. Kar aynı desenle
+  oyuklardan başlar ve parça parça erir (`patchySnow`); `snowSpread` kar
+  yamalarının yayılımını, `patchSize` boylarını belirler (yalnız görünüm, 1'de
   nötr; canlı durum ve model değişmez).
 - `runtime.ts`: tekili taşınmış `WorldEnvironmentController`'a yükler ve
   `WorldEnvironmentKey` servisiyle verir (`src/engine/environment`); oyun
