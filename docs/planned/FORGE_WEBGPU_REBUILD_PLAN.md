@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.23 · 2026-11-26 — Faz W W4 statik mesh örtüsü (`4989204`): ıslaklık ve kar yüzün normaline göre bütün statik yüzeylere (materyal, GLB materyali, şekil, yol, HLOD, ailesiz foliage) ve terrain'e aynı kuralla; `forge.material` `weather`, WES dikey / rüzgâr payı. Kullanıcı görsel kabulü bekleniyor.
+**Güncelleme:** v2.24 · 2026-11-26 — Faz W W4 kapandı (kullanıcı görsel kabulü). Sırada W5: yağışla ıslanma, karlanma, kuruma (yeni oturumda).
+
+**Önceki güncelleme:** v2.23 · 2026-11-26 — Faz W W4 statik mesh örtüsü (`4989204`): ıslaklık ve kar yüzün normaline göre bütün statik yüzeylere (materyal, GLB materyali, şekil, yol, HLOD, ailesiz foliage) ve terrain'e aynı kuralla; `forge.material` `weather`, WES dikey / rüzgâr payı. Kullanıcı görsel kabulü bekleniyor.
 
 **Önceki güncelleme:** v2.22 · 2026-11-26 — Faz W W3 kapandı (kullanıcı görsel kabulü). Sırada W4: statik mesh örtüsü (yeni oturumda).
 
@@ -788,7 +790,7 @@ yüzeyiyle biter.
       değişimi siperi tazelemez (bir sonraki yerleşimde gelir); WebGL2'de satır yönü çevrilir, ayrıca
       sınanmadı; statik mesh'in kendisi henüz ıslanmaz / karlanmaz (W4).
       **Görsel kabul:** kullanıcı, 2026-11-26.
-- [ ] **W4 Statik mesh örtüsü.** `surfaceCover` v2, `forge.material` `weather`,
+- [x] **W4 Statik mesh örtüsü.** `surfaceCover` v2, `forge.material` `weather`,
       bütün statik yollar + HLOD, dikey ıslanma. *Kapı:* HV-04, 12; statik ölçüm. — C
       **Kod 2026-11-26 (`4989204`):** saf kural `engine/environment/surfaceResponse.ts` (CPU ikizi, testli;
       küçük ve tanımlı olduğu için Codex'e verilmedi): ıslaklık payı yüzün dünya normalinden, yukarı bakan
@@ -830,6 +832,7 @@ yüzeyiyle biter.
       "kulübe kaldırılınca" eşiği mutlak 0,1'den dışarıdaki yağmurun %30'una çekildi: aynı poz W4 bağlıyken
       ve değilken 0,09–0,10 ölçüyor (eşik sınırdaydı). Ölçüm smoke'unda bir yüzey değişikliği ekranda birkaç
       kare sonra görünüyor (iki adım yetmedi, altı adım); sebebi ayrıca aranmadı.
+      **Görsel kabul:** kullanıcı, 2026-11-26.
 - [ ] **W5 Yağışla ıslanma, karlanma, kuruma.** Yüzey durumu modeli (W0'da) + hava
       bağı, katmanın `weather` alanı ve Details'i, yamalı kuruma, kayıt oyunu (C).
       *Kapı:* HV-05, 08, 09.
@@ -1297,6 +1300,7 @@ silinebilir.
 | 2026-11-19 | v1.91 | 5d adım 2'nin görsel kabulü (kullanıcı). Sıradaki: 5d adım 3 (B04, B05) |
 | 2026-11-19 | v1.92 | 5d adım 3 (`30fe244`): kararlar (kullanıcı, öneriler gibi: katman ekle / sil / materyal B04'te, Auto Paint kuralları `forge.landscapeAutoPaint` bileşeninde, uygulama editörde, görünüm kipi Landscape ayarlarında); Paint kipi, katman işlemleri tek undo, Auto Paint, editöre özel görünüm kipleri. `landscapePaint.spec.ts` forceWebGL + gerçek WebGPU'da geçti. Görsel kabul kullanıcıda |
 | 2026-11-19 | v1.93 | 5d adım 3'ün görsel kabulü (kullanıcı). Sıradaki: 5d adım 4 (B01, B02, B08, `worldTerrainMove`) |
+| 2026-11-26 | v2.24 | Faz W W4 kapandı (kullanıcı görsel kabulü). Sırada W5: yağışla ıslanma, karlanma, kuruma (yeni oturumda). |
 | 2026-11-26 | v2.23 | Faz W W4 statik mesh örtüsü (`4989204`): ıslaklık ve kar yüzün normaline göre bütün statik yüzeylere (materyal, GLB materyali, şekil, yol, HLOD, ailesiz foliage) ve terrain'e aynı kuralla; `forge.material` `weather`, WES dikey / rüzgâr payı. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-26 | v2.22 | Faz W W3 kapandı (kullanıcı görsel kabulü). Sırada W4: statik mesh örtüsü (yeni oturumda). |
 | 2026-11-26 | v2.21 | Faz W W3 yağış siperi (`41247b8`): iki kademeli yukarıdan derinlik haritası (statik, şekil, yol, HLOD), GPU güdümlü culling'de `cover` görünümü; çatı altında yağış, terrain'de kar / ıslaklık yok. Kullanıcı görsel kabulü bekleniyor. |
