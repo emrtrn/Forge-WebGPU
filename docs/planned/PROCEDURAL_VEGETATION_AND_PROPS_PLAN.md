@@ -1,6 +1,7 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.24 · 2026-11-26 (orman zemini çalışması başladı, §9.9).
+**Sürüm:** v0.25 · 2026-11-26 (orman zemini için görsel hedefler ve ilk uygulama, §9.9.1–9.9.2).
+Önceki: v0.24 · 2026-11-26 (orman zemini çalışması başladı, §9.9).
 Önceki: v0.23 · 2026-11-26 (PG5b adım 6, karışık orman ve genç ağaçlar için kullanıcı görsel kabulü).
 Önceki: v0.22 · 2026-11-25 (PG5b adım 5: türler, tek üretici; kullanıcı görsel kabulü).
 Önceki: v0.21 (PG5b adım 1–4'ün kullanıcı görsel kabulü).
@@ -1255,6 +1256,298 @@ Referansa göre gölgeli iç bölge hâlâ koyu ve tekdüze. Sonraki geçişte e
 ve odunsu döküntüleri küçük gruplar hâlinde ekleyip aynı pozlarda incele.
 Kök boğazı kontrolü ve kullanıcı görsel kabulü açık.
 
+**İkinci uygulama, 26 Kasım 2026.** World Builder `Forest` ön ayarı, orta
+orman boya ağırlığında iki eğrelti kümesi modeli kullanıyor. Yoğun orman
+boyasına doğru eğreltiler çekiliyor ve yaprak örtüsü açıkta kalıyor. Üç
+düşmüş dal modeli ve üç mevcut `RockRounded` modeli arazi normalini takip
+ediyor. Ölçek, dönüş, gömülme miktarı ve boya ağırlığı yerleşimi çeşitlendiriyor.
+Dallar ve taşlar yalnız yakın mesafede çiziliyor. Doku içindeki ince dallar
+korundu. Aynı ışıkta humus ve yaprakların daha iyi ayrışması için renk
+haritası ısıtıldı ve yaprakların renk farkı artırıldı.
+
+Geniş yapraklı ve huş tabanları araziye yaklaşık düz yerde 1–2 cm içinde
+oturuyordu. Yokuş aşağıda modelin taban çemberi, merkezin yükseklik örneğine
+göre yaklaşık 16 ve 8 cm açıkta kalıyordu. Bu iki türün dik duran
+gövdelerini aşağı alma miktarı örnek ölçeği, taban yarıçapı ve yerel
+eğimden hesaplanıyor. İncelenen eğimli örneklerde tabanın en açıkta kalan noktası
+arazinin yaklaşık 2 cm altında. Aynı gölge ayarlarında, yokuş aşağıdan
+görünen kesik taban çizgisi zeminin altına geçti.
+
+[Orman kenarı ve içi](../research/forest-floor/comparison-pass2.webp) ile
+[düz ve eğimli kök yakın çekimleri](../research/forest-floor/root-contact.webp)
+başlıklı Chrome'da gerçek WebGPU ile alındı (NVIDIA Ampere, 1200 × 800,
+High, yaz, kuru zemin). `World_3` tohumu 37687. Oturum başlangıcının ayrı
+kopyasıyla aynı iki kadraj ve yürüyüş yüksekliğinden ek pozlar kullanıldı.
+Yeniden üretilen kopyada 64 arazi parçası, sahne ayarları ve ışık aktörleri
+başlangıçla aynı. Karşılaştırma bölgesinde örneklenen 614 dal ve 775 taşın
+geometrisi arazi yüzeyini kısmen kesiyor. Önceki karşılaştırma yukarıdaki
+bağlantıda duruyor.
+
+Asset denetimi ve 49 ilgili test geçti. Orman içindeki yaprak dokusu
+daha belirgin. Gölge, ImageGen hedefinden hâlâ daha koyu ve homojen.
+Oturumda GPU güdümlü batch sayacı 35'ten 43'e çıktı. Kare süresi ve
+hareket hâlindeki performans ölçülmedi. Kullanıcı görsel kabulü açık.
+
+#### 9.9.1 Referansa yaklaşmak için beş adım
+
+ImageGen karesinde gövde diplerinden açıklığa doğru yosunlu kökler, kuru yaprak
+birikintileri, çıplak toprak ve kısa ot adaları seçiliyor. İkinci WebGPU
+geçişinde santimetrelik yapraklar yakından okunuyor. Yürüyüş yüksekliğinde
+ise gövdeler arasındaki birkaç metrelik alan çoğunlukla aynı yüzey gibi
+görünüyor. İlk iki adım yüzey dağılımı ve taç gölgesinin bu görünüme katkısını
+ayrı ayrı sınar.
+
+İkinci geçişin `World_3` kopyasında kameraların baktığı noktalardaki
+[boya ağırlığı kuralı](../../src/engine/foliage/proceduralFoliage.ts) şöyle çalışıyor.
+Son iki sütun adayın bu kuraldan geçme oranını gösterir. Nihai bitki sayısını
+ayrıca tür yoğunluğu ve diğer yerleşim kuralları belirler.
+
+| Kadraj | Orman boyası | Orman otu | İki eğrelti çeşidi |
+|---|---:|---:|---:|
+| Kenar, yürüyüş yüksekliği | %51,2 | %100 | %100 / %100 |
+| Düşmüş dal | %64,9 | %100 | %97 / %100 |
+| Orman içi | %100 | %12,6 | %0 / %0 |
+
+İç kadrajın hedefi çevresinde 10 × 10 m alanda, 1 m aralıkla alınan 121 örnekte
+orman boyası %96,4–100. Her iki eğrelti kuralı da bu aralıkta sıfıra iniyor.
+İleride iç bölgede eğrelti istenirse uygun ceplere ayrı yerleşim kuralı gerekir.
+
+| Sıra | Uygulama | Görsel karar |
+|---|---|---|
+| 1 | Mevcut 1,6 m yaprak karosunu koruyup dünya tohumuna bağlı, başlangıçta 2–6 m genişliğinde humus, kuru yaprak ve açık toprak cepleri üret. | Aynı gövdeler arasında yürürken geniş yüzeyler birbirinden ayırt ediliyor, yaklaşınca yapraklar santimetre ölçeğinde kalıyor. İlk oturumun kapsamı §9.9.2. |
+| 2 | Sabit güneş ve pozlamada önce yaprak gölgelerinin katkısını incele. Sonra tek bir geniş yapraklı prototipte taç doluluğunu ve kümelenmeyi ayrı dene. | Açıklığın parlaklığı korunurken yaprak örtüsünde küçük güneş lekeleri seçiliyor. Kamera LOD sınırını geçince zemindeki ışık sıçramıyor. Aynı pozlarda başlangıç, yalnız yüzey, yalnız taç ve ikisi birlikte karşılaştırılıyor. |
+| 3 | Açıklıkta ince, yana yatan 8–20 cm kısa ot adaları dene. Aynı adadaki demetlerin boy ve yönü yakın, kenarları seyrek olsun. İlk kıyası benzer toplam örnek sayısıyla yap. | Açıklıkta otların arasından toprak görülüyor. Orman kenarı ve görüş derinliği korunuyor. Mevcut MeadowGrass tarifi 42 cm ve demet başına 12 yaprak. |
+| 4 | Doku üreticisinde kıvrılmış bütün yapraklar, parçalar ve üst üste birikimler oluştur. Aynı tohumdan üretilen pürüzlülük haritasıyla kuru yaprak ve humusun ışık tepkisini karşılaştır. | Yakından tek yaprağın kenarı, birkaç metre öteden birikintinin biçimi okunuyor. Kuru yüzey gölgede gri taneciklere dönüşmüyor. |
+| 5 | Bir geniş yapraklı prototipte toprağa incelerek giren asimetrik yüzey kökleri dene. Kök aralarında yaprak birikimi, bazı orman taşlarının üstünde kesintili yosun ve yakınlarında küçük eğrelti cepleri oluştur. | Düz ve eğimli yakın çekimlerde gövdenin dairesel taban çizgisi kırılıyor. Taşın gömülü kenarı yapraklarla birleşiyor. Geometri eklenen turda aynı yürüyüşte GPU kare süresi, batch sayısı ve detayların görünme mesafesi karşılaştırılıyor. |
+
+**Açık kaynak örneklerinin Forge'daki karşılığı**
+
+- Terrain3D (MIT) geniş ölçekli renk değişimi ve doku tekrarını ayrı ele alıyor. Forge'da 25 m sonrasında uzak tekrarı kıran bir örnekleme zaten var. İlk adımın hedefi kameranın önündeki birkaç metre. [Terrain3D shader](https://github.com/TokisanGames/Terrain3D/blob/main/src/shaders/main.glsl) · [Forge terrain materyali](../../src/render/materials/terrain.ts)
+- ProtonScatter (MIT) konuma göre ölçekleme ve maskeleme örnekleri sunuyor. Kısa ot adalarında ortak bir alanın demet boyunu ve sıklığını birlikte yönetmesi denenebilir. Forge'un mevcut stand dağılımı komşu türleri grupluyor. [Scatter yerleşim araçları](https://github.com/HungryProton/scatter/wiki/Modifiers) · [Forge stand dağılımı](../../src/engine/foliage/foliageStand.ts)
+- ez-tree (MIT), LOD'ları aynı iskeletten üretirken yaprak sayısı ve ölçeğiyle taç örtüsünü dengeliyor. İkinci adımda aynı zemin parçasının gölgesini bir LOD geçişi boyunca izlemek için örnek. [ez-tree LOD seçenekleri](https://github.com/dgreenheck/ez-tree#readme)
+- Poly Haven Forest Floor (CC0), dördüncü adımda aynı ışıkta prosedürel dokuya karşı denenebilecek kuru yaprak, toprak, normal ve pürüzlülük referansı. [Forest Floor](https://polyhaven.com/a/forest_floor) · [Asset lisansı](https://polyhaven.com/license)
+
+#### 9.9.2 İlk oturum · Humus, kuru yaprak ve açık toprak cepleri
+
+1. §9.9'daki ikinci geçişi başlangıç al. `World_3` brief'inin ayrı bir çalışma
+   kopyasını ve 37687 tohumunu kullan. Mevcut kenar ve iç pozlarına, açıklıktan
+   ormana bakan ve gökyüzüyle ön planı birlikte gösteren bir geniş poz ekle.
+   Düzenleme öncesinde üç pozu kaydet.
+2. World Builder ile üretilen `Forest` örtüsünde metre ölçeğindeki geçişleri
+   uygula. Orman boyası hem yüzeyi hem ağaçları sürüyor. Görünümün
+   çeşitlenmesini ağaçların veya alt bitkilerin yerlerini değiştirmeden sağla.
+   Sonuç aynı tohum ve dünya konumunda tekrarlanmalı. 2–6 m ilk deneme aralığıdır.
+3. Üç pozun önce/sonra çiftini gerçek WebGPU, High, 1200 × 800, yaz ve kuru
+   zeminde al. Kamera, ışık ve pozlama her çiftte aynı olsun. Kısa yürüyüşte
+   ceplerin dünyaya sabit kaldığını, tile sınırında dikiş oluşmadığını ve
+   yakındaki yaprak ölçeğini kontrol et. Ağaç yerleşimini başlangıç kopyasıyla
+   karşılaştır.
+4. Karşılaştırmayı `docs/research/forest-floor/` altına ekle. Kullanılan geniş
+   kamera pozunu, değişen dosyaları, odaklı doğrulamayı ve gözlenen sınırlamaları
+   bu bölümde kaydet. Bu oturum ilk iki karşılaştırma durumunu üretir.
+   Yalnız taç ve birleşik sonuç ikinci adıma, görsel kabul kullanıcıya aittir.
+
+**Uygulama ve doğrulama, 26 Kasım 2026.** `Forest` örtüsünün orman
+katmanı brief tohumunu arazi tanımına yazar. Materyal, dünya XZ düzleminde
+5,4 m ve 2,2 m ölçekli iki gürültüyü karıştırır. Düşük değerlerde koyu
+humus, ortada kuru yaprak ve yüksek değerlerde daha seyrek açık toprak
+görünür. Toprağın ince tanesi ve küçük kesekleri aynı koordinatlardan gelir.
+Yapraklı bölgede 1,6 m renk ve normal karosu tam ayrıntısıyla kullanılır.
+Humus ve açık toprakta yaprak kabartması kademeli olarak azalır.
+
+[Üç önce/sonra çifti](../research/forest-floor/comparison-surface-pockets.webp)
+commit edilmemiş ikinci geçişten ayrılan `World_3` kopyasında alındı
+(`37687`, başlıklı Chrome, WebGPU NVIDIA Ampere, High, 1200 × 800, DPR 1,
+yaz ve kuru zemin). Her çiftte kamera, ışık ve çizim pozlaması (0,2)
+eşleşti. Önceki kenar ve iç pozları kullanıldı. Açıklıktan ormana bakan
+geniş pozun kamerası `[570, 3.0780811071395874, 332]`, hedefi
+`[526, 4.2, 320]`, dikey görüş açısı 44° ve yerden yüksekliği 1,6 m.
+Yüzey ayrımı orman içinde ve sınır yürüyüşünde belirgin. Geniş pozun
+çayır ağırlıklı ön planında değişim daha sınırlı.
+
+Yürüyüş kamerası `Z = 303` boyunca `X = 518`'den `X = 506`'ya, yerden
+1,6 m yüksekte 7,5 saniyede ilerledi. `X = 512` parça sınırında
+toprak-yaprak geçişi kesintisizdi ve desen dal, taş ve gövdelere göre
+kaymadı. Orman içi pozuna dönüldüğünde zemin kırpımındaki ortalama mutlak
+RGB farkı kanal başına 0,009/255'in altındaydı. Brief yeniden üretiminde
+64 tile, global arazi verisi, level, hücreler ve foliage kuralları bayt
+düzeyinde eşleşti. Tek veri farkı orman katmanına eklenen tohumdu.
+Örtü, dünya üretimi ve terrain render dosyalarındaki 17 ilgili test geçti.
+Doğrulama bu rota, bu tohum ve bu WebGPU koşuluyla sınırlı. GPU kare
+süresi ve diğer kalite/mevsim koşulları açık. Kullanıcı yüzey ceplerinin
+görsel kabulünü verdi (26 Kasım 2026).
+
+Kod yüzeyi `forest.cover.json`, `groundCover.ts`, `worldBuild.ts`,
+`terrainTypes.ts`, `terrainDefinition.ts`, `terrains.ts`,
+`features/terrain/render.ts`, `terrain.ts`, `terrainDetail.ts` ve
+`terrainForestFloor.ts`. Çalışma kopyası
+`.forge-cache/forest-floor/surface-pockets-world` altında.
+
+#### 9.9.3 İkinci oturum · Taç ve zemine düşen ışık
+
+**26 Kasım 2026.** Çekimler `World_3` çalışma kopyasında alındı (tohum
+37687, başlıklı Chrome, WebGPU NVIDIA Ampere, High, 1200 × 800, yaz,
+kuru zemin). Önceki üç poza yürüyüş yüksekliğinde bir gölge ayrıntısı
+eklendi. Ek pozun kamerası `[515, 2.2439200043678285, 303]`, hedefi
+`[512, 0.6937842726707458, 304]` olarak seçildi. Kamera, ışık ve
+pozlama her karşılaştırmada eşleşti. Rüzgâr çekim kopyasında sıfırlandı.
+Arazinin, hücrelerin ve yerleşim kurallarının eşitliği dosya düzeyinde
+doğrulandı. [Dört durumun çekimleri](../research/forest-floor/comparison-canopy-light.webp)
+
+**Yaprak gölgesi.** Tanı çekimlerinde 60 ağaç yaprak çizim parçasının gölge
+üretimi geçici olarak devre dışı bırakıldı. Gövde gölgeleri ve sahnedeki
+yaprak çizimi korundu. Örnek zemin bölgelerinin ortalama parlaklığı
+(8 bit) orman kenarında 14,4/255, orman içinde 19,0/255, açıklıkta
+0,13/255 arttı. Orman içindeki tüm gölge üreticileri kapatılınca fark
+26,3/255 oldu. [Gölge ve prototip kontrolleri](../research/forest-floor/canopy-light-controls.webp)
+
+**Tek prototip denemesi.** `Broadleaf_1` (tohum 1) için doluluk 0,80 →
+0,58 ve kümelenme 0,50 → 0,82 ayrı üretildi. Her adayda yalnız bu
+prototipin üç GLB'si ve iki impostor dokusu çekim sırasında değiştirildi.
+Yakın pozdaki örnek zemin alanında, mevcut taca göre parlaklığı en az
+8/255 artan pikseller doluluk adayında %0,49, kümelenme adayında %0,31.
+Karşılaştırmanın taç adayı doluluk 0,58. Yaprak alanı endeksi her
+ağaç LOD'unda 5,1 ve LOD0 30.377 üçgen. Kenar ve iç pozlarındaki
+aydınlanma küçük kaldı. Geniş pozda açıklığın örnek bölgesi aynı
+ortalama parlaklığı korudu. Aday yalnız çekim kopyasında denendi.
+Tarifler ve üretim çıktıları `.forge-cache/forest-floor/canopy-light-assets`
+altında.
+
+**LOD kontrolü.** Kamera adayın 38,86 m eşiğini doğal mesafeyle geçti.
+GPU gölge listesinde bir örnek LOD1'den LOD2'ye geçti (5 → 4 ve 33 → 34).
+Yaprakların örnek alanı örtmesini önlemek için ölçüm sırasında yalnız
+ana görüşteki foliage gizlendi, gölgeler çizilmeye devam etti. Aynı
+yaklaşık 3 × 3 m zemin alanında 289 dünya noktasının parlaklığı,
+38,81 → 38,91 m geçişinde ortalama 0,09/255 mutlak fark gösterdi.
+Bu rotada zeminde belirgin bir ışık sıçraması gözlenmedi. Doğrulama
+tek prototip, tek rota ve bu sahne koşullarıyla sınırlı. GPU kare
+süresi ve görsel kabul açık.
+
+#### 9.9.4 Üçüncü oturum · Açıklıkta kısa ot adaları
+
+**26 Kasım 2026.** `World_3` çalışma kopyasında (tohum 37687) kabul edilen
+orman zemini ve mevcut ağaçlar kullanıldı. Açıklıkta `X = 533–622`,
+`Z = 270–390` aralığındaki çayır otları için üç düzen karşılaştırıldı.
+İlk sütun mevcut `MeadowGrass` tarifini ve World Builder konumlarını,
+ikinci sütun aynı konumlarda kısa otu, üçüncü sütun kısa ot adalarını
+gösteriyor. Üç düzen de aynı sayıda demeti sahnenin kayıtlı foliage
+hücrelerinden yükledi. Deneme alanında 11.010, çekim alanında toplam
+15.689 çayır otu demeti vardı. Normal prosedürel başlangıç da ayrıca
+çekildi. [Üç düzenin WebGPU karşılaştırması](../research/forest-floor/comparison-short-grass.webp)
+
+Deneme tarifi üç prototipte 17 cm nominal şerit boyu, 1,3 cm şerit
+genişliği, 0,84 kıvrım ve 12 şerit kullanıyor. Eğik yerleşimde ölçülen
+demet yüksekliği 9,5–18,8 cm, eğim 19,5–34,3°. Bir ada içindeki boy
+farkı en çok 2 cm. Yön, adanın yönünden yaklaşık ±11° sapıyor.
+Dünya tohumu ve konumla belirlenen ada merkezlerinin aralığı yaklaşık
+4,6 m. Eş alanlı ada merkezi ve dış kenar örneklerinde merkez yaklaşık
+4,5 kat daha sık. Çayır boya sınırı yakındaki yerleşimi kısıtlıyor.
+206 demet uygun ada konumu bulunamadığında ilk konumunu korudu.
+
+Önceki üç poz ile açıklık yakın pozu, başlıklı Chrome'da gerçek WebGPU
+(NVIDIA Ampere), High, 1200 × 800, yaz ve kuru zeminde çekildi. Kamera,
+ışık ve pozlama eşleşti. Çekim kopyasında rüzgâr sıfırdı. Yakın pozun
+kamerası `[572, 3.1516477823257447, 332]`, hedefi
+`[562, 1.4811119985580445, 328]`. Kamera `Z = 332` boyunca
+`X = 572`'den `X = 554`'e yerden 1,6 m yüksekte 12 saniyede ilerledi.
+Yürüyüş sonunda 23 ot hücresi hazırdı. Geniş pozda GPU, 1.236 kısa
+ot demetini çizim için seçti. Orman içi karşılaştırma karesi piksel
+düzeyinde eşleşti. Arazi ve diğer yerleşim verileri dosya düzeyinde
+eşleşti. Üretimin tekrarı ve kayıtlı ot hücrelerinin okunması doğrulandı.
+
+Kısa otlar ön planı açtı ve adalar yürüyüş yüksekliğinde seçildi.
+Adaların arası mevcut yeşil çayır zemini olarak okunuyor. Çıplak
+toprak etkisi zayıf. Aday `.forge-cache/forest-floor/short-grass-world`
+çalışma kopyasında, üretim ve karşılaştırma dosyaları aynı önbelleğin
+altında duruyor. Deneme bu alan ve çekim koşullarıyla sınırlı. GPU kare
+süresi ve görsel kabul açık.
+
+#### 9.9.5 Dördüncü oturum · Yaprak döküntüsü dokusu
+
+**26 Kasım 2026.** `tools/procgen/forestFloor.ts --detail <çıktı>`
+döşenebilir 512 × 512 renk, normal ve pürüzlülük PNG'lerini 6831
+tohumundan üretir. 1,6 m karoda bütün yapraklar yaklaşık 3,6–10 cm
+boyunda. Kıvrılan kenarlar, damarlar, yırtık parçalar ve ince dallar
+humusun üzerinde yer alır. Yedi düzensiz birikimde yapraklar alttan
+üste çizilir. Renk, kabartma ve pürüzlülük aynı görünür yüzeyi izler.
+Aday üretimi iki koşuda aynı baytları verdi. Doku kenarındaki texel
+farkları, üç haritada da iç komşulukla aynı büyüklükteydi. Varsayılan
+üretim mevcut paket PNG'leriyle bayt düzeyinde eşleşti.
+
+[WebGPU karşılaştırmasında](../research/forest-floor/comparison-leaf-litter.webp)
+mevcut karo, yeni karo ve sabit 0,93 pürüzlülük, ardından yeni karo ve
+pürüzlülük haritası yer alıyor. `World_3` (37687) kopyasında mevcut
+kenar, iç ve geniş pozların yanında iki zemin ayrıntısı çekildi.
+Kamera, ışık ve pozlama her sırada eşleşti. Çekim koşulları başlıklı
+Chrome, WebGPU NVIDIA Ampere, High, 1200 × 800, yaz ve kuru zemin.
+Yakın poz yerden 46 cm yüksekte, kamera
+`[503.2, 1.2482621869444839, 303.25]`, hedef
+`[502.15, 0.8193700772523861, 303.7]`. Çekim kopyasında rüzgâr sıfırdı.
+
+Pürüzlülük ortalaması yaprak ağırlıklı texellerde 0,81, humusta 0,95.
+WebGPU'da orman katmanının albedo dizisi alfasında 184–251 aralığı
+doğrulandı. Sabit değerle harita arasındaki ortalama mutlak parlaklık
+farkı yakın zemin kırpımında 0,53/255, orman içi kırpımında 0,55/255.
+Yakındaki yaprak kenarları ve yığınlar daha belirgin. Birkaç metre ötede
+birikimler seçiliyor, en koyu gölgede ayrım zayıflıyor. Arazideki tek veri
+farkı orman katmanının materyal atamasıydı. Aday
+`.forge-cache/forest-floor/litter-detail-world` kopyasında duruyor.
+Doğrudan üretim, doku kenarı, TypeScript ve WebGPU kontrolleri tamam.
+GPU kare süresi ölçülmedi. Görsel kabul açık.
+
+#### 9.9.6 Beşinci oturum · Yüzey kökleri, yosun ve eğrelti
+
+**26 Kasım 2026.** Kabul edilen yüzey ceplerini kullanan `World_3` (37687)
+kopyasında `Broadleaf_1` prototipinin dokuz mevcut gövdesine asimetrik yüzey kökleri
+eklendi. Gövde başına 4–6 kolun tabanı ve uçları, arazi yüksekliği sorgusuyla
+biçimlendi. Uç örnekleri yaklaşık 3–4 cm toprağın altında. Kök aralarında
+katlı kuru yapraklar var. Beş mevcut taşın görünen yüzüne kesintili yosun
+oturtuldu. Taş kenarlarına kuru yapraklar ve toplam on küçük eğrelti eklendi.
+Üretim dünya tohumu ve örneğin konumuyla tekrarlandı. Kopyadaki 344 mevcut
+içerik dosyası bayt düzeyinde eşleşti. Adayın ekleri yeni modeller, foliage
+türleri ve beş boyalı foliage hücresinde. Geometri üreticisi
+[`forestSurfaceRoots.ts`](../../tools/procgen/forestSurfaceRoots.ts) ve deneme
+dünyası `.forge-cache/forest-floor/root-details-world` altında.
+
+[WebGPU karşılaştırması](../research/forest-floor/comparison-surface-roots.webp)
+1,9° düz zemin, 19,6° eğim, taş kenarı ve yürüyüş yüksekliğinde iki orman içi
+pozu içeriyor. Pencereli Chrome, NVIDIA Ampere WebGPU, High, 1200 × 800,
+yaz ve kuru zemin kullanıldı. Rüzgâr sıfırdı. Görüş açısı 44°, pozlama 0,20.
+Her çiftin kamera, ışık ve pozlama değerleri eşleşti.
+
+| Poz | Kamera (x, y, z) | Bakış hedefi (x, y, z) |
+|---|---|---|
+| Düz kök | `[501.39616, 1.84400, 299.26712]` | `[498.87616, 1.13006, 297.63812]` |
+| Eğimli kök | `[409.05939, -2.57840, 442.23267]` | `[409.50186, -2.34876, 445.35144]` |
+| Taş kenarı | `[509.91085, 1.49413, 296.07241]` | `[508.71085, 1.12137, 295.37241]` |
+| Yürüyüş yüksekliği, köke 7 m | `[504.75616, 2.39701, 301.43912]` | `[498.87616, 1.13006, 297.63812]` |
+| Orman içi | `[504, 2.25, 303]` | `[498, 0.96, 305.2]` |
+
+Yürüyüş rotası XZ `[522.5, 303.2]`–`[512.9, 303.9]`, göz yüksekliği 1,60 m
+ve uzunluğu 9,63 m. İki önce ve iki aday turunda, 75 ısınma karesinden sonra
+60 Hz simülasyon adımıyla tur başına 361 GPU zaman damgası örneği alındı.
+
+| Koşul | GPU p50 (ms), tur 1 / 2 | GPU p95 (ms), tur 1 / 2 | GPU-driven batch | GPU-driven draw |
+|---|---:|---:|---:|---:|
+| Önce | 9,18 / 6,62 | 13,76 / 10,42 | 43 | 244 |
+| Aday | 6,23 / 6,23 | 9,83 / 10,62 | 57 | 326 |
+
+Rota boyunca 14 ek batch vardı. Bunlar konuma özel dokuz kök ve beş taş
+modelinden geliyor. Eğreltiler mevcut batch'leri kullanıyor. GPU süreleri
+koşular arasında dalgalandı. Ölçüm tek cihaz, tek kalite ve bu kısa rotayla sınırlı.
+
+Düz kökün silueti 7 ve 12 m çekimlerinde seçiliyor. Kuru yaprak geometrisi
+en çok yakın planda okunuyor. WebGPU ana kamera sayacı düz kökü 12 m'ye
+kadar yüksek ayrıntıda (960 üçgen), 20 ve 24 m'de düşük ayrıntıda (256 üçgen)
+ve 28 m'de kapsam dışında gösterdi. Taşın yosunlu yüzeyi ve yaprak kenarı
+aynı modelde. Sayaç bu modeli 9 m'de çizime aldı, 12 m'de kapsam dışına çıkardı.
+Uzaklıklar yatay kamera mesafesi, sayaç çizime alınan örneği ölçer.
+
+Odaklı TypeScript, geometri geçerliliği, aynı tohumda tekrarlanabilirlik ve
+WebGPU kontrolleri tamamlandı. Birleşim çizgisi bazı gövdelerde yakın planda
+seçiliyor. Ölçümler tek prototip, tek tohum ve deneme yerleşimiyle sınırlı.
+Görsel kabul açık.
+
 ## 10. Adımlar
 
 Her adım dikey bir dilimdir ve kendi kapısıyla biter. Görsel beğeni kullanıcı
@@ -1596,6 +1889,7 @@ kurallarına göre yeniden yazılır.
 | Tarih | Sürüm | Not |
 |---|---|---|
 | 2026-11-26 | v0.24 | Orman zemini, kenar bitkileri ve gövde temasını kapsayan çalışma açıldı (§9.9). |
+| 2026-11-26 | v0.25 | İkinci geçişin ardından yüzey cepleri, taç ışığı, kısa ot adaları, yaprak detayı ve kök çevresi planlandı. İlk oturumun kapsamı ve WebGPU karşılaştırması tanımlandı (§9.9.1–9.9.2). |
 | 2026-11-26 | v0.23 | PG5b adım 6 (`8710f0c`): meşcere yerleşimi, genç ağaçlar, altı örtü; ölçüm §9.8; kullanıcı görsel kabulü. PG5b ve PG5 kapandı |
 | 2026-11-25 | v0.22 | PG5b adım 5 (`e1891dd`): sekiz tarif taç üreticisinde, meshopt, kabuklar, eski sürümler kalktı; kullanıcı görsel kabulü. Adım 6 yeni oturumda |
 | 2026-11-25 | v0.21 | PG5b adım 1–4 kullanıcı görsel kabulü; adım 5–6 yeni oturumda |
