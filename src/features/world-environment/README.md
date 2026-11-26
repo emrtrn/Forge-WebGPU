@@ -21,9 +21,11 @@ gökyüzünü, sisi ve bulutları kendi değerlerini değiştirmeden yeniden yor
   kar örter ve kalınlaşır; kesilince önce ince ıslaklık, sonra birikinti kurur,
   kar önce kalınlığını sonra örtüsünü kaybeder, zemin ıslak kalıp kurur); oranlar
   aynı grupta. Şemada kapalı (eski level'lar 5a'nın hedef + oran yolunda); Add
-  Actor ve yeni level açık yazar. Kuruma yamalıdır: gürültü ve oyuklar geç kurur
-  (`surfaceResponse.ts` `patchyWetness`). Kar aynı desenle oyuklardan başlar ve
-  parça parça erir (`patchySnow`); `surface.wetSpread` / `snowSpread` yamaların
+  Actor ve yeni level açık yazar. Islaklık her yüze eşit bir film olarak düşer ve
+  eşit kurur (koyulaşma, hafif parlaklık); yalnız birikinti yamalıdır: gürültü ve
+  oyuklar önce tutar (`surfaceResponse.ts` `patchyPuddles`), yalnız düz zeminde.
+  Kar aynı desenle oyuklardan başlar ve parça parça erir (`patchySnow`);
+  `surface.wetSpread` (Puddle Spread) / `snowSpread` birikinti ve kar yamalarının
   nereye kadar yayılacağını, `patchSize` boylarını belirler (yalnız görünüm, 1'de
   nötr; canlı durum ve model değişmez).
 - `runtime.ts`: tekili taşınmış `WorldEnvironmentController`'a yükler ve

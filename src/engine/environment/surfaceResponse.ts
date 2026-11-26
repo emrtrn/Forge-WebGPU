@@ -15,6 +15,9 @@
 // - A material accepts a share of both (`forge.material` `weather`): porous
 //   surfaces darken when wet, hard ones turn glossy; snow is white, rough and
 //   never metal.
+// - The wetness is a film on every face that takes it (darker, a little
+//   glossy); only standing water (puddles) is patchy and mirror-glossy, and
+//   only on flat ground (user decisions 2026-11-26).
 
 export type Vec3 = readonly [number, number, number];
 export type Rgb = readonly [number, number, number];
@@ -35,14 +38,12 @@ export interface SurfaceResponseSettings {
 }
 
 /**
- * Patchy drying (plan phase W5, design 5): the level's wetness and standing
- * water are single numbers; a point shows them by how late it dries (`late`,
- * 0 first .. 1 last). Hollows (a material's ambient occlusion, terrain's
- * concave ground) and world-space noise dry late, so a drying surface breaks
- * into wet patches instead of fading evenly; while standing water remains,
- * the late places stay damp, the rims of the hollows last. At wetness 1 every
- * point is fully wet, at 0 (and no standing water) every point is dry, so the
- * look at those ends is W4's.
+ * Puddles (plan phase W5, design 5; user decision 2026-11-26): the level's
+ * wetness falls evenly as a film on every face that takes it and dries evenly;
+ * only its standing water (`puddleFill`) is patchy. A point holds water by how
+ * late it dries (`late`, 0 first .. 1 last): hollows (a material's ambient
+ * occlusion, terrain's concave ground) and world-space noise first, and
+ * `wetSpread` caps how far the puddles reach. Snow takes the same pattern.
  */
 /** Width of the wetness window over which one point dries. */
 export const DRY_BAND = 0.35;
@@ -126,11 +127,9 @@ function patchAt(amount: number, late: number): number {
   return smoothstep(start, start + DRY_BAND, clamp01(amount));
 }
 
-/** The wetness a point shows (before its face's share): the surface's wetness and standing water × `spread`, by how late it dries. */
-export function patchyWetness(wetness: number, puddleFill: number, late: number, spread = 1): number {
-  const l = clamp01(late);
-  const s = clamp01(spread);
-  return Math.max(patchAt(wetness * s, l), l * patchAt(puddleFill * s, l));
+/** The standing water a point holds (before its face's share): the surface's `puddleFill` × `spread`, by how late it dries. */
+export function patchyPuddles(puddleFill: number, late: number, spread = 1): number {
+  return patchAt(puddleFill * clamp01(spread), clamp01(late));
 }
 
 /** The snow a point shows (before its face's share): the coverage × `spread`, in wetness's pattern (late places first). */
@@ -173,9 +172,9 @@ export const COVER_READ_LIFT = 0.2;
 export const COVER_READ_OUT = 0.4;
 /** Wet darkening at porosity 0 and the extra at 1: a porous surface darkens most. */
 export const WET_DARKEN = [0.1, 0.4] as const;
-/** Wet roughness floor at porosity 0 and the extra at 1: a hard surface turns glossiest. Flat ground, where water stands. */
+/** Standing water's roughness floor at porosity 0 and the extra at 1: a hard surface turns glossiest. */
 export const WET_ROUGHNESS = [0.04, 0.16] as const;
-/** Wet roughness floor on a slope or a wall (a film, water runs off, no standing water): porosity 0 and the extra at 1. */
+/** The wet film's roughness floor (no standing water: slopes, walls, ground outside the puddles): porosity 0 and the extra at 1. */
 export const WET_FILM_ROUGHNESS = [0.3, 0.25] as const;
 /** `puddleMaxSlopeDeg`'s default, and the degrees past it over which the standing-water gloss gives way to the film's. */
 export const PUDDLE_MAX_SLOPE_DEG = 5;
@@ -220,7 +219,7 @@ export function poolSlopeWindow(maxSlopeDeg = PUDDLE_MAX_SLOPE_DEG): [number, nu
   return [low, Math.max(low + 0.00001, Math.cos((start * Math.PI) / 180))];
 }
 
-/** Share of the standing-water gloss a face takes from its slope (user decision 2026-11-26): flat 1, steeper than the window 0. */
+/** Share of the standing water a face can hold from its slope (user decision 2026-11-26): flat 1, steeper than the window 0. */
 export function poolShare(normalY: number, maxSlopeDeg?: number): number {
   const [low, high] = poolSlopeWindow(maxSlopeDeg);
   return smoothstep(low, high, normalY);
@@ -244,12 +243,14 @@ export function coverReadPoint(position: Vec3, normal: Vec3): Vec3 {
 }
 
 export interface SurfaceWeatherAmount {
-  /** The World Environment's surface now (`WorldEnvironmentState.surface`). */
+  /** The World Environment's wetness now (`WorldEnvironmentState.surface`): the film, the same everywhere. */
   readonly wetness: number;
   readonly snowCoverage: number;
+  /** The standing water this point holds (`patchyPuddles`); absent: none. */
+  readonly puddles?: number;
 }
 
-/** The surface amount a point sees: its patchy wetness and snow (`patchyWetness`, `patchySnow`); feed it to `surfaceWeatherAt`. */
+/** The surface amount a point sees: the even wetness, its puddles and its patchy snow (`patchyPuddles`, `patchySnow`); feed it to `surfaceWeatherAt`. */
 export function surfaceAmountAt(
   surface: { readonly wetness: number; readonly puddleFill?: number; readonly snowCoverage: number },
   position: Vec3,
@@ -258,12 +259,16 @@ export function surfaceAmountAt(
 ): SurfaceWeatherAmount {
   const late = dryingLateness(position[0], position[2], cavity, patchSizeOf(pattern));
   return {
-    wetness: patchyWetness(surface.wetness, surface.puddleFill ?? 0, late, pattern.wetSpread ?? 1),
+    wetness: clamp01(surface.wetness),
+    puddles: patchyPuddles(surface.puddleFill ?? 0, late, pattern.wetSpread ?? 1),
     snowCoverage: patchySnow(surface.snowCoverage, late, pattern.snowSpread ?? 1),
   };
 }
 
-/** The wetness and snow a point shows: the surface amount × its face's share × open sky × the material's acceptance. */
+/**
+ * The wetness, snow and standing water a point shows: the surface amount × its face's share × open sky × the
+ * material's acceptance. Standing water needs flat ground (`poolShare`) and wets the point at least as much.
+ */
 export function surfaceWeatherAt(
   amount: SurfaceWeatherAmount,
   point: { readonly position: Vec3; readonly normal: Vec3; readonly covered: number },
@@ -272,9 +277,11 @@ export function surfaceWeatherAt(
   material: MaterialWeather = MATERIAL_WEATHER_DEFAULTS,
 ): { wet: number; snow: number; pool: number } {
   const open = 1 - clamp01(point.covered);
-  const wet = clamp01(amount.wetness) * wetShare(point.normal, wind, settings) * open * clamp01(material.wetting);
+  const accept = open * clamp01(material.wetting);
+  const pool = clamp01(amount.puddles ?? 0) * poolShare(point.normal[1], settings.puddleMaxSlopeDeg) * accept;
+  const wet = Math.max(clamp01(amount.wetness) * wetShare(point.normal, wind, settings) * accept, pool);
   const snow = clamp01(amount.snowCoverage) * snowShare(point.normal[1], point.position[1], settings) * open * clamp01(material.snowAccept);
-  return { wet, snow, pool: poolShare(point.normal[1], settings.puddleMaxSlopeDeg) };
+  return { wet, snow, pool };
 }
 
 export interface SurfaceLook {
@@ -284,15 +291,16 @@ export interface SurfaceLook {
 }
 
 /**
- * A surface's look (linear colour) under `wet` and `snow` (from `surfaceWeatherAt`): wet first, snow over it. The
- * wet gloss is standing water's on flat ground (`pool` 1) and a film's on slopes and walls (`pool` 0).
+ * A surface's look (linear colour) under `wet`, `pool` and `snow` (from `surfaceWeatherAt`): the wet film darkens and
+ * takes the film's gloss, standing water the mirror gloss over it, snow over both.
  */
 export function weatheredLook(look: SurfaceLook, weather: { wet: number; snow: number; pool?: number }, porosity: number, snowColor: Rgb): SurfaceLook {
   const p = clamp01(porosity);
   const darken = 1 - weather.wet * (WET_DARKEN[0] + WET_DARKEN[1] * p);
   const film = WET_FILM_ROUGHNESS[0] + WET_FILM_ROUGHNESS[1] * p;
-  const floor = mix(film, WET_ROUGHNESS[0] + WET_ROUGHNESS[1] * p, clamp01(weather.pool ?? 1));
-  const wetRoughness = mix(look.roughness, Math.min(look.roughness, floor), weather.wet);
+  const filmRoughness = mix(look.roughness, Math.min(look.roughness, film), weather.wet);
+  const poolFloor = WET_ROUGHNESS[0] + WET_ROUGHNESS[1] * p;
+  const wetRoughness = mix(filmRoughness, Math.min(filmRoughness, poolFloor), clamp01(weather.pool ?? 0));
   return {
     color: [0, 1, 2].map((i) => mix(look.color[i]! * darken, snowColor[i]!, weather.snow)) as unknown as Rgb,
     roughness: mix(wetRoughness, SNOW_ROUGHNESS, weather.snow),

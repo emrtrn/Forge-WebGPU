@@ -11,13 +11,14 @@
 // (`wetting`, `snowAccept`) and shows it by its porosity: porous darkens, hard
 // turns glossy; snow is white, rough, not metal and flattens the fine normal.
 //
-// Plan phase W5: drying is patchy. A point's wetness comes from the level's
-// wetness and standing water by how late it dries: world-space noise and its
-// hollowness (a material's ambient occlusion; terrain's concave ground)
-// (`patchyWetness` / `dryingLateness`, the same formulas). Uniforms only.
-// W5 refinement: snow takes the same pattern (`patchySnow`, hollows first),
-// and each amount reaches only its spread (`wetSpread`, `snowSpread`; the live
-// state is unchanged); `patchSize` scales the noise. The noise is built once.
+// Plan phase W5, user decisions 2026-11-26: the wetness is an even film
+// (darker, the film's gloss); only standing water is patchy: a point holds it
+// by how late it dries, world-space noise and its hollowness (a material's
+// ambient occlusion; terrain's concave ground) (`patchyPuddles` /
+// `dryingLateness`, the same formulas), up to `wetSpread`, and only on flat
+// ground (`poolShare`), where it takes the mirror gloss. Snow takes the same
+// pattern (`patchySnow`, hollows first) up to `snowSpread`; `patchSize` scales
+// the noise. Uniforms only; the noise is built once.
 //
 // In dry, snowless weather the factors are zero behind one uniform branch and
 // the cover is not read. Terrain applies it through the contribution order
@@ -67,12 +68,12 @@ export interface SurfaceCoverTerrain {
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 
 /**
- * surfaceResponse.ts `hash12` / `valueNoise` / `dryingLateness` / `patchyWetness` / `patchySnow`: the noise once per
- * pixel, wetness and snow from it. `amount` x snow, y wetness, z standing water (each × its spread); `noiseScale` the
- * reciprocal noise sizes (× patch size).
+ * surfaceResponse.ts `hash12` / `valueNoise` / `dryingLateness` / `patchyPuddles` / `patchySnow`: the noise once per
+ * pixel, puddles and snow from it. `amount` x snow (× its spread), y wetness (even), z standing water (× its spread);
+ * `noiseScale` the reciprocal noise sizes (× patch size).
  */
-function patchyNode(amount: Node, noiseScale: Node, position: Node, cavity: Node | null): { wet: Node; snow: Node } {
-  const { dot, float, floor, fract, max, mix, smoothstep, vec2, vec3 } = TSL;
+function patchyNode(amount: Node, noiseScale: Node, position: Node, cavity: Node | null): { puddles: Node; snow: Node } {
+  const { dot, float, floor, fract, mix, smoothstep, vec2, vec3 } = TSL;
   const hash = (p: Node): Node => {
     const p3 = fract(vec3(p.x, p.y, p.x).mul(0.1031));
     const q = p3.add(dot(p3, p3.yzx.add(33.33)));
@@ -92,14 +93,14 @@ function patchyNode(amount: Node, noiseScale: Node, position: Node, cavity: Node
   const start = float(1).sub(late).mul(1 - DRY_BAND);
   const end = start.add(DRY_BAND);
   return {
-    wet: max(smoothstep(start, end, amount.y), late.mul(smoothstep(start, end, amount.z))),
+    puddles: smoothstep(start, end, amount.z),
     snow: smoothstep(start, end, amount.x),
   };
 }
 
 export function createSurfaceCover(sheltered?: (position: Node) => Node, terrain?: SurfaceCoverTerrain) {
   const { uniform } = TSL;
-  /** x snow coverage, y wetness, z standing water (plan phase W5), each × its spread (`SurfacePattern`). */
+  /** x snow coverage × its spread, y wetness (the even film), z standing water × its spread (`SurfacePattern`). */
   const amount = uniform(new Vector3());
   /** The reciprocal sizes of the two noise layers, × patch size. */
   const noiseScale = uniform(new Vector2(1 / DRY_NOISE[0][0], 1 / DRY_NOISE[1][0]));
@@ -113,8 +114,8 @@ export function createSurfaceCover(sheltered?: (position: Node) => Node, terrain
 
   /**
    * vec3(wet, snow, pool) on a face (world normal, unit) before the material's acceptance; zero without a cover read
-   * in dry, snowless weather. The wetness is patchy by how late the point dries (`cavity`: its hollowness); `pool` is
-   * the share of standing water's gloss its slope allows (`poolShare`), the rest is a wet film's.
+   * in dry, snowless weather. `wet` is the even film (at least the standing water), `pool` the standing water the
+   * point holds by how late it dries (`cavity`: its hollowness) where its slope allows (`poolShare`).
    */
   const factors = (normal: Node, position: Node, cavity?: CavityNode): Node => {
     const { Fn, If, dot, float, length, max, min, smoothstep, vec3 } = TSL;
@@ -131,7 +132,8 @@ export function createSurfaceCover(sheltered?: (position: Node) => Node, terrain
         // Read above the point and out along the face (surfaceResponse.ts `coverReadPoint`).
         const read = position.add(vec3(normal.x.mul(COVER_READ_OUT), COVER_READ_LIFT, normal.z.mul(COVER_READ_OUT)));
         const open = sheltered ? float(1).sub(sheltered(read)) : float(1);
-        out.assign(vec3(patchy.wet.mul(wetShare).mul(open), patchy.snow.mul(snowSlope).mul(height).mul(open), smoothstep(pool.x, pool.y, up)));
+        const standing = patchy.puddles.mul(smoothstep(pool.x, pool.y, up)).mul(open);
+        out.assign(vec3(max(amount.y.mul(wetShare).mul(open), standing), patchy.snow.mul(snowSlope).mul(height).mul(open), standing));
       });
       return out;
     })();
@@ -139,6 +141,7 @@ export function createSurfaceCover(sheltered?: (position: Node) => Node, terrain
 
   const wetOf = (f: Node, response: SurfaceResponseNodes): Node => f.x.mul(response.wetting);
   const snowOf = (f: Node, response: SurfaceResponseNodes): Node => f.y.mul(response.snowAccept);
+  const poolOf = (f: Node, response: SurfaceResponseNodes): Node => f.z.mul(response.wetting);
 
   const look = {
     /** Linear rgb under the factors. */
@@ -149,9 +152,9 @@ export function createSurfaceCover(sheltered?: (position: Node) => Node, terrain
     },
     roughness(roughness: Node, f: Node, response: SurfaceResponseNodes): Node {
       const { min, mix } = TSL;
-      const film = response.porosity.mul(WET_FILM_ROUGHNESS[1]).add(WET_FILM_ROUGHNESS[0]);
-      const floor = mix(film, response.porosity.mul(WET_ROUGHNESS[1]).add(WET_ROUGHNESS[0]), f.z);
-      return mix(mix(roughness, min(roughness, floor), wetOf(f, response)), SNOW_ROUGHNESS, snowOf(f, response));
+      const film = mix(roughness, min(roughness, response.porosity.mul(WET_FILM_ROUGHNESS[1]).add(WET_FILM_ROUGHNESS[0])), wetOf(f, response));
+      const pooled = mix(film, min(film, response.porosity.mul(WET_ROUGHNESS[1]).add(WET_ROUGHNESS[0])), poolOf(f, response));
+      return mix(pooled, SNOW_ROUGHNESS, snowOf(f, response));
     },
     metalness(metalness: Node, f: Node, response: SurfaceResponseNodes): Node {
       return TSL.mix(metalness, 0, snowOf(f, response));
@@ -174,7 +177,7 @@ export function createSurfaceCover(sheltered?: (position: Node) => Node, terrain
       const wetSpread = clamp01(s?.wetSpread ?? 1);
       amount.value.set(
         (input?.state.snowCoverage ?? 0) * clamp01(s?.snowSpread ?? 1),
-        (input?.state.wetness ?? 0) * wetSpread,
+        input?.state.wetness ?? 0,
         (input?.state.puddleFill ?? 0) * wetSpread,
       );
       if (!input || !s) return;

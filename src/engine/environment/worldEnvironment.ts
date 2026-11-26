@@ -48,7 +48,7 @@ export interface ResolvedWorldEnvironment {
     windwardWetting: number;
     /** Steepest slope (degrees) that holds standing water's gloss; steeper ground only looks wet (user decision 2026-11-26). */
     puddleMaxSlopeDeg: number;
-    /** W5 refinement (surfaceResponse.ts `SurfacePattern`): how far the wet patches reach, 0..1. */
+    /** W5 refinement (surfaceResponse.ts `SurfacePattern`): how far the puddles reach, 0..1 (the wet film is even). */
     wetSpread: number;
     /** How far the snow patches reach, 0..1. */
     snowSpread: number;
