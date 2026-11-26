@@ -22,7 +22,7 @@
 import type { QualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import type { PostProcessSettings } from "./output.ts";
 
-export type MrtTargetName = "output" | "normal" | "velocity" | "metalrough" | "diffuse";
+export type MrtTargetName = "output" | "normal" | "velocity" | "specular" | "diffuse";
 
 export interface MrtTarget {
   readonly name: MrtTargetName;
@@ -33,12 +33,12 @@ export interface MrtTarget {
   readonly alignment: number;
 }
 
-/** Every target in attachment order: the scene colour, packed view normal, motion, metalness / roughness, albedo. */
+/** Every target in attachment order: the scene colour, packed view normal, motion, SSR reflectance / roughness, albedo. */
 export const MRT_TARGETS: readonly MrtTarget[] = [
   { name: "output", format: "rgba16float", byteCost: 8, alignment: 2 },
   { name: "normal", format: "rgba8unorm", byteCost: 8, alignment: 1 },
   { name: "velocity", format: "rg16float", byteCost: 4, alignment: 2 },
-  { name: "metalrough", format: "rg8unorm", byteCost: 2, alignment: 1 },
+  { name: "specular", format: "rg8unorm", byteCost: 2, alignment: 1 },
   { name: "diffuse", format: "rgba8unorm", byteCost: 8, alignment: 1 },
 ];
 
@@ -119,7 +119,7 @@ export function planPipeline(post: PostProcessSettings | null, quality: QualityS
     output: true,
     normal: ao !== null || ssr,
     velocity: post.antialias === "traa",
-    metalrough: ssr,
+    specular: ssr,
     diffuse: ao === "ssgi",
   };
   const mrt = MRT_TARGETS.filter((target) => needs[target.name]);

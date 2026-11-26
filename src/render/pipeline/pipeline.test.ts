@@ -150,7 +150,7 @@ describe("pipeline plan", () => {
 describe("MRT budget (phase 3 decision 4)", () => {
   test("the full set is 30 bytes per sample by the WebGPU rule", () => {
     expect(MRT_TARGETS.map((target) => `${target.name}:${target.format}`)).toEqual([
-      "output:rgba16float", "normal:rgba8unorm", "velocity:rg16float", "metalrough:rg8unorm", "diffuse:rgba8unorm",
+      "output:rgba16float", "normal:rgba8unorm", "velocity:rg16float", "specular:rg8unorm", "diffuse:rgba8unorm",
     ]);
     expect(mrtBytesPerSample(MRT_TARGETS)).toBe(30);
     expect(mrtBytesPerSample(MRT_TARGETS)).toBeLessThanOrEqual(MRT_BYTES_LIMIT);
@@ -166,11 +166,11 @@ describe("MRT budget (phase 3 decision 4)", () => {
       expect(plan.mrtBytes, level).toBeLessThanOrEqual(MRT_BYTES_LIMIT);
     }
     expect(targets).toEqual({
-      ultra: "output,normal,velocity,metalrough",
-      high: "output,normal,velocity,metalrough",
-      medium: "output,normal,velocity,metalrough",
+      ultra: "output,normal,velocity,specular",
+      high: "output,normal,velocity,specular",
+      medium: "output,normal,velocity,specular",
       low: "output",
-      cinematic: "output,normal,velocity,metalrough,diffuse",
+      cinematic: "output,normal,velocity,specular,diffuse",
     });
     expect(bytes).toEqual({ ultra: 22, high: 22, medium: 22, low: 8, cinematic: 30 });
   });

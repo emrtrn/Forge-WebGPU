@@ -6,7 +6,9 @@
 // ambient occlusion, chromatic aberration and film grain. Defaults and ranges
 // are Forge's; the groups keep Forge's shape. Two WebGPU choices join them:
 // `antialias` gains TRAA (`none | traa | smaa`) and `reflection` picks
-// screen-space reflections (`off | ssr`, user decision 2026-11-11).
+// screen-space reflections (`off | ssr`, user decision 2026-11-11); `ssr`
+// tunes them: every lit material reflects by its roughness and Fresnel, up to
+// `maxRoughness` (user decision 2026-11-26).
 //
 // A level authors effects; the quality profile only allows them (phase 3
 // decision 3, Forge's principle #2): `applyQualityToPostProcess` turns an
@@ -52,6 +54,16 @@ export const PostProcess = defineComponent(
       labels: { off: "Off", ssr: "SSR" },
       hint: "Ekran uzayı yansımaları (SSR). Kalite profili çözünürlüğünü seçer ya da kapatır.",
     }),
+    ssr: object(
+      {
+        maxRoughness: num({
+          min: 0.05, max: 1, default: 0.6, step: 0.05, label: "Max Roughness",
+          hint: "Bu roughness'ın üstündeki yüzeyler SSR almaz, ortam yansımasıyla kalır. Daha pürüzsüz yüzeyler daha net yansıtır.",
+        }),
+        intensity: amount(0, 2, 1, "SSR yansımasının gücü: 1 fiziksel (malzemenin Fresnel yansıması), 0 yalnız ortam yansıması."),
+      },
+      { label: "SSR", hint: "Ekran uzayı yansımaları: her malzeme roughness'ına göre yansıtır; yakalanan yerde ortam yansımasının yerine geçer. Reflection SSR iken geçerli." },
+    ),
     bloom: object(
       {
         enabled: enabled("Parlak bölgelerin çevresine ışık taşmasını açar."),

@@ -27,6 +27,7 @@ import {
   ACESFilmicToneMapping,
   Color,
   HalfFloatType,
+  Matrix4,
   NeutralToneMapping,
   NoToneMapping,
   PerspectiveCamera,
@@ -43,19 +44,28 @@ import {
   type WebGPURenderer,
 } from "three/webgpu";
 import {
+  EnvironmentBRDF,
   diffuseColor,
   dot,
   float,
-  metalness,
+  getViewPosition,
+  luminance,
+  max,
   mix,
   mrt,
   normalView,
   output,
   packNormalToRGB,
   pass,
+  pmremTexture,
+  positionViewDirection,
+  reflect,
   roughness,
   sample,
   screenUV,
+  smoothstep,
+  specularColorBlended,
+  specularF90,
   uniform,
   unpackRGBToNormal,
   vec2,
@@ -88,6 +98,32 @@ const DOF_APERTURE_SCALE = 0.0002;
 const DOF_MAXBLUR_SCALE = 0.01;
 /** SSR settings of the phase 1 measurement (spike S3). */
 const SSR_SETTINGS = { quality: 0.5, maxDistance: 50, thickness: 0.5, blurQuality: 2 } as const;
+/** The Post Process `ssr` group's defaults (schema), for data written before it. */
+export const SSR_DEFAULTS = { maxRoughness: 0.6, intensity: 1 } as const;
+/** SSR fades out over the last 30 % of `maxRoughness`. */
+const SSR_ROUGHNESS_FADE = 0.7;
+/** Floor of the SSR node's built-in grazing term in the weight's division (head-on views). */
+const SSR_MIN_GRAZING = 0.05;
+/** World distance (m) over which a blurred hit's alpha reaches full coverage. */
+const SSR_HIT_EDGE = 0.05;
+
+/**
+ * The SSR weight the scene pass writes (`specular` R; plan decision
+ * 2026-11-26). three's mirror SSR weighs a hit by its metalness channel and
+ * the grazing term 1 - (N.V)^2, so only metals reflected. The channel carries
+ * the material's own specular reflectance instead: three's split-sum
+ * environment BRDF of its F0 / F90 (IOR, specular intensity and metalness
+ * included; zero on unlit materials) at its roughness, divided by that
+ * grazing term, faded out towards `maxRoughness`. Every lit material then
+ * reflects by its roughness and Fresnel.
+ */
+function ssrWeight(maxRoughness: Node<"float">): F {
+  const nDotV = dot(normalView, positionViewDirection).clamp(1e-4, 1);
+  const reflectance = luminance(EnvironmentBRDF({ dotNV: nDotV, specularColor: specularColorBlended, specularF90, roughness }));
+  const grazing = max(float(1).sub(nDotV.mul(nDotV)), SSR_MIN_GRAZING);
+  const fade = float(1).sub(smoothstep(maxRoughness.mul(SSR_ROUGHNESS_FADE), maxRoughness, roughness));
+  return reflectance.div(grazing).min(1).mul(fade) as F;
+}
 /** SSGI's medium preset of the phase 1 measurement (spike S3). */
 const SSGI_SETTINGS = { sliceCount: 2, stepCount: 8 } as const;
 
@@ -134,6 +170,8 @@ interface Built {
   readonly plan: PipelinePlan;
   /** The scene pass's depth (single sample, the jittered camera's when TRAA runs). */
   readonly depth: Texture | null;
+  /** The environment the SSR composite was built for (null without SSR or a Sky Light). */
+  readonly environment: Texture | null;
   update(post: PostProcessSettings): void;
   dispose(): void;
 }
@@ -196,7 +234,12 @@ function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: Pip
   const outputs: Record<string, Node> = { output };
   if (targets.has("normal")) outputs.normal = packNormalToRGB(normalView);
   if (targets.has("velocity")) outputs.velocity = velocity;
-  if (targets.has("metalrough")) outputs.metalrough = vec2(metalness, roughness);
+  const ssrMaxRoughness = uniform(SSR_DEFAULTS.maxRoughness);
+  const ssrIntensity = uniform(SSR_DEFAULTS.intensity);
+  /** The Sky Light's PMREM SSR replaces; a change of it rebuilds the pipeline (`render`). */
+  const environment = has("ssr") ? scene.environment : null;
+  const ssrCamera = { projectionInverse: uniform(new Matrix4()), world: uniform(new Matrix4()), environmentIntensity: uniform(1) };
+  if (targets.has("specular")) outputs.specular = vec2(ssrWeight(ssrMaxRoughness), roughness);
   if (targets.has("diffuse")) outputs.diffuse = diffuseColor;
   scenePass.setMRT(mrt(outputs));
   if (targets.has("normal")) scenePass.getTexture("normal").type = UnsignedByteType;
@@ -205,8 +248,8 @@ function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: Pip
     texture.type = HalfFloatType;
     texture.format = RGFormat;
   }
-  if (targets.has("metalrough")) {
-    const texture = scenePass.getTexture("metalrough");
+  if (targets.has("specular")) {
+    const texture = scenePass.getTexture("specular");
     texture.type = UnsignedByteType;
     texture.format = RGFormat;
   }
@@ -242,10 +285,10 @@ function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: Pip
   }
 
   if (has("ssr") && normal) {
-    const metalRough = scenePass.getTextureNode("metalrough");
+    const specular = scenePass.getTextureNode("specular");
     const reflection = ssr(color, depth, normal, {
-      metalnessNode: metalRough.r as F,
-      roughnessNode: metalRough.g as F,
+      metalnessNode: specular.r as F,
+      roughnessNode: specular.g as F,
       reflectNonMetals: true,
       stochastic: false,
       camera,
@@ -256,7 +299,21 @@ function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: Pip
     reflection.blurQuality = SSR_SETTINGS.blurQuality;
     reflection.resolutionScale = plan.ssrResolutionScale;
     disposables.push(reflection);
-    rgb = rgb.add(reflection.rgb) as V3;
+    let reflected = reflection.rgb as V3;
+    // Where a ray hit, SSR takes the place of the environment reflection the scene pass already lit:
+    // the Sky Light's PMREM at the pixel's reflected direction and roughness, by the same weight and
+    // grazing term the SSR node applied, is taken out (plan decision 2026-11-26).
+    if (environment) {
+      const viewPosition = getViewPosition(screenUV, depth.x as F, ssrCamera.projectionInverse);
+      const viewNormal = (normal as unknown as { sample(uv: Node): V3 }).sample(screenUV);
+      const nDotV = dot(viewNormal, viewPosition.negate().normalize()).clamp(0, 1);
+      const reflectWorld = ssrCamera.world.mul(vec4(reflect(viewPosition.normalize(), viewNormal), 0)).xyz;
+      const radiance = pmremTexture(environment, reflectWorld, specular.g).rgb.mul(ssrCamera.environmentIntensity);
+      const share = specular.r.mul(float(1).sub(nDotV.mul(nDotV)));
+      const hit = smoothstep(0, SSR_HIT_EDGE, reflection.a);
+      reflected = reflected.sub(radiance.mul(share).mul(hit)) as V3;
+    }
+    rgb = max(rgb.add(reflected.mul(ssrIntensity)), 0) as V3;
   }
 
   let node: V4 = (gtao || gi || has("ssr") ? vec4(rgb, color.a) : color) as V4;
@@ -312,9 +369,15 @@ function build(renderer: WebGPURenderer, scene: Scene, camera: Camera, plan: Pip
     pipeline,
     plan,
     depth: scenePass.renderTarget.depthTexture,
+    environment,
     scenePass,
     update(post) {
       u.aoIntensity.value = post.ao.intensity;
+      ssrMaxRoughness.value = post.ssr?.maxRoughness ?? SSR_DEFAULTS.maxRoughness;
+      ssrIntensity.value = post.ssr?.intensity ?? SSR_DEFAULTS.intensity;
+      ssrCamera.projectionInverse.value.copy(camera.projectionMatrixInverse);
+      ssrCamera.world.value.copy(camera.matrixWorld);
+      ssrCamera.environmentIntensity.value = scene.environmentIntensity;
       if (gtao) gtao.radius.value = post.ao.radius * AO_RADIUS_SCALE;
       if (gi) gi.radius.value = post.ao.radius;
       u.focus.value = post.dof.focusDistance;
@@ -422,7 +485,8 @@ export function createFramePipeline(renderer: WebGPURenderer): FramePipeline {
         return;
       }
       direct = false;
-      if (!built || built.key !== plan.key || built.scene !== scene || built.camera !== camera || built.late !== late) {
+      if (!built || built.key !== plan.key || built.scene !== scene || built.camera !== camera || built.late !== late
+        || (plan.passes.includes("ssr") && built.environment !== scene.environment)) {
         release();
         built = build(renderer, scene, camera, plan, late);
         builds += 1;
