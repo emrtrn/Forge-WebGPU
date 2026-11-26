@@ -174,7 +174,17 @@
           "snowMinAltitude": 0,
           "snowAltitudeBlend": 20,
           "verticalWetting": 0.35,
-          "windwardWetting": 0.5
+          "windwardWetting": 0.5,
+          "wetSpread": 1,
+          "wetGloss": 0.7,
+          "patchSize": 1,
+          "puddleCore": 0.5,
+          "puddleMaxSlopeDeg": 5,
+          "rippleDensity": 1,
+          "rippleSize": 1,
+          "rippleStrength": 2,
+          "windRippleStrength": 2,
+          "snowSpread": 1
         },
         "wind": {
           "useLevelWind": true,
@@ -287,6 +297,13 @@
         "toneMapping": "aces",
         "antialias": "smaa",
         "reflection": "off",
+        "ssr": {
+          "quality": 0.5,
+          "intensity": 1,
+          "maxRoughness": 0.6,
+          "thickness": 0.5,
+          "refine": true
+        },
         "bloom": {
           "enabled": true,
           "threshold": 1,

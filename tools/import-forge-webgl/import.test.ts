@@ -238,7 +238,7 @@ describe("import:forge", () => {
       type: "forge.landscapeFoliage@1",
       rules: [{
         id: "meadow-fern", layer: "meadow", foliageType: forgeAssetId("ft-fern"), density: 0.02, minWeight: 0.5, seed: 105,
-        height: { enabled: false, min: -10000, max: 10000, falloff: 0 }, slope: { min: 0, max: 30, falloff: 0 }, noise: { amount: 0, scale: 20 }, edgeScale: 1,
+        height: { enabled: false, min: -10000, max: 10000, falloff: 0 }, slope: { min: 0, max: 30, falloff: 0 }, noise: { amount: 0, scale: 20 }, edgeScale: 1, groundRadius: 0,
         edge: { fadeIn: 0, maxWeight: 1, fadeOut: 0 }, stand: { enabled: false, from: 0, to: 1, patch: 0, reach: 0, far: 0, tint: 0, detail: 1 },
       }],
     });
