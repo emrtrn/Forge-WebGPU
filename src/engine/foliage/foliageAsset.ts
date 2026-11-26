@@ -30,6 +30,7 @@ export interface LandscapeFoliageRuleFields {
   readonly slope: { readonly min: number; readonly max: number; readonly falloff: number };
   readonly noise: { readonly amount: number; readonly scale: number };
   readonly edgeScale: number;
+  readonly groundRadius?: number;
   readonly edge: { readonly fadeIn: number; readonly maxWeight: number; readonly fadeOut: number };
   readonly stand: FoliageStandFields;
 }
@@ -107,6 +108,7 @@ export function foliageRuleParamsOf(rule: LandscapeFoliageRuleFields): FoliageRu
     ...(rule.slope.falloff > 0 ? { slopeFalloff: rule.slope.falloff } : {}),
     ...(rule.noise.amount > 0 ? { noiseAmount: rule.noise.amount, noiseScale: rule.noise.scale } : {}),
     ...(rule.edgeScale < 1 ? { edgeScale: rule.edgeScale } : {}),
+    ...(rule.groundRadius ? { groundRadius: rule.groundRadius } : {}),
     ...(rule.edge.fadeIn > 0 ? { fadeIn: rule.edge.fadeIn } : {}),
     ...(rule.edge.maxWeight < 1 ? { maxWeight: rule.edge.maxWeight, fadeOut: rule.edge.fadeOut } : {}),
     ...(rule.stand.enabled ? { stand: { from: rule.stand.from, to: rule.stand.to, patch: rule.stand.patch } } : {}),

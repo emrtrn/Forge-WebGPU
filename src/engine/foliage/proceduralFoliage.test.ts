@@ -69,6 +69,24 @@ const check = test;
       generateFoliageCell(RULE, TYPE, FLAT, REQUEST).count);
   });
 
+  check("procedural foliage: the scaled base of an upright trunk seats at the downhill edge", () => {
+    const slope: FoliageSurface = {
+      ...FLAT,
+      heightAt: (x) => 2 + 0.5 * x,
+      normalAt: () => [-1 / Math.sqrt(5), 2 / Math.sqrt(5), 0],
+    };
+    const rule = { ...RULE, groundRadius: 0.4 };
+    const upright: typeof TYPE = { ...TYPE, scaleMin: [2, 2, 2], scaleMax: [2, 2, 2], alignToNormal: false };
+    const request = { ...REQUEST, maxInstances: 1 };
+    const at = generateFoliageCell(rule, upright, slope, request).matrices;
+    const original = generateFoliageCell(RULE, upright, slope, request).matrices;
+    near(at[13]!, slope.heightAt(at[12]! - 0.8, at[14]!)!);
+    assert.equal(at[12], original[12]);
+    assert.equal(at[14], original[14]);
+    assert.deepEqual(generateFoliageCell(rule, upright, FLAT, request), generateFoliageCell(RULE, upright, FLAT, request));
+    assert.deepEqual(generateFoliageCell(rule, TYPE, slope, request), generateFoliageCell(RULE, TYPE, slope, request));
+  });
+
   check("procedural foliage: caps and disabled requests return exactly sized buffers", () => {
     for (const maxInstances of [0, 1, 7]) {
       const result = generateFoliageCell(RULE, TYPE, FLAT, { ...REQUEST, maxInstances });

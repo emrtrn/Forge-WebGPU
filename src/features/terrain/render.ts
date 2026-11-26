@@ -139,10 +139,11 @@ interface Placed {
   readonly demands: { readonly keys: readonly string[]; resolve(): void; reject(error: Error): void }[];
 }
 
-/** The layers' drawn inputs are the same (id, material, colour): the cache's inputs serve. */
+/** The layers' drawn inputs are the same: the cache's inputs serve. */
 function sameLayers(a: WorldTerrainLayers, b: WorldTerrainLayers): boolean {
   return a.length === b.length && a.every((layer, i) => layer.id === b[i]!.id && (layer.material ?? null) === (b[i]!.material ?? null) && layer.color === b[i]!.color
-    && (layer.physicalMaterial ?? null) === (b[i]!.physicalMaterial ?? null) && JSON.stringify(layer.weather ?? {}) === JSON.stringify(b[i]!.weather ?? {}));
+    && (layer.physicalMaterial ?? null) === (b[i]!.physicalMaterial ?? null) && JSON.stringify(layer.weather ?? {}) === JSON.stringify(b[i]!.weather ?? {})
+    && layer.forestFloorPatchSeed === b[i]!.forestFloorPatchSeed);
 }
 type WorldTerrainLayers = LoadedTerrain["def"]["layers"];
 

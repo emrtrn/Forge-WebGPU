@@ -68,6 +68,7 @@ export interface TerrainLayerInput {
   readonly detail: TerrainLayerDetail | null;
   /** How the layer takes wetness and snow (plan phase W5): its `weather`, else its physical material's default; absent: the defaults. */
   readonly weather?: LayerWeather;
+  readonly forestFloorPatchSeed?: number;
 }
 
 /** A file's bytes and the revision the server reported (null where it reports none). */
@@ -243,6 +244,7 @@ export function createTerrainSource(options: TerrainSourceOptions): TerrainSourc
               roughnessTexture: material.roughnessTexture,
               detail: material.detail,
               weather,
+              ...(layer.forestFloorPatchSeed === undefined ? {} : { forestFloorPatchSeed: layer.forestFloorPatchSeed }),
             };
           } catch (error) {
             warn(`forge render: terrain ${guid} layer ${layer.id} paints with its colour (material ${layer.material})`, error);

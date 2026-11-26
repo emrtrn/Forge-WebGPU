@@ -1,0 +1,17 @@
+{
+  "schema": "forge.foliageType/1",
+  "id": "ast_bc9e0110e2f409bec9bb95de2fbe3b43",
+  "randomYaw": true,
+  "alignToNormal": true,
+  "castShadow": true,
+  "collision": false,
+  "mesh": "ast_52fcaff3f64d2b273cf89140d053d431",
+  "radius": 0.7,
+  "scaleMin": 0.68,
+  "scaleMax": 1.24,
+  "slopeMax": 24,
+  "zOffsetMin": -0.026,
+  "zOffsetMax": -0.012,
+  "cullStart": 32,
+  "cullEnd": 48
+}

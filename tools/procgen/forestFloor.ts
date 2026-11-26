@@ -1,9 +1,17 @@
 // Bake the starter Forest Floor terrain maps: node tools/procgen/forestFloor.ts
+// To bake the detailed litter candidate in a separate directory, pass --detail <out>.
 // A 1.6 m tile. The terrain layer array needs CPU-readable texture pixels.
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { createStream } from "../../src/engine/procgen/random.ts";
 import { bakeSurfaceRecipe } from "../../src/engine/procgen/texture/surfaceRecipe.ts";
 import { encodeRgbaPng } from "./png.ts";
+import { bakeForestFloorLitter } from "./forestFloorLitter.ts";
+
+const args = process.argv.slice(2);
+if (args.length > 0 && (args.length !== 2 || args[0] !== "--detail" || !args[1])) {
+  throw new Error("Usage: node tools/procgen/forestFloor.ts [--detail <out>]");
+}
 
 const size = 512;
 const mask = size - 1;
@@ -17,12 +25,20 @@ const soil = bakeSurfaceRecipe({
     { kind: "ridged", scale: 42, octaves: 3, gain: 0.55, weight: 0.35 },
   ],
   colorRamp: [
-    { at: 0, color: "#493f31" }, { at: 0.46, color: "#786952" },
-    { at: 0.76, color: "#94816a" }, { at: 1, color: "#b19b78" },
+    { at: 0, color: "#513e2d" }, { at: 0.43, color: "#916f51" },
+    { at: 0.72, color: "#b08b68" }, { at: 1, color: "#caa57e" },
   ],
   aoStrength: 0, normalStrength: 1, roughness: [0.9, 0.96],
 });
 const { height, baseColor, normal } = soil;
+const detailDirectory = args[1];
+if (detailDirectory) {
+  mkdirSync(detailDirectory, { recursive: true });
+  for (const [name, pixels] of Object.entries(bakeForestFloorLitter(soil, seed))) {
+    writeFileSync(join(detailDirectory, `ForestFloor_${name}.png`), encodeRgbaPng(size, size, pixels));
+  }
+  process.exit(0);
+}
 const soilHeight = height.slice();
 const pixelAt = (x: number, y: number) => (y & mask) * size + (x & mask);
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
@@ -36,7 +52,7 @@ function scatterPiece(twig: boolean): void {
   const bend = random.range(-0.32, 0.32) * width;
   const lobes = random.int(2, 5), phase = random.range(0, 2 * Math.PI);
   const tone = random.range(0.66, 1.21), olive = random.range(-7, 8);
-  const pigment = twig ? [120, 103, 82] : [163 + olive, 132 + olive, 91];
+  const pigment = twig ? [134, 107, 81] : [190 + olive, 150 + olive * 2, 106 + olive];
   const radius = Math.ceil(Math.hypot(length, width + Math.abs(bend)) + 1);
   for (let py = Math.floor(y) - radius; py <= y + radius; py++) {
     for (let px = Math.floor(x) - radius; px <= x + radius; px++) {
@@ -52,11 +68,11 @@ function scatterPiece(twig: boolean): void {
       const grain = soilHeight[at]! - 0.5;
       const rib = clamp01(1 - Math.abs(v) / 0.85);
       const fold = clamp01(1 - Math.abs(v) / halfWidth);
-      const value = tone * (0.88 + 0.16 * fold + 0.36 * grain);
+      const value = tone * (0.9 + 0.2 * fold + 0.62 * grain);
       for (let c = 0; c < 3; c++) {
         const channel = at * 4 + c;
         const target = pigment[c]! * value + rib * 10;
-        baseColor[channel] = Math.round(baseColor[channel]! + coverage * (target - baseColor[channel]!));
+        baseColor[channel] = Math.round(255 * clamp01((baseColor[channel]! + coverage * (target - baseColor[channel]!)) / 255));
       }
       height[at] = Math.max(height[at]!, soilHeight[at]! + coverage * (0.08 + 0.17 * fold + 0.04 * rib));
     }

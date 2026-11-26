@@ -39,6 +39,7 @@ import { CAVITY_CURVATURE } from "../../engine/environment/surfaceResponse.ts";
 import { TERRAIN_RENDER_LAYERS } from "../../engine/terrain/terrainRenderData.ts";
 import type { TerrainLayerInput } from "../resources/terrains.ts";
 import { terrainStaticDetail, type TerrainDetailParams } from "./terrainDetail.ts";
+import { terrainForestFloor } from "./terrainForestFloor.ts";
 import { applyContributions } from "./contributions.ts";
 import { createSurfaceCover, type SurfaceCoverInput } from "./surfaceCover.ts";
 import { createTerrainLayerArray, packTerrainLayerRoughness, readTerrainLayerPixels, type TerrainLayerSource } from "./terrainLayerArray.ts";
@@ -49,7 +50,7 @@ type AnyNode = any;
 const TSL = TSLTyped as unknown as Record<string, any>;
 const {
   Fn, attribute, clamp, cross, dFdx, dFdy, distance, dot, float, floor, fract, int, ivec2, length, max, mix, normalize,
-  positionLocal, positionView, select, smoothstep, sqrt, texture, textureLoad, transformNormalToView, uniform, vec2, vec3,
+  positionLocal, positionView, positionWorld, select, smoothstep, sqrt, texture, textureLoad, transformNormalToView, uniform, vec2, vec3,
   vec4, varyingProperty, mat2, modelWorldMatrix,
 } = TSL;
 
@@ -364,6 +365,7 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
     const w = weightsOf(i);
     const scale = vec2(layer.scale[0], layer.scale[1]);
     const albedoSlice = textures.albedoIndex[i] ?? -1;
+    let forestFloorRelief: AnyNode;
     let color: AnyNode;
     let r: AnyNode = float(layer.roughness);
     if (textures.albedo && albedoSlice >= 0) {
@@ -373,6 +375,11 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
         sample = mix(sample, sample.add(far).mul(0.5), farT);
       }
       color = sample.rgb;
+      if (layer.forestFloorPatchSeed !== undefined) {
+        const forestFloor = terrainForestFloor(positionWorld.xz, color, layer.forestFloorPatchSeed);
+        color = forestFloor.color;
+        forestFloorRelief = forestFloor.relief;
+      }
       if (textures.roughnessInAlpha[i]) r = r.mul(sample.a);
     } else {
       color = vec3(uniform(new THREE.Color(layer.color)));
@@ -399,6 +406,7 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
         n = normalize(vec3(n.xy.add(stamp.xy), n.z.mul(stamp.z)));
         r = mix(r, float(d.roughness), stamp.w);
       }
+      if (forestFloorRelief) n = normalize(vec3(n.xy.mul(forestFloorRelief), n.z));
       normalSum = normalSum.add(n.mul(w));
     }
     sum = sum.add(color.mul(w));

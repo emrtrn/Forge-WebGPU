@@ -237,6 +237,7 @@ export function generateFoliageCell(
   const bands = landscapeFoliageRuleIsUnbanded(rule) ? null : landscapeFoliageRuleBands(rule);
   const ramped = foliageRuleHasWeightRamps(rule);
   const edgeScale = rule.edgeScale ?? LANDSCAPE_FOLIAGE_RULE_BAND_DEFAULTS.edgeScale;
+  const groundRadius = type.alignToNormal ? 0 : rule.groundRadius ?? 0;
   const noiseSeed = rule.seed | 0;
   const minX = cellX * cellSize, minZ = cellZ * cellSize;
   const perSide = Math.max(1, Math.round(cellSize * Math.sqrt(rule.density)));
@@ -262,7 +263,12 @@ export function generateFoliageCell(
     const scale = (type.scaleMin[0] + (type.scaleMax[0] - type.scaleMin[0]) * scaleT) * edge;
     const yaw = type.randomYaw ? yawT * 2 * Math.PI : 0;
     const offset = type.zOffsetMin + (type.zOffsetMax - type.zOffsetMin) * offsetT;
-    writeMatrix(matrices, count * 16, x, y, z, n, type.alignToNormal, yaw, scale, offset);
+    // Seat the open trunk base at the downhill rim of its footprint. The
+    // normal estimates the local slope without a second, possibly unloaded tile.
+    const groundDrop = groundRadius > 0
+      ? scale * groundRadius * Math.hypot(n[0], n[2]) / Math.max(n[1], 0.5)
+      : 0;
+    writeMatrix(matrices, count * 16, x, y - groundDrop, z, n, type.alignToNormal, yaw, scale, offset);
     count += 1;
   };
   if (rule.stand) {
@@ -412,6 +418,8 @@ export interface FoliageRuleParams {
   noiseAmount?: number;
   noiseScale?: number;
   edgeScale?: number;
+  /** Model-space base radius (metres) of upright trunks to seat on slopes. */
+  groundRadius?: number;
   /** Paint weight over `minWeight` at which the rule has its full density (absent: at once). */
   fadeIn?: number;
   /** Paint weight above which the rule thins out over `fadeOut` (absent: never). */

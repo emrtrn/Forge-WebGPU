@@ -288,7 +288,10 @@ export function buildWorldFromBrief(input: WorldBuildInput): WorldBuild {
     def.origin[1],
     def.origin[2] + (bounds.min[1] + bounds.max[1]) / 2,
   ];
-  def.layers = cover ? structuredClone(cover.layers) : structuredClone(PILOT_TUNING.layers);
+  def.layers = cover?.layers.map(({ forestFloorPatches, ...layer }) => ({
+    ...layer,
+    ...(forestFloorPatches ? { forestFloorPatchSeed: brief.seed } : {}),
+  })) ?? structuredClone(PILOT_TUNING.layers);
   const size = terrain.tileQuads + 1;
   const tiles = def.tiles.map(({ key }) => {
     const { x, z } = created.tiles.get(key)!;

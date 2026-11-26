@@ -19,7 +19,8 @@
         "name": "Forest Floor",
         "color": "#807058",
         "material": "ast_b28b29e19d664efd81d42d55934a8aed",
-        "physicalMaterial": "default"
+        "physicalMaterial": "default",
+        "forestFloorPatches": true
       },
       {
         "id": "rock",
@@ -82,6 +83,15 @@
       {
         "id": "thicket",
         "seed": 1103
+      },
+      {
+        "id": "ferns",
+        "seed": 1104
+      },
+      {
+        "id": "litter",
+        "seed": 1105,
+        "patch": 6
       }
     ],
     "plants": [
@@ -91,6 +101,7 @@
         "recipe": "ast_1cc830feab66656728f8bf965079b68a",
         "density": 0.0045,
         "stand": "wood",
+        "groundRadius": 0.48,
         "minWeight": 0.35,
         "fadeIn": 0.35,
         "edgeScale": 0.75,
@@ -102,6 +113,7 @@
         "recipe": "ast_1cc830feab66656728f8bf965079b68a",
         "density": 0.0035,
         "stand": "wood",
+        "groundRadius": 0.15,
         "minWeight": 0.2,
         "fadeIn": 0.3,
         "edgeScale": 0.6,
@@ -141,6 +153,7 @@
         "recipe": "ast_a839e8dd91327f16890b5cff658bfeed",
         "density": 0.0035,
         "stand": "wood",
+        "groundRadius": 0.30,
         "minWeight": 0.35,
         "fadeIn": 0.35,
         "edgeScale": 0.75
@@ -151,6 +164,7 @@
         "recipe": "ast_a839e8dd91327f16890b5cff658bfeed",
         "density": 0.002,
         "stand": "wood",
+        "groundRadius": 0.10,
         "minWeight": 0.2,
         "fadeIn": 0.3,
         "edgeScale": 0.6,
@@ -253,6 +267,96 @@
         "fadeIn": 0.48,
         "edgeScale": 0.65,
         "seed": 105
+      },
+      {
+        "id": "forest-fern-cluster",
+        "layer": "forest",
+        "foliageType": "ast_88f0f492e7e702fa930982f2da3dad62",
+        "density": 0.017,
+        "minWeight": 0.18,
+        "fadeIn": 0.2,
+        "maxWeight": 0.62,
+        "fadeOut": 0.29,
+        "edgeScale": 0.65,
+        "stand": "ferns"
+      },
+      {
+        "id": "forest-fern-pair",
+        "layer": "forest",
+        "foliageType": "ast_dce627687efceb2b0b2b4fca4853e3b5",
+        "density": 0.016,
+        "minWeight": 0.15,
+        "fadeIn": 0.22,
+        "maxWeight": 0.65,
+        "fadeOut": 0.3,
+        "edgeScale": 0.7,
+        "stand": "ferns"
+      },
+      {
+        "id": "forest-branch-crooked",
+        "layer": "forest",
+        "foliageType": "ast_bc9e0110e2f409bec9bb95de2fbe3b43",
+        "density": 0.010,
+        "minWeight": 0.26,
+        "fadeIn": 0.37,
+        "maxWeight": 0.83,
+        "fadeOut": 0.38,
+        "stand": "litter"
+      },
+      {
+        "id": "forest-branch-forked",
+        "layer": "forest",
+        "foliageType": "ast_06597933261df08e282d75b7f07f7789",
+        "density": 0.008,
+        "minWeight": 0.26,
+        "fadeIn": 0.37,
+        "maxWeight": 0.85,
+        "fadeOut": 0.4,
+        "stand": "litter"
+      },
+      {
+        "id": "forest-branch-snapped",
+        "layer": "forest",
+        "foliageType": "ast_4bfeeda603a2b831138a5e50dd9ec3ac",
+        "density": 0.014,
+        "minWeight": 0.22,
+        "fadeIn": 0.44,
+        "maxWeight": 0.81,
+        "fadeOut": 0.39,
+        "stand": "litter"
+      },
+      {
+        "id": "forest-stone-rounded",
+        "layer": "forest",
+        "foliageType": "ast_f503995960a16788f7472843ddf34769",
+        "density": 0.015,
+        "minWeight": 0.18,
+        "fadeIn": 0.34,
+        "maxWeight": 0.76,
+        "fadeOut": 0.45,
+        "stand": "litter"
+      },
+      {
+        "id": "forest-stone-worn",
+        "layer": "forest",
+        "foliageType": "ast_9ebb52cd76ab2748fd889e0de1e9bd67",
+        "density": 0.013,
+        "minWeight": 0.22,
+        "fadeIn": 0.44,
+        "maxWeight": 0.75,
+        "fadeOut": 0.46,
+        "stand": "litter"
+      },
+      {
+        "id": "forest-stone-low",
+        "layer": "forest",
+        "foliageType": "ast_a02b5cfdbdbebd4c0cabde999577f47e",
+        "density": 0.018,
+        "minWeight": 0.26,
+        "fadeIn": 0.54,
+        "maxWeight": 0.72,
+        "fadeOut": 0.47,
+        "stand": "litter"
       }
     ],
     "rocks": {

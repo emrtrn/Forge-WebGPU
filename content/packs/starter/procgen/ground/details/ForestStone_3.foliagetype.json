@@ -1,0 +1,27 @@
+{
+  "schema": "forge.foliageType/1",
+  "id": "ast_a02b5cfdbdbebd4c0cabde999577f47e",
+  "randomYaw": true,
+  "alignToNormal": true,
+  "castShadow": true,
+  "collision": false,
+  "mesh": "ast_892eb4e597928b49e794fef81b130ba6",
+  "lods": [
+    {
+      "mesh": "ast_f344dac2cdde6ef21fd82d8e8c323cc5",
+      "screenSize": 0.065
+    },
+    {
+      "mesh": "ast_3e3e095bb2001b7706ffcb580f7febde",
+      "screenSize": 0.027
+    }
+  ],
+  "radius": 0.38,
+  "scaleMin": 0.19,
+  "scaleMax": 0.4,
+  "slopeMax": 30,
+  "zOffsetMin": -0.096,
+  "zOffsetMax": -0.068,
+  "cullStart": 32,
+  "cullEnd": 48
+}

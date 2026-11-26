@@ -156,6 +156,7 @@ const LandscapeFoliageRule = object(
       { hint: "Yoğunluk gürültüsü." },
     ),
     edgeScale: num({ min: 0, max: 1, default: 1, hint: "Band ve boya kenarında ölçek çarpanı (1 değişmez; ör. ağaç sınırında bodur ağaçlar)." }),
+    groundRadius: num({ min: 0, max: 5, default: 0, hint: "Dik duran gövdenin taban yarıçapı, metre. Eğimde tabanın aşağı kenarını zemine oturtur." }),
     edge: object(
       {
         fadeIn: num({ min: 0, max: 1, default: 0, hint: "Boya ağırlığı en düşük değerin bu kadar üstüne çıkınca yoğunluk tam olur (0 keskin kenar)." }),

@@ -46,7 +46,7 @@ export function detailHash(p: AnyNode): AnyNode {
   return fract(q.x.add(q.y).mul(q.z));
 }
 
-function detailNoise(p: AnyNode): AnyNode {
+export function detailNoise(p: AnyNode): AnyNode {
   const i = floor(p);
   const f0 = fract(p);
   const f = f0.mul(f0).mul(float(3).sub(f0.mul(2)));

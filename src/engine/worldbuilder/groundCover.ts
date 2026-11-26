@@ -70,6 +70,8 @@ export interface CoverLayer {
   color: string;
   material?: string;
   physicalMaterial?: string;
+  /** Draw humus, leaf litter and exposed soil using the world brief's seed. */
+  forestFloorPatches?: boolean;
 }
 
 export interface CoverRoles {
@@ -109,6 +111,8 @@ export interface CoverPlant {
   fadeOut?: number;
   /** Plants shrink to this toward the edge of the paint. */
   edgeScale?: number;
+  /** Model-space trunk-base radius (metres), for seating upright trunks on slopes. */
+  groundRadius?: number;
   /** The stand it belongs to; its seed is the stand's. */
   stand?: string;
   seed: number;
@@ -196,14 +200,20 @@ export function normalizeGroundCover(value: unknown): { cover: GroundCover | nul
   const layers = arrayOf(ctx, "layers", value.layers, (c, p, entry): CoverLayer | null => {
     const raw = record(c, p, entry);
     if (!raw) return null;
-    known(c, raw, p, ["id", "name", "color", "material", "physicalMaterial"]);
+    known(c, raw, p, ["id", "name", "color", "material", "physicalMaterial", "forestFloorPatches"]);
     const layerId = requireId(c, `${p}.id`, raw.id);
     const layerName = text(c, `${p}.name`, raw.name);
     const color = typeof raw.color === "string" && /^#[0-9a-f]{6}$/i.test(raw.color) ? raw.color.toLowerCase() : reject(c, `${p}.color`, "must be #rrggbb");
     const material = raw.material === undefined ? undefined : text(c, `${p}.material`, raw.material) ?? undefined;
     const physicalMaterial = raw.physicalMaterial === undefined ? undefined : text(c, `${p}.physicalMaterial`, raw.physicalMaterial) ?? undefined;
+    if (raw.forestFloorPatches !== undefined && typeof raw.forestFloorPatches !== "boolean") {
+      issue(c, `${p}.forestFloorPatches`, "must be a boolean");
+    }
     if (layerId === null || layerName === null || color === null) return null;
-    return { id: layerId, name: layerName, color, ...(material ? { material } : {}), ...(physicalMaterial ? { physicalMaterial } : {}) };
+    return {
+      id: layerId, name: layerName, color, ...(material ? { material } : {}), ...(physicalMaterial ? { physicalMaterial } : {}),
+      ...(raw.forestFloorPatches === true ? { forestFloorPatches: true } : {}),
+    };
   });
   if (layers.length === 0 || layers.length > COVER_MAX_LAYERS) issue(ctx, "layers", `must list 1..${COVER_MAX_LAYERS} layers`);
   const layerIds = new Set(layers.map((layer) => layer.id));
@@ -284,7 +294,7 @@ export function normalizeGroundCover(value: unknown): { cover: GroundCover | nul
   const plants = arrayOf(ctx, "plants", value.plants, (c, p, entry): CoverPlant | null => {
     const raw = record(c, p, entry);
     if (!raw) return null;
-    known(c, raw, p, ["id", "layer", "foliageType", "recipe", "age", "prototypes", "density", "minWeight", "fadeIn", "maxWeight", "fadeOut", "edgeScale", "stand", "seed", "reach", "far"]);
+    known(c, raw, p, ["id", "layer", "foliageType", "recipe", "age", "prototypes", "density", "minWeight", "fadeIn", "maxWeight", "fadeOut", "edgeScale", "groundRadius", "stand", "seed", "reach", "far"]);
     const plantId = requireId(c, `${p}.id`, raw.id);
     const layer = layerRef(`${p}.layer`, raw.layer);
     const foliageType = raw.foliageType === undefined || raw.foliageType === null ? null
@@ -301,6 +311,7 @@ export function normalizeGroundCover(value: unknown): { cover: GroundCover | nul
     if (raw.stand !== undefined && !stand) issue(c, `${p}.stand`, "must name one of the cover's stands");
     const seed = stand && raw.seed === undefined ? stand.seed : wholeNumber(c, `${p}.seed`, raw.seed);
     const [fadeIn, maxWeight, fadeOut, edgeScale] = ["fadeIn", "maxWeight", "fadeOut", "edgeScale"].map((key) => optionalNumber(c, p, raw, key, 0, 1));
+    const groundRadius = optionalNumber(c, p, raw, "groundRadius", 0, 5);
     const prototypes = optionalNumber(c, p, raw, "prototypes", 1, 16), reach = optionalNumber(c, p, raw, "reach", 0, 5000), far = optionalNumber(c, p, raw, "far", 0, 20000);
     if (plantId !== null && plantIds.has(plantId)) return reject(c, p, `repeats id "${plantId}"`);
     if (plantId === null || layer === null || recipe === null || (foliageType === null && raw.foliageType) || density === null || minWeight === null || seed === null) return null;
@@ -308,7 +319,7 @@ export function normalizeGroundCover(value: unknown): { cover: GroundCover | nul
     return {
       id: plantId, layer, foliageType, ...(recipe ? { recipe } : {}), ...(age ? { age } : {}), ...(prototypes !== undefined ? { prototypes: Math.floor(prototypes) } : {}), density, minWeight, seed,
       ...(fadeIn !== undefined ? { fadeIn } : {}), ...(maxWeight !== undefined ? { maxWeight } : {}), ...(fadeOut !== undefined ? { fadeOut } : {}),
-      ...(edgeScale !== undefined ? { edgeScale } : {}), ...(stand ? { stand: stand.id } : {}),
+      ...(edgeScale !== undefined ? { edgeScale } : {}), ...(groundRadius ? { groundRadius } : {}), ...(stand ? { stand: stand.id } : {}),
       ...(reach !== undefined ? { reach } : {}), ...(far !== undefined ? { far } : {}),
     };
   });
@@ -494,6 +505,7 @@ export interface CoverPlantRule {
   minWeight: number;
   seed: number;
   edgeScale?: number;
+  groundRadius?: number;
   edge?: { fadeIn: number; maxWeight: number; fadeOut: number };
   stand?: { from: number; to: number; patch: number; reach: number; far: number; tint: number; detail: number };
 }
@@ -539,6 +551,7 @@ export function coverPlantRules(cover: GroundCover, densities: CoverDensities, g
       density: precise(stand ? totals.get(stand.id)! : density / types.length), minWeight: plant.minWeight,
       seed: stand ? stand.seed : (plant.seed + index * PROTOTYPE_SEED_STEP) >>> 0,
       ...(edgeScale < 1 ? { edgeScale } : {}),
+      ...(plant.groundRadius ? { groundRadius: plant.groundRadius } : {}),
       ...(fadeIn > 0 || maxWeight < 1 ? { edge: { fadeIn, maxWeight, fadeOut } } : {}),
       ...(stand ? { stand: { ...shareOf(stand.id, density / types.length), patch: stand.patch, reach: plant.reach ?? stand.reach, far, tint: far > 0 ? stand.tint : 0, detail: stand.detail } } : {}),
     };

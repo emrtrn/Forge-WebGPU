@@ -1,0 +1,20 @@
+{
+  "schema": "forge.assetMeta/1",
+  "id": "ast_1d0508e81420447d1692ad87333c1f10",
+  "type": "forge.model@2",
+  "license": "LicenseRef-forge-project",
+  "source": {
+    "origin": "Forge procedural bake: tools/procgen/forestGroundDetails.ts",
+    "author": "Forge",
+    "url": ""
+  },
+  "import": {
+    "optimize": {
+      "enabled": false,
+      "maxTextureSize": 1024,
+      "keepNormals": true,
+      "meshopt": false,
+      "stripTextures": false
+    }
+  }
+}

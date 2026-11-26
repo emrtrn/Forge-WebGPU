@@ -59,6 +59,8 @@ export interface WorldTerrainLayerDef {
    * material's default (`mud` takes no snow).
    */
   weather?: TerrainLayerWeather;
+  /** World seed for visual forest-floor patches. Absent leaves the original layer shading. */
+  forestFloorPatchSeed?: number;
 }
 
 /** A layer's written weather response: only the fields it overrides. */
