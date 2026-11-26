@@ -36,6 +36,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { distanceToWorldCell } from "../../core/grid/worldGrid.ts";
 import { parseCellKey, type LevelSettings } from "../../core/index.ts";
 import { effectiveViewDistance } from "../../engine/world/viewDistance.ts";
+import { markCover } from "../gpu/gpuDrivenBatch.ts";
 import { HLOD_CLUSTER_CELLS, HLOD_LANDMARK_FILE, hlodCellFileOf, hlodClusterFileOf, hlodClusterOf, type HlodSource } from "../../engine/world/hlod.ts";
 
 export const MAX_IN_FLIGHT = 4;
@@ -167,6 +168,8 @@ export function createHlodProxies(source: HlodSource, parent: Group, track: <T>(
         mesh.name = `HLOD ${proxy.file}`;
         mesh.castShadow = false;
         mesh.receiveShadow = true;
+        // Plan phase W3: a far cell's statics still block rain and snow.
+        markCover(mesh);
         mesh.visible = false;
         mesh.matrixAutoUpdate = false;
         proxy.mesh = mesh;

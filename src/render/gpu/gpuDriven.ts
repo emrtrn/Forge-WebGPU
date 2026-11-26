@@ -56,7 +56,7 @@ import {
 } from "../sync/shadowCasterLayers.ts";
 import { createCpuDrivenBatch } from "./cpuDrivenBatch.ts";
 import {
-  cameraViewLayer, createGpuDrivenBatch, MAIN_VIEW_LAYER, MAX_CAMERA_VIEWS, MAX_SHADOW_VIEWS, shadowViewLayer, ZONE_MASK_WORDS, ZONE_SHADOW_LAYER,
+  cameraViewLayer, COVER_LAYER, coverViewLayer, createGpuDrivenBatch, MAIN_VIEW_LAYER, MAX_CAMERA_VIEWS, MAX_COVER_VIEWS, MAX_SHADOW_VIEWS, shadowViewLayer, ZONE_MASK_WORDS, ZONE_SHADOW_LAYER,
   type GpuCullView, type GpuDrivenBatch, type GpuDrivenBatchOptions,
 } from "./gpuDrivenBatch.ts";
 
@@ -71,6 +71,17 @@ import {
  */
 export interface CameraViewSource {
   view(main: Camera): { readonly camera: Camera; readonly mirror?: readonly [number, number, number, number]; readonly active: boolean } | null;
+}
+
+/**
+ * A precipitation cover camera (plan phase W3): a top-down depth view of the
+ * statics, asked every frame before the cull. `active` true only on a frame
+ * it draws; it is culled like a shadow view (distances from the main camera)
+ * by the batches that cover (`precipitationCover`). Its camera sees its view
+ * layer and {@link COVER_LAYER} only.
+ */
+export interface CoverViewSource {
+  view(main: Camera): { readonly camera: Camera; readonly active: boolean } | null;
 }
 
 /** Every layer a GPU-driven view owns: shadow views, the main view, camera views (layer 0 is no view's). */
@@ -99,6 +110,8 @@ export interface GpuDrivenStats {
 }
 
 export interface GpuDrivenDrawing extends CameraViews {
+  /** Registers a precipitation cover camera (at most {@link MAX_COVER_VIEWS}); the returned function removes it. */
+  addCover(source: CoverViewSource): () => void;
   /** The GPU path (WebGPU); false: batches are the CPU twin (WebGL2). */
   readonly supported: boolean;
   readonly instancedCasters: InstancedShadowCasters;
@@ -194,6 +207,7 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
   const batches = new Map<GpuDrivenBatch, Object3D>();
   const instancedCasters = createInstancedShadowCasters();
   const cameraSources = new Set<CameraViewSource>();
+  const coverSources = new Set<CoverViewSource>();
   const viewProjection = new Matrix4();
   const position = new Vector3();
   let lastViews: GpuCullView[] = [];
@@ -283,6 +297,10 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
       cameraSources.add(source);
       return () => { cameraSources.delete(source); };
     },
+    addCover(source) {
+      coverSources.add(source);
+      return () => { coverSources.delete(source); };
+    },
     cull(scene, camera, minCasterTexels = 0) {
       lastBatches = [];
       lastViews = [];
@@ -308,6 +326,9 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
       for (const view of shadowViews) {
         view.camera.layers.mask = base | instancedCasterMask(profile !== null && view.profile === profile ? view.cascade : undefined);
       }
+      // Each cover camera draws its own view layer and the CPU-drawn covers (plan phase W3).
+      const covers = [...coverSources].slice(0, MAX_COVER_VIEWS).map((source, index) => ({ entry: source.view(camera), layer: coverViewLayer(index) }));
+      for (const { entry, layer } of covers) if (entry) entry.camera.layers.mask = (1 << layer) | (1 << COVER_LAYER);
       if (batches.size === 0) return;
       const planes = planesOf(camera);
       if (!planes) return;
@@ -343,6 +364,11 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
         entry.camera.layers.enable(layer);
         views.push({ ...own, role: "camera", layer });
       }
+      for (const { entry, layer } of covers) {
+        if (!entry?.active) continue;
+        const coverPlanes = planesOf(entry.camera);
+        if (coverPlanes) views.push({ planes: coverPlanes, origin, role: "cover", layer });
+      }
       const dispatches: ComputeNode[] = [];
       for (const [batch, parent] of batches) {
         // An empty batch still dispatches: its arguments go back to zero instances.
@@ -377,6 +403,7 @@ export function createGpuDriven(renderer: WebGPURenderer): GpuDrivenDrawing {
       for (const batch of batches.keys()) batch.dispose();
       batches.clear();
       cameraSources.clear();
+      coverSources.clear();
       lastBatches = [];
       lastViews = [];
     },

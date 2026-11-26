@@ -242,6 +242,8 @@ async function start(): Promise<void> {
         const cells = booted.world.services.get(CellStreamingKey)?.snapshot();
         return cells ? { ms: cells.lastFrameMs, active: cells.active, actors: cells.actors, pending: viewer.host?.cache.stats().pending ?? 0 } : null;
       },
+      /** Plan phase W3: the precipitation cover's draws so far and in the last frame; null without a world. */
+      precipitationCover: () => viewer.host?.world?.cover?.stats ?? null,
       /** Moves the game camera (measure:streaming's route), looking at a point when given. */
       moveCamera(x: number, y: number, z: number, look?: readonly [number, number, number]) {
         viewer.camera.position.set(x, y, z);

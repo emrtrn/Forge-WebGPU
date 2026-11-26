@@ -165,6 +165,8 @@ export interface TerrainViewOptions {
   readonly farTiling?: boolean;
   /** An editor terrain: the Landscape view modes are compiled in (`setEditorView`, 5d step 3). */
   readonly editorViews?: boolean;
+  /** The precipitation cover (plan phase W3): no snow or wetness under a roof. */
+  readonly sheltered?: TerrainMaterialInput["sheltered"];
 }
 
 export interface TerrainSelection {
@@ -312,6 +314,7 @@ export class TerrainView {
       layers: options.layers,
       layerTextures: this.layerTextures,
       editorViews: options.editorViews === true,
+      ...(options.sheltered ? { sheltered: options.sheltered } : {}),
     };
     const material = createTerrainMaterial({ ...this.materialInput, farTiling: this.farTiling });
     this.terrainMaterial = material;

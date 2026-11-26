@@ -407,6 +407,8 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
         jsonAssets,
         bindings: options.bindings,
         cameraViews: gpuDriven,
+        coverViews: gpuDriven,
+        webgpu: (renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend === true,
         gpuDriven,
         staticCellSize: () => staticCellSize,
         buildingStreaming: featureOptions?.buildingStreaming === true,
@@ -464,6 +466,8 @@ export async function createRenderHost(options: RenderHostOptions): Promise<Rend
       gpuDriven.setZoneMasks(world.zones?.masks ?? null);
       triangles.update(camera, quality.settings.foliageCullDistanceScale, world.zones ?? null);
       gpuDriven.cull(world.scene, camera, quality.settings.shadowCasterMinTexels);
+      // Plan phase W3: the precipitation cover's squares that must follow the camera or the content, culled above.
+      world.cover?.render(renderer, world.scene, camera);
       pipeline.render(world.scene, camera, world.output, quality.settings, world.late ?? null);
       overlay?.render({ renderer, scene: world.scene, camera, sceneDepth: pipeline.sceneDepth });
       // CPU wall time for render traversal / encoding / submission; never GPU execution time.

@@ -25,7 +25,9 @@ import type { SurfaceMaterials } from "../resources/surfaceMaterials.ts";
 import type { TerrainSource } from "../resources/terrains.ts";
 import type { TextureSource } from "../resources/textures.ts";
 import { createWorldResources, type JsonAssetSource, type ModelSource, type WorldResources } from "../resources/worldResources.ts";
-import type { CameraViews, GpuDrivenBatches } from "../gpu/gpuDriven.ts";
+import type { CameraViews, CoverViewSource, GpuDrivenBatches } from "../gpu/gpuDriven.ts";
+import { WorldEnvironmentKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
+import { createPrecipitationCover, type PrecipitationCover } from "./precipitationCover.ts";
 import type { StaticPath } from "../triangles/staticPath.ts";
 import type { TriangleDrawing } from "../triangles/triangleDrawing.ts";
 import { createDefaultLighting } from "./defaultLighting.ts";
@@ -58,6 +60,8 @@ export interface RenderWorld {
   readonly zones?: ZoneDrawing;
   /** What is drawn over the scene after its anti-aliasing (plan phase W1). */
   readonly late?: LateLayer;
+  /** Where rain and snow are blocked (plan phase W3); the host draws it after the cull. */
+  readonly cover?: PrecipitationCover;
 }
 
 export interface RenderFeatureOptions {
@@ -72,6 +76,10 @@ export interface RenderFeatureOptions {
   readonly staticCellSize?: () => number;
   /** Cameras that draw the scene register their GPU-driven views here (R9a step 1). */
   readonly cameraViews?: CameraViews;
+  /** The precipitation cover's cameras join the GPU-driven cull here (plan phase W3). */
+  readonly coverViews?: { addCover(source: CoverViewSource): () => void };
+  /** The renderer is WebGPU (texture rows run top-down); false or absent: WebGL2. */
+  readonly webgpu?: boolean;
   /** GPU-driven batches (foliage, plan 5c F1); absent in tests that draw none. */
   readonly gpuDriven?: GpuDrivenBatches;
   readonly cache: ResourceCache;
@@ -116,6 +124,20 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       root.name = "actors";
       scene.add(root);
       const late = createLateLayer(options.reversedDepth === true);
+      // Plan phase W3: drawn only while rain or snow falls or the surface is wet or snowy.
+      const cover = createPrecipitationCover({
+        reversedDepth: options.reversedDepth === true,
+        webgpu: options.webgpu === true,
+        ...(options.coverViews ? { coverViews: options.coverViews } : {}),
+        wanted: () => {
+          const controller = ctx.services.get(WorldEnvironmentKey)?.controller;
+          const state = controller?.current();
+          if (!controller || !state) return false;
+          const falling = controller.precipitation();
+          return falling.rain > 0 || falling.snow > 0 || state.surface.wetness > 0 || state.surface.snowCoverage > 0;
+        },
+        possible: () => ctx.services.get(WorldEnvironmentKey)?.controller.current() != null,
+      });
       const resources = createWorldResources(options.cache, options.name, options.models, options.materials ?? null, options.terrains ?? null, options.textures ?? null, options.jsonAssets ?? null);
       const view: RenderWorldView = {
         services: ctx.services,
@@ -135,7 +157,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       const instances: RenderBindingInstance[] = bindings.map((binding) =>
         binding.create({
           world: view, scene, root, late, resources, lighting, environment: environment.environment, output,
-          capture: options.capture ?? null, quality: effectiveQuality, invalidateReadiness,
+          capture: options.capture ?? null, quality: effectiveQuality, invalidateReadiness, precipitationCover: cover,
           ...(options.prepare ? { prepare: (objects: readonly Object3D[], signal?: AbortSignal) => resources.track(options.prepare!(objects, scene, signal)) } : {}),
           ...(options.triangles ? { triangles: options.triangles } : {}),
           ...(options.staticPath ? { staticPath: options.staticPath } : {}),
@@ -152,7 +174,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
         isActorReady: (id) => readiness.every((instance) => instance.isActorReady!(id)),
       });
       const world: RenderWorld = {
-        name: options.name, scene, root, resources, output, late,
+        name: options.name, scene, root, resources, output, late, cover,
         get shadowsEnabled() { return sceneShadowsEnabled(view); },
         levelSettings: () => ctx.services.get(LevelSettingsKey)?.current,
         zones,
@@ -167,18 +189,21 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
       return {
         actorsAdded(actors) {
           invalidateReadiness();
+          cover.invalidate();
           lighting.refresh();
           zones.refresh(actors);
           for (const instance of instances) instance.actorsAdded?.(actors);
         },
         actorsRemoved(actors) {
           invalidateReadiness();
+          cover.invalidate();
           lighting.refresh();
           zones.refresh(actors);
           for (const instance of instances) instance.actorsRemoved?.(actors);
         },
         actorsChanged(changes) {
           invalidateReadiness();
+          cover.invalidate();
           lighting.refresh();
           const previous = changes.map((change) => change.previous);
           const actors = changes.map((change) => change.actor);
@@ -202,7 +227,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           outputState.update(environment.environment.override, options.quality());
           for (const instance of instances) instance.sync?.(frame);
           const source = ctx.services.get(HlodSourceKey);
-          if (hlod !== null && source?.revision !== hlodRevision) { hlod.dispose(); hlod = null; }
+          if (hlod !== null && source?.revision !== hlodRevision) { hlod.dispose(); hlod = null; cover.invalidate(); }
           if (hlod === null) {
             if (source) hlod = createHlodProxies(source, hlodRoot, (work) => resources.track(work));
             hlodRevision = source?.revision;
@@ -219,6 +244,7 @@ export function createRenderFeature(options: RenderFeatureOptions): FeatureDef {
           resources.releaseAll();
           options.detach?.(world);
           late.dispose();
+          cover.dispose();
           root.clear();
           scene.clear();
         },

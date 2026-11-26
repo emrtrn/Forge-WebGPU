@@ -34,7 +34,7 @@ import { CASTER_FADE_START } from "../../engine/world/shadowCasters.ts";
 import { EXTRA_FLOATS, MATRIX_FLOATS, createGpuInstances } from "./gpuInstances.ts";
 import { applyCpuInstanceShading, INSTANCE_SEED_MASK, type CpuInstanceShadingAttributes } from "./instanceShading.ts";
 import {
-  cloneNodeMaterial, drawPasses, maskWithFade, MAIN_VIEW_LAYER, MAX_CAMERA_VIEWS, MAX_SHADOW_VIEWS,
+  cloneNodeMaterial, depthOnlyView, drawPasses, reuseView, shadingRole, maskWithFade, MAIN_VIEW_LAYER, MAX_CAMERA_VIEWS, MAX_COVER_VIEWS, MAX_SHADOW_VIEWS,
   ZONE_MASK_WORDS, type GpuBatchDistances, type GpuCullView, type GpuDrivenBatch, type GpuDrivenBatchOptions, type ZoneMode,
 } from "./gpuDrivenBatch.ts";
 
@@ -65,7 +65,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
   const lodCount = options.lods.length;
   if (lodCount < 1 || lodCount > MAX_INSTANCE_LODS) throw new Error(`gpu batch ${options.name}: 1 to ${MAX_INSTANCE_LODS} LODs`);
   const instances = createGpuInstances(options.capacity, options.staggeredFade);
-  const maxViews = 1 + MAX_SHADOW_VIEWS + MAX_CAMERA_VIEWS;
+  const maxViews = 1 + MAX_SHADOW_VIEWS + MAX_CAMERA_VIEWS + MAX_COVER_VIEWS;
   // The draws three issues: one per material group of each part, two for a two-pass material.
   const partPasses = (part: GpuDrivenBatchOptions["lods"][number][number]): number => {
     const materials = Array.isArray(part.material) ? part.material : [part.material];
@@ -96,7 +96,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
 
   const buildView = (view: View, index: number): void => {
     releaseView(view);
-    const shadow = view.role === "shadow";
+    const shadow = depthOnlyView(view.role);
     const capacity = instances.capacity;
     options.lods.forEach((parts, lod) => {
       for (const part of parts) {
@@ -112,7 +112,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
           : null;
         const clone = (source: Material): Material => {
           const material = cloneNodeMaterial(renderer, source, options.name);
-          if (options.instanceShading && shading) applyCpuInstanceShading(options.instanceShading, material, view.role, shading, part.local);
+          if (options.instanceShading && shading) applyCpuInstanceShading(options.instanceShading, material, shadingRole(view.role), shading, part.local);
           maskWithFade(material, fade);
           view.materials.push(material);
           return material;
@@ -175,20 +175,21 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       const fadeStart = Math.min(distances.fadeStart, cull.cullEnd);
       const spread = batch.fadeSpread;
       const fadeOffset = spread > 0 ? (at: number) => instances.fadeRank(at) * spread : undefined;
-      const accepted = list.filter((view) => view.role !== "shadow" || options.castShadow !== false).slice(0, maxViews);
+      const accepted = list.filter((view) => (view.role !== "shadow" || options.castShadow !== false) && (view.role !== "cover" || options.precipitationCover === true)).slice(0, maxViews);
       prepared = accepted.length;
       lastDraws = 0;
       for (let index = 0; index < prepared; index += 1) {
+        reuseView(views, index, accepted[index]!);
         const view = views[index] ?? (views[index] = { role: "main", layer: MAIN_VIEW_LAYER, meshes: [], materials: [], built: -1, counts: new Array<number>(lodCount).fill(0) });
         const source = accepted[index]!;
         if (view.built !== instances.generation || view.role !== source.role || view.layer !== source.layer) {
           view.role = source.role; view.layer = source.layer;
           buildView(view, index);
         }
-        const result = cullInstanceCounts(matrices, instances.count, source.role === "shadow" ? batch.shadowCullBatch : cull, source, fadeOffset);
+        const result = cullInstanceCounts(matrices, instances.count, depthOnlyView(source.role) ? batch.shadowCullBatch : cull, source, fadeOffset);
         // R9b: the zone masks as the GPU reads them (extras.z, the view's mask).
         const masks = options.zoneMasks?.array as Uint32Array | undefined;
-        const base = source.role === "shadow" ? ZONE_MASK_WORDS : 0;
+        const base = depthOnlyView(source.role) ? ZONE_MASK_WORDS : 0;
         const lists = masks
           ? result.visible.map((list) => list.filter((at) => { const zone = extras[at * EXTRA_FLOATS + 2]! | 0; return ((masks[base + (zone >>> 5)]! >>> (zone & 31)) & 1) === 1; }))
           : result.visible;
@@ -213,7 +214,7 @@ export function createCpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
           });
           mesh.count = visible.length;
           if (visible.length > 0) lastDraws += passes;
-          mesh.visible = zoneMode !== "shadow" || view.role === "shadow";
+          mesh.visible = zoneMode !== "shadow" || depthOnlyView(view.role);
           mesh.instanceMatrix.needsUpdate = true;
           if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
           shown.needsUpdate = true;

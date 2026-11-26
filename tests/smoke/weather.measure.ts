@@ -21,6 +21,11 @@
 // frame: the longest frame, the GPU, the Sky Light captures (during the change
 // and after it) and the pipelines / shader modules it made, which must be 0
 // once the end states have been drawn. Record: <stamp>-weather-transition.json.
+//
+// The third (plan phase W3, budget) walks the camera through the rain: the
+// GPU time of the frames that redraw the precipitation cover against those
+// that do not, and a still stretch that must draw nothing.
+// Record: <stamp>-weather-cover.json.
 // Fails on a non-WebGPU run, a boot error or a page error, never on a number.
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -51,6 +56,9 @@ interface Dev {
   setLateVisible(visible: boolean): void;
   environmentState(): unknown;
   gpuDriven: { level(): Promise<{ pending: number } | null> };
+  precipitationCover(): { redraws: number; lastFrameRedraws: number } | null;
+  moveCamera(x: number, y: number, z: number, look?: readonly [number, number, number]): void;
+  streaming(): { camera: [number, number, number] };
 }
 
 const DRY = { snowCoverage: 0, wetness: 0, puddleFill: 0, snowDepth: 0 };
@@ -253,4 +261,61 @@ test("weather transition: frame by frame, Sky Light captures, pipelines made", a
   };
   mkdirSync(join(RENDER_REFS, "runs"), { recursive: true });
   writeFileSync(join(RENDER_REFS, "runs", `${record.date.replace(/[:.]/g, "-")}-weather-transition.json`), `${JSON.stringify(record, null, 2)}\n`);
+});
+
+/** Metres the camera walks a frame in the cover test (30 m/s at 60 Hz: several redraws a second). */
+const WALK_STEP = 0.5;
+const WALK_FRAMES = 240;
+const STILL_FRAMES = 60;
+
+test("weather cover: the precipitation cover's redraw cost while walking, nothing while still", async ({ page }) => {
+  test.setTimeout(600_000);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => { if (message.type() === "error" && !isOptionalHlodMiss(message)) errors.push(message.text()); });
+  const results: unknown[] = [];
+  for (const { scene: sceneId, pose: poseId } of SCENES) {
+    const scene = SMOKE_SCENES.find((entry) => entry.id === sceneId)!;
+    await openSmokeLevel(page, scene.level, scene.poses.find((entry) => entry.id === poseId)!);
+    await expect(page.locator("canvas[data-forge-backend='webgpu']")).toBeVisible();
+    await expect.poll(async () => (await evaluate(page, (d) => d.gpuDriven.level()))?.pending ?? 0, { timeout: 60_000, message: `${sceneId}: the ring settles` }).toBe(0);
+    if ((await evaluate(page, (d) => d.environmentState())) === null) await spawnEnvironment(page);
+    await page.waitForTimeout(1500);
+    await evaluate(page, (d) => d.pause());
+    await evaluate(page, (d) => d.setWeather("rain", 1));
+    for (let frame = 0; frame < WARM_FRAMES; frame += 1) await step(page);
+    const start = (await evaluate(page, (d) => d.streaming())).camera;
+    const walk: { redraws: number; gpu: number | null; cpu: number }[] = [];
+    for (let frame = 0; frame < WALK_FRAMES; frame += 1) {
+      const x = start[0] + frame * WALK_STEP;
+      await evaluate(page, (d, at) => { const [px, py, pz] = at as number[]; d.moveCamera(px!, py!, pz!, [px! + 20, py! - 2, pz!]); }, [x, start[1], start[2]]);
+      const s = await step(page);
+      walk.push({ redraws: (await evaluate(page, (d) => d.precipitationCover()))?.lastFrameRedraws ?? 0, gpu: s.gpuMs, cpu: s.cpuMs });
+    }
+    let stillRedraws = 0;
+    for (let frame = 0; frame < STILL_FRAMES; frame += 1) {
+      await step(page);
+      stillRedraws += (await evaluate(page, (d) => d.precipitationCover()))?.lastFrameRedraws ?? 0;
+    }
+    const gpuOf = (list: typeof walk) => list.map((f) => f.gpu ?? NaN).filter(Number.isFinite);
+    const drawn = walk.filter((f) => f.redraws > 0), plain = walk.filter((f) => f.redraws === 0);
+    const result = {
+      scene: sceneId, pose: poseId, walkFrames: WALK_FRAMES, walkStep: WALK_STEP,
+      redrawFrames: drawn.length, cascadeDraws: drawn.reduce((n, f) => n + f.redraws, 0),
+      gpuMs: { redraw: { mean: round(mean(gpuOf(drawn))), max: round(Math.max(...gpuOf(drawn))) }, other: { mean: round(mean(gpuOf(plain))), p95: round(percentile(gpuOf(plain), 0.95)) } },
+      cpuMs: { redraw: round(mean(drawn.map((f) => f.cpu))), other: round(mean(plain.map((f) => f.cpu))) },
+      stillRedraws,
+    };
+    results.push(result);
+    console.log(`${sceneId} cover: ${result.redrawFrames} redraw frames (${result.cascadeDraws} cascade draws) in ${WALK_FRAMES}; gpu redraw ${result.gpuMs.redraw.mean} / max ${result.gpuMs.redraw.max} ms, other ${result.gpuMs.other.mean} / p95 ${result.gpuMs.other.p95} ms; main ${result.cpuMs.redraw} vs ${result.cpuMs.other} ms; still redraws ${stillRedraws}`);
+  }
+  expect(errors).toEqual([]);
+  const record = {
+    schema: 1, kind: "phase W3 precipitation cover", date: new Date().toISOString(),
+    commit: git(["rev-parse", "HEAD"]), dirty: git(["status", "--porcelain"]) !== "",
+    viewport: SMOKE_VIEWPORT, frameMs: FRAME_MS, results,
+  };
+  mkdirSync(join(RENDER_REFS, "runs"), { recursive: true });
+  writeFileSync(join(RENDER_REFS, "runs", `${record.date.replace(/[:.]/g, "-")}-weather-cover.json`), `${JSON.stringify(record, null, 2)}
+`);
 });

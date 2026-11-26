@@ -202,6 +202,8 @@ export interface TerrainMaterialInput {
   readonly farTiling: boolean;
   /** Compile the Landscape view modes in (the editor's terrains only). */
   readonly editorViews?: boolean;
+  /** How covered a world point is from rain and snow (plan phase W3); absent: nothing covers. */
+  readonly sheltered?: (position: THREE.Node<"vec3">) => THREE.Node<"float">;
 }
 
 /** Forge's LandscapeViewMode as the shader's index: lit 0, height 1, slope 2, layer 3. */
@@ -441,7 +443,7 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
   material.normalNode = transformNormalToView(worldNormal);
   // A hole in the far map (no tile covers the sample) is cut, in every pass.
   material.maskNode = useTile.or(globalNormal.b.lessThan(0.5));
-  const surfaceCover = createSurfaceCover();
+  const surfaceCover = createSurfaceCover(input.sheltered);
   applyContributions(material, { wetness: surfaceCover }, base);
   let probe: THREE.MeshBasicNodeMaterial | null = null;
   return {

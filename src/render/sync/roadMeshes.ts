@@ -125,6 +125,8 @@ export function createRoadMeshes(options: RoadMeshesOptions): RoadMeshes {
     ...(ctx.prepare ? { prepare: ctx.prepare } : {}),
     ...(ctx.gpuDriven?.instancedCasters ? { shadowCasters: ctx.gpuDriven.instancedCasters } : {}),
     ...(ctx.triangles ? { triangles: ctx.triangles, ...(ctx.staticPath ? { staticPath: ctx.staticPath } : {}) } : {}),
+    // Plan phase W3: a road (a bridge) blocks rain and snow.
+    ...(ctx.precipitationCover ? { precipitationCover: true, coverChanged: () => ctx.precipitationCover!.invalidate() } : {}),
   });
 
   /** The template's slot materials; their cache uses join `keys`. */

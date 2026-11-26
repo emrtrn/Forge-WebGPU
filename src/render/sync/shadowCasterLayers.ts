@@ -1,7 +1,7 @@
 // Caster classes occupy separate layers for visible and shadow-only zones.
 import { Vector3, type Camera, type InstancedMesh, type Object3D } from "three/webgpu";
 import { casterFadeEnd, casterLayerMask, maxCasterCascade, type ShadowCasterProfile } from "../../engine/world/shadowCasters.ts";
-import { ZONE_HIDDEN_LAYER, ZONE_SHADOW_LAYER, type ZoneMode } from "../gpu/gpuDrivenBatch.ts";
+import { setDrawLayer, ZONE_HIDDEN_LAYER, ZONE_SHADOW_LAYER, type ZoneMode } from "../gpu/gpuDrivenBatch.ts";
 
 const VISIBLE_CLASSES = [16, 17, 18, 19] as const;
 const SHADOW_CLASSES = [20, 21, 22, 23] as const;
@@ -76,7 +76,7 @@ export function createInstancedShadowCasters() {
             ? maxCasterCascade(radius, profile.texels, profile.minTexels) : null;
         }
         const layer = instancedCasterLayer(batch.zoneMode(), state.cascade);
-        for (const mesh of batch.meshes) if (mesh.layers.mask !== (1 << layer)) mesh.layers.set(layer);
+        for (const mesh of batch.meshes) setDrawLayer(mesh, layer);
         const end = profile && state.cascade !== null ? casterFadeEnd(state.cascade, profile) : 0;
         batch.fade.update(origin, cameras, end);
       }

@@ -63,6 +63,8 @@ export default defineRenderBinding({
           ...(ctx.prepare ? { prepare: ctx.prepare } : {}),
           ...(ctx.gpuDriven?.instancedCasters ? { shadowCasters: ctx.gpuDriven.instancedCasters } : {}),
           ...(ctx.triangles ? { triangles: ctx.triangles, ...(ctx.staticPath ? { staticPath: ctx.staticPath } : {}) } : {}),
+          // Plan phase W3: a shape blocks rain and snow.
+          ...(ctx.precipitationCover ? { precipitationCover: true, coverChanged: () => ctx.precipitationCover!.invalidate() } : {}),
         }),
         keys: [resourceKey.shape(primitive), shapeMaterialKey(SHAPE_BASE_COLOR, doubleSided)],
         disposed: false,

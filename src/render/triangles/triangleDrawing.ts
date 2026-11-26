@@ -6,7 +6,7 @@ import { detailCullDistance, detailCullWindow } from "../../engine/world/detailC
 import { NO_CULL_DISTANCE } from "../../engine/world/instanceCulling.ts";
 import type { ZoneBox } from "../../engine/world/zones.ts";
 import type { GpuDrivenDrawing } from "../gpu/gpuDriven.ts";
-import { MAIN_VIEW_LAYER, shadowViewLayer, type GpuDrivenBatch } from "../gpu/gpuDrivenBatch.ts";
+import { COVER_KEY, MAIN_VIEW_LAYER, shadowViewLayer, type GpuDrivenBatch } from "../gpu/gpuDrivenBatch.ts";
 import { placementBox } from "../sync/batchCells.ts";
 import { triangleInput } from "./triangleSource.ts";
 
@@ -104,6 +104,8 @@ export function createTriangleDrawing(renderer: WebGPURenderer, gpu: GpuDrivenDr
       const sphere = source.geometry.boundingSphere!.clone().applyMatrix4(local);
       const localScale = local.getMaxScaleOnAxis();
       const batch = gpu.createBatch({ name: root.name, parent: root, capacity: source.instanceMatrix.count, bounds: { center: [sphere.center.x, sphere.center.y, sphere.center.z], radius: sphere.radius }, distanceMode: "scaled", castShadow: source.castShadow, bundle,
+        // Plan phase W3: a static batch that blocks precipitation does so on this path too.
+        precipitationCover: source.userData[COVER_KEY] === true,
         ...(source.instanceColor ? { instanceColors: source.instanceColor } : {}),
         lods: data.lods.map((lod, i) => {
           let geometry = source.geometry;

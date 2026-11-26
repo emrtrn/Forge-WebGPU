@@ -112,6 +112,8 @@ export default defineRenderBinding({
           ...(ctx.prepare ? { prepare: ctx.prepare } : {}),
           ...(ctx.gpuDriven?.instancedCasters ? { shadowCasters: ctx.gpuDriven.instancedCasters } : {}),
           ...(ctx.triangles ? { triangles: ctx.triangles, ...(ctx.staticPath ? { staticPath: ctx.staticPath } : {}) } : {}),
+          // Plan phase W3: a static mesh blocks rain and snow.
+          ...(ctx.precipitationCover ? { precipitationCover: true, coverChanged: () => ctx.precipitationCover!.invalidate() } : {}),
         }),
         keys: [resourceKey.model(model)],
         disposed: false,

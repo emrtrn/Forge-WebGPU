@@ -21,6 +21,8 @@ export interface GpuMemory {
   unknownFormats: string[];
   /** Live buffers by `<size>:<usage flags>` (a leak shows as a key that keeps growing). */
   bufferKinds: Record<string, number>;
+  /** Labels of the last 200 pipelines created (`<call>:<label>:<vertex module>:<fragment module>`). */
+  pipelineLabels: string[];
 }
 
 export async function installGpuMemory(page: Page): Promise<void> {
@@ -28,6 +30,8 @@ export async function installGpuMemory(page: Page): Promise<void> {
     const state = {
       liveBytes: 0, peakBytes: 0, textures: 0, textureBytes: 0, buffers: 0, bufferBytes: 0, pipelines: 0, shaderModules: 0,
       unknownFormats: [] as string[], bufferKinds: {} as Record<string, number>,
+      /** Labels of the pipelines created, in order (the last 200): which ones a change made. */
+      pipelineLabels: [] as string[],
     };
     (window as unknown as { __forgeGpuMemory: typeof state & { reset(): void } }).__forgeGpuMemory = Object.assign(state, {
       reset() { state.peakBytes = state.liveBytes; },
@@ -88,7 +92,12 @@ export async function installGpuMemory(page: Page): Promise<void> {
       state.buffers += 1; state.bufferBytes += bytes; add(bytes);
     });
     for (const name of ["createRenderPipeline", "createRenderPipelineAsync", "createComputePipeline", "createComputePipelineAsync"]) {
-      wrap(ctor.prototype, name, () => { state.pipelines += 1; });
+      wrap(ctor.prototype, name, (_result, [descriptor]) => {
+        state.pipelines += 1;
+        const d = descriptor as { label?: string; vertex?: { module?: { label?: string } }; fragment?: { module?: { label?: string } } } | undefined;
+        state.pipelineLabels.push(`${name}:${d?.label ?? ""}:${d?.vertex?.module?.label ?? ""}:${d?.fragment?.module?.label ?? ""}`);
+        if (state.pipelineLabels.length > 200) state.pipelineLabels.shift();
+      });
     }
     wrap(ctor.prototype, "createShaderModule", () => { state.shaderModules += 1; });
     const release = (proto: Record<string, unknown>, kind: "texture" | "buffer") => {

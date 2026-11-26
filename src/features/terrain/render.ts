@@ -201,6 +201,7 @@ export default defineRenderBinding({
         selfShadow: quality.terrainSelfShadow,
         farTiling: quality.terrainFarTiling,
         editorViews: session !== null,
+        ...(ctx.precipitationCover ? { sheltered: (position) => ctx.precipitationCover!.coverAt(position) } : {}),
       });
       if (terrain.tiles === null) {
         const reader = terrain.openTiles();

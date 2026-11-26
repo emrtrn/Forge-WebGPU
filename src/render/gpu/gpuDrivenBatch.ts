@@ -159,6 +159,49 @@ export type ZoneMode = "visible" | "shadow" | "hidden";
 export const ZONE_SHADOW_LAYER = cameraViewLayer(MAX_CAMERA_VIEWS);
 /** Instanced meshes of a hidden zone: no camera has it. */
 export const ZONE_HIDDEN_LAYER = ZONE_SHADOW_LAYER + 1;
+/** Precipitation cover views (plan phase W3): its top-down cameras, near and far. */
+export const MAX_COVER_VIEWS = 2;
+/** The layer of cover view `index` (0-based), past the shadow caster layers (16..25, shadowCasterLayers.ts). */
+export const coverViewLayer = (index: number): number => 26 + index;
+/**
+ * Meshes drawn on the CPU that cover precipitation (static batches, shapes,
+ * roads, HLOD proxies) carry this layer besides their own; only the cover
+ * cameras have it.
+ */
+export const COVER_LAYER = 28;
+/** `userData` key of a mesh that covers precipitation (keeps {@link COVER_LAYER} through layer changes). */
+export const COVER_KEY = "forgePrecipitationCover";
+
+/** Sets `object`'s one drawing layer, keeping its cover layer (plan phase W3). */
+export function setDrawLayer(object: Object3D, layer: number): void {
+  const mask = (1 << layer) | (object.userData[COVER_KEY] === true ? 1 << COVER_LAYER : 0);
+  if (object.layers.mask !== mask) object.layers.mask = mask;
+}
+
+/** Marks a CPU-drawn mesh as covering precipitation (plan phase W3). */
+export function markCover(object: Object3D): void {
+  object.userData[COVER_KEY] = true;
+  object.layers.enable(COVER_LAYER);
+}
+
+/**
+ * Moves the slot already built for `source`'s role and layer to `index`
+ * (swapping it with what is there), so a view list that changes frame to
+ * frame does not rebuild its views. Both batch paths use it.
+ */
+export function reuseView<T extends { role: GpuCullView["role"]; layer: number }>(views: T[], index: number, source: Pick<GpuCullView, "role" | "layer">): void {
+  const here = views[index];
+  if (!here || (here.role === source.role && here.layer === source.layer)) return;
+  const other = views.findIndex((view, at) => at > index && view.role === source.role && view.layer === source.layer);
+  if (other < 0) return;
+  views[index] = views[other]!;
+  views[other] = here;
+}
+
+/** Views drawn with three's shadow material: shadow maps and the precipitation cover. */
+export const depthOnlyView = (role: GpuCullView["role"]): boolean => role === "shadow" || role === "cover";
+/** The role an instance shading hook sees: the cover is a shadow to it. */
+export const shadingRole = (role: GpuCullView["role"]): "main" | "shadow" | "camera" => (role === "cover" ? "shadow" : role);
 /**
  * u32 words of one zone mask (plan 5c R9b): bit `slot` of the mask says
  * whether zone slot `slot` draws; slot 0 (no zone) always does. The masks
@@ -171,10 +214,12 @@ export const MAX_ZONE_SLOTS = ZONE_MASK_WORDS * 32;
 /**
  * A view as a batch draws it: `main` the main camera, `shadow` a shadow map
  * (three's shadow material, casts only), `camera` another camera that draws
- * the scene lit (a reflection). Each view's meshes live on `layer` only.
+ * the scene lit (a reflection), `cover` the precipitation cover's top-down
+ * camera (drawn like a shadow view, only by batches that cover; plan phase
+ * W3). Each view's meshes live on `layer` only.
  */
 export interface GpuCullView extends InstanceCullView {
-  readonly role: "main" | "shadow" | "camera";
+  readonly role: "main" | "shadow" | "camera" | "cover";
   readonly layer: number;
   readonly cascade?: number;
 }
@@ -203,6 +248,8 @@ export interface GpuDrivenBatchOptions {
   readonly source?: string;
   /** Draws into the shadow views (default true). */
   readonly castShadow?: boolean;
+  /** Draws into the precipitation cover views (plan phase W3; statics, not foliage). Default false. */
+  readonly precipitationCover?: boolean;
   /** Records the opaque draws in a render bundle (5.3; default false, see the header). */
   readonly bundle?: boolean;
   readonly capacity?: number;
@@ -363,7 +410,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
   const lodTriangles = options.lods.map((_, lod) => draws.filter((draw) => draw.lod === lod)
     .reduce((sum, draw) => sum + Math.floor(draw.count / 3) * drawPasses(draw.material), 0));
   const drawLodBuffer = new StorageBufferAttribute(Uint32Array.from(draws.map((draw) => draw.lod)), 1);
-  const maxViews = 1 + MAX_SHADOW_VIEWS + MAX_CAMERA_VIEWS;
+  const maxViews = 1 + MAX_SHADOW_VIEWS + MAX_CAMERA_VIEWS + MAX_COVER_VIEWS;
   const colorBuffer = options.instanceColors ? new StorageBufferAttribute(new Float32Array(options.instanceColors.count * 4), 4) : null;
   let colorVersion = -1;
 
@@ -422,7 +469,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
   /** (Re)binds everything of one view that reads the instance buffers. */
   const buildView = (view: View): void => {
     releaseView(view);
-    const shadow = view.role === "shadow";
+    const shadow = depthOnlyView(view.role);
     const capacity = instances.capacity;
     const visibleBuffer = new StorageBufferAttribute(new Uint32Array(capacity * lodCount), 1);
     view.visible = visibleBuffer;
@@ -467,7 +514,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       if (zoneMasks) {
         // R9b: the instance's zone draws in this view (shadow views read the casting mask).
         const zone = uint(extraCull.element(instanceIndex).z).toVar();
-        const word = zoneMasks.element(zone.shiftRight(uint(5)).add(uint(view.role === "shadow" ? ZONE_MASK_WORDS : 0)));
+        const word = zoneMasks.element(zone.shiftRight(uint(5)).add(uint(shadow ? ZONE_MASK_WORDS : 0)));
         keep = keep.and(word.shiftRight(zone.bitAnd(uint(31))).bitAnd(uint(1)).equal(uint(1)));
       }
       If(keep, () => {
@@ -501,7 +548,7 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         const instanceMatrix = matrixRead.element(slot);
         const world = instanceMatrix.mul(uniform(draw.part.local.clone()));
         if (options.instanceShading) {
-          applyGpuInstanceShading(options.instanceShading, material, view.role, {
+          applyGpuInstanceShading(options.instanceShading, material, shadingRole(view.role), {
             instance: instanceMatrix, world, scale: measure(instanceMatrix).scale, extraY: extraRead.element(slot).y, partLocal: draw.part.local,
           });
         }
@@ -604,15 +651,17 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
       count.value = instances.count;
       // Every view drawn this frame is (re)built below for this capacity; the others are hidden.
       capacityNode.value = instances.capacity;
-      const accepted = list.filter((view) => view.role !== "shadow" || options.castShadow !== false).slice(0, maxViews);
+      const accepted = list.filter((view) => (view.role !== "shadow" || options.castShadow !== false) && (view.role !== "cover" || options.precipitationCover === true)).slice(0, maxViews);
       const next = accepted.length;
       if (next !== prepared) bundleDirty = true;
       prepared = next;
       const dispatches: ComputeNode[] = [];
       lastDraws = 0;
       for (let index = 0; index < prepared; index += 1) {
-        const view = views[index] ?? (views[index] = createView(index));
         const source = accepted[index]!;
+        // A view that comes and goes (the precipitation cover) keeps its built slot: the one built for this role and layer moves here.
+        reuseView(views, index, source);
+        const view = views[index] ?? (views[index] = createView(index));
         if (view.built !== instances.generation || view.role !== source.role || view.layer !== source.layer) {
           view.role = source.role; view.layer = source.layer;
           buildView(view);
@@ -626,8 +675,8 @@ export function createGpuDrivenBatch(renderer: WebGPURenderer, options: GpuDrive
         view.casterRadii.set(source.minCasterRadius ?? 0, threshold(1), threshold(2), threshold(3));
         view.casterEnds.set(profile?.splits[0] ?? NO_CULL_DISTANCE, profile?.splits[1] ?? NO_CULL_DISTANCE, profile?.splits[2] ?? NO_CULL_DISTANCE);
         // A zone that only casts draws its shadow views (R9b).
-        const shown = zoneMode !== "shadow" || view.role === "shadow";
-        const starts = view.role === "shadow" ? distances.shadowLodStarts ?? distances.lodStarts : distances.lodStarts;
+        const shown = zoneMode !== "shadow" || depthOnlyView(view.role);
+        const starts = depthOnlyView(view.role) ? distances.shadowLodStarts ?? distances.lodStarts : distances.lodStarts;
         view.meshes.forEach((mesh, at) => {
           const { lod, material } = draws[at]!;
           mesh.visible = shown && lodHasRange(starts, lod, distances.cullEnd);

@@ -40,7 +40,7 @@ import { createCasterFade, createDetailFade } from "../materials/detailFade.ts";
 import type { LodPiece, TriangleBinding, TriangleDrawing } from "../triangles/triangleDrawing.ts";
 import { lodParts, s12Candidate, type StaticPath } from "../triangles/staticPath.ts";
 import type { InstancedShadowCasters } from "./shadowCasterLayers.ts";
-import { ZONE_HIDDEN_LAYER, ZONE_SHADOW_LAYER, type ZoneMode } from "../gpu/gpuDrivenBatch.ts";
+import { markCover, setDrawLayer, ZONE_HIDDEN_LAYER, ZONE_SHADOW_LAYER, type ZoneMode } from "../gpu/gpuDrivenBatch.ts";
 
 export interface InstancePart {
   readonly geometry: BufferGeometry;
@@ -91,6 +91,9 @@ export interface InstanceBatchOptions {
   readonly invalidateReadiness?: () => void;
   /** False: what it draws is not picked or outlined (a terrain's spline meshes). Default true. */
   readonly pick?: boolean;
+  /** Its meshes block rain and snow (plan phase W3: statics, shapes, roads); `coverChanged` hears every drawn change. */
+  readonly precipitationCover?: boolean;
+  readonly coverChanged?: () => void;
 }
 
 const WHITE = new Color(1, 1, 1);
@@ -170,7 +173,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
   let zoneMode: ZoneMode = "visible";
   const applyZoneMode = (): void => {
     const layer = zoneMode === "visible" ? 0 : zoneMode === "shadow" ? ZONE_SHADOW_LAYER : ZONE_HIDDEN_LAYER;
-    for (const mesh of meshes) mesh.layers.set(layer);
+    for (const mesh of meshes) setDrawLayer(mesh, layer);
     for (const binding of triangleBindings) binding.batch.setZoneMode(zoneMode);
   };
 
@@ -249,6 +252,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
       if (parts === null) return;
       if (!dirty) {
         if (moved.size === 0 || meshes.length === 0) return;
+        options.coverChanged?.();
         meshes.forEach((mesh, partIndex) => {
           const local = parts![partIndex]!.local;
           for (const id of moved) {
@@ -271,6 +275,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
         return;
       }
       dirty = false;
+      options.coverChanged?.();
       moved.clear();
       indexOf.clear();
       let at = 0;
@@ -310,6 +315,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
           mesh.receiveShadow = true;
           mesh.matrixAutoUpdate = false;
           if (options.source !== undefined) mesh.userData[SCENE_SOURCE_KEY] = options.source;
+          if (options.precipitationCover) markCover(mesh);
           if (part.slots && options.pick !== false) tagPartSlots(mesh, part.slots);
           if (!options.prepare && !lodOf.includes(true)) options.parent.add(mesh);
           return mesh;
@@ -387,6 +393,7 @@ export function createInstanceBatch(options: InstanceBatchOptions): InstanceBatc
           applyZoneMode();
           releaseRetired();
           prepared = true; preparing = false; preparationWork = null;
+          options.coverChanged?.();
         }).catch((error: unknown) => {
           if (ticket === generation) { preparing = false; console.warn(`forge render: batch warmup failed (${options.name})`, error); }
         });

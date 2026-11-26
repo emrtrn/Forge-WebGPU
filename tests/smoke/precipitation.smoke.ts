@@ -131,6 +131,7 @@ for (const mode of modes) {
     expect((await drawn()).every((entry) => !entry.visible)).toBe(true);
     const made = await gpuMemory(page);
 
+    if (made.pipelines > before.pipelines) console.log(`pipelines made: ${made.pipelineLabels.slice(-(made.pipelines - before.pipelines)).join(" | ")}`);
     console.log(`precipitation ${mode.name}: rain adds ${rain.amount.toFixed(3)}, snow adds ${snow.amount.toFixed(3)} (mean luminance), counts ${full.join(" + ")}, pipelines +${made.pipelines - before.pipelines}, modules +${made.shaderModules - before.shaderModules}`);
     candidate(`${mode.name}-rain`, rain.on);
     candidate(`${mode.name}-snow`, snow.on);

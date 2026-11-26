@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { BoxGeometry, Group, Matrix4, MeshBasicNodeMaterial, StorageBufferAttribute, type InstancedBufferAttribute, type InstancedMesh, type WebGPURenderer } from "three/webgpu";
 import { cullInstanceCounts, frustumPlanesOf, mirrorCullView } from "../../engine/world/instanceCulling.ts";
 import { CPU_FADE_KEY, createCpuDrivenBatch } from "./cpuDrivenBatch.ts";
-import { cameraViewLayer, MAIN_VIEW_LAYER, shadowViewLayer, ZONE_MASK_WORDS } from "./gpuDrivenBatch.ts";
+import { cameraViewLayer, COVER_LAYER, coverViewLayer, MAIN_VIEW_LAYER, markCover, setDrawLayer, shadowViewLayer, ZONE_MASK_WORDS } from "./gpuDrivenBatch.ts";
 
 // A camera at the origin looking down -Z, WebGL clip depth (the WebGL2 twin's backend).
 const f = 1 / Math.tan(Math.PI / 6);
@@ -11,6 +11,42 @@ const VIEW = { planes: frustumPlanesOf(projection, "minusOneToOne"), origin: [0,
 const at = (x: number, y: number, z: number): number[] => new Matrix4().makeTranslation(x, y, z).toArray();
 
 describe("cpu-driven batch (the WebGL2 twin)", () => {
+  test("precipitation cover (plan phase W3): only covering batches take the cover view; a view that comes and goes keeps its meshes", () => {
+    const geometry = new BoxGeometry(), material = new MeshBasicNodeMaterial(), local = new Matrix4();
+    const make = (precipitationCover: boolean) => createCpuDrivenBatch({} as WebGPURenderer, {
+      name: precipitationCover ? "wall" : "tree", parent: new Group(), distanceMode: "origin", bounds: { center: [0, 0, 0], radius: 1 },
+      lods: [[{ geometry, material, local, name: "part" }]], precipitationCover,
+    });
+    const wall = make(true), tree = make(false);
+    for (const batch of [wall, tree]) { batch.setDistances({ fadeStart: 100, cullEnd: 200, lodStarts: [] }); batch.instances.addMany(at(0, 0, -10), 1); }
+    const shadow = { ...VIEW, role: "shadow" as const, layer: shadowViewLayer(1) };
+    const reflection = { ...VIEW, role: "camera" as const, layer: cameraViewLayer(0) };
+    const cover = { ...VIEW, role: "cover" as const, layer: coverViewLayer(0) };
+    wall.prepare([VIEW, shadow, reflection, cover]);
+    tree.prepare([VIEW, shadow, reflection, cover]);
+    expect(wall.views).toBe(4);
+    expect(tree.views).toBe(3);
+    const coverMesh = wall.allMeshes.find((mesh) => mesh.layers.isEnabled(coverViewLayer(0)))!;
+    expect(coverMesh.castShadow).toBe(true);
+    // The reflection drops out for a frame and comes back: no slot is built again.
+    const reflectionMesh = wall.allMeshes.find((mesh) => mesh.layers.isEnabled(cameraViewLayer(0)))!;
+    wall.prepare([VIEW, shadow, cover]);
+    wall.prepare([VIEW, shadow, reflection, cover]);
+    expect(wall.allMeshes).toContain(coverMesh);
+    expect(wall.allMeshes).toContain(reflectionMesh);
+    for (const batch of [wall, tree]) batch.dispose();
+  });
+
+  test("a CPU mesh marked as cover keeps the cover layer through layer changes", () => {
+    const mesh = new Group();
+    markCover(mesh);
+    setDrawLayer(mesh, 18);
+    expect(mesh.layers.isEnabled(18) && mesh.layers.isEnabled(COVER_LAYER) && !mesh.layers.isEnabled(0)).toBe(true);
+    const plain = new Group();
+    setDrawLayer(plain, 18);
+    expect(plain.layers.mask).toBe(1 << 18);
+  });
+
   test("draws the reference's visible instances per LOD, part matrix and fade applied", () => {
     const parent = new Group();
     const local = new Matrix4().makeTranslation(0, 1, 0);

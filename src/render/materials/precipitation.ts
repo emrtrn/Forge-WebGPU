@@ -12,6 +12,8 @@
 // - Unlit: the colour is the air's (the fog's, as the weather and the hour leave
 //   it), so it sits in the picture at any exposure; the binding sets it.
 // - Drawn for the frame's camera only: a planar reflection collapses it.
+// - Under the precipitation cover (plan phase W3: a roof, a room) a particle
+//   fades and, fully covered, collapses (`cover`, render/sync/precipitationCover.ts).
 //
 // TSL's typings reject several valid uses here; taken untyped, as the terrain does.
 
@@ -76,7 +78,7 @@ export interface PrecipitationDrawing {
   dispose(): void;
 }
 
-export function createPrecipitation(volume: PrecipitationVolume, visibility: Node<"float">): PrecipitationDrawing {
+export function createPrecipitation(volume: PrecipitationVolume, visibility: Node<"float">, cover?: (position: Node<"vec3">) => Node<"float">): PrecipitationDrawing {
   const rain = volume.kind === "rain";
   const u = {
     size: uniform(new Vector3(...volume.size)),
@@ -122,12 +124,15 @@ export function createPrecipitation(volume: PrecipitationVolume, visibility: Nod
     const span = rain ? min(length(u.velocity).mul(STREAK_SECONDS).mul(u.scale).mul(other.mul(0.5).add(0.75)), STREAK_MAX) : width;
     const edge = smoothstep(0.5, 0.38, abs(unit.x)).mul(smoothstep(0.5, 0.38, abs(unit.y))).mul(smoothstep(0.5, 0.38, abs(unit.z)));
     const near = smoothstep(NEAR_FADE[0], NEAR_FADE[1], distance);
+    // Under a roof it does not fall (plan phase W3): fades with the cover, collapses where it is whole.
+    const open = cover ? float(1).sub(cover(u.camera.add(relative))).toVar() : float(1);
     // Thin in one direction (a streak) fades by the width, in two (a flake) by the area.
-    vAlpha.assign(edge.mul(near).mul(rain ? thin : thin.mul(thin)).mul(u.opacity));
+    vAlpha.assign(edge.mul(near).mul(rain ? thin : thin.mul(thin)).mul(u.opacity).mul(open));
     const corner = positionGeometry.xy;
     vCorner.assign(corner.mul(2));
-    const reach = corner.x.mul(width).mul(shown);
-    const rise = corner.y.mul(span).mul(shown);
+    const drawn = cover ? shown.mul(smoothstep(0, 0.001, open)) : shown;
+    const reach = corner.x.mul(width).mul(drawn);
+    const rise = corner.y.mul(span).mul(drawn);
     return u.camera.add(relative).add(side.mul(reach)).add(along.mul(rise));
   })();
   material.colorNode = u.color;

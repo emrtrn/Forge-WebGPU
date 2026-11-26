@@ -11,4 +11,7 @@ havasını ve `precipitation` ayarlarını okur; WES yoksa hiçbir şey çizmez.
 - Geç katmanda çizilir (`src/render/pipeline/lateLayer.ts`): kenar yumuşatmadan
   sonra, alan derinliği ve bloom'dan önce. Planar yansımaya, Sky Light'a ve
   gölgeye girmez.
-- Çatı altında kesilme W3'te.
+- Çatı altında ve odada yağmaz (W3): tanenin konumu yağış siperinde
+  (`src/render/sync/precipitationCover.ts`) bir yüzeyin altında kalıyorsa söner;
+  tamamen örtülüyse çizilmez. Siper statik mesh, şekil, yol ve HLOD'dan yukarıdan
+  derinlik haritasıdır; terrain örtüsü (kar, ıslaklık) de onu okur.

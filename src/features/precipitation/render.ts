@@ -1,4 +1,4 @@
-// Precipitation: render binding (plan phase W1). Draws the live weather's rain
+// Precipitation: render binding (plan phase W1; under a roof it stops, W3). Draws the live weather's rain
 // and snow (precipitationOf: both at once while one turns into the other) in
 // the late layer. The drawings exist while the level has a World Environment,
 // so the first drop compiles nothing: the pipeline prepares them when they
@@ -65,7 +65,11 @@ export default defineRenderBinding({
           return;
         }
         if (volumes.length === 0) {
-          volumes = PRECIPITATION_VOLUMES.map((volume) => ({ drawing: createPrecipitation(volume, late.visibility(SOFTNESS)), offset: [0, 0, 0] }));
+          const cover = ctx.precipitationCover;
+          volumes = PRECIPITATION_VOLUMES.map((volume) => ({
+            drawing: createPrecipitation(volume, late.visibility(SOFTNESS), cover ? (position) => cover.coverAt(position) : undefined),
+            offset: [0, 0, 0],
+          }));
           late.root.add(...volumes.map(({ drawing }) => drawing.mesh));
         }
         const dt = Number.isFinite(frame.dt) && frame.dt > 0 ? frame.dt : 0;
