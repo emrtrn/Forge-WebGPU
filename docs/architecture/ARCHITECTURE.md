@@ -81,8 +81,10 @@ geliştirme sunucusunda ayrı bir Node worker'ından aynı CLI üreticisine gide
   haritasıdır (`render/sync/precipitationCover.ts`; yağış ve yüzey örtüsü okur); ıslaklık
   ve kar terrain'le aynı kuralla bütün statik yüzeylere yüzün normaline göre düşer (saf
   kural `engine/environment/surfaceResponse.ts`, çizim dünyanın
-  `render/materials/surfaceWeather.ts`'i, tepki `forge.material` `weather`); yağışla ıslanma /
-  kuruma, su birikintisi ve terrain kar yüksekliği planda; sözleşme rapor §4.9'da.
+  `render/materials/surfaceWeather.ts`'i, tepki `forge.material` `weather`); yağış yüzeyi
+  ıslatır, su biriktirir ve kurutur (`engine/environment/surfaceCondition.ts`); yağarken
+  birikintilerde halkalar (`render/materials/waterRipples.ts`, CPU ikizi
+  `engine/environment/rainRipples.ts`); terrain kar yüksekliği planda; sözleşme rapor §4.9'da.
 - Level'da her şey bir aktördür: kalıcı GUID, transform, `parent`, şemalı
   bileşenler (aktör içinde yerel kimlikli, uzamsal olanlar hiyerarşili). Aktör
   sınıfı (`forge.actorClass/1`) prefab'dır; level'daki örnek yalnız sürüm
