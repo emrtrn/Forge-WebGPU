@@ -30,6 +30,8 @@ export interface SurfaceResponseSettings {
   /** World Y snow starts at; null: everywhere. */
   readonly snowMinAltitude: number | null;
   readonly snowAltitudeBlend: number;
+  /** Steepest slope (degrees) that holds standing water's gloss; steeper faces only take the wet film. Absent: the default. */
+  readonly puddleMaxSlopeDeg?: number;
 }
 
 /**
@@ -171,8 +173,13 @@ export const COVER_READ_LIFT = 0.2;
 export const COVER_READ_OUT = 0.4;
 /** Wet darkening at porosity 0 and the extra at 1: a porous surface darkens most. */
 export const WET_DARKEN = [0.1, 0.4] as const;
-/** Wet roughness floor at porosity 0 and the extra at 1: a hard surface turns glossiest. */
+/** Wet roughness floor at porosity 0 and the extra at 1: a hard surface turns glossiest. Flat ground, where water stands. */
 export const WET_ROUGHNESS = [0.04, 0.16] as const;
+/** Wet roughness floor on a slope or a wall (a film, water runs off, no standing water): porosity 0 and the extra at 1. */
+export const WET_FILM_ROUGHNESS = [0.3, 0.25] as const;
+/** `puddleMaxSlopeDeg`'s default, and the degrees past it over which the standing-water gloss gives way to the film's. */
+export const PUDDLE_MAX_SLOPE_DEG = 5;
+export const PUDDLE_SLOPE_BLEND_DEG = 5;
 export const SNOW_ROUGHNESS = 0.9;
 /** How far snow flattens a material's fine normal toward its geometry, at full snow. */
 export const SNOW_NORMAL_SOFTEN = 0.8;
@@ -203,6 +210,20 @@ export function wetShare(normal: Vec3, wind: SurfaceWind | null, settings: Surfa
   const up = Math.min(1, Math.max(-1, normal[1]));
   const side = Math.min(1, clamp01(settings.verticalWetting) + clamp01(settings.windwardWetting) * windwardShare(normal, wind));
   return side * (1 - smoothstep(0, WET_DOWN_DRY, -up)) + (1 - side) * smoothstep(0, WET_UP_FULL, up);
+}
+
+/** The normal Y window of the standing-water gloss: none at or below `[0]`, full from `[1]`. */
+export function poolSlopeWindow(maxSlopeDeg = PUDDLE_MAX_SLOPE_DEG): [number, number] {
+  const start = Math.min(89, Math.max(0, maxSlopeDeg));
+  const end = Math.min(90, start + PUDDLE_SLOPE_BLEND_DEG);
+  const low = Math.cos((end * Math.PI) / 180);
+  return [low, Math.max(low + 0.00001, Math.cos((start * Math.PI) / 180))];
+}
+
+/** Share of the standing-water gloss a face takes from its slope (user decision 2026-11-26): flat 1, steeper than the window 0. */
+export function poolShare(normalY: number, maxSlopeDeg?: number): number {
+  const [low, high] = poolSlopeWindow(maxSlopeDeg);
+  return smoothstep(low, high, normalY);
 }
 
 /** Share of the snow a face takes: its slope and its height. */
@@ -249,11 +270,11 @@ export function surfaceWeatherAt(
   wind: SurfaceWind | null,
   settings: SurfaceResponseSettings,
   material: MaterialWeather = MATERIAL_WEATHER_DEFAULTS,
-): { wet: number; snow: number } {
+): { wet: number; snow: number; pool: number } {
   const open = 1 - clamp01(point.covered);
   const wet = clamp01(amount.wetness) * wetShare(point.normal, wind, settings) * open * clamp01(material.wetting);
   const snow = clamp01(amount.snowCoverage) * snowShare(point.normal[1], point.position[1], settings) * open * clamp01(material.snowAccept);
-  return { wet, snow };
+  return { wet, snow, pool: poolShare(point.normal[1], settings.puddleMaxSlopeDeg) };
 }
 
 export interface SurfaceLook {
@@ -262,11 +283,15 @@ export interface SurfaceLook {
   readonly metalness: number;
 }
 
-/** A surface's look (linear colour) under `wet` and `snow` (from `surfaceWeatherAt`): wet first, snow over it. */
-export function weatheredLook(look: SurfaceLook, weather: { wet: number; snow: number }, porosity: number, snowColor: Rgb): SurfaceLook {
+/**
+ * A surface's look (linear colour) under `wet` and `snow` (from `surfaceWeatherAt`): wet first, snow over it. The
+ * wet gloss is standing water's on flat ground (`pool` 1) and a film's on slopes and walls (`pool` 0).
+ */
+export function weatheredLook(look: SurfaceLook, weather: { wet: number; snow: number; pool?: number }, porosity: number, snowColor: Rgb): SurfaceLook {
   const p = clamp01(porosity);
   const darken = 1 - weather.wet * (WET_DARKEN[0] + WET_DARKEN[1] * p);
-  const floor = WET_ROUGHNESS[0] + WET_ROUGHNESS[1] * p;
+  const film = WET_FILM_ROUGHNESS[0] + WET_FILM_ROUGHNESS[1] * p;
+  const floor = mix(film, WET_ROUGHNESS[0] + WET_ROUGHNESS[1] * p, clamp01(weather.pool ?? 1));
   const wetRoughness = mix(look.roughness, Math.min(look.roughness, floor), weather.wet);
   return {
     color: [0, 1, 2].map((i) => mix(look.color[i]! * darken, snowColor[i]!, weather.snow)) as unknown as Rgb,

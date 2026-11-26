@@ -97,6 +97,7 @@ export const WorldEnvironment = defineComponent(
       snowAltitudeBlend: num({ min: 0, max: 10000, default: 20, step: 1, hint: "Yükseklik sınırının yumuşak geçişi (metre)." }),
       verticalWetting: num({ min: 0, max: 1, default: .35, step: .01, hint: "Dikey yüzün ıslaklık payı: yukarı bakan yüz tam ıslanır, alta bakan kuru kalır." }),
       windwardWetting: num({ min: 0, max: 1, default: .5, step: .01, hint: "Rüzgârın geldiği yandaki dikey yüzün ek payı (rüzgâr gücü 1'de)." }),
+      puddleMaxSlopeDeg: num({ min: 0, max: 45, default: 5, step: 1, label: "Puddle Max Slope", hint: "Birikinti parlaklığının kaldığı en dik eğim (derece). Daha dik zemin ve duvarlar yalnız ıslak görünür: koyulaşır, hafif parlar, ayna gibi yansıtmaz. Geçiş 5 derece." }),
       wetSpread: num({ min: 0, max: 1, default: 1, step: .01, label: "Wet Spread", hint: "Islak yamaların ne kadar yayıldığı: oyuklardan başlar, bu orana ulaşınca durur. 1 bütün zemin ıslanabilir. Yalnız görünüm; ıslaklık ve birikinti yine 1'e çıkar." }),
       snowSpread: num({ min: 0, max: 1, default: 1, step: .01, label: "Snow Spread", hint: "Kar yamalarının ne kadar yayıldığı: oyuklardan başlar, bu orana ulaşınca durur; erirken parça parça açılır. 1 bütün zemin örtülebilir. Yalnız görünüm." }),
       patchSize: num({ min: .25, max: 4, default: 1, step: .05, label: "Patch Size", hint: "Islak ve karlı yamaların boy çarpanı (gürültü katmanları 6 m ve 1,7 m × bu değer)." }),

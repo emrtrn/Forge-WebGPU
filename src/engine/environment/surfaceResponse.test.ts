@@ -56,7 +56,7 @@ describe("surface response (plan phase W4, HV-04)", () => {
 
   test("under the cover: dry and snowless", () => {
     const point = { position: [0, 0, 0] as Vec3, normal: UP, covered: 1 };
-    expect(surfaceWeatherAt({ wetness: 1, snowCoverage: 1 }, point, null, settings)).toEqual({ wet: 0, snow: 0 });
+    expect(surfaceWeatherAt({ wetness: 1, snowCoverage: 1 }, point, null, settings)).toMatchObject({ wet: 0, snow: 0 });
     expect(at(UP, 0.5)).toBeCloseTo(0.4, 12);
   });
 
@@ -98,6 +98,28 @@ describe("surface response (plan phase W4, HV-04)", () => {
     expect(middle.color[0]).toBeCloseTo(0.35, 12);
     expect(middle.roughness).toBeCloseTo(0.12, 12);
     expect(weatheredLook(look, { wet: 1, snow: 1 }, 0.5, snowColor)).toEqual({ color: snowColor, roughness: 0.9, metalness: 0 });
+  });
+
+  test("standing water's gloss only on flat ground: a slope steeper than puddleMaxSlopeDeg, or a wall, takes a wet film (user decision 2026-11-26)", () => {
+    const look = { color: [0.5, 0.4, 0.3] as const, roughness: 0.8, metalness: 0 };
+    const snowColor = [1, 1, 1] as const;
+    const slope = (deg: number): Vec3 => [Math.sin((deg * Math.PI) / 180), Math.cos((deg * Math.PI) / 180), 0];
+    const wetAt = (normal: Vec3, maxSlope?: number) => {
+      const weather = surfaceWeatherAt({ wetness: 1, snowCoverage: 0 }, { position: [0, 0, 0], normal, covered: 0 }, null, { ...settings, puddleMaxSlopeDeg: maxSlope });
+      return { weather, look: weatheredLook(look, weather, 0.5, snowColor) };
+    };
+    const flat = wetAt(UP);
+    const hill = wetAt(slope(20));
+    expect(flat.weather.pool).toBe(1);
+    expect(flat.look.roughness).toBeCloseTo(0.12, 12);
+    // The 20 degree hill is as wet (dark) as the flat ground, but not a mirror.
+    expect(hill.weather.wet).toBe(1);
+    expect(hill.look.color[0]).toBeCloseTo(flat.look.color[0], 12);
+    expect(hill.weather.pool).toBe(0);
+    expect(hill.look.roughness).toBeCloseTo(0.425, 12);
+    expect(wetAt(WALL).weather.pool).toBe(0);
+    // The limit is the World Environment's: at 30 degrees the same hill holds water.
+    expect(wetAt(slope(20), 30).weather.pool).toBe(1);
   });
 });
 

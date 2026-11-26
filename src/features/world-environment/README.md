@@ -12,7 +12,10 @@ gökyüzünü, sisi ve bulutları kendi değerlerini değiştirmeden yeniden yor
   Islaklık ve kar bütün statik yüzeylere yüzün normaline göre düşer (plan W4,
   `engine/environment/surfaceResponse.ts`): yukarı bakan tam, dikey
   `surface.verticalWetting` (rüzgârın geldiği yan `windwardWetting` kadar fazla),
-  alta bakan kuru; yağış siperinin altı kuru ve karsız.
+  alta bakan kuru; yağış siperinin altı kuru ve karsız. Durgun suyun parlaklığı
+  yalnız düz zeminde: `surface.puddleMaxSlopeDeg`'ten (varsayılan 5°, 5° geçiş)
+  dik zemin ve duvarlar ıslak film olarak koyulaşır, ayna gibi parlamaz
+  (`poolShare`, `WET_FILM_ROUGHNESS`).
   Hava bağı (plan W5): `surface.weatherDrivesSurface` açıkken canlı yağış yüzeyi
   sürer (`engine/environment/surfaceCondition.ts`; yağmur ıslatır, su biriktirir,
   kar örter ve kalınlaşır; kesilince önce ince ıslaklık, sonra birikinti kurur,

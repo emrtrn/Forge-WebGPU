@@ -1,6 +1,6 @@
 // Ported from Forge WebGL engine/environment/worldEnvironment.ts @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
 import type { LayoutWorldEnvironment } from "../legacy/layout.ts";
-import { PATCH_SIZE_RANGE } from "./surfaceResponse.ts";
+import { PATCH_SIZE_RANGE, PUDDLE_MAX_SLOPE_DEG } from "./surfaceResponse.ts";
 import { WEATHER_SKY_DEFAULTS, type WeatherSkyResponses } from "./weatherPresets.ts";
 import { normalizeLayoutWind } from "./wind.ts";
 
@@ -46,6 +46,8 @@ export interface ResolvedWorldEnvironment {
     verticalWetting: number;
     /** Plan phase W4: the extra share on the side the wind comes from, at wind strength 1, 0..1. */
     windwardWetting: number;
+    /** Steepest slope (degrees) that holds standing water's gloss; steeper ground only looks wet (user decision 2026-11-26). */
+    puddleMaxSlopeDeg: number;
     /** W5 refinement (surfaceResponse.ts `SurfacePattern`): how far the wet patches reach, 0..1. */
     wetSpread: number;
     /** How far the snow patches reach, 0..1. */
@@ -76,6 +78,7 @@ export const WORLD_ENVIRONMENT_DEFAULTS: ResolvedWorldEnvironment = {
     snowAltitudeBlend: 20,
     verticalWetting: 0.35,
     windwardWetting: 0.5,
+    puddleMaxSlopeDeg: PUDDLE_MAX_SLOPE_DEG,
     wetSpread: 1,
     snowSpread: 1,
     patchSize: 1,
@@ -238,6 +241,7 @@ export function normalizeWorldEnvironment(value: unknown): WorldEnvironmentNorma
     assign(next, "snowAltitudeBlend", num(surface.snowAltitudeBlend, "surface.snowAltitudeBlend", 0, 10000));
     assign(next, "verticalWetting", num(surface.verticalWetting, "surface.verticalWetting", 0, 1));
     assign(next, "windwardWetting", num(surface.windwardWetting, "surface.windwardWetting", 0, 1));
+    assign(next, "puddleMaxSlopeDeg", num(surface.puddleMaxSlopeDeg, "surface.puddleMaxSlopeDeg", 0, 45));
     assign(next, "wetSpread", num(surface.wetSpread, "surface.wetSpread", 0, 1));
     assign(next, "snowSpread", num(surface.snowSpread, "surface.snowSpread", 0, 1));
     assign(next, "patchSize", num(surface.patchSize, "surface.patchSize", PATCH_SIZE_RANGE[0], PATCH_SIZE_RANGE[1]));
