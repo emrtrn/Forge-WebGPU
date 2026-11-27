@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.97 · 2026-11-27 — §4.9 hava sözleşmesi W7: yamalı terrain karı, LOD geçişinden sonra yükselir. Yağış siperi ve `forge.puddle` suyu, ortak maskeyi sınırlar.
+**Güncelleme:** v1.98 · 2026-11-27 — §4.7 Faz 6 World servisleri, §4.9 ortak terrain tile sahipliği ve canlı G8.
+
+**Önceki güncelleme:** v1.97 · 2026-11-27 — §4.9 hava sözleşmesi W7: yamalı terrain karı, LOD geçişinden sonra yükselir. Yağış siperi ve `forge.puddle` suyu, ortak maskeyi sınırlar.
 
 **Önceki güncelleme:** v1.96 · 2026-11-26 — §4.9 hava sözleşmesi W6: yağmur halkaları (ortak düğüm, CPU ikizi; sıklık anlık yağmurla, uzakta ve siper altında yok, simülasyon saati) birikintide ve `forge.puddle` suyunda; materyal birikintisinde rüzgâr tepeleri; `puddleAccept` çizilir; render dünyasının tek yüzey girdisi.
 
@@ -1598,6 +1600,19 @@ düşen alan uyarı değil, **hatadır**.
   fizik öncesi / fizik / fizik sonrası / render senkronu → endPlay → dispose).
   Authored ve runtime'da doğan aktörler aynı yaşam döngüsünden geçer (F11).
   Bugünkü capability modülleri ve tipli servis anahtarları bu yapının temelidir.
+- **Faz 6 uygulaması (2026-11-27):** `runtime/boot` ortak Rapier WASM'i
+  hazırlayıp `World.init()` öncesi servise verir. Fizik alt sistemi her World
+  için ayrı gövde ve sorgu dizini kurar. `forge.collider`, `forge.blockingVolume`,
+  şekil ve model çarpışması şemadan gelir. `ActorMotionKey` fizik ve oyun kodunun
+  yazdığı pozları World'e uygular, render aynı değişiklikleri izler. Oynanışta
+  Player Start kalıcı katmandadır; sahip olunan piyon, fizik tile odaklarından
+  biridir. Girdi, simülasyon saati, olay/mesaj davranışı, kamera, araç ve Recast
+  tipli World servisleridir. Checkpoint, kalıcı katman ve hücre akışındaki aktörleri
+  aynı `SaveLedger` üzerinden `forge.saveGame/1` olarak kaydeder. Tarayıcıya bağlı
+  ses ve UI, host sağlayıcıları üzerinden çalışır. UI widget'ı oyun kodunun
+  verdiği yerelleştirme tablosunu ve temayı kullanabilir. Dünya widget'larının
+  aktör veya dünya konumu güncel render kamerasıyla ekrana yansıtılır. Açılış
+  ilerlemesi renderer ilk kaynaklarını hazır sayana dek görünür.
 - **Render senkronu:** oynanış kodu three nesnelerine dokunmaz; render katmanı
   bileşenleri render bağlamalarıyla izler. "engine three'siz" kuralı böylece
   kalıcı olur.
@@ -2435,9 +2450,11 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     Frustum kesimi açıktır. 5b'nin hücre akışından bağımsızdır.
     *Uygulama (adım 2, 2026-11-15):* Forge'un `TerrainRuntimeStreaming`'i ve
     altındaki akış çekirdeği (`engine/world/worldStreamingSubsystem.ts`, 5b'den
-    öne alındı) olduğu gibi; akışın sahibi şimdilik terrain'in render
-    bağlamasıdır (World başına, collider'sız). Faz 6'da collider gelince akış
-    fizikle paylaşılacağı yere, bir alt sisteme taşınır. Worker havuzu render
+    öne alındı) render bağlamasından kullanılıyordu. Faz 6'da `TerrainResidencyKey`
+    tile yaşam döngüsünü World'de tutar. Çizim ve Rapier aynı tile verisini okur;
+    fizik halkası kamera ve oynanış odağını izler. Canlı G8 render yükseklik
+    sondasını World'ün yüklenmiş Rapier heightfield'larına atılan ışınla ölçer.
+    Düzenlenen tile'lar editörde bellekte kalır. Worker havuzu render
     katmanında, terrain kaynağının yanında (`render/resources/terrainWorkerPool.ts`;
     worker giriş modülü `engine/world/workers/terrainWorker.ts`, three'siz).
     Kaynak, global harita parçası geçerli çok tile'lı terrain'i akıtır; tek tile
@@ -2495,11 +2512,9 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     silmez. Okunamayan tile listesi boş liste kabul edilmez.
     *Uygulama (adım 4, 2026-11-15):* harita Forge'un `debugTerrainMap`'i
     (`render/viewer/debug/debugTerrainMap.ts`), okumada Forge'un akış satırları.
-    Akışın sahibi render bağlaması olduğu için panel bağlamayı tanımaz: bağlama
-    akan terrain'in mesh'ini akışı ve son kaynaklarıyla etiketler
-    (`render/sync/debugTags.ts`, `pickTags` gibi), panel sahneyi tarayıp anlık
-    görüntüyü saf fonksiyonla kurar (`engine/terrain/terrainStreamingDebug.ts`).
-    Akış Faz 6'da alt sisteme taşınınca etiket yerine o alt sistemden okunur.
+    Render, World'ün tile akışını ve çizim kaynaklarını sahnedeki etiketlerle
+    panele verir (`render/sync/debugTags.ts`). Anlık görüntüyü
+    `engine/terrain/terrainStreamingDebug.ts` kurar.
     Pick yüzeyi (`terrainPickSurface`) ışını Forge'un renderer'ı gibi terrain'in
     yerel çerçevesinde atar: tile'lar ve far map yükseklikleri datum'a göreli.
 - *Görüntüleyici, uygulama (adım 8, 2026-11-13):* **Instancing** canlı batch

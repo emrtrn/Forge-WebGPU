@@ -31,6 +31,12 @@ kendini de sınar (rapor §4.2, A3).
 `src/core` ve `features/*/schema.ts` düz Node'da yüklenir (`verify:node-load`);
 `src/**` Node modülü import etmez.
 
+Faz 6'da `runtime/boot` Rapier'i hazırlayıp World'e verir. Fizik, Recast,
+girdi ve ses kendi World servislerinde çalışır. `engine/terrain/terrainResidency.ts`
+çizim ve fizik için aynı tile verisini tutar. `gameplay/` oyuncu doğuşu ve
+kapsül hareketini, `runtime/persistence/worldCheckpoint` kayıt ve yüklemeyi
+sağlar. Oyun, bu servisleri SDK üzerinden kullanır (rapor §4.7 ve §4.9).
+
 R7 otomatik LOD: three'siz türev veri / üretici `engine/geometry`, Node cache ve
 build `tools/triangles`, seçilebilir GPU / WebGL2 bağı ve worker `render/triangles`.
 Kararlar ve kabul sınırları [rapor §4.4](../planned/FORGE_WEBGPU_ARCHITECTURE.md);

@@ -584,7 +584,7 @@ tests/engine/perfWitness.test.ts	45	check	A			engine/perf		src/engine/perf/perfW
 tests/engine/perfWitness.test.ts	58	check	A			engine/perf		src/engine/perf/perfWitness.test.ts	an unmeasured GPU is null in the witness, never a zero	
 tests/engine/perfWitness.test.ts	70	check	A			engine/perf		src/engine/perf/perfWitness.test.ts	fork fields ride along but can never redefine a shared one	
 tests/engine/perfWitness.test.ts	82	check	A			engine/perf		src/engine/perf/perfWitness.test.ts	the witness serialises to something a harness can parse back	
-tests/engine/physicsContacts.test.ts	51	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsContacts.test.ts	physics contacts: a static crowd does not change reported pairs or their order	
+tests/engine/physicsContacts.test.ts	51	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/features/physics/runtime.test.ts	physics contacts: a static crowd does not change reported pairs or their order	
 tests/engine/physicsImpacts.test.ts	88	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsImpacts.test.ts	physics motion: a point on a spinning body moves at v + ω × r, and a set velocity holds	
 tests/engine/physicsImpacts.test.ts	101	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsImpacts.test.ts	physics pass-through: an overlapping pair stays calm where the solver would throw it apart	
 tests/engine/physicsImpacts.test.ts	116	checkAsync	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsImpacts.test.ts	physics pass-through: a pair collides again once apart, and a removed body ends it	
@@ -1738,7 +1738,7 @@ tools/engine-tests.ts	2752	check	M			engine/scene	model:engine/scene		light enti
 tools/engine-tests.ts	2813	checkAsync	A			engine/core		src/engine/testing/EngineApp.test.ts	engine core initializes and ticks deterministic subsystems	
 tools/engine-tests.ts	2863	check	R			engine/core,engine/render-three	three-via:engine/render-three		animation subsystem ticks mixers with engine deltaSeconds	
 tools/engine-tests.ts	2885	check	R			engine/core,engine/perf,engine/render-three	three-via:engine/render-three		Phase 7 distance update cadence preserves near updates and batches far work	
-tools/engine-tests.ts	2939	check	A			engine/core,engine/input		src/engine/input/inputSubsystem.test.ts	input subsystem maps raw codes to named action edges per tick	
+tools/engine-tests.ts	2939	check	A			engine/core,engine/input		src/features/input/inputSubsystem.test.ts	input subsystem maps raw codes to named action edges per tick	
 tools/engine-tests.ts	2985	check	A			engine/input		src/engine/input/actionMap.test.ts	action map keeps a tap shorter than one tick as a one-tick press	
 tools/engine-tests.ts	3005	check	A			engine/input		src/engine/input/actionMap.test.ts	action map resolves analog axes with deadzone scale invert and delta input	
 tools/engine-tests.ts	3029	check	A			engine/input		src/engine/input/actionMap.test.ts	action map rescales a stick past its deadzone so the value starts from zero	
@@ -1829,8 +1829,8 @@ tools/engine-tests.ts	5369	check	A			engine/audio		src/runtime/audio/audioSubsys
 tools/engine-tests.ts	5374	check	A			engine/audio		src/runtime/audio/audioSubsystem.test.ts	audio subsystem setBusVolume stores and clamps without a context	
 tools/engine-tests.ts	5382	check	A			engine/audio		src/runtime/audio/audioSubsystem.test.ts	audio subsystem mix snapshot ducks, resetMix restores	
 tools/engine-tests.ts	5391	check	A			engine/audio		src/runtime/audio/audioSubsystem.test.ts	audio subsystem play routes its bus into the recorded request	
-tools/engine-tests.ts	5403	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorTicks.test.ts	behavior subsystem ticks behaviors and mutates transforms deterministically	
-tools/engine-tests.ts	5467	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorTicks.test.ts	behavior subsystem: setEnabled(false) suppresses ticking until re-enabled	
+tools/engine-tests.ts	5403	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/features/behavior/behaviorTicks.test.ts	behavior subsystem ticks behaviors and mutates transforms deterministically	
+tools/engine-tests.ts	5467	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/features/behavior/behaviorTicks.test.ts	behavior subsystem: setEnabled(false) suppresses ticking until re-enabled	
 tools/engine-tests.ts	5504	check	A			engine/behavior		src/engine/behavior/scriptMessages.test.ts	script message bus dispatches by message type and target	
 tools/engine-tests.ts	5571	check	A			engine/behavior		src/engine/behavior/scriptMessages.test.ts	script message bus reports missing target and missing handler	
 tools/engine-tests.ts	5620	check	A			engine/behavior		src/engine/behavior/scriptMessages.test.ts	script message bus keeps dispatch target-indexed under many subscribers	
@@ -2138,7 +2138,7 @@ tools/engine-tests.ts	15798	check	R			engine/input,src	three-via:src,three:three
 tools/engine-tests.ts	15810	check	R			engine/scene,src	three-via:src		player start marker is a procedural asset excluded from manifest loading	
 tools/engine-tests.ts	15833	check	R			engine/scene,src	three-via:src		ambient sound marker is a procedural, runtime-non-rendered marker asset	
 tools/engine-tests.ts	15854	check	M			engine/gameplay,engine/scene	model:engine/scene		computePlayerStartSpawn: a marker sets the player's spawn position and yaw	
-tools/engine-tests.ts	15872	check	A	yes		engine/gameplay	boundary-model:engine/gameplay		computePlayerStartSpawn: no marker spawns at the origin and keeps facing	6
+tools/engine-tests.ts	15872	check	A	yes		engine/gameplay	boundary-model:engine/gameplay	src/features/player/playerSpawn.test.ts	computePlayerStartSpawn: no marker spawns at the origin and keeps facing	
 tools/engine-tests.ts	15888	check	M			engine/gameplay,src	model:src		computePlayerStartSpawn: prefers a tagged player and is null without any	
 tools/engine-tests.ts	15916	check	M			engine/gameplay,engine/scene	model:engine/scene		findPlayerStartTransform: selects a Player Start by spawnTag, else the first	
 tools/engine-tests.ts	15952	check	M			src	model:src		level-travel state machine: an idle request begins immediately	
@@ -2159,7 +2159,7 @@ tools/engine-tests.ts	16356	check	A			engine/perf		src/engine/perf/qualityProfil
 tools/engine-tests.ts	16371	check	A			engine/perf		src/engine/perf/qualityProfiles.test.ts	graphics preferences: normalization validates each field and gates customSettings on level	
 tools/engine-tests.ts	16441	check	A			engine/perf,engine/persistence		src/engine/persistence/userSettingsStore.test.ts	user settings store: round-trips graphics preferences alongside audio + locale	
 tools/engine-tests.ts	16468	check	A			engine/persistence	opaque-level-path	src/engine/persistence/saveGameSlots.test.ts	save-game UI commands and ViewModel fields stay slot-scoped	
-tools/engine-tests.ts	16491	check	A			engine/persistence,engine/ui			starter save/load UI asset binds slots and emits reserved save messages	6
+tools/engine-tests.ts	16491	check	A			engine/persistence,engine/ui		src/features/ui/starterWidget.test.ts	starter save/load UI asset binds slots and emits reserved save messages	
 tools/engine-tests.ts	16524	check	A			engine/loading		src/engine/loading/loadProgress.test.ts	load progress: counts loaded/failed/pending and derives fraction + done	
 tools/engine-tests.ts	16571	check	A			engine/loading		src/engine/loading/loadProgress.test.ts	load progress: transitions are idempotent and retry moves failed -> loaded	
 tools/engine-tests.ts	16604	check	A			engine/loading		src/engine/loading/loadProgress.test.ts	load progress: formatLoadDetail renders settled/total with a failure suffix	
@@ -2194,10 +2194,10 @@ tools/engine-tests.ts	17484	check	M			engine/core,engine/perf,src	model:src		deb
 tools/engine-tests.ts	17536	check	A			tools/assetPerfReport		tools/assets/assetPerfReport.test.ts	asset perf: parses a GLB container and counts triangles + vertices	
 tools/engine-tests.ts	17564	check	A			tools/assetPerfReport		tools/assets/assetPerfReport.test.ts	asset perf: decodes PNG / JPEG / WebP dimensions and embedded GLB textures	
 tools/engine-tests.ts	17584	check	A			tools/assetPerfReport		tools/assets/assetPerfReport.test.ts	asset perf: thresholds flag oversized assets and topBy ranks descending	
-tools/engine-tests.ts	17622	check	A	yes		engine/gameplay	boundary-model:engine/gameplay		hasPlayerCharacter: true for tagged or input-move, false otherwise	6
+tools/engine-tests.ts	17622	check	A	yes		engine/gameplay	boundary-model:engine/gameplay	src/features/player/playerSpawn.test.ts	hasPlayerCharacter: true for tagged or input-move, false otherwise	
 tools/engine-tests.ts	17648	check	M			engine/gameplay,engine/scene	model:engine/scene		findPlayerStartTransform: reads the first marker's position/yaw, else null	
-tools/engine-tests.ts	17662	check	A	yes		engine/gameplay	boundary-model:engine/gameplay		createDefaultPlayerCharacter: tagged input-move pawn placed at the spawn	6
-tools/engine-tests.ts	17689	check	A	yes		engine/gameplay	boundary-model:engine/gameplay		createDefaultPlayerCharacter: null yaw keeps a zero facing, defaults scale/speed	6
+tools/engine-tests.ts	17662	check	A	yes		engine/gameplay	boundary-model:engine/gameplay	src/features/player/playerSpawn.test.ts	createDefaultPlayerCharacter: tagged input-move pawn placed at the spawn	
+tools/engine-tests.ts	17689	check	A	yes		engine/gameplay	boundary-model:engine/gameplay	src/features/player/playerSpawn.test.ts	createDefaultPlayerCharacter: null yaw keeps a zero facing, defaults scale/speed	
 tools/engine-tests.ts	17697	check	M			engine/scene	model:engine/scene		blockAll preset blocks every channel with query+physics	
 tools/engine-tests.ts	17705	check	M			engine/scene	model:engine/scene		noCollision preset ignores everything with collision disabled	
 tools/engine-tests.ts	17712	check	M			engine/scene	model:engine/scene		trigger preset overlaps objects but ignores trace channels	

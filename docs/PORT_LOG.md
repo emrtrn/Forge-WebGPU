@@ -363,6 +363,17 @@ Forge SHA: `forge-webgl-final` = `04b5fb23` (cut-over 2026-11-11; etiket
 nesnesi `253e01f0`, açıklamalı). Aksi yazılmadıkça her satır bu SHA'dan
 taşınır.
 
+**Faz 6 (2026-11-27).** Fizik ve terrain akışı World'e bağlandı (INV-F12,
+D43, D06, E13, A17); G8 üç sahnede canlı Rapier collider'ını ölçüyor. Player
+Start ve karakter yolu FPS Sandbox'ta (INV-F13, F05–F06), checkpoint ve UI
+Starter'da (INV-F19, F20), collider tabanlı Recast `samples/rts`'de çalışıyor
+(INV-F14, D07, A18). Araç yüklenmiş terrain üzerinde Node koşusunda doğrulandı
+(INV-F27). Build kaydı, üretim taraması ve `/fps-pilot/` açılışı doğrulandı
+(INV-H15–H16). Envanterin Faz 6 kabulü ve legacy/iskeleyi kaldırma işi açık.
+Girdi, fizik temas ve iki davranış tick testi doğrudan World'e taşındı. Önceki
+`engine/input/inputSubsystem.ts` kabuğu kaldırıldı. Ertelenen beş Faz 6 A
+kontrolü `forge-engine-tests.tsv`'de taşınmış görünüyor (A 996 / 1.021).
+
 | Modül | Kaynak yol | Forge SHA | İşlem | Testler | Durum |
 |---|---|---|---|---|---|
 | `src/engine/audio/` (`audioBus`, `audioEventTable`, `musicDirector`, `audioClips`, `audioTypes`) | `engine/audio/{audioBus,audioEventTable,musicDirector}.ts`; `engine/assets/audio.ts` → `audioClips`; `audioSubsystem.ts`'in tipleri ve saf yardımcıları → `audioTypes` | `04b5fb23` | uyarlandı: dosya bölündü, import yolları; algoritma aynı | 27 taşındı (`audio.test.ts`) | yeşil (2026-11-11) |

@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.32 · 2026-11-27 — Faz W W7 kapandı (kullanıcı görsel kabulü). Sırada W8: canlı yüzey fiziği.
+**Güncelleme:** v2.33 · 2026-11-27 — Faz 6 başladı. World fiziği, FPS Sandbox karakter pilotu, checkpoint, araç ve Recast ilk uygulamaları; kabul durumu Faz 6 bölümünde.
+
+**Önceki güncelleme:** v2.32 · 2026-11-27 — Faz W W7 kapandı (kullanıcı görsel kabulü). Sırada W8: canlı yüzey fiziği.
 
 **Önceki güncelleme:** v2.31 · 2026-11-27 — Faz W W7: yamalı terrain karı LOD geçişinden sonra yükselir. Kullanıcı görsel kabulü bekleniyor.
 
@@ -1053,6 +1055,30 @@ fiziği yağışla değişir (kapsam 9, tasarım 9).
 
 ### Faz 6 — Oyun runtime'ı ve araçlar
 
+**Uygulama durumu (2026-11-27).** Kullanıcı kararıyla 6a, W8–W9 sürerken
+başladı. Host Rapier WASM'i World kurulmadan önce hazırlar. W8 gelene kadar
+araç boyalı terrain katmanının mevcut yüzey örnekleyicisini okur.
+
+| Alt faz | Uygulanan ve doğrulanan | Açık |
+|---|---|---|
+| 6a | World'de şemalı collider, Blocking Volume, static mesh sidecar, yol ve terrain çarpışması, ışın ve şekil sorguları, girdi, saat ve koddan davranış. Girdi, davranış tick ve fizik temas kontrolleri World'e taşındı. Model preset ve özel kanallar visibility/kamera sorgularında doğrulandı. Canlı G8 gerçek WebGPU'da üç referans sahnede geçti, en büyük fark 2,93 mm | Bütün obje çiftleri için Block/Overlap eşdeğerliği, kalan legacy okuyucular ve iskele testlerinin geçişi |
+| 6b | Kalıcı Player Start, kapsül hareketi, kamera/spring arm. FPS Sandbox gerçek WebGPU'da yürüme, bakış, zıplama, çömelme ve hitscan; ayrıca `/fps-pilot/` üretim açılışı | Birinci şahıs view model, TPS ve oynanış araçlarının kalan kabulü |
+| 6c | World checkpoint ve Starter kayıt menüsü, şemalı widget ve HUD yerleşimi, tema, yerelleştirme, dünya widget'ı, açılış ilerlemesi, 3B ses, WES yağmur şiddetine bağlı ses, GLB klip oynatma, TSL billboard partikül. Starter üretim smoke'u kayıt, yükleme ve silmeyi doğruladı; RTS'de temalı Scout etiketi birimi izliyor | Animasyon blend space ve hız vektörü görsel kabulü, VFX editör/efekt kapsamı, seçilmiş yağmur klibiyle sesli sahne kabulü |
+| 6d | World araç bileşeni, sürüş girdisi, tekerlek çizimi ve motor sesi bağı. Node'da araç yüklenmiş gerçek terrain heightfield üzerinde yürüdü | Araç giriş/çıkış akışı, sözleşmenin kalan parametreleri, görsel ve sesli sürüş kabulü, W8 |
+| 6e | Collider tabanlı Recast/Detour, nav volume ve editör önizlemesi, algı servisi, `samples/rts` ve oyun projesi build'i. RTS birimi gerçek WebGPU'da duvarı dolaştı. FPS Sandbox build'i `verify:dist --strict` taraması ve `verify:build` doğrulamasından geçti | K4/K11 tarayıcı kapsamı ve fallback maliyeti, kalan nav/editör ve AI karakter kabulü |
+
+Faz 6 için ertelenen beş Forge A kontrolü yeni World ve widget sözleşmelerinde
+yeşil. TSV'de Faz 6 satırı kalmadı (A 996 / 1.021). Faz kapısı açık.
+Ridgebound kopyası kapıdan sonraki iş (K8).
+
+**K4/K11 ilk tarayıcı ölçümü.** R1'de FPS pilotunun alt dizin build'i
+Chrome 157 ve Edge 158'de gerçek WebGPU ile açıldı. Chrome'un zorlanmış
+WebGL2 test kipi de açıldı. 1280×720, sabit sahnede 120 `requestAnimationFrame`
+aralığının medyanı / p95'i üç koşuda da yaklaşık 16,7 / 16,8 ms.
+Playwright Firefox 151 iki backend'de de canvas açtı ancak hazır sinyali
+ölçüm penceresinde gelmedi. Windows Playwright WebKit WebGL2 ile açıldı
+(17 / 20 ms). Safari macOS/iOS ve compute ağırlıklı sahnelerin maliyeti açık.
+
 **Faz 6 dökümü (2026-11-19).** Fazı 6 olan 59 envanter satırı (`PORT_LOG` §1),
 ertelenen 5 A (`npm run port:forge-tests`, TSV `deferred` `6`). Mevcut durum: alt
 sistemlerin three'siz kodu 2b'de taşındı (`src/engine` altında, test dışı satır:
@@ -1133,8 +1159,10 @@ sonra.
       dünyaya bağlanınca (6c) WES'in yağış şiddetini okur.
 - [ ] Araçlar: Vehicle component, tekerlek görsel node'ları, motor sesi, yüzey
       tepkisi (Faz W W8'in canlı profiliyle; W8 gelmediyse bugünkü örnekleyici).
-- [ ] `templates/game-starter` karşılığı.
-- [ ] Oyun projesi build'i: Forge'daki `game-project-build` / `build-record` /
+- [x] `templates/game-starter` karşılığı. `samples/starter` örneği ve
+      `npm run create-project` ile yeni proje üretimi. `samples/rts` nav ve
+      dünya widget'ı örneği.
+- [x] Oyun projesi build'i: Forge'daki `game-project-build` / `build-record` /
       `verify:build` karşılığı; editörsüz üretim çıktısı, `verify:dist
       --strict`, alt dizin yayını. Pilot bunu kullanır; Faz 10'a bırakılmaz.
 - [ ] K4: oyunda WebGL2 fallback kararı — hedef kitlenin WebGPU kapsamı ve
@@ -1451,6 +1479,7 @@ silinebilir.
 | 2026-11-27 | v2.30 | Faz W W5 kapandı: kullanıcı görsel kabulü. Sırada W7. |
 | 2026-11-27 | v2.31 | Faz W W7: yamalı terrain karı LOD geçişinden sonra yükselir. Yağış siperi ve açık birikinti yükselmeyi sınırlar. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-27 | v2.32 | Faz W W7 kapandı (kullanıcı görsel kabulü). Sırada W8: canlı yüzey fiziği. |
+| 2026-11-27 | v2.33 | Faz 6 başladı. Rapier World'e bağlandı ve G8 canlı collider'a geçti. FPS Sandbox karakteri, Starter checkpoint, araç ve Recast ilk uygulamaları; FPS pilotu için üretim build'i ve alt dizin açılışı. Kapı açık (mimari v1.98). |
 | 2026-11-26 | v2.28 | Faz W W6 halkalar ve birikintide rüzgâr (`95e0ae5`): ortak halka düğümü (CPU ikizi `rainRipples.ts`), sıklık anlık yağmurla, uzakta / siper altında yok, simülasyon saati; materyal birikintisi, ıslak yama (hafif) ve `forge.puddle` suyu; materyal birikintisinde prosedürel rüzgâr tepeleri; WES `rippleStrength`, `rippleSize`, `rippleDensity`, `windRippleStrength`; `puddleAccept` çizilir. Smoke'lar pipeline +0. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-26 | v2.27 | Faz W W5 sonrası (kullanıcı kararları; `4522d2d`, `d56944d`, `4c56ffa`, `38a80f2`, `8acbf1c`, `3581aad`): SSR roughness + Fresnel ağırlığıyla ve ortam yansımasının yerine (MRT `specular`), Post Process SSR ayarları, alfa kesimli yüzey SSR almaz; ıslaklık üç kademe (koyulaşma, ıslak yama, ayna birikinti; yalnız düz zeminde); `forge.puddle` `followWeather`. W6 yeniden kapsamlandı, çukur haritası Faz 7 sonrasına. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-26 | v2.24 | Faz W W4 kapandı (kullanıcı görsel kabulü). Sırada W5: yağışla ıslanma, karlanma, kuruma (yeni oturumda). |
