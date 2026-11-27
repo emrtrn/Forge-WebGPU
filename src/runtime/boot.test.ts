@@ -8,7 +8,7 @@ import { WorldError } from "./world.ts";
 import { CheckpointKey } from "../engine/persistence/checkpointService.ts";
 import { createMemoryStorageAdapter, SaveGameStore } from "../engine/persistence/saveGameStore.ts";
 import type { FrameCaptureListener } from "../engine/perf/frameCapture.ts";
-import { TimeControl, TimeControlKey } from "../engine/time/timeControl.ts";
+import { DIAGNOSTIC_TIME_HOLDER, TimeControl, TimeControlKey } from "../engine/time/timeControl.ts";
 
 const components = defineFeature({ id: "test.components", components: [Fog, Collider, StaticMesh, Driver] });
 const LEVEL = { schema: "forge.level/1", id: levelId("1"), actors: [{ id: actorId("1"), name: "Fog", components: { fog: { type: "test.fog@2" } } }] };
@@ -285,6 +285,17 @@ describe("bootGame", () => {
         step(1246);
         await Promise.resolve();
         expect(captures).toHaveLength(1);
+
+        timeControl.pause("menu");
+        timeControl.pause(DIAGNOSTIC_TIME_HOLDER);
+        timeControl.resume(DIAGNOSTIC_TIME_HOLDER);
+        game.armFrameCapture!((...args) => captures.push(args));
+        step(1380);
+        await Promise.resolve();
+        const [heldFrame, heldContext] = captures[1]!;
+        expect(heldFrame).toMatchObject({ totalMs: 7, windowFrames: 4 });
+        expect(heldContext).toMatchObject({ paused: true, timeScale: 2 });
+        expect(heldContext.sceneSeconds).toBeCloseTo(0.232);
       } finally {
         game.stop();
       }

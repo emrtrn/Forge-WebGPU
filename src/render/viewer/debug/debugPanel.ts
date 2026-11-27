@@ -21,6 +21,7 @@
 import type { WorldEnvironmentState } from "../../../engine/environment/environmentResolve.ts";
 import { withClipboardText, type DebugTableView } from "../../../engine/perf/debugTableView.ts";
 import { buildFrameCapture, frameCaptureTableView, type FrameCaptureListener } from "../../../engine/perf/frameCapture.ts";
+import type { TimeControl } from "../../../engine/time/timeControl.ts";
 import { DEFAULT_PERF_BUDGET, evaluatePerfBudget } from "../../../engine/perf/perfBudget.ts";
 import {
   compactCount,
@@ -42,6 +43,7 @@ import { foliageProbe, terrainStreamingProbes, type FoliageProbe } from "../../s
 import { DebugTableModal } from "./debugTableModal.ts";
 import { DEBUG_PANEL_CSS } from "./debugStyle.ts";
 import { DebugTerrainMap } from "./debugTerrainMap.ts";
+import { createDebugSpeedControl } from "./debugSpeedControl.ts";
 import type { ZoneDrawingStats } from "../../sync/zoneDrawing.ts";
 
 const UPDATE_INTERVAL_MS = 500;
@@ -61,6 +63,7 @@ export interface DebugPanelSources {
   readonly environment?: () => Readonly<WorldEnvironmentState> | null;
   /** Delivers the next completed frame when the host supports profiling. */
   readonly armFrameCapture?: (listener: FrameCaptureListener) => void;
+  readonly timeControl?: TimeControl;
 }
 
 export interface DebugPanel {
@@ -228,10 +231,13 @@ export function attachDebugPanel(document: Document, sources: DebugPanelSources)
     setInspecting(false);
     inspect.focus();
   });
+  const speed = sources.timeControl ? createDebugSpeedControl(document, sources.timeControl) : undefined;
+  if (speed) controls.append(speed.element);
   controls.appendChild(inspect);
 
   const modal = new DebugTableModal({ host: document.body });
   const refresh = (): void => {
+    speed?.refresh();
     const host = sources.host();
     if (!host) return;
     const terrain = hostTerrainStreaming(host);
@@ -257,6 +263,7 @@ export function attachDebugPanel(document: Document, sources: DebugPanelSources)
     refresh,
     dispose() {
       (document.defaultView ?? window).clearInterval(timer);
+      speed?.dispose();
       modal.dispose();
       root.remove();
       style.remove();

@@ -119,6 +119,7 @@ export const DEBUG_PANEL_CSS = `
    world is actually in, which is not always the one this control asked for. */
 .forge-debug-speed {
   display: flex;
+  flex-wrap: wrap;
   gap: 3px;
   align-items: center;
 }

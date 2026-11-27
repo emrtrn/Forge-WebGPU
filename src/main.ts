@@ -42,6 +42,7 @@ import { SaveGameStore } from "./engine/persistence/saveGameStore.ts";
 import type { SaveGameDoc } from "./core/index.ts";
 import type { HardwareHintInputs } from "./engine/perf/hardwareHints.ts";
 import { WorldEnvironmentKey } from "./engine/environment/worldEnvironmentRuntime.ts";
+import { TimeControlKey } from "./engine/time/timeControl.ts";
 import { CameraServiceKey } from "./engine/camera/worldCamera.ts";
 import { TerrainResidencyKey } from "./engine/terrain/terrainResidency.ts";
 import { CellStreamingKey } from "./runtime/streaming/cellStreaming.ts";
@@ -263,10 +264,12 @@ async function start(): Promise<void> {
   });
   if (booted && debug) {
     const { attachDebugPanel } = await import("./render/viewer/debug/debugPanel.ts");
+    const timeControl = booted.world.services.get(TimeControlKey);
     attachDebugPanel(document, {
       host: () => viewer.host,
       environment: () => booted.world.services.get(WorldEnvironmentKey)?.controller.current() ?? null,
       ...(booted.armFrameCapture ? { armFrameCapture: booted.armFrameCapture } : {}),
+      ...(timeControl ? { timeControl } : {}),
     });
   }
   if (import.meta.env.DEV && booted) {
