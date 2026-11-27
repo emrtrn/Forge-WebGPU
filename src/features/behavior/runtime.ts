@@ -11,6 +11,17 @@ interface Instance {
   readonly definition: BehaviorDefinition;
   readonly cleanup: (() => void)[];
   started: boolean;
+  tickEnabled: boolean;
+  tickInterval: number;
+  tickElapsed: number;
+  timers?: Map<string, Timer>;
+}
+
+interface Timer {
+  readonly message: string;
+  readonly payload?: Record<string, unknown>;
+  readonly createdFrame: number;
+  remaining: number;
 }
 
 interface ContactPair {
@@ -25,14 +36,35 @@ export const BehaviorSubsystem = defineSubsystem({
   create(world) {
     const definitions = world.services.get(BehaviorDefinitionsKey);
     const instances = new Map<ActorId, Instance[]>();
+    const lifeSpans = new Map<ActorId, { remaining: number; createdFrame: number }>();
     const bus = new ScriptMessageBus({ targetExists: (id) => isId(id, "actor") && world.actor(id) !== undefined });
     let deltaSeconds = 0;
     let frame = 0;
+    let nextTimer = 1;
     let previousContacts = new Map<string, ContactPair>();
-    const context = ({ actor }: Instance): BehaviorContext => ({
-      actor, world, deltaSeconds,
-      send(type, target, payload) { bus.send({ type, target, source: actor.id, frame, ...(payload ? { payload } : {}) }); },
-      emit(type, payload) { bus.emit({ type, source: actor.id, frame, ...(payload ? { payload } : {}) }); },
+    const context = (instance: Instance, elapsed = deltaSeconds): BehaviorContext => ({
+      actor: instance.actor, world, deltaSeconds: elapsed,
+      setTickEnabled(enabled) { instance.tickEnabled = enabled; },
+      setTickInterval(seconds) {
+        instance.tickInterval = Number.isFinite(seconds) && seconds > 0 ? seconds : 0;
+        instance.tickElapsed = 0;
+      },
+      setLifeSpan(seconds) {
+        if (world.actor(instance.actor.id) !== instance.actor) return;
+        if (Number.isFinite(seconds) && seconds > 0) lifeSpans.set(instance.actor.id, { remaining: seconds, createdFrame: frame });
+        else lifeSpans.delete(instance.actor.id);
+      },
+      timers: {
+        after(seconds, message, payload) {
+          const handle = `script-timer:${nextTimer++}`;
+          (instance.timers ??= new Map()).set(handle, { message, ...(payload ? { payload: { ...payload } } : {}),
+            createdFrame: frame, remaining: Number.isFinite(seconds) ? Math.max(0, seconds) : 0 });
+          return handle;
+        },
+        clear(handle) { instance.timers?.delete(handle); },
+      },
+      send(type, target, payload) { bus.send({ type, target, source: instance.actor.id, frame, ...(payload ? { payload } : {}) }); },
+      emit(type, payload) { bus.emit({ type, source: instance.actor.id, frame, ...(payload ? { payload } : {}) }); },
     });
     const dispatch = (item: Instance, event: BehaviorEvent) => item.definition.events?.[event.kind]?.(context(item), event);
     const dispatchTo = (id: ActorId, event: BehaviorEvent) => {
@@ -58,7 +90,7 @@ export const BehaviorSubsystem = defineSubsystem({
           if (!definition) continue;
           let active = instances.get(actor.id);
           if (!active) instances.set(actor.id, active = []);
-          const instance: Instance = { actor, definition, cleanup: [], started: false };
+          const instance: Instance = { actor, definition, cleanup: [], started: false, tickEnabled: true, tickInterval: 0, tickElapsed: 0 };
           active.push(instance);
           for (const [type, handler] of Object.entries(definition.messages ?? {})) {
             const unsubscribe = bus.subscribe(type, (message) => {
@@ -81,7 +113,11 @@ export const BehaviorSubsystem = defineSubsystem({
         updateImpactInterest(actor.id);
         for (const instance of active) {
           for (const unsubscribe of instance.cleanup) unsubscribe();
-          if (instance.started) dispatch(instance, { kind: "endPlay", reason: "removed" });
+          if (instance.started) {
+            instance.started = false;
+            dispatch(instance, { kind: "endPlay", reason: "removed" });
+          }
+          instance.timers?.clear();
         }
       }
     };
@@ -117,7 +153,10 @@ export const BehaviorSubsystem = defineSubsystem({
     };
     return {
       actorsAdded: add,
-      actorsRemoved: remove,
+      actorsRemoved(actors) {
+        for (const { id } of actors) lifeSpans.delete(id);
+        remove(actors);
+      },
       actorsChanged(changes) {
         for (const { actor, previous, transformOnly } of changes) if (!transformOnly) {
           remove([previous]);
@@ -134,7 +173,33 @@ export const BehaviorSubsystem = defineSubsystem({
         for (const instance of active) start(instance);
         if (!world.services.get(TimeControlKey)?.paused) {
           emitPhysics();
-          for (const instance of active) if (world.actor(instance.actor.id)) instance.definition.tick?.(context(instance));
+          for (const instance of active) {
+            const { actor, definition, started, tickEnabled, tickInterval } = instance;
+            if (!definition.tick || !started || !tickEnabled || world.actor(actor.id) !== actor) continue;
+            instance.tickElapsed += dt;
+            if (instance.tickElapsed + 1e-9 < tickInterval) continue;
+            const elapsed = instance.tickElapsed;
+            instance.tickElapsed = 0;
+            definition.tick(context(instance, elapsed));
+          }
+          for (const instance of active) {
+            if (!instance.started || !instance.timers) continue;
+            const id = instance.actor.id;
+            for (const [handle, timer] of instance.timers) {
+              if (timer.createdFrame === frame) continue;
+              timer.remaining -= dt;
+              if (timer.remaining > 1e-9) continue;
+              instance.timers.delete(handle);
+              bus.send({ type: timer.message, source: id, target: id, frame, ...(timer.payload ? { payload: timer.payload } : {}) });
+            }
+          }
+          const expired: ActorId[] = [];
+          for (const [id, lifeSpan] of lifeSpans) {
+            if (lifeSpan.createdFrame === frame) continue;
+            lifeSpan.remaining -= dt;
+            if (lifeSpan.remaining <= 1e-9) expired.push(id);
+          }
+          if (expired.length > 0) world.destroyActors(expired);
         }
         bus.flush();
       },
@@ -148,6 +213,7 @@ export const BehaviorSubsystem = defineSubsystem({
       dispose() {
         bus.clear();
         instances.clear();
+        lifeSpans.clear();
         previousContacts.clear();
       },
     };

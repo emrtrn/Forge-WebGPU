@@ -1,4 +1,5 @@
-import { bool, defineComponent, enumOf, num, text, vec3, type ComponentData } from "../../core/index.ts";
+import { actorRef, array, bool, defineComponent, defineSaveState, enumOf, num, text, vec3, type ComponentData } from "../../core/index.ts";
+import { CollisionProfileField } from "../../core/schema/collisionChannels.ts";
 
 const shapes = ["box", "sphere", "capsule", "cylinder", "cone"] as const;
 
@@ -7,6 +8,7 @@ export const Collider = defineComponent("forge.collider", 1, {
   size: vec3({ default: [1, 1, 1], min: 0.001, hint: "Aktör ölçeğinden önceki tam boyut, metre." }),
   enabled: bool({ default: true, hint: "Çarpışma ve sorgulara katılır." }),
   sensor: bool({ default: false, hint: "Örtüşme olayı verir, hareketi engellemez." }),
+  profile: CollisionProfileField,
   motion: enumOf(["static", "dynamic"], { default: "static", hint: "Dynamic, aktörün konumunu fizik simülasyonundan alır." }),
   mass: num({ default: 1, min: 0.001, hint: "Dinamik gövde kütlesi, kilogram." }),
   gravity: bool({ default: true, hint: "Dinamik gövdeye yer çekimi uygular." }),
@@ -22,6 +24,7 @@ export const BlockingVolume = defineComponent("forge.blockingVolume", 1, {
     default: "box", hint: "Engelleme hacminin biçimi.",
   }),
   size: vec3({ default: [1, 1, 1], min: 0.001, hint: "Aktör ölçeğinden önceki tam boyut, metre." }),
+  profile: CollisionProfileField,
   visibleInGame: bool({ default: false, hint: "Oyun görünümünde hacmi gösterir." }),
 }, {
   spatial: true, label: "Blocking Volume", hint: "Hareketi sınırlayan statik hacim.",
@@ -29,3 +32,6 @@ export const BlockingVolume = defineComponent("forge.blockingVolume", 1, {
 
 export type ColliderData = ComponentData<typeof Collider>;
 export type BlockingVolumeData = ComponentData<typeof BlockingVolume>;
+
+/** Actor-level toggles opted in by game code, keyed by stable level actor ids. */
+export const CollisionState = defineSaveState("forge.collisionState", 1, { disabled: array(actorRef()) });

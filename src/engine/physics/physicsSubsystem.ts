@@ -7,7 +7,7 @@ import { type NavigationObstacleVisitor, type NavigationRect, type NavigationTri
 import { type GroundSurfaceSample } from "../movement/slopeSurface.ts";
 import type { EngineUpdateContext, Subsystem } from "../subsystem.ts";
 import { type TransformComponent } from "./colliderTypes.ts";
-import { interactionGroupsInteract } from "./collision.ts";
+import { collisionSolverGroups, interactionGroupsInteract } from "./collision.ts";
 import { FixedStepClock, lerpPosition, nlerpQuaternion } from "./fixedStep.ts";
 import { ImpactAccumulator, impulseToForceThreshold, manifoldNormal, type ImpactContactPoint, type ImpactVec3, type PhysicsImpact } from "./impactEvents.ts";
 import { type VehicleGroundSinkProvider, type VehicleSurfaceProvider } from "./surface/surfaceResponse.ts";
@@ -97,6 +97,10 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
     bodies: () => this.bodies,
     suspendedDynamicBodies: () => this.suspendedDynamicBodies,
     rapierColliderToEntity: () => this.rapierColliderToEntity,
+    collisionProfileForCollider: (handle) => {
+      const id = this.rapierColliderToEntity.get(handle);
+      return id === undefined ? undefined : this.bodiesById.get(id)?.collider.profile;
+    },
     gravity: () => this.gravity,
     setEntityTransform: (entityId, transform) => this.setEntityTransform(entityId, transform),
   });
@@ -211,12 +215,18 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
   }
 
   setEntities(entities: readonly Entity[]): void {
+    this.replaceBodies(entities.flatMap((entity) => {
+      const body = bodyFromEntity(entity);
+      return body ? [body] : [];
+    }));
+  }
+
+  /** Rebuilds a complete resolved set while retaining runtime impact registrations. */
+  replaceBodies(bodies: readonly PhysicsBody[]): void {
     this.bodies = [];
     this.bodiesById.clear();
-    for (const entity of entities) {
-      if (this.bodiesById.has(entity.id)) continue;
-      const body = bodyFromEntity(entity);
-      if (!body) continue;
+    for (const body of bodies) {
+      if (this.bodiesById.has(body.id)) continue;
       this.bodies.push(body);
       this.bodiesById.set(body.id, body);
     }
@@ -737,7 +747,10 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
         contacts.push({
           a: a.id,
           b: b.id,
-          isSensor: a.collider.isSensor || b.collider.isSensor,
+          isSensor: a.collider.isSensor || b.collider.isSensor || !interactionGroupsInteract(
+            a.collider.profile && collisionSolverGroups(a.collider.profile),
+            b.collider.profile && collisionSolverGroups(b.collider.profile),
+          ),
         });
       }
     }
@@ -752,14 +765,16 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
    */
   private reportableContacts(contacts: PhysicsContact[]): PhysicsContact[] {
     return contacts.filter((contact) => {
-      const a = this.bodies.find((body) => body.id === contact.a);
-      const b = this.bodies.find((body) => body.id === contact.b);
+      const a = this.bodiesById.get(contact.a);
+      const b = this.bodiesById.get(contact.b);
       if (!a || !b) return true;
       if (contact.isSensor) {
-        return (
-          (a.collider.isSensor && a.collider.generateOverlapEvents !== false) ||
-          (b.collider.isSensor && b.collider.generateOverlapEvents !== false)
-        );
+        const wantsOverlap = (from: PhysicsBody, to: PhysicsBody): boolean => {
+          const channel = to.collider.profile?.objectType;
+          return from.collider.generateOverlapEvents !== false &&
+            (from.collider.isSensor || (channel !== undefined && from.collider.profile?.responses[channel] === "overlap"));
+        };
+        return wantsOverlap(a, b) || wantsOverlap(b, a);
       }
       return (
         a.collider.simulationGeneratesHitEvents !== false ||
@@ -837,12 +852,11 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
     );
     desc.setRotation(quaternionFromEulerDegrees(body.transform.rotation));
     const rigidBody = this.rapierWorld.createRigidBody(desc);
-    const colliders = colliderDescsForBody(RAPIER, body).map((colliderDesc) =>
-      this.rapierWorld!.createCollider(
-        colliderDesc.setSensor(body.collider.isSensor),
-        rigidBody,
-      ),
-    );
+    const solverGroups = body.collider.profile && collisionSolverGroups(body.collider.profile);
+    const colliders = colliderDescsForBody(RAPIER, body).map((colliderDesc) => {
+      if (solverGroups !== undefined) colliderDesc.setSolverGroups(solverGroups);
+      return this.rapierWorld!.createCollider(colliderDesc.setSensor(body.collider.isSensor), rigidBody);
+    });
     this.rapierBodies.set(body.id, {
       id: body.id,
       body: rigidBody,
@@ -887,10 +901,10 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
       if (!record.isSensor && this.bodiesById.get(record.id)?.collider.isStatic === true) continue;
       for (const collider of record.colliders) {
         this.rapierWorld.contactPairsWith(collider, (other) => {
-          this.addRapierContact(contacts, seen, record, other);
+          this.addRapierContact(contacts, seen, record, collider, other);
         });
         this.rapierWorld.intersectionPairsWith(collider, (other) => {
-          this.addRapierContact(contacts, seen, record, other);
+          this.addRapierContact(contacts, seen, record, collider, other);
         });
       }
     }
@@ -1184,6 +1198,7 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
     contacts: PhysicsContact[],
     seen: Set<string>,
     a: RapierBodyRecord,
+    aCollider: RapierCollider,
     bCollider: RapierCollider,
   ): void {
     const bId = this.rapierColliderToEntity.get(bCollider.handle);
@@ -1194,11 +1209,20 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
     const [left, right] = a.id < b.id ? [a, b] : [b, a];
     const key = contactKey(left.id, right.id);
     if (seen.has(key)) return;
+    let isOverlap = left.isSensor || right.isSensor;
+    if (!isOverlap && !interactionGroupsInteract(aCollider.solverGroups(), bCollider.solverGroups())) {
+      // Rapier may retain nearby manifold candidates for its contact prediction margin.
+      // An overlap starts only when these two shapes touch or penetrate.
+      this.rapierWorld!.contactPair(aCollider, bCollider, (manifold) => {
+        for (let i = 0; i < manifold.numContacts(); i += 1) if (manifold.contactDist(i) <= 0) isOverlap = true;
+      });
+      if (!isOverlap) return;
+    }
     seen.add(key);
     contacts.push({
       a: left.id,
       b: right.id,
-      isSensor: left.isSensor || right.isSensor,
+      isSensor: isOverlap,
     });
   }
   /** See {@link StaticWorld.staticBlockerAabbs}. */

@@ -4,7 +4,6 @@ import assert from "node:assert/strict";
 import { type ColliderComponent, type TransformComponent } from "../legacy/components.ts";
 import { type Entity } from "../legacy/entity.ts";
 import { type Vec3 } from "../legacy/layout.ts";
-import { EngineApp } from "../testing/EngineApp.ts";
 import { PhysicsSubsystem } from "./physicsSubsystem.ts";
 import { NEUTRAL_VEHICLE_INPUT, createReferenceCarDefinition, type VehicleInput } from "./vehicle/vehicleTypes.ts";
 import { test } from "vitest";
@@ -143,9 +142,7 @@ check("physics subsystem reports deterministic placeholder contacts", () => {
     },
   ]);
 
-  const app = new EngineApp();
-  app.registerSubsystem(physics);
-  app.update(0.016);
+  physics.step(0.016);
   assert.deepEqual(physics.contactsForEntity("dynamic"), []);
 
   physics.setEntityTransform("dynamic", {
@@ -153,7 +150,7 @@ check("physics subsystem reports deterministic placeholder contacts", () => {
     rotation: [0, 0, 0],
     scale: [1, 1, 1],
   });
-  app.update(0.016);
+  physics.step(0.016);
   assert.deepEqual(physics.contactsForEntity("dynamic"), [
     { a: "dynamic", b: "wall", isSensor: false },
   ]);
@@ -185,9 +182,7 @@ check("generateOverlapEvents=false suppresses sensor overlap contacts", () => {
       },
     },
   ]);
-  const app = new EngineApp();
-  app.registerSubsystem(physics);
-  app.update(0.016);
+  physics.step(0.016);
   assert.deepEqual(physics.contactsForEntity("mover"), []);
 
   // A sensor with events left on (default) still reports the overlap.
@@ -202,7 +197,7 @@ check("generateOverlapEvents=false suppresses sensor overlap contacts", () => {
       },
     },
   ]);
-  app.update(0.016);
+  physics.step(0.016);
   assert.deepEqual(physics.contactsForEntity("mover"), [
     { a: "mover", b: "live", isSensor: true },
   ]);
@@ -238,9 +233,7 @@ check("simulationGeneratesHitEvents=false on both bodies suppresses the hit", ()
       },
     },
   ]);
-  const app = new EngineApp();
-  app.registerSubsystem(physics);
-  app.update(0.016);
+  physics.step(0.016);
   assert.deepEqual(physics.contactsForEntity("a"), []);
 });
 
@@ -263,8 +256,6 @@ await checkAsync("rapier physics backend reports contacts through the same contr
     },
   ]);
 
-  const app = new EngineApp();
-  app.registerSubsystem(physics);
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
     if (String(args[0] ?? "").includes("deprecated parameters for the initialization function")) {
@@ -273,13 +264,13 @@ await checkAsync("rapier physics backend reports contacts through the same contr
     warn(...args);
   };
   try {
-    await app.init();
+    await physics.init();
     assert.equal(physics.usesRapier(), true); // colliders present -> Rapier loaded
-    app.update(0.016);
+    physics.step(0.016);
     assert.deepEqual(physics.contactsForEntity("dynamic"), [
       { a: "dynamic", b: "wall", isSensor: false },
     ]);
-    await app.dispose();
+    physics.dispose();
   } finally {
     console.warn = warn;
   }
@@ -304,8 +295,6 @@ await checkAsync("rapier backend reports static sensor overlap with a kinematic 
     },
   ]);
 
-  const app = new EngineApp();
-  app.registerSubsystem(physics);
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
     if (String(args[0] ?? "").includes("deprecated parameters for the initialization function")) {
@@ -314,13 +303,13 @@ await checkAsync("rapier backend reports static sensor overlap with a kinematic 
     warn(...args);
   };
   try {
-    await app.init();
+    await physics.init();
     assert.equal(physics.usesRapier(), true);
-    app.update(0.016);
+    physics.step(0.016);
     assert.deepEqual(physics.contactsForEntity("actor:0"), [
       { a: "actor:0", b: "character:0", isSensor: true },
     ]);
-    await app.dispose();
+    physics.dispose();
   } finally {
     console.warn = warn;
   }
@@ -353,8 +342,6 @@ await checkAsync("rapier simulatePhysics body falls under configured gravity", a
     },
   ]);
 
-  const app = new EngineApp();
-  app.registerSubsystem(physics);
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
     if (String(args[0] ?? "").includes("deprecated parameters for the initialization function")) {
@@ -363,14 +350,14 @@ await checkAsync("rapier simulatePhysics body falls under configured gravity", a
     warn(...args);
   };
   try {
-    await app.init();
+    await physics.init();
     assert.equal(physics.usesRapier(), true);
-    for (let frame = 0; frame < 12; frame += 1) app.update(1 / 60);
+    for (let frame = 0; frame < 12; frame += 1) physics.step(1 / 60);
     assert.ok(synced.length > 0, "expected physics to sync dynamic transforms");
     const last = synced.at(-1) ?? assert.fail("synced");
     assert.ok(last.position[1] < 5);
     assert.ok(Math.abs(last.rotation[1] - 30) < 1e-3, `rotationY=${last.rotation[1]}`);
-    await app.dispose();
+    physics.dispose();
   } finally {
     console.warn = warn;
   }
@@ -405,8 +392,6 @@ await checkAsync("rapier active area suspends distant dynamics and resumes them 
     },
   ]);
 
-  const app = new EngineApp();
-  app.registerSubsystem(physics);
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
     if (String(args[0] ?? "").includes("deprecated parameters for the initialization function")) {
@@ -415,17 +400,17 @@ await checkAsync("rapier active area suspends distant dynamics and resumes them 
     warn(...args);
   };
   try {
-    await app.init();
-    for (let frame = 0; frame < 12; frame += 1) app.update(1 / 60);
+    await physics.init();
+    for (let frame = 0; frame < 12; frame += 1) physics.step(1 / 60);
     assert.equal(synced.length, 0, "distant dynamic body should not synchronize while suspended");
     assert.equal(physics.isDynamicBodyActive("distant-crate"), false);
 
     focus = [100, 5, 0];
-    for (let frame = 0; frame < 12; frame += 1) app.update(1 / 60);
+    for (let frame = 0; frame < 12; frame += 1) physics.step(1 / 60);
     const last = synced.at(-1) ?? assert.fail("resumed dynamic body should synchronize");
     assert.ok(last.position[1] < 5, `resumed body should fall, y=${last.position[1]}`);
     assert.equal(physics.isDynamicBodyActive("distant-crate"), true);
-    await app.dispose();
+    physics.dispose();
   } finally {
     console.warn = warn;
   }
@@ -466,17 +451,15 @@ await checkAsync("rapier builds a compound collider per authored primitive (gap 
       },
     },
   ]);
-  const app = new EngineApp();
-  app.registerSubsystem(physics);
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
     if (String(args[0] ?? "").includes("deprecated parameters for the initialization function")) return;
     warn(...args);
   };
   try {
-    await app.init();
+    await physics.init();
     assert.equal(physics.usesRapier(), true);
-    app.update(1 / 60);
+    physics.step(1 / 60);
     // The probe overlapping a primitive contacts the compound...
     assert.ok(
       physics.contactsForEntity("hit").some((c) => c.a === "compound" || c.b === "compound"),
@@ -485,7 +468,7 @@ await checkAsync("rapier builds a compound collider per authored primitive (gap 
     // ...but a probe sitting in the gap between the two boxes does not (proving
     // the per-primitive compound is used rather than the encompassing AABB box).
     assert.deepEqual(physics.contactsForEntity("gap"), []);
-    await app.dispose();
+    physics.dispose();
   } finally {
     console.warn = warn;
   }
@@ -516,22 +499,20 @@ await checkAsync("rapier builds a convex collider from hull points", async () =>
       },
     },
   ]);
-  const app = new EngineApp();
-  app.registerSubsystem(physics);
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
     if (String(args[0] ?? "").includes("deprecated parameters for the initialization function")) return;
     warn(...args);
   };
   try {
-    await app.init();
+    await physics.init();
     assert.equal(physics.usesRapier(), true);
-    app.update(1 / 60);
+    physics.step(1 / 60);
     assert.ok(
       physics.contactsForEntity("probe").some((c) => c.a === "hull" || c.b === "hull"),
       "probe overlapping the convex hull should contact it",
     );
-    await app.dispose();
+    physics.dispose();
   } finally {
     console.warn = warn;
   }
@@ -586,17 +567,15 @@ await checkAsync("rapier trimesh colliders fix internal edges (a rolling ball do
       },
     },
   ]);
-  const app = new EngineApp();
-  app.registerSubsystem(physics);
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
     if (String(args[0] ?? "").includes("deprecated parameters for the initialization function")) return;
     warn(...args);
   };
   try {
-    await app.init();
+    await physics.init();
     assert.equal(physics.usesRapier(), true);
-    for (let frame = 0; frame < 300; frame += 1) app.update(1 / 60);
+    for (let frame = 0; frame < 300; frame += 1) physics.step(1 / 60);
     // Skip the first second (the drop onto the slope), then compare per-frame
     // vertical speeds: a smooth roll changes them by centimetres per second.
     let worstJump = 0;
@@ -607,7 +586,7 @@ await checkAsync("rapier trimesh colliders fix internal edges (a rolling ball do
     }
     assert.ok(heights.length > 250, `ball transform synced ${heights.length} times`);
     assert.ok(worstJump < 0.25, `worst per-frame vertical speed jump ${worstJump.toFixed(3)} m/s`);
-    await app.dispose();
+    physics.dispose();
   } finally {
     console.warn = warn;
   }
@@ -641,8 +620,6 @@ await checkAsync("rapier simulatePhysics enableGravity false disables world grav
     },
   ]);
 
-  const app = new EngineApp();
-  app.registerSubsystem(physics);
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
     if (String(args[0] ?? "").includes("deprecated parameters for the initialization function")) {
@@ -651,11 +628,11 @@ await checkAsync("rapier simulatePhysics enableGravity false disables world grav
     warn(...args);
   };
   try {
-    await app.init();
-    for (let frame = 0; frame < 30; frame += 1) app.update(1 / 60);
+    await physics.init();
+    for (let frame = 0; frame < 30; frame += 1) physics.step(1 / 60);
     const last = synced.at(-1) ?? assert.fail("synced");
     assert.ok(Math.abs(last.position[1] - 5) < 0.001, `gravity disabled y=${last.position[1]}`);
-    await app.dispose();
+    physics.dispose();
   } finally {
     console.warn = warn;
   }
@@ -697,8 +674,6 @@ await checkAsync("rapier simulatePhysics thin wall can topple after ground conta
     },
   ]);
 
-  const app = new EngineApp();
-  app.registerSubsystem(physics);
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
     if (String(args[0] ?? "").includes("deprecated parameters for the initialization function")) {
@@ -707,15 +682,15 @@ await checkAsync("rapier simulatePhysics thin wall can topple after ground conta
     warn(...args);
   };
   try {
-    await app.init();
-    for (let frame = 0; frame < 300; frame += 1) app.update(1 / 60);
+    await physics.init();
+    for (let frame = 0; frame < 300; frame += 1) physics.step(1 / 60);
     const last = synced.at(-1) ?? assert.fail("synced");
     assert.ok(last.position[1] < 2, `wall did not reach the floor: y=${last.position[1]}`);
     assert.ok(
       Math.abs(last.rotation[2] - 25) > 2,
       `wall rotation stayed locked: rotationZ=${last.rotation[2]}`,
     );
-    await app.dispose();
+    physics.dispose();
   } finally {
     console.warn = warn;
   }
@@ -736,13 +711,11 @@ await checkAsync("rapier backend stays on placeholder when the scene has no coll
     },
   ]);
 
-  const app = new EngineApp();
-  app.registerSubsystem(physics);
-  await app.init();
+  await physics.init();
   assert.equal(physics.usesRapier(), false); // no colliders -> Rapier never loaded
-  app.update(0.016);
+  physics.step(0.016);
   assert.deepEqual(physics.contactsForEntity("decor"), []);
-  await app.dispose();
+  physics.dispose();
 });
 
 await checkAsync("rapier fixed step simulates the same fall at 30 Hz and 144 Hz", async () => {
@@ -756,18 +729,16 @@ await checkAsync("rapier fixed step simulates the same fall at 30 Hz and 144 Hz"
         y = transform.position[1];
       });
       physics.setEntities([fallingCrateEntity()]);
-      const app = new EngineApp();
-      app.registerSubsystem(physics);
-      await app.init();
+      await physics.init();
       let steps = 0;
       for (let frame = 0; frame < hz; frame += 1) {
-        app.update(1 / hz);
+        physics.step(1 / hz);
         steps += physics.lastFrameStepCount();
       }
       assert.equal(physics.fixedTimestep(), 1 / 60);
       assert.ok(Math.abs(steps - 60) <= 1, `${hz} Hz simulated ${steps} slices`);
       finalHeights.push(y);
-      await app.dispose();
+      physics.dispose();
     }
     const [at30, at144] = finalHeights;
     // ~5 m in one second at g=10; the render pose trails the last slice by one step.
@@ -785,18 +756,16 @@ await checkAsync("rapier render pose blends between slices and a teleport skips 
       rendered = transform;
     });
     physics.setEntities([fallingCrateEntity()]);
-    const app = new EngineApp();
-    app.registerSubsystem(physics);
-    await app.init();
+    await physics.init();
     const renderedY = (): number => (rendered as TransformComponent | null)?.position[1] ?? Number.NaN;
 
-    for (let frame = 0; frame < 10; frame += 1) app.update(1 / 60);
+    for (let frame = 0; frame < 10; frame += 1) physics.step(1 / 60);
     const beforeLastSlice = renderedY(); // alpha 0 renders the pose one slice back
-    app.update(1 / 120);
+    physics.step(1 / 120);
     assert.equal(physics.lastFrameStepCount(), 0); // half a slice: nothing simulated...
     assert.ok(Math.abs(physics.interpolationAlpha() - 0.5) < 1e-6);
     const halfway = renderedY(); // ...but the render pose still moves on
-    app.update(1 / 120);
+    physics.step(1 / 120);
     assert.equal(physics.lastFrameStepCount(), 1);
     const latest = renderedY();
     assert.ok(
@@ -809,10 +778,10 @@ await checkAsync("rapier render pose blends between slices and a teleport skips 
       rotation: [0, 0, 0],
       scale: [1, 1, 1],
     });
-    app.update(1 / 120);
+    physics.step(1 / 120);
     const teleported = (rendered as TransformComponent | null)?.position ?? assert.fail("rendered");
     assert.deepEqual(teleported, [10, 5, 0]);
-    await app.dispose();
+    physics.dispose();
   });
 });
 
@@ -1342,24 +1311,22 @@ check("physics subsystem: setEntityCollisionEnabled toggles contacts and blocker
     },
   };
   physics.setEntities([wall, trigger, mover]);
-  const app = new EngineApp();
-  app.registerSubsystem(physics);
 
-  app.update(0.016);
+  physics.step(0.016);
   assert.equal(physics.staticBlockerAabbs().length, 1); // the wall blocks movement
   assert.equal(physics.contactsForEntity("trigger:0").length, 1); // sensor overlaps the mover
 
   // Disable both: the wall leaves the blockers, the trigger stops overlapping.
   physics.setEntityCollisionEnabled("wall:0", false);
   physics.setEntityCollisionEnabled("trigger:0", false);
-  app.update(0.016);
+  physics.step(0.016);
   assert.equal(physics.staticBlockerAabbs().length, 0);
   assert.deepEqual(physics.contactsForEntity("trigger:0"), []);
 
   // Re-enable: both come back.
   physics.setEntityCollisionEnabled("wall:0", true);
   physics.setEntityCollisionEnabled("trigger:0", true);
-  app.update(0.016);
+  physics.step(0.016);
   assert.equal(physics.staticBlockerAabbs().length, 1);
   assert.equal(physics.contactsForEntity("trigger:0").length, 1);
 

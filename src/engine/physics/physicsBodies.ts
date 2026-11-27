@@ -286,6 +286,7 @@ export function cloneCollider(collider: ColliderComponent): ColliderComponent {
     clone.simulationGeneratesHitEvents = collider.simulationGeneratesHitEvents;
   }
   if (collider.collisionGroups !== undefined) clone.collisionGroups = collider.collisionGroups;
+  if (collider.profile) clone.profile = collider.profile;
   if (collider.ignoreCameraTrace !== undefined) clone.ignoreCameraTrace = collider.ignoreCameraTrace;
   if (collider.simulatePhysics !== undefined) clone.simulatePhysics = collider.simulatePhysics;
   if (collider.massKg !== undefined) clone.massKg = collider.massKg;

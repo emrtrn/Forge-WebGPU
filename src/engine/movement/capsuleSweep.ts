@@ -22,7 +22,7 @@ function capsule(physics: PhysicsService, actor: ActorId, feet: Vec3, dimensions
     shape: { kind: "capsule", radius: dimensions.radius, halfHeight },
     direction, distance,
     origin: [feet[0], feet[1] + dimensions.radius + halfHeight, feet[2]],
-  }, { ignore: [actor] });
+  }, { ignore: [actor], physicalChannel: "pawn" });
 }
 
 export function capsuleGrounded(physics: PhysicsService, actor: ActorId, feet: Vec3, dimensions: CapsuleDimensions): boolean {
@@ -36,7 +36,7 @@ export function capsuleCanStand(physics: PhysicsService, actor: ActorId, feet: V
   return physics.castShape({
     shape: { kind: "sphere", radius },
     origin, direction: [0, 1, 0], distance: next - current + SKIN,
-  }, { ignore: [actor] }) === null;
+  }, { ignore: [actor], physicalChannel: "pawn" }) === null;
 }
 
 export function sweepCapsule(

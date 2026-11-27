@@ -23,7 +23,7 @@
 // Version 1 had no settings; its files migrate to the defaults.
 
 import { array, assetRef, bool, defineAssetType, enumOf, num, object, text, vec3, type FieldValues } from "../../core/index.ts";
-import { COLLISION_COMPLEXITY_VALUES, COLLISION_ENABLED_VALUES, COLLISION_OBJECT_CHANNELS, COLLISION_PRESET_IDS, COLLISION_RESPONSE_VALUES } from "../../core/schema/collisionChannels.ts";
+import { COLLISION_COMPLEXITY_VALUES, CollisionProfileField } from "../../core/schema/collisionChannels.ts";
 
 export const UVW_MAP_TYPES = ["none", "planar", "box", "sphere", "cylinder"] as const;
 export type UvwMapType = (typeof UVW_MAP_TYPES)[number];
@@ -31,23 +31,13 @@ export type UvwMapType = (typeof UVW_MAP_TYPES)[number];
 /** Forge WebGL's limit on a vertex colour entry (engine/scene/assetVertexColors.ts). */
 export const MAX_VERTEX_COLOR_VERTICES = 2_000_000;
 
-const collisionResponse = () => enumOf(COLLISION_RESPONSE_VALUES, { default: "block" });
-
 export const ModelCollisionFields = {
   complexity: enumOf(COLLISION_COMPLEXITY_VALUES, {
     default: "projectDefault", hint: "Complex As Simple, statik yerleşimlerde modelin üçgen yüzeyini kullanır.",
   }),
   enabled: bool({ default: true, hint: "Model yerleşimleri fizik dünyasına çarpışma geometrisi ekler." }),
   sensor: bool({ default: false, hint: "Hareketi engellemeden örtüşme algılar." }),
-  profile: object({
-    preset: enumOf(["default", ...COLLISION_PRESET_IDS], { default: "default", hint: "Custom seçildiğinde aşağıdaki kanallar kullanılır." }),
-    collisionEnabled: enumOf(COLLISION_ENABLED_VALUES, { default: "queryAndPhysics" }),
-    objectType: enumOf(COLLISION_OBJECT_CHANNELS, { default: "worldStatic" }),
-    responses: object({
-      worldStatic: collisionResponse(), worldDynamic: collisionResponse(), pawn: collisionResponse(),
-      physicsBody: collisionResponse(), trigger: collisionResponse(), visibility: collisionResponse(), camera: collisionResponse(),
-    }),
-  }, { label: "Collision Profile" }),
+  profile: CollisionProfileField,
   physicalMaterial: text({ hint: "Fizik sorgularının döndürdüğü yüzey profili kimliği." }),
   primitives: array(object({
     shape: enumOf(["box", "sphere", "capsule", "cylinder", "cone"], { default: "box" }),

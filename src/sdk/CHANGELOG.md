@@ -8,6 +8,18 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.20
+
+API: f077f696f565ff81
+
+`PhysicsCastFilter.physicalChannel` selects solid blockers for an object
+channel. Trace channels continue to select query responses. Colliders,
+blocking volumes and models share the Block, Overlap and Ignore rules.
+`PhysicsService.setCollisionEnabled` toggles a whole actor and can include
+the change in a checkpoint. Code behaviors can configure tick intervals,
+pause individual tick callbacks, schedule self-targeted messages and expire
+their actors on the simulation clock.
+
 ## 0.1.19
 
 API: e1383ca426aef2a5

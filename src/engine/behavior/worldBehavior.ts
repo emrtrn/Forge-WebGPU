@@ -17,6 +17,17 @@ export interface BehaviorContext {
   readonly actor: WorldActor;
   readonly world: SubsystemContext;
   readonly deltaSeconds: number;
+  /** Holds this behavior's tick callbacks while its events and messages stay active. */
+  setTickEnabled(enabled: boolean): void;
+  /** Runs each tick with the accumulated simulation time. Zero restores per-frame ticks. */
+  setTickInterval(seconds: number): void;
+  /** Removes the actor after this much simulation time. Zero cancels removal. */
+  setLifeSpan(seconds: number): void;
+  readonly timers: {
+    /** Schedules a self-targeted message on this behavior's simulation clock. */
+    after(seconds: number, message: string, payload?: Record<string, unknown>): string;
+    clear(handle: string): void;
+  };
   send(type: string, target: ActorId, payload?: Record<string, unknown>): void;
   emit(type: string, payload?: Record<string, unknown>): void;
 }

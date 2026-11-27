@@ -1,5 +1,5 @@
 import type { Vec3 } from "../../core/index.ts";
-import type { NavigationRole } from "./collision.ts";
+import type { CollisionProfile, NavigationRole } from "./collision.ts";
 
 export type ColliderShape =
   | "box"
@@ -95,6 +95,8 @@ export interface ColliderComponent {
   simulationGeneratesHitEvents?: boolean;
   /** Packed Rapier interaction groups (membership<<16 | filter). Absent = interact with all. */
   collisionGroups?: number;
+  /** Authored response table distinguishes solver blocks from reportable overlaps. */
+  profile?: CollisionProfile;
   /**
    * The profile ignores the `camera` trace channel: a spring-arm camera passes
    * through this collider instead of being pulled in by it. Derived from the

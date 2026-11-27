@@ -3,7 +3,8 @@
 // 1,500, so it is split into physicsSubsystem / staticWorld / vehiclePhysics /
 // physicsBodies / physicsTypes with method bodies unchanged. The ragdoll is not
 // ported (plan K12).
-import { type TransformComponent } from "../legacy/components.ts";
+import { type TransformComponent } from "./colliderTypes.ts";
+import { collisionSolverGroups, interactionGroupsInteract } from "./collision.ts";
 import { computeVehicleDrive } from "./vehicle/vehicleDrive.ts";
 import { nominalWheelLoad, sinkage, vehicleWheelWidth } from "./surface/sinkage.ts";
 import { frameCompaction } from "./surface/wheelTracks.ts";
@@ -26,6 +27,7 @@ export interface VehiclePhysicsHost {
   bodies(): readonly PhysicsBody[];
   suspendedDynamicBodies(): ReadonlyMap<EntityId, SuspendedDynamicBody>;
   rapierColliderToEntity(): ReadonlyMap<number, EntityId>;
+  collisionProfileForCollider(handle: number): PhysicsBody["collider"]["profile"];
   gravity(): Vec3;
   setEntityTransform(entityId: EntityId, transform: TransformComponent): void;
 }
@@ -391,10 +393,16 @@ export class VehiclePhysics {
         rapier.body.applyImpulse({ x: force[0] * deltaSeconds, y: force[1] * deltaSeconds, z: force[2] * deltaSeconds }, false);
       }
       const body = this.host.bodies().find((candidate) => candidate.id === record.entityId);
+      const blockingGroups = body?.collider.profile && collisionSolverGroups(body.collider.profile);
       controller.updateVehicle(
         deltaSeconds,
         RAPIER.QueryFilterFlags.EXCLUDE_SENSORS,
-        body?.collider.collisionGroups,
+        blockingGroups ?? body?.collider.collisionGroups,
+        blockingGroups === undefined ? undefined : (collider) => {
+          // The vehicle callback runs while Rapier borrows its collider set.
+          const profile = this.host.collisionProfileForCollider(collider.handle);
+          return !profile || interactionGroupsInteract(blockingGroups, collisionSolverGroups(profile));
+        },
       );
       record.telemetry.appliedDriveForce = record.definition.wheels.reduce((sum, _wheel, index) =>
         sum + (controller.wheelIsInContact(index) && controller.wheelEngineForce(index) !== 0

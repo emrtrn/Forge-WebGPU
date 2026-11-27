@@ -1,4 +1,6 @@
 /** Serialized collision profiles shared by model schemas and the physics runtime. */
+import { enumOf, object } from "./fields.ts";
+
 /** Unreal "Collision Enabled": which collision interactions a body runs. */
 export type CollisionEnabled = "none" | "query" | "physics" | "queryAndPhysics";
 
@@ -92,3 +94,15 @@ export const COLLISION_PRESET_IDS: readonly CollisionPresetId[] = [
   "trigger",
   "custom",
 ];
+
+const collisionResponse = () => enumOf(COLLISION_RESPONSE_VALUES, { default: "block" });
+
+export const CollisionProfileField = object({
+  preset: enumOf(["default", ...COLLISION_PRESET_IDS], { default: "default", hint: "Custom seçildiğinde aşağıdaki kanallar kullanılır." }),
+  collisionEnabled: enumOf(COLLISION_ENABLED_VALUES, { default: "queryAndPhysics" }),
+  objectType: enumOf(COLLISION_OBJECT_CHANNELS, { default: "worldStatic" }),
+  responses: object({
+    worldStatic: collisionResponse(), worldDynamic: collisionResponse(), pawn: collisionResponse(),
+    physicsBody: collisionResponse(), trigger: collisionResponse(), visibility: collisionResponse(), camera: collisionResponse(),
+  }),
+}, { label: "Collision Profile" });

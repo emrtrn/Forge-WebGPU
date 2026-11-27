@@ -1,6 +1,7 @@
 import { defineSubsystem, isJsonObject, parseComponentTypeTag, type ActorId, type ComponentRecord, type Vec3, type WorldActor } from "../../core/index.ts";
 import { parentWorldMatrix } from "../../engine/gizmo/dragSession.ts";
 import { composeMat4, decomposeMat4, invertMat4, multiplyMat4, type Mat4 } from "../../engine/math/affine.ts";
+import { CheckpointKey } from "../../engine/persistence/checkpointService.ts";
 import type { ColliderComponent, ColliderPrimitive } from "../../engine/physics/colliderTypes.ts";
 import { eulerDegreesFromQuaternion, quaternionFromEulerDegrees } from "../../engine/physics/physicsBodies.ts";
 import {
@@ -17,15 +18,28 @@ import { actorMatrix, componentMatrix } from "../../engine/world/worldMatrices.t
 import type { ShapeData } from "../shape/schema.ts";
 import type { StaticMeshData } from "../static-mesh/schema.ts";
 import type { ModelCollisionSettings } from "../model/schema.ts";
-import type { BlockingVolumeData, ColliderData } from "./schema.ts";
+import { CollisionState, type BlockingVolumeData, type ColliderData } from "./schema.ts";
 
 interface Owner {
   readonly actor: ActorId;
   readonly component: string;
-  readonly profile?: CollisionProfile;
+  readonly profile: CollisionProfile;
+  readonly sensor: boolean;
 }
 
-type ResolvedCollider = ColliderComponent & { readonly profile?: CollisionProfile };
+type ResolvedCollider = ColliderComponent & { readonly profile: CollisionProfile };
+
+const staticProfile = resolveCollisionProfile("blockAll");
+const dynamicProfile = resolveCollisionProfile("blockAllDynamic");
+
+function profileFor(configured: Partial<ModelCollisionSettings["profile"]> | undefined, isStatic: boolean): CollisionProfile {
+  if (isCollisionPresetId(configured?.preset)) return resolveCollisionProfile(configured.preset, configured);
+  return isStatic ? staticProfile : dynamicProfile;
+}
+
+function collisionFields(profile: CollisionProfile, sensor = false) {
+  return { profile, isSensor: sensor || profile.collisionEnabled === "query", collisionGroups: collisionInteractionGroups(profile) };
+}
 
 function scaledSize(size: Readonly<Vec3>, scale: Readonly<Vec3>): Vec3 {
   return [
@@ -71,9 +85,8 @@ function modelCollider(
   if (!asset) return null;
   const settings = isJsonObject(asset.settings) ? asset.settings as Partial<ModelCollisionSettings> : {};
   if (settings.enabled === false) return null;
-  const configured = settings.profile;
-  const profile = isCollisionPresetId(configured?.preset) ? resolveCollisionProfile(configured.preset, configured) : undefined;
-  if (profile?.collisionEnabled === "none") return null;
+  const profile = profileFor(settings.profile, true);
+  if (profile.collisionEnabled === "none") return null;
   let primitives: ColliderPrimitive[] = (settings.primitives ?? []).map((primitive) => ({
     shape: primitive.shape, size: scaledSize(primitive.size, scale),
     center: scaledPoint(primitive.center, scale), rotation: primitive.rotation,
@@ -91,8 +104,7 @@ function modelCollider(
   return {
     shape: "box", size: box ? scaledSize(box.size, scale) : primitives[0]!.size,
     center: box ? scaledPoint(box.center, scale) : primitives[0]!.center ?? [0, 0, 0],
-    isStatic: true, isSensor: settings.sensor === true || profile?.collisionEnabled === "query",
-    ...(profile ? { profile, collisionGroups: collisionInteractionGroups(profile) } : {}),
+    isStatic: true, ...collisionFields(profile, settings.sensor),
     ...(primitives.length ? { primitives } : {}),
     ...(material ? { physicalMaterialId: material, friction, restitution } : {}),
   };
@@ -105,15 +117,20 @@ export function resolveCollider(
   if (type === "forge.collider") {
     const data = component as unknown as ColliderData;
     if (!data.enabled) return null;
+    const isStatic = data.motion !== "dynamic";
+    const profile = profileFor(data.profile, isStatic);
+    if (profile.collisionEnabled === "none") return null;
     return {
-      shape: data.shape, size: scaledSize(data.size, scale), isStatic: true, isSensor: data.sensor,
+      shape: data.shape, size: scaledSize(data.size, scale), isStatic, ...collisionFields(profile, data.sensor),
       friction: data.friction, restitution: data.restitution,
       ...(data.physicalMaterial ? { physicalMaterialId: data.physicalMaterial } : {}),
     };
   }
   if (type === "forge.blockingVolume") {
     const data = component as unknown as BlockingVolumeData;
-    return { shape: data.shape, size: scaledSize(data.size, scale), isStatic: true, isSensor: false };
+    const profile = profileFor(data.profile, true);
+    if (profile.collisionEnabled === "none") return null;
+    return { shape: data.shape, size: scaledSize(data.size, scale), isStatic: true, ...collisionFields(profile) };
   }
   if (type === "forge.staticMesh") return modelCollider(component as unknown as StaticMeshData, scale, model, meshes);
   const data = component as unknown as ShapeData;
@@ -122,7 +139,7 @@ export function resolveCollider(
   const width = data.primitive === "plane" ? SHAPE_PLANE_SIZE : SHAPE_SOLID_SIZE;
   const y = data.primitive === "plane" ? 0.01 : SHAPE_SOLID_SIZE;
   return {
-    shape, size: scaledSize([width, y, width], scale), isStatic: true, isSensor: false,
+    shape, size: scaledSize([width, y, width], scale), isStatic: true, ...collisionFields(staticProfile),
   };
 }
 
@@ -141,6 +158,9 @@ export const WorldPhysicsSubsystem = defineSubsystem({
     const physics = new PhysicsSubsystem({ backend: "rapier" });
     physics.startRapier(prepared.rapier);
     const actorMotion = world.services.require(ActorMotionKey);
+    const checkpoint = world.services.get(CheckpointKey);
+    const savedDisabled = new Set<ActorId>(checkpoint?.state(CollisionState).disabled.filter((id) => id !== null));
+    const disabled = new Set(savedDisabled);
     const owners = new Map<string, Owner>();
     const byActor = new Map<ActorId, Set<string>>();
     const dynamic = new Map<ActorId, { id: string; scale: Vec3 }>();
@@ -156,11 +176,18 @@ export const WorldPhysicsSubsystem = defineSubsystem({
       const { x, y, z, w } = quaternionFromEulerDegrees(pose.rotation);
       moved.set(owner.actor, composeMat4(pose.position, [x, y, z, w], entry.scale));
     });
-    const register = (id: string, actor: ActorId, component: string, profile?: CollisionProfile) => {
-      owners.set(id, { actor, component, ...(profile ? { profile } : {}) });
+    const register = (id: string, actor: ActorId, component: string, collider: ResolvedCollider) => {
+      owners.set(id, { actor, component, profile: collider.profile, sensor: collider.isSensor });
       let ids = byActor.get(actor);
       if (!ids) byActor.set(actor, ids = new Set());
       ids.add(id);
+    };
+    const addBodies = (bodies: readonly PhysicsBody[]) => {
+      physics.addBodies(bodies);
+      for (const { id } of bodies) {
+        const actor = owners.get(id)?.actor;
+        if (actor !== undefined && disabled.has(actor)) physics.setEntityCollisionEnabled(id, false);
+      }
     };
     const remove = (ids: readonly string[]) => {
       if (ids.length === 0) return;
@@ -189,8 +216,8 @@ export const WorldPhysicsSubsystem = defineSubsystem({
           if (!collider) continue;
           const id = `${actor.id}/${key}`;
           remove([id]);
-          physics.addBodies([{ id, transform: worldPose(placement), collider }]);
-          register(id, actor.id, key, collider.profile);
+          register(id, actor.id, key, collider);
+          addBodies([{ id, transform: worldPose(placement), collider }]);
         }
       }).catch((error: unknown) => {
         if (disposed) return;
@@ -208,8 +235,8 @@ export const WorldPhysicsSubsystem = defineSubsystem({
         });
         if (components.length === 0) continue;
         const matrix = actorMatrix(actor, world.actor);
-        const driver = components.find(({ component, type }) =>
-          type === "forge.collider" && component.enabled === true && component.motion === "dynamic");
+        const driver = components.find(({ component, type }) => type === "forge.collider" && component.enabled === true &&
+          component.motion === "dynamic" && profileFor((component as unknown as ColliderData).profile, false).collisionEnabled !== "none");
         if (driver) {
           const data = driver.component as unknown as ColliderData;
           const { p, r, s } = decomposeMat4(matrix);
@@ -218,17 +245,19 @@ export const WorldPhysicsSubsystem = defineSubsystem({
             if (type !== "forge.collider" || component.enabled !== true) return [];
             const { p: center, r: [x, y, z, w], s: partScale } = decomposeMat4(multiplyMat4(inverse, componentMatrix(actor, key, matrix)));
             const shape = component as unknown as ColliderData;
+            if (profileFor(shape.profile, false).collisionEnabled === "none") return [];
             return [{ shape: shape.shape, size: scaledSize(shape.size, partScale), center, rotation: eulerDegreesFromQuaternion({ x, y, z, w }) }];
           });
           const id = `${actor.id}/${driver.key}`;
-          const collider: ColliderComponent = {
+          // A dynamic compound shares the driving component's profile and material.
+          const collider: ResolvedCollider = {
             shape: data.shape, size: primitives[0]!.size, primitives,
-            isStatic: false, isSensor: data.sensor, simulatePhysics: true,
+            isStatic: false, simulatePhysics: true, ...collisionFields(profileFor(data.profile, false), data.sensor),
             friction: data.friction, restitution: data.restitution, massKg: data.mass, enableGravity: data.gravity,
             ...(data.physicalMaterial ? { physicalMaterialId: data.physicalMaterial } : {}),
           };
           bodies.push({ id, transform: worldPose(matrix), collider });
-          register(id, actor.id, driver.key);
+          register(id, actor.id, driver.key, collider);
           dynamic.set(actor.id, { id, scale: s });
           continue;
         }
@@ -241,13 +270,17 @@ export const WorldPhysicsSubsystem = defineSubsystem({
           if (!collider) continue;
           const id = `${actor.id}/${key}`;
           bodies.push({ id, transform: worldPose(placement), collider });
-          register(id, actor.id, key, collider.profile);
+          register(id, actor.id, key, collider);
         }
       }
-      physics.addBodies(bodies);
+      addBodies(bodies);
     };
     const removeActors = (actors: readonly WorldActor[]) => {
       remove(actors.flatMap((actor) => Array.from(byActor.get(actor.id) ?? [])));
+      for (const { id } of actors) {
+        if (savedDisabled.has(id)) disabled.add(id);
+        else disabled.delete(id);
+      }
     };
     function hit(result: ReturnType<typeof physics.casts.ray>): PhysicsHit | null {
       if (!result) return null;
@@ -261,10 +294,13 @@ export const WorldPhysicsSubsystem = defineSubsystem({
     const accepts = (filter: PhysicsCastFilter) => (body: string) => {
       const owner = owners.get(body);
       if (!owner || filter.ignore?.includes(owner.actor)) return false;
-      if (!owner.profile || !filter.channel) return true;
+      if (filter.physicalChannel) return !owner.sensor && owner.profile.responses[filter.physicalChannel] === "block";
+      if (!filter.channel) return !owner.sensor || filter.includeSensors === true;
       if (owner.profile.collisionEnabled === "physics") return false;
       const response = owner.profile.responses[filter.channel];
-      return response === "block" || (response === "overlap" && filter.includeSensors === true);
+      if (response === "ignore") return false;
+      if (filter.includeSensors) return true;
+      return response === "block" && (!owner.sensor || owner.profile.collisionEnabled === "query");
     };
     world.services.provide(PhysicsRuntimeKey, {
       physics,
@@ -276,24 +312,37 @@ export const WorldPhysicsSubsystem = defineSubsystem({
       async ready() { await Promise.all(pending.values()); },
     });
     world.services.provide(PhysicsServiceKey, {
-      castRay: (query, filter = {}) => hit(physics.casts.ray(query, filter, accepts({ channel: "visibility", ...filter }))),
-      castShape: (query, filter = {}) => hit(physics.casts.shape(query, filter, accepts(filter))),
+      castRay: (query, filter = {}) => hit(physics.casts.ray(query, { ...filter, includeSensors: true }, accepts({ channel: "visibility", ...filter }))),
+      castShape: (query, filter = {}) => hit(physics.casts.shape(query, { ...filter, includeSensors: true }, accepts(filter))),
       applyImpulse(actor, impulse) {
         const entry = dynamic.get(actor);
         if (entry && impulse.every(Number.isFinite)) physics.applyImpulse(entry.id, impulse);
       },
+      setCollisionEnabled(actor, enabled, options) {
+        if (!world.actor(actor)) return false;
+        if (enabled) disabled.delete(actor);
+        else disabled.add(actor);
+        for (const id of byActor.get(actor) ?? []) physics.setEntityCollisionEnabled(id, enabled);
+        if (options?.persist) {
+          if (enabled) savedDisabled.delete(actor);
+          else savedDisabled.add(actor);
+          checkpoint?.setState(CollisionState, { disabled: [...savedDisabled].sort() });
+        }
+        return true;
+      },
     });
     world.services.provide(StaticCollisionSourceKey, {
       add(id, actor, component, position, primitive: ColliderPrimitive, physicalMaterial) {
-        physics.addBodies([{
+        const collider: ResolvedCollider = {
+          shape: primitive.shape, size: primitive.size, primitives: [primitive], isStatic: true, ...collisionFields(staticProfile),
+          ...(primitive.shape === "heightfield" ? { navigationRole: "walkable" } : {}),
+          ...(physicalMaterial ? { physicalMaterialId: physicalMaterial } : {}),
+        };
+        register(id, actor, component, collider);
+        addBodies([{
           id, transform: { position, rotation: [0, 0, 0], scale: [1, 1, 1] },
-          collider: {
-            shape: primitive.shape, size: primitive.size, primitives: [primitive], isStatic: true, isSensor: false,
-            ...(primitive.shape === "heightfield" ? { navigationRole: "walkable" } : {}),
-            ...(physicalMaterial ? { physicalMaterialId: physicalMaterial } : {}),
-          },
+          collider,
         }]);
-        register(id, actor, component);
       },
       remove,
       ray: (query, accept) => physics.casts.ray(query, {}, accept),

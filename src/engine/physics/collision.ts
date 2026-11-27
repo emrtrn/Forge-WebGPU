@@ -355,10 +355,20 @@ export const COLLISION_OBJECT_CHANNEL_BITS: Record<CollisionObjectChannel, numbe
  * filters that pair out entirely.
  */
 export function collisionInteractionGroups(profile: CollisionProfile): number {
+  return packCollisionGroups(profile, "overlap");
+}
+
+/** Narrow-phase pairs can overlap while the solver applies impulses only to mutual blocks. */
+export function collisionSolverGroups(profile: CollisionProfile): number {
+  return packCollisionGroups(profile, "block");
+}
+
+function packCollisionGroups(profile: CollisionProfile, minimum: "overlap" | "block"): number {
   const memberships = COLLISION_OBJECT_CHANNEL_BITS[profile.objectType];
   let filter = 0;
   for (const channel of COLLISION_OBJECT_CHANNELS) {
-    if (profile.responses[channel] !== "ignore") filter |= COLLISION_OBJECT_CHANNEL_BITS[channel];
+    const response = profile.responses[channel];
+    if (response === "block" || (minimum === "overlap" && response === "overlap")) filter |= COLLISION_OBJECT_CHANNEL_BITS[channel];
   }
   return ((memberships & 0xffff) << 16) | (filter & 0xffff);
 }

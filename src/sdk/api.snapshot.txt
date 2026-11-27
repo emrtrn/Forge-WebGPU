@@ -57,8 +57,12 @@ interface BehaviorContext
   emit: (type: string, payload?: Record<string, unknown>) => void
   readonly actor: WorldActor
   readonly deltaSeconds: number
+  readonly timers: { after(seconds: number, message: string, payload?: Record<string, unknown>): string; clear(handle: string): void; }
   readonly world: SubsystemContext
   send: (type: string, target: ActorId, payload?: Record<string, unknown>) => void
+  setLifeSpan: (seconds: number) => void
+  setTickEnabled: (enabled: boolean) => void
+  setTickInterval: (seconds: number) => void
 
 interface BehaviorDefinition
   readonly events?: Partial<Record<"overlap" | "beginPlay" | "endPlay" | "hit" | "impact", (context: BehaviorContext, event: BehaviorEvent) => void>> | undefined
@@ -233,6 +237,7 @@ interface PhysicsCastFilter
   readonly groups?: number | undefined
   readonly ignore?: ReadonlyArray<`act_${string}`> | undefined
   readonly includeSensors?: boolean | undefined
+  readonly physicalChannel?: CollisionObjectChannel | undefined
 
 interface PhysicsHit
   readonly actor: `act_${string}`
@@ -246,6 +251,7 @@ interface PhysicsService
   applyImpulse: (actor: ActorId, impulse: Readonly<Vec3>) => void
   castRay: (query: RayCast, filter?: PhysicsCastFilter) => PhysicsHit | null
   castShape: (query: ShapeCast, filter?: PhysicsCastFilter) => PhysicsHit | null
+  setCollisionEnabled: (actor: ActorId, enabled: boolean, options?: { readonly persist?: boolean; }) => boolean
 
 const PhysicsServiceKey: import("src/core/index").ServiceKey<PhysicsService>
 
@@ -278,7 +284,7 @@ interface RuntimeCameraPose
   readonly position: readonly [number, number, number]
   readonly quaternion: readonly [number, number, number, number]
 
-const SDK_VERSION: "0.1.19"
+const SDK_VERSION: "0.1.20"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -680,7 +686,7 @@ const OUTLINER_TYPES: readonly [{ readonly type: "mesh"; readonly label: "Meshes
 
 type OutlinerType = "mesh" | "terrain" | "gameplay" | "light" | "character" | "environment" | "volume" | "widget"
 
-const SDK_VERSION: "0.1.19"
+const SDK_VERSION: "0.1.20"
 
 function defineFeatureEditor(options: FeatureEditorOptions): FeatureEditorDef
 
@@ -803,6 +809,8 @@ interface ClassActor  // src/core/level/model.ts
   pivot?: Vec3 | undefined
   spatiallyLoaded: boolean
   transform: Transform
+
+type CollisionObjectChannel = "worldStatic" | "worldDynamic" | "pawn" | "physicsBody" | "trigger"  // src/core/schema/collisionChannels.ts
 
 type CollisionTraceChannel = "visibility" | "camera"  // src/core/schema/collisionChannels.ts
 
