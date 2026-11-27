@@ -48,8 +48,10 @@ import {
 import { TimeControlKey } from "../engine/time/timeControl.ts";
 import { ActorMotionKey } from "../engine/world/actorMotion.ts";
 import { CheckpointActorTrackingKey } from "../engine/persistence/checkpointService.ts";
+import { SubsystemProfiler } from "../engine/perf/subsystemProfiler.ts";
 
 export const MAX_TICK_SECONDS = 0.1;
+const ENGINE_REGION_ID = "engine";
 
 export class WorldError extends Error {
   readonly issues: readonly Issue[];
@@ -90,8 +92,10 @@ export interface World {
    */
   updateActors(actors: readonly ActorDoc[]): WorldActorChange[];
   beginPlay(): void;
-  /** One frame: every tick group in order. `dt` in seconds, clamped to [0, 0.1]. */
-  tick(dt: number): void;
+  /** Clamps real seconds to [0, 0.1], runs the tick groups, and returns the simulation seconds advanced. */
+  tick(dt: number): number;
+  /** Enables tick timing once. The frame owner records and closes the whole frame. */
+  enableProfiling(now?: () => number, windowFrames?: number): SubsystemProfiler;
   endPlay(reason?: EndPlayReason): void;
   /** Ends play if needed and releases everything. The world cannot be used afterwards. */
   dispose(): void;
@@ -109,6 +113,7 @@ export function createWorld(options: WorldOptions): World {
   const byType = new Map<string, ComponentEntry[]>();
   const subsystems: Running[] = [];
   const definitions: SubsystemDef[] = [];
+  let profiling: { readonly profiler: SubsystemProfiler; readonly now: () => number } | undefined;
   const editor = (options.mode ?? "game") === "editor";
   services.provide(LevelSettingsKey, { current: defaultValue(object(LevelSettingsFields)) as LevelSettings });
   for (const feature of options.features) {
@@ -327,15 +332,41 @@ export function createWorld(options: WorldOptions): World {
       state = "playing";
       for (const running of subsystems) running.instance.beginPlay?.();
     },
+    enableProfiling(now = () => performance.now(), windowFrames) {
+      if (profiling) return profiling.profiler;
+      const profiler = new SubsystemProfiler(windowFrames);
+      profiler.declareRegion({ id: ENGINE_REGION_ID });
+      for (const { id } of definitions) profiler.declareRegion({ id, parent: ENGINE_REGION_ID });
+      profiling = { profiler, now };
+      return profiler;
+    },
     tick(dt) {
       expect(["playing"], "tick");
       const rawStep = Number.isFinite(dt) ? Math.min(Math.max(dt, 0), MAX_TICK_SECONDS) : 0;
       const step = services.get(TimeControlKey)?.simulationDelta(rawStep) ?? rawStep;
+      const timing = profiling;
+      const times = timing && new Map<string, number>();
+      const start = timing?.now() ?? 0;
       for (const group of TICK_GROUPS) {
-        for (const running of subsystems) {
-          if (running.def.tickGroups.includes(group)) running.instance.tick?.(group, step);
+        for (const { def, instance } of subsystems) {
+          if (!def.tickGroups.includes(group) || !instance.tick) continue;
+          if (timing && times) {
+            const started = timing.now();
+            instance.tick(group, step);
+            const elapsed = Math.max(0, timing.now() - started);
+            times.set(def.id, (times.get(def.id) ?? 0) + elapsed);
+          } else {
+            instance.tick(group, step);
+          }
         }
       }
+      if (timing && times) {
+        const elapsed = timing.now() - start;
+        // Keep one rolling sample per subsystem even if it ticks in several groups.
+        for (const [id, ms] of times) timing.profiler.record(id, ms);
+        timing.profiler.record(ENGINE_REGION_ID, elapsed);
+      }
+      return step;
     },
     endPlay(reason = "stopped") {
       expect(["playing"], "end play in");

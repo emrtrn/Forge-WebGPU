@@ -140,9 +140,9 @@ Yeni nesnelerde gölge varsayılan açık; kalite profili ayrıca sınırlar.
   (ortak test fixture'ı okumak için) `node:fs` import edebilir; Forge'dan
   taşınan kontroller birebir
   kalır (`check` = Vitest `test`).
-- `src/engine/testing/` test iskelesidir (Forge'un eski döngüsü): yalnız testler
-  import eder, ürün koduna girmez; Faz 6'da silinir. Taşınan alt sistemler
-  `src/engine/subsystem.ts` biçimini uygular. İlerleme `npm run port:forge-tests`.
+- `src/engine/testing/` taşınan kontrollerin geçiş yardımcılarını tutar. Yalnız
+  testler import eder. Faz 6'da eski döngü kaldırıldı. World'e geçişi süren alt
+  sistemler `src/engine/subsystem.ts` biçimini kullanır. İlerleme `npm run port:forge-tests`.
 - `src/engine/legacy/` geçiş modelidir (Forge'un eski bileşen okuyucuları):
   yalnız `src/engine` import eder; Faz 6'da şemalı bileşenlerle silinir. Yeni
   koda okuyucu ekleme, şemaya git.

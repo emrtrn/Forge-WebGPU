@@ -41,6 +41,8 @@ import { installWorldCheckpoint, type CheckpointOptions } from "./persistence/wo
 import { BrowserUiHostKey, type BrowserUiHost } from "./ui/uiHost.ts";
 import { WorldJsonAssetsKey, type WorldJsonLoader } from "../engine/world/worldAssets.ts";
 import { LoadProgressTracker } from "../engine/loading/loadProgress.ts";
+import type { FrameCaptureListener } from "../engine/perf/frameCapture.ts";
+import { TimeControlKey } from "../engine/time/timeControl.ts";
 import { createWorld, WorldError, type World } from "./world.ts";
 
 export type BootStage = "project" | "features" | "render" | "level" | "world" | "frame";
@@ -126,12 +128,16 @@ export interface BootOptions {
   readonly loadLevel: (registry: SchemaRegistry) => Promise<LoadedLevel | null>;
   readonly screen: BootScreen;
   readonly scheduler: FrameScheduler;
+  /** Supplying a millisecond clock enables CPU frame profiling for diagnostics. */
+  readonly frameProfileClock?: () => number;
   /** Warnings that did not stop the boot (a production build's data report). */
   readonly warn?: (issues: readonly Issue[]) => void;
 }
 
 export interface RunningGame {
   readonly world: World;
+  /** In diagnostics mode, delivers the next completed frame once. */
+  readonly armFrameCapture?: (listener: FrameCaptureListener) => void;
   /** Stops the loop and disposes the world. */
   stop(): void;
 }
@@ -297,12 +303,17 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
   }
 
   const running = world;
+  const now = options.frameProfileClock;
+  const profile = now ? { now, profiler: running.enableProfiling(now) } : undefined;
+  let sceneSeconds = 0;
+  let armedCapture: FrameCaptureListener | undefined;
   let handle: number | null = null;
   let last: number | null = null;
   let halted = false;
   let waitingForAssets = typeof render?.ready === "function";
   const halt = (view: BootErrorView): void => {
     halted = true;
+    armedCapture = undefined;
     waitingForAssets = false;
     if (handle !== null) options.scheduler.cancel(handle);
     handle = null;
@@ -321,14 +332,35 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
     const dt = last === null ? 0 : (time - last) / 1000;
     last = time;
     try {
+      const frameStart = profile?.now() ?? 0;
       if (streaming && render?.streamingSources) streaming.update(render.streamingSources());
       checkpoint?.restoreSpawned();
-      running.tick(dt);
-      render?.frame(time, running);
+      const listener = armedCapture;
+      armedCapture = undefined;
+      const timeControl = listener ? running.services.get(TimeControlKey) : undefined;
+      const paused = timeControl?.paused ?? false;
+      const timeScale = timeControl?.timeScale ?? 1;
+      const advanced = running.tick(dt);
+      if (render) {
+        const renderStart = profile?.now() ?? 0;
+        render.frame(time, running);
+        if (profile) profile.profiler.record("render", profile.now() - renderStart);
+      }
       if (waitingForAssets && render?.ready?.()) {
         waitingForAssets = false;
         progress.markLoaded("assets");
         screen.clear();
+      }
+      if (profile) {
+        sceneSeconds += advanced;
+        profile.profiler.recordFrame(profile.now() - frameStart);
+        if (listener && !halted) {
+          const captured = profile.profiler.captureFrame();
+          const context = { sceneSeconds, paused, timeScale };
+          // Building the table happens outside the frame it describes.
+          queueMicrotask(() => { if (!halted) listener(captured, context); });
+        }
+        profile.profiler.endFrame();
       }
     } catch (error) {
       halt(bootErrorView("frame", error));
@@ -345,8 +377,10 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
 
   return {
     world: running,
+    ...(profile ? { armFrameCapture(listener: FrameCaptureListener) { if (!halted) armedCapture = listener; } } : {}),
     stop() {
       halted = true;
+      armedCapture = undefined;
       if (handle !== null) options.scheduler.cancel(handle);
       handle = null;
       if (waitingForAssets) screen.clear();

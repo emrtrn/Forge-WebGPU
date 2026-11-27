@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, test as check } from "vitest";
 import {
   createServiceKey,
   defineFeature,
@@ -46,16 +46,18 @@ function world(features = [defineFeature({ id: "test.empty" })]): World {
 }
 
 describe("lifecycle", () => {
-  test("hooks run in order; teardown runs backwards", () => {
+  // Carries the Forge WebGL engine-core lifecycle check onto the World loop.
+  check("engine core initializes and ticks deterministic subsystems", () => {
     const log: string[] = [];
     const subject = world([
       defineFeature({ id: "test.a", subsystems: [recorder("test.a", log, ["physics"])] }),
-      defineFeature({ id: "test.b", subsystems: [recorder("test.b", log, ["prePhysics", "renderSync"])] }),
+      defineFeature({ id: "test.b", subsystems: [recorder("test.b", log, ["prePhysics", "physics", "renderSync"])] }),
     ]);
     subject.init();
     subject.addActors(docs([{ id: actorId("1"), name: "one" }, { id: actorId("2"), name: "two" }]), "level");
     subject.beginPlay();
     subject.tick(0.016);
+    subject.tick(0.025);
     subject.dispose();
     expect(log).toEqual([
       "test.a init",
@@ -66,7 +68,12 @@ describe("lifecycle", () => {
       "test.b beginPlay",
       "test.b prePhysics 0.016",
       "test.a physics 0.016",
+      "test.b physics 0.016",
       "test.b renderSync 0.016",
+      "test.b prePhysics 0.025",
+      "test.a physics 0.025",
+      "test.b physics 0.025",
+      "test.b renderSync 0.025",
       "test.b endPlay stopped",
       "test.a endPlay stopped",
       "test.b dispose",

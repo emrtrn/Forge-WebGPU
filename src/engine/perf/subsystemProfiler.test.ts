@@ -3,8 +3,6 @@
 // check is copied unchanged and runs as a Vitest test; docs/PORT_LOG.md §2.
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { type Subsystem } from "../subsystem.ts";
-import { EngineApp } from "../testing/EngineApp.ts";
 import { SubsystemProfiler } from "./subsystemProfiler.ts";
 
 const check = test;
@@ -72,54 +70,4 @@ check("subsystem profiler: window drops old samples, clamps negatives, top(n) + 
     frames: 0,
     frame: null,
   });
-});
-
-check("subsystem profiler: registry times each subsystem with an injected clock", () => {
-  const app = new EngineApp();
-  const ticks: string[] = [];
-  const makeSubsystem = (id: string): Subsystem => ({
-    id,
-    update: () => {
-      ticks.push(id);
-    },
-  });
-  app.registerSubsystem(makeSubsystem("first"));
-  app.registerSubsystem(makeSubsystem("second"));
-
-  // Deterministic clock: each now() call advances 1ms, so every subsystem's
-  // measured (end - start) is exactly 1ms.
-  let clock = 0;
-  const profiler = app.enableProfiling(() => (clock += 1));
-  assert.equal(profiler instanceof SubsystemProfiler, true);
-  // Idempotent: a second enable returns the same profiler.
-  assert.equal(app.enableProfiling(), profiler);
-
-  app.update(0.016);
-  assert.deepEqual(ticks, ["first", "second"]);
-  // The subsystem block no longer closes the profiler's frame: it is one
-  // region of the frame, and everything the shell runs after it would fall
-  // outside a frame that ended here (F1, plan §1.1).
-  assert.equal(app.getProfileSnapshot()!.frames, 0);
-  app.recordFrame(8);
-  app.endProfileFrame();
-  const snapshot = app.getProfileSnapshot();
-  assert.ok(snapshot);
-  assert.equal(snapshot!.frames, 1);
-  // The whole frame is the denominator and is kept out of the region list.
-  assert.equal(snapshot!.frame?.averageMs, 8);
-  assert.equal(snapshot!.subsystems.some((timing) => timing.id === "frame"), false);
-  // The block as a whole is a region too, with the subsystems as its children:
-  // its 5 ms (five clock reads at 1 ms apiece) minus their 2 ms is the
-  // registry's own overhead, which nothing else would ever report.
-  assert.deepEqual(
-    snapshot!.subsystems.map((s) => [s.id, s.lastMs, s.parent]),
-    [
-      ["engine", 5, null],
-      ["first", 1, "engine"],
-      ["second", 1, "engine"],
-    ],
-  );
-  // Roots only: counting the group and its children would double 2 of the 5 ms
-  // and hand the bottleneck classifier a CPU share it could never justify.
-  assert.equal(snapshot!.totalAverageMs, 5);
 });

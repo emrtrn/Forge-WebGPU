@@ -12,9 +12,6 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { EngineApp } from "../testing/EngineApp.ts";
-import { ENGINE_REGION_ID } from "../testing/SubsystemRegistry.ts";
-import type { Subsystem } from "../subsystem.ts";
 import { SubsystemProfiler } from "./subsystemProfiler.ts";
 import {
   buildFrameRegionRows,
@@ -214,49 +211,6 @@ export function registerFrameRegionTests(check: Check): void {
     // Counting the wires would put the share at 68% and diagnose the instrument
     // instead of the game.
     assert.equal(verdict.type, "gpu");
-  });
-
-  check("the subsystem block is a region whose residual is the registry's own cost", () => {
-    const app = new EngineApp();
-    const makeSubsystem = (id: string): Subsystem => ({ id, update: () => undefined });
-    app.registerSubsystem(makeSubsystem("first"));
-    app.registerSubsystem(makeSubsystem("second"));
-    let clock = 0;
-    app.enableProfiling(() => (clock += 1));
-
-    app.update(0.016);
-    app.recordFrame(20);
-    app.endProfileFrame();
-
-    const snapshot = app.getProfileSnapshot()!;
-    const rows = buildFrameRegionRows(snapshot);
-    assert.deepEqual(
-      rows.map((row) => [row.id, row.depth]),
-      [
-        [ENGINE_REGION_ID, 0],
-        ["first", 1],
-        ["second", 1],
-        [`${ENGINE_REGION_ID} (other)`, 1],
-        [UNMEASURED_REGION_ID, 0],
-      ],
-    );
-    // Five clock reads at 1 ms apiece bracket the block; the two subsystems
-    // account for 2 of them, and the remaining 3 are the registry's own loop —
-    // a cost that had nowhere at all to appear before regions existed.
-    assert.equal(rows.find((row) => row.id === `${ENGINE_REGION_ID} (other)`)!.averageMs, 3);
-  });
-
-  check("a subsystem registered after profiling started still nests under engine", () => {
-    // A capability module attaching mid-session used to read as a top-level
-    // region and get counted twice against the frame.
-    const app = new EngineApp();
-    let clock = 0;
-    app.enableProfiling(() => (clock += 1));
-    app.registerSubsystem({ id: "late", update: () => undefined });
-    app.update(0.016);
-    app.endProfileFrame();
-    const late = app.getProfileSnapshot()!.subsystems.find((timing) => timing.id === "late");
-    assert.equal(late?.parent, ENGINE_REGION_ID);
   });
 
   check("debugTableToText aligns the grid so a pasted table is still readable", () => {

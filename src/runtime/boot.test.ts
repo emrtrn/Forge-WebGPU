@@ -7,6 +7,8 @@ import { defineGameModule } from "./gameModule.ts";
 import { WorldError } from "./world.ts";
 import { CheckpointKey } from "../engine/persistence/checkpointService.ts";
 import { createMemoryStorageAdapter, SaveGameStore } from "../engine/persistence/saveGameStore.ts";
+import type { FrameCaptureListener } from "../engine/perf/frameCapture.ts";
+import { TimeControl, TimeControlKey } from "../engine/time/timeControl.ts";
 
 const components = defineFeature({ id: "test.components", components: [Fog, Collider, StaticMesh, Driver] });
 const LEVEL = { schema: "forge.level/1", id: levelId("1"), actors: [{ id: actorId("1"), name: "Fog", components: { fog: { type: "test.fog@2" } } }] };
@@ -116,6 +118,7 @@ describe("bootGame", () => {
     const { options, shown, step, pending } = harness({ features: [components, ticker(log)] });
     const game = await bootGame(options);
     expect(game?.world.state).toBe("playing");
+    expect(game?.armFrameCapture).toBeUndefined();
     expect(shown).toEqual([{ kind: "clear", title: "" }]);
     step(1000);
     step(1016);
@@ -244,6 +247,47 @@ describe("bootGame", () => {
       const shown = await harnessBoot({ render, loadLevel: async () => (log.push("load level"), { level: LEVEL }) });
       expect(shown).toMatchObject({ kind: "error", title: "The renderer could not be started", view: { message: "WebGPU is not available" } });
       expect(log).toEqual(["render init", "render dispose"]);
+    });
+
+    test("diagnostics capture one completed CPU frame with World and render timing", async () => {
+      let clock = 0;
+      const log: string[] = [];
+      const { render } = fakeRender(log);
+      const measured = defineFeature({ id: "test.measured", subsystems: [defineSubsystem({
+        id: "test.measured", tickGroups: ["physics"], create: () => ({ tick() { clock += 2; } }),
+      })] });
+      const { options, step } = harness({
+        features: [components, measured],
+        render: { ...render, frame: () => { clock += 5; } },
+        frameProfileClock: () => clock,
+      });
+      const game = (await bootGame(options))!;
+      try {
+        const timeControl = new TimeControl();
+        timeControl.setTimeScale(2);
+        game.world.services.provide(TimeControlKey, timeControl);
+        step(1000);
+
+        const captures: Parameters<FrameCaptureListener>[] = [];
+        game.armFrameCapture!((...args) => captures.push(args));
+        expect(captures).toHaveLength(0);
+        step(1230);
+        await Promise.resolve();
+        const [frame, context] = captures[0]!;
+        expect(frame).toMatchObject({ totalMs: 7, averageTotalMs: 7, windowFrames: 2 });
+        expect(frame.regions).toEqual(expect.arrayContaining([
+          expect.objectContaining({ id: "engine", parent: null, frameMs: 2 }),
+          expect.objectContaining({ id: "test.measured", parent: "engine", frameMs: 2 }),
+          expect.objectContaining({ id: "render", parent: null, frameMs: 5 }),
+        ]));
+        expect(context).toEqual({ sceneSeconds: 0.2, paused: false, timeScale: 2 });
+
+        step(1246);
+        await Promise.resolve();
+        expect(captures).toHaveLength(1);
+      } finally {
+        game.stop();
+      }
     });
 
     test("loading progress stays visible until the renderer settles its initial scene assets", async () => {

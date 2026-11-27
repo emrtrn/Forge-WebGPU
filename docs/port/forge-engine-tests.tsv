@@ -428,8 +428,8 @@ tests/engine/frameRegions.test.ts	129	check	A			engine/core,engine/perf		src/eng
 tests/engine/frameRegions.test.ts	149	check	A			engine/core,engine/perf		src/engine/perf/frameRegions.test.ts	orphan regions surface as top-level rather than hiding under a phantom group	
 tests/engine/frameRegions.test.ts	167	check	A			engine/core,engine/perf		src/engine/perf/frameRegions.test.ts	a group's time is counted once, and diagnostic cost is counted apart	
 tests/engine/frameRegions.test.ts	194	check	A			engine/core,engine/perf		src/engine/perf/frameRegions.test.ts	the overlay's own cost cannot tip the bottleneck verdict to cpu	
-tests/engine/frameRegions.test.ts	216	check	A			engine/core,engine/perf		src/engine/perf/frameRegions.test.ts	the subsystem block is a region whose residual is the registry's own cost	
-tests/engine/frameRegions.test.ts	246	check	A			engine/core		src/engine/perf/frameRegions.test.ts	a subsystem registered after profiling started still nests under engine	
+tests/engine/frameRegions.test.ts	216	check	A			engine/core,engine/perf		src/runtime/worldProfiling.test.ts	the subsystem block is a region whose residual is the registry's own cost	
+tests/engine/frameRegions.test.ts	246	check	A			engine/core		src/runtime/worldProfiling.test.ts	a subsystem registered after profiling started still nests under engine	
 tests/engine/frameRegions.test.ts	259	check	A			engine/perf		src/engine/perf/frameRegions.test.ts	debugTableToText aligns the grid so a pasted table is still readable	
 tests/engine/gpuSweep.test.ts	27	check	A			engine/perf		src/engine/perf/gpuSweep.test.ts	median resists the warm-up frame a mean would let through	
 tests/engine/gpuSweep.test.ts	36	check	A			engine/perf		src/engine/perf/gpuSweep.test.ts	a row is compared with its own bracket, so a sliding baseline cancels	
@@ -1735,7 +1735,7 @@ tools/engine-tests.ts	2674	check	M			engine/scene	model:engine/scene		actor inst
 tools/engine-tests.ts	2696	check	M			engine/scene	model:engine/scene		actorInstanceToEntity bakes placement scale into the flattened capsule collider	
 tools/engine-tests.ts	2729	check	M			engine/scene	model:engine/scene		actorInstanceToEntity bakes non-uniform placement scale into a box collider	
 tools/engine-tests.ts	2752	check	M			engine/scene	model:engine/scene		light entity carries actor render inputs for parity	
-tools/engine-tests.ts	2813	checkAsync	A			engine/core		src/engine/testing/EngineApp.test.ts	engine core initializes and ticks deterministic subsystems	
+tools/engine-tests.ts	2813	checkAsync	A			engine/core		src/runtime/world.test.ts	engine core initializes and ticks deterministic subsystems	
 tools/engine-tests.ts	2863	check	R			engine/core,engine/render-three	three-via:engine/render-three		animation subsystem ticks mixers with engine deltaSeconds	
 tools/engine-tests.ts	2885	check	R			engine/core,engine/perf,engine/render-three	three-via:engine/render-three		Phase 7 distance update cadence preserves near updates and batches far work	
 tools/engine-tests.ts	2939	check	A			engine/core,engine/input		src/features/input/inputSubsystem.test.ts	input subsystem maps raw codes to named action edges per tick	
@@ -1837,8 +1837,8 @@ tools/engine-tests.ts	5620	check	A			engine/behavior		src/engine/behavior/script
 tools/engine-tests.ts	5643	check	A			engine/behavior		src/engine/behavior/scriptMessages.test.ts	script message bus can disable recent debug trace	
 tools/engine-tests.ts	5658	check	A			engine/behavior		src/engine/behavior/scriptMessages.test.ts	script message bus guards recursive flush while allowing queued follow-up messages	
 tools/engine-tests.ts	5685	check	M			engine/behavior,engine/input,engine/scene	model:engine/scene		behavior context routes messages through world query, message bindings, and state	
-tools/engine-tests.ts	5798	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	behavior persistent state snapshots only include opt-in keys and can restore	
-tools/engine-tests.ts	5842	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	behavior resetEntityTransform updates the runtime transform before the next tick	
+tools/engine-tests.ts	5798	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/features/behavior/behaviorWorld.test.ts	behavior persistent state snapshots only include opt-in keys and can restore	
+tools/engine-tests.ts	5842	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/features/behavior/behaviorWorld.test.ts	behavior resetEntityTransform updates the runtime transform before the next tick	
 tools/engine-tests.ts	5879	check	M			engine/behavior,engine/input,engine/scene	model:engine/scene		behavior world resolves direct actor references and rebuilds query indexes	
 tools/engine-tests.ts	5984	check	M			engine/scene	model:engine/scene		transform direction helpers rotate actor local axes without render imports	
 tools/engine-tests.ts	5997	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	behavior world exposes read-only transform snapshots, distance and direction vectors	
@@ -2045,7 +2045,7 @@ tools/engine-tests.ts	12292	check	A	yes		engine/behavior,engine/core,engine/inpu
 tools/engine-tests.ts	12364	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	actor command: persisted destroy + hide re-apply on a snapshot restore	
 tools/engine-tests.ts	12430	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/features/physics/runtime.test.ts	actor command: setCollisionEnabled reaches the host sink at end of tick	
 tools/engine-tests.ts	12466	check	A	yes		engine/core,engine/physics	boundary-model:engine/physics,boundary-three-math:engine/physics	src/engine/physics/physicsSubsystem.test.ts	physics subsystem: setEntityCollisionEnabled toggles contacts and blockers	
-tools/engine-tests.ts	12520	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	actor command: persisted collision-disable re-applies on a snapshot restore	
+tools/engine-tests.ts	12520	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/features/behavior/behaviorWorld.test.ts	actor command: persisted collision-disable re-applies on a snapshot restore	
 tools/engine-tests.ts	12580	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/features/behavior/behaviorTicks.test.ts	actor command: setTickInterval throttles ticks and passes accumulated dt	
 tools/engine-tests.ts	12620	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/features/behavior/behaviorTicks.test.ts	actor command: setTickEnabled gates the tick binding, re-enable resumes	
 tools/engine-tests.ts	12659	check	A	yes		engine/behavior,engine/core,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	world.velocityOf delegates to the wired provider and is null otherwise	
@@ -2061,7 +2061,7 @@ tools/engine-tests.ts	13108	check	A	yes		engine/behavior,engine/input	boundary-m
 tools/engine-tests.ts	13147	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/features/behavior/behaviorTicks.test.ts	script timers: clear prevents delivery and setEntities drops pending timers	
 tools/engine-tests.ts	13205	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/features/behavior/behaviorTicks.test.ts	script timers: disabled subsystem does not advance timer time	
 tools/engine-tests.ts	13246	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/features/behavior/behaviorTicks.test.ts	actor command: setLifeSpan destroys through the actor command sink	
-tools/engine-tests.ts	13291	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/engine/behavior/behaviorSubsystem.checks.test.ts	actor command: spawn delivers a cloned host request	
+tools/engine-tests.ts	13291	check	A	yes		engine/behavior,engine/input	boundary-model:engine/behavior	src/features/behavior/behaviorWorld.test.ts	actor command: spawn delivers a cloned host request	
 tools/engine-tests.ts	13350	check	M			engine/behavior,engine/core,engine/input,engine/physics,engine/scene	model:engine/scene		runtime spawn: addEntity joins behavior, physics, messages and destroy cleanup	
 tools/engine-tests.ts	13448	check	M			engine/behavior,engine/input,src	model:src		proximity-toggle behavior emits edges from ScriptWorld distance queries	
 tools/engine-tests.ts	13496	check	M			src	model:src		stepInteractionTrigger: fires on a fresh enter, not while held, re-fires on re-enter	
@@ -2166,7 +2166,7 @@ tools/engine-tests.ts	16604	check	A			engine/loading		src/engine/loading/loadPro
 tools/engine-tests.ts	16615	check	A			engine/loading		src/engine/loading/loadProgress.test.ts	load progress: subscribe fires immediately and on each change, clear resets	
 tools/engine-tests.ts	16646	check	A			engine/core		src/engine/perf/subsystemProfiler.test.ts	subsystem profiler: rolling average sorts worst-first with last + peak	
 tools/engine-tests.ts	16673	check	A			engine/core		src/engine/perf/subsystemProfiler.test.ts	subsystem profiler: window drops old samples, clamps negatives, top(n) + clear	
-tools/engine-tests.ts	16707	check	A			engine/core		src/engine/perf/subsystemProfiler.test.ts	subsystem profiler: registry times each subsystem with an injected clock	
+tools/engine-tests.ts	16707	check	A			engine/core		src/runtime/worldProfiling.test.ts	subsystem profiler: registry times each subsystem with an injected clock	
 tools/engine-tests.ts	16757	check	A			engine/perf		src/engine/perf/perfBudget.test.ts	perf budget: flags over-budget metrics and keeps a stable row order	
 tools/engine-tests.ts	16776	check	A			engine/perf		src/engine/perf/perfBudget.test.ts	perf budget: formatByteSize renders decimal units with a placeholder for bad input	
 tools/engine-tests.ts	16785	check	A			engine/perf		src/engine/perf/frameMetrics.test.ts	frame metrics: windowed average and spike counts over raw deltas	

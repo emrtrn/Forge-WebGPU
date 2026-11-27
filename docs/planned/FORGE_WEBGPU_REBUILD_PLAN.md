@@ -1058,11 +1058,19 @@ araç boyalı terrain katmanının mevcut yüzey örnekleyicisini okur.
 
 | Alt faz | Uygulanan ve doğrulanan | Açık |
 |---|---|---|
-| 6a | World'de şemalı collider, Blocking Volume, static mesh sidecar, yol ve terrain çarpışması, ışın ve şekil sorguları, girdi, saat ve koddan davranış. Collider, Blocking Volume ve model aynı profil kurallarını kullanıyor. Ignore teması atlıyor, Overlap itki uygulamadan olay veriyor, Block karşılıklı fizik teması çözüyor. Karakter ve araç sorguları engelleyen yüzeyleri seçiyor. Aktörün çarpışması çalışma zamanında kapatılıp isteğe bağlı checkpoint'e alınabiliyor. Darbe algoritması testleri çözülmüş gövdelerle doğrudan çalışıyor. Canlı darbe/temas, aktör silme, davranış tick aralığı, zamanlayıcı ve ömür testleri World'de çalışıyor. Canlı G8 gerçek WebGPU'da üç referans sahnede geçti, en büyük fark 2,93 mm | Kalan davranış ve profil ölçüm testleri ile legacy okuyucuların geçişi |
+| 6a | World'de şemalı collider, Blocking Volume, static mesh sidecar, yol ve terrain çarpışması, ışın ve şekil sorguları, girdi, saat ve koddan davranış. Collider, Blocking Volume ve model aynı profil kurallarını kullanıyor. Ignore teması atlıyor, Overlap itki uygulamadan olay veriyor, Block karşılıklı fizik teması çözüyor. Karakter ve araç sorguları engelleyen yüzeyleri seçiyor. Aktörün çarpışması çalışma zamanında kapatılıp isteğe bağlı checkpoint'e alınabiliyor. Darbe algoritması testleri çözülmüş gövdelerle doğrudan çalışıyor. Canlı darbe/temas, aktör silme, davranış tick aralığı, zamanlayıcı ve ömür testleri World'de çalışıyor. Üç test dosyası eski döngüden ayrıldı. Profil entegrasyonu `World.tick()` ile doğrulandı. Canlı G8 gerçek WebGPU'da üç referans sahnede geçti, en büyük fark 2,93 mm | Eski davranış komutları ve legacy okuyucuların geçişi |
 | 6b | Kalıcı Player Start, kapsül hareketi, kamera/spring arm. FPS Sandbox gerçek WebGPU'da yürüme, bakış, zıplama, çömelme ve hitscan; ayrıca `/fps-pilot/` üretim açılışı | Birinci şahıs view model, TPS ve oynanış araçlarının kalan kabulü |
 | 6c | World checkpoint ve Starter kayıt menüsü, şemalı widget ve HUD yerleşimi, tema, yerelleştirme, dünya widget'ı, açılış ilerlemesi, 3B ses, WES yağmur şiddetine bağlı ses, GLB klip oynatma, TSL billboard partikül. Starter üretim smoke'u kayıt, yükleme ve silmeyi doğruladı; RTS'de temalı Scout etiketi birimi izliyor | Animasyon blend space ve hız vektörü görsel kabulü, VFX editör/efekt kapsamı, seçilmiş yağmur klibiyle sesli sahne kabulü |
 | 6d | World araç bileşeni, sürüş girdisi, tekerlek çizimi ve motor sesi bağı. Node'da araç yüklenmiş gerçek terrain heightfield üzerinde yürüdü | Araç giriş/çıkış akışı, sözleşmenin kalan parametreleri, görsel ve sesli sürüş kabulü, W8 |
 | 6e | Collider tabanlı Recast/Detour, nav volume ve editör önizlemesi, algı servisi, `samples/rts` ve oyun projesi build'i. RTS birimi gerçek WebGPU'da duvarı dolaştı. FPS Sandbox build'i `verify:dist --strict` taraması ve `verify:build` doğrulamasından geçti | K4/K11 tarayıcı kapsamı ve fallback maliyeti, kalan nav/editör ve AI karakter kabulü |
+
+Eski `EngineApp` ve `SubsystemRegistry` döngüsü kaldırıldı. Öz-testi World'de
+kurulum, grup içi sıra ve ters kapanış sırasını doğruluyor. Geçiş test
+yardımcıları ve bunları koruyan katman kuralı hâlâ kullanılıyor.
+Oyun görünümündeki `?debug` paneli **Frame cost** ile bir sonraki tamamlanan
+karenin CPU dökümünü gösterir. World alt sistemleri ve çizim hazırlığı ölçülür.
+Davranış testleri olay ve mesaj işleyicilerini doğrudan kodda kaydediyor.
+`forgeBindings.ts` test köprüsü kaldırıldı.
 
 Faz 6 için ertelenen beş Forge A kontrolü yeni World ve widget sözleşmelerinde
 yeşil. TSV'de Faz 6 satırı kalmadı (A 996 / 1.021). Faz kapısı açık.

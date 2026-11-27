@@ -230,6 +230,7 @@ async function start(): Promise<void> {
     if (!response.ok) throw new Error(`Data asset ${asset}: HTTP ${response.status}`);
     return response.json();
   };
+  const debug = params.has("debug");
   const booted = await bootGame({
     features,
     ...(gameModule ? { gameModule } : {}),
@@ -257,13 +258,15 @@ async function start(): Promise<void> {
     loadLevel: async (registry) => (startLevel === "" ? null : loadProjectLevel(client, startLevel, registry, strict)),
     screen,
     scheduler,
+    ...(debug ? { frameProfileClock: () => performance.now() } : {}),
     warn: (issues) => console.warn("Level data report", issues),
   });
-  if (booted && params.has("debug")) {
+  if (booted && debug) {
     const { attachDebugPanel } = await import("./render/viewer/debug/debugPanel.ts");
     attachDebugPanel(document, {
       host: () => viewer.host,
       environment: () => booted.world.services.get(WorldEnvironmentKey)?.controller.current() ?? null,
+      ...(booted.armFrameCapture ? { armFrameCapture: booted.armFrameCapture } : {}),
     });
   }
   if (import.meta.env.DEV && booted) {

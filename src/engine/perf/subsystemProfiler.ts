@@ -3,37 +3,20 @@
  * Pure per-subsystem tick-timing aggregator (Performance Infrastructure, P5.1).
  *
  * Side-effect free: no DOM, no three.js, no clock of its own. The engine update
- * loop times each subsystem's `update()` and feeds the elapsed milliseconds here
+ * loop times each subsystem's ticks and feeds the elapsed milliseconds here
  * via {@link SubsystemProfiler.record}; this class keeps a rolling window per
  * subsystem and derives a sorted {@link SubsystemProfileSnapshot} the `?debug`
  * overlay reads. Because it only takes already-measured numbers, it is fully
  * deterministic and unit-tested without a real clock.
  *
- * The profiler is only instantiated under `?debug` (see {@link EngineApp}), so it
- * adds no cost to the production frame loop — the registry keeps its plain,
- * un-timed update path when no recorder is attached.
+ * The World opts into tick timing through `enableProfiling`. Its caller owns
+ * measurement of the rest of the frame and calls `endFrame` at frame end.
  */
 
 import {
   FrameRegionRegistry,
   type FrameRegionDefinition,
 } from "./frameRegions.ts";
-
-/** Minimal surface the {@link SubsystemRegistry} needs — keeps it decoupled. */
-export interface SubsystemTimingRecorder {
-  record(id: string, ms: number): void;
-  /**
-   * Says where a region sits in the frame. Optional so a recorder that only
-   * collects flat timings still satisfies the surface; a caller that declares
-   * nothing gets the flat listing this profiler had before regions existed.
-   */
-  declareRegion?(definition: FrameRegionDefinition): void;
-  /**
-   * Closes the frame. Called at the **real** end of the frame by whoever owns
-   * the loop — not by the subsystem block, which is only one region of it.
-   */
-  endFrame(): void;
-}
 
 export interface SubsystemTiming {
   readonly id: string;
@@ -180,7 +163,7 @@ class RollingWindow {
 
 const DEFAULT_WINDOW_FRAMES = 60;
 
-export class SubsystemProfiler implements SubsystemTimingRecorder {
+export class SubsystemProfiler {
   /** Insertion-ordered so subsystems with identical averages keep a stable order. */
   private readonly windows = new Map<string, RollingWindow>();
   /** Where the recorded regions sit in the frame; empty until something declares. */

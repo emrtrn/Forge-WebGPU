@@ -141,7 +141,7 @@ module.exports = {
     {
       name: "engine-testing-is-test-only",
       comment:
-        "src/engine/testing holds Forge WebGL's old app loop as a test scaffold (plan 2b): ported checks tick subsystems through it word for word. Product code never reaches it; it is deleted in Faz 6 when the subsystems bind to the world.",
+        "src/engine/testing holds helpers for ported Forge WebGL checks. Only tests may import them.",
       severity: "error",
       from: { path: "^src/", pathNot: ["\\.test\\.ts$", "^src/engine/testing/"] },
       to: { path: "^src/engine/testing/" },

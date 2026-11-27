@@ -1,12 +1,10 @@
-// Ported from Forge WebGL tests/engine/behaviorSubsystem.test.ts @ forge-webgl-final (04b5fb23): checks unchanged, run by
-// Vitest; whole file. docs/PORT_LOG.md §2.
+// Ported from Forge WebGL tests/engine/behaviorSubsystem.test.ts @ forge-webgl-final (04b5fb23).
+// The fixtures register behavior handlers in code. See docs/PORT_LOG.md §2.
 import assert from "node:assert/strict";
 import { ActionMap } from "../input/actionMap.ts";
 import { type Entity } from "../legacy/entity.ts";
-// The fixtures author Forge's EventBindings / MessageBindings (K12: not ported); the
-// scaffold turns them into the code registration, check bodies unchanged.
-import { ForgeBindingBehaviorSubsystem as BehaviorSubsystem } from "../testing/forgeBindings.ts";
-import { type ActorCommandSink, type BehaviorRegistry, type PersistentScriptStateEntry } from "./behaviorTypes.ts";
+import { BehaviorSubsystem } from "./behaviorSubsystem.ts";
+import { type ActorCommandSink, type BehaviorDefinition, type BehaviorRegistry, type PersistentScriptStateEntry } from "./behaviorTypes.ts";
 import { test } from "vitest";
 
 
@@ -17,12 +15,7 @@ function actor(id = "actor:0"): Entity {
     id, name: id, tags: ["streamed"],
     components: {
       Transform: { position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
-      EventBindings: { bindings: [
-        { event: "beginPlay", scriptId: "begin" },
-        { event: "tick", scriptId: "tick" },
-        { event: "endPlay", scriptId: "end" },
-      ] },
-      MessageBindings: { bindings: [{ message: "Ping", scriptId: "ping" }] },
+      Behavior: { scriptId: "lifecycle" },
     },
   };
 }
@@ -45,32 +38,36 @@ export function registerBehaviorSubsystemTests(check: Check): void {
     const events: string[] = [];
     const begins: unknown[] = [];
     const effects: string[] = [];
-    const registry: BehaviorRegistry = {
-      get: (id) => {
-        if (id === "begin") return (context) => {
-          begins.push({ saved: context.state.get("saved", null), temporary: context.state.get("temporary", null),
-            endSaved: context.state.get("endSaved", null), endTemporary: context.state.get("endTemporary", null) });
-          context.state.persist("saved", { visits: 1 });
-          context.state.set("temporary", 7);
-          events.push("begin");
-        };
-        if (id === "end") return (context) => {
-          events.push(`end:${context.event?.reason}:${context.event?.payload?.reason}`);
-          assert.equal(context.world.byName("actor:0"), "actor:0");
-          assert.deepEqual(context.world.byTag("streamed"), ["actor:0"]);
-          assert.equal(context.state.get("temporary", 0), 7);
-          context.state.persist("endSaved", true);
-          context.state.set("endTemporary", 9);
-        };
-        if (id === "tick" || id === "ping") return () => { events.push(id); };
-        if (id === "observe") return (context) => {
+    const registry = new Map<string, BehaviorDefinition>([
+      ["lifecycle", {
+        events: {
+          beginPlay(context) {
+            begins.push({ saved: context.state.get("saved", null), temporary: context.state.get("temporary", null),
+              endSaved: context.state.get("endSaved", null), endTemporary: context.state.get("endTemporary", null) });
+            context.state.persist("saved", { visits: 1 });
+            context.state.set("temporary", 7);
+            events.push("begin");
+          },
+          tick() { events.push("tick"); },
+          endPlay(context) {
+            events.push(`end:${context.event?.reason}:${context.event?.payload?.reason}`);
+            assert.equal(context.world.byName("actor:0"), "actor:0");
+            assert.deepEqual(context.world.byTag("streamed"), ["actor:0"]);
+            assert.equal(context.state.get("temporary", 0), 7);
+            context.state.persist("endSaved", true);
+            context.state.set("endTemporary", 9);
+          },
+        },
+        messages: { Ping: { target: "self", handle() { events.push("ping"); } } },
+      }],
+      ["observe", {
+        tick(context) {
           assert.equal(context.world.byName("actor:0"), null);
           assert.deepEqual(context.world.byTag("streamed"), []);
           assert.equal(context.world.transformOf("actor:0"), null);
-        };
-        return undefined;
-      },
-    };
+        },
+      }],
+    ]);
     const behavior = subsystem(registry, effects);
     const entity = actor();
     behavior.setEntities([entity]);
@@ -114,10 +111,12 @@ export function registerBehaviorSubsystemTests(check: Check): void {
 
   check("behavior unload: non-persisted state is discarded when no keys survive", () => {
     const seen: unknown[] = [];
-    const behavior = subsystem({ get: (id) => id === "begin" ? (context) => {
-      seen.push(context.state.get("temporary", null));
-      context.state.set("temporary", 1);
-    } : undefined });
+    const behavior = subsystem({ get: () => ({ events: {
+      beginPlay(context) {
+        seen.push(context.state.get("temporary", null));
+        context.state.set("temporary", 1);
+      },
+    } }) });
     behavior.setEntities([actor()]);
     tick(behavior, 1);
     assert.equal(behavior.unloadEntity("actor:0"), true);
@@ -130,12 +129,14 @@ export function registerBehaviorSubsystemTests(check: Check): void {
   check("behavior unload: persisted hide/collision markers survive and apply on re-add", () => {
     let firstLife = true;
     const effects: string[] = [];
-    const behavior = subsystem({ get: (id) => id === "begin" ? (context) => {
-      if (!firstLife) return;
-      firstLife = false;
-      context.actor.setVisibility(false, { persist: true });
-      context.actor.setCollisionEnabled(false, { persist: true });
-    } : undefined }, effects);
+    const behavior = subsystem({ get: () => ({ events: {
+      beginPlay(context) {
+        if (!firstLife) return;
+        firstLife = false;
+        context.actor.setVisibility(false, { persist: true });
+        context.actor.setCollisionEnabled(false, { persist: true });
+      },
+    } }) }, effects);
     behavior.setEntities([actor()]);
     tick(behavior, 1);
     const snapshot = behavior.getPersistentStateSnapshot();
@@ -155,9 +156,9 @@ export function registerBehaviorSubsystemTests(check: Check): void {
 
   check("behavior unload: EndPlay destroy marker survives without issuing a host destroy command", () => {
     const effects: string[] = [];
-    const behavior = subsystem({ get: (id) => id === "end" ? (context) => {
-      context.actor.destroy({ persist: true });
-    } : undefined }, effects);
+    const behavior = subsystem({ get: () => ({ events: {
+      endPlay(context) { context.actor.destroy({ persist: true }); },
+    } }) }, effects);
     behavior.setEntities([actor()]);
     tick(behavior, 1);
     assert.equal(behavior.unloadEntity("actor:0"), true);
@@ -173,9 +174,9 @@ export function registerBehaviorSubsystemTests(check: Check): void {
   check("behavior snapshot: non-live entries survive and effects wait until that entity is added", () => {
     const effects: string[] = [];
     const seen: unknown[] = [];
-    const behavior = subsystem({ get: (id) => id === "begin" ? (context) => {
-      seen.push(context.state.get("saved", null));
-    } : undefined }, effects);
+    const behavior = subsystem({ get: () => ({ events: {
+      beginPlay(context) { seen.push(context.state.get("saved", null)); },
+    } }) }, effects);
     behavior.setEntities([]);
     const entries: PersistentScriptStateEntry[] = [
       { entityId: "actor:0", key: "__actorHidden", value: true },

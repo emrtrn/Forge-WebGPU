@@ -30,13 +30,15 @@ import { UNMEASURED_REGION_ID } from "./frameRegions.ts";
 
 /** What the frame was captured *in* — the context a number needs to be read. */
 export interface FrameCaptureContext {
-  /** Scene seconds at capture, so a capture can be placed in the session. */
+  /** Simulation seconds elapsed when the frame was captured. */
   readonly sceneSeconds: number;
   /** Simulation time multiplier in force (F4); 1 while nothing scales time. */
   readonly timeScale?: number;
   /** Whether the scene was held still while the frame was measured (F4). */
   readonly paused?: boolean;
 }
+
+export type FrameCaptureListener = (frame: FrameProfileCapture, context: FrameCaptureContext) => void;
 
 export type FrameCaptureRowKind =
   /** A measured region with nothing measured inside it. */
@@ -192,7 +194,7 @@ export function frameCaptureTableView(capture: FrameCapture): DebugTableView {
   const notes = [
     "Rows divide this one frame; their total is the frame.",
     "`avg` and `peak` are the rolling window, not this frame — read them beside the ms column to tell a typical frame from a one-off.",
-    "`render` is the CPU cost of submitting the frame, not the GPU's cost of drawing it — that needs the GPU sweep.",
+    "`render` measures CPU work in the render callback, including frame preparation and submission.",
   ];
   if (capture.rows.some((row) => row.kind === "debug")) {
     notes.push("Rows marked * exist only on the diagnostic route; the shipped build does not pay for them.");

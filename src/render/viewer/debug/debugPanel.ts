@@ -20,6 +20,7 @@
 
 import type { WorldEnvironmentState } from "../../../engine/environment/environmentResolve.ts";
 import { withClipboardText, type DebugTableView } from "../../../engine/perf/debugTableView.ts";
+import { buildFrameCapture, frameCaptureTableView, type FrameCaptureListener } from "../../../engine/perf/frameCapture.ts";
 import { DEFAULT_PERF_BUDGET, evaluatePerfBudget } from "../../../engine/perf/perfBudget.ts";
 import {
   compactCount,
@@ -58,6 +59,8 @@ export interface DebugPanelSources {
   readonly host: () => RenderHost | null;
   /** The live World Environment; null without one. */
   readonly environment?: () => Readonly<WorldEnvironmentState> | null;
+  /** Delivers the next completed frame when the host supports profiling. */
+  readonly armFrameCapture?: (listener: FrameCaptureListener) => void;
 }
 
 export interface DebugPanel {
@@ -267,6 +270,14 @@ export function attachDebugPanel(document: Document, sources: DebugPanelSources)
       const world = sources.host()?.world;
       if (world) modal.show(sceneCostTable(buildSceneCostSnapshot(world.scene as unknown as SceneCostObject, { maxBuckets: 0 })));
     },
+  });
+  if (sources.armFrameCapture) panel.addAction({
+    id: "frame-cost",
+    label: "Frame cost",
+    hint: "Capture the next frame's CPU time, with rolling averages and peaks.",
+    run: () => sources.armFrameCapture?.((frame, context) => {
+      if (root.isConnected) panel.showTable(frameCaptureTableView(buildFrameCapture(frame, context)));
+    }),
   });
   refresh();
   return panel;
