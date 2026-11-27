@@ -195,12 +195,14 @@ check("actor command: spawn delivers a cloned host request", () => {
   assert.deepEqual(actor?.components.projectile, { type: "test.projectile@1", damage: 12, nested: { team: "blue" } });
 });
 
-check("streamed behavior restores EndPlay state and receives one message after rejoining", async () => {
+check("behavior unload: endPlay once, detached indexes/messages/ticks, persisted state survives a fresh life", async () => {
   const id = actorId("a");
   const events: unknown[][] = [];
   let ping = false;
+  let ticks = 0;
   const probe = defineBehavior({
     id: "test.streamed",
+    tick() { ticks += 1; },
     events: {
       beginPlay({ actor }) {
         const state = actor.components.probe!;
@@ -259,16 +261,48 @@ check("streamed behavior restores EndPlay state and receives one message after r
     await advance();
     source = [950, 0];
     await expect.poll(async () => { await advance(); return game.world.context.actor(id); }).toBeUndefined();
+    assert.ok(ticks > 0);
+    const ticksAfterUnload = ticks;
+    assert.equal(game.world.context.componentsOf("test.probeState").length, 0);
     ping = true;
     await advance();
+    assert.equal(ticks, ticksAfterUnload);
     assert.deepEqual(events, [["begin", [], 0], ["ping"], ["end"]]);
 
     source = [0, 0];
     await expect.poll(async () => { await advance(); return events.length; }).toBe(4);
+    assert.ok(ticks > ticksAfterUnload);
+    assert.deepEqual(game.world.context.componentsOf("test.probeState").map(({ actor }) => actor.id), [id]);
     ping = true;
     await advance();
     assert.deepEqual(events, [["begin", [], 0], ["ping"], ["end"], ["begin", [1, 2], 0], ["ping"]]);
   } finally {
     game.stop();
   }
+});
+
+check("behavior unload: non-persisted state is discarded when no keys survive", () => {
+  const seen: unknown[] = [];
+  const id = actorId("a");
+  const probe = defineBehavior({
+    id: "test.transient",
+    events: { beginPlay({ actor }) {
+      seen.push(actor.components.probe!.runtimeOnly);
+      actor.components.probe!.runtimeOnly = 7;
+    } },
+  });
+  const source = behaviorActor(id, probe);
+  const doc = { ...source, components: { ...source.components, probe: { type: "test.probeState@1" } } };
+  const store = memoryStore();
+  const { world, play } = openWorld([probe], { store });
+  play([]);
+  world.context.spawnActors([doc]);
+  world.tick(0.016);
+  const checkpoint = world.services.require(CheckpointKey);
+  assert.equal(checkpoint.capture().actors[id], undefined);
+  world.removeActors([id]);
+  assert.equal(checkpoint.capture().actors[id], undefined);
+  world.context.spawnActors([doc]);
+  world.tick(0.016);
+  assert.deepEqual(seen, [0, 0]);
 });

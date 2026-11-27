@@ -393,6 +393,11 @@ kare paylarını ve son 60 kareye kadar ortalama ile tepeyi gösterir.
 İki davranış test dosyası olay ve mesaj işleyicilerini doğrudan kodda
 kaydediyor. `forgeBindings.ts` köprüsü kaldırıldı. Kalan kontroller eski
 davranış alt sistemindeki komutları, aktör ömrünü ve durum kayıtlarını sınar.
+Hücreden çıkan aktörlerin kalıcı alanları `EndPlay` sonrası alınır. World
+kontrolleri yeniden yükleme, abonelikler, tick ve geçici alanların sıfırlanmasını
+doğrular. Oyun kodu durum için şemalı bileşenleri, çarpışma ve fizik darbesi için
+World servislerini kullanır. Eski görünürlük, dinamik ebeveynlik, birleşik aktör
+hızı ve karakter fırlatma sözleşmelerinin kontrolleri referans olarak durur.
 
 | Modül | Kaynak yol | Forge SHA | İşlem | Testler | Durum |
 |---|---|---|---|---|---|

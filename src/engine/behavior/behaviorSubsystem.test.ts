@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { ActionMap } from "../input/actionMap.ts";
 import { type Entity } from "../legacy/entity.ts";
 import { BehaviorSubsystem } from "./behaviorSubsystem.ts";
-import { type ActorCommandSink, type BehaviorDefinition, type BehaviorRegistry, type PersistentScriptStateEntry } from "./behaviorTypes.ts";
+import { type ActorCommandSink, type BehaviorRegistry, type PersistentScriptStateEntry } from "./behaviorTypes.ts";
 import { test } from "vitest";
 
 
@@ -34,98 +34,6 @@ function tick(behavior: BehaviorSubsystem, frame: number): void {
 }
 
 export function registerBehaviorSubsystemTests(check: Check): void {
-  check("behavior unload: endPlay once, detached indexes/messages/ticks, persisted state survives a fresh life", () => {
-    const events: string[] = [];
-    const begins: unknown[] = [];
-    const effects: string[] = [];
-    const registry = new Map<string, BehaviorDefinition>([
-      ["lifecycle", {
-        events: {
-          beginPlay(context) {
-            begins.push({ saved: context.state.get("saved", null), temporary: context.state.get("temporary", null),
-              endSaved: context.state.get("endSaved", null), endTemporary: context.state.get("endTemporary", null) });
-            context.state.persist("saved", { visits: 1 });
-            context.state.set("temporary", 7);
-            events.push("begin");
-          },
-          tick() { events.push("tick"); },
-          endPlay(context) {
-            events.push(`end:${context.event?.reason}:${context.event?.payload?.reason}`);
-            assert.equal(context.world.byName("actor:0"), "actor:0");
-            assert.deepEqual(context.world.byTag("streamed"), ["actor:0"]);
-            assert.equal(context.state.get("temporary", 0), 7);
-            context.state.persist("endSaved", true);
-            context.state.set("endTemporary", 9);
-          },
-        },
-        messages: { Ping: { target: "self", handle() { events.push("ping"); } } },
-      }],
-      ["observe", {
-        tick(context) {
-          assert.equal(context.world.byName("actor:0"), null);
-          assert.deepEqual(context.world.byTag("streamed"), []);
-          assert.equal(context.world.transformOf("actor:0"), null);
-        },
-      }],
-    ]);
-    const behavior = subsystem(registry, effects);
-    const entity = actor();
-    behavior.setEntities([entity]);
-    tick(behavior, 1);
-    behavior.emitScriptMessage("Ping", "host", undefined, entity.id);
-    tick(behavior, 2);
-    assert.deepEqual(events, ["begin", "tick", "tick", "ping"]);
-    assert.equal(behavior.unloadEntity(entity.id), true);
-    assert.equal(behavior.unloadEntity(entity.id), false);
-    assert.equal(behavior.unloadEntity("missing"), false);
-    assert.equal(behavior.getScriptActorDebugInfo(entity.id), null);
-    assert.deepEqual(behavior.getScriptMessageDebugSnapshot().subscribers, []);
-    assert.deepEqual(behavior.getPersistentStateSnapshot(), [
-      { entityId: entity.id, key: "endSaved", value: true },
-      { entityId: entity.id, key: "saved", value: { visits: 1 } },
-    ]);
-    const afterUnload = [...events];
-    const observer: Entity = { id: "observer", components: {
-      Transform: { position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
-      Behavior: { scriptId: "observe" },
-    } };
-    assert.equal(behavior.addEntity(observer), true);
-    behavior.emitScriptMessage("Ping", "host", undefined, entity.id);
-    behavior.emitScriptMessage("Ping", "host");
-    behavior.emitActorEvent(entity.id, "interact");
-    tick(behavior, 3);
-    assert.deepEqual(events, afterUnload);
-    assert.equal(behavior.unloadEntity(observer.id), true);
-    assert.equal(behavior.addEntity(entity), true);
-    assert.deepEqual(events, afterUnload, "BeginPlay waits for the next tick");
-    tick(behavior, 4);
-    behavior.emitScriptMessage("Ping", "host", undefined, entity.id);
-    tick(behavior, 5);
-    assert.deepEqual(begins, [
-      { saved: null, temporary: null, endSaved: null, endTemporary: null },
-      { saved: { visits: 1 }, temporary: null, endSaved: true, endTemporary: null },
-    ]);
-    assert.deepEqual(events, ["begin", "tick", "tick", "ping", "end:unloaded:unloaded", "begin", "tick", "tick", "ping"]);
-    assert.deepEqual(effects, [], "unload never calls the host destroy sink");
-  });
-
-  check("behavior unload: non-persisted state is discarded when no keys survive", () => {
-    const seen: unknown[] = [];
-    const behavior = subsystem({ get: () => ({ events: {
-      beginPlay(context) {
-        seen.push(context.state.get("temporary", null));
-        context.state.set("temporary", 1);
-      },
-    } }) });
-    behavior.setEntities([actor()]);
-    tick(behavior, 1);
-    assert.equal(behavior.unloadEntity("actor:0"), true);
-    assert.deepEqual(behavior.getPersistentStateSnapshot(), []);
-    assert.equal(behavior.addEntity(actor()), true);
-    tick(behavior, 2);
-    assert.deepEqual(seen, [null, null]);
-  });
-
   check("behavior unload: persisted hide/collision markers survive and apply on re-add", () => {
     let firstLife = true;
     const effects: string[] = [];
