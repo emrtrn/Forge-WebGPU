@@ -55,6 +55,35 @@ describe("terrain view", () => {
     view.dispose();
   });
 
+  test("raised snow refines nearby terrain and restores the original selection after melting", () => {
+    const { def, tiles, global } = terrain(4, 4);
+    const view = new TerrainView({ def, global, tiles, layers });
+    const camera = new PerspectiveCamera();
+    camera.position.set(def.origin[0] + 220, 4, def.origin[2] + 220);
+    const select = () => {
+      view.update(camera, [], false);
+      return view.visualSurface().nodes;
+    };
+    const dry = select();
+    const setDepth = (snowDepth: number) => view.setSurfaceCover({
+      state: { snowCoverage: 1, snowDepth, wetness: 0, puddleFill: 0 }, settings: WORLD_ENVIRONMENT_DEFAULTS.surface,
+    });
+    setDepth(0.4);
+    const raised = select();
+    const leaf = 32 * def.spacing;
+    expect(Math.min(...dry.map((node) => node.size))).toBe(leaf);
+    expect(Math.min(...raised.map((node) => node.size))).toBe(leaf / 2);
+    const distant = dry.filter((node) => node.x0 >= 384);
+    expect(distant.length).toBeGreaterThan(0);
+    expect(raised.filter((node) => node.x0 >= 384)).toEqual(distant);
+    camera.position.y = 40;
+    expect(Math.min(...select().map((node) => node.size))).toBe(leaf);
+    camera.position.y = 4;
+    setDepth(0);
+    expect(select()).toEqual(dry);
+    view.dispose();
+  });
+
   test("culls by the camera's side planes; a shadow caster aimed behind it keeps the nodes it shades from", () => {
     const { def, tiles, global } = terrain(8, 8);
     const view = new TerrainView({ def, global, tiles, layers });

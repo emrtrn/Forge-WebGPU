@@ -9,7 +9,6 @@
 // view to re-select with its cull on the next update.
 
 import * as THREE from "three/webgpu";
-import type { TerrainSnowRay } from "../../engine/environment/terrainSnow.ts";
 import type { TerrainDrawnNode, TerrainVisualSurface } from "../../engine/terrain/terrainVisualHeight.ts";
 import { TERRAIN_HEIGHT_PROBE_OFFSET } from "../materials/terrain.ts";
 import type { TerrainView } from "./terrainView.ts";
@@ -34,12 +33,12 @@ export async function readTerrainHeights(
   camera: THREE.Camera,
   centre: readonly [number, number],
   size: number,
-  snow?: { ray?: TerrainSnowRay },
+  includeSnow = false,
 ): Promise<TerrainHeightReadback> {
   const side = Math.max(16, Math.round(size / 16) * 16);
   camera.updateMatrixWorld();
   view.update(camera, [], false);
-  const visual = view.visualSurface(snow);
+  const visual = view.visualSurface(includeSnow);
 
   const ortho = new THREE.OrthographicCamera(-side / 2, side / 2, side / 2, -side / 2, 1, 40000);
   ortho.position.set(centre[0], 20000, centre[1]);

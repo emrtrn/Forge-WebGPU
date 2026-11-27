@@ -126,6 +126,14 @@ describe("weather drives the surface (plan phase W5)", () => {
     expect(surfaceOf(deep).snowDepth).toBe(2);
   });
 
+  test("the authored coverage limit keeps accumulating snowfall flat", () => {
+    const c = new WorldEnvironmentController();
+    c.load({ surface: { snowSpread: .8 } }, driven);
+    c.setWeather("snow");
+    c.advance(600);
+    expect(surfaceOf(c)).toMatchObject({ snowCoverage: 1, snowDepth: 0 });
+  });
+
   test("A7: a save mid-way resumes where it was and goes on the same; the level bytes never change (HV-08 / 09)", () => {
     const doc = level(driven);
     const before = JSON.stringify(doc);

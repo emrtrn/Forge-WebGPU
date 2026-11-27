@@ -52,6 +52,8 @@ export interface SurfaceResponseSettings {
  */
 /** Width of the wetness window over which one point dries. */
 export const DRY_BAND = 0.35;
+/** Snow fades between bare and covered ground over a wider band than standing water. */
+export const SNOW_PATCH_BAND = 0.55;
 /** Noise patch sizes (m) and their weights. */
 export const DRY_NOISE = [[6, 0.65], [1.7, 0.35]] as const;
 /** The noise is sharpened through this window so patches have edges. */
@@ -134,9 +136,9 @@ export function cavityFromDivergence(divergence: number): number {
 }
 
 /** How much of a patch shows at `amount` for a point that dries / melts `late` (0 first .. 1 last). */
-function patchAt(amount: number, late: number): number {
-  const start = (1 - late) * (1 - DRY_BAND);
-  return smoothstep(start, start + DRY_BAND, clamp01(amount));
+function patchAt(amount: number, late: number, band = DRY_BAND): number {
+  const start = (1 - late) * (1 - band);
+  return smoothstep(start, start + band, clamp01(amount));
 }
 
 /**
@@ -151,7 +153,12 @@ export function patchyWater(puddleFill: number, late: number, spread = 1, core =
 
 /** The snow a point shows (before its face's share): the coverage × `spread`, in wetness's pattern (late places first). */
 export function patchySnow(snowCoverage: number, late: number, spread = 1): number {
-  return patchAt(snowCoverage * clamp01(spread), clamp01(late));
+  return patchAt(snowCoverage * clamp01(spread), clamp01(late), SNOW_PATCH_BAND);
+}
+
+/** The patch pattern has resolved to full cover wherever the terrain accepts snow. */
+export function snowCoversTerrain(coverage: number, spread = 1): boolean {
+  return coverage >= 1 && spread >= 1;
 }
 
 /** The wind the rain is driven by: `direction` is the unit XZ vector it blows toward. */

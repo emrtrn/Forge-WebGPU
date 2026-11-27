@@ -139,7 +139,7 @@ test("puddle: a basin ahead of the camera fills, draws and reflects the scene", 
     }]);
     await expect.poll(async () => (await dev(page).result(id!))?.status, { timeout: 30_000 }).not.toBe("loading");
     result = (await dev(page).result(id!))!;
-    console.log(`puddle at ${basin.x}, ${basin.z} (bed ${basin.y.toFixed(2)} m) ${depth} m deep: ${result.status}, ${result.area.toFixed(2)} m², ${result.message}`);
+    console.log(`puddle at ${basin.x}, ${basin.z} (bed ${basin.y.toFixed(2)} m) ${depth} m deep: ${result.status}, ${result.area.toFixed(2)} mÂ², ${result.message}`);
     if (result.status === "ready") { readyId = id; break; }
   }
   expect(result!.status).toBe("ready");
@@ -213,7 +213,7 @@ test("puddle: a basin ahead of the camera fills, draws and reflects the scene", 
   await testInfo.attach("puddle-clean.png", { body: clean, contentType: "image/png" });
   writeFileSync(join(RENDER_REFS, "candidates", "puddle-derekavak.png"), clean);
 
-  // W7: the live water occupies the wet footprint, so the underlying terrain cannot rise through it.
+  // W7: puddle visibility does not change snow height on the underlying terrain.
   await forge((d) => { d.setWeatherDrivesSurface(false); d.setSurface({ snowCoverage: 1, snowDepth: 0.4 }); });
   await page.waitForTimeout(300);
   await step(3);
@@ -225,6 +225,11 @@ test("puddle: a basin ahead of the camera fills, draws and reflects the scene", 
   await page.waitForTimeout(300);
   await step(3);
   const afterRemoval = await measure();
-  expect(underWater.spots.some((spot, i) => spot && spot.drawn < 0.01 && (afterRemoval.spots[i]?.drawn ?? 0) > 0.12)).toBe(true);
+  expect(afterRemoval.spots.some((spot) => spot && spot.drawn > 0.12)).toBe(true);
+  for (const [index, point] of underWater.spots.entries()) {
+    expect(point).not.toBeNull();
+    expect(afterRemoval.spots[index]).not.toBeNull();
+    expect(Math.abs(point!.drawn - afterRemoval.spots[index]!.drawn)).toBeLessThan(0.01);
+  }
   expect(gpuErrors).toEqual([]);
 });

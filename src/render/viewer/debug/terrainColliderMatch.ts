@@ -69,7 +69,7 @@ export async function measureTerrainSnow(host: RenderHost, options: {
   const tagged = scene ? taggedTerrainViews(scene)[0] : undefined;
   if (!tagged) return null;
   const { view } = tagged;
-  const readback = await readTerrainHeights(host.renderer as WebGPURenderer, view, host.camera, options.centre, options.size ?? 64, {});
+  const readback = await readTerrainHeights(host.renderer as WebGPURenderer, view, host.camera, options.centre, options.size ?? 64, true);
   const { nodes, surface } = readback.visual;
   const { snowOffset: _offset, ...baseSurface } = surface;
   const [ox, oy, oz] = view.mesh.getWorldPosition(view.origin.clone()).add(view.origin).toArray();

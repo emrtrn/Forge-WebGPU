@@ -206,7 +206,6 @@ export default defineRenderBinding({
         editorViews: session !== null,
         ...(ctx.precipitationCover ? {
           sheltered: (position) => ctx.precipitationCover!.coverAt(position),
-          snowShelter: (position, spacing) => ctx.precipitationCover!.snowCoverAt(position, spacing),
         } : {}),
       });
       const reader = terrain.tiles === null && !session ? terrain.openTiles() : null;

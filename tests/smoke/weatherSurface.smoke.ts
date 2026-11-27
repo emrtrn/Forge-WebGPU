@@ -85,7 +85,7 @@ const SERIES: Record<"rain" | "snow", readonly Moment[]> = {
     { name: "covering", weather: "snow", seconds: 40 },
     { name: "covered", weather: "snow", seconds: 260 },
     { name: "depth-melting", weather: "clear", seconds: 300 },
-    { name: "cover-melting", weather: "clear", seconds: 300 },
+    { name: "cover-melting", weather: "clear", seconds: 200 },
     { name: "wet-after-snow", weather: "clear", seconds: 110 },
     { name: "drying", weather: "clear", seconds: 60 },
     { name: "dry-again", weather: "clear", seconds: 1200 },
@@ -159,7 +159,10 @@ test("HV-05: rain wets, the film dries before the water; snow melts depth, cover
   expect(at("rain", "film-dry").surface.wetness).toBe(0);
   expect(at("rain", "water-draining").surface.puddleFill).toBeLessThan(at("rain", "film-dry").surface.puddleFill);
   expect(at("rain", "dry-again").surface).toEqual({ wetness: 0, puddleFill: 0, snowCoverage: 0, snowDepth: 0 });
-  // Snow: depth, then cover; the ground is wet when the cover has gone, and dries.
+  // Snow starts with flat cover and melts in reverse order.
+  expect(at("snow", "covering").surface.snowCoverage).toBeGreaterThan(0);
+  expect(at("snow", "covering").surface.snowCoverage).toBeLessThan(1);
+  expect(at("snow", "covering").surface.snowDepth).toBe(0);
   expect(at("snow", "covered").surface.snowDepth).toBeGreaterThan(0.1);
   expect(at("snow", "depth-melting").surface.snowCoverage).toBe(1);
   expect(at("snow", "cover-melting").surface.snowDepth).toBe(0);

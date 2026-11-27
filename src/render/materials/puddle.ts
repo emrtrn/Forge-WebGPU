@@ -57,7 +57,7 @@ export interface PuddleReflection {
 
 export interface PuddleMaterial {
   readonly material: THREE.MeshPhysicalNodeMaterial;
-  /** Depth-only drawing of the current wet footprint for the terrain snow mask. */
+  /** Depth-only drawing of the current wet footprint in the precipitation cover map. */
   readonly snowCover: THREE.MeshBasicNodeMaterial;
   setAppearance(appearance: PuddleAppearance): void;
   /** The planar capture this surface reflects; null for the environment only. A change rebuilds the graph. */

@@ -1,6 +1,5 @@
 // The precipitation cover on the actual GPU (plan phase W3, HV-02): no rain or
-// snow falls under a roof or in a room, and the ground under it stays dry and
-// snowless; at the door it falls outside only. A hut of shapes (four walls, a
+// snow falls under a roof or in a room, and the ground under it stays dry; at the door it falls outside only. A hut of shapes (four walls, a
 // door, a roof) is spawned on Derekavak's terrain in front of the camera
 // (development hook; the reference project is not written), seen from inside,
 // from its door and from outside. Removing the hut lets the rain in again and
@@ -116,14 +115,14 @@ test("precipitation cover: no rain or snow under a roof, dry ground inside, rain
     await evaluate(page, (d) => { d.setLateVisible(true); return d.step(0); });
     return { amount: await difference(page, on, off), on };
   };
-  /** What a snowy, wet surface changes in the picture now (the hut's walls inside are sheltered too, phase W4). */
+  /** What wetness changes in the picture now (the hut's walls inside are sheltered too, phase W4). */
   const covered = async (): Promise<number> => {
     await evaluate(page, (d) => { d.setSurface({ snowCoverage: 0, wetness: 0 }); return d.step(0); });
     const dry = await shot(page);
-    await evaluate(page, (d) => { d.setSurface({ snowCoverage: 1, wetness: 1 }); return d.step(0); });
-    const white = await shot(page);
+    await evaluate(page, (d) => { d.setSurface({ snowCoverage: 0, wetness: 1 }); return d.step(0); });
+    const wet = await shot(page);
     await evaluate(page, (d) => { d.setSurface({ snowCoverage: 0, wetness: 0 }); return d.step(0); });
-    return difference(page, dry, white);
+    return difference(page, dry, wet);
   };
 
   await evaluate(page, (d) => d.setWeather("rain", 1));
@@ -162,7 +161,7 @@ test("precipitation cover: no rain or snow under a roof, dry ground inside, rain
   expect(results["inside rain"], "no rain under the roof").toBeLessThan(results["outside rain"]! * 0.05);
   expect(results["door rain"], "at the door it falls outside").toBeGreaterThan(results["inside rain"]! + 0.02);
   expect(results["inside snow"], "no snow under the roof").toBeLessThan(results["outside snow"]! * 0.05);
-  expect(results["outside ground"], "the open ground turns white and wet").toBeGreaterThan(1);
+  expect(results["outside ground"], "the open ground turns wet").toBeGreaterThan(1);
   expect(results["inside ground"], "the ground inside stays as it is").toBeLessThan(results["outside ground"]! * 0.05);
   // Relative to the open rain: the same pose's absolute amount sits at 0.09 - 0.15 with the background (W4 check).
   expect(results["inside rain, hut removed"], "without the hut it rains there").toBeGreaterThan(results["outside rain"]! * 0.3);

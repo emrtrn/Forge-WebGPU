@@ -67,7 +67,7 @@ import {
 import type { TerrainLayerInput } from "../resources/terrains.ts";
 import type { SurfaceCoverInput } from "../materials/surfaceCover.ts";
 import { SNOW_DEPTH_LIMIT } from "../../engine/environment/worldEnvironmentController.ts";
-import type { TerrainSnowRay } from "../../engine/environment/terrainSnow.ts";
+import { snowCoversTerrain } from "../../engine/environment/surfaceResponse.ts";
 import { terrainSnowOffset } from "./terrainSnow.ts";
 
 /** Forge's defaults (terrainRenderer.ts). */
@@ -168,9 +168,8 @@ export interface TerrainViewOptions {
   readonly farTiling?: boolean;
   /** An editor terrain: the Landscape view modes are compiled in (`setEditorView`, 5d step 3). */
   readonly editorViews?: boolean;
-  /** The precipitation cover (plan phase W3): no snow or wetness under a roof. */
+  /** The precipitation cover (plan phase W3): sheltered terrain stays dry. */
   readonly sheltered?: TerrainMaterialInput["sheltered"];
-  readonly snowShelter?: TerrainMaterialInput["snowShelter"];
 }
 
 export interface TerrainSelection {
@@ -187,7 +186,7 @@ export class TerrainView {
   setSurfaceCover(input: SurfaceCoverInput | null): void {
     this.cover = input;
     this.terrainMaterial.setSurfaceCover(input);
-    const padding = input && input.state.snowDepth > 0 && input.state.snowCoverage > 0 && (input.settings.snowSpread ?? 1) > 0 ? SNOW_DEPTH_LIMIT : 0;
+    const padding = input && input.state.snowDepth > 0 && snowCoversTerrain(input.state.snowCoverage, input.settings.snowSpread) ? SNOW_DEPTH_LIMIT : 0;
     if (padding !== this.snowPadding) {
       this.snowPadding = padding;
       this.selectionDirty = true;
@@ -325,7 +324,6 @@ export class TerrainView {
       layerTextures: this.layerTextures,
       editorViews: options.editorViews === true,
       ...(options.sheltered ? { sheltered: options.sheltered } : {}),
-      ...(options.snowShelter ? { snowShelter: options.snowShelter } : {}),
     };
     const material = createTerrainMaterial({ ...this.materialInput, farTiling: this.farTiling });
     this.terrainMaterial = material;
@@ -368,7 +366,7 @@ export class TerrainView {
   }
 
   /** The drawn surface as the CPU twin reads it: the last selection, its LOD camera, the tiles and the filled far map. */
-  visualSurface(snow?: { ray?: TerrainSnowRay }): { surface: TerrainVisualSurface; nodes: TerrainDrawnNode[] } {
+  visualSurface(includeSnow = false): { surface: TerrainVisualSurface; nodes: TerrainDrawnNode[] } {
     const geometry = this.mesh.geometry;
     const a = geometry.getAttribute("terrainNodeA");
     const b = geometry.getAttribute("terrainNodeB");
@@ -384,7 +382,7 @@ export class TerrainView {
     }
     const { map } = this.global;
     const cover = this.cover;
-    const snowOffset = snow && this.snowPadding > 0 && cover ? terrainSnowOffset({
+    const snowOffset = includeSnow && this.snowPadding > 0 && cover ? terrainSnowOffset({
       cover,
       origin: new THREE.Vector3().setFromMatrixPosition(this.mesh.matrixWorld).add(this.origin).toArray(),
       tileSlot: (x, z) => this.pool.slotOf(`${x}_${z}`) ?? -1,
@@ -394,7 +392,6 @@ export class TerrainView {
         width: map.width, height: map.height, spacing: map.stride * this.def.spacing,
         normals: (this.globalTextures[1]!.image as { data: Uint16Array }).data, weights: this.global.weights,
       },
-      ...(snow.ray ? { ray: snow.ray } : {}),
     }) : undefined;
     return {
       nodes,
@@ -726,8 +723,11 @@ export class TerrainView {
     const geometry = this.mesh.geometry;
     const tileSize = this.def.tileQuads * this.def.spacing;
     const [width, depth] = this.source.extent;
+    // Refine the snow surface within the CDLOD distance band. The whole extent is eligible
+    // so the distance morph can join the coarser mesh without a hard refinement-window edge.
+    const snowDetail = this.snowPadding > 0 ? { minX: 0, minZ: 0, maxX: width, maxZ: depth, levels: 1, range0: 48 } : null;
     const nodes: TerrainLodNode[] = this.selector
-      .select([cameraLocal.x, cameraLocal.y, cameraLocal.z], this.cullVisibility(cameraLocal, cull))
+      .select([cameraLocal.x, cameraLocal.y, cameraLocal.z], this.cullVisibility(cameraLocal, cull), snowDetail)
       // Nodes wholly past the drawn extent or on a missing tile draw nothing.
       .filter((node) => node.offsetX < width && node.offsetZ < depth && (!node.tileKey || this.declared.has(node.tileKey)));
     if (nodes.length > (geometry.getAttribute("terrainNodeA") as THREE.InstancedBufferAttribute).count) {

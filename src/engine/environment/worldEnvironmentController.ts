@@ -123,6 +123,7 @@ export interface WorldEnvironmentService {
 export class WorldEnvironmentController implements WorldEnvironmentService {
   private surfaceTarget: SurfaceAmount = { snowCoverage: 0, wetness: 0 };
   private surfaceRates: SurfaceConditionRates = { ...SURFACE_CONDITION_RATES };
+  private snowSpread = 1;
   private drivenByWeather = false;
   private clock: WorldClock | null = null;
   private state: WorldEnvironmentState | null = null;
@@ -148,6 +149,7 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
     this.state = stateFromDefaults(env);
     this.surfaceTarget = { snowCoverage: this.state.surface.snowCoverage, wetness: this.state.surface.wetness };
     this.surfaceRates = surfaceRatesOf(surface);
+    this.snowSpread = env.surface.snowSpread ?? 1;
     this.drivenByWeather = surface.weatherDrivesSurface === true;
     this.emit();
   }
@@ -216,7 +218,7 @@ export class WorldEnvironmentController implements WorldEnvironmentService {
     if (this.state && fellBefore) {
       const fellAfter = livePrecipitation(this.state);
       const fell = { rain: (fellBefore.rain + fellAfter.rain) / 2, snow: (fellBefore.snow + fellAfter.snow) / 2 };
-      const surface = advanceSurfaceCondition(this.state.surface, fell, this.surfaceRates, simulationSeconds);
+      const surface = advanceSurfaceCondition(this.state.surface, fell, this.surfaceRates, simulationSeconds, this.snowSpread);
       if (surface !== this.state.surface) {
         this.state = { ...this.state, surface: { ...surface } };
         this.emit();

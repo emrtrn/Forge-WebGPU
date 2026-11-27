@@ -36,6 +36,7 @@ import * as THREE from "three/webgpu";
 import * as TSLTyped from "three/tsl";
 import { LAYER_WEATHER_DEFAULTS } from "../../engine/environment/layerWeather.ts";
 import { CAVITY_CURVATURE } from "../../engine/environment/surfaceResponse.ts";
+import { SNOW_SLOPE_CENTRE_WEIGHT, SNOW_SLOPE_OFFSETS, SNOW_SLOPE_RADIUS } from "../../engine/environment/terrainSnow.ts";
 import { TERRAIN_RENDER_LAYERS } from "../../engine/terrain/terrainRenderData.ts";
 import type { TerrainLayerInput } from "../resources/terrains.ts";
 import { terrainStaticDetail, type TerrainDetailParams } from "./terrainDetail.ts";
@@ -210,8 +211,6 @@ export interface TerrainMaterialInput {
   readonly farTiling: boolean;
   /** Compile the Landscape view modes in (the editor's terrains only). */
   readonly editorViews?: boolean;
-  /** The terrain snow mask's wider, tighter-to-the-ground shelter query. */
-  readonly snowShelter?: (position: AnyNode, spacing: AnyNode) => AnyNode;
   /** How covered a world point is from rain and snow (plan phase W3); absent: nothing covers. */
   readonly sheltered?: (position: THREE.Node<"vec3">) => THREE.Node<"float">;
 }
@@ -304,7 +303,7 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
   const vTile = varyingProperty("vec3", "vTerrainTile"); // slot, tile origin x / z
   const editorViews = input.editorViews === true;
   const vHeight = editorViews ? varyingProperty("float", "vTerrainHeight") : null;
-  const vSnow = varyingProperty("vec2", "vTerrainSnow"); // local snow share, displacement in metres
+  const snowRise = varyingProperty("float", "vTerrainSnowRise");
   const layers = input.layers.slice(0, TERRAIN_RENDER_LAYERS);
   const responses = layers.map((layer) => {
     const weather = layer.weather ?? LAYER_WEATHER_DEFAULTS;
@@ -412,9 +411,12 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
 
   // Add the displacement gradient to the smooth base normal, retaining the terrain's shading at zero depth.
   const det = dPx.x.mul(dPy.y).sub(dPx.y.mul(dPy.x));
-  const dzDx = dFdx(vSnow.y), dzDy = dFdy(vSnow.y);
-  const gradient = vec2(dzDx.mul(dPy.y).sub(dzDy.mul(dPx.y)), dPx.x.mul(dzDy).sub(dPy.x.mul(dzDx)))
-    .div(select(abs(det).greaterThan(0.0000001), det, float(1)));
+  const heightGradient = (height: AnyNode): AnyNode => {
+    const dx = dFdx(height), dy = dFdy(height);
+    return vec2(dx.mul(dPy.y).sub(dy.mul(dPx.y)), dPx.x.mul(dy).sub(dPy.x.mul(dx)))
+      .div(select(abs(det).greaterThan(0.0000001), det, float(1)));
+  };
+  const gradient = heightGradient(snowRise);
   const raisedNormal = normalize(base.sub(vec3(gradient.x, 0, gradient.y).mul(base.y)));
   // Layer normals in the terrain normal's tangent space (Forge's normal block).
   let worldNormal: AnyNode = raisedNormal;
@@ -466,7 +468,7 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
   };
   const surfaceCover = createSurfaceCover(input.sheltered, {
     response: { wetting: response.x, porosity: response.y, snowAccept: response.z }, cavity,
-    position: positionWorld.sub(vec3(0, vSnow.y, 0)), snow: vSnow.x, geometryNormal: raisedNormal,
+    position: positionWorld.sub(vec3(0, snowRise, 0)), geometryNormal: raisedNormal,
   });
   const snowAt = Fn(([xz, h, tileOrigin, slotF]: AnyNode[]) => {
     const slot = int(max(slotF, 0));
@@ -474,8 +476,11 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
     const coord = xz.sub(tileOrigin).div(uSpacing);
     const uv = coord.add(0.5).div(uTileVertices);
     const farUV = xz.div(uGlobalSpacing).add(0.5).div(uGlobalSize);
-    const nearNormal = texture(normalTex, uv).depth(slot).level(0).rg;
+    const nearNormalAt = (at: AnyNode): AnyNode => texture(normalTex, at).depth(slot).level(0).rg;
+    const nearNormal = nearNormalAt(uv);
     const normal = normalOf(select(useSlot, nearNormal, texture(globalNormalTex, farUV).level(0).rg));
+    const edge = min(coord, uTileVertices.sub(1).sub(coord));
+    const edgeDistance = min(edge.x, edge.y);
     const wNear0 = texture(weightTex, uv).depth(slot.mul(2)).level(0);
     const wFar0 = texture(globalWeightTex, farUV).depth(int(0)).level(0);
     const weights = [select(useSlot, wNear0, wFar0)];
@@ -489,18 +494,20 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
       accepted = accepted.add(weight.mul(response.z));
     });
     const acceptance = select(total.greaterThan(0.0001), accepted.div(max(total, 0.0001)), defaultResponse.z);
-    const hollow = (): AnyNode => {
-      const texel = float(1).div(uTileVertices);
-      const nx = texture(normalTex, uv.add(vec2(texel, 0))).depth(slot).level(0).r;
-      const nz = texture(normalTex, uv.add(vec2(0, texel))).depth(slot).level(0).g;
-      const edge = min(coord, uTileVertices.sub(1).sub(coord));
-      // The one-sided cavity sample fades out at both sides of a shared tile edge.
-      const interior = smoothstep(0, 1, min(edge.x, edge.y));
-      return select(useSlot, clamp(nearNormal.x.add(nearNormal.y).sub(nx).sub(nz).div(uSpacing).mul(CAVITY_CURVATURE), 0, 1).mul(interior), float(0));
-    };
     const local = uOrigin.add(vec3(xz.x, h, xz.y));
     const world = modelWorldMatrix.mul(vec4(local, 1)).xyz;
-    return surfaceCover.snowShare(world, normal, acceptance, hollow, () => input.snowShelter?.(world, uSpacing) ?? input.sheltered?.(world) ?? float(0));
+    const normalY = normal.y.toVar();
+    If(useSlot.and(acceptance.greaterThan(0)), () => {
+      const radius = float(SNOW_SLOPE_RADIUS).div(uTileVertices);
+      const weight = (1 - SNOW_SLOPE_CENTRE_WEIGHT) / SNOW_SLOPE_OFFSETS.length;
+      let filtered = normalY.mul(SNOW_SLOPE_CENTRE_WEIGHT);
+      for (const [x, z] of SNOW_SLOPE_OFFSETS) {
+        filtered = filtered.add(normalOf(nearNormalAt(uv.add(vec2(x, z).mul(radius)))).y.mul(weight));
+      }
+      // Both tiles must use the same base normal on their shared edge.
+      normalY.assign(mix(normalY, filtered, smoothstep(0, SNOW_SLOPE_RADIUS, edgeDistance)));
+    });
+    return surfaceCover.depth.mul(acceptance).mul(surfaceCover.snowShape(world, normalY));
   });
 
   const position = Fn(() => {
@@ -513,12 +520,11 @@ export function createTerrainMaterial(input: TerrainMaterialInput): TerrainMater
     const fracGrid = fract(grid.mul(uPatchQuads).mul(0.5)).mul(2).div(uPatchQuads);
     const xz = clamp(start.sub(fracGrid.mul(nodeA.z).mul(morph)), vec2(0, 0), uExtent).toVar();
     const height = terrainHeight(xz, nodeB.xy, slot).toVar();
-    const snow = float(0).toVar();
-    If(surfaceCover.depth.greaterThan(0).and(surfaceCover.amount.x.greaterThan(0)), () => {
-      snow.assign(snowAt(xz, height, nodeB.xy, slot));
+    const rise = float(0).toVar();
+    If(surfaceCover.depth.greaterThan(0), () => {
+      rise.assign(snowAt(xz, height, nodeB.xy, slot));
     });
-    const rise = snow.mul(surfaceCover.depth);
-    vSnow.assign(vec2(snow, rise));
+    snowRise.assign(rise);
     const border = xz.x.lessThanEqual(0).or(xz.y.lessThanEqual(0)).or(xz.x.greaterThanEqual(uExtent.x)).or(xz.y.greaterThanEqual(uExtent.y));
     const skirt = positionLocal.y.greaterThan(0.5).and(nodeC.greaterThan(0.5)).and(border.not());
     height.assign(select(skirt, height.sub(nodeA.z.mul(uSkirtRatio)).sub(surfaceCover.depth), height));

@@ -52,6 +52,8 @@ export interface TerrainLodDetail {
   readonly maxZ: number;
   /** Extra levels below 0, at most {@link TERRAIN_LOD_MAX_DETAIL_LEVELS}; 0 turns refinement off. */
   readonly levels: number;
+  /** Reference range for negative levels only. At level -1 the range is half this value. */
+  readonly range0?: number;
   /** Metres the drawn surface may move off the authored heights here (track depth, berm); widens node boxes. */
   readonly margin?: number;
   /** Small water beds use a fixed topology so CPU clipping and the rendered mud agree. */
@@ -224,7 +226,10 @@ export class TerrainLodSelector {
     const margin = detail && Number.isFinite(detail.margin) ? Math.max(0, detail.margin!) : 0;
     const inDetail = (box: TerrainLodBox): boolean => detailLevels > 0
       && box.minX < detail!.maxX && box.maxX > detail!.minX && box.minZ < detail!.maxZ && box.maxZ > detail!.minZ;
-    const range = (level: number): number => level >= 0 ? this.ranges[level]! : range0 * 2 ** level;
+    const detailRange0 = detail?.range0 !== undefined && Number.isFinite(detail.range0) && detail.range0 > 0
+      ? Math.min(detail.range0, range0) : range0;
+    const detailMorph = { range0: detailRange0, morphStartRatio: this.settings.morphStartRatio };
+    const range = (level: number): number => level >= 0 ? this.ranges[level]! : detailRange0 * 2 ** level;
     const fixedDepth = (box: TerrainLodBox): number => {
       let depth = -1;
       for (const fixed of detail?.fixed ?? []) if (box.minX < fixed.maxX && box.maxX > fixed.minX && box.minZ < fixed.maxZ && box.maxZ > fixed.minZ) {
@@ -237,7 +242,7 @@ export class TerrainLodSelector {
       const size = leafSize * 2 ** level;
       nodes.push({
         level, ix, iz, offsetX: box.minX, offsetZ: box.minZ, size, box,
-        morphRange: fixedDepth(box) >= 0 ? [1e20, 2e20] : level >= 0 ? this.morphRanges[level]! : terrainLodDetailMorphRange(this.settings, level, detailLevels),
+        morphRange: fixedDepth(box) >= 0 ? [1e20, 2e20] : level >= 0 ? this.morphRanges[level]! : terrainLodDetailMorphRange(detailMorph, level, detailLevels),
         inRange, needsTileSlot,
         tileKey: needsTileSlot ? tileKey(Math.floor(ix * size / tileSize), Math.floor(iz * size / tileSize)) : null,
       });

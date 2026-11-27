@@ -33,44 +33,51 @@ describe("surface condition", () => {
     expect(advanceSurfaceCondition(soaked, clear, rates, 500)).toEqual(empty);
   });
 
-  test("snow depth grows quadratically up to full coverage, then linearly up to its cap", () => {
-    expectSurface(advanceSurfaceCondition(empty, snow, rates, 50), 0, 0, .5, .0125);
-    expectSurface(advanceSurfaceCondition(empty, snow, rates, 100), 0, 0, 1, .05);
-    expectSurface(advanceSurfaceCondition(empty, snow, rates, 200), 0, 0, 1, .15);
+  test("snow grows after full coverage, using only the remaining time in the step", () => {
+    expectSurface(advanceSurfaceCondition(empty, snow, rates, 50), 0, 0, .5, 0);
+    expectSurface(advanceSurfaceCondition(empty, snow, rates, 100), 0, 0, 1, 0);
+    expectSurface(advanceSurfaceCondition(empty, snow, rates, 101), 0, 0, 1, .001);
+    expectSurface(advanceSurfaceCondition(empty, snow, rates, 200), 0, 0, 1, .1);
     expect(advanceSurfaceCondition(empty, snow, rates, 600)).toEqual({ ...empty, snowCoverage: 1, snowDepth: .4 });
 
     const shallow = { ...rates, snowMaxDepth: .0125 };
-    const cappedDuringRamp = advanceSurfaceCondition(empty, snow, shallow, 75);
-    expect(cappedDuringRamp.snowDepth).toBe(.0125);
-    expectSurface(cappedDuringRamp, 0, 0, .75, .0125);
+    expectSurface(advanceSurfaceCondition(empty, snow, shallow, 75), 0, 0, .75, 0);
+    expectSurface(advanceSurfaceCondition(empty, snow, shallow, 120), 0, 0, 1, .0125);
     const damp = { ...empty, wetness: .4, puddleFill: .3 };
-    expectSurface(advanceSurfaceCondition(damp, snow, rates, 50), .4, .3, .5, .0125);
+    expectSurface(advanceSurfaceCondition(damp, snow, rates, 50), .4, .3, .5, 0);
+  });
+
+  test("a capped snow pattern and older partial-cover saves cannot accumulate depth early", () => {
+    expectSurface(advanceSurfaceCondition(empty, snow, rates, 600, .9), 0, 0, 1, 0);
+    const saved = { ...empty, snowCoverage: .5, snowDepth: .03 };
+    expectSurface(advanceSurfaceCondition(saved, snow, rates, 50), 0, 0, 1, 0);
+    expectSurface(advanceSurfaceCondition(saved, snow, rates, 51), 0, 0, 1, .001);
   });
 
   test("clear weather melts depth before coverage and then dries the meltwater in order", () => {
-    const snowpack = { ...empty, snowDepth: .1, snowCoverage: .5 };
-    expectSurface(advanceSurfaceCondition(snowpack, clear, rates, 10), .5, 0, .5, .095);
-    expectSurface(advanceSurfaceCondition(snowpack, clear, rates, 100), 1, .2, .5, .05);
+    const snowpack = { ...empty, snowDepth: .1, snowCoverage: 1 };
+    expectSurface(advanceSurfaceCondition(snowpack, clear, rates, 10), .5, 0, 1, .095);
+    expectSurface(advanceSurfaceCondition(snowpack, clear, rates, 100), 1, .2, 1, .05);
     const depthGone = advanceSurfaceCondition(snowpack, clear, rates, 200);
     expect(depthGone.snowDepth).toBe(0);
-    expectSurface(depthGone, 1, .45, .5, 0);
-    expectSurface(advanceSurfaceCondition(snowpack, clear, rates, 250), 1, .575, .25, 0);
-    expect(advanceSurfaceCondition(snowpack, clear, rates, 300).snowCoverage).toBe(0);
-    expectSurface(advanceSurfaceCondition(snowpack, clear, rates, 350), .5, .7, 0, 0);
-    expectSurface(advanceSurfaceCondition(snowpack, clear, rates, 400), 0, .7, 0, 0);
-    expectSurface(advanceSurfaceCondition(snowpack, clear, rates, 500), 0, .45, 0, 0);
-    expect(advanceSurfaceCondition(snowpack, clear, rates, 680)).toEqual(empty);
+    expectSurface(depthGone, 1, .45, 1, 0);
+    expectSurface(advanceSurfaceCondition(snowpack, clear, rates, 250), 1, .575, .75, 0);
+    expect(advanceSurfaceCondition(snowpack, clear, rates, 400).snowCoverage).toBe(0);
+    expectSurface(advanceSurfaceCondition(snowpack, clear, rates, 450), .5, .95, 0, 0);
+    expectSurface(advanceSurfaceCondition(snowpack, clear, rates, 500), 0, .95, 0, 0);
+    expectSurface(advanceSurfaceCondition(snowpack, clear, rates, 600), 0, .7, 0, 0);
+    expect(advanceSurfaceCondition(snowpack, clear, rates, 880)).toEqual(empty);
   });
 
   test("full rain triples clear-weather melt and equal rain and snow hold the snow", () => {
-    const snowpack = { ...empty, snowDepth: .2, snowCoverage: .7 };
-    expectSurface(advanceSurfaceCondition(snowpack, clear, rates, 100), 1, .2, .7, .15);
-    expectSurface(advanceSurfaceCondition(snowpack, rain, rates, 100), 1, .45, .7, .05);
-    expectSurface(advanceSurfaceCondition(snowpack, { rain: 1, snow: 1 }, rates, 5), .5, 0, .7, .2);
+    const snowpack = { ...empty, snowDepth: .2, snowCoverage: 1 };
+    expectSurface(advanceSurfaceCondition(snowpack, clear, rates, 100), 1, .2, 1, .15);
+    expectSurface(advanceSurfaceCondition(snowpack, rain, rates, 100), 1, .45, 1, .05);
+    expectSurface(advanceSurfaceCondition(snowpack, { rain: 1, snow: 1 }, rates, 5), .5, 0, 1, .2);
   });
 
   test("rain still wets the surface when mixed precipitation adds snow", () => {
-    expectSurface(advanceSurfaceCondition(empty, { rain: .25, snow: .75 }, rates, 50), 1, .0125, .25, .003125);
+    expectSurface(advanceSurfaceCondition(empty, { rain: .25, snow: .75 }, rates, 50), 1, .0125, .25, 0);
   });
 
   test("zero water rates hold their directions and prevent the following stage when applicable", () => {
@@ -84,12 +91,12 @@ describe("surface condition", () => {
   });
 
   test("zero snow rates hold their directions, and frozen depth blocks coverage melt", () => {
-    const snowpack = { ...empty, snowDepth: .05, snowCoverage: .5 };
+    const snowpack = { ...empty, snowDepth: .05, snowCoverage: 1 };
     expect(advanceSurfaceCondition(empty, snow, { ...rates, snowAccumulationRate: 0 }, 600)).toBe(empty);
-    expectSurface(advanceSurfaceCondition(snowpack, snow, { ...rates, snowAccumulationRate: 0 }, 100), 0, 0, .5, .1);
+    expectSurface(advanceSurfaceCondition(snowpack, snow, { ...rates, snowAccumulationRate: 0 }, 100), 0, 0, 1, .15);
     expectSurface(advanceSurfaceCondition(empty, snow, { ...rates, snowDepthRate: 0 }, 600), 0, 0, 1, 0);
     expect(advanceSurfaceCondition(snowpack, clear, { ...rates, snowDepthMeltRate: 0 }, 600)).toBe(snowpack);
-    expectSurface(advanceSurfaceCondition(snowpack, clear, { ...rates, snowMeltRate: 0 }, 210), 0, .175, .5, 0);
+    expectSurface(advanceSurfaceCondition(snowpack, clear, { ...rates, snowMeltRate: 0 }, 210), 0, .175, 1, 0);
   });
 
   test.each([30, 60, 144])("%i Hz agrees with a single step for each phase of the weather script", hz => {
@@ -114,8 +121,8 @@ describe("surface condition", () => {
     for (let frame = 0; frame < 600 * hz; frame++) {
       framed = advanceSurfaceCondition(framed, lightSnow, rates, 1 / hz);
     }
-    expectSurface(single, 0, 0, 1, .25);
-    expectSurface(framed, 0, 0, 1, .25);
+    expectSurface(single, 0, 0, 1, .2);
+    expectSurface(framed, 0, 0, 1, .2);
   });
 
   test("invalid inputs are sanitized and frozen state is reused only when unchanged", () => {
@@ -134,13 +141,13 @@ describe("surface condition", () => {
   });
 
   test("lowering the depth cap holds excess depth until it melts", () => {
-    const snowpack = { ...empty, snowDepth: .3, snowCoverage: .5 };
+    const snowpack = { ...empty, snowDepth: .3, snowCoverage: 1 };
     const lower = { ...rates, snowMaxDepth: .1 };
     expectSurface(advanceSurfaceCondition(snowpack, snow, lower, 100), 0, 0, 1, .3);
     const partlyMelted = advanceSurfaceCondition(snowpack, clear, lower, 100);
-    expectSurface(partlyMelted, 1, .2, .5, .25);
+    expectSurface(partlyMelted, 1, .2, 1, .25);
     const belowCap = advanceSurfaceCondition(partlyMelted, clear, lower, 350);
-    expectSurface(belowCap, 1, 1, .5, .075);
+    expectSurface(belowCap, 1, 1, 1, .075);
     expect(advanceSurfaceCondition(belowCap, snow, lower, 100).snowDepth).toBe(.1);
   });
 
@@ -162,9 +169,8 @@ describe("surface condition", () => {
 
   test("HV-05: after snowfall, depth, coverage, wetness and puddles disappear in order", () => {
     const snowSeconds = 1 / rates.snowAccumulationRate;
-    // Coverage averages one half between bare ground and full cover.
-    const depth = rates.snowDepthRate * snowSeconds / 2;
-    const pack = advanceSurfaceCondition(empty, snow, rates, snowSeconds);
+    const depth = rates.snowDepthRate * 50;
+    const pack = advanceSurfaceCondition(empty, snow, rates, snowSeconds + 50);
     expectSurface(pack, 0, 0, 1, depth);
     const afterSnow = (seconds: number) => advanceSurfaceCondition(pack, clear, rates, seconds);
     const depthGoneAt = depth / rates.snowDepthMeltRate;

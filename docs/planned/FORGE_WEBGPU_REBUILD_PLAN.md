@@ -594,10 +594,8 @@ girer.
 ve yol; terrain, bitki ve hareketli nesne yok. İki kademe (başlangıç önerisi 64 m
 ve 256 m kenar, 1024²), texel'e oturur; yalnız kamera kayınca, hücre / HLOD
 değişince ya da düzenlemede yeniden çizilir, duran karede maliyeti yok. Menzil
-dışı açık sayılır, kenarda yumuşak geçer. **Tek kaynak, dört tüketici:** yağış
-tanesi örtünün altında çizilmez; mesh ve terrain örtünün altında ıslanmaz /
-karlanmaz; üstü mesh'le kapalı terrain'de kar yükselmez (zemin döşemesi, yol ve
-oda karla gömülmez); birikinti oluşmaz. `forge.zone` gerekmez.
+dışı açık sayılır, kenarda yumuşak geçer. Yağış siperi taneleri, statik yüzeyleri,
+arazi ıslaklığını ve birikintileri etkiler. Arazi karı yapı kenarına kadar birikir.
 
 **4 · Yüzey durumu (saf, `engine/environment`).** Tek ıslaklık sayısının yerine
 dört büyüklük; hepsi simülasyon saniyesiyle, saat atlaması süre sayılmaz:
@@ -607,7 +605,7 @@ dört büyüklük; hepsi simülasyon saniyesiyle, saat atlaması süre sayılmaz
 | `wetness` 0–1 (ince ıslaklık) | Yağmur, kar erimesi | Yağış bitince **ilk** kurur |
 | `puddleFill` 0–1 (birikmiş su) | Yüzey doyunca, yağmur / erime sürdükçe | Islaklık kuruduktan sonra, **daha yavaş** |
 | `snowCoverage` 0–1 (beyazlık) | Kar; **önce** bu dolar | Kar yüksekliği bittikten sonra |
-| `snowDepth` m (terrain) | Kar, örtü arttıkça hızlanarak | Kar kesilince **önce** bu iner; yağmur eritmeyi hızlandırır |
+| `snowDepth` m (terrain) | Kar örtüsü tam olduktan sonra, `snowSpread` tam yayılmaya izin veriyorsa | Kar kesilince **önce** bu iner; yağmur eritmeyi hızlandırır |
 
 Oran 0 o yönü durdurur (kışın karın kalması böyle yazılır). Adım sınırlarda
 bölünür; 30 / 60 / 144 Hz aynı sonucu verir. Kayıt oyununda ortak durumdur,
@@ -651,15 +649,12 @@ yağmur şiddeti, uzakta söner; materyal birikintisi ve `forge.puddle` kullanı
 Yağmur bitince halkalar biter, su kalır. Açık su üstünde kar tutmaz.
 
 **7 · Terrain kar yüksekliği.** Terrain vertex aşamasında yalnız yukarı yer
-değiştirme: `snowDepth` × (eğim, yükseklik, katmanın kar kabulü, siper, açık su,
-düşük frekanslı savrulma). Morph'tan **sonraki** konumda hesaplanır (LOD ve tile
-sınırında çatlak yok); siper maskesi vertex aralığı kadar genişletilir (duvar
-dibinden içeri sızmaz); normal yükselen yüzeyden; gölge geçidi aynı konumu
+değiştirme: `snowDepth` × eğim, rakım ve katmanın kar kabulü. Morph'tan
+**sonraki** konumda hesaplanır. Aydınlatma normali yükselen yüzeyi izler. Gölge geçidi aynı konumu
 kullanır; düğüm sınırları ve culling en yüksek karı içerir. Kısa ot kara gömülür,
 bu istenen sonuçtur. Authored yükseklik, paint, fizik materyali ve collider
 yazılmaz; G8 kar 0 iken ölçülür. Maskelerin hepsi saf fonksiyondur ve **CPU
-ikizi** vardır (fizik aynı noktada aynı karı görür); siperin CPU karşılığı temas
-noktasından yukarı ışındır, GPU okuması yok.
+ikizi** vardır.
 
 **8 · Şema ve yüzeyler.** `forge.worldEnvironment@3`: `weather` geçişi,
 `weatherDrivesSurface`, yeni oranlar, `snowMaxDepth`, dikey ıslanma; canlı
@@ -800,8 +795,7 @@ yüzeyiyle biter.
       Yağış yokken içerik değişince saniyede en çok bir kez önden çizilir (kimse okumaz): ilk damla
       pipeline derlemez (`compileAsync` bazı nesnelerin gölge malzemesi pipeline'ını ilk çizime
       bırakıyordu). Tüketiciler: yağış tanesi vertex aşamasında siperin altında söner, tamamen
-      örtülüyse çizilmez; terrain örtüsünde kar ve ıslaklık siper altında yok. Statik mesh örtüsü W4,
-      birikinti W6, kar yüksekliği W7 aynı `coverAt`'i okur.
+      örtülüyse çizilmez. Terrain ıslaklığı, statik mesh örtüsü W4 ve birikinti W6 aynı `coverAt`'i okur.
       **Kanıt:** `precipitationCover.smoke.ts` (gerçek WebGPU, Derekavak'ta dev kancasıyla kapılı kulübe):
       içeride yağmur / kar 0,000 (dışarıda 0,19–0,22), içeride zemin farkı 0,000 (dışarıda 9,86), kapıda
       dışarısı yağar; kulübe kaldırılınca aynı yerde yağmur 0,11–0,17, geri gelince 0. Çekimler
@@ -973,12 +967,15 @@ yüzeyiyle biter.
       kullanıcıda). Çukur haritası Faz 7 sonrası.
       **Kullanıcı görsel kabulü 2026-11-27.**
 - [x] **W7 Terrain kar yüksekliği.** CPU ikiziyle. *Kapı:* HV-07, 08. — C
-      **Uygulama (2026-11-27):** `snowDepth`, W5'in yama maskesini (`patchySnow`, `snowSpread`, `patchSize`)
-      ve katmanın kar kabulünü kullanır. Yükselen yüzeyin rengi, gölgesi ve ölçülen yüksekliği aynı yer değiştirmeyi
-      izler. Siper sorgusu zemin seviyesinde ve vertex çevresinde yapılır, `forge.puddle` ıslak alanı da siper
-      haritasına girer. `terrainSnow.ts` saf maske ve yukarı ışın sorgusunu tanımlar. Editörde World Environment
-      önizlemesindeki mevcut *Simulate* yüksekliği gösterir. Kullanıcı görsel kabulü 2026-11-27.
-      **Doğrulama:** gerçek WebGPU'da Derekavak'ın açık arazisinde 4.096 yamalı kar örneğinde GPU ile CPU
+      **Uygulama (2026-11-27):** Yamalı evrede mevcut arazi yüksekliği kullanılır. Örtü kapandıktan sonra `snowDepth`,
+      eğim, rakım ve katmanın kar kabulüyle yükseltiyi belirler. `snowSpread` örtünün tamamlanmasına
+      izin vermezse yükselti oluşmaz. Yükselen yüzeyin rengi, gölgesi ve ölçülen yüksekliği aynı yer değiştirmeyi
+      izler. Yapı, yol ve birikinti altındaki arazi aynı kar hesabını kullanır. Editörde World Environment
+      önizlemesindeki *Simulate* yüksekliği gösterir.
+      **Güncel WebGPU kontrolü:** Derekavak'ta ince duvar, çatı ve alçak yol çevresindeki altı sabit
+      noktada 40 cm örtü, 6 / 19 / 23 / 48 m kamera mesafelerinde 1 cm tolerans içinde kaldı.
+      Çatı altında aynı zemin piksellerinin beyazlığı ilk 1 cm yükselişte korundu.
+      **Önceki siperli sürümün doğrulaması:** gerçek WebGPU'da Derekavak'ın açık arazisinde 4.096 yamalı kar örneğinde GPU ile CPU
       arasındaki en büyük fark 0,5 mm. Kar 40 cm'ye ulaştı ve eriyince tabana döndü. Çatı, alçak yol yüzeyi ve
       `forge.puddle` altında yükselme görülmedi. Kar sıfırken G8, Derekavak, OpenWorldTest ve Island'da geçti
       (tam çözünürlükte en büyük collider farkı 2,93 mm). Derekavak'ın 67 kaynak dosyası aynı baytları taşıyor.
@@ -1002,12 +999,12 @@ sonra gelir.
 | ID | Koşul | Kanıt |
 |---|---|---|
 | HV-01 | Yağış şiddet, rüzgâr ve kaliteyi izler; pause'da durur; kamera hızlı dönerken iz, sıçrama ve hacim sınırı görünmez | Gerçek WebGPU smoke'u + görsel kabul |
-| HV-02 | Çatı altında ve odada yağış yok, zemin kuru ve karsız; kapı eşiğinde ve akışla gelen binada da | Sabit pozlar (içeri, eşik, dışarı) + hücre döngüsü |
+| HV-02 | Çatı altında yağış kesilir, arazi kuru kalır. Kapı eşiğinde ve akışla gelen binada yağış siperi izlenir. | Sabit pozlar (içeri, eşik, dışarı) + hücre döngüsü |
 | HV-03 | Hava geçişi kesintisiz; geçişte pipeline ve shader modülü +0; Sky Light yakalaması hız sınırında | Saf test + `measure:weather` |
 | HV-04 | Aynı ıslaklıkta yatay > dikey > alta bakan; kaya, çatı, yol, şekil, HLOD ve terrain aynı kuralda | Saf test + pozlar |
 | HV-05 | Yağınca ıslanır; kesilince önce düz zemin, sonra birikintiler kurur; kar kalkınca zemin ıslak kalıp kurur | Deterministik sıra testi + zaman serisi çekimleri |
 | HV-06 | Birikinti çukurda ve düzlükte oluşur, yamaçta ve siper altında oluşmaz; halka yalnız yağmurda; `forge.puddle` seviyeyle iner | Çukur haritası testi + pozlar |
-| HV-07 | Kar yüksekliği artar ve iner; hiçbir noktada zeminin altına inmez, en çok sınırı kadar; LOD / tile sınırında çatlak yok; siper ve mesh altında yükselmez | GPU okuması ↔ CPU formülü + pozlar |
+| HV-07 | Kar yüksekliği artar ve iner, zemin ile üst sınır arasında kalır. Duvar çevresindeki düz arazide sabit dünya noktaları kamera hareketi boyunca aynı kalınlığı korur. LOD / tile sınırında çatlak yok | GPU okuması ↔ CPU formülü + pozlar |
 | HV-08 | Authored yükseklik, paint, fizik materyali, collider ve G8 değişmez (okunan profil yalnız W8 ile canlıdır); önizleme kayda ve Play'e sızmaz | Bayt karşılaştırması, G8, editör smoke'u |
 | HV-09 | 30 / 60 / 144 Hz aynı sonuç; saat atlaması birikim değil; kayıt / yükleme kaldığı yerden; yeni hücre güncel durumla gelir | Saf testler + hücre döngüsü |
 | HV-10 | WES yoksa, hava açık ve durum 0 iken görüntü bugünkü gibi; eski level baytları değişmez | Render smoke'u + bayt karşılaştırması |
@@ -1048,9 +1045,7 @@ fiziği yağışla değişir (kapsam 9, tasarım 9).
 | TRAA saydam damlayı bulandırır | W1'in ilk işi; iki yol ölçülür |
 | Örtü her statik pikselde maliyet | W4'te şehir / statik ölçümü; materyal kabulü 0 ise katkı derlenmez; uzak kademede siper okunmaz |
 | Doku sınırı (aşama başına 16) | Terrain fragment'i bugün 6 doku + gölge kaskatları + PMREM; siper ve çukur haritası birer dizi dokusu, W3'te sayılır, Faz 8'e yer kalır |
-| Kar odaya ya da duvar dibine sızar | Siper maskesi vertex aralığı kadar genişler; HV-02 / 07 pozları |
-| Yol mesh'i karın altında kalır | Yol siper haritasındadır; altındaki terrain yükselmez |
-| Siper menzilinin kenarında kar yüksekliği belirir | Kademe kenarında yumuşak geçiş; HV-07'de yürüyüş |
+| Duvar çevresinde kamera hareketiyle çukurlar belirir | Terrain karı siper haritasından bağımsızdır. HV-07 ince duvar boyunca sabit noktaları farklı kamera mesafelerinde ölçer. Alçak yolların kara gömülmesi bu davranışın parçasıdır. |
 | Görünen kar ile fizik ayrışır | Tek saf maske, CPU ikizi; HV-07 ve HV-13 aynı noktaları karşılaştırır |
 | Boyanmış kar (collider üst yüz) ile yağan kar (collider taban) karışır | İki ortam ayrı hücre bilgisi; sözleşme tasarım 9, uygulama Faz 8 |
 | Çukur haritası tile sınırında kopar | Komşu payı ve sığ derinlik sınırı; saf test iki tile'ı tek parçayla karşılaştırır |

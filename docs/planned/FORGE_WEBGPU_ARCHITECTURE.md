@@ -2302,7 +2302,7 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
   - **Yağış** `features/precipitation`'dadır; 6c'nin partikül sistemine bağlı
     değildir. Planar yansımaya, Sky Light yakalamasına ve gölgeye girmez.
   - **Yağış siperi** tek kaynaktır: yukarıdan derinlik haritası (statik mesh, şekil,
-    yol); yağış, yüzey örtüsü, birikinti ve terrain kar yüksekliği onu okur. Yalnız
+    yol); yağış taneleri, arazi ıslaklığı, statik materyaller ve birikintiler onu okur. Yalnız
     kamera kayınca ya da içerik değişince çizilir.
   - **Yüzey örtüsü** katkı sırasının `wetness` yuvasındadır ve bütün statik
     yüzeylere (materyal, GLB materyali, şekil, yol, HLOD proxy'si, ailesiz foliage,
@@ -2387,8 +2387,8 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     görünüm W4'le aynı. Yalnız uniform; hava değişimi shader derlemez. *Yayılma sınırı ve yamalı kar*
     (W5 inceltmesi): kar da aynı desenden (`patchySnow`, aynı gürültü ve oyuk sırası; gürültü pikselde bir
     kez) önce oyuklarda tutar, parça parça erir. Görünümün girdisi canlı büyüklük × `surface.wetSpread`
-    (ıslaklık ve birikinti) / `snowSpread` (kar), 0–1, varsayılan 1: yamalar o orana kadar yayılır, canlı
-    durum, hızlar ve yüzey modeli değişmez (birikme `wetness === 1` ister). `patchSize` (0,25–4) gürültünün
+    (ıslaklık ve birikinti) / `snowSpread` (kar), 0–1, varsayılan 1. Yağmurda ayar yamanın görünümünü
+    sınırlar. Karda `snowSpread` 1'in altındaysa örtü tamamlanmaz ve kalınlaşma başlamaz. `patchSize` (0,25–4) gürültünün
     iki katmanını (6 m, 1,7 m) birlikte ölçekler. Üçü 1'de uçlarda görünüm aynı; ara kar artık yamalı (hava
     bağı kapalı level'larda da). Eğim, yükseklik, siper ve materyal payları üstüne çarpılır; bitki aileleri
     kendi tepkisinde. Ayar değişimi yalnız uniform yazar. *Üç kademe (W5 sonrası, kullanıcı kararları
@@ -2418,15 +2418,19 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     rüzgâr, yağmur, saat) bir kez kurar (`SurfaceWeather.input`); terrain ve `forge.puddle` onu okur. Statik
     yüzeylerde normal her ağırlanan materyalde bağlanır. Yalnız uniform: hava ve ayar değişimi shader derlemez;
     birikintisiz piksel yalnız maskeyi karşılaştırır.
-  - **W7 uygulaması (2026-11-27, kullanıcı görsel kabulü):** Terrain `snowDepth` ile W5'in yama desenini, taban eğimini, rakımı, boya
-    katmanının kar kabulünü ve açık gök payını çarpar. Vertex, CDLOD geçişinden sonra yükselir. Çizim, gölge ve
-    ölçüm aynı konumu kullanır. Yer değiştirme eğimi aydınlatma normaline eklenir. Yükselen karın rengi ve geometrisi
-    aynı vertex maskesini izler. Düz örtüden geçiş ilk 1 cm içinde yumuşatılır. Tile sınırındaki oyuk örneği iki
-    tarafta da sıfıra iner. Kamera ve gölge görünürlüğünün üst sınırı en yüksek karı kapsar.
-    Siper, taban noktasından ve bir vertex aralığı çevresinden okunur. İkinci sıradaki örnekler kenarda yüksekliği kısmen
-    azaltır. Açık `forge.puddle` suyunun o anki ıslak alanı siper kamerasına derinlik yazar.
-    `engine/environment/terrainSnow.ts` maske formülünü ve yukarı ışın
-    sorgusu sözleşmesini içerir. Geliştirme yükseklik ölçümü aynı terrain normal ve boya örneklerini kullanır.
+  - **W7 uygulaması (2026-11-27):** W5 kar yamaları örtü tamamlanana kadar yalnız görünümü etkiler. Karın
+    görünüm geçişi su yamalarından geniştir. Tam örtüde terrain `snowDepth` ile taban eğimini, rakımı, boya
+    katmanının kar kabulünü çarpar. Vertex, CDLOD geçişinden sonra yükselir. Çizim, gölge ve
+    ölçüm aynı konumu kullanır. Kar yükseltisinin eğimi aydınlatma normaline eklenir.
+    Yükseklik için taban eğimi komşu örneklerle yumuşatılır. İlk beyazlaşmadan tam yüksekliğe kadar
+    renk aynı taban eğimi, rakım ve boya ağırlığıyla piksel başına değerlendirilir.
+    Tile sınırında eğim filtresinin ve oyuk örneğinin payı iki tarafta da sıfıra iner. Kamera ve gölge
+    görünürlüğünün üst sınırı en yüksek karı kapsar.
+    Arazi kar örtüsü ve yüksekliği yağış siperinden bağımsızdır. Duvar dibinde, yol ve su altında
+    arazi aynı kuralla yükselir.
+    Kar yükseliyorsa Forge deformasyonundaki CDLOD alt-seviyesi kameraya en çok 24 m uzaktaki düğümleri
+    böler. Yakındaki vertex aralığı yarıya iner. Mesafe geçişinde alt-seviye üst ağın vertex'lerine oturur.
+    `engine/environment/terrainSnow.ts` yükselti payını hesaplar. Geliştirme yükseklik ölçümü aynı terrain normal ve boya örneklerini kullanır.
     Canlı fizik profiline bağ W8'de yapılır.
   - Tasarım, adımlar ve HV-01–13 [plan Faz W'de](FORGE_WEBGPU_REBUILD_PLAN.md).
 - *Terrain:* Faz 3'te salt çizim (spike S2'nin TSL CDLOD'u: yükseklik, 8

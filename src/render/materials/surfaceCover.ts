@@ -6,7 +6,7 @@
 // all of it, standing `verticalWetting` and more on the windward side, down
 // none), snow by the slope window and the altitude floor; under the
 // precipitation cover (plan phase W3: a roof, an overhang; `sheltered`,
-// render/sync/precipitationCover.ts) neither. A material takes its share
+// render/sync/precipitationCover.ts) only terrain snow accumulates. A material takes its share
 // (`wetting`, `snowAccept`) and shows it by its porosity: porous darkens, hard
 // turns glossy; snow is white, rough, not metal and flattens the fine normal.
 //
@@ -34,8 +34,8 @@ import * as TSLTyped from "three/tsl";
 import type { ResolvedWorldEnvironment } from "../../engine/environment/worldEnvironment.ts";
 import type { WorldEnvironmentState } from "../../engine/environment/environmentResolve.ts";
 import {
-  COVER_READ_LIFT, COVER_READ_OUT, DRY_BAND, DRY_NOISE, DRY_NOISE_EDGE, MATERIAL_WEATHER_DEFAULTS, SNOW_NORMAL_SOFTEN, SNOW_ROUGHNESS,
-  PUDDLE_ROUGHNESS, SURFACE_PATTERN_DEFAULTS, WET_DARKEN, WET_DOWN_DRY, WET_GLOSS, WET_UP_FULL, patchSizeOf, poolSlopeWindow, type SurfaceWind,
+  COVER_READ_LIFT, COVER_READ_OUT, DRY_BAND, DRY_NOISE, DRY_NOISE_EDGE, MATERIAL_WEATHER_DEFAULTS, SNOW_NORMAL_SOFTEN, SNOW_PATCH_BAND, SNOW_ROUGHNESS,
+  PUDDLE_ROUGHNESS, SURFACE_PATTERN_DEFAULTS, WET_DARKEN, WET_DOWN_DRY, WET_GLOSS, WET_UP_FULL, patchSizeOf, poolSlopeWindow, snowCoversTerrain, type SurfaceWind,
 } from "../../engine/environment/surfaceResponse.ts";
 import { RIPPLE_PATCH_SHARE, type WaterRippleSettings } from "../../engine/environment/rainRipples.ts";
 import { createWaterRipples, hash12Node } from "./waterRipples.ts";
@@ -78,8 +78,6 @@ export interface SurfaceCoverTerrain {
   readonly cavity?: CavityNode;
   /** The terrain's base point, even when the drawing is raised by snow. */
   readonly position: Node;
-  /** Interpolated share of the raised snow, including the layer acceptance. */
-  readonly snow: Node;
   readonly geometryNormal: Node;
 }
 
@@ -106,10 +104,11 @@ function patchyNode(amount: Node, core: Node, noiseScale: Node, position: Node, 
   const late = cavity ? patches.add(float(1).sub(patches).mul(cavity)) : patches;
   const start = float(1).sub(late).mul(1 - DRY_BAND);
   const end = start.add(DRY_BAND);
+  const snowStart = float(1).sub(late).mul(1 - SNOW_PATCH_BAND);
   return {
     patch: smoothstep(start, end, amount.z),
     puddle: smoothstep(start, end, amount.z.mul(core)),
-    snow: smoothstep(start, end, amount.x),
+    snow: smoothstep(snowStart, snowStart.add(SNOW_PATCH_BAND), amount.x),
   };
 }
 
@@ -130,12 +129,11 @@ export function createSurfaceCover(sheltered?: (position: Node) => Node, terrain
   /** x vertical share, y windward share × wind strength, zw the wind's XZ direction. */
   const share = uniform(new Vector4(0.35, 0, 1, 0));
   const ripples = createWaterRipples();
-  const snowShape = (position: Node, normal: Node): Node => {
+  const snowShape = (position: Node, normalY: Node): Node => {
     const { max, smoothstep } = TSL;
-    return smoothstep(slope.x, max(slope.x.add(0.00001), slope.y), normal.y)
+    return smoothstep(slope.x, max(slope.x.add(0.00001), slope.y), normalY)
       .mul(smoothstep(altitude.x, altitude.x.add(altitude.y), position.y));
   };
-
   /**
    * vec4(wet, snow, patch, puddle) on a face (world normal, unit) before the material's acceptance; zero without a
    * cover read in dry, snowless weather. `wet` is the even darkening (the look takes at least the patch's), `patch` and `puddle` the
@@ -145,8 +143,7 @@ export function createSurfaceCover(sheltered?: (position: Node) => Node, terrain
     const { Fn, If, dot, float, length, max, min, select, smoothstep, vec3, vec4 } = TSL;
     return Fn(() => {
       const out = vec4(0, 0, 0, 0).toVar("forgeWeatherFactors");
-      const flatSnow = terrain ? amount.x.greaterThan(0).and(depth.lessThan(0.01)) : amount.x.greaterThan(0);
-      If(flatSnow.or(amount.y.add(amount.z).greaterThan(0)), () => {
+      If(amount.x.add(amount.y).add(amount.z).greaterThan(0), () => {
         const patches = vec3(0, 0, select(amount.x.greaterThanEqual(1), float(1), float(0))).toVar();
         If(amount.z.greaterThan(0).or(amount.x.greaterThan(0).and(amount.x.lessThan(1))), () => {
           const patchy = patchyNode(amount, waterShape.x, noiseScale, position, cavity ? cavity() : null);
@@ -160,18 +157,14 @@ export function createSurfaceCover(sheltered?: (position: Node) => Node, terrain
         const read = position.add(vec3(normal.x.mul(COVER_READ_OUT), COVER_READ_LIFT, normal.z.mul(COVER_READ_OUT)));
         const open = sheltered ? float(1).sub(sheltered(read)) : float(1);
         const flat = smoothstep(pool.x, pool.y, up).mul(open);
-        out.assign(vec4(amount.y.mul(wetShare).mul(open), patches.z.mul(snowShape(position, normal)).mul(open), patches.x.mul(flat), patches.y.mul(flat)));
+        const snow = patches.z.mul(snowShape(position, up));
+        out.assign(vec4(amount.y.mul(wetShare).mul(open), terrain ? snow : snow.mul(open), patches.x.mul(flat), patches.y.mul(flat)));
       });
       return out;
     })();
   };
 
   const water = (response: SurfaceResponseNodes): Node => (response.puddleAccept ? response.wetting.mul(response.puddleAccept) : response.wetting);
-  const snowOf = (f: Node, response: SurfaceResponseNodes): Node => {
-    const flat = f.y.mul(response.snowAccept);
-    // Blend through the first centimetre so a formerly flat W5 pattern does not pop on the first snowy frame.
-    return terrain ? TSL.mix(flat, terrain.snow, TSL.smoothstep(0, 0.01, depth)) : flat;
-  };
   const patchOf = (f: Node, response: SurfaceResponseNodes): Node => f.z.mul(water(response));
   const puddleOf = (f: Node, response: SurfaceResponseNodes): Node => f.w.mul(water(response));
   /** The darkening: the film, at least the patch's (surfaceResponse.ts `surfaceWeatherAt`). */
@@ -182,7 +175,7 @@ export function createSurfaceCover(sheltered?: (position: Node) => Node, terrain
     color(rgb: Node, f: Node, response: SurfaceResponseNodes): Node {
       const { float, mix } = TSL;
       const darken = float(1).sub(wetOf(f, response).mul(response.porosity.mul(WET_DARKEN[1]).add(WET_DARKEN[0])));
-      return mix(rgb.mul(darken), snowColor, snowOf(f, response));
+      return mix(rgb.mul(darken), snowColor, f.y.mul(response.snowAccept));
     },
     roughness(roughness: Node, f: Node, response: SurfaceResponseNodes): Node {
       const { float, min, mix } = TSL;
@@ -190,10 +183,10 @@ export function createSurfaceCover(sheltered?: (position: Node) => Node, terrain
       const patchFloor = min(float(1).sub(waterShape.y).mul(response.porosity.add(0.5)), 1);
       const patched = mix(roughness, min(roughness, patchFloor), patchOf(f, response));
       const pooled = mix(patched, min(patched, PUDDLE_ROUGHNESS), puddleOf(f, response));
-      return mix(pooled, SNOW_ROUGHNESS, snowOf(f, response));
+      return mix(pooled, SNOW_ROUGHNESS, f.y.mul(response.snowAccept));
     },
     metalness(metalness: Node, f: Node, response: SurfaceResponseNodes): Node {
-      return TSL.mix(metalness, 0, snowOf(f, response));
+      return TSL.mix(metalness, 0, f.y.mul(response.snowAccept));
     },
     /**
      * A view-space normal flattened toward `geometry` (view space) under snow and, fully, under a puddle's water; then
@@ -201,7 +194,7 @@ export function createSurfaceCover(sheltered?: (position: Node) => Node, terrain
      */
     normal(normal: Node, geometry: Node, f: Node, response: SurfaceResponseNodes, position: Node): Node {
       const { cameraViewMatrix, float, max, mix, normalize, vec4 } = TSL;
-      const snow = snowOf(f, response);
+      const snow = f.y.mul(response.snowAccept);
       const puddle = puddleOf(f, response);
       const flat = normalize(mix(normal, geometry, max(snow.mul(SNOW_NORMAL_SOFTEN), puddle)));
       const open = float(1).sub(snow);
@@ -211,28 +204,15 @@ export function createSurfaceCover(sheltered?: (position: Node) => Node, terrain
   };
 
   return {
-    amount,
     depth,
-    /** W7 uses the same W5 snow pattern at the unraised terrain vertex. */
-    snowShare(position: Node, normal: Node, snowAccept: Node, cavity: CavityNode, covered: () => Node): Node {
-      const { Fn, If, float } = TSL;
-      return Fn(() => {
-        const snow = snowShape(position, normal).mul(snowAccept).toVar();
-        If(snow.greaterThan(0), () => {
-          // At full coverage every lattice sample takes snow, irrespective of the patch noise.
-          If(amount.x.lessThan(1), () => snow.mulAssign(patchyNode(amount, waterShape.x, noiseScale, position, cavity()).snow));
-          If(snow.greaterThan(0), () => snow.mulAssign(float(1).sub(covered())));
-        });
-        return snow;
-      })();
-    },
+    snowShape,
     /** Identifies this cover's uniforms in a material's program cache key. */
     key: String(amount.id),
     factors,
     look,
     update(input: SurfaceCoverInput | null) {
       const s = input?.settings;
-      depth.value = input?.state.snowDepth ?? 0;
+      depth.value = input && snowCoversTerrain(input.state.snowCoverage, s?.snowSpread) ? input.state.snowDepth : 0;
       const wetSpread = clamp01(s?.wetSpread ?? 1);
       amount.value.set(
         (input?.state.snowCoverage ?? 0) * clamp01(s?.snowSpread ?? 1),

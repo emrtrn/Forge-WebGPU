@@ -220,8 +220,11 @@ describe("patch spread and size (W5 refinement)", () => {
 
   test("snow settles in the late places (hollows) first and melts open patch by patch", () => {
     for (const coverage of [0.2, 0.5, 0.8]) expect(patchySnow(coverage, 0.9)).toBeGreaterThan(patchySnow(coverage, 0.1));
-    expect(patchySnow(0.35, 1)).toBe(1);
+    expect(patchySnow(0.55, 1)).toBe(1);
     expect(patchySnow(0.35, 0)).toBe(0);
+    const snowContrast = patchySnow(.5, .85) - patchySnow(.5, .15);
+    const wetContrast = patchyWater(.5, .85).patch - patchyWater(.5, .15).patch;
+    expect(snowContrast).toBeLessThan(wetContrast);
   });
 
   test("the spread caps the wet patches and the snow even with the live state at 1; the darkening stays everywhere (user decision 2026-11-26)", () => {
@@ -230,7 +233,7 @@ describe("patch spread and size (W5 refinement)", () => {
     for (const key of ["patches", "snowCoverage"] as const) {
       const values = seen.map((amount) => amount[key] ?? 0);
       expect(Math.min(...values), `${key}: ground without remains`).toBe(0);
-      expect(Math.max(...values), `${key}: the late places are full`).toBe(1);
+      expect(Math.max(...values), `${key}: the late places are visible`).toBeGreaterThan(.75);
     }
     expect(seen.every((amount) => amount.wetness === 1), "the darkening is not cut by the wet spread").toBe(true);
     expect(seen.every((amount) => (amount.puddles ?? 0) <= (amount.patches ?? 0)), "puddles lie inside the patches").toBe(true);
