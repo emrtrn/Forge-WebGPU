@@ -177,10 +177,11 @@ test("HV-05: rain wets, the film dries before the water; snow melts depth, cover
     expect(Math.abs(at("snow", "dry-again").luminance[pose]! - dry), `${pose}: dry after the snow`).toBeLessThan(0.5);
     expect(at("snow", "covered").luminance[pose]!, `${pose}: snow is brighter`).toBeGreaterThan(dry + 5);
   }
-  // Under the same clear sky the drying ground moves from the wet look toward the dry one.
-  const low = (name: string) => at("rain", name).luminance.low!;
-  const dryLow = low("dry");
-  expect(Math.abs(low("drying-late") - dryLow)).toBeLessThan(Math.abs(low("drying-film") - dryLow));
+  // Under the same clear sky the drying ground moves from the wet look toward the dry one. Measured at P2: much of
+  // the low pose is standing water, which stays while the film dries and mirrors the sky, brighter than dry ground.
+  const p2Look = (name: string) => at("rain", name).luminance.p2!;
+  const p2Dry = p2Look("dry");
+  expect(Math.abs(p2Look("drying-late") - p2Dry)).toBeLessThan(Math.abs(p2Look("drying-film") - p2Dry));
   expect((await gpuMemory(page)).pipelines - pipelinesBefore, "no pipeline for any of it").toBe(0);
   writeFileSync(join(RENDER_REFS, "runs", `${new Date().toISOString().replace(/[:.]/g, "-")}-w5-surface.json`), JSON.stringify(report, null, 1));
   expect(errors).toEqual([]);
