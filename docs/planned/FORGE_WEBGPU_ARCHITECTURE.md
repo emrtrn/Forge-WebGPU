@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.99 · 2026-11-27 — §4.7 ortak çarpışma profili, temas/çözücü maskeleri ve davranışın simülasyon zamanı (SDK 0.1.20).
+**Güncelleme:** v1.100 · 2026-11-27 — §4.7 Faz 6a kapanışı, hücre boşaltma sırası, çözülmüş fizik gövdeleri ve debug zamanı.
+
+**Önceki güncelleme:** v1.99 · 2026-11-27 — §4.7 ortak çarpışma profili, temas/çözücü maskeleri ve davranışın simülasyon zamanı (SDK 0.1.20).
 
 **Önceki güncelleme:** v1.98 · 2026-11-27 — §4.7 Faz 6 World servisleri, §4.9 ortak terrain tile sahipliği ve canlı G8.
 
@@ -1629,6 +1631,16 @@ düşen alan uyarı değil, **hatadır**.
   Duraklatılmış World zamanlayıcıları ve aktör ömrünü ilerletmez. Tick'i
   kapatılan davranış mesaj almaya devam eder. Kaldırılan davranışın zamanlayıcıları
   iptal edilir. Süresi dolan aktör World'ün olağan silme yolundan çıkar.
+- **Hücre yaşam döngüsü (6a):** World boşaltılan aktörleri dizinden çıkarır,
+  kaldırma kancalarını çalıştırır ve aktörleri akış servisine döndürür. Akış
+  servisi `EndPlay` sonrası kalıcı alanları deftere alır. Yeniden yüklemede
+  alanlar `BeginPlay` öncesi uygulanır ve mesaj aboneliği yeniden kurulur.
+- **Fizik giriş sınırı (6a):** Şemalı bileşenler World fizik özelliğinde
+  çözülür. `PhysicsSubsystem`, `replaceBodies` ve `addBodies` ile çözülmüş
+  gövdeleri alır. Eski entity fixture'larını test yardımcısı dönüştürür.
+- **Debug zamanı (6a):** `?debug`, World zaman ölçeğini ve panelin kendi
+  duraklatma kaydını yönetir. CPU kare yakalama gerçek zamanı ölçer; simülasyon
+  durduğunda çizim ve ölçüm devam eder.
 - **Render senkronu:** oynanış kodu three nesnelerine dokunmaz; render katmanı
   bileşenleri render bağlamalarıyla izler. "engine three'siz" kuralı böylece
   kalıcı olur.

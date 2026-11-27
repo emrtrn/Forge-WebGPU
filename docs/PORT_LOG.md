@@ -262,7 +262,7 @@ Faz sütunu özelliğin oyunda çalıştığı fazdır. Oyun çatısı (`src/gam
 | INV-F28 | Terrain deformasyonu runtime'ı: iz, kazma, berm, kalıcılık | `capabilities/terrainDeformationModule.ts`, `engine/scene/deformation*.ts` | 8 | taşı | puddle-deformation, wet-trail-runtime, e:deformationField, e:deformationPersistence | | |
 | INV-F29 | Kırılma ve deformable runtime'ı, debris / VFX / ses | `engine/physics/{fracture,deformable}`, `capabilities/{fracture,deformable}Module.ts` | 8 | taşı | fracture-runtime, deformable-runtime, e:fracture*, e:impactDeform | | |
 | INV-F30 | VFX runtime'ı | `capabilities/vfxModule.ts`, `engine/vfx` | 6 | taşı | e:vfxModule | | |
-| INV-F31 | Zaman kontrolü: yavaşlatma, duraklatma | `engine/core/timeControl.ts`, `src/scene/debugSpeedControl.ts` | 6 | taşı | e:timeControl | | |
+| INV-F31 | Zaman kontrolü: yavaşlatma, duraklatma | `engine/core/timeControl.ts`, `src/scene/debugSpeedControl.ts` | 6a ✓ | taşı | e:timeControl | World saat servisi ve `?debug` zaman kontrolleri | Chrome/WebGL2, duraklatma sırasında CPU ölçümü ve `0.5x` ile devam |
 
 ### G. Render
 
@@ -398,6 +398,8 @@ kontrolleri yeniden yükleme, abonelikler, tick ve geçici alanların sıfırlan
 doğrular. Oyun kodu durum için şemalı bileşenleri, çarpışma ve fizik darbesi için
 World servislerini kullanır. Eski görünürlük, dinamik ebeveynlik, birleşik aktör
 hızı ve karakter fırlatma sözleşmelerinin kontrolleri referans olarak durur.
+Fizik başlangıç ve ekleme yolları çözülmüş gövdeler alır. Eski `Entity`
+fixture dönüşümü `src/engine/testing/physicsBodies.ts` içindedir.
 
 | Modül | Kaynak yol | Forge SHA | İşlem | Testler | Durum |
 |---|---|---|---|---|---|
