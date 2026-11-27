@@ -84,7 +84,8 @@ geliştirme sunucusunda ayrı bir Node worker'ından aynı CLI üreticisine gide
   `render/materials/surfaceWeather.ts`'i, tepki `forge.material` `weather`); yağış yüzeyi
   ıslatır, su biriktirir ve kurutur (`engine/environment/surfaceCondition.ts`); yağarken
   birikintilerde halkalar (`render/materials/waterRipples.ts`, CPU ikizi
-  `engine/environment/rainRipples.ts`); terrain kar yüksekliği planda; sözleşme rapor §4.9'da.
+  `engine/environment/rainRipples.ts`). Yamalı terrain karı LOD geçişinden sonra yükselir. Yağış siperi ve
+  açık `forge.puddle` suyu yüksekliği sınırlar (`engine/environment/terrainSnow.ts` CPU ikizi). Sözleşme rapor §4.9'da.
 - Level'da her şey bir aktördür: kalıcı GUID, transform, `parent`, şemalı
   bileşenler (aktör içinde yerel kimlikli, uzamsal olanlar hiyerarşili). Aktör
   sınıfı (`forge.actorClass/1`) prefab'dır; level'daki örnek yalnız sürüm

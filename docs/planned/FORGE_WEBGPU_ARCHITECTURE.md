@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.96 · 2026-11-26 — §4.9 hava sözleşmesi W6: yağmur halkaları (ortak düğüm, CPU ikizi; sıklık anlık yağmurla, uzakta ve siper altında yok, simülasyon saati) birikintide ve `forge.puddle` suyunda; materyal birikintisinde rüzgâr tepeleri; `puddleAccept` çizilir; render dünyasının tek yüzey girdisi.
+**Güncelleme:** v1.97 · 2026-11-27 — §4.9 hava sözleşmesi W7: yamalı terrain karı, LOD geçişinden sonra yükselir. Yağış siperi ve `forge.puddle` suyu, ortak maskeyi sınırlar.
+
+**Önceki güncelleme:** v1.96 · 2026-11-26 — §4.9 hava sözleşmesi W6: yağmur halkaları (ortak düğüm, CPU ikizi; sıklık anlık yağmurla, uzakta ve siper altında yok, simülasyon saati) birikintide ve `forge.puddle` suyunda; materyal birikintisinde rüzgâr tepeleri; `puddleAccept` çizilir; render dünyasının tek yüzey girdisi.
 
 **Önceki güncelleme:** v1.95 · 2026-11-26 — §4.9 SSR roughness + Fresnel ağırlığıyla ve ortam yansımasının yerine (MRT `specular`, Post Process `ssr`); hava sözleşmesi W5 sonrası: ıslaklık üç kademe (koyulaşma, ıslak yama, ayna birikinti; yalnız düz zeminde), `forge.puddle` `followWeather` (kullanıcı kararları).
 
@@ -2385,6 +2387,16 @@ Ayrıntı yeniden inşa planında (§2.3–2.6); burada yalnız mimari kararlar:
     rüzgâr, yağmur, saat) bir kez kurar (`SurfaceWeather.input`); terrain ve `forge.puddle` onu okur. Statik
     yüzeylerde normal her ağırlanan materyalde bağlanır. Yalnız uniform: hava ve ayar değişimi shader derlemez;
     birikintisiz piksel yalnız maskeyi karşılaştırır.
+  - **W7 uygulaması (2026-11-27, kullanıcı görsel kabulü):** Terrain `snowDepth` ile W5'in yama desenini, taban eğimini, rakımı, boya
+    katmanının kar kabulünü ve açık gök payını çarpar. Vertex, CDLOD geçişinden sonra yükselir. Çizim, gölge ve
+    ölçüm aynı konumu kullanır. Yer değiştirme eğimi aydınlatma normaline eklenir. Yükselen karın rengi ve geometrisi
+    aynı vertex maskesini izler. Düz örtüden geçiş ilk 1 cm içinde yumuşatılır. Tile sınırındaki oyuk örneği iki
+    tarafta da sıfıra iner. Kamera ve gölge görünürlüğünün üst sınırı en yüksek karı kapsar.
+    Siper, taban noktasından ve bir vertex aralığı çevresinden okunur. İkinci sıradaki örnekler kenarda yüksekliği kısmen
+    azaltır. Açık `forge.puddle` suyunun o anki ıslak alanı siper kamerasına derinlik yazar.
+    `engine/environment/terrainSnow.ts` maske formülünü ve yukarı ışın
+    sorgusu sözleşmesini içerir. Geliştirme yükseklik ölçümü aynı terrain normal ve boya örneklerini kullanır.
+    Canlı fizik profiline bağ W8'de yapılır.
   - Tasarım, adımlar ve HV-01–13 [plan Faz W'de](FORGE_WEBGPU_REBUILD_PLAN.md).
 - *Terrain:* Faz 3'te salt çizim (spike S2'nin TSL CDLOD'u: yükseklik, 8
   katman, normal, gölge); su birikintisi, tile akışı ve üretim kalitesi 5a'da;

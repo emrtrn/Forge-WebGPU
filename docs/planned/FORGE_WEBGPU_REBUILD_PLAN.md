@@ -1,6 +1,12 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.29 · 2026-11-27 — Faz W W6 kapandı: kullanıcı görsel kabulü.
+**Güncelleme:** v2.32 · 2026-11-27 — Faz W W7 kapandı (kullanıcı görsel kabulü). Sırada W8: canlı yüzey fiziği.
+
+**Önceki güncelleme:** v2.31 · 2026-11-27 — Faz W W7: yamalı terrain karı LOD geçişinden sonra yükselir. Kullanıcı görsel kabulü bekleniyor.
+
+**Önceki güncelleme:** v2.30 · 2026-11-27 — Faz W W5 kapandı: kullanıcı görsel kabulü. Sırada W7.
+
+**Önceki güncelleme:** v2.29 · 2026-11-27 — Faz W W6 kapandı: kullanıcı görsel kabulü.
 
 **Önceki güncelleme:** v2.28 · 2026-11-26 — Faz W W6 halkalar ve birikintide rüzgâr (`95e0ae5`): ortak halka düğümü (hücre karmalı, üç katman; sıklık anlık yağmurla, uzakta ve siper altında yok, simülasyon saati), materyal birikintisinde ve `forge.puddle` suyunda, ıslak yamada hafif; materyal birikintisinde `forge.puddle`'ın prosedürel rüzgâr tepeleri; WES `surface` ayarları; `forge.material` `puddleAccept` çizilir. Yalnız uniform. Kullanıcı görsel kabulü bekleniyor.
 
@@ -848,7 +854,8 @@ yüzeyiyle biter.
       ve değilken 0,09–0,10 ölçüyor (eşik sınırdaydı). Ölçüm smoke'unda bir yüzey değişikliği ekranda birkaç
       kare sonra görünüyor (iki adım yetmedi, altı adım); sebebi ayrıca aranmadı.
       **Görsel kabul:** kullanıcı, 2026-11-26.
-- [ ] **W5 Yağışla ıslanma, karlanma, kuruma.** Yüzey durumu modeli (W0'da) + hava
+- [x] **W5 Yağışla ıslanma, karlanma, kuruma.** Kullanıcı görsel kabulü 2026-11-27.
+      Yüzey durumu modeli (W0'da) + hava
       bağı, katmanın `weather` alanı ve Details'i, yamalı kuruma, kayıt oyunu (C).
       *Kapı:* HV-05, 08, 09.
       **Kod 2026-11-26 (`ce38ed2`):** *Hava bağı:* WES `surface.weatherDrivesSurface` (şemada kapalı, HK2;
@@ -961,16 +968,27 @@ yüzeyiyle biter.
       yok (tasarım gereği). Rüzgâr tepeleri yağmur ön ayarının büyüttüğü rüzgârla güçlü görünebilir (görsel ayar
       kullanıcıda). Çukur haritası Faz 7 sonrası.
       **Kullanıcı görsel kabulü 2026-11-27.**
-- [ ] **W7 Terrain kar yüksekliği.** CPU ikiziyle. *Kapı:* HV-07, 08. — C
-      *Not (W5 inceltmesi):* kar örtüsü artık yamalı (`patchySnow`, `snowSpread`, `patchSize`); yükseklik
-      `snowDepth`'i düz uygularsa yamaların dışında karsız zemin kabarır. Yer değiştirme büyük olasılıkla aynı
-      maskeyle (`surfaceAmountAt` / `factors`'ın kar payı) çarpılmalı; vertex aşamasında aynı gürültü hesabı
-      gerekir (tasarımda karar).
+- [x] **W7 Terrain kar yüksekliği.** CPU ikiziyle. *Kapı:* HV-07, 08. — C
+      **Uygulama (2026-11-27):** `snowDepth`, W5'in yama maskesini (`patchySnow`, `snowSpread`, `patchSize`)
+      ve katmanın kar kabulünü kullanır. Yükselen yüzeyin rengi, gölgesi ve ölçülen yüksekliği aynı yer değiştirmeyi
+      izler. Siper sorgusu zemin seviyesinde ve vertex çevresinde yapılır, `forge.puddle` ıslak alanı da siper
+      haritasına girer. `terrainSnow.ts` saf maske ve yukarı ışın sorgusunu tanımlar. Editörde World Environment
+      önizlemesindeki mevcut *Simulate* yüksekliği gösterir. Kullanıcı görsel kabulü 2026-11-27.
+      **Doğrulama:** gerçek WebGPU'da Derekavak'ın açık arazisinde 4.096 yamalı kar örneğinde GPU ile CPU
+      arasındaki en büyük fark 0,5 mm. Kar 40 cm'ye ulaştı ve eriyince tabana döndü. Çatı, alçak yol yüzeyi ve
+      `forge.puddle` altında yükselme görülmedi. Kar sıfırken G8, Derekavak, OpenWorldTest ve Island'da geçti
+      (tam çözünürlükte en büyük collider farkı 2,93 mm). Derekavak'ın 67 kaynak dosyası aynı baytları taşıyor.
+      Editör smoke'unda *Simulate* ile oluşan derinlik level kaydına ve Play'e geçmedi.
+      **GPU ölçümü:** Derekavak P2, 1080p `high`, beş tur. Kar yüksekliği tek başına +0,07 ms, karsız
+      sahneye göre kar örtüsü ve yüksekliği birlikte +0,26 ms (medyan); pipeline +0. Tam kareyi içermeyen
+      778 zaman damgası örneği çıkarıldı. Kayıt `2026-11-27T09-00-13-418Z-snow-depth.json`. Yağmur ve ıslak
+      yüzey bileşimlerinin faz ölçümü W9'da. Görsel adaylar `w7-derekavak-p2-flat-snow.png`,
+      `w7-derekavak-p2-snow-depth.png` ve `w7-derekavak-snow-depth.png`.
 - [ ] **W8 Canlı yüzey fiziği.** Hava duyarlı örnekleyici (saf; mevcut araç
       testleriyle), efekt materyali. Teker bağı 6d,
       iz Faz 8. *Kapı:* HV-13. — X (saf) + C
 - [ ] **W9 Kapı.** `npm run measure:weather`, smoke'lar (`precipitation`, `weather`,
-      `snowDepth`), editör smoke'u, belgeler, kullanıcı görsel kabulü. — C
+      `terrainSnow`), editör smoke'u, belgeler, kullanıcı görsel kabulü. — C
 
 Sıra: W0 → W1 → … → W9. W7, W5'ten sonra W6'dan önce alınabilir; W8, W7'den
 sonra gelir.
@@ -1430,6 +1448,9 @@ silinebilir.
 | 2026-11-26 | v2.25 | Faz W W5 yağışla ıslanma, karlanma, kuruma (`ce38ed2`): WES `weatherDrivesSurface` yüzey modelini canlı yağışla sürer, yamalı kuruma, terrain katmanının `weather`'ı, önizlemede Simulate. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-26 | v2.26 | Faz W W5 inceltmesi (`f98844f`): yamalı kar, `wetSpread` / `snowSpread` yayılma sınırı, `patchSize`; yalnız görünüm, pipeline +0, şehir GPU'sunda fark yok. W7'ye kar maskesi notu. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-27 | v2.29 | Faz W W6 kapandı: kullanıcı görsel kabulü |
+| 2026-11-27 | v2.30 | Faz W W5 kapandı: kullanıcı görsel kabulü. Sırada W7. |
+| 2026-11-27 | v2.31 | Faz W W7: yamalı terrain karı LOD geçişinden sonra yükselir. Yağış siperi ve açık birikinti yükselmeyi sınırlar. Kullanıcı görsel kabulü bekleniyor. |
+| 2026-11-27 | v2.32 | Faz W W7 kapandı (kullanıcı görsel kabulü). Sırada W8: canlı yüzey fiziği. |
 | 2026-11-26 | v2.28 | Faz W W6 halkalar ve birikintide rüzgâr (`95e0ae5`): ortak halka düğümü (CPU ikizi `rainRipples.ts`), sıklık anlık yağmurla, uzakta / siper altında yok, simülasyon saati; materyal birikintisi, ıslak yama (hafif) ve `forge.puddle` suyu; materyal birikintisinde prosedürel rüzgâr tepeleri; WES `rippleStrength`, `rippleSize`, `rippleDensity`, `windRippleStrength`; `puddleAccept` çizilir. Smoke'lar pipeline +0. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-26 | v2.27 | Faz W W5 sonrası (kullanıcı kararları; `4522d2d`, `d56944d`, `4c56ffa`, `38a80f2`, `8acbf1c`, `3581aad`): SSR roughness + Fresnel ağırlığıyla ve ortam yansımasının yerine (MRT `specular`), Post Process SSR ayarları, alfa kesimli yüzey SSR almaz; ıslaklık üç kademe (koyulaşma, ıslak yama, ayna birikinti; yalnız düz zeminde); `forge.puddle` `followWeather`. W6 yeniden kapsamlandı, çukur haritası Faz 7 sonrasına. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-26 | v2.24 | Faz W W4 kapandı (kullanıcı görsel kabulü). Sırada W5: yağışla ıslanma, karlanma, kuruma (yeni oturumda). |
