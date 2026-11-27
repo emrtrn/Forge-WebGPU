@@ -3,7 +3,8 @@
  * Bird's-eye preview of a random world (RANDOM_WORLD_PLAN step 5): the same
  * brief the builder gets (`randomWorldBrief`) and the same ground and paint it
  * writes (`createBriefTerrain`, `coverPaint`), sampled on a small grid — not a
- * build. Mountains, settlements, rivers and lakes sit where the built level
+ * build. The forest layer alone takes a map colour (`PREVIEW_FOREST_COLORS`).
+ * Mountains, settlements, rivers and lakes sit where the built level
  * will have them; roads are straight lines between the settlements (the builder
  * routes them over the ground), and streets, buildings and plants are left out.
  *
@@ -13,7 +14,7 @@
  * Pure and deterministic; dependency-free.
  */
 import { createBriefTerrain } from "./briefTerrain.ts";
-import { coverPaint, coverSnowLine, coverDensity, type GroundCover } from "./groundCover.ts";
+import { coverPaint, coverSnowLine, coverDensity, type CoverDensity, type GroundCover } from "./groundCover.ts";
 import { randomWorldBrief, worldExtent, type RandomWorldOptions } from "./randomWorld.ts";
 import { briefToWorld, briefWorldBounds, normalizeWorldBrief, type WorldBrief } from "./worldBrief.ts";
 
@@ -21,6 +22,13 @@ import { briefToWorld, briefWorldBounds, normalizeWorldBrief, type WorldBrief } 
 export const RANDOM_PREVIEW_RESOLUTION = 160;
 /** Lake fill colour. */
 export const PREVIEW_WATER_COLOR: readonly [number, number, number] = [62, 112, 158];
+/**
+ * Map colour of the forest layer, darker the denser: the preview draws no trees, and the layer's own paint (a
+ * brown forest floor under them) reads as bare ground. The terrain keeps the cover's colour.
+ */
+const PREVIEW_FOREST_COLORS: Readonly<Record<CoverDensity, [number, number, number]>> = {
+  low: [70, 108, 54], medium: [50, 85, 42], high: [34, 64, 32],
+};
 /** Finite-difference step for the slope, metres (as the builder's two-vertex span). */
 const SLOPE_STEP = 4;
 
@@ -93,7 +101,7 @@ export function randomWorldPreview(
   const densities = { forest: coverDensity(brief.cover?.forest), rocks: coverDensity(brief.cover?.rocks), fields: coverDensity(brief.cover?.fields) };
   // Random worlds have no landmarks, so nothing keeps the ground open but the settlements.
   const paint = coverPaint(cover, brief, terrain, densities, { clearings: [], snowLine: coverSnowLine(cover, heights) });
-  const colors = cover.layers.map((layer) => hexColor(layer.color));
+  const colors = cover.layers.map((layer) => (layer.id === cover.roles.forest ? PREVIEW_FOREST_COLORS[densities.forest] : hexColor(layer.color)));
   const pixels = new Uint8ClampedArray(n * n * 4);
   // Light from the north-west, a little above the horizon.
   const light = [-0.55, 0.62, -0.55];

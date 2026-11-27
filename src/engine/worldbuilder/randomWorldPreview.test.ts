@@ -129,3 +129,10 @@ export function registerRandomWorldPreviewTests(check: Check): void {
 }
 
 registerRandomWorldPreviewTests(test as unknown as Parameters<typeof registerRandomWorldPreviewTests>[0]);
+
+// Not from Forge: the preview's own forest colour.
+test("random world preview: a denser forest reads darker", () => {
+  const brightness = (forest: "low" | "medium" | "high"): number => meanColor(preview({ densities: { forest } })).reduce((sum, c) => sum + c, 0);
+  const [low, medium, high] = [brightness("low"), brightness("medium"), brightness("high")];
+  assert.ok(low > medium && medium > high, `${low} ${medium} ${high}`);
+});

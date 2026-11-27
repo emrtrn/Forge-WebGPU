@@ -88,7 +88,8 @@ function detailFields(choices: RandomWorldChoices): FieldMap {
     }),
     forest: density("Forest", "Ormanın yoğunluğu ve köylere ne kadar yaklaştığı."),
     rocks: density("Rocks", "Kaya sayısı."),
-    fields: density("Fields", "Köy çevresindeki tarlaların ne kadar uzağa uzandığı (tarla olan örtülerde)."),
+    // Only the farmland cover has fields.
+    ...(choices.cover === "farmland" ? { fields: density("Fields", "Köy çevresindeki tarlaların ne kadar uzağa uzandığı.") } : {}),
     seed: num({ default: 1, min: 0, max: 999999, step: 1, label: "Seed", hint: "Aynı seçimler ve aynı tohum aynı dünyayı verir. Roll Dice başka bir dünya seçer." }),
   };
 }
@@ -231,7 +232,7 @@ export function createWorldBuilder(options: WorldBuilderOptions): WorldBuilder {
     const notes = el("ul", "random-world-notes");
     const previewError = el("div", "random-world-error");
     previewError.setAttribute("role", "alert");
-    preview.append(canvas, summary, el("div", "random-world-hint", "Kuzey yukarıda. Yollar düz çizgiyle gösterilir; gerçek güzergâh kurulumda çizilir. Sokak, yapı ve ağaç önizlemede yok."), notes, previewError);
+    preview.append(canvas, summary, el("div", "random-world-hint", "Kuzey yukarıda. Yollar düz çizgiyle gösterilir; gerçek güzergâh kurulumda çizilir. Koyu yeşil ormandır, ton koyulaştıkça orman sıklaşır. Sokak, yapı ve tek tek ağaçlar önizlemede yok."), notes, previewError);
 
     const create = el("div", "random-world-create");
     const actions = el("div", "random-world-actions");
