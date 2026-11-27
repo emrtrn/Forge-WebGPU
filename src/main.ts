@@ -363,6 +363,13 @@ async function start(): Promise<void> {
         const { measureTerrainColliderMatch } = await import("./render/viewer/debug/terrainColliderMatch.ts");
         return measureTerrainColliderMatch(host, options);
       },
+      /** W7 terrain displacement from the GPU height probe, in metres above the base. */
+      async terrainSnow(options: { centre: readonly [number, number]; size?: number; spots?: readonly (readonly [number, number])[] }) {
+        const host = viewer.host;
+        if (!host) return null;
+        const { measureTerrainSnow } = await import("./render/viewer/debug/terrainColliderMatch.ts");
+        return measureTerrainSnow(host, options);
+      },
       /** Phase 5c step 5.1: GPU-driven foliage batches from given instances, their GPU counts against the CPU reference. */
       gpuDriven: {
         install: async (types: Parameters<DevGpuDriven["install"]>[0], cullScale: number, castShadow?: boolean, bundle?: boolean) => (await devGpuDriven()).install(types, cullScale, castShadow, bundle),

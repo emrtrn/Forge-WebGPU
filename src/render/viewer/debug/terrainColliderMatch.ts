@@ -53,6 +53,51 @@ export interface TerrainColliderMatch {
   readonly twinMisses: number;
 }
 
+export interface TerrainSnowMatch {
+  readonly covered: number;
+  readonly sampled: number;
+  readonly minM: number;
+  readonly maxM: number;
+  readonly twin: ColliderMatchBand;
+  readonly spots: readonly ({ drawn: number; expected: number } | null)[];
+}
+
+/** W7 checks the displacement separately from the unraised collider and the G8 probe. */
+export async function measureTerrainSnow(host: RenderHost, options: {
+  centre: readonly [number, number]; size?: number; spots?: readonly (readonly [number, number])[];
+}): Promise<TerrainSnowMatch | null> {
+  const scene = host.world?.scene;
+  const tagged = scene ? taggedTerrainViews(scene)[0] : undefined;
+  if (!tagged) return null;
+  const { view } = tagged;
+  const readback = await readTerrainHeights(host.renderer as WebGPURenderer, view, host.camera, options.centre, options.size ?? 64, {});
+  const { nodes, surface } = readback.visual;
+  const { snowOffset: _offset, ...baseSurface } = surface;
+  const [ox, oy, oz] = view.mesh.getWorldPosition(view.origin.clone()).add(view.origin).toArray();
+  const errors: number[] = [];
+  const spots = options.spots ?? [];
+  const samples = spots.map((): { drawn: number; expected: number } | null => null);
+  let minM = Infinity, maxM = -Infinity;
+  const { points } = readback;
+  for (let i = 0; i < points.length; i += 3) {
+    const [x, y, z] = [points[i]!, points[i + 1]!, points[i + 2]!];
+    const base = terrainVisualSample(baseSurface, nodes, x - ox, z - oz);
+    if (!base) continue;
+    const snowy = _offset ? terrainVisualSample(surface, nodes, x - ox, z - oz) : base;
+    if (!snowy) continue;
+    const drawn = y - oy - base.height;
+    const expected = snowy.height - base.height;
+    errors.push(Math.abs(drawn - expected));
+    minM = Math.min(minM, drawn);
+    maxM = Math.max(maxM, drawn);
+    for (let j = 0; j < spots.length; j += 1) {
+      const [sx, sz] = spots[j]!;
+      if (Math.abs(x - sx) < 0.1 && Math.abs(z - sz) < 0.1) samples[j] = { drawn: round(drawn), expected: round(expected) };
+    }
+  }
+  return { covered: points.length / 3, sampled: errors.length, minM: round(minM), maxM: round(maxM), twin: band(errors), spots: samples };
+}
+
 const round = (value: number) => Math.round(value * 1e5) / 1e5;
 
 function band(values: number[]): ColliderMatchBand {

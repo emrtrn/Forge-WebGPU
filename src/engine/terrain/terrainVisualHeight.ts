@@ -40,6 +40,8 @@ export interface TerrainVisualSurface {
   readonly global: { readonly width: number; readonly height: number; readonly spacing: number; readonly heights: Float32Array };
   /** Terrain-local LOD camera the morph reads. */
   readonly camera: readonly [number, number, number];
+  /** W7: optional render-only snow above the morphed base vertex. */
+  readonly snowOffset?: (node: TerrainDrawnNode, x: number, y: number, z: number) => number;
 }
 
 export interface TerrainVisualSample {
@@ -98,7 +100,8 @@ export function terrainVisualVertex(surface: TerrainVisualSurface, node: Terrain
   // Odd grid vertices slide onto the even (parent) grid as morph -> 1.
   const x = clamp(sx - (ix % 2) * (node.size / q) * morph, 0, width);
   const z = clamp(sz - (iz % 2) * (node.size / q) * morph, 0, depth);
-  return { x, y: terrainShaderHeight(surface, node, x, z), z, morph };
+  const baseY = terrainShaderHeight(surface, node, x, z);
+  return { x, y: baseY + (surface.snowOffset?.(node, x, baseY, z) ?? 0), z, morph };
 }
 
 /** The drawn node covering terrain-local (`x`, `z`); null outside the drawn extent or in a hole. */

@@ -202,7 +202,10 @@ export default defineRenderBinding({
         selfShadow: quality.terrainSelfShadow,
         farTiling: quality.terrainFarTiling,
         editorViews: session !== null,
-        ...(ctx.precipitationCover ? { sheltered: (position) => ctx.precipitationCover!.coverAt(position) } : {}),
+        ...(ctx.precipitationCover ? {
+          sheltered: (position) => ctx.precipitationCover!.coverAt(position),
+          snowShelter: (position, spacing) => ctx.precipitationCover!.snowCoverAt(position, spacing),
+        } : {}),
       });
       if (terrain.tiles === null) {
         const reader = terrain.openTiles();

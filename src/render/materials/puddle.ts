@@ -57,6 +57,8 @@ export interface PuddleReflection {
 
 export interface PuddleMaterial {
   readonly material: THREE.MeshPhysicalNodeMaterial;
+  /** Depth-only drawing of the current wet footprint for the terrain snow mask. */
+  readonly snowCover: THREE.MeshBasicNodeMaterial;
   setAppearance(appearance: PuddleAppearance): void;
   /** The planar capture this surface reflects; null for the environment only. A change rebuilds the graph. */
   setReflection(reflection: PuddleReflection | null): void;
@@ -100,6 +102,12 @@ export function createPuddleMaterial(appearance: PuddleAppearance, sheltered?: (
   material.opacityNode = mud.mul(smoothstep(0, 0.006, depth));
   material.positionNode = TSL.positionLocal.sub(vec3(0, uDrop, 0));
 
+  const snowCover = new THREE.MeshBasicNodeMaterial({ colorWrite: false, side: THREE.DoubleSide, fog: false });
+  snowCover.name = "puddle-snow-cover";
+  snowCover.allowOverride = false;
+  snowCover.positionNode = material.positionNode;
+  snowCover.maskNode = depth.greaterThan(0);
+
   const apply = (): void => {
     const surface = wind.nodes(depth, uRoughness);
     material.roughnessNode = surface.roughness;
@@ -140,6 +148,7 @@ export function createPuddleMaterial(appearance: PuddleAppearance, sheltered?: (
 
   return {
     material,
+    snowCover,
     windMotion: wind.motion,
     updateWind: wind.update,
     updateRipples: ripples.update,
@@ -173,6 +182,7 @@ export function createPuddleMaterial(appearance: PuddleAppearance, sheltered?: (
       apply();
     },
     dispose() {
+      snowCover.dispose();
       material.dispose();
     },
   };

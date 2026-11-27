@@ -66,6 +66,9 @@ import {
 } from "../materials/terrain.ts";
 import type { TerrainLayerInput } from "../resources/terrains.ts";
 import type { SurfaceCoverInput } from "../materials/surfaceCover.ts";
+import { SNOW_DEPTH_LIMIT } from "../../engine/environment/worldEnvironmentController.ts";
+import type { TerrainSnowRay } from "../../engine/environment/terrainSnow.ts";
+import { terrainSnowOffset } from "./terrainSnow.ts";
 
 /** Forge's defaults (terrainRenderer.ts). */
 export const TERRAIN_SLOT_CAPACITY = 64;
@@ -167,6 +170,7 @@ export interface TerrainViewOptions {
   readonly editorViews?: boolean;
   /** The precipitation cover (plan phase W3): no snow or wetness under a roof. */
   readonly sheltered?: TerrainMaterialInput["sheltered"];
+  readonly snowShelter?: TerrainMaterialInput["snowShelter"];
 }
 
 export interface TerrainSelection {
@@ -177,11 +181,17 @@ export interface TerrainSelection {
 
 export class TerrainView {
   private cover: SurfaceCoverInput | null = null;
+  private snowPadding = 0;
   private farTint: TerrainFarTint | null = null;
   private editorView: { mode: TerrainEditorView["mode"]; layer: number } = { mode: "lit", layer: -1 };
   setSurfaceCover(input: SurfaceCoverInput | null): void {
     this.cover = input;
     this.terrainMaterial.setSurfaceCover(input);
+    const padding = input && input.state.snowDepth > 0 && input.state.snowCoverage > 0 && (input.settings.snowSpread ?? 1) > 0 ? SNOW_DEPTH_LIMIT : 0;
+    if (padding !== this.snowPadding) {
+      this.snowPadding = padding;
+      this.selectionDirty = true;
+    }
   }
 
   /**
@@ -315,6 +325,7 @@ export class TerrainView {
       layerTextures: this.layerTextures,
       editorViews: options.editorViews === true,
       ...(options.sheltered ? { sheltered: options.sheltered } : {}),
+      ...(options.snowShelter ? { snowShelter: options.snowShelter } : {}),
     };
     const material = createTerrainMaterial({ ...this.materialInput, farTiling: this.farTiling });
     this.terrainMaterial = material;
@@ -357,7 +368,7 @@ export class TerrainView {
   }
 
   /** The drawn surface as the CPU twin reads it: the last selection, its LOD camera, the tiles and the filled far map. */
-  visualSurface(): { surface: TerrainVisualSurface; nodes: TerrainDrawnNode[] } {
+  visualSurface(snow?: { ray?: TerrainSnowRay }): { surface: TerrainVisualSurface; nodes: TerrainDrawnNode[] } {
     const geometry = this.mesh.geometry;
     const a = geometry.getAttribute("terrainNodeA");
     const b = geometry.getAttribute("terrainNodeB");
@@ -372,6 +383,19 @@ export class TerrainView {
       });
     }
     const { map } = this.global;
+    const cover = this.cover;
+    const snowOffset = snow && this.snowPadding > 0 && cover ? terrainSnowOffset({
+      cover,
+      origin: new THREE.Vector3().setFromMatrixPosition(this.mesh.matrixWorld).add(this.origin).toArray(),
+      tileSlot: (x, z) => this.pool.slotOf(`${x}_${z}`) ?? -1,
+      layers: this.materialInput.layers,
+      tile: { width: this.def.tileQuads + 1, height: this.def.tileQuads + 1, spacing: this.def.spacing, normals: this.normals, weights: this.weights },
+      far: {
+        width: map.width, height: map.height, spacing: map.stride * this.def.spacing,
+        normals: (this.globalTextures[1]!.image as { data: Uint16Array }).data, weights: this.global.weights,
+      },
+      ...(snow.ray ? { ray: snow.ray } : {}),
+    }) : undefined;
     return {
       nodes,
       surface: {
@@ -379,6 +403,7 @@ export class TerrainView {
         tiles: this.source,
         global: { width: map.width, height: map.height, spacing: map.stride * this.def.spacing, heights: this.globalHeights },
         camera: [this.lastCamera.x, this.lastCamera.y, this.lastCamera.z],
+        ...(snowOffset ? { snowOffset } : {}),
       },
     };
   }
@@ -550,7 +575,7 @@ export class TerrainView {
     if (!sets) return undefined;
     const range = this.bounds.range();
     const mirrorMin = 2 * range.min - range.max;
-    const mirrorMax = 2 * range.max - range.min;
+    const mirrorMax = 2 * (range.max + this.snowPadding) - range.min;
     const pad = this.selector.settings.leafSize * 0.01;
     const inside = (planes: readonly THREE.Plane[], box: TerrainLodBox, minY: number, maxY: number, slack: number): boolean => {
       for (const plane of planes) {
@@ -565,9 +590,10 @@ export class TerrainView {
       const dx = Math.max(box.minX - cameraLocal.x, 0, cameraLocal.x - box.maxX);
       const dz = Math.max(box.minZ - cameraLocal.z, 0, cameraLocal.z - box.maxZ);
       const slack = pad + CULL_ANGULAR_PAD * Math.hypot(dx, dz);
-      if (inside(sets[0]!, box, Math.min(box.minY, mirrorMin), Math.max(box.maxY, mirrorMax), slack)) return true;
+      const maxY = box.maxY + this.snowPadding;
+      if (inside(sets[0]!, box, Math.min(box.minY, mirrorMin), Math.max(maxY, mirrorMax), slack)) return true;
       for (let set = 1; set < sets.length; set += 1) {
-        if (inside(sets[set]!, box, box.minY, box.maxY, slack)) return true;
+        if (inside(sets[set]!, box, box.minY, maxY, slack)) return true;
       }
       return false;
     };

@@ -20,6 +20,7 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { Quaternion, Vector3 } from "three";
 import sharp from "sharp";
+import type { TerrainSnowMatch } from "../../src/render/viewer/debug/terrainColliderMatch.ts";
 import { gpuMemory, installGpuMemory } from "./gpuMemory.ts";
 import { RENDER_REFS, SMOKE_SCENES } from "./renderScenes.ts";
 import { difference, isOptionalHlodMiss, openSmokeLevel } from "./smokePage.ts";
@@ -28,13 +29,17 @@ interface Dev {
   pause(): void;
   step(ms: number): Promise<unknown>;
   spawn(raw: unknown[]): string[];
+  destroy(ids: string[]): void;
   terrainHeights(points: [number, number][]): Promise<(number | null)[]>;
   puddleResult(actor: string): Promise<{ status: string; area: number; message: string } | undefined>;
   environmentState(): unknown;
   setWeather(preset: string, intensity: number): void;
+  setWeatherDrivesSurface(on: boolean): void;
+  setSurface(surface: Record<string, number>): void;
   setSurfaceSettings(settings: Record<string, number>): void;
   setLateVisible(visible: boolean): void;
   moveCamera(x: number, y: number, z: number, look?: readonly [number, number, number]): void;
+  terrainSnow(options: { centre: [number, number]; size: number; spots: [number, number][] }): Promise<TerrainSnowMatch | null>;
 }
 
 const dev = (page: Page) => ({
@@ -121,6 +126,7 @@ test("puddle: a basin ahead of the camera fills, draws and reflects the scene", 
 
   // The deepest of 20, 10, 5 and 2.5 cm the basin holds (deeper ones overflow its rim: Forge's open boundary, nothing drawn).
   let result: { status: string; area: number; message: string } | undefined;
+  let readyId: string | undefined;
   for (const [index, depth] of [0.2, 0.1, 0.05, 0.025].entries()) {
     const [id] = await dev(page).spawn([{
       id: `act_${"0".repeat(30)}${(0xa0 + index).toString(16)}`,
@@ -134,7 +140,7 @@ test("puddle: a basin ahead of the camera fills, draws and reflects the scene", 
     await expect.poll(async () => (await dev(page).result(id!))?.status, { timeout: 30_000 }).not.toBe("loading");
     result = (await dev(page).result(id!))!;
     console.log(`puddle at ${basin.x}, ${basin.z} (bed ${basin.y.toFixed(2)} m) ${depth} m deep: ${result.status}, ${result.area.toFixed(2)} m², ${result.message}`);
-    if (result.status === "ready") break;
+    if (result.status === "ready") { readyId = id; break; }
   }
   expect(result!.status).toBe("ready");
   expect(result!.area).toBeGreaterThan(1);
@@ -206,4 +212,19 @@ test("puddle: a basin ahead of the camera fills, draws and reflects the scene", 
   const clean = await shot();
   await testInfo.attach("puddle-clean.png", { body: clean, contentType: "image/png" });
   writeFileSync(join(RENDER_REFS, "candidates", "puddle-derekavak.png"), clean);
+
+  // W7: the live water occupies the wet footprint, so the underlying terrain cannot rise through it.
+  await forge((d) => { d.setWeatherDrivesSurface(false); d.setSurface({ snowCoverage: 1, snowDepth: 0.4 }); });
+  await page.waitForTimeout(300);
+  await step(3);
+  const centre: [number, number] = [basin.x, basin.z];
+  const spots: [number, number][] = [-0.5, 0.5].flatMap((dx) => [-0.5, 0.5].map((dz): [number, number] => [basin.x + dx, basin.z + dz]));
+  const measure = () => forge((d, options) => d.terrainSnow(options as Parameters<Dev["terrainSnow"]>[0]), { centre, size: 16, spots }) as Promise<TerrainSnowMatch>;
+  const underWater = await measure();
+  await forge((d, id) => d.destroy([id as string]), readyId!);
+  await page.waitForTimeout(300);
+  await step(3);
+  const afterRemoval = await measure();
+  expect(underWater.spots.some((spot, i) => spot && spot.drawn < 0.01 && (afterRemoval.spots[i]?.drawn ?? 0) > 0.12)).toBe(true);
+  expect(gpuErrors).toEqual([]);
 });

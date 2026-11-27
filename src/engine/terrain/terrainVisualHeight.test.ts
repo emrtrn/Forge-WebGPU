@@ -11,7 +11,7 @@ import { TerrainLodSelector } from "./terrainLod.ts";
 import { TERRAIN_PATCH_QUADS } from "./terrainRenderData.ts";
 import { TerrainWorldHeightBounds, buildTerrainGlobalAttributes, worldTerrainRenderSource } from "./terrainRenderSource.ts";
 import { parseTileKey, tileKey, type TerrainTileData, type WorldTerrainDef } from "./terrainTypes.ts";
-import { terrainShaderHeight, terrainVisualSample, type TerrainDrawnNode, type TerrainVisualSurface } from "./terrainVisualHeight.ts";
+import { terrainShaderHeight, terrainVisualSample, terrainVisualVertex, type TerrainDrawnNode, type TerrainVisualSurface } from "./terrainVisualHeight.ts";
 
 /** Hills with a short ripple, so a coarser LOD visibly leaves the authored surface. */
 const relief = (gx: number, gz: number) => Math.fround(6 * Math.sin(gx * 0.07) * Math.cos(gz * 0.05) + 2.5 * Math.sin(gx * 0.41 + gz * 0.23) + 0.03 * gx);
@@ -73,6 +73,20 @@ test("terrain visual height: away from morphs the shader's sample is the tile's 
   const sample = terrainVisualSample(surface, [node], 20.3, 41.8)!;
   assert.ok(Math.abs(sample.height - terrainShaderHeight(surface, node, 20.3, 41.8)) < 1e-5);
   assert.equal(sample.morph, 0);
+});
+
+test("terrain snow: morphed vertices agree on a tile seam across patch resolutions", () => {
+  const { def, tiles } = hills(2, 1, 64, 1);
+  const { surface } = drawn(def, tiles, [64, 30, 16]);
+  const rising = { ...surface, snowOffset: (_node: TerrainDrawnNode, x: number, _y: number, z: number) => 0.2 + Math.sin(x + z) * 0.1 };
+  const fine: TerrainDrawnNode = { x0: 32, z0: 0, size: 32, tile: { x: 0, z: 0 }, morph: [0, 1] };
+  const coarse: TerrainDrawnNode = { x0: 64, z0: 0, size: 64, tile: { x: 1, z: 0 }, morph: [1000, 2000] };
+  for (let i = 0; i <= 16; i += 1) {
+    const a = terrainVisualVertex(rising, fine, 32, Math.min(i * 2 + 1, 32));
+    const b = terrainVisualVertex(rising, coarse, 0, i);
+    assert.deepEqual([a.x, a.y, a.z], [b.x, b.y, b.z]);
+    assert.ok(a.y > terrainShaderHeight(surface, fine, a.x, a.z));
+  }
 });
 
 test("G8: the drawn surface equals the Rapier heightfield within 5 cm at full resolution; coarser bands are reported", async () => {

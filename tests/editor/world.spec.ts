@@ -12,6 +12,7 @@ import { readFileSync } from "node:fs";
 import { row, openEditor, writeLevel, IDENTITY, projectPath } from "./support.ts";
 
 const LEVEL = "content/levels/world-smoke";
+const SNOW_LEVEL = "content/levels/world-smoke-snow";
 const id = (n: number): string => `act_${n.toString(16).padStart(32, "0")}`;
 const WES = id(0xa1);
 const FOG = id(0xa2);
@@ -23,6 +24,9 @@ test.beforeAll(() => {
     actor(FOG, "Fog", { fog: { type: "forge.heightFog@1" } }),
   ];
   writeLevel(LEVEL, "lvl_0000000000000000000000000000a5a1", actors);
+  writeLevel(SNOW_LEVEL, "lvl_0000000000000000000000000000a5a2", [
+    actor(WES, "World Environment", { environment: { type: "forge.worldEnvironment@3", hour: 12, surface: { weatherDrivesSurface: true } } }),
+  ]);
 });
 
 async function open(page: Page): Promise<string[]> {
@@ -228,5 +232,29 @@ test("cover preview stays out of level bytes and Play state", async ({ page, con
   expect(state).not.toHaveProperty("weatherProgress");
   expect(readFileSync(path, "utf8")).toBe(before);
   await game.close();
+  expect(errors).toEqual([]);
+});
+
+test("W7 snow depth from Simulate stays in the editor preview", async ({ page, context }) => {
+  const errors = await openEditor(page, { level: SNOW_LEVEL, drawn: true });
+  const path = projectPath(`${SNOW_LEVEL}/level.json`);
+  const authored = readFileSync(path, "utf8");
+  await row(page, WES).click();
+  await page.getByTestId("wes-preview-weather-snow").click();
+  await page.getByTestId("wes-preview-simulate").click();
+  await expect(page.getByTestId("wes-preview-surface")).toContainText("40.0 cm", { timeout: 15_000 });
+  await expect(page.getByTestId("wes-preview-simulate")).toHaveText("Run", { timeout: 15_000 });
+  await expect(page.getByTestId("editor-save")).toBeDisabled();
+  expect(readFileSync(path, "utf8")).toBe(authored);
+  const opened = context.waitForEvent("page");
+  await page.getByTestId("editor-play").click();
+  const game = await opened;
+  await expect(game.getByTestId("forge-canvas")).toHaveAttribute("data-forge-ready", "1", { timeout: 60_000 });
+  const depth = await game.evaluate(() => (window as unknown as { __forgeDev: { environmentState(): { surface: { snowDepth: number } } } }).__forgeDev.environmentState().surface.snowDepth);
+  expect(depth).toBe(0);
+  await game.close();
+  await page.getByTestId("wes-preview-reset").click();
+  await expect(page.getByTestId("wes-preview-surface")).toContainText("0.0 cm");
+  expect(readFileSync(path, "utf8")).toBe(authored);
   expect(errors).toEqual([]);
 });

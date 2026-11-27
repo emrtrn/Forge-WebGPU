@@ -34,6 +34,7 @@ import type { TerrainTileData } from "../../engine/terrain/terrainTypes.ts";
 import { createPuddleMaterial, type PuddleAppearance, type PuddleMaterial } from "../../render/materials/puddle.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
 import type { TerrainData } from "../../render/resources/terrains.ts";
+import { COVER_LAYER } from "../../render/gpu/gpuDrivenBatch.ts";
 import { PuddleReflections, type PuddleReflectionCeiling } from "../../render/sync/puddleReflections.ts";
 import { defineRenderBinding, type RenderBindingContext } from "../../render/sync/renderBinding.ts";
 import { tagActorObject } from "../../render/sync/pickTags.ts";
@@ -61,6 +62,7 @@ interface Placed {
   readonly key: string;
   data: PuddleData;
   readonly mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshPhysicalNodeMaterial>;
+  readonly snowCover: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicNodeMaterial>;
   readonly material: PuddleMaterial;
   result: PuddleResult;
   /** Bumped by every change: a stale fill drops its outcome. */
@@ -201,12 +203,16 @@ export default defineRenderBinding({
     const applyWeather = (entry: Placed, force = false, live = liveFill()): void => {
       const fill = puddleWeatherFill(entry.data.followWeather, live);
       const drop = (1 - fill) * entry.maxDepth;
-      if (force || Math.abs(drop - entry.drop) > 1e-4) {
+      const moved = force || Math.abs(drop - entry.drop) > 1e-4;
+      if (moved) {
         entry.drop = drop;
         entry.material.setWaterDrop(drop);
         reflections.setDrop(entry.mesh, drop);
       }
       entry.mesh.visible = entry.surface && drop < entry.maxDepth - 1e-4;
+      const coversSnow = entry.mesh.visible;
+      if (coversSnow !== entry.snowCover.visible || (coversSnow && moved)) ctx.precipitationCover?.invalidate();
+      entry.snowCover.visible = coversSnow;
       const shown = entry.data.followWeather === false || live === null ? null : Math.round(fill * 100);
       if (shown !== entry.shownFill) {
         entry.shownFill = shown;
@@ -227,6 +233,7 @@ export default defineRenderBinding({
         }
         entry.mesh.geometry.dispose();
         entry.mesh.geometry = geometry;
+        entry.snowCover.geometry = geometry;
         entry.surface = data.positions.length > 0;
         let deepest = 0;
         for (const depth of data.depths) deepest = Math.max(deepest, depth);
@@ -252,9 +259,14 @@ export default defineRenderBinding({
       tagSceneSource(mesh, "water");
       tagActorObject(mesh, actor.id);
       ctx.root.add(mesh);
+      const snowCover = new THREE.Mesh(mesh.geometry, material.snowCover);
+      snowCover.userData.framing = false;
+      snowCover.layers.set(COVER_LAYER);
+      snowCover.visible = false;
+      ctx.root.add(snowCover);
       const entry: Placed = {
         windNormal: createPuddleWindNormal(ctx.resources, (texture) => material.setWindNormal(texture)),
-        id: `${actor.id}/${key}`, actor, key, data, mesh, material,
+        id: `${actor.id}/${key}`, actor, key, data, mesh, material, snowCover,
         result: { status: "loading", area: 0, message: MESSAGES.loading },
         revision: 0, job: null, terrainKey: null, busy: null, removed: false,
         surface: false, maxDepth: 0, drop: -1, shownFill: null,
@@ -272,6 +284,8 @@ export default defineRenderBinding({
       entry.job = null;
       reflections.remove(entry.mesh);
       entry.mesh.removeFromParent();
+      if (entry.snowCover.visible) ctx.precipitationCover?.invalidate();
+      entry.snowCover.removeFromParent();
       entry.mesh.geometry.dispose();
       entry.windNormal.dispose();
       entry.material.dispose();

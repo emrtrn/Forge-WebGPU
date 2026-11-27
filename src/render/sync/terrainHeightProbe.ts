@@ -9,6 +9,7 @@
 // view to re-select with its cull on the next update.
 
 import * as THREE from "three/webgpu";
+import type { TerrainSnowRay } from "../../engine/environment/terrainSnow.ts";
 import type { TerrainDrawnNode, TerrainVisualSurface } from "../../engine/terrain/terrainVisualHeight.ts";
 import { TERRAIN_HEIGHT_PROBE_OFFSET } from "../materials/terrain.ts";
 import type { TerrainView } from "./terrainView.ts";
@@ -33,11 +34,12 @@ export async function readTerrainHeights(
   camera: THREE.Camera,
   centre: readonly [number, number],
   size: number,
+  snow?: { ray?: TerrainSnowRay },
 ): Promise<TerrainHeightReadback> {
   const side = Math.max(16, Math.round(size / 16) * 16);
   camera.updateMatrixWorld();
   view.update(camera, [], false);
-  const visual = view.visualSurface();
+  const visual = view.visualSurface(snow);
 
   const ortho = new THREE.OrthographicCamera(-side / 2, side / 2, side / 2, -side / 2, 1, 40000);
   ortho.position.set(centre[0], 20000, centre[1]);
@@ -58,14 +60,17 @@ export async function readTerrainHeights(
   const clearColor = renderer.getClearColor(new THREE.Color());
   const clearAlpha = renderer.getClearAlpha();
   const previousTarget = renderer.getRenderTarget();
+  const previousMrt = renderer.getMRT();
   try {
     renderer.toneMapping = THREE.NoToneMapping;
     renderer.setRenderTarget(target);
+    renderer.setMRT(null);
     renderer.setClearColor(0x000000, 0);
     renderer.clear();
     renderer.render(scene, ortho);
   } finally {
     renderer.setRenderTarget(previousTarget);
+    renderer.setMRT(previousMrt);
     renderer.setClearColor(clearColor, clearAlpha);
     renderer.toneMapping = toneMapping;
   }

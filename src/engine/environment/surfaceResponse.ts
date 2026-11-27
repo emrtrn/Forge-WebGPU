@@ -61,16 +61,21 @@ export const CAVITY_CURVATURE = 3;
 
 const fract = (value: number): number => value - Math.floor(value);
 
-/** Dave Hoskins' hash12 (no sine: the GPU's float32 and the CPU agree closely). */
+/** Dave Hoskins' hash12 with the shader's float32 intermediates, before the discontinuous final fract. */
 export function hash12(x: number, y: number): number {
-  let a = fract(x * 0.1031);
-  let b = fract(y * 0.1031);
-  let c = fract(x * 0.1031);
-  const d = a * (b + 33.33) + b * (c + 33.33) + c * (a + 33.33);
-  a += d;
-  b += d;
-  c += d;
-  return fract((a + b) * c);
+  const f32 = Math.fround;
+  const scale = f32(0.1031);
+  const offset = f32(33.33);
+  const a = f32(fract(f32(f32(x) * scale)));
+  const b = f32(fract(f32(f32(y) * scale)));
+  // The shader's third component is also a (p3.xyx).
+  const alongA = f32(a + offset);
+  const ab = f32(a * f32(b + offset));
+  // Match the shader's dot product: each multiply-add rounds once.
+  const d = f32(a * alongA + f32(b * alongA + ab));
+  const qa = f32(a + d);
+  const qb = f32(b + d);
+  return fract(f32(f32(qa + qb) * qa));
 }
 
 /** Smooth value noise on the lattice, 0..1. */

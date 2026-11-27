@@ -28,16 +28,18 @@ import {
 } from "three/webgpu";
 import * as TSLTyped from "three/tsl";
 import {
-  COVER_CASCADES, COVER_EDGE_FADE, COVER_SOFTNESS, coverNeedsRecentre, coverTexel, placeCover,
+  COVER_CASCADES, COVER_EDGE_FADE, COVER_SOFTNESS, SNOW_COVER_EDGE_OFFSETS, SNOW_COVER_EDGE_WEIGHT, SNOW_COVER_OFFSETS, SNOW_COVER_SOFTNESS,
+  coverNeedsRecentre, coverTexel, placeCover,
   type CoverCascadeSpec, type CoverPlacement,
 } from "../../engine/environment/precipitationCover.ts";
 import type { CoverViewSource } from "../gpu/gpuDriven.ts";
+import { COVER_LAYER } from "../gpu/gpuDrivenBatch.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyNode = any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const TSL = TSLTyped as unknown as Record<string, any>;
-const { abs, clamp, float, floor, ivec2, max, select, smoothstep, textureLoad, uniform } = TSL;
+const { Fn, If, abs, clamp, float, floor, ivec2, max, select, smoothstep, textureLoad, uniform, vec3 } = TSL;
 
 /** Least seconds between two redraws for changed content (camera moves redraw at once). */
 const CONTENT_REDRAW_SECONDS = 0.25;
@@ -67,6 +69,8 @@ export interface PrecipitationCoverStats {
 export interface PrecipitationCover {
   /** TSL: how covered a world point is, 0..1 (vertex or fragment stage). */
   coverAt(position: Node<"vec3">): Node<"float">;
+  /** Terrain displacement uses the same map, expanded around each terrain vertex. */
+  snowCoverAt(position: Node<"vec3">, spacing: Node<"float">): Node<"float">;
   /** Something drawn into the cover changed. */
   invalidate(): void;
   /** Decides this frame's draws (the GPU-driven cull asks it too). */
@@ -106,6 +110,7 @@ export function createPrecipitationCover(options: PrecipitationCoverOptions): Pr
     const camera = new OrthographicCamera(-half, half, half, -half, 0, 1);
     camera.name = `precipitation-cover-${index}`;
     camera.up.set(0, 0, -1);
+    camera.layers.set(COVER_LAYER);
     // three turns this on at a camera's first render with a reversed buffer; the GPU-driven cull reads the projection before that.
     (camera as unknown as { _reversedDepth: boolean })._reversedDepth = options.reversedDepth;
     const target = new RenderTarget(spec.resolution, spec.resolution, { depthBuffer: true });
@@ -143,12 +148,15 @@ export function createPrecipitationCover(options: PrecipitationCoverOptions): Pr
   };
 
   /** One cascade's share and amount at `p` (the CPU reference's `coverAt` step). */
-  const sample = (cascade: Cascade, p: AnyNode): { weight: AnyNode; amount: AnyNode } => {
+  const weightAt = (cascade: Cascade, p: AnyNode): AnyNode => {
+    const rel = p.xz.sub(cascade.u.center);
+    const r = max(abs(rel.x), abs(rel.y)).div(cascade.spec.size / 2);
+    return float(1).sub(smoothstep(1 - COVER_EDGE_FADE, 1, r)).mul(cascade.u.valid);
+  };
+  const sample = (cascade: Cascade, p: AnyNode, softness = COVER_SOFTNESS): AnyNode => {
     const { spec, u } = cascade;
     const half = spec.size / 2;
     const rel = p.xz.sub(u.center);
-    const r = max(abs(rel.x), abs(rel.y)).div(half);
-    const weight = float(1).sub(smoothstep(1 - COVER_EDGE_FADE, 1, r)).mul(u.valid);
     const cell = floor(rel.add(half).div(coverTexel(spec)));
     const last = spec.resolution - 1;
     const column = clamp(cell.x, 0, last);
@@ -156,9 +164,30 @@ export function createPrecipitationCover(options: PrecipitationCoverOptions): Pr
     const depth = textureLoad(cascade.target.depthTexture, ivec2(column, row)).x;
     const t = options.reversedDepth ? float(1).sub(depth) : depth;
     const height = u.top.sub(t.mul(u.top.sub(u.bottom)));
-    const amount = select(t.lessThan(1 - 1e-6), smoothstep(0, COVER_SOFTNESS, height.sub(p.y)), float(0));
-    return { weight, amount };
+    const inside = max(abs(rel.x), abs(rel.y)).lessThan(half);
+    return select(inside.and(t.lessThan(1 - 1e-6)), smoothstep(0, softness, height.sub(p.y)), float(0));
   };
+
+  const paddedSnow = (cascade: Cascade, p: AnyNode, spacing: AnyNode, weight: AnyNode): AnyNode => Fn(() => {
+    const amount = float(0).toVar();
+    If(weight.greaterThan(0), () => {
+      amount.assign(sample(cascade, p, SNOW_COVER_SOFTNESS));
+      If(amount.lessThan(1), () => {
+        for (const [x, z] of SNOW_COVER_OFFSETS.slice(1)) {
+          const offset = vec3(spacing.mul(x), 0, spacing.mul(z));
+          amount.assign(max(amount, sample(cascade, p.add(offset), SNOW_COVER_SOFTNESS)));
+        }
+      });
+      // Widen the height ramp for the exposed edge after the protected inner footprint.
+      If(amount.lessThan(SNOW_COVER_EDGE_WEIGHT), () => {
+        for (const [x, z] of SNOW_COVER_EDGE_OFFSETS) {
+          const offset = vec3(spacing.mul(x), 0, spacing.mul(z));
+          amount.assign(max(amount, sample(cascade, p.add(offset), SNOW_COVER_SOFTNESS).mul(SNOW_COVER_EDGE_WEIGHT)));
+        }
+      });
+    });
+    return amount;
+  })();
 
   /** This frame's draws, once per frame (the GPU-driven cull asks first, the render after it). */
   const plan = (camera: Camera): void => {
@@ -200,9 +229,16 @@ export function createPrecipitationCover(options: PrecipitationCoverOptions): Pr
   return {
     coverAt(position) {
       const p = position as AnyNode;
-      const near = sample(cascades[0]!, p);
-      const far = sample(cascades[1]!, p);
-      return near.weight.mul(near.amount).add(float(1).sub(near.weight).mul(far.weight).mul(far.amount)) as Node<"float">;
+      const [near, far] = cascades as [Cascade, Cascade];
+      const nearWeight = weightAt(near, p);
+      return nearWeight.mul(sample(near, p)).add(float(1).sub(nearWeight).mul(weightAt(far, p)).mul(sample(far, p))) as Node<"float">;
+    },
+    snowCoverAt(position, spacing) {
+      const [near, far] = cascades as [Cascade, Cascade];
+      const nearWeight = weightAt(near, position);
+      const farWeight = float(1).sub(nearWeight).mul(weightAt(far, position));
+      return nearWeight.mul(paddedSnow(near, position, spacing, nearWeight))
+        .add(farWeight.mul(paddedSnow(far, position, spacing, farWeight))) as Node<"float">;
     },
     invalidate() {
       contentDirty = true;

@@ -26,6 +26,11 @@ export const COVER_RECENTRE_HEIGHT = 100;
 export const COVER_EDGE_FADE = 0.15;
 /** A point this far (m) below the cover's underside is fully covered; between 0 and this it fades. */
 export const COVER_SOFTNESS = 0.25;
+/** Roads can sit only centimetres above the base terrain. */
+export const SNOW_COVER_SOFTNESS = 0.002;
+export const SNOW_COVER_OFFSETS = [[0, 0], [-1, -1], [-1, 1], [1, -1], [1, 1]] as const;
+export const SNOW_COVER_EDGE_OFFSETS = [[-2, 0], [0, -2], [2, 0], [0, 2]] as const;
+export const SNOW_COVER_EDGE_WEIGHT = 0.65;
 
 export interface CoverPlacement {
   /** Centre of the square (x, z), on the texel grid. */
