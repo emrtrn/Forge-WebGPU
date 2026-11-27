@@ -54,7 +54,7 @@ test("a new level is Forge's default from the Add Actor entries; a missing entry
 });
 
 test("a new level's seven visual effects match the saved test scene after save normalization", () => {
-  // Captured from the user's saved test scene, independent of the template.
+  // Captured from the user's saved test scene and L03 (World Environment), independent of the template.
   const expected: unknown = JSON.parse(readFileSync(new URL("../../../tests/fixtures/new-level/test-environment.json", import.meta.url), "utf8"));
   const registry = createSchemaRegistry();
   installFeatures([skyFeature, fogFeature, cloudFeature, environmentFeature, postFeature, lightFeature], registry);

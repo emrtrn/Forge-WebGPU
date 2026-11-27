@@ -251,7 +251,8 @@ export function planContentOp(request: ContentOp, ctx: ContentOpContext): Conten
         const folder = `${request.folder}/${request.name}`;
         if (!freeTarget(folder, new Set())) return refuse(409, "exists", `${folder} already exists.`);
         path = `${folder}/level.json`;
-        document = { schema: LEVEL_SCHEMA, id: newId("level"), settings: { cellSize: DEFAULT_CELL_SIZE }, actors: [...(request.actors ?? [])] };
+        // A new level sees 6 km (user, 2026-11-27); the schema default (0) stays for existing levels.
+        document = { schema: LEVEL_SCHEMA, id: newId("level"), settings: { cellSize: DEFAULT_CELL_SIZE, viewDistance: 6000 }, actors: [...(request.actors ?? [])] };
       } else if (request.kind === "actorClass") {
         path = `${request.folder}/${request.name}.actor.json`;
         document = { schema: ACTOR_CLASS_SCHEMA, id: newId("asset"), name: request.name, components: {} };

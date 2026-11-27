@@ -46,7 +46,8 @@ interface TemplateActor {
   readonly fields?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 }
 
-/** Environment tuned in content/levels/test (2026-11-16), plus Forge's floor and cube.
+/** Environment tuned in content/levels/test (2026-11-16), plus Forge's floor and cube;
+ * World Environment as saved in the reference project's L03, with TRAA and SSR (2026-11-27).
  * Only new levels use these overrides; schema defaults also serve existing levels.
  */
 export const NEW_LEVEL_TEMPLATE: readonly TemplateActor[] = [
@@ -54,8 +55,28 @@ export const NEW_LEVEL_TEMPLATE: readonly TemplateActor[] = [
   { entry: "forge.sky:light" },
   { entry: "forge.heightFog" },
   { entry: "forge.cloudLayer", fields: { clouds: { coverage: 0.4, density: 0.4, scale: 8, speed: 0.2 } } },
-  { entry: "forge.worldEnvironment", fields: { environment: { hour: 9, surface: { weatherDrivesSurface: true } } } },
-  { entry: "forge.postProcess", fields: { post: { antialias: "smaa", bloom: { enabled: true, threshold: 1, intensity: 1, radius: 1 }, ao: { enabled: true, radius: 1, intensity: 1 } } } },
+  {
+    entry: "forge.worldEnvironment",
+    fields: {
+      environment: {
+        hour: 9,
+        surface: {
+          weatherDrivesSurface: true,
+          snowAccumulationRate: 0.1,
+          snowMeltRate: 0.05,
+          dryingRate: 0.05,
+          puddleFillRate: 0.1,
+          puddleDrainRate: 0.05,
+          snowDepthRate: 0.1,
+          snowDepthMeltRate: 0.05,
+          snowMaxDepth: 1,
+          wetSpread: 0.2,
+          patchSize: 1.5,
+        },
+      },
+    },
+  },
+  { entry: "forge.postProcess", fields: { post: { antialias: "traa", reflection: "ssr", bloom: { enabled: true, threshold: 1, intensity: 1, radius: 1 }, ao: { enabled: true, radius: 1, intensity: 1 } } } },
   { entry: "forge.light:directional", name: "Sun", position: [3, 9, 4], fields: { light: { atmosphereSun: true, castShadow: true, cascadedShadows: true } } },
   { entry: "forge.shape:plane", name: "Floor", scale: [4, 1, 4] },
   // Shape solids are 0,5 m: scale 2 is Forge's 1 m cube, resting on the floor.
