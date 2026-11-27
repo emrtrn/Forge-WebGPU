@@ -572,12 +572,12 @@ function vec4(options: VectorOptions<4>): VectorField<4>
 
 const ADD_ACTOR_CATEGORIES: readonly [{ readonly label: "Lights"; readonly icon: "light"; }, { readonly label: "Shapes"; readonly icon: "shape"; }, { readonly label: "Volumes"; readonly icon: "volume"; }, { readonly label: "Visual Effects"; readonly icon: "reflection"; }, { readonly label: "Terrain"; readonly icon: "terrain"; }, { readonly label: "Sounds"; readonly icon: "sound"; }, { readonly label: "UI"; readonly icon: "widget"; }, { readonly label: "Gameplay"; readonly icon: "gameplay"; }, { readonly label: "Vehicles"; readonly icon: "vehicle"; }]
 
-type ActorTypeIcon = "shape" | "sound" | "vehicle" | "mesh" | "terrain" | "gameplay" | "light" | "character" | "volume" | "widget" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "spline" | "group" | "generic"
+type ActorTypeIcon = "sound" | "vehicle" | "shape" | "mesh" | "terrain" | "gameplay" | "light" | "character" | "volume" | "widget" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "spline" | "group" | "generic"
 
 interface AddActorEntry
   readonly category: string
   readonly components: Readonly<Record<string, Readonly<{ type: string; } & Record<string, unknown>>>>
-  readonly icon: "shape" | "sound" | "vehicle" | "mesh" | "terrain" | "gameplay" | "light" | "character" | "volume" | "widget" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "spline" | "group" | "generic"
+  readonly icon: "sound" | "vehicle" | "shape" | "mesh" | "terrain" | "gameplay" | "light" | "character" | "volume" | "widget" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "spline" | "group" | "generic"
   readonly key: string
   readonly label: string
   readonly lift?: number | undefined
@@ -616,7 +616,7 @@ interface AssetEditorPresentation
 
 interface AssetPlacement
   readonly components: Readonly<Record<string, Readonly<{ type: string; } & Record<string, unknown>>>>
-  readonly icon?: "shape" | "sound" | "vehicle" | "mesh" | "terrain" | "gameplay" | "light" | "character" | "volume" | "widget" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "spline" | "group" | "generic" | undefined
+  readonly icon?: "sound" | "vehicle" | "shape" | "mesh" | "terrain" | "gameplay" | "light" | "character" | "volume" | "widget" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "spline" | "group" | "generic" | undefined
   readonly lift?: number | undefined
   readonly restOnSurface?: boolean | undefined
   readonly rotation?: readonly [number, number, number] | undefined
@@ -639,7 +639,7 @@ interface ComponentPresentation
   readonly details?: "tool" | "embedded" | undefined
   readonly extension?: "top" | undefined
   readonly groups?: "accordion" | undefined
-  readonly icon: "shape" | "sound" | "vehicle" | "mesh" | "terrain" | "gameplay" | "light" | "character" | "volume" | "widget" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "spline" | "group" | "generic" | ((data: Readonly<Record<string, unknown>>) => ActorTypeIcon)
+  readonly icon: "sound" | "vehicle" | "shape" | "mesh" | "terrain" | "gameplay" | "light" | "character" | "volume" | "widget" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "spline" | "group" | "generic" | ((data: Readonly<Record<string, unknown>>) => ActorTypeIcon)
   readonly outliner: "mesh" | "terrain" | "gameplay" | "light" | "character" | "environment" | "volume" | "widget"
 
 type DetailsExtension = (context: DetailsExtensionContext) => { readonly element: HTMLElement; dispose?(): void; }

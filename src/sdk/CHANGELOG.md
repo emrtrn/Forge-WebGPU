@@ -10,7 +10,7 @@ the engine's major.minor (architecture §4.8, A8).
 
 ## 0.1.20
 
-API: f077f696f565ff81
+API: a5c50aa596e2f3a7
 
 `PhysicsCastFilter.physicalChannel` selects solid blockers for an object
 channel. Trace channels continue to select query responses. Colliders,

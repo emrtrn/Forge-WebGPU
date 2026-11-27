@@ -54,7 +54,7 @@ test("?debug: the readout reports the frame, the pipeline and the scene cost; Sc
   await expect(readout).toContainText("shadow casters");
   await expect(readout).toContainText("terrain");
   // Derekavak streams (phase 5a step 4): Forge's streaming lines and the tile map, one square per tile.
-  await expect(readout).toContainText(/terrain streaming: loaded:\d+ active:\d+ queued:0 physics:0/);
+  await expect(readout).toContainText(/terrain streaming: loaded:\d+ active:\d+ queued:0 physics:[1-9]\d*/);
   const map = page.locator(".forge-debug-panel-map");
   await expect(map).toBeVisible();
   const tally: Record<string, number> = Object.fromEntries(

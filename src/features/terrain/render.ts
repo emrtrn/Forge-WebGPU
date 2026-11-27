@@ -12,9 +12,10 @@
 //   TerrainRuntimeStreaming around this world's camera (render range two
 //   tiles, the passive cache four tiles' bytes), reading tiles through the
 //   source's reader (fetch, decode in workers). A tile that arrives or leaves
-//   refreshes the view. Editor and game stream alike. No collider: the stream
-//   is built without collision (the collider's World binding is phase 6, which
-//   moves the stream to where physics can share it).
+//   refreshes the view. Editor and game stream alike. The World's terrain
+//   residency (engine terrainResidency.ts) owns the stream, so physics shares
+//   it: with World physics and a colliding definition, the tiles near the
+//   physics focus (else the view) have heightfield colliders.
 // - Each frame the view streams its slots and re-selects, culled by the camera
 //   and the scene's shadow-casting directional lights (cascades included), and
 //   follows the quality profile's terrain self shadow and far tiling (step 3).
