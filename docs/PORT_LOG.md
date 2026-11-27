@@ -373,6 +373,11 @@ Starter'da (INV-F19, F20), collider tabanlı Recast `samples/rts`'de çalışıy
 Girdi, fizik temas ve iki davranış tick testi doğrudan World'e taşındı. Önceki
 `engine/input/inputSubsystem.ts` kabuğu kaldırıldı. Ertelenen beş Faz 6 A
 kontrolü `forge-engine-tests.tsv`'de taşınmış görünüyor (A 996 / 1.021).
+Fizik testleri `EngineApp`'ten ayrıldı. Darbe algoritmaları çözülmüş gövdeleri,
+temas ve darbe olayları şemalı World'ü kullanıyor. Tick aralığı, zamanlayıcı,
+aktör ömrü, silme ve çarpışma anahtarı denetimleri World'e taşındı. Collider,
+Blocking Volume ve model kanalları etkin temaslar ve Rapier çözücüsü için aynı
+profili kullanıyor (INV-A17, D06, E13, F12).
 
 | Modül | Kaynak yol | Forge SHA | İşlem | Testler | Durum |
 |---|---|---|---|---|---|

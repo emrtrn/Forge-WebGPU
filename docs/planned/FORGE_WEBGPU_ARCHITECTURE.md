@@ -1,6 +1,8 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.98 · 2026-11-27 — §4.7 Faz 6 World servisleri, §4.9 ortak terrain tile sahipliği ve canlı G8.
+**Güncelleme:** v1.99 · 2026-11-27 — §4.7 ortak çarpışma profili, temas/çözücü maskeleri ve davranışın simülasyon zamanı (SDK 0.1.20).
+
+**Önceki güncelleme:** v1.98 · 2026-11-27 — §4.7 Faz 6 World servisleri, §4.9 ortak terrain tile sahipliği ve canlı G8.
 
 **Önceki güncelleme:** v1.97 · 2026-11-27 — §4.9 hava sözleşmesi W7: yamalı terrain karı, LOD geçişinden sonra yükselir. Yağış siperi ve `forge.puddle` suyu, ortak maskeyi sınırlar.
 
@@ -1613,6 +1615,20 @@ düşen alan uyarı değil, **hatadır**.
   verdiği yerelleştirme tablosunu ve temayı kullanabilir. Dünya widget'larının
   aktör veya dünya konumu güncel render kamerasıyla ekrana yansıtılır. Açılış
   ilerlemesi renderer ilk kaynaklarını hazır sayana dek görünür.
+- **Çarpışma profili (6a):** `forge.collider`, `forge.blockingVolume` ve
+  `forge.model` aynı preset ve özel kanal şemasını kullanır. Rapier temas
+  maskesine Block ve Overlap, çözücü maskesine Block girer. İki uçtan Ignore
+  teması önler, bir uç Overlap seçerse temas itki uygulamaz ve örtüşme olayı
+  gelir. Dinamik bileşiğin profilini sürücü collider belirler. Görünürlük ve
+  kamera sorguları iz kanallarını, kapsül hareketi Pawn engellerini, araç
+  tekerlekleri karşılıklı Block yüzeylerini okur.
+  `PhysicsServiceKey.setCollisionEnabled` aktörün bütün collider'larını etkiler.
+  Oyun kodu kalıcılık seçerse kapalı aktör kimlikleri `forge.collisionState`
+  ile checkpoint'e girer ve restore sırasında ilk fizik sorgusundan önce uygulanır.
+- **Davranış zamanı (6a):** tick aralığı biriken simülasyon süresini iletir.
+  Duraklatılmış World zamanlayıcıları ve aktör ömrünü ilerletmez. Tick'i
+  kapatılan davranış mesaj almaya devam eder. Kaldırılan davranışın zamanlayıcıları
+  iptal edilir. Süresi dolan aktör World'ün olağan silme yolundan çıkar.
 - **Render senkronu:** oynanış kodu three nesnelerine dokunmaz; render katmanı
   bileşenleri render bağlamalarıyla izler. "engine three'siz" kuralı böylece
   kalıcı olur.
