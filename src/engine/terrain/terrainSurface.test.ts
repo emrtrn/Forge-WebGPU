@@ -2,6 +2,7 @@
 // Vitest; 5 check(s) not yet portable left out. docs/PORT_LOG.md §2.
 import assert from "node:assert/strict";
 import { PhysicsSubsystem } from "../physics/physicsSubsystem.ts";
+import { resolvePhysicsBodies } from "../testing/physicsBodies.ts";
 import { nominalWheelLoad, sinkage, vehicleWheelWidth } from "../physics/surface/sinkage.ts";
 import { NEUTRAL_SURFACE_SAMPLE, createPhysicalMaterialSurfaceProvider, resolveSurfaceSample, type VehicleSurfaceProvider } from "../physics/surface/surfaceResponse.ts";
 import { NEUTRAL_VEHICLE_INPUT, createReferenceCarDefinition } from "../physics/vehicle/vehicleTypes.ts";
@@ -147,13 +148,13 @@ async function driveOnTerrain(layers: WorldTerrainLayerDef[], provider: "mesh" |
   const physics = new PhysicsSubsystem({ backend: "rapier" });
   physics.setGravity([0, -9.81, 0]);
   physics.setTransformSink(() => {});
-  physics.setEntities([...worldTerrainColliderEntities({ id: "world", name: "World", collision: true }, terrain), {
+  physics.replaceBodies(resolvePhysicsBodies([...worldTerrainColliderEntities({ id: "world", name: "World", collision: true }, terrain), {
     id: "car",
     components: {
       Transform: { position: [0, 1, -20], rotation: [0, 0, 0], scale: [1, 1, 1] },
       Collider: { shape: "box", size: [1.8, 0.6, 4.2], isStatic: false, isSensor: false, simulatePhysics: true },
     },
-  }]);
+  }]));
   try {
     await physics.init();
     const mesh = createPhysicalMaterialSurfaceProvider((id) => physics.colliderPhysicalMaterialId(id));

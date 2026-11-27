@@ -5,6 +5,7 @@ import { type ColliderComponent, type TransformComponent } from "../legacy/compo
 import { type Entity } from "../legacy/entity.ts";
 import { type Vec3 } from "../legacy/layout.ts";
 import { PhysicsSubsystem } from "./physicsSubsystem.ts";
+import { resolvePhysicsBodies } from "../testing/physicsBodies.ts";
 import { NEUTRAL_VEHICLE_INPUT, createReferenceCarDefinition, type VehicleInput } from "./vehicle/vehicleTypes.ts";
 import { test } from "vitest";
 
@@ -74,7 +75,7 @@ async function createVehicleTestWorld(options: { slopeDeg?: number; groundSize?:
       },
     },
   ];
-  physics.setEntities(entities);
+  physics.replaceBodies(resolvePhysicsBodies(entities));
   await physics.init();
   let frame = 0;
   const tick = (seconds: number): void => {
@@ -125,7 +126,7 @@ const UNIT_CUBE_CORNERS: [number, number, number][] = [
 
 check("physics subsystem reports deterministic placeholder contacts", () => {
   const physics = new PhysicsSubsystem();
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "dynamic",
       components: {
@@ -140,7 +141,7 @@ check("physics subsystem reports deterministic placeholder contacts", () => {
         Collider: { shape: "box", size: [1, 1, 1], isStatic: true, isSensor: false },
       },
     },
-  ]);
+  ]));
 
   physics.step(0.016);
   assert.deepEqual(physics.contactsForEntity("dynamic"), []);
@@ -165,7 +166,7 @@ check("generateOverlapEvents=false suppresses sensor overlap contacts", () => {
       Collider: { shape: "box", size: [1, 1, 1], isStatic: false, isSensor: false },
     },
   } as const;
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     // @ts-expect-error Forge never type-checked its tests: an `as const` fixture is readonly, Entity is not (type-only).
     mover,
     {
@@ -181,12 +182,12 @@ check("generateOverlapEvents=false suppresses sensor overlap contacts", () => {
         },
       },
     },
-  ]);
+  ]));
   physics.step(0.016);
   assert.deepEqual(physics.contactsForEntity("mover"), []);
 
   // A sensor with events left on (default) still reports the overlap.
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     // @ts-expect-error Forge never type-checked its tests: an `as const` fixture is readonly, Entity is not (type-only).
     mover,
     {
@@ -196,7 +197,7 @@ check("generateOverlapEvents=false suppresses sensor overlap contacts", () => {
         Collider: { shape: "box", size: [1, 1, 1], isStatic: true, isSensor: true },
       },
     },
-  ]);
+  ]));
   physics.step(0.016);
   assert.deepEqual(physics.contactsForEntity("mover"), [
     { a: "mover", b: "live", isSensor: true },
@@ -205,7 +206,7 @@ check("generateOverlapEvents=false suppresses sensor overlap contacts", () => {
 
 check("simulationGeneratesHitEvents=false on both bodies suppresses the hit", () => {
   const physics = new PhysicsSubsystem();
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "a",
       components: {
@@ -232,14 +233,14 @@ check("simulationGeneratesHitEvents=false on both bodies suppresses the hit", ()
         },
       },
     },
-  ]);
+  ]));
   physics.step(0.016);
   assert.deepEqual(physics.contactsForEntity("a"), []);
 });
 
 await checkAsync("rapier physics backend reports contacts through the same contract", async () => {
   const physics = new PhysicsSubsystem({ backend: "rapier" });
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "dynamic",
       components: {
@@ -254,7 +255,7 @@ await checkAsync("rapier physics backend reports contacts through the same contr
         Collider: { shape: "box", size: [1, 1, 1], isStatic: true, isSensor: false },
       },
     },
-  ]);
+  ]));
 
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
@@ -278,7 +279,7 @@ await checkAsync("rapier physics backend reports contacts through the same contr
 
 await checkAsync("rapier backend reports static sensor overlap with a kinematic player", async () => {
   const physics = new PhysicsSubsystem({ backend: "rapier" });
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "actor:0",
       components: {
@@ -293,7 +294,7 @@ await checkAsync("rapier backend reports static sensor overlap with a kinematic 
         Collider: { shape: "box", size: [1, 1, 1], isStatic: false, isSensor: false },
       },
     },
-  ]);
+  ]));
 
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
@@ -326,7 +327,7 @@ await checkAsync("rapier simulatePhysics body falls under configured gravity", a
       scale: [...transform.scale],
     });
   });
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "crate",
       components: {
@@ -340,7 +341,7 @@ await checkAsync("rapier simulatePhysics body falls under configured gravity", a
         },
       },
     },
-  ]);
+  ]));
 
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
@@ -376,7 +377,7 @@ await checkAsync("rapier active area suspends distant dynamics and resumes them 
     });
   });
   physics.setDynamicActiveArea({ activeDistance: 10, focusPosition: () => focus });
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "distant-crate",
       components: {
@@ -390,7 +391,7 @@ await checkAsync("rapier active area suspends distant dynamics and resumes them 
         },
       },
     },
-  ]);
+  ]));
 
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
@@ -419,7 +420,7 @@ await checkAsync("rapier active area suspends distant dynamics and resumes them 
 await checkAsync("rapier builds a compound collider per authored primitive (gap is empty)", async () => {
   const physics = new PhysicsSubsystem({ backend: "rapier" });
   physics.setGravity([0, 0, 0]);
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "compound",
       components: {
@@ -450,7 +451,7 @@ await checkAsync("rapier builds a compound collider per authored primitive (gap 
         Collider: { shape: "box", size: [0.6, 0.6, 0.6], isStatic: false, isSensor: false, simulatePhysics: true },
       },
     },
-  ]);
+  ]));
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
     if (String(args[0] ?? "").includes("deprecated parameters for the initialization function")) return;
@@ -477,7 +478,7 @@ await checkAsync("rapier builds a compound collider per authored primitive (gap 
 await checkAsync("rapier builds a convex collider from hull points", async () => {
   const physics = new PhysicsSubsystem({ backend: "rapier" });
   physics.setGravity([0, 0, 0]);
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "hull",
       components: {
@@ -498,7 +499,7 @@ await checkAsync("rapier builds a convex collider from hull points", async () =>
         Collider: { shape: "box", size: [1, 1, 1], isStatic: false, isSensor: false, simulatePhysics: true },
       },
     },
-  ]);
+  ]));
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
     if (String(args[0] ?? "").includes("deprecated parameters for the initialization function")) return;
@@ -545,7 +546,7 @@ await checkAsync("rapier trimesh colliders fix internal edges (a rolling ball do
   physics.setTransformSink((entityId, transform) => {
     if (entityId === "ball") heights.push(transform.position[1]);
   });
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "ground",
       components: {
@@ -566,7 +567,7 @@ await checkAsync("rapier trimesh colliders fix internal edges (a rolling ball do
         Collider: { shape: "sphere", size: [0.8, 0.8, 0.8], isStatic: false, isSensor: false, simulatePhysics: true },
       },
     },
-  ]);
+  ]));
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
     if (String(args[0] ?? "").includes("deprecated parameters for the initialization function")) return;
@@ -603,7 +604,7 @@ await checkAsync("rapier simulatePhysics enableGravity false disables world grav
       scale: [...transform.scale],
     });
   });
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "crate",
       components: {
@@ -618,7 +619,7 @@ await checkAsync("rapier simulatePhysics enableGravity false disables world grav
         },
       },
     },
-  ]);
+  ]));
 
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
@@ -651,7 +652,7 @@ await checkAsync("rapier simulatePhysics thin wall can topple after ground conta
       });
     }
   });
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "floor",
       components: {
@@ -672,7 +673,7 @@ await checkAsync("rapier simulatePhysics thin wall can topple after ground conta
         },
       },
     },
-  ]);
+  ]));
 
   const warn = console.warn;
   console.warn = (...args: unknown[]) => {
@@ -702,14 +703,14 @@ await checkAsync("rapier simulatePhysics thin wall can topple after ground conta
 await checkAsync("rapier backend stays on placeholder when the scene has no colliders", async () => {
   const physics = new PhysicsSubsystem({ backend: "rapier" });
   // Transforms but no Collider components -> zero physics bodies.
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "decor",
       components: {
         Transform: { position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
       },
     },
-  ]);
+  ]));
 
   await physics.init();
   assert.equal(physics.usesRapier(), false); // no colliders -> Rapier never loaded
@@ -728,7 +729,7 @@ await checkAsync("rapier fixed step simulates the same fall at 30 Hz and 144 Hz"
       physics.setTransformSink((_id, transform) => {
         y = transform.position[1];
       });
-      physics.setEntities([fallingCrateEntity()]);
+      physics.replaceBodies(resolvePhysicsBodies([fallingCrateEntity()]));
       await physics.init();
       let steps = 0;
       for (let frame = 0; frame < hz; frame += 1) {
@@ -755,7 +756,7 @@ await checkAsync("rapier render pose blends between slices and a teleport skips 
     physics.setTransformSink((_id, transform) => {
       rendered = transform;
     });
-    physics.setEntities([fallingCrateEntity()]);
+    physics.replaceBodies(resolvePhysicsBodies([fallingCrateEntity()]));
     await physics.init();
     const renderedY = (): number => (rendered as TransformComponent | null)?.position[1] ?? Number.NaN;
 
@@ -788,7 +789,7 @@ await checkAsync("rapier render pose blends between slices and a teleport skips 
 await checkAsync("rapier vehicle only attaches to a live dynamic chassis", async () => {
   await withQuietRapierInit(async () => {
     const placeholder = new PhysicsSubsystem();
-    placeholder.setEntities([fallingCrateEntity()]);
+    placeholder.replaceBodies(resolvePhysicsBodies([fallingCrateEntity()]));
     assert.equal(placeholder.createVehicle("crate", createReferenceCarDefinition()), false);
 
     const world = await createVehicleTestWorld();
@@ -817,11 +818,11 @@ await checkAsync("rapier camera trace stops at static walls and passes moving, s
       box("trigger", -10, { isSensor: true }),
     ];
     const placeholder = new PhysicsSubsystem();
-    placeholder.setEntities(entities);
+    placeholder.replaceBodies(resolvePhysicsBodies(entities));
     assert.equal(placeholder.traceCamera([0, 1, 0], [0, 1, 20]), null, "no exact shapes without Rapier");
 
     const physics = new PhysicsSubsystem({ backend: "rapier" });
-    physics.setEntities(entities);
+    physics.replaceBodies(resolvePhysicsBodies(entities));
     await physics.init();
     try {
       physics.update({ deltaSeconds: VEHICLE_SLICE, elapsedSeconds: VEHICLE_SLICE, frame: 1 });
@@ -840,7 +841,7 @@ await checkAsync("rapier camera trace stops at static walls and passes moving, s
 
 check("physics subsystem exposes static blocker AABBs and collider half-extents", () => {
   const physics = new PhysicsSubsystem();
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "wall",
       components: {
@@ -862,7 +863,7 @@ check("physics subsystem exposes static blocker AABBs and collider half-extents"
         Collider: { shape: "box", size: [1, 1, 1], isStatic: false, isSensor: false },
       },
     },
-  ]);
+  ]));
   const blockers = physics.staticBlockerAabbs();
   assert.equal(blockers.length, 1); // wall only: the sensor and the non-static player are excluded
   assert.deepEqual(blockers[0], { min: [1.5, -0.5, -0.5], max: [2.5, 0.5, 0.5] });
@@ -884,7 +885,7 @@ check("physics navigation queries honor collider navigation roles without changi
     ],
     indices: [0, 2, 1], // CCW up-facing floor (signed normal +1)
   };
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "ignored-wall",
       components: {
@@ -939,7 +940,7 @@ check("physics navigation queries honor collider navigation roles without changi
         },
       },
     },
-  ]);
+  ]));
   assert.equal(physics.staticBlockerAabbs().length, 2);
   const navBlockers = physics.staticNavigationBlockerAabbs();
   assert.equal(navBlockers.length, 1);
@@ -987,7 +988,7 @@ check("walkable stair emits riser nav blockers tagged with their role; auto does
   });
 
   const walkable = new PhysicsSubsystem();
-  walkable.setEntities([makeStair("walkable")]);
+  walkable.replaceBodies(resolvePhysicsBodies([makeStair("walkable")]));
   const navBlockers = walkable.staticNavigationBlockerAabbs();
   assert.ok(
     navBlockers.length >= 1,
@@ -1007,7 +1008,7 @@ check("walkable stair emits riser nav blockers tagged with their role; auto does
   );
 
   const auto = new PhysicsSubsystem();
-  auto.setEntities([makeStair("auto")]);
+  auto.replaceBodies(resolvePhysicsBodies([makeStair("auto")]));
   const autoBlockers = auto.staticNavigationBlockerAabbs();
   assert.ok(autoBlockers.length >= 1, "auto stair still walls the riser (geometry-derived)");
   assert.ok(
@@ -1020,7 +1021,7 @@ check("walkable stair emits riser nav blockers tagged with their role; auto does
 // model whose geometry is not centered on its origin still aligns to the mesh.
 check("physics subsystem offsets a collider AABB by its center", () => {
   const physics = new PhysicsSubsystem();
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "wall",
       components: {
@@ -1034,7 +1035,7 @@ check("physics subsystem offsets a collider AABB by its center", () => {
         },
       },
     },
-  ]);
+  ]));
   assert.deepEqual(physics.staticBlockerAabbs()[0], {
     min: [-1, 0, 0.75],
     max: [1, 4, 1.25],
@@ -1043,7 +1044,7 @@ check("physics subsystem offsets a collider AABB by its center", () => {
 
 check("physics subsystem rotates a corner-pivoted compound wall's blocker AABB", () => {
   const physics = new PhysicsSubsystem();
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "wall",
       components: {
@@ -1058,13 +1059,13 @@ check("physics subsystem rotates a corner-pivoted compound wall's blocker AABB",
         },
       },
     },
-  ]);
+  ]));
   assertAabbClose(physics.staticBlockerAabbs()[0]!, { min: [-0.1, 0, -4], max: [0.1, 3, 0] });
 });
 
 check("physics subsystem rotates a single (non-compound) collider's blocker AABB", () => {
   const physics = new PhysicsSubsystem();
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "wall",
       components: {
@@ -1072,7 +1073,7 @@ check("physics subsystem rotates a single (non-compound) collider's blocker AABB
         Collider: { shape: "box", size: [4, 3, 0.2], center: [2, 1.5, 0], isStatic: true, isSensor: false },
       },
     },
-  ]);
+  ]));
   assertAabbClose(physics.staticBlockerAabbs()[0]!, { min: [-0.1, 0, -4], max: [0.1, 3, 0] });
 });
 
@@ -1080,7 +1081,7 @@ check("physics subsystem rotates a single (non-compound) collider's blocker AABB
 // blocker; a steep trimesh triangle stays a blocker. Rotation bakes into normals.
 check("physics subsystem exposes trimesh surfaces and excludes flat ones from blockers", () => {
   const physics = new PhysicsSubsystem();
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "ramp",
       components: {
@@ -1101,7 +1102,7 @@ check("physics subsystem exposes trimesh surfaces and excludes flat ones from bl
         },
       },
     },
-  ]);
+  ]));
   assert.equal(physics.staticBlockerAabbs().length, 0); // gentle ramp → not walls
   const surfaces = physics.staticSurfaceTriangles();
   assert.equal(surfaces.length, 2);
@@ -1111,7 +1112,7 @@ check("physics subsystem exposes trimesh surfaces and excludes flat ones from bl
 check("physics subsystem keeps a steep up-facing terrain triangle as a support surface", () => {
   const physics = new PhysicsSubsystem();
   const rise = 2 * Math.tan((60 * Math.PI) / 180);
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "steep-terrain",
       components: {
@@ -1132,7 +1133,7 @@ check("physics subsystem keeps a steep up-facing terrain triangle as a support s
         },
       },
     },
-  ]);
+  ]));
   assert.equal(physics.staticBlockerAabbs().length, 0, "terrain support is never represented as flat wall AABBs");
   const surfaces = physics.staticSurfaceTriangles();
   assert.equal(surfaces.length, 2);
@@ -1141,7 +1142,7 @@ check("physics subsystem keeps a steep up-facing terrain triangle as a support s
 
 check("physics subsystem keeps a steep trimesh triangle as a wall blocker (not a surface)", () => {
   const physics = new PhysicsSubsystem();
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "wall",
       components: {
@@ -1162,7 +1163,7 @@ check("physics subsystem keeps a steep trimesh triangle as a wall blocker (not a
         },
       },
     },
-  ]);
+  ]));
   assert.equal(physics.staticBlockerAabbs().length, 1);
   assert.equal(physics.staticSurfaceTriangles().length, 0);
 });
@@ -1174,7 +1175,7 @@ check("physics subsystem keeps a steep trimesh triangle as a wall blocker (not a
 // the pawn mid-climb.
 check("physics subsystem never seeds a walkable surface on a solid body's downward face", () => {
   const physics = new PhysicsSubsystem();
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "slab",
       components: {
@@ -1199,7 +1200,7 @@ check("physics subsystem never seeds a walkable surface on a solid body's downwa
         },
       },
     },
-  ]);
+  ]));
   const surfaces = physics.staticSurfaceTriangles();
   assert.equal(surfaces.length, 2, "only the two up-facing top triangles are walkable surfaces");
   assert.ok(surfaces.every((tri) => tri.normalY > 0.9), "every walkable surface faces up (signed +1)");
@@ -1211,7 +1212,7 @@ check("physics subsystem never seeds a walkable surface on a solid body's downwa
 
 check("physics subsystem bakes body rotation into surface-triangle normals", () => {
   const physics = new PhysicsSubsystem();
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "tilted-floor",
       components: {
@@ -1232,7 +1233,7 @@ check("physics subsystem bakes body rotation into surface-triangle normals", () 
         },
       },
     },
-  ]);
+  ]));
   const surfaces = physics.staticSurfaceTriangles();
   assert.equal(surfaces.length, 1);
   assert.ok(
@@ -1246,7 +1247,7 @@ check("physics subsystem bakes body rotation into surface-triangle normals", () 
 // concave corner), not a single enclosing box.
 check("physics subsystem expands a trimesh collider into per-triangle blockers", () => {
   const physics = new PhysicsSubsystem();
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "wall",
       components: {
@@ -1275,7 +1276,7 @@ check("physics subsystem expands a trimesh collider into per-triangle blockers",
         },
       },
     },
-  ]);
+  ]));
   const blockers = physics.staticBlockerAabbs();
   assert.equal(blockers.length, 2); // one AABB per triangle, not one enclosing box
   // Each triangle's AABB is translated by the body origin (10, 0, 0); the gap
@@ -1310,7 +1311,7 @@ check("physics subsystem: setEntityCollisionEnabled toggles contacts and blocker
       Collider: { shape: "box", size: [1, 1, 1], isStatic: false, isSensor: false },
     },
   };
-  physics.setEntities([wall, trigger, mover]);
+  physics.replaceBodies(resolvePhysicsBodies([wall, trigger, mover]));
 
   physics.step(0.016);
   assert.equal(physics.staticBlockerAabbs().length, 1); // the wall blocks movement
@@ -1332,6 +1333,6 @@ check("physics subsystem: setEntityCollisionEnabled toggles contacts and blocker
 
   // setEntities rebuild clears the disabled set (runtime-only state).
   physics.setEntityCollisionEnabled("wall:0", false);
-  physics.setEntities([wall, trigger, mover]);
+  physics.replaceBodies(resolvePhysicsBodies([wall, trigger, mover]));
   assert.equal(physics.staticBlockerAabbs().length, 1);
 });

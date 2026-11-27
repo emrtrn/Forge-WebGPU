@@ -4,15 +4,13 @@
 // physicsBodies / physicsTypes with method bodies unchanged. The ragdoll is not
 // ported (plan K12).
 import { classifyStaticTriangle } from "./staticTriangles.ts";
-import { readColliderComponent, readTransformComponent, VEHICLE_COMPONENT } from "../legacy/components.ts";
 import type { ColliderComponent, ColliderPrimitive, TransformComponent } from "./colliderTypes.ts";
 import { type NavigationRole } from "./collision.ts";
 import { rotatePointAboutOrigin, rotatedBoxAabb, rotatedBoxFootprintXZ } from "./rotatedBox.ts";
 import { type ImpactVec3 } from "./impactEvents.ts";
-import { vehicleDefinitionFromComponent, type VehicleVec3 } from "./vehicle/vehicleTypes.ts";
-import type { Entity, EntityId } from "../legacy/entity.ts";
+import type { VehicleVec3 } from "./vehicle/vehicleTypes.ts";
 import type { PhysicsSurfaceTriangle } from "./physicsQuery.ts";
-import type { Vec3 } from "../legacy/layout.ts";
+import type { Vec3 } from "../../core/index.ts";
 import { DEFAULT_FRICTION, DEFAULT_RESTITUTION, type PhysicsBody, type Aabb, type RapierModule, type RapierRigidBody } from "./physicsTypes.ts";
 
 /**
@@ -61,7 +59,7 @@ export function chassisForwardSpeed(body: RapierRigidBody): number {
   return v.x * forward[0] + v.y * forward[1] + v.z * forward[2];
 }
 
-export function contactKey(a: EntityId, b: EntityId): string {
+export function contactKey(a: string, b: string): string {
   return a < b ? `${a}\n${b}` : `${b}\n${a}`;
 }
 
@@ -250,66 +248,6 @@ export function cloneTransform(transform: TransformComponent): TransformComponen
     rotation: [...transform.rotation],
     scale: [...transform.scale],
   };
-}
-
-export function bodyFromEntity(entity: Entity): PhysicsBody | null {
-  const transform = readTransformComponent(entity);
-  const collider = readColliderComponent(entity);
-  if (!transform || !collider) return null;
-  const body: PhysicsBody = {
-    id: entity.id,
-    transform: cloneTransform(transform),
-    collider: cloneCollider(collider),
-  };
-  const vehicle = vehicleDefinitionFromComponent(entity.components[VEHICLE_COMPONENT]);
-  if (vehicle) body.vehicle = vehicle;
-  return body;
-}
-
-export function cloneCollider(collider: ColliderComponent): ColliderComponent {
-  const clone: ColliderComponent = {
-    shape: collider.shape,
-    size: [...collider.size],
-    isStatic: collider.isStatic,
-    isSensor: collider.isSensor,
-  };
-  if (collider.center) clone.center = [...collider.center];
-  if (collider.primitives) clone.primitives = collider.primitives.map(clonePrimitive);
-  if (collider.friction !== undefined) clone.friction = collider.friction;
-  if (collider.physicalMaterialId !== undefined) clone.physicalMaterialId = collider.physicalMaterialId;
-  if (collider.restitution !== undefined) clone.restitution = collider.restitution;
-  if (collider.navigationRole !== undefined) clone.navigationRole = collider.navigationRole;
-  if (collider.generateOverlapEvents !== undefined) {
-    clone.generateOverlapEvents = collider.generateOverlapEvents;
-  }
-  if (collider.simulationGeneratesHitEvents !== undefined) {
-    clone.simulationGeneratesHitEvents = collider.simulationGeneratesHitEvents;
-  }
-  if (collider.collisionGroups !== undefined) clone.collisionGroups = collider.collisionGroups;
-  if (collider.profile) clone.profile = collider.profile;
-  if (collider.ignoreCameraTrace !== undefined) clone.ignoreCameraTrace = collider.ignoreCameraTrace;
-  if (collider.simulatePhysics !== undefined) clone.simulatePhysics = collider.simulatePhysics;
-  if (collider.massKg !== undefined) clone.massKg = collider.massKg;
-  if (collider.linearDamping !== undefined) clone.linearDamping = collider.linearDamping;
-  if (collider.angularDamping !== undefined) clone.angularDamping = collider.angularDamping;
-  if (collider.enableGravity !== undefined) clone.enableGravity = collider.enableGravity;
-  if (collider.lockPosition !== undefined) clone.lockPosition = [...collider.lockPosition];
-  if (collider.lockRotation !== undefined) clone.lockRotation = [...collider.lockRotation];
-  return clone;
-}
-
-export function clonePrimitive(primitive: ColliderPrimitive): ColliderPrimitive {
-  const copy: ColliderPrimitive = { shape: primitive.shape, size: [...primitive.size] };
-  if (primitive.center) copy.center = [...primitive.center];
-  if (primitive.rotation) copy.rotation = [...primitive.rotation];
-  if (primitive.points) copy.points = primitive.points.map((point) => [...point] as typeof point);
-  // Trimesh (complexAsSimple) data — must be carried through, or the Rapier
-  // collider and the movement blockers both fall back to a box.
-  if (primitive.vertices) copy.vertices = primitive.vertices.map((point) => [...point] as typeof point);
-  if (primitive.indices) copy.indices = [...primitive.indices];
-  // Shared, never copied: a terrain tile's grid is large and immutable while the body lives.
-  if (primitive.heightfield) copy.heightfield = primitive.heightfield;
-  return copy;
 }
 
 /**

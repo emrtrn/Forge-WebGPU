@@ -6,6 +6,7 @@ import { type Entity } from "../legacy/entity.ts";
 import { CharacterMovementSubsystem } from "../movement/characterMovementSubsystem.ts";
 import { type PhysicsAabb, type PhysicsQuery, type PhysicsSurfaceTriangle } from "./physicsQuery.ts";
 import { PhysicsSubsystem } from "./physicsSubsystem.ts";
+import { resolvePhysicsBodies } from "../testing/physicsBodies.ts";
 import { test } from "vitest";
 
 
@@ -94,7 +95,7 @@ export function registerStaticQueriesTests(check: Check): void {
       return entity;
     });
     entities.push(box("overflow", 0, 0, 10000), mesh("overflow-mesh", -200, -200, 500));
-    physics.setEntities(entities);
+    physics.replaceBodies(resolvePhysicsBodies(entities));
     for (let i = 0; i < 300; i += 1) {
       const x = random() * 200 - 100;
       const z = random() * 200 - 100;
@@ -106,7 +107,7 @@ export function registerStaticQueriesTests(check: Check): void {
 
   check("static queries inclusive boundaries deduplicate cells and filter overflow", () => {
     const physics = new PhysicsSubsystem();
-    physics.setEntities([box("span", 0, 0, 16), box("far-overflow", 10000, 10000, 1000)]);
+    physics.replaceBodies(resolvePhysicsBodies([box("span", 0, 0, 16), box("far-overflow", 10000, 10000, 1000)]));
     assert.equal(physics.staticBlockerAabbsNear(0, 0, 20).length, 1);
     assert.equal(physics.staticBlockerAabbsNear(-9, -9, 1).length, 1);
     assert.equal(physics.staticBlockerAabbsNear(8, 8, 0).length, 1);
@@ -126,7 +127,7 @@ export function registerStaticQueriesTests(check: Check): void {
       if (op === 0) {
         const entity = mesh(id, random() * 100 - 50, random() * 100 - 50, step % 9 === 0 ? 500 : 3);
         entity.components.Collider!.navigationRole = ["auto", "walkable", "obstacleOnly", "ignored"][step % 4]!;
-        if (physics.addEntity(entity)) live.set(id, entity);
+        if (physics.addBodies(resolvePhysicsBodies([entity])) > 0) live.set(id, entity);
       } else if (op === 1) {
         physics.removeEntities([id, id, "missing"]);
         live.delete(id);
@@ -143,7 +144,7 @@ export function registerStaticQueriesTests(check: Check): void {
         else disabled.add(id);
       }
       const rebuilt = new PhysicsSubsystem();
-      rebuilt.setEntities([...live.values()]);
+      rebuilt.replaceBodies(resolvePhysicsBodies([...live.values()]));
       for (const disabledId of disabled) rebuilt.setEntityCollisionEnabled(disabledId, false);
       assert.deepEqual(physics.staticBlockerAabbs(), rebuilt.staticBlockerAabbs());
       assert.deepEqual(physics.staticSurfaceTriangles(), rebuilt.staticSurfaceTriangles());
@@ -163,18 +164,18 @@ export function registerStaticQueriesTests(check: Check): void {
     const a = mesh("a", 0, 0);
     const b = mesh("b", 10, 10);
     const before = physics.staticQueryDebug();
-    assert.equal(physics.addEntities([a, b, a, { id: "no-body", components: {} }]), 2);
+    assert.equal(physics.addBodies(resolvePhysicsBodies([a, b, a, { id: "no-body", components: {} }])), 2);
     assert.equal(physics.staticQueryDebug().invalidations - before.invalidations, 1);
     const blocker = physics.staticBlockerAabbs()[0];
     const surface = physics.staticSurfaceTriangles()[0];
-    physics.addEntities([box("c", 20, 20), box("d", 30, 30)]);
+    physics.addBodies(resolvePhysicsBodies([box("c", 20, 20), box("d", 30, 30)]));
     const added = physics.staticQueryDebug();
     physics.removeEntities(["c", "d", "c", "missing"]);
     assert.equal(physics.staticQueryDebug().invalidations - added.invalidations, 1);
     assert.equal(physics.staticQueryDebug().recordBuilds, added.recordBuilds);
     assert.equal(physics.staticBlockerAabbs()[0], blocker);
     assert.equal(physics.staticSurfaceTriangles()[0], surface);
-    physics.addEntities([a, b]);
+    physics.addBodies(resolvePhysicsBodies([a, b]));
     physics.removeEntities(["missing"]);
     assert.equal(physics.staticQueryDebug().invalidations, added.invalidations + 1);
     const builds = physics.staticQueryDebug().recordBuilds;
@@ -187,13 +188,13 @@ export function registerStaticQueriesTests(check: Check): void {
   check("static queries id map stays consistent across replace remove clear and re-add", () => {
     const physics = new PhysicsSubsystem();
     const a = mesh("a", 0, 0);
-    physics.setEntities([a]);
+    physics.replaceBodies(resolvePhysicsBodies([a]));
     assert.equal(physics.colliderPhysicalMaterialId("a"), "stone");
-    assert.equal(physics.addEntity(a), false);
+    assert.equal(physics.addBodies(resolvePhysicsBodies([a])) > 0, false);
     physics.removeEntity("a");
     assert.equal(physics.colliderPhysicalMaterialId("a"), undefined);
     assert.equal(physics.colliderHalfExtents("a"), null);
-    assert.equal(physics.addEntity(a), true);
+    assert.equal(physics.addBodies(resolvePhysicsBodies([a])) > 0, true);
     physics.staticBlockerAabbs();
     physics.staticSurfaceTriangles();
     physics.clear();
@@ -201,17 +202,17 @@ export function registerStaticQueriesTests(check: Check): void {
     assert.deepEqual(physics.staticBlockerAabbs(), []);
     assert.deepEqual(physics.staticSurfaceTrianglesNear(0, 0), []);
     assert.equal(physics.hasStaticGround(), false);
-    assert.equal(physics.addEntity(a), true);
-    physics.setEntities([box("b", 4, 4)]);
+    assert.equal(physics.addBodies(resolvePhysicsBodies([a])) > 0, true);
+    physics.replaceBodies(resolvePhysicsBodies([box("b", 4, 4)]));
     assert.equal(physics.colliderPhysicalMaterialId("a"), undefined);
-    assert.equal(physics.addEntity(a), true);
+    assert.equal(physics.addBodies(resolvePhysicsBodies([a])) > 0, true);
     assert.deepEqual(physics.staticBlockerAabbsNear(0, 0, 20), physics.staticBlockerAabbs());
   });
 
   check("static queries 5000 AABBs bound character blocker inspections without flat queries", () => {
     const physics = new PhysicsSubsystem();
     const player = pawn();
-    physics.setEntities([...Array.from({ length: 5000 }, (_, i) => box(`floor:${i}`, (i % 100) * 8, Math.floor(i / 100) * 8)), player]);
+    physics.replaceBodies(resolvePhysicsBodies([...Array.from({ length: 5000 }, (_, i) => box(`floor:${i}`, (i % 100) * 8, Math.floor(i / 100) * 8)), player]));
     const query: PhysicsQuery = {
       ...legacyQuery(physics),
       staticBlockerAabbs: () => { throw new Error("movement materialized all blockers"); },
@@ -234,7 +235,7 @@ export function registerStaticQueriesTests(check: Check): void {
     for (const hasDistantGround of [false, true]) {
       const physics = new PhysicsSubsystem();
       const player = pawn();
-      physics.setEntities(hasDistantGround ? [player, box("far", 1000, 1000)] : [player]);
+      physics.replaceBodies(resolvePhysicsBodies(hasDistantGround ? [player, box("far", 1000, 1000)] : [player]));
       const run = (query: PhysicsQuery): number[] => {
         const movement = new CharacterMovementSubsystem(new ActionMap({}), () => {}, query, {
           isPlayerControlled: () => false, getMoveIntent: () => ({ direction: [1, 0] }),
@@ -256,11 +257,11 @@ export function registerStaticQueriesTests(check: Check): void {
     // revision keys on the blocker array identity, so each change must hand back
     // a new, correct list.
     const physics = new PhysicsSubsystem();
-    physics.setEntities([box("floor", 0, 0, 40)]);
+    physics.replaceBodies(resolvePhysicsBodies([box("floor", 0, 0, 40)]));
     const before = physics.staticNavigationBlockerAabbs();
     const wall = box("streamed-wall", 5, 0, 1);
     Object.assign(wall.components.Collider!, { size: [1, 4, 60] });
-    assert.equal(physics.addEntity(wall), true);
+    assert.equal(physics.addBodies(resolvePhysicsBodies([wall])) > 0, true);
     const withWall = physics.staticNavigationBlockerAabbs();
     assert.notEqual(withWall, before);
     assert.equal(withWall.length, before.length + 1);
@@ -282,7 +283,7 @@ export function registerStaticQueriesTests(check: Check): void {
     Object.assign(wall.components.Transform!, { position: [12, 2, 0] });
     Object.assign(wall.components.Collider!, { size: [0.1, 5, 10] });
     const physics = new PhysicsSubsystem();
-    physics.setEntities([box("floor", 0, 0, 200), wall, player]);
+    physics.replaceBodies(resolvePhysicsBodies([box("floor", 0, 0, 200), wall, player]));
     for (const mode of ["input", "launch", "carry"] as const) {
       const run = (query: PhysicsQuery): number[] => {
         const platform = { min: [-1, -1, -1] as [number, number, number], max: [1, 0.1, 1] as [number, number, number] };

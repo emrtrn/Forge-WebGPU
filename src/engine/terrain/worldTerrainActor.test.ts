@@ -5,6 +5,7 @@ import { type ColliderComponent, type TransformComponent } from "../legacy/compo
 import { type Vec3 } from "../legacy/layout.ts";
 import { forEachHeightfieldTriangle } from "../physics/heightfieldStatic.ts";
 import { PhysicsSubsystem } from "../physics/physicsSubsystem.ts";
+import { resolvePhysicsBodies } from "../testing/physicsBodies.ts";
 import { normalizeWorldTerrain } from "./terrainDefinition.ts";
 import { applyTerrainBrush, createTerrainEditWorld } from "./terrainEdit.ts";
 import { terrainHeightAt } from "./terrainHeightQuery.ts";
@@ -96,7 +97,7 @@ export function registerWorldTerrainActorTests(check: Check): void {
   check("world terrain collision: PhysicsSubsystem serves the tile triangles as walkable ground, the hole stays empty", () => {
     const document = worldDocument();
     const physics = new PhysicsSubsystem();
-    physics.setEntities(worldTerrainColliderEntities({ id: "big", name: "Big", collision: true }, document));
+    physics.replaceBodies(resolvePhysicsBodies(worldTerrainColliderEntities({ id: "big", name: "Big", collision: true }, document)));
     assert.equal(physics.hasStaticGround(), true);
     const surfaceAt = (x: number, z: number): number | null => {
       for (const { a, b, c, normalY } of physics.staticSurfaceTrianglesNear(x, z)) {

@@ -5,6 +5,7 @@ import { type TransformComponent } from "../../legacy/components.ts";
 import { type Entity } from "../../legacy/entity.ts";
 import { type Vec3 } from "../../legacy/layout.ts";
 import { PhysicsSubsystem } from "../physicsSubsystem.ts";
+import { resolvePhysicsBodies } from "../../testing/physicsBodies.ts";
 import { computeVehicleDrive } from "./vehicleDrive.ts";
 import { NEUTRAL_VEHICLE_INPUT, createReferenceCarDefinition, resolveVehicleDefinition, type VehicleInput, vehicleDefinitionFromComponent } from "./vehicleTypes.ts";
 import { test } from "vitest";
@@ -59,7 +60,7 @@ async function createVehicleTestWorld(options: { slopeDeg?: number; groundSize?:
       },
     },
   ];
-  physics.setEntities(entities);
+  physics.replaceBodies(resolvePhysicsBodies(entities));
   await physics.init();
   let frame = 0;
   const tick = (seconds: number): void => {
@@ -227,7 +228,7 @@ await checkAsync("rapier vehicle survives a world rebuild and leaves with its en
   await withQuietRapierInit(async () => {
     const world = await createVehicleTestWorld();
     world.physics.createVehicle("car", createReferenceCarDefinition());
-    world.physics.setEntities(world.entities); // e.g. a level reload rebuilds the world
+    world.physics.replaceBodies(resolvePhysicsBodies(world.entities)); // e.g. a level reload rebuilds the world
     assert.equal(world.physics.hasVehicle("car"), true);
     world.tick(1);
     world.drive({ throttle: 1 });

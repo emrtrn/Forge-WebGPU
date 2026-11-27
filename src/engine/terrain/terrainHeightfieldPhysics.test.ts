@@ -7,6 +7,7 @@ import { type Vec3 } from "../legacy/layout.ts";
 import { navFloorSampler } from "../navigation/navFloorSampler.ts";
 import { HeightfieldStaticSource } from "../physics/heightfieldStatic.ts";
 import { PhysicsSubsystem } from "../physics/physicsSubsystem.ts";
+import { resolvePhysicsBodies } from "../testing/physicsBodies.ts";
 import { NEUTRAL_VEHICLE_INPUT, createReferenceCarDefinition } from "../physics/vehicle/vehicleTypes.ts";
 import { terrainTileTrimesh } from "../testing/terrainTrimeshReference.ts";
 import { terrainHeightAt } from "./terrainHeightQuery.ts";
@@ -161,13 +162,13 @@ async function driveTerrainSeam(seamed: boolean, route: SeamDrive) {
   // Enable runtime pose synchronization; read simulatedTransform below, not the
   // sink's interpolated presentation pose (one slice behind at alpha = 0).
   physics.setTransformSink(() => {});
-  physics.setEntities([...ground, {
+  physics.replaceBodies(resolvePhysicsBodies([...ground, {
     id: "car",
     components: {
       Transform: { position: route.start, rotation: [0, route.yaw, 0], scale: [1, 1, 1] },
       Collider: { shape: "box", size: [1.8, 0.6, 4.2], isStatic: false, isSensor: false, simulatePhysics: true },
     },
-  }]);
+  }]));
   try {
     await physics.init();
     assert.equal(physics.usesRapier(), true);
@@ -243,7 +244,7 @@ export function registerTerrainHeightfieldPhysicsTests(check: Check): void {
       throw new Error("navigation queries must not allocate the tile's 131072 triangles");
     };
     try {
-      physics.setEntities(worldTerrainColliderEntities({ id: "large", name: "Large", collision: true }, document));
+      physics.replaceBodies(resolvePhysicsBodies(worldTerrainColliderEntities({ id: "large", name: "Large", collision: true }, document)));
       const surfaces = physics.staticNavigationSurfaceTriangles(false);
       const blockers = physics.staticNavigationBlockerAabbs();
       assert.deepEqual(surfaces, []);
@@ -266,9 +267,9 @@ export function registerTerrainHeightfieldPhysicsTests(check: Check): void {
   check("terrain heightfield physics: a collision-free World Terrain leaves no static ground", () => {
     const document = terrain(1.5, [0, 0, 0]);
     const physics = new PhysicsSubsystem();
-    physics.setEntities(worldTerrainColliderEntities({ id: "world", name: "World", collision: false }, document));
+    physics.replaceBodies(resolvePhysicsBodies(worldTerrainColliderEntities({ id: "world", name: "World", collision: false }, document)));
     assert.equal(physics.hasStaticGround(), false);
-    physics.setEntities(worldTerrainColliderEntities({ id: "world", name: "World", collision: true }, document));
+    physics.replaceBodies(resolvePhysicsBodies(worldTerrainColliderEntities({ id: "world", name: "World", collision: true }, document)));
     assert.equal(physics.hasStaticGround(), true);
     for (const id of ["0_0", "1_0", "0_1"]) physics.setEntityCollisionEnabled(`landscape:world:${id}`, false);
     assert.equal(physics.hasStaticGround(), false);
@@ -280,7 +281,7 @@ export async function registerTerrainHeightfieldRapierTests(checkAsync: CheckAsy
   await checkAsync("terrain heightfield physics: the Rapier collider PhysicsSubsystem builds is the queried surface", async () => {
     const document = terrain(1.5, [-7, 2, -5]);
     const physics = new PhysicsSubsystem({ backend: "rapier" });
-    physics.setEntities(worldTerrainColliderEntities({ id: "world", name: "World", collision: true }, document));
+    physics.replaceBodies(resolvePhysicsBodies(worldTerrainColliderEntities({ id: "world", name: "World", collision: true }, document)));
     await physics.init();
     try {
       assert.equal(physics.usesRapier(), true);

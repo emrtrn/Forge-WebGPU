@@ -2,8 +2,8 @@
 import type { PhysicsAabb, PhysicsSurfaceTriangle } from "./physicsQuery.ts";
 import { sampleTriangleHeight, type GroundSurfaceSample } from "../movement/slopeSurface.ts";
 import type { NavigationRole } from "./collision.ts";
-import type { ColliderHeightfield } from "../legacy/components.ts";
-import type { Vec3 } from "../legacy/layout.ts";
+import type { ColliderHeightfield } from "./colliderTypes.ts";
+import type { Vec3 } from "../../core/index.ts";
 import { rotatePointAboutOrigin } from "./rotatedBox.ts";
 import { STATIC_INDEX_CELL_SIZE, staticCellRange, type StaticSpatialEntry } from "./staticSpatialIndex.ts";
 import { classifyStaticTriangle, SURFACE_MIN_SUPPORT_NORMAL_Y, triangleUpNormalY } from "./staticTriangles.ts";

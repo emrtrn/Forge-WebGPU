@@ -18,8 +18,8 @@
  * Callers skip `ignored` bodies.
  */
 import type { NavigationRole } from "./collision.ts";
-import type { ColliderComponent, ColliderPrimitive, TransformComponent } from "../legacy/components.ts";
-import type { Vec3 } from "../legacy/layout.ts";
+import type { ColliderComponent, ColliderPrimitive, TransformComponent } from "./colliderTypes.ts";
+import type { Vec3 } from "../../core/index.ts";
 import { forEachHeightfieldTriangle } from "./heightfieldStatic.ts";
 import { rotatePointAboutOrigin, rotatedBoxAabb, rotatedBoxCorners, rotatedBoxFootprintXZ } from "./rotatedBox.ts";
 

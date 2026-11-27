@@ -4,13 +4,14 @@ import assert from "node:assert/strict";
 import { resolvePlanarMovement } from "../movement/characterCollision.ts";
 import { terrainTileTrimesh } from "../testing/terrainTrimeshReference.ts";
 import { PhysicsSubsystem } from "./physicsSubsystem.ts";
+import { resolvePhysicsBodies } from "../testing/physicsBodies.ts";
 import { test } from "vitest";
 
 const check = test;
 
 check("physics subsystem gives steep trimesh triangle blockers a tight XZ footprint", () => {
   const physics = new PhysicsSubsystem();
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "rotated-trimesh-wall",
       components: {
@@ -35,7 +36,7 @@ check("physics subsystem gives steep trimesh triangle blockers a tight XZ footpr
         },
       },
     },
-  ]);
+  ]));
   const blockers = physics.staticBlockerAabbs();
   assert.equal(blockers.length, 1);
   assert.ok(blockers[0]?.footprint && blockers[0].footprint.length === 2, "vertical triangle projects to a segment");
@@ -62,7 +63,7 @@ check("landscape trimesh reference is centred and up-facing, and physics files i
   assert.deepEqual(primitive.indices.slice(0, 6), [0, 3, 1, 1, 3, 4]);
 
   const physics = new PhysicsSubsystem();
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "landscape:unit",
       components: {
@@ -79,7 +80,7 @@ check("landscape trimesh reference is centred and up-facing, and physics files i
         },
       },
     },
-  ]);
+  ]));
   assert.equal(physics.staticBlockerAabbs().length, 0, "walkable landscape triangles are not wall blockers");
   const surfaces = physics.staticSurfaceTriangles();
   assert.equal(surfaces.length, 8);
@@ -91,7 +92,7 @@ check("physics subsystem spatially narrows static landscape surface candidates f
   const { primitive } = terrainTileTrimesh({ tileQuads: 8, spacing: 1, origin: [0, 0, 0] },
     { x: 0, z: 0, size: 9, layerCount: 0, weights: new Uint8Array(0), heights: new Float32Array(81) });
   const physics = new PhysicsSubsystem();
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "landscape:spatial-index",
       components: {
@@ -108,7 +109,7 @@ check("physics subsystem spatially narrows static landscape surface candidates f
         },
       },
     },
-  ]);
+  ]));
   const all = physics.staticSurfaceTriangles();
   const near = physics.staticSurfaceTrianglesNear(0, 0);
   assert.equal(all.length, 128);

@@ -6,6 +6,7 @@ import { type Entity } from "../legacy/entity.ts";
 import { type Vec3 } from "../legacy/layout.ts";
 import { type NavigationRole } from "../physics/collision.ts";
 import { PhysicsSubsystem } from "../physics/physicsSubsystem.ts";
+import { resolvePhysicsBodies } from "../testing/physicsBodies.ts";
 import { type NavAgent, type PathResult } from "./navigationTypes.ts";
 import { RecastNavMesh, loadRecastModules, type RecastModules, type RecastNavMeshOptions } from "./recastNavMesh.ts";
 import { RecastPlanner, type RecastTileWorker } from "./recastPlanner.ts";
@@ -76,7 +77,7 @@ function heightfield(id: string, quads: number, spacing: number, height: (x: num
 
 function navMesh(modules: RecastModules, entities: Entity[], options: RecastNavMeshOptions = {}, agent = AGENT) {
   const physics = new PhysicsSubsystem();
-  physics.setEntities(entities);
+  physics.replaceBodies(resolvePhysicsBodies(entities));
   const mesh = new RecastNavMesh(modules, agent, {
     forEachTriangleInRect: (minX, minZ, maxX, maxZ, visit) =>
       physics.forEachNavigationTriangleInRect(minX, minZ, maxX, maxZ, visit),
@@ -292,7 +293,7 @@ export async function registerRecastNavMeshTests(checkAsync: CheckAsync): Promis
 
   await checkAsync("recast planner: per-profile meshes, revision drops, capped tile builds, snapped heights", async () => {
     const physics = new PhysicsSubsystem();
-    physics.setEntities([ground("ground", 200)]);
+    physics.replaceBodies(resolvePhysicsBodies([ground("ground", 200)]));
     let triangleQueries = 0;
     const planner = new RecastPlanner(modules, {
       forEachTriangleInRect: (minX, minZ, maxX, maxZ, visit) => {
@@ -331,10 +332,10 @@ export async function registerRecastNavMeshTests(checkAsync: CheckAsync): Promis
 
   await checkAsync("recast streaming: physics logs the regions whose static geometry changed", async () => {
     const physics = new PhysicsSubsystem();
-    physics.setEntities([ground("ground", 50)]);
+    physics.replaceBodies(resolvePhysicsBodies([ground("ground", 50)]));
     assert.equal(physics.takeNavigationDirtyRegions(), "all", "a full rebuild dirties everything");
     assert.deepEqual(physics.takeNavigationDirtyRegions(), [], "taking clears the log");
-    physics.addEntity(box("crate", [10, 0, 10], [12, 1, 12]));
+    physics.addBodies(resolvePhysicsBodies([box("crate", [10, 0, 10], [12, 1, 12])]));
     assert.deepEqual(physics.takeNavigationDirtyRegions(), [{ minX: 10, minZ: 10, maxX: 12, maxZ: 12 }]);
     physics.setEntityTransform("crate", { position: [21, 0.5, 1], rotation: [0, 0, 0], scale: [1, 1, 1] });
     assert.deepEqual(physics.takeNavigationDirtyRegions(), [
@@ -345,16 +346,16 @@ export async function registerRecastNavMeshTests(checkAsync: CheckAsync): Promis
     physics.removeEntity("crate");
     assert.equal((physics.takeNavigationDirtyRegions() as unknown[]).length, 2, "collision toggle and removal");
     const dynamic = body("ball", [0, 1, 0], { isStatic: false });
-    physics.addEntity(dynamic);
+    physics.addBodies(resolvePhysicsBodies([dynamic]));
     physics.setEntityTransform("ball", { position: [5, 1, 0], rotation: [0, 0, 0], scale: [1, 1, 1] });
     assert.deepEqual(physics.takeNavigationDirtyRegions(), [], "moving bodies never touch the nav mesh");
-    for (let index = 0; index < 300; index += 1) physics.addEntity(box(`pebble-${index}`, [index, 0, 0], [index + 0.5, 0.2, 0.5]));
+    for (let index = 0; index < 300; index += 1) physics.addBodies(resolvePhysicsBodies([box(`pebble-${index}`, [index, 0, 0], [index + 0.5, 0.2, 0.5])]));
     assert.equal(physics.takeNavigationDirtyRegions(), "all", "an overflowing log collapses to everything");
   });
 
   await checkAsync("recast streaming: invokers build nearby tiles within the frame budget and drop far ones after lingering", async () => {
     const physics = new PhysicsSubsystem();
-    physics.setEntities([ground("ground", 300)]);
+    physics.replaceBodies(resolvePhysicsBodies([ground("ground", 300)]));
     const planner = new RecastPlanner(modules, {
       forEachTriangleInRect: (minX, minZ, maxX, maxZ, visit) => physics.forEachNavigationTriangleInRect(minX, minZ, maxX, maxZ, visit),
     }, { buildRadius: 40, keepRadius: 80, lingerSeconds: 5, frameBudgetMs: 0, maxSyncBuilds: 0 });
@@ -378,7 +379,7 @@ export async function registerRecastNavMeshTests(checkAsync: CheckAsync): Promis
 
   await checkAsync("recast streaming: a request waits for its corridor, then dirty rectangles rebuild only their tiles", async () => {
     const physics = new PhysicsSubsystem();
-    physics.setEntities([ground("ground", 60)]);
+    physics.replaceBodies(resolvePhysicsBodies([ground("ground", 60)]));
     let builds = 0;
     const planner = new RecastPlanner(modules, {
       forEachTriangleInRect: (minX, minZ, maxX, maxZ, visit) => {
@@ -396,7 +397,7 @@ export async function registerRecastNavMeshTests(checkAsync: CheckAsync): Promis
     assert.equal(straight.points.length, 2, "open ground: a straight line");
 
     // A wall appears across the path: only the tiles under it turn stale.
-    physics.addEntity(box("wall", [-8, 0, -0.5], [12, 3, 0.5]));
+    physics.addBodies(resolvePhysicsBodies([box("wall", [-8, 0, -0.5], [12, 3, 0.5])]));
     const dirty = physics.takeNavigationDirtyRegions();
     assert.notEqual(dirty, "all");
     for (const rect of dirty as { minX: number; minZ: number; maxX: number; maxZ: number }[]) {
@@ -431,7 +432,7 @@ export async function registerRecastNavMeshTests(checkAsync: CheckAsync): Promis
 
   await checkAsync("recast worker: results join on a later update, stale ones are rebuilt, settle drains, a failure falls back", async () => {
     const physics = new PhysicsSubsystem();
-    physics.setEntities([ground("ground", 60)]);
+    physics.replaceBodies(resolvePhysicsBodies([ground("ground", 60)]));
     const worker = new ManualTileWorker(modules);
     const errors: unknown[] = [];
     const planner = new RecastPlanner(modules, {
@@ -459,7 +460,7 @@ export async function registerRecastNavMeshTests(checkAsync: CheckAsync): Promis
     assert.equal(planner.findPath(request).status, "success", "the worker's tiles answer the request");
 
     // A wall appears; while its tiles are at the worker, the geometry changes again.
-    physics.addEntity(box("wall", [-8, 0, -0.5], [12, 3, 0.5]));
+    physics.addBodies(resolvePhysicsBodies([box("wall", [-8, 0, -0.5], [12, 3, 0.5])]));
     const invalidate = () => {
       const dirty = physics.takeNavigationDirtyRegions();
       assert.notEqual(dirty, "all");
@@ -523,11 +524,11 @@ export async function registerRecastNavMeshTests(checkAsync: CheckAsync): Promis
   await checkAsync("recast planner: reachability answers reachable, unreachable and pending without building points", async () => {
     const physics = new PhysicsSubsystem();
     // A walled pen at x > 10: open ground outside cannot reach in.
-    physics.setEntities([
+    physics.replaceBodies(resolvePhysicsBodies([
       ground("ground", 60),
       box("pen-w", [10, 0, -6], [10.5, 3, 6]), box("pen-e", [20, 0, -6], [20.5, 3, 6]),
       box("pen-n", [10, 0, 6], [20.5, 3, 6.5]), box("pen-s", [10, 0, -6.5], [20.5, 3, -6]),
-    ]);
+    ]));
     let snaps = 0;
     const planner = new RecastPlanner(modules, {
       forEachTriangleInRect: (minX, minZ, maxX, maxZ, visit) => physics.forEachNavigationTriangleInRect(minX, minZ, maxX, maxZ, visit),

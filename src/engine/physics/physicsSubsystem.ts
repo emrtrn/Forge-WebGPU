@@ -13,11 +13,11 @@ import { ImpactAccumulator, impulseToForceThreshold, manifoldNormal, type Impact
 import { type VehicleGroundSinkProvider, type VehicleSurfaceProvider } from "./surface/surfaceResponse.ts";
 import { initialVehicleDrivetrainState } from "./vehicle/vehicleDrivetrain.ts";
 import { NEUTRAL_VEHICLE_INPUT, type VehicleDefinition, type VehicleInput, type VehicleMotionState, type VehicleState } from "./vehicle/vehicleTypes.ts";
-import type { Entity, EntityId } from "../legacy/entity.ts";
+import type { EntityId } from "../legacy/entity.ts";
 import type { PhysicsAabb, PhysicsContact, PhysicsQuery, PhysicsSurfaceTriangle } from "./physicsQuery.ts";
-import type { Vec3 } from "../legacy/layout.ts";
+import type { Vec3 } from "../../core/index.ts";
 import { PHYSICS_SUBSYSTEM_ID, PASS_THROUGH_MARGIN, type PhysicsBackend, type PhysicsTransformSink, type PhysicsSubsystemOptions, type DynamicPhysicsActiveAreaSettings, type PhysicsBody, type RapierModule, type RapierWorld, type RapierRigidBody, type RapierCollider, type RapierEventQueue, type VehicleRecord, type RapierBodyRecord, type PreviousBodyPose, type SuspendedDynamicBody } from "./physicsTypes.ts";
-import { impactNormal, contactKey, isOutsideDynamicActiveArea, bodyAabb, aabbOverlaps, cloneTransform, bodyFromEntity, colliderDescsForBody, rigidBodyDescForBody, vectorFromTransform, vectorFromVec3, quaternionFromEulerDegrees, eulerDegreesFromQuaternion } from "./physicsBodies.ts";
+import { impactNormal, contactKey, isOutsideDynamicActiveArea, bodyAabb, aabbOverlaps, cloneTransform, colliderDescsForBody, rigidBodyDescForBody, vectorFromTransform, vectorFromVec3, quaternionFromEulerDegrees, eulerDegreesFromQuaternion } from "./physicsBodies.ts";
 import { StaticWorld } from "./staticWorld.ts";
 import { VehiclePhysics } from "./vehiclePhysics.ts";
 import { PhysicsCasts } from "./physicsCasts.ts";
@@ -161,11 +161,8 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
    * here via dynamic import, so a physics-free game never fetches it.
    *
    * Backend `"rapier"` is a *preference*: the real load is derived from scene
-   * content. If the entities passed to `setEntities()` yielded no collider
-   * bodies we stay on the placeholder backend — `update()` falls back to AABB
-   * overlap when there is no `rapierWorld` — so only scenes with colliders pay
-   * the cost. Relies on `setEntities()` running before `init()`, which is the
-   * SceneApp / RuntimeSceneApp load order.
+   * content. Callers that use `init()` supply resolved bodies first. The World
+   * host calls `startRapier()` with its prepared module before actors join.
    */
   async init(): Promise<void> {
     if (this.backend !== "rapier" || this.bodies.length === 0) return;
@@ -214,13 +211,6 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
     return !this.suspendedDynamicBodies.has(entityId);
   }
 
-  setEntities(entities: readonly Entity[]): void {
-    this.replaceBodies(entities.flatMap((entity) => {
-      const body = bodyFromEntity(entity);
-      return body ? [body] : [];
-    }));
-  }
-
   /** Rebuilds a complete resolved set while retaining runtime impact registrations. */
   replaceBodies(bodies: readonly PhysicsBody[]): void {
     this.bodies = [];
@@ -246,19 +236,6 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
       if (vehicle.source === "component") this.vehiclePhysics.removeVehicle(entityId);
     }
     if (this.rapierModule) this.rebuildRapierWorld();
-  }
-
-  /** Incrementally adds one entity's collider body for runtime SpawnActor. */
-  addEntity(entity: Entity): boolean {
-    return this.addEntities([entity]) > 0;
-  }
-
-  /** Adds a batch in input order, invalidating legacy flat caches only once. */
-  addEntities(entities: readonly Entity[]): number {
-    return this.addBodies(entities.flatMap((entity) => {
-      const body = bodyFromEntity(entity);
-      return body ? [body] : [];
-    }));
   }
 
   /** Adds resolved bodies from schema components or streamed physics geometry. */

@@ -7,6 +7,7 @@ import { type TransformComponent } from "../../legacy/components.ts";
 import type { Entity } from "../../legacy/entity.ts";
 import { type Vec3 } from "../../legacy/layout.ts";
 import { PhysicsSubsystem } from "../physicsSubsystem.ts";
+import { resolvePhysicsBodies } from "../../testing/physicsBodies.ts";
 import {
   computeWheelSurfaceResponse, createPhysicalMaterialSurfaceProvider,
   NEUTRAL_SURFACE_SAMPLE, resolveSurfaceSample, type SurfaceSample, type VehicleSurfaceProvider,
@@ -273,12 +274,12 @@ export async function registerSurfaceResponseRapierTests(
     const world = await createWorld();
     const { physics } = world;
     try {
-      physics.setEntities([...world.entities, {
+      physics.replaceBodies(resolvePhysicsBodies([...world.entities, {
         id: "wall", components: {
           Transform: { position: [0, 1, 2.6], rotation: [0, 0, 0], scale: [1, 1, 1] },
           Collider: { shape: "box", size: [4, 2, 0.5], isStatic: true, isSensor: false },
         },
-      }]);
+      }]));
       const definition = createReferenceCarDefinition();
       physics.createVehicle("car", definition);
       physics.setVehicleSurfaceProvider(() => ({ ...resolveSurfaceSample("mud"), frictionSlipScale: 0.1 }));
@@ -330,7 +331,7 @@ export async function registerSurfaceResponseRapierTests(
     try {
       if (materialId) {
         world.entities[0]!.components.Collider!.physicalMaterialId = materialId;
-        physics.setEntities(world.entities);
+        physics.replaceBodies(resolvePhysicsBodies(world.entities));
       }
       if (provider !== null) physics.setVehicleSurfaceProvider(provider === "mesh"
         ? createPhysicalMaterialSurfaceProvider((id) => physics.colliderPhysicalMaterialId(id)) : provider);
@@ -415,7 +416,7 @@ export async function registerSurfaceResponseRapierTests(
       physics.setVehicleSurfaceProvider(null);
       world.tick(0.5);
       assert.equal(calls, before, "clearing the provider stops callbacks");
-      physics.setEntities(world.entities);
+      physics.replaceBodies(resolvePhysicsBodies(world.entities));
       world.tick(1);
       assert.ok(physics.vehicleState("car")!.wheels.every((wheel) => wheel.groundEntityId === "ground"), "mapping survives world rebuild");
       physics.resetVehicle("car", { position: [0, 100, 0], rotation: [0, 0, 0], scale: [1, 1, 1] });
@@ -586,7 +587,7 @@ async function createVehicleTestWorld(options: { slopeDeg?: number; groundSize?:
       },
     },
   ];
-  physics.setEntities(entities);
+  physics.replaceBodies(resolvePhysicsBodies(entities));
   await physics.init();
   let frame = 0;
   const tick = (seconds: number): void => {

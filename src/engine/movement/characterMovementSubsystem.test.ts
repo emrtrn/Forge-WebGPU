@@ -9,6 +9,7 @@ import { CharacterMovementSubsystem } from "./characterMovementSubsystem.ts";
 import { type LocomotionInput } from "./locomotionAnimation.ts";
 import { type GroundTriangle } from "./slopeSurface.ts";
 import { PhysicsSubsystem } from "../physics/physicsSubsystem.ts";
+import { resolvePhysicsBodies } from "../testing/physicsBodies.ts";
 import { ActionMap } from "../input/actionMap.ts";
 import { test } from "vitest";
 
@@ -36,7 +37,7 @@ const yawApproxEqual = (actual: number, expected: number, eps = 1e-9): void => {
 check("CharacterMovement subsystem walks up a trimesh ramp, following the incline", () => {
   const actions = new ActionMap({ KeyD: "move-right" });
   const physics = new PhysicsSubsystem();
-  physics.setEntities([
+  physics.replaceBodies(resolvePhysicsBodies([
     {
       id: "floor",
       components: {
@@ -65,7 +66,7 @@ check("CharacterMovement subsystem walks up a trimesh ramp, following the inclin
         },
       },
     },
-  ]);
+  ]));
   const player: Entity = {
     id: "actor:ramp-walker",
     components: {
