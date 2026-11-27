@@ -82,8 +82,8 @@ export interface World {
   init(): void;
   /** Adds normalised actor documents (a level, a cell). */
   addActors(actors: readonly ActorDoc[], origin: WorldActor["origin"]): WorldActor[];
-  /** Removes actors and their child actors. */
-  removeActors(ids: readonly ActorId[]): void;
+  /** Removes actors and their children, returning them after removal hooks finish. */
+  removeActors(ids: readonly ActorId[]): WorldActor[];
   /**
    * Replaces actors (by id) with their edited, normalised documents (the
    * editor). Returns the changes the subsystems heard: the edited actors, then
@@ -176,10 +176,10 @@ export function createWorld(options: WorldOptions): World {
     return added;
   };
 
-  const remove = (ids: readonly ActorId[], destroyed = false): void => {
+  const remove = (ids: readonly ActorId[], destroyed = false): WorldActor[] => {
     expect(["initialized", "playing"], "remove actors from");
     const doomed = new Set<ActorId>(ids.filter((id) => actors.has(id)));
-    if (doomed.size === 0) return;
+    if (doomed.size === 0) return [];
     // Children go with their parent, at any depth.
     let grew = true;
     while (grew) {
@@ -205,6 +205,7 @@ export function createWorld(options: WorldOptions): World {
       else byType.delete(name);
     }
     for (const running of subsystems) running.instance.actorsRemoved?.(removed);
+    return removed;
   };
 
   const notifyChanges = (changes: WorldActorChange[]): void => {
@@ -310,7 +311,7 @@ export function createWorld(options: WorldOptions): World {
       }
       return add(docs, "spawned");
     },
-    destroyActors: (ids) => remove(ids, true),
+    destroyActors(ids) { remove(ids, true); },
   };
 
   return {

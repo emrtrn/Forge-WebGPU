@@ -229,16 +229,16 @@ export function createCellStreaming(options: CellStreamingOptions): CellStreamin
     joining.delete(key);
     const ids = live.get(key) ?? [];
     live.delete(key);
-    const roots: ActorId[] = [];
+    if (ids.length === 0) return;
+    // EndPlay can write persistent component fields. Capture the final values
+    // after World and all its subsystems have removed the actors.
+    const removed = new Map(world.removeActors(ids).map((actor) => [actor.id, actor]));
     for (const id of ids) {
-      const actor = world.context.actor(id);
+      const actor = removed.get(id);
       const was = authored.get(id);
       authored.delete(id);
-      if (!actor) continue;
-      if (was) ledger.remember(id, captureActorState(was, { transform: actor.transform, components: actor.components }, options.registry));
-      if (actor.parent === null || !ids.includes(actor.parent)) roots.push(id);
+      if (was && actor) ledger.remember(id, captureActorState(was, actor, options.registry));
     }
-    if (roots.length > 0) world.removeActors(roots);
   };
 
   const subsystem = new WorldStreamingSubsystem<CellPayload>({

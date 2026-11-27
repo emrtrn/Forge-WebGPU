@@ -1,9 +1,9 @@
 // World counterparts of the behavior checks from Forge WebGL tools/engine-tests.ts (04b5fb23).
 import assert from "node:assert/strict";
-import { afterEach, test as check } from "vitest";
+import { afterEach, expect, test as check } from "vitest";
 import {
   array, bool, createSchemaRegistry, defineComponent, defineFeature, installFeatures, normalizeActorClass,
-  normalizeLevel, num, object, text, type ActorId, type SaveGameDoc, type Vec3,
+  normalizeActorDoc, normalizeLevel, num, object, text, type ActorId, type SaveGameDoc, type Vec3,
 } from "../../core/index.ts";
 import { actorId, assetId, levelId } from "../../core/level/testKit.ts";
 import { BehaviorDefinitionsKey, defineBehavior, type BehaviorDefinition } from "../../engine/behavior/worldBehavior.ts";
@@ -12,6 +12,8 @@ import { createMemoryStorageAdapter, SaveGameStore } from "../../engine/persiste
 import { PhysicsServiceKey, PreparedPhysicsKey } from "../../engine/physics/physicsService.ts";
 import { loadRapier } from "../../engine/physics/physicsSubsystem.ts";
 import { ActorMotionKey } from "../../engine/world/actorMotion.ts";
+import { bootGame } from "../../runtime/boot.ts";
+import { defineGameModule } from "../../runtime/gameModule.ts";
 import { installWorldCheckpoint } from "../../runtime/persistence/worldCheckpoint.ts";
 import { createWorld, type World } from "../../runtime/world.ts";
 import physicsFeature from "../physics/feature.ts";
@@ -191,4 +193,82 @@ check("actor command: spawn delivers a cloned host request", () => {
   assert.ok(Math.abs((actor?.transform.r[3] ?? 0) - yaw) < 1e-9);
   assert.deepEqual(actor?.transform.s, [2, 2, 2]);
   assert.deepEqual(actor?.components.projectile, { type: "test.projectile@1", damage: 12, nested: { team: "blue" } });
+});
+
+check("streamed behavior restores EndPlay state and receives one message after rejoining", async () => {
+  const id = actorId("a");
+  const events: unknown[][] = [];
+  let ping = false;
+  const probe = defineBehavior({
+    id: "test.streamed",
+    events: {
+      beginPlay({ actor }) {
+        const state = actor.components.probe!;
+        events.push(["begin", state.visits, state.runtimeOnly]);
+        state.runtimeOnly = 7;
+      },
+      endPlay({ actor }, event) {
+        if (event.kind !== "endPlay" || event.reason !== "removed") return;
+        events.push(["end"]);
+        actor.components.probe!.visits = [1, 2];
+      },
+    },
+    messages: { Ping: { target: "any", handle() { events.push(["ping"]); } } },
+  });
+  const sender = defineBehavior({
+    id: "test.sender",
+    tick({ emit }) {
+      if (!ping) return;
+      ping = false;
+      emit("Ping");
+    },
+  });
+  const streamed = behaviorActor(id, probe);
+  let source: readonly [number, number] = [0, 0];
+  let frame: ((time: number) => void) | undefined;
+  let time = 0;
+  const game = await bootGame({
+    strict: true, features: [TestFeature, behaviorFeature],
+    gameModule: defineGameModule({ id: "test.streaming", behaviors: [probe, sender] }),
+    async loadLevel(registry) {
+      const doc = normalizeActorDoc({ ...streamed, components: { ...streamed.components, probe: { type: "test.probeState@1" } } }, {
+        registry, resolveClass: () => undefined, strict: true,
+      });
+      assert.deepEqual(doc.issues, []);
+      return {
+        level: { schema: "forge.level/1", id: LEVEL, settings: { cellSize: 100, loadRange: 150 }, actors: [behaviorActor(actorId("b"), sender)] },
+        cells: { cells: ["0_0"], read: async () => ({ payload: { actors: [doc.value!], bytes: 100 }, issues: [] }) },
+      };
+    },
+    render: {
+      async init() {}, feature: () => defineFeature({ id: "test.render" }), frame() {}, onLost() {}, dispose() {},
+      streamingSources: () => [{ position: source }],
+    },
+    scheduler: { request: (next) => { frame = next; return 1; }, cancel: () => { frame = undefined; } },
+    screen: { info() {}, clear() {}, error(view) { throw new Error(view.message); } },
+  });
+  assert.ok(game);
+  const advance = async () => {
+    assert.ok(frame);
+    frame(time += 16);
+    await Promise.resolve();
+  };
+  try {
+    await expect.poll(async () => { await advance(); return events.length; }).toBe(1);
+    ping = true;
+    await advance();
+    source = [950, 0];
+    await expect.poll(async () => { await advance(); return game.world.context.actor(id); }).toBeUndefined();
+    ping = true;
+    await advance();
+    assert.deepEqual(events, [["begin", [], 0], ["ping"], ["end"]]);
+
+    source = [0, 0];
+    await expect.poll(async () => { await advance(); return events.length; }).toBe(4);
+    ping = true;
+    await advance();
+    assert.deepEqual(events, [["begin", [], 0], ["ping"], ["end"], ["begin", [1, 2], 0], ["ping"]]);
+  } finally {
+    game.stop();
+  }
 });
