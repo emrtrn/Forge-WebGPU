@@ -11,8 +11,7 @@
  *   definition is a `forge.terrain` data document with the tiles and global
  *   map as parts.
  * - The ground cover's plants are `forge.landscapeFoliage` rules on it (5d step 8).
- * - The Player Start is an actor of that name without components until the
- *   Player Start feature (Faz 6).
+ * - The Player Start uses the same persistent actor as the importer.
  * - Every placement is in an Outliner folder by its role (`World/Fences`; user
  *   decision 2026-11-25): a label only, so cells stay spatial.
  * - Built into a level that exists (`keep`), its settings and scene settings

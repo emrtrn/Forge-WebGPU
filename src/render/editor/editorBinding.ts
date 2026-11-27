@@ -21,8 +21,10 @@ import { Group, type Camera, type Node } from "three/webgpu";
 import { COMPONENT_NAME_PATTERN, defineFeature, defineSubsystem, SchemaDefinitionError, type ActorId, type FeatureDef, type SubsystemContext, type WorldActor, type WorldActorChange } from "../../core/index.ts";
 import type { RenderWorldView } from "../sync/renderBinding.ts";
 import type { ActorIcons } from "./actorIcon.ts";
+import type { ModelCollisionSource } from "../../engine/physics/physicsService.ts";
 
 export const EDITOR_HELPERS_FEATURE_ID = "forge.editorHelpers";
+export type EditorHelperFlag = "collision" | "navigation";
 
 export interface EditorHelperContext {
   readonly world: RenderWorldView;
@@ -34,6 +36,8 @@ export interface EditorHelperContext {
   readonly sceneVisibility: Node<"float">;
   /** Billboard icons (Forge's actor icons), shared per glyph. */
   readonly icons: ActorIcons;
+  show?(flag: EditorHelperFlag): boolean;
+  readonly modelCollision?: ModelCollisionSource;
 }
 
 export interface EditorHelperFrame {
@@ -74,6 +78,8 @@ export interface EditorHelpersOptions {
   readonly sceneVisibility: Node<"float">;
   readonly icons: ActorIcons;
   readonly camera: () => Camera | null;
+  readonly show?: (flag: EditorHelperFlag) => boolean;
+  readonly modelCollision?: ModelCollisionSource;
 }
 
 /** The `forge.editorHelpers` feature: runs the editor bindings in the editor's world. */
@@ -89,7 +95,11 @@ export function createEditorHelpersFeature(options: EditorHelpersOptions): Featu
       const group = new Group();
       group.name = "editor helpers";
       options.root.add(group);
-      const instances = bindings.map((binding) => binding.create({ world: view, root: group, selected: options.selected, sceneVisibility: options.sceneVisibility, icons: options.icons }));
+      const instances = bindings.map((binding) => binding.create({ world: view, root: group, selected: options.selected,
+        sceneVisibility: options.sceneVisibility, icons: options.icons,
+        ...(options.show ? { show: options.show } : {}),
+        ...(options.modelCollision ? { modelCollision: options.modelCollision } : {}),
+      }));
       return {
         actorsAdded(actors) {
           for (const instance of instances) instance.actorsAdded?.(actors);

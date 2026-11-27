@@ -14,21 +14,30 @@ import {
   type SubsystemContext,
   type SubsystemDef,
 } from "../core/index.ts";
+import type { BehaviorDefinition } from "../engine/behavior/worldBehavior.ts";
 
 export interface GameModuleDef {
   readonly kind: "gameModule";
   /** Namespaced, e.g. `ridgebound.game`. */
   readonly id: string;
   readonly features: readonly FeatureDef[];
+  readonly behaviors: readonly BehaviorDefinition[];
   readonly onBeginPlay?: (ctx: SubsystemContext) => void;
   readonly onEndPlay?: (ctx: SubsystemContext, reason: EndPlayReason) => void;
 }
 
-export function defineGameModule(module: Omit<GameModuleDef, "kind" | "features"> & { readonly features?: readonly FeatureDef[] }): GameModuleDef {
+export function defineGameModule(module: Omit<GameModuleDef, "kind" | "features" | "behaviors"> & {
+  readonly features?: readonly FeatureDef[];
+  readonly behaviors?: readonly BehaviorDefinition[];
+}): GameModuleDef {
   if (!COMPONENT_NAME_PATTERN.test(module.id)) {
     throw new SchemaDefinitionError(`defineGameModule: "${module.id}" must be a namespaced id such as "mygame.main".`);
   }
-  return Object.freeze({ ...module, kind: "gameModule", features: Object.freeze([...(module.features ?? [])]) });
+  const behaviors = [...(module.behaviors ?? [])];
+  if (behaviors.some(({ id }, index) => behaviors.findIndex((entry) => entry.id === id) !== index)) {
+    throw new SchemaDefinitionError(`defineGameModule: "${module.id}" registers a behavior twice.`);
+  }
+  return Object.freeze({ ...module, kind: "gameModule", features: Object.freeze([...(module.features ?? [])]), behaviors: Object.freeze(behaviors) });
 }
 
 /** The module's hooks as a subsystem, to install after every feature. */

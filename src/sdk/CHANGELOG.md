@@ -8,6 +8,24 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.19
+
+API: e1383ca426aef2a5
+
+`PhysicsServiceKey` exposes World ray and shape casts with optional trace channels. Results identify
+the actor, component, contact position, normal and physical material.
+`InputServiceKey`, `TimeControlKey` and `ActorMotionKey` expose World input,
+simulation time and runtime transforms. Game modules register code-owned
+actor behaviors with `defineBehavior`.
+`PlayerServiceKey`, `CharacterMovementKey` and `CameraServiceKey` provide
+spawn, possession, capsule movement and an optional game-controlled view.
+`PlayerService.spawn()` can supply the default tagged pawn.
+`CheckpointKey` captures a schema-based save and writes, lists, deletes and
+restores its slots with level information. `AudioServiceKey` mounts game audio.
+`UiServiceKey` mounts HUD and world widgets with themes and locale tables.
+`VehicleServiceKey`, `NavigationServiceKey` and
+`PerceptionServiceKey` expose ray-cast vehicles, Recast paths and perception.
+
 ## 0.1.18
 
 API: 82db39f5c4696e11

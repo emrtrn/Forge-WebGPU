@@ -1,0 +1,52 @@
+{
+  "schema": "forge.level/1",
+  "id": "lvl_8ae085195b944328bfafe0de20c8ef59",
+  "settings": {},
+  "actors": [
+    {
+      "id": "act_69d5595564524502bc5963d1ae566019",
+      "name": "Ground",
+      "class": null,
+      "parent": null,
+      "spatiallyLoaded": false,
+      "transform": { "p": [0, -0.25, 0], "s": [44, 1, 44] },
+      "components": { "shape": { "type": "forge.shape@2", "parent": null, "color": "#66797b" } }
+    },
+    {
+      "id": "act_0bb81b2a9a4541148e76a0cbdd63b9d4",
+      "name": "Navigation Volume",
+      "class": null,
+      "parent": null,
+      "spatiallyLoaded": false,
+      "transform": { "p": [0, 0, 0] },
+      "components": { "volume": { "type": "forge.navigationVolume@1", "parent": null, "size": [22, 6, 22] } }
+    },
+    {
+      "id": "act_e7ce74bb77bf411a9fe4413ba4c0a84c",
+      "name": "Wall",
+      "class": null,
+      "parent": null,
+      "spatiallyLoaded": false,
+      "transform": { "p": [0, 1, 0], "s": [2, 4, 17] },
+      "components": { "shape": { "type": "forge.shape@2", "parent": null, "color": "#465658" } }
+    },
+    {
+      "id": "act_2699d8d7b1f2411583afea1d9138a71c",
+      "name": "Unit",
+      "class": null,
+      "parent": null,
+      "spatiallyLoaded": false,
+      "transform": { "p": [-6, 0.4, 4], "s": [1.6, 1.6, 1.6] },
+      "components": { "shape": { "type": "forge.shape@2", "parent": null, "collision": false, "color": "#e5ae59" } }
+    },
+    {
+      "id": "act_5a324745ed0b4909882b8803816db20c",
+      "name": "Destination",
+      "class": null,
+      "parent": null,
+      "spatiallyLoaded": false,
+      "transform": { "p": [6, 0.04, -5], "s": [2, 0.1, 2] },
+      "components": { "shape": { "type": "forge.shape@2", "parent": null, "collision": false, "color": "#72b9a3" } }
+    }
+  ]
+}

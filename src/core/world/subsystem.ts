@@ -89,6 +89,8 @@ export interface WorldActorChange {
   readonly previous: WorldActor;
   /** Name, parent, class and components are unchanged; only the (world) transform moved. */
   readonly transformOnly: boolean;
+  /** The runtime subsystem that changed this actor's transform, if any. */
+  readonly source?: string;
 }
 
 export interface SubsystemInstance {

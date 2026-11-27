@@ -106,7 +106,7 @@ describe("worldLevel", () => {
     expect(level.counts).toEqual({ placements: 2, placeholders: 0, meshes: 2 });
   });
 
-  test("the terrain is a persistent actor of a terrain document; the Player Start an actor of its name", () => {
+  test("the terrain and the Player Start are persistent actors", () => {
     const build = buildWith([], [10, 22, -4]);
     const level = worldLevel(build, { levelId: LEVEL, terrainId: "valley" });
     const [terrain, start] = level.level.actors;
@@ -115,7 +115,8 @@ describe("worldLevel", () => {
     expect(level.terrain.schema).toBe(TerrainAssetType.schema);
     expect(level.terrain.data).toEqual(build.def);
     expect(level.terrainFile).toBe("terrain/valley.terrain.json");
-    expect(start).toMatchObject({ name: "Player Start", components: {}, transform: { p: [10, 22, -4] } });
+    expect(start).toMatchObject({ name: "Player Start", spatiallyLoaded: false,
+      components: { playerStart: { type: "forge.playerStart@1" } }, transform: { p: [10, 22, -4] } });
     expect(level.level.settings).toEqual({ cellSize: 128, wind: { directionDeg: 45, strength: .3, gust: .3 }, viewDistance: 0, loadRange: 384, landmarkDistance: 0 });
   });
 

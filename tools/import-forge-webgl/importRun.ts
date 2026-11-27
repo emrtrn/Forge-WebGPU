@@ -59,7 +59,7 @@ import { importForgeLevel, type ForgeLevelReport } from "../../src/engine/forgeI
 import { convertForgeFoliageType } from "../../src/engine/forgeImport/foliage.ts";
 import { convertForgeMaterial } from "../../src/engine/forgeImport/forgeMaterial.ts";
 import { forgeAssetId, stableHex } from "../../src/engine/forgeImport/ids.ts";
-import { convertModelSidecars } from "../../src/engine/forgeImport/modelSidecars.ts";
+import { convertModelSidecars, type ModelSidecars } from "../../src/engine/forgeImport/modelSidecars.ts";
 import { normalizeWorldRecipe } from "../../src/engine/worldbuilder/recipe.ts";
 import { fileRevision } from "../assets/revision.ts";
 import { createClassStore, createDocumentCheck } from "../save/documentCheck.ts";
@@ -319,14 +319,17 @@ export async function runForgeImport(runOptions: ImportRunOptions): Promise<Impo
 }
 
 /** The model sidecars Forge kept next to a model, parsed; absent ones left out. */
-async function readModelSidecars(source: ForgeSource, modelPath: string): Promise<{ materials?: unknown; uvw?: unknown; vertexColors?: unknown }> {
+async function readModelSidecars(source: ForgeSource, modelPath: string): Promise<ModelSidecars> {
   const base = stemOf(modelPath);
   const read = async (suffix: string): Promise<unknown> => (await source.exists(`${base}${suffix}`) ? source.readJson(`${base}${suffix}`) : undefined);
-  const [materials, uvw, vertexColors] = [await read(".materials.json"), await read(".uvw.json"), await read(".vertexcolors.json")];
+  const [materials, uvw, vertexColors, collision] = await Promise.all([
+    read(".materials.json"), read(".uvw.json"), read(".vertexcolors.json"), read(".collision.json"),
+  ]);
   return {
     ...(materials === undefined ? {} : { materials }),
     ...(uvw === undefined ? {} : { uvw }),
     ...(vertexColors === undefined ? {} : { vertexColors }),
+    ...(collision === undefined ? {} : { collision }),
   };
 }
 

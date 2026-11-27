@@ -30,3 +30,25 @@ test("the build opens its start level under a sub folder, reading only from it",
   await page.goto(`${BASE}?editor&forceWebGL`);
   await expect(page.getByTestId("forge-editor")).toHaveCount(0);
 });
+
+test("the Starter checkpoint menu saves and restores a named slot in the production build", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  const ready = page.locator("canvas[data-forge-ready='1']");
+  await page.goto(`${BASE}?forceWebGL`);
+  await expect(ready).toBeVisible({ timeout: 90_000 });
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Save Slot 1", exact: true }).click();
+  await expect(page.locator('[data-ui-id="oneStatus"]')).toContainText("Saved");
+  await expect(page.locator('[data-ui-id="oneLevel"]')).toHaveText("main");
+  await Promise.all([
+    page.waitForURL((url) => url.searchParams.get("checkpoint") === "slot-1"),
+    page.getByRole("button", { name: "Load Slot 1", exact: true }).click(),
+  ]);
+  await expect(ready).toBeVisible({ timeout: 90_000 });
+  await page.keyboard.press("Escape");
+  await expect(page.locator('[data-ui-id="oneStatus"]')).toContainText("Saved");
+  await page.getByRole("button", { name: "Delete Slot 1", exact: true }).click();
+  await expect(page.locator('[data-ui-id="oneStatus"]')).toHaveText("Empty");
+  expect(errors).toEqual([]);
+});

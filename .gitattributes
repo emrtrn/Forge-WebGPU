@@ -1,6 +1,9 @@
 # Normalize line endings to LF in the repo and the working tree.
 * text=auto eol=lf
 
+# The final tab is the empty deferred-phase field of a completed check.
+docs/port/forge-engine-tests.tsv whitespace=-blank-at-eol
+
 # Binary assets: never touch line endings.
 *.glb binary
 *.gltf binary

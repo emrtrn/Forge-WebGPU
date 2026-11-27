@@ -31,20 +31,28 @@ import type { DevGpuDriven } from "./render/gpu/gpuDrivenDev.ts";
 import type { FeatureDef } from "./core/index.ts";
 import { createSaveClient, createStaticContentClient, isJsonAssetType, LevelSettingsKey, STATIC_CONTENT_DIR, staticContentFile, type ContentClient, type LevelSettings } from "./core/index.ts";
 import { loadDevAssetUrls, assetUrlsFromIndex, type AssetUrls } from "./render/resources/assetUrls.ts";
+import { renderCollisionGeometry } from "./render/resources/collisionGeometry.ts";
 import type { RenderBindingDef } from "./render/sync/renderBinding.ts";
 import { benchmarkSkyCapture } from "./render/host/captureBench.ts";
 import { createLevelViewer } from "./render/viewer/levelViewer.ts";
+import { widgetProjection } from "./render/viewer/widgetProjection.ts";
 import { parseStaticPath } from "./render/triangles/staticPath.ts";
 import { UserSettingsStore } from "./engine/persistence/userSettingsStore.ts";
+import { SaveGameStore } from "./engine/persistence/saveGameStore.ts";
+import type { SaveGameDoc } from "./core/index.ts";
 import type { HardwareHintInputs } from "./engine/perf/hardwareHints.ts";
 import { WorldEnvironmentKey } from "./engine/environment/worldEnvironmentRuntime.ts";
+import { CameraServiceKey } from "./engine/camera/worldCamera.ts";
+import { TerrainResidencyKey } from "./engine/terrain/terrainResidency.ts";
 import { CellStreamingKey } from "./runtime/streaming/cellStreaming.ts";
 import { bootErrorView, bootGame, type BootRender } from "./runtime/boot.ts";
 import { createBootScreen } from "./runtime/bootScreen.ts";
+import { createBrowserInput } from "./runtime/input/browserInput.ts";
 import { createLocalStorageAdapter } from "./runtime/persistence/localStorageAdapter.ts";
 import { loadProjectLevel } from "./runtime/projectLevel.ts";
 import { createRuntimeQuality } from "./runtime/quality/runtimeQuality.ts";
 import { createSteppableScheduler } from "./runtime/steppableScheduler.ts";
+import { BrowserUiFrameKey } from "./runtime/ui/uiHost.ts";
 import gameModule from "virtual:forge/game-module";
 
 const featureModules = import.meta.glob<{ default: FeatureDef }>("./features/*/feature.ts", { eager: true });
@@ -109,10 +117,12 @@ function hardwareHints(gpu: string | null): HardwareHintInputs {
 
 async function start(): Promise<void> {
   let startLevel = "";
+  let projectId: string | null = null;
   let client = pageClient;
   let cameraPose: CameraPose | null = null;
   try {
     const identity = await client.identity();
+    projectId = identity.project.id;
     document.title = identity.project.name ?? "Forge WebGPU";
     if (identity.project.problems.length > 0) {
       screen.error({ ...bootErrorView("project", new Error(identity.project.root)), details: identity.project.problems });
@@ -145,6 +155,17 @@ async function start(): Promise<void> {
     return;
   }
   const pageStorage = storage();
+  const checkpointSlot = params.get("checkpoint");
+  const checkpoint = pageStorage && projectId ? {
+    store: new SaveGameStore<SaveGameDoc>({ gameId: projectId, schema: 1, storage: createLocalStorageAdapter(pageStorage) }),
+    levelPath: startLevel,
+    ...(checkpointSlot !== null ? { initialSlot: checkpointSlot } : {}),
+    reopen(slot: string) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("checkpoint", slot);
+      window.location.assign(url);
+    },
+  } : null;
   const viewer = createLevelViewer({
     document,
     container: viewport,
@@ -176,17 +197,20 @@ async function start(): Promise<void> {
     if (event.key === null || event.key === settingsStore?.storageKey()) quality.storageChanged();
   });
   let lastFrame: number | null = null;
+  const projectWidget = widgetProjection(viewer.camera, viewport);
   const render: BootRender = {
     init: async () => {
       await viewer.init();
       quality.start(hardwareHints(viewer.gpuName()));
     },
     feature: (installed) => viewer.feature(installed),
-    frame: (time) => {
-      viewer.frame(time);
+    frame: (time, world) => {
+      viewer.frame(time, world.services.get(CameraServiceKey)?.current());
+      world.services.get(BrowserUiFrameKey)?.draw(projectWidget);
       if (lastFrame !== null) quality.tick((time - lastFrame) / 1000);
       lastFrame = time;
     },
+    ready: () => viewer.host?.canvas.dataset.forgeReady === "1",
     onLost: (listener) => viewer.onLost(listener),
     dispose: () => viewer.dispose(),
     streamingSources: () => [{ position: [viewer.camera.position.x, viewer.camera.position.z] }],
@@ -196,10 +220,39 @@ async function start(): Promise<void> {
     { request: (frame) => requestAnimationFrame(frame), cancel: (handle) => cancelAnimationFrame(handle) },
     () => performance.now(),
   );
+  const overlay = document.createElement("div");
+  Object.assign(overlay.style, { position: "absolute", inset: "0", zIndex: "4", pointerEvents: "none" });
+  viewport.append(overlay);
+  const loadJsonAsset = async (asset: string): Promise<unknown> => {
+    const url = urls.url(asset);
+    if (url === null) throw new Error(`Unknown data asset: ${asset}`);
+    const response = await fetch(url, { headers: urls.headers });
+    if (!response.ok) throw new Error(`Data asset ${asset}: HTTP ${response.status}`);
+    return response.json();
+  };
   const booted = await bootGame({
     features,
     ...(gameModule ? { gameModule } : {}),
     render,
+    input: createBrowserInput(viewport, window),
+    ui: { overlay, load: loadJsonAsset },
+    loadJsonAsset,
+    audio: {
+      clipUrl: (id) => urls.type(id) === "forge.audio" ? urls.url(id) : null,
+      headers: urls.headers,
+      listener: () => ({ position: viewer.camera.position.toArray(), rotation: viewer.camera.quaternion.toArray() }),
+      onGesture(callback) {
+        const scope = new AbortController();
+        window.addEventListener("pointerdown", callback, { signal: scope.signal });
+        window.addEventListener("keydown", callback, { signal: scope.signal });
+        return () => scope.abort();
+      },
+    },
+    ...(checkpoint ? { checkpoint } : {}),
+    modelCollision: (asset) => urls.type(asset) === "forge.model" ? {
+      bounds: urls.modelBounds?.(asset) ?? null, settings: urls.importSettings(asset)?.collision,
+    } : null,
+    modelGeometry: renderCollisionGeometry(() => viewer.host!.resources("physics collision")),
     strict,
     loadLevel: async (registry) => (startLevel === "" ? null : loadProjectLevel(client, startLevel, registry, strict)),
     screen,
@@ -359,9 +412,10 @@ async function start(): Promise<void> {
       /** G8 (plan phase 5a step 5): the drawn terrain read back from the GPU against its collider and its CPU twin; null without a terrain. */
       async terrainColliderMatch(options?: { size?: number }) {
         const host = viewer.host;
-        if (!host) return null;
+        const residency = booted.world.services.get(TerrainResidencyKey);
+        if (!host || !residency) return null;
         const { measureTerrainColliderMatch } = await import("./render/viewer/debug/terrainColliderMatch.ts");
-        return measureTerrainColliderMatch(host, options);
+        return measureTerrainColliderMatch(host, residency, options);
       },
       /** W7 terrain displacement from the GPU height probe, in metres above the base. */
       async terrainSnow(options: { centre: readonly [number, number]; size?: number; spots?: readonly (readonly [number, number])[] }) {

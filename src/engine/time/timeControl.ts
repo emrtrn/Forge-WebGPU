@@ -1,4 +1,5 @@
 // Ported from Forge WebGL engine/core/timeControl.ts @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
+import { createServiceKey } from "../../core/index.ts";
 /**
  * Pause and time scale for the simulation — pure, with no clock of its own.
  *
@@ -38,6 +39,8 @@ export const DIAGNOSTIC_TIME_HOLDER = "diagnostic";
  */
 export const MIN_TIME_SCALE = 0.05;
 export const MAX_TIME_SCALE = 16;
+
+export const TimeControlKey = createServiceKey<TimeControl>("forge.time");
 
 export class TimeControl {
   private scale = 1;

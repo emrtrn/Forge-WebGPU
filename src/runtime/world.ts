@@ -45,6 +45,9 @@ import {
   type WorldActorChange,
   type WorldState,
 } from "../core/index.ts";
+import { TimeControlKey } from "../engine/time/timeControl.ts";
+import { ActorMotionKey } from "../engine/world/actorMotion.ts";
+import { CheckpointActorTrackingKey } from "../engine/persistence/checkpointService.ts";
 
 export const MAX_TICK_SECONDS = 0.1;
 
@@ -160,6 +163,7 @@ export function createWorld(options: WorldOptions): World {
         origin,
       };
       actors.set(actor.id, actor);
+      if (origin === "spawned") services.get(CheckpointActorTrackingKey)?.spawned(doc);
       index(actor);
       added.push(actor);
     }
@@ -167,7 +171,7 @@ export function createWorld(options: WorldOptions): World {
     return added;
   };
 
-  const remove = (ids: readonly ActorId[]): void => {
+  const remove = (ids: readonly ActorId[], destroyed = false): void => {
     expect(["initialized", "playing"], "remove actors from");
     const doomed = new Set<ActorId>(ids.filter((id) => actors.has(id)));
     if (doomed.size === 0) return;
@@ -184,7 +188,12 @@ export function createWorld(options: WorldOptions): World {
     }
     const removed: WorldActor[] = [];
     for (const actor of actors.values()) if (doomed.has(actor.id)) removed.push(actor);
-    for (const actor of removed) actors.delete(actor.id);
+    for (const actor of removed) {
+      actors.delete(actor.id);
+      const tracker = services.get(CheckpointActorTrackingKey);
+      if (destroyed) tracker?.destroyed(actor.id, actor.origin);
+      else if (actor.origin === "spawned") tracker?.unloaded(actor);
+    }
     for (const [name, list] of byType) {
       const kept = list.filter((entry) => !doomed.has(entry.actor.id));
       if (kept.length > 0) byType.set(name, kept);
@@ -192,6 +201,48 @@ export function createWorld(options: WorldOptions): World {
     }
     for (const running of subsystems) running.instance.actorsRemoved?.(removed);
   };
+
+  const notifyChanges = (changes: WorldActorChange[]): void => {
+    if (changes.length === 0) return;
+    const changed = new Map(changes.map((change) => [change.actor.id, change.source]));
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const actor of actors.values()) {
+        if (actor.parent !== null && changed.has(actor.parent) && !changed.has(actor.id)) {
+          const source = changed.get(actor.parent);
+          changed.set(actor.id, source);
+          changes.push({ actor, previous: actor, transformOnly: true, ...(source ? { source } : {}) });
+          grew = true;
+        }
+      }
+    }
+    for (const running of subsystems) {
+      if (running.instance.actorsChanged) running.instance.actorsChanged(changes);
+      else {
+        running.instance.actorsRemoved?.(changes.map((change) => change.previous));
+        running.instance.actorsAdded?.(changes.map((change) => change.actor));
+      }
+    }
+  };
+
+  services.provide(ActorMotionKey, {
+    setTransforms(updates, source) {
+      expect(["initialized", "playing"], "move actors in");
+      const changed = new Map<ActorId, WorldActorChange>();
+      for (const { actor: id, transform } of updates) {
+        const actor = actors.get(id);
+        if (!actor) continue;
+        const current = actor.transform;
+        if (current.p.every((value, index) => Math.abs(value - transform.p[index]!) < 1e-9) &&
+            current.r.every((value, index) => Math.abs(value - transform.r[index]!) < 1e-9) &&
+            current.s.every((value, index) => Math.abs(value - transform.s[index]!) < 1e-9)) continue;
+        actor.transform = structuredClone(transform);
+        changed.set(id, { actor, previous: actor, transformOnly: true, ...(source ? { source } : {}) });
+      }
+      notifyChanges([...changed.values()]);
+    },
+  });
 
   const update = (docs: readonly ActorDoc[]): WorldActorChange[] => {
     expect(["initialized", "playing"], "update actors in");
@@ -229,26 +280,7 @@ export function createWorld(options: WorldOptions): World {
       byType.clear();
       for (const actor of actors.values()) index(actor);
     }
-    // Descendants: their world placement moved with their ancestor.
-    const changed = new Set(changes.map((change) => change.actor.id));
-    let grew = true;
-    while (grew) {
-      grew = false;
-      for (const actor of actors.values()) {
-        if (actor.parent !== null && changed.has(actor.parent) && !changed.has(actor.id)) {
-          changed.add(actor.id);
-          changes.push({ actor, previous: actor, transformOnly: true });
-          grew = true;
-        }
-      }
-    }
-    for (const running of subsystems) {
-      if (running.instance.actorsChanged) running.instance.actorsChanged(changes);
-      else {
-        running.instance.actorsRemoved?.(changes.map((change) => change.previous));
-        running.instance.actorsAdded?.(changes.map((change) => change.actor));
-      }
-    }
+    notifyChanges(changes);
     return changes;
   };
 
@@ -273,7 +305,7 @@ export function createWorld(options: WorldOptions): World {
       }
       return add(docs, "spawned");
     },
-    destroyActors: (ids) => remove(ids),
+    destroyActors: (ids) => remove(ids, true),
   };
 
   return {
@@ -297,7 +329,8 @@ export function createWorld(options: WorldOptions): World {
     },
     tick(dt) {
       expect(["playing"], "tick");
-      const step = Number.isFinite(dt) ? Math.min(Math.max(dt, 0), MAX_TICK_SECONDS) : 0;
+      const rawStep = Number.isFinite(dt) ? Math.min(Math.max(dt, 0), MAX_TICK_SECONDS) : 0;
+      const step = services.get(TimeControlKey)?.simulationDelta(rawStep) ?? rawStep;
       for (const group of TICK_GROUPS) {
         for (const running of subsystems) {
           if (running.def.tickGroups.includes(group)) running.instance.tick?.(group, step);

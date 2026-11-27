@@ -63,6 +63,42 @@ export type {
   WorldState,
 } from "../core/index.ts";
 
+// World physics queries
+export { PhysicsServiceKey } from "../engine/physics/physicsService.ts";
+export type { PhysicsCastFilter, PhysicsHit, PhysicsService } from "../engine/physics/physicsService.ts";
+export type { CastShape, RayCast, ShapeCast } from "../engine/physics/physicsCasts.ts";
+export { InputServiceKey } from "../engine/input/inputService.ts";
+export type { InputService } from "../engine/input/inputService.ts";
+export type { ActionState, AxisModifiers } from "../engine/input/actionMap.ts";
+export { TimeControlKey } from "../engine/time/timeControl.ts";
+export { ActorMotionKey } from "../engine/world/actorMotion.ts";
+export type { ActorMotion, ActorTransformUpdate } from "../engine/world/actorMotion.ts";
+export { defineBehavior } from "../engine/behavior/worldBehavior.ts";
+export type { BehaviorContext, BehaviorDefinition, BehaviorEvent, BehaviorMessage } from "../engine/behavior/worldBehavior.ts";
+export { CameraServiceKey } from "../engine/camera/worldCamera.ts";
+export type { CameraService, RuntimeCameraPose } from "../engine/camera/worldCamera.ts";
+export { PlayerServiceKey } from "../gameplay/player/playerSpawn.ts";
+export type { PlayerService, PlayerStartOptions } from "../gameplay/player/playerSpawn.ts";
+export { CharacterMovementKey } from "../gameplay/character/characterMovement.ts";
+export type { CharacterMoveInput, CharacterMovementService, CharacterMotion } from "../gameplay/character/characterMovement.ts";
+export { CheckpointKey } from "../engine/persistence/checkpointService.ts";
+export type { CheckpointService } from "../engine/persistence/checkpointService.ts";
+export { AudioServiceKey } from "../engine/audio/worldAudio.ts";
+export type { AudioBus, AudioPlayOptions, AudioPlaybackHandle } from "../engine/audio/audioTypes.ts";
+export { UiServiceKey } from "../engine/ui/worldUi.ts";
+export type { UiService, WidgetAnchor, WidgetHandle, WidgetOptions } from "../engine/ui/worldUi.ts";
+export type { UiLocaleTable } from "../engine/ui/uiLocale.ts";
+export type { UiThemeDef } from "../engine/ui/uiTheme.ts";
+export { NavigationServiceKey } from "../engine/navigation/worldNavigation.ts";
+export type { NavigationService } from "../engine/navigation/worldNavigation.ts";
+export type { NavAgent } from "../engine/navigation/navigationTypes.ts";
+export type { RecastPlanResult } from "../engine/navigation/recastPlanner.ts";
+export { PerceptionServiceKey } from "../engine/perception/worldPerception.ts";
+export type { PerceptionEvaluationInput, PerceivedStimulus } from "../engine/perception/perception.ts";
+export { VehicleServiceKey } from "../engine/physics/vehicle/worldVehicle.ts";
+export type { VehicleService } from "../engine/physics/vehicle/worldVehicle.ts";
+export type { VehicleDefinition, VehicleInput, VehicleState, VehicleWheelState } from "../engine/physics/vehicle/vehicleTypes.ts";
+
 // The World Environment: hour, season, weather, what falls, the visible surface
 export { WorldEnvironmentServiceKey } from "../engine/environment/worldEnvironmentRuntime.ts";
 export type { WorldEnvironmentService } from "../engine/environment/worldEnvironmentController.ts";

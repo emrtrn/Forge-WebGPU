@@ -34,6 +34,12 @@ import {
   type SchemaRegistry,
 } from "../../src/core/index.ts";
 import { loadEngineRegistry } from "../assets/engineRegistry.ts";
+import { createModelBoundsIndex } from "../assets/modelBounds.ts";
+import type { ModelCollisionGeometry, ModelCollisionSource } from "../../src/engine/physics/physicsService.ts";
+import { createDiskCollisionGeometry } from "../assets/collisionGeometry.ts";
+import { loadWorldTerrain } from "../../src/engine/terrain/terrainLoader.ts";
+import type { HeadlessTerrainSource } from "../../src/engine/terrain/terrainResidency.ts";
+import type { WorldJsonLoader } from "../../src/engine/world/worldAssets.ts";
 import { projectIndexRoots } from "../assets/engineContent.ts";
 import { scanRoots } from "../assets/scan.ts";
 import { terrainOrphanLines } from "../terrainOrphans.ts";
@@ -61,6 +67,10 @@ type BootGame = (options: {
   features: readonly FeatureDef[];
   gameModule?: GameModuleShape;
   strict: boolean;
+  modelCollision?: ModelCollisionSource;
+  modelGeometry?: ModelCollisionGeometry;
+  headlessTerrain?: HeadlessTerrainSource;
+  loadJsonAsset?: WorldJsonLoader;
   loadLevel: (registry: SchemaRegistry) => Promise<{ level: unknown; resolveClass: ClassResolver } | null>;
   screen: { info(title: string, message: string): void; error(view: BootErrorViewShape): void; clear(): void };
   scheduler: { request(frame: (time: number) => void): number; cancel(handle: number): void };
@@ -138,9 +148,10 @@ async function checkOne(vite: ViteDevServer, engineRoot: string, root: string): 
     registry,
   );
   // The project's roots, the engine's content and the packs it names (A9).
-  const scan = await scanRoots(projectIndexRoots(engineRoot, root, manifest));
+  const roots = projectIndexRoots(engineRoot, root, manifest);
+  const scan = await scanRoots(roots);
   const index = buildAssetIndex(scan.files, { strict: true, registry });
-  for (const warning of await hlodStaleness(diskHlodInput(scan.files, index, registry, projectIndexRoots(engineRoot, root, manifest)))) {
+  for (const warning of await hlodStaleness(diskHlodInput(scan.files, index, registry, roots))) {
     console.warn(hlodWarningLine(warning));
   }
   problems.push(...terrainOrphanLines(scan.files, index));
@@ -150,12 +161,39 @@ async function checkOne(vite: ViteDevServer, engineRoot: string, root: string): 
   // Headless start.
   const { bootGame } = (await vite.ssrLoadModule(join(engineRoot, "src/runtime/boot.ts"))) as { bootGame: BootGame };
   const features = await engineFeatures(vite, engineRoot);
+  const resolveAssetFile = (file: string): string => {
+    const root = roots.find(({ label }) => file.startsWith(`${label}/`));
+    if (!root) throw new Error(`Unknown asset content root: ${file}`);
+    return join(root.dir, file.slice(root.label.length + 1));
+  };
+  const bounds = await createModelBoundsIndex(resolveAssetFile)(index, scan.stamps);
   let shown: { kind: "info" | "error"; text: string } | null = null;
   const frames: ((time: number) => void)[] = [];
   const game = await bootGame({
     features,
     ...(gameModule ? { gameModule } : {}),
     strict: true,
+    modelCollision: (id) => index.entries.get(id)?.type === "forge.model" ? {
+      bounds: bounds.get(id) ?? null, settings: index.metas.get(id)?.import.collision,
+    } : null,
+    modelGeometry: createDiskCollisionGeometry((id) => {
+      const entry = index.entries.get(id);
+      if (entry?.type !== "forge.model") throw new Error(`Unknown model: ${id}`);
+      return resolveAssetFile(`${entry.root}/${entry.path}`);
+    }),
+    loadJsonAsset: async (id) => {
+      const entry = index.entries.get(id);
+      if (entry?.storage !== "document") throw new Error(`Unknown data asset: ${id}`);
+      return await readJson(resolveAssetFile(`${entry.root}/${entry.path}`));
+    },
+    headlessTerrain: async (id) => {
+      const entry = index.entries.get(id);
+      if (entry?.type !== "forge.terrain") throw new Error(`Unknown terrain: ${id}`);
+      const file = resolveAssetFile(`${entry.root}/${entry.path}`);
+      const doc = await readJson(file);
+      if (!isJsonObject(doc) || doc.schema !== "forge.terrain/1") throw new Error(`${entry.path}: expected forge.terrain/1`);
+      return loadWorldTerrain(file, doc.data, (part) => readFile(part));
+    },
     loadLevel: async (bootRegistry) =>
       manifest.startLevel === ""
         ? null

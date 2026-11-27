@@ -28,6 +28,7 @@ export interface NewActorSpec {
   /** A plain actor's components: local id -> stored component (`type` tag and the fields that differ from the defaults). */
   readonly components?: Readonly<Record<string, Readonly<{ type: string } & Record<string, unknown>>>>;
   readonly parent?: ActorId | null;
+  readonly spatiallyLoaded?: boolean;
   /** In the parent's space (the world at the level root). */
   readonly position: Vec3;
   /** XYZ degrees. */
@@ -43,7 +44,7 @@ export function newActorDoc(spec: NewActorSpec, level: readonly ActorDoc[], opti
     name: spec.uniqueName === false ? spec.label : uniqueName(spec.label, new Set(level.map((actor) => actor.name))),
     class: spec.classId ?? null,
     parent: spec.parent ?? null,
-    spatiallyLoaded: true,
+    spatiallyLoaded: spec.spatiallyLoaded ?? true,
     transform: { p: [...spec.position], r: eulerDegreesToQuaternion([...(spec.rotation ?? [0, 0, 0])] as [number, number, number]), s: [...(spec.scale ?? [1, 1, 1])] },
     ...(spec.classId ? { overrides: {} } : { components: structuredClone(spec.components ?? {}) }),
   };

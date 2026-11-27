@@ -22,13 +22,45 @@
 // A placement can override the materials (`forge.staticMesh.materials`).
 // Version 1 had no settings; its files migrate to the defaults.
 
-import { array, assetRef, bool, defineAssetType, enumOf, num, object, text, vec3 } from "../../core/index.ts";
+import { array, assetRef, bool, defineAssetType, enumOf, num, object, text, vec3, type FieldValues } from "../../core/index.ts";
+import { COLLISION_COMPLEXITY_VALUES, COLLISION_ENABLED_VALUES, COLLISION_OBJECT_CHANNELS, COLLISION_PRESET_IDS, COLLISION_RESPONSE_VALUES } from "../../core/schema/collisionChannels.ts";
 
 export const UVW_MAP_TYPES = ["none", "planar", "box", "sphere", "cylinder"] as const;
 export type UvwMapType = (typeof UVW_MAP_TYPES)[number];
 
 /** Forge WebGL's limit on a vertex colour entry (engine/scene/assetVertexColors.ts). */
 export const MAX_VERTEX_COLOR_VERTICES = 2_000_000;
+
+const collisionResponse = () => enumOf(COLLISION_RESPONSE_VALUES, { default: "block" });
+
+export const ModelCollisionFields = {
+  complexity: enumOf(COLLISION_COMPLEXITY_VALUES, {
+    default: "projectDefault", hint: "Complex As Simple, statik yerleşimlerde modelin üçgen yüzeyini kullanır.",
+  }),
+  enabled: bool({ default: true, hint: "Model yerleşimleri fizik dünyasına çarpışma geometrisi ekler." }),
+  sensor: bool({ default: false, hint: "Hareketi engellemeden örtüşme algılar." }),
+  profile: object({
+    preset: enumOf(["default", ...COLLISION_PRESET_IDS], { default: "default", hint: "Custom seçildiğinde aşağıdaki kanallar kullanılır." }),
+    collisionEnabled: enumOf(COLLISION_ENABLED_VALUES, { default: "queryAndPhysics" }),
+    objectType: enumOf(COLLISION_OBJECT_CHANNELS, { default: "worldStatic" }),
+    responses: object({
+      worldStatic: collisionResponse(), worldDynamic: collisionResponse(), pawn: collisionResponse(),
+      physicsBody: collisionResponse(), trigger: collisionResponse(), visibility: collisionResponse(), camera: collisionResponse(),
+    }),
+  }, { label: "Collision Profile" }),
+  physicalMaterial: text({ hint: "Fizik sorgularının döndürdüğü yüzey profili kimliği." }),
+  primitives: array(object({
+    shape: enumOf(["box", "sphere", "capsule", "cylinder", "cone"], { default: "box" }),
+    size: vec3({ default: [1, 1, 1], min: 0.001, hint: "Model uzayındaki tam boyut, metre." }),
+    center: vec3({ default: [0, 0, 0], hint: "Şeklin model uzayındaki merkezi, metre." }),
+    rotation: vec3({ default: [0, 0, 0], hint: "Model uzayındaki XYZ dönüşü, derece." }),
+  }), { hint: "Model uzayındaki basit çarpışma şekilleri." }),
+  convex: array(object({
+    points: array(num({ default: 0 }), { hint: "Kabuğun noktaları, model uzayında X Y Z sırasıyla, metre." }),
+  }, { label: "Convex Hull" }), { hint: "Dışbükey çarpışma kabukları (prosedürel kaya yazar)." }),
+} as const;
+
+export type ModelCollisionSettings = FieldValues<typeof ModelCollisionFields>;
 
 export const ModelAssetType = defineAssetType(
   "forge.model",
@@ -76,17 +108,7 @@ export const ModelAssetType = defineAssetType(
         },
         { label: "Optimize", hint: "İçe aktarmada GLB optimizasyonu; Reimport aynı ayarla uygular." },
       ),
-      collision: object(
-        {
-          convex: array(
-            object({
-              points: array(num({ default: 0 }), { hint: "Kabuğun noktaları, model uzayında X Y Z sırasıyla, metre." }),
-            }, { label: "Convex Hull" }),
-            { hint: "Dışbükey çarpışma kabukları (prosedürel kaya yazar). Boşsa fiziğin varsayılanı." },
-          ),
-        },
-        { label: "Collision", hint: "Basit çarpışma şekilleri, model uzayında (çarpışmayı kuran fizik Faz 6'da)." },
-      ),
+      collision: object(ModelCollisionFields, { label: "Collision", hint: "Model uzayındaki çarpışma şekilleri. Boşsa modelin sınır kutusu kullanılır." }),
     },
   },
   {

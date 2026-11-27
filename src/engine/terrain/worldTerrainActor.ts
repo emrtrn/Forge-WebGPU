@@ -116,7 +116,7 @@ export function worldTerrainColliderEntities(
     const collider: ColliderComponent = {
       shape: "box",
       size: [...primitive.size],
-      center: [...primitive.center],
+      center: primitive.center,
       isStatic: true,
       isSensor: false,
       navigationRole: "walkable",

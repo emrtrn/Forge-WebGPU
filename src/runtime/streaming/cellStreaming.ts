@@ -25,7 +25,9 @@
 // A cell the index does not list is empty: nothing is fetched for it.
 
 import {
+  cellAt,
   cellBounds,
+  cellKey,
   effectiveComponents,
   isCellKey,
   parseCellKey,
@@ -75,6 +77,7 @@ export interface CellStreamingOptions {
   readonly world: World;
   readonly source: CellSource;
   readonly level: LevelId;
+  readonly ledger?: SaveLedger;
   readonly registry: SchemaRegistry;
   readonly resolveClass: ClassResolver;
   readonly strict: boolean;
@@ -106,9 +109,12 @@ export interface CellStreaming {
   update(sources: readonly StreamingSource[]): void;
   /** What unloaded cells keep (A11); a save writes it with the loaded actors' state. */
   readonly ledger: SaveLedger;
+  captureLive(): ReadonlyMap<ActorId, ReturnType<typeof captureActorState>>;
   snapshot(): CellStreamingSnapshot;
   /** True while the cell's actors are in the world (HLOD hides its proxy then). */
   isCellActive(key: string): boolean;
+  /** Every listed cell near a point has finished adding its actors. */
+  isAreaActive(position: readonly [number, number], radius: number): boolean;
   /** Every cell the subsystem tracks; an untracked listed cell is Unloaded. */
   forEachCell(visit: (key: string, state: WorldCellState, failed: boolean) => void): void;
   /** Resolves once every cell within `radius` of the position is active (a later update). */
@@ -141,7 +147,7 @@ export function createCellStreaming(options: CellStreamingOptions): CellStreamin
   const bounds = listedCellBounds(initial.cellSize, source.cells);
   if (bounds === null) return null;
   const listed = new Set(source.cells);
-  const ledger = new SaveLedger(options.level);
+  const ledger = options.ledger ?? new SaveLedger(options.level);
   /** Cell -> the ids its activation added so far (parents first). */
   const live = new Map<string, ActorId[]>();
   /** Cells whose actors are still joining, in activation order: the documents left to add. */
@@ -251,7 +257,7 @@ export function createCellStreaming(options: CellStreamingOptions): CellStreamin
       },
       byteSize: (payload) => payload.bytes,
       activate: (key, payload) => {
-        if (payload.actors.length > 0) activate(key, payload);
+        if (listed.has(key)) activate(key, payload);
       },
       deactivate: (key) => deactivate(key),
       dispose: () => {},
@@ -299,6 +305,14 @@ export function createCellStreaming(options: CellStreamingOptions): CellStreamin
         lastFrameMs: stats.lastFrameMs,
       };
     },
+    captureLive() {
+      const result = new Map<ActorId, ReturnType<typeof captureActorState>>();
+      for (const [id, base] of authored) {
+        const actor = world.context.actor(id);
+        if (actor) result.set(id, captureActorState(base, actor, options.registry));
+      }
+      return result;
+    },
     isCellActive(key) {
       const ids = live.get(key);
       if (!ids || joining.has(key)) return false;
@@ -312,6 +326,16 @@ export function createCellStreaming(options: CellStreamingOptions): CellStreamin
       if (!readiness || renderReady.has(key)) return true;
       if (!ids.every((id) => readiness.isActorReady(id))) return false;
       if (revision !== undefined) renderReady.add(key);
+      return true;
+    },
+    isAreaActive([x, z], radius) {
+      const cellSize = settings.cellSize;
+      const first = cellAt(cellSize, x - radius, z - radius);
+      const last = cellAt(cellSize, x + radius, z + radius);
+      for (let cz = first.z; cz <= last.z; cz += 1) for (let cx = first.x; cx <= last.x; cx += 1) {
+        const key = cellKey({ x: cx, z: cz });
+        if (listed.has(key) && (!live.has(key) || joining.has(key))) return false;
+      }
       return true;
     },
     forEachCell: (visit) => subsystem.forEachCell(visit),

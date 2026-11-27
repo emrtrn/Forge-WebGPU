@@ -1,8 +1,78 @@
 # src/sdk/index.ts
 
+interface ActionState
+  readonly held: boolean
+  readonly pressed: boolean
+  readonly released: boolean
+
 type ActorId = `act_${string}`
 
+interface ActorMotion
+  setTransforms: (updates: readonly ActorTransformUpdate[], source?: string) => void
+
+const ActorMotionKey: import("src/core/index").ServiceKey<ActorMotion>
+
+interface ActorTransformUpdate
+  readonly actor: `act_${string}`
+  readonly transform: Transform
+
 type AssetId = `ast_${string}`
+
+interface AudioBus
+  play: (clipId: string, options?: AudioPlayOptions) => AudioPlaybackHandle
+  playOneShot: (clipId: string, options?: AudioPlayOptions) => void
+
+interface AudioPlayOptions
+  bus?: "ui" | "master" | "music" | "sfx" | "ambience" | "voice" | "notifications" | undefined
+  loop?: boolean | undefined
+  maxDistance?: number | undefined
+  pitch?: number | undefined
+  position?: AudioVec3 | undefined
+  refDistance?: number | undefined
+  rolloff?: number | undefined
+  spatial?: boolean | undefined
+  stream?: boolean | undefined
+  volume?: number | undefined
+
+interface AudioPlaybackHandle
+  readonly clipId: string
+  readonly pitch: number
+  readonly stopped: boolean
+  readonly volume: number
+  setPaused: (paused: boolean) => void
+  setPitch: (value: number) => void
+  setPosition: (position: AudioVec3) => void
+  setVolume: (value: number, fadeSeconds?: number) => void
+  stop: (fadeSeconds?: number) => void
+
+const AudioServiceKey: import("src/core/index").ServiceKey<AudioBus>
+
+interface AxisModifiers
+  readonly deadzone?: number | undefined
+  readonly invert?: boolean | undefined
+  readonly rescaleDeadzone?: boolean | undefined
+  readonly scale?: number | undefined
+
+interface BehaviorContext
+  emit: (type: string, payload?: Record<string, unknown>) => void
+  readonly actor: WorldActor
+  readonly deltaSeconds: number
+  readonly world: SubsystemContext
+  send: (type: string, target: ActorId, payload?: Record<string, unknown>) => void
+
+interface BehaviorDefinition
+  readonly events?: Partial<Record<"overlap" | "beginPlay" | "endPlay" | "hit" | "impact", (context: BehaviorContext, event: BehaviorEvent) => void>> | undefined
+  readonly id: string
+  readonly messages?: Readonly<Record<string, { readonly target: "self" | "any"; handle(context: BehaviorContext, message: BehaviorMessage): void; }>> | undefined
+  readonly tick?: ((context: BehaviorContext) => void) | undefined
+
+type BehaviorEvent = { readonly kind: "beginPlay"; } | { readonly kind: "endPlay"; readonly reason: EndPlayReason | "removed"; } | { readonly kind: "hit" | "overlap"; readonly other: ActorId; readonly phase: "begin" | "end"; } | { readonly kind: "impact"; readonly other: ActorId; readonly point: Readonly<Vec3> | null; readonly normal: Readonly<Vec3>; readonly impulse: number; }
+
+interface BehaviorMessage
+  readonly payload: Readonly<Record<string, unknown>>
+  readonly source: `act_${string}`
+  readonly target?: `act_${string}` | undefined
+  readonly type: string
 
 interface BinaryAssetTypeDef<M>
   readonly extensions: ReadonlyArray<string>
@@ -14,6 +84,43 @@ interface BinaryAssetTypeDef<M>
   readonly name: string
   readonly storage: "binary"
   readonly version: number
+
+interface CameraService
+  current: () => RuntimeCameraPose | null
+  follow: (actor: ActorId, camera: string, springArm?: string) => boolean
+  set: (pose: RuntimeCameraPose | null) => void
+
+const CameraServiceKey: import("src/core/index").ServiceKey<CameraService>
+
+type CastShape = { readonly kind: "sphere"; readonly radius: number; } | { readonly kind: "capsule"; readonly radius: number; readonly halfHeight: number; } | { readonly kind: "box"; readonly halfExtents: Readonly<Vec3>; }
+
+interface CharacterMotion
+  readonly crouched: boolean
+  readonly grounded: boolean
+  readonly height: number
+
+interface CharacterMoveInput
+  readonly crouch?: boolean | undefined
+  readonly jump?: boolean | undefined
+  readonly sprint?: boolean | undefined
+  readonly x: number
+  readonly z: number
+
+const CharacterMovementKey: import("src/core/index").ServiceKey<CharacterMovementService>
+
+interface CharacterMovementService
+  move: (actor: ActorId, input: CharacterMoveInput, dt: number) => CharacterMotion | null
+
+const CheckpointKey: import("src/core/index").ServiceKey<CheckpointService>
+
+interface CheckpointService
+  capture: () => SaveGameDoc
+  delete: (slot: string) => boolean
+  restore: (slot: string) => boolean
+  save: (slot: string) => boolean
+  setState: <S extends SaveStateDef>(definition: S, value: SaveStateData<S>) => void
+  slots: () => readonly (SaveGameSlotInfo & { readonly levelName: string | null; })[]
+  state: <S extends SaveStateDef>(definition: S) => SaveStateData<S>
 
 type ComponentData<C extends ComponentDef> = C extends ComponentDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -55,6 +162,7 @@ interface FieldMap
 type FieldValues<M extends FieldMap> = { -readonly [K in keyof M]: FieldValue<M[K]>; }
 
 interface GameModuleDef
+  readonly behaviors: ReadonlyArray<BehaviorDefinition>
   readonly features: ReadonlyArray<FeatureDef>
   readonly id: string
   readonly kind: "gameModule"
@@ -62,6 +170,17 @@ interface GameModuleDef
   readonly onEndPlay?: ((ctx: SubsystemContext, reason: EndPlayReason) => void) | undefined
 
 type IdKind = "actor" | "asset" | "level"
+
+interface InputService
+  axis: (axis: string) => number
+  bind: (code: string, action: string) => void
+  bindAxis: (code: string, axis: string, modifiers?: AxisModifiers) => void
+  get: (action: string) => ActionState
+  pointerDelta: () => Readonly<Vec2>
+  setPointerLock: (enabled: boolean) => void
+  setTouchEnabled: (enabled: boolean) => void
+
+const InputServiceKey: import("src/core/index").ServiceKey<InputService>
 
 type JsonAssetDoc<M extends FieldMap = FieldMap> = { schema: string; id: AssetId; } & FieldValues<M>
 
@@ -78,11 +197,88 @@ interface JsonAssetTypeDef<M>
 
 type LevelId = `lvl_${string}`
 
+interface NavAgent
+  readonly clearancePadding?: number | undefined
+  readonly height: number
+  readonly maxSlopeAngleDeg?: number | undefined
+  readonly maxStepDown?: number | undefined
+  readonly radius: number
+  readonly stepHeight?: number | undefined
+
+interface NavigationService
+  path: (start: Vec3, goal: Vec3, agent: NavAgent) => RecastPlanResult
+  ready: () => Promise<boolean>
+
+const NavigationServiceKey: import("src/core/index").ServiceKey<NavigationService>
+
+interface PerceivedStimulus
+  readonly distance: number
+  readonly eventType?: string | undefined
+  readonly lineOfSight?: boolean | undefined
+  readonly position: Vec3
+  readonly sense: PerceptionSense
+  readonly sourceEntityId: string
+  readonly strength: number
+
+interface PerceptionEvaluationInput
+  readonly blockers?: ReadonlyArray<PerceptionAabb> | undefined
+  readonly listener: PerceptionListener
+  readonly noises?: ReadonlyArray<NoiseStimulus> | undefined
+  readonly sources: ReadonlyArray<StimulusSource>
+
+const PerceptionServiceKey: import("src/core/index").ServiceKey<{ evaluate(input: PerceptionEvaluationInput): readonly PerceivedStimulus[]; }>
+
+interface PhysicsCastFilter
+  readonly channel?: CollisionTraceChannel | undefined
+  readonly groups?: number | undefined
+  readonly ignore?: ReadonlyArray<`act_${string}`> | undefined
+  readonly includeSensors?: boolean | undefined
+
+interface PhysicsHit
+  readonly actor: `act_${string}`
+  readonly component: string
+  readonly distance: number
+  readonly normal: readonly [number, number, number]
+  readonly physicalMaterial: string | null
+  readonly point: readonly [number, number, number]
+
+interface PhysicsService
+  applyImpulse: (actor: ActorId, impulse: Readonly<Vec3>) => void
+  castRay: (query: RayCast, filter?: PhysicsCastFilter) => PhysicsHit | null
+  castShape: (query: ShapeCast, filter?: PhysicsCastFilter) => PhysicsHit | null
+
+const PhysicsServiceKey: import("src/core/index").ServiceKey<PhysicsService>
+
+interface PlayerService
+  existing: () => WorldActor | undefined
+  possess: (actor: ActorId | null) => void
+  possessed: () => WorldActor | undefined
+  spawn: (options?: PlayerStartOptions & { readonly components?: ComponentMap; readonly name?: string; readonly scale?: number; }) => WorldActor
+  start: (options?: PlayerStartOptions) => Transform
+
+const PlayerServiceKey: import("src/core/index").ServiceKey<PlayerService>
+
+interface PlayerStartOptions
+  readonly facing?: readonly [number, number, number, number] | undefined
+  readonly tag?: string | undefined
+
 interface Precipitation
   rain: number
   snow: number
 
-const SDK_VERSION: "0.1.18"
+interface RayCast
+  readonly direction: readonly [number, number, number]
+  readonly distance: number
+  readonly origin: readonly [number, number, number]
+
+type RecastPlanResult = PathResult | { readonly status: "pending"; readonly points: readonly Vec3[]; readonly visited: 0; }
+
+interface RuntimeCameraPose
+  readonly fov: number
+  readonly position: readonly [number, number, number]
+  readonly quaternion: readonly [number, number, number, number]
+
+const SDK_VERSION: "0.1.19"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -106,6 +302,13 @@ interface Services
   get: <T>(key: ServiceKey<T>) => T | undefined
   provide: <T>(key: ServiceKey<T>, value: T) => void
   require: <T>(key: ServiceKey<T>) => T
+
+interface ShapeCast
+  readonly direction: readonly [number, number, number]
+  readonly distance: number
+  readonly origin: readonly [number, number, number]
+  readonly rotation?: readonly [number, number, number, number] | undefined
+  readonly shape: CastShape
 
 interface SubsystemContext
   actor: (id: ActorId) => WorldActor | undefined
@@ -146,6 +349,8 @@ const TICK_GROUPS: readonly ["prePhysics", "physics", "postPhysics", "renderSync
 
 type TickGroup = "prePhysics" | "physics" | "postPhysics" | "renderSync"
 
+const TimeControlKey: import("src/core/index").ServiceKey<TimeControl>
+
 interface TimeTransitionRequest
   readonly hour: number
   readonly seconds: number
@@ -155,22 +360,118 @@ interface Transform
   r: Vec4
   s: Vec3
 
+interface UiLocaleTable
+  locale: string
+  schema: 1
+  strings: Record<string, string>
+  type: "uiLoc"
+
+interface UiService
+  registerLocale: (table: UiLocaleTable) => void
+  set: (fields: Readonly<Record<string, UiFieldValue>>) => void
+  setLocale: (locale: string) => void
+  show: (asset: AssetId, options?: WidgetOptions) => Promise<WidgetHandle | null>
+
+const UiServiceKey: import("src/core/index").ServiceKey<UiService>
+
+interface UiThemeDef
+  name: string
+  schema: 1
+  tokens: Record<string, UiTokenValue>
+  type: "uiTheme"
+
 type Vec2 = [number, number]
 
 type Vec3 = [number, number, number]
 
 type Vec4 = [number, number, number, number]
 
-type WeatherMix = { readonly cloudy?: number; readonly rain?: number; readonly snow?: number; readonly fog?: number; }
+interface VehicleDefinition
+  readonly aerodynamics: { readonly dragCoefficient: number; readonly downforceCoefficient: number; }
+  readonly centerOfMassOffset: VehicleVec3
+  readonly drivetrain: VehicleDrivetrainDefinition | null
+  readonly engineSound: VehicleEngineSoundDefinition | null
+  readonly handbrakeForce: number
+  readonly handbrakeSideFrictionMultiplier: number
+  readonly massKg: number
+  readonly maxBrakeForce: number
+  readonly maxEngineForce: number
+  readonly maxReverseForce: number
+  readonly maxSteerAngleDeg: number
+  readonly reverseSpeedThreshold: number
+  readonly rollingResistanceForce: number
+  readonly steerGamma: number
+  readonly steerRateCurve: ReadonlyArray<VehicleSteeringPoint>
+  readonly steerReturnSpeed: number
+  readonly steerSpeed: number
+  readonly steeringSpeedCurve: ReadonlyArray<VehicleSteeringPoint>
+  readonly wheels: ReadonlyArray<VehicleWheelDefinition>
 
-type WeatherPreset = "clear" | "cloudy" | "rain" | "snow" | "fog"
+interface VehicleInput
+  readonly brake: number
+  readonly handbrake: boolean
+  readonly steer: number
+  readonly steerAnalog?: boolean | undefined
+  readonly throttle: number
 
-type WeatherShare = "cloudy" | "rain" | "snow" | "fog"
+interface VehicleService
+  definition: (actor: ActorId) => VehicleDefinition | null
+  input: (actor: ActorId, input: VehicleInput) => boolean
+  state: (actor: ActorId) => VehicleState | null
+
+const VehicleServiceKey: import("src/core/index").ServiceKey<VehicleService>
+
+interface VehicleState
+  readonly drivetrain: VehicleDrivetrainState | null
+  readonly engineLoad: number
+  readonly forwardSpeed: number
+  readonly telemetry?: VehicleTelemetry | undefined
+  readonly wheels: ReadonlyArray<VehicleWheelState>
+
+interface VehicleWheelState
+  readonly contactPoint: VehicleVec3 | null
+  readonly groundEntityId: string | null
+  readonly groundResistanceForce?: number | undefined
+  readonly hardPoint: VehicleVec3 | null
+  readonly inContact: boolean
+  readonly position: VehicleVec3
+  readonly radius: number
+  readonly rotation: number
+  readonly sinkDepth?: number | undefined
+  readonly soilDepth?: number | undefined
+  readonly steering: number
+  readonly suspensionForce: number
+  readonly suspensionLength: number
+  readonly tractionSlip?: number | undefined
+  readonly visualNode?: string | undefined
+  readonly worldAxle?: VehicleVec3 | undefined
+  readonly worldCenter?: VehicleVec3 | undefined
+
+type WeatherMix = { readonly snow?: number; readonly cloudy?: number; readonly rain?: number; readonly fog?: number; }
+
+type WeatherPreset = "snow" | "clear" | "cloudy" | "rain" | "fog"
+
+type WeatherShare = "snow" | "cloudy" | "rain" | "fog"
 
 interface WeatherTransitionRequest
   readonly intensity?: number | undefined
   readonly preset: WeatherPreset
   readonly seconds: number
+
+interface WidgetAnchor
+  readonly actor?: `act_${string}` | undefined
+  readonly maxDistance?: number | undefined
+  readonly offset?: readonly [number, number] | undefined
+  readonly position?: readonly [number, number, number] | undefined
+
+interface WidgetHandle
+  dispose: () => void
+
+interface WidgetOptions
+  readonly anchor?: WidgetAnchor | undefined
+  readonly interactive?: boolean | undefined
+  readonly onMessage?: ((message: string, node: string) => void) | undefined
+  readonly theme?: UiThemeDef | undefined
 
 interface WorldActor
   readonly components: ComponentMap
@@ -229,11 +530,13 @@ function createServiceKey<T>(name: string): ServiceKey<T>
 
 function defineAssetType<M extends FieldMap>(name: string, version: number, definition: { readonly extensions: readonly string[]; readonly importFields?: M; }, options?: AssetTypeOptions): BinaryAssetTypeDef<M>
 
+function defineBehavior(definition: BehaviorDefinition): BehaviorDefinition
+
 function defineComponent<M extends FieldMap>(name: string, version: number, fields: M, options?: ComponentOptions): ComponentDef<M>
 
 function defineFeature(feature: { readonly id: string; readonly components?: readonly ComponentDef[]; readonly assetTypes?: readonly FeatureAssetTypeDef[]; readonly saveStates?: readonly SaveStateDef[]; readonly subsystems?: readonly SubsystemDef[]; }): FeatureDef
 
-function defineGameModule(module: Omit<GameModuleDef, "kind" | "features"> & { readonly features?: readonly FeatureDef[]; }): GameModuleDef
+function defineGameModule(module: Omit<GameModuleDef, "kind" | "features" | "behaviors"> & { readonly features?: readonly FeatureDef[]; readonly behaviors?: readonly BehaviorDefinition[]; }): GameModuleDef
 
 function defineJsonAssetType<M extends FieldMap>(name: string, version: number, definition: { readonly suffix: string; readonly fields: M; }, options?: JsonAssetTypeOptions): JsonAssetTypeDef<M>
 
@@ -263,17 +566,18 @@ function vec4(options: VectorOptions<4>): VectorField<4>
 
 const ADD_ACTOR_CATEGORIES: readonly [{ readonly label: "Lights"; readonly icon: "light"; }, { readonly label: "Shapes"; readonly icon: "shape"; }, { readonly label: "Volumes"; readonly icon: "volume"; }, { readonly label: "Visual Effects"; readonly icon: "reflection"; }, { readonly label: "Terrain"; readonly icon: "terrain"; }, { readonly label: "Sounds"; readonly icon: "sound"; }, { readonly label: "UI"; readonly icon: "widget"; }, { readonly label: "Gameplay"; readonly icon: "gameplay"; }, { readonly label: "Vehicles"; readonly icon: "vehicle"; }]
 
-type ActorTypeIcon = "light" | "mesh" | "character" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic"
+type ActorTypeIcon = "shape" | "sound" | "vehicle" | "mesh" | "terrain" | "gameplay" | "light" | "character" | "volume" | "widget" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "spline" | "group" | "generic"
 
 interface AddActorEntry
   readonly category: string
   readonly components: Readonly<Record<string, Readonly<{ type: string; } & Record<string, unknown>>>>
-  readonly icon: "light" | "mesh" | "character" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic"
+  readonly icon: "shape" | "sound" | "vehicle" | "mesh" | "terrain" | "gameplay" | "light" | "character" | "volume" | "widget" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "spline" | "group" | "generic"
   readonly key: string
   readonly label: string
   readonly lift?: number | undefined
   readonly restOnSurface?: boolean | undefined
   readonly rotation?: readonly [number, number, number] | undefined
+  readonly spatiallyLoaded?: boolean | undefined
 
 interface AssetDropRule
   readonly assetType: string
@@ -306,7 +610,7 @@ interface AssetEditorPresentation
 
 interface AssetPlacement
   readonly components: Readonly<Record<string, Readonly<{ type: string; } & Record<string, unknown>>>>
-  readonly icon?: "light" | "mesh" | "character" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic" | undefined
+  readonly icon?: "shape" | "sound" | "vehicle" | "mesh" | "terrain" | "gameplay" | "light" | "character" | "volume" | "widget" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "spline" | "group" | "generic" | undefined
   readonly lift?: number | undefined
   readonly restOnSurface?: boolean | undefined
   readonly rotation?: readonly [number, number, number] | undefined
@@ -329,8 +633,8 @@ interface ComponentPresentation
   readonly details?: "tool" | "embedded" | undefined
   readonly extension?: "top" | undefined
   readonly groups?: "accordion" | undefined
-  readonly icon: "light" | "mesh" | "character" | "volume" | "terrain" | "gameplay" | "widget" | "shape" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "sound" | "vehicle" | "spline" | "group" | "generic" | ((data: Readonly<Record<string, unknown>>) => ActorTypeIcon)
-  readonly outliner: "light" | "mesh" | "character" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
+  readonly icon: "shape" | "sound" | "vehicle" | "mesh" | "terrain" | "gameplay" | "light" | "character" | "volume" | "widget" | "shapeCube" | "shapeSphere" | "shapeCylinder" | "shapeCone" | "shapePlane" | "atmosphere" | "cloud" | "postprocess" | "worldEnvironment" | "reflection" | "spline" | "group" | "generic" | ((data: Readonly<Record<string, unknown>>) => ActorTypeIcon)
+  readonly outliner: "mesh" | "terrain" | "gameplay" | "light" | "character" | "environment" | "volume" | "widget"
 
 type DetailsExtension = (context: DetailsExtensionContext) => { readonly element: HTMLElement; dispose?(): void; }
 
@@ -374,13 +678,25 @@ interface NewAssetTemplate
 
 const OUTLINER_TYPES: readonly [{ readonly type: "mesh"; readonly label: "Meshes"; }, { readonly type: "character"; readonly label: "Characters"; }, { readonly type: "light"; readonly label: "Lights"; }, { readonly type: "environment"; readonly label: "Environment"; }, { readonly type: "volume"; readonly label: "Volumes"; }, { readonly type: "terrain"; readonly label: "Terrain"; }, { readonly type: "gameplay"; readonly label: "Gameplay"; }, { readonly type: "widget"; readonly label: "Widgets"; }]
 
-type OutlinerType = "light" | "mesh" | "character" | "environment" | "volume" | "terrain" | "gameplay" | "widget"
+type OutlinerType = "mesh" | "terrain" | "gameplay" | "light" | "character" | "environment" | "volume" | "widget"
 
-const SDK_VERSION: "0.1.18"
+const SDK_VERSION: "0.1.19"
 
 function defineFeatureEditor(options: FeatureEditorOptions): FeatureEditorDef
 
 # referenced (not exported, part of the surface)
+
+interface ActorBase  // src/core/level/model.ts
+  folder?: string | undefined
+  id: `act_${string}`
+  locked?: true | undefined
+  name: string
+  parent: `act_${string}` | null
+  pivot?: Vec3 | undefined
+  spatiallyLoaded: boolean
+  transform: Transform
+
+type ActorDoc = PlainActor | ClassActor  // src/core/level/model.ts
 
 interface ActorRefField  // src/core/schema/fields.ts
   readonly default: null
@@ -448,6 +764,10 @@ interface AssetTypeOptions  // src/core/assets/assetType.ts
   readonly label?: string | undefined
   readonly migrations?: MigrationMap | undefined
 
+type AudioBusId = "ui" | "master" | "music" | "sfx" | "ambience" | "voice" | "notifications"  // src/engine/audio/audioBus.ts
+
+type AudioVec3 = readonly [number, number, number]  // src/engine/audio/audioTypes.ts
+
 interface BoolField  // src/core/schema/fields.ts
   readonly default: boolean
   readonly hint?: string | undefined
@@ -462,6 +782,29 @@ interface BoolFormField  // src/core/schema/form.ts
   readonly kind: "bool"
   readonly label: string
   readonly path: string
+
+interface CastFilter  // src/engine/physics/physicsCasts.ts
+  readonly groups?: number | undefined
+  readonly includeSensors?: boolean | undefined
+
+interface CastHit  // src/engine/physics/physicsCasts.ts
+  readonly distance: number
+  readonly normal: readonly [number, number, number]
+  readonly point: readonly [number, number, number]
+
+interface ClassActor  // src/core/level/model.ts
+  class: `ast_${string}`
+  folder?: string | undefined
+  id: `act_${string}`
+  locked?: true | undefined
+  name: string
+  overrides: OverrideMap
+  parent: `act_${string}` | null
+  pivot?: Vec3 | undefined
+  spatiallyLoaded: boolean
+  transform: Transform
+
+type CollisionTraceChannel = "visibility" | "camera"  // src/core/schema/collisionChannels.ts
 
 interface ColorField<D>  // src/core/schema/fields.ts
   readonly default: D
@@ -518,6 +861,8 @@ interface DocumentAssetTypeDef  // src/core/assets/assetType.ts
   readonly schema: string
   readonly storage: "document"
 
+type EntityId = string  // src/engine/legacy/entity.ts
+
 interface EnumField<V>  // src/core/schema/fields.ts
   readonly default: V
   readonly hint?: string | undefined
@@ -555,6 +900,8 @@ interface FormRange  // src/core/schema/form.ts
   readonly max: number | null
   readonly min: number | null
 
+type GameplayPerceptionSense = "damage" | "alert" | "gameplay"  // src/engine/perception/perception.ts
+
 type IdOf<K extends IdKind> = `${{ readonly actor: "act"; readonly asset: "ast"; readonly level: "lvl"; }[K]}_${string}`  // src/core/id.ts
 
 interface JsonAssetShape<M>  // src/core/assets/jsonAsset.ts
@@ -574,6 +921,11 @@ type Migration = (data: JsonObject) => JsonObject  // src/core/schema/migrate.ts
 
 interface MigrationMap  // src/core/schema/migrate.ts
   readonly [key: number]: Migration
+
+interface NoiseStimulus  // src/engine/perception/perception.ts
+  readonly loudness?: number | undefined
+  readonly position: Vec3
+  readonly sourceEntityId: string
 
 interface NumberField  // src/core/schema/fields.ts
   readonly default: number
@@ -614,6 +966,55 @@ interface ObjectFormField  // src/core/schema/form.ts
   readonly label: string
   readonly path: string
 
+type OverrideMap = { [x: string]: JsonObject; }  // src/core/level/model.ts
+
+interface PathResult  // src/engine/navigation/navigationTypes.ts
+  readonly points: ReadonlyArray<Vec3>
+  readonly status: "success" | "failure"
+  readonly visited: number
+
+interface PerceptionAabb  // src/engine/perception/perception.ts
+  readonly max: readonly [number, number, number]
+  readonly min: readonly [number, number, number]
+
+interface PerceptionListener  // src/engine/perception/perception.ts
+  readonly entityId: string
+  readonly fieldOfViewDeg?: number | undefined
+  readonly forward: Vec3
+  readonly hearingRadius?: number | undefined
+  readonly nearSightRadius?: number | undefined
+  readonly position: Vec3
+  readonly sightOrigin?: Vec3 | undefined
+  readonly sightRadius?: number | undefined
+
+type PerceptionSense = GameplayPerceptionSense | "sight" | "hearing"  // src/engine/perception/perception.ts
+
+interface PlainActor  // src/core/level/model.ts
+  class: null
+  components: ComponentMap
+  folder?: string | undefined
+  id: `act_${string}`
+  locked?: true | undefined
+  name: string
+  parent: `act_${string}` | null
+  pivot?: Vec3 | undefined
+  spatiallyLoaded: boolean
+  transform: Transform
+
+interface SaveGameDoc  // src/core/save/saveGame.ts
+  actors: Record<`act_${string}`, SavedActor>
+  level: `lvl_${string}`
+  removed: Array<`act_${string}`>
+  schema: "forge.saveGame/1"
+  spawned: Array<ActorDoc>
+  states: Record<string, SavedEntry>
+
+interface SaveGameSlotInfo  // src/engine/persistence/saveGameStore.ts
+  readonly createdAt: string
+  readonly schema: number
+  readonly slot: string
+  readonly updatedAt: string
+
 interface SaveIssueBody  // src/core/edit/saveProtocol.ts
   readonly code: string
   readonly file: string
@@ -628,6 +1029,14 @@ interface SaveStateOptions  // src/core/save/saveState.ts
   readonly label?: string | undefined
   readonly migrations?: MigrationMap | undefined
 
+interface SavedActor  // src/core/save/saveGame.ts
+  components: Record<string, SavedEntry>
+  transform?: Transform | undefined
+
+interface SavedEntry  // src/core/save/saveGame.ts
+  [key: string]: unknown
+  type: `${string}@${number}`
+
 interface SchemaRegistry  // src/core/schema/registry.ts
   assetTypes: () => readonly AssetTypeDef[]
   binaryTypesForFile: (fileName: string) => readonly BinaryAssetTypeDef[]
@@ -640,6 +1049,11 @@ interface SchemaRegistry  // src/core/schema/registry.ts
   registerComponent: (def: ComponentDef) => void
   registerSaveState: (def: SaveStateDef) => void
   saveStates: () => readonly SaveStateDef[]
+
+interface StimulusSource  // src/engine/perception/perception.ts
+  readonly entityId: string
+  readonly position: Vec3
+  readonly sightTarget?: Vec3 | undefined
 
 interface TextField  // src/core/schema/fields.ts
   readonly default: string
@@ -677,6 +1091,12 @@ interface TransformFormField  // src/core/schema/form.ts
   readonly label: string
   readonly path: string
 
+type UiFieldValue = string | number | boolean  // src/engine/ui/uiViewModel.ts
+
+type UiTokenValue = string | number  // src/engine/ui/uiTheme.ts
+
+type Vec3 = [number, number, number]  // src/engine/legacy/layout.ts
+
 interface VectorField<N>  // src/core/schema/fields.ts
   readonly default: Readonly<VectorOf<N>>
   readonly hint?: string | undefined
@@ -705,7 +1125,66 @@ type VectorOptions<N extends VectorSize> = { readonly default: Readonly<VectorOf
 
 type VectorSize = 2 | 3 | 4  // src/core/schema/fields.ts
 
+interface VehicleDrivetrainDefinition  // src/engine/physics/vehicle/vehicleTypes.ts
+  readonly differential: { readonly driveType: "FWD" | "RWD" | "AWD"; readonly frontTorqueShare: number; }
+  readonly engine: { readonly idleRpm: number; readonly maxRpm: number; readonly torqueCurve: readonly VehicleTorquePoint[]; readonly engineBrakeTorqueNm: number; }
+  readonly transmission: { readonly forwardRatios: readonly number[]; readonly reverseRatio: number; readonly finalDriveRatio: number; readonly efficiency: number; readonly upshiftRpm: number; readonly downshiftRpm: number; readonly shiftDurationSeconds: number; }
+
+interface VehicleDrivetrainState  // src/engine/physics/vehicle/vehicleTypes.ts
+  readonly engineRpm: number
+  readonly gear: number
+  readonly shiftTimeRemaining: number
+
+interface VehicleEngineSoundDefinition  // src/engine/physics/vehicle/vehicleTypes.ts
+  readonly idlePitch: number
+  readonly idleVolume: number
+  readonly loadVolume: number
+  readonly maxDistance: number
+  readonly maxPitch: number
+  readonly refDistance: number
+  readonly sound: string
+  readonly speedForMaxPitch: number
+
+interface VehicleSteeringPoint  // src/engine/physics/vehicle/vehicleTypes.ts
+  readonly scale: number
+  readonly speedMps: number
+
+interface VehicleTelemetry  // src/engine/physics/vehicle/vehicleTypes.ts
+  readonly appliedDriveForce: number
+  readonly appliedGroundResistanceForce: number
+  readonly bellyResistanceForce: number
+  readonly gravityForwardForce: number
+  readonly input: VehicleInput
+  readonly pitchDeg: number
+  readonly requestedDriveForce: number
+
+interface VehicleTorquePoint  // src/engine/physics/vehicle/vehicleTypes.ts
+  readonly rpm: number
+  readonly torqueNm: number
+
+type VehicleVec3 = readonly [number, number, number]  // src/engine/physics/vehicle/vehicleTypes.ts
+
+interface VehicleWheelDefinition  // src/engine/physics/vehicle/vehicleTypes.ts
+  readonly axle: "front" | "rear"
+  readonly brake: boolean
+  readonly drive: boolean
+  readonly frictionSlip: number
+  readonly handbrake: boolean
+  readonly maxSuspensionForce: number
+  readonly position: VehicleVec3
+  readonly radius: number
+  readonly sideFrictionStiffness: number
+  readonly steer: boolean
+  readonly suspensionCompression: number
+  readonly suspensionMaxTravel: number
+  readonly suspensionRelaxation: number
+  readonly suspensionRestLength: number
+  readonly suspensionStiffness: number
+  readonly visualNode?: string | undefined
+  readonly width?: number | undefined
+
 interface WorldActorChange  // src/core/world/subsystem.ts
   readonly actor: WorldActor
   readonly previous: WorldActor
+  readonly source?: string | undefined
   readonly transformOnly: boolean

@@ -53,6 +53,12 @@ test("the viewport draws the level; Camera (and keys 1-4), View Mode, Show and Q
   await expect(grid).toHaveAttribute("aria-pressed", "false");
   await grid.click();
   await expect(grid).toHaveAttribute("aria-pressed", "true");
+  for (const id of ["collision", "navigation"]) {
+    const overlay = page.locator(`[data-show-choice="${id}"]`);
+    await expect(overlay).toHaveAttribute("aria-pressed", "false");
+    await overlay.click();
+    await expect(overlay).toHaveAttribute("aria-pressed", "true");
+  }
   await page.locator('[data-show-choice="stats"]').click();
   await expect(page.locator(".editor-viewport-host #debug-stats")).toBeVisible();
   await expect(page.locator("#debug-stats-readout")).toContainText(/\S/);

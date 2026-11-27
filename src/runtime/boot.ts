@@ -30,7 +30,17 @@ import { HlodSourceKey } from "../engine/world/hlod.ts";
 import type { HlodIndex } from "../core/level/hlod.ts";
 import type { LevelFoliageIndex } from "../core/level/foliage.ts";
 import { LevelFoliageSourceKey } from "../engine/foliage/levelFoliageSource.ts";
+import { PhysicsRuntimeKey, PreparedPhysicsKey, WORLD_PHYSICS_ID, type ModelCollisionGeometry, type ModelCollisionSource } from "../engine/physics/physicsService.ts";
+import { loadRapier } from "../engine/physics/physicsSubsystem.ts";
+import { InputHostKey, type InputHost } from "../engine/input/inputService.ts";
+import { BehaviorDefinitionsKey } from "../engine/behavior/worldBehavior.ts";
+import { WorldAudioHostKey, type WorldAudioHost } from "../engine/audio/worldAudio.ts";
+import { TerrainResidencyKey, type HeadlessTerrainSource } from "../engine/terrain/terrainResidency.ts";
 import { gameModuleSubsystem, type GameModuleDef } from "./gameModule.ts";
+import { installWorldCheckpoint, type CheckpointOptions } from "./persistence/worldCheckpoint.ts";
+import { BrowserUiHostKey, type BrowserUiHost } from "./ui/uiHost.ts";
+import { WorldJsonAssetsKey, type WorldJsonLoader } from "../engine/world/worldAssets.ts";
+import { LoadProgressTracker } from "../engine/loading/loadProgress.ts";
 import { createWorld, WorldError, type World } from "./world.ts";
 
 export type BootStage = "project" | "features" | "render" | "level" | "world" | "frame";
@@ -46,6 +56,7 @@ export interface BootErrorView {
 
 export interface BootScreen {
   info(title: string, message: string): void;
+  progress?(message: string, fraction: number): void;
   error(view: BootErrorView): void;
   /** The game is running: the screen gets out of the way. */
   clear(): void;
@@ -64,7 +75,8 @@ export interface BootRender {
   /** The `forge.render` feature for a world that installs `features`. */
   feature(features: readonly FeatureDef[]): FeatureDef;
   /** Draws a frame after the world ticked; `time` in ms. */
-  frame(time: number): void;
+  frame(time: number, world: World): void;
+  ready?(): boolean;
   /** Called once if the GPU device is lost. */
   onLost(listener: (message: string) => void): void;
   dispose(): void;
@@ -98,6 +110,16 @@ export interface BootOptions {
   readonly gameModule?: GameModuleDef;
   /** The renderer; none in a headless boot. */
   readonly render?: BootRender;
+  readonly input?: InputHost;
+  readonly audio?: WorldAudioHost;
+  readonly ui?: BrowserUiHost;
+  readonly loadJsonAsset?: WorldJsonLoader;
+  /** Resolved model bounds and authored collision settings, independent of the renderer. */
+  readonly modelCollision?: ModelCollisionSource;
+  readonly modelGeometry?: ModelCollisionGeometry;
+  /** Reads all tiles for a headless start, before the first physics step. */
+  readonly headlessTerrain?: HeadlessTerrainSource;
+  readonly checkpoint?: CheckpointOptions;
   /** True in development: data loss stops the boot. */
   readonly strict: boolean;
   /** Null when there is nothing to open. Gets the registry the features were installed into. */
@@ -149,7 +171,15 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
   let stage: BootStage = "features";
   let world: World | null = null;
   let streaming: CellStreaming | null = null;
+  let checkpoint: ReturnType<typeof installWorldCheckpoint> | null = null;
+  const progress = new LoadProgressTracker();
+  progress.expectAll(render?.ready ? ["features", "render", "level", "world", "assets"] : ["features", "render", "level", "world"]);
+  const update = (message: string, completed?: string) => {
+    if (completed) progress.markLoaded(completed);
+    screen.progress?.(message, progress.snapshot().fraction);
+  };
   try {
+    update("Preparing engine features");
     const features = [...options.features, ...(options.gameModule?.features ?? [])];
     if (options.gameModule) {
       features.push(defineFeature({ id: options.gameModule.id, subsystems: [gameModuleSubsystem(options.gameModule)] }));
@@ -159,10 +189,14 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
 
     if (render) {
       stage = "render";
+      update("Preparing graphics", "features");
       await render.init();
+    } else {
+      progress.markLoaded("features");
     }
 
     stage = "level";
+    update("Reading level", "render");
     const loaded = await options.loadLevel(registry);
     if (loaded === null) {
       if (render) disposeRenderQuietly(render);
@@ -177,11 +211,27 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
     const warnings = level.issues.filter((issue) => issue.severity === "warning");
 
     stage = "world";
+    update("Starting the world", "level");
+    const needsPhysics = features.some((feature) => feature.subsystems.some((subsystem) => subsystem.id === WORLD_PHYSICS_ID));
+    const rapier = needsPhysics ? await loadRapier() : undefined;
     // The render feature comes last: its renderSync runs after everything moved.
     const worldFeatures = render ? [...features, render.feature(features)] : features;
     world = createWorld({ strict: options.strict, registry, resolveClass, features: worldFeatures });
+    if (options.input) world.services.provide(InputHostKey, options.input);
+    if (options.audio) world.services.provide(WorldAudioHostKey, options.audio);
+    if (options.ui) world.services.provide(BrowserUiHostKey, options.ui);
+    if (options.loadJsonAsset) world.services.provide(WorldJsonAssetsKey, options.loadJsonAsset);
+    world.services.provide(BehaviorDefinitionsKey, new Map(options.gameModule?.behaviors?.map((entry) => [entry.id, entry])));
+    if (rapier) world.services.provide(PreparedPhysicsKey, {
+      rapier, ...(options.modelCollision ? { model: options.modelCollision } : {}),
+      ...(options.modelGeometry ? { triangles: options.modelGeometry } : {}),
+    });
+    if (options.checkpoint) checkpoint = installWorldCheckpoint(world, level.value.id, {
+      registry, resolveClass, strict: options.strict,
+    }, options.checkpoint);
     world.init();
-    const assembled = assembleLevel(world, level.value, { strict: options.strict, resolveClass });
+    const initial = checkpoint ? { ...level.value, actors: checkpoint.persistentActors(level.value.actors) } : level.value;
+    const assembled = assembleLevel(world, initial, { strict: options.strict, resolveClass });
     // A missing class is already reported by normalisation; report it once.
     const seen = new Set(warnings.map((issue) => `${issue.code} ${issue.path}`));
     warnings.push(...assembled.issues.filter((issue) => !seen.has(`${issue.code} ${issue.path}`)));
@@ -194,6 +244,7 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
         world: live,
         source: loaded.cells,
         level: level.value.id,
+        ...(checkpoint ? { ledger: checkpoint.ledger } : {}),
         registry,
         resolveClass,
         strict: options.strict,
@@ -215,9 +266,26 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
         const read = await loaded.cells.read(key, signal);
         warnings.push(...read.issues.filter((issue) => issue.severity === "warning"));
         if (options.strict && read.issues.some((issue) => issue.severity === "error")) throw new StageError(`Cell ${key} has errors.`, read.issues);
-        warnings.push(...assembleActors(world, read.payload.actors, { strict: options.strict, resolveClass }).issues);
+        const actors = checkpoint?.persistentActors(read.payload.actors) ?? read.payload.actors;
+        warnings.push(...assembleActors(world, actors, { strict: options.strict, resolveClass }).issues);
       }
     }
+    if (!render && rapier && options.headlessTerrain) {
+      const residency = world.services.get(TerrainResidencyKey);
+      if (residency) {
+        const documents = new Map<string, ReturnType<HeadlessTerrainSource>>();
+        for (const { actor, key, component } of world.context.componentsOf("forge.terrain")) {
+          const asset = component.data;
+          if (typeof asset !== "string") continue;
+          let document = documents.get(asset);
+          if (!document) documents.set(asset, document = options.headlessTerrain(asset));
+          residency.place({ actor: actor.id, component: key, document: await document });
+        }
+      }
+    }
+    checkpoint?.restoreSpawned();
+    if (checkpoint) warnings.push(...checkpoint.issues);
+    await world.services.get(PhysicsRuntimeKey)?.ready();
     if (warnings.length > 0) options.warn?.(warnings);
     world.beginPlay();
   } catch (error) {
@@ -232,8 +300,10 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
   let handle: number | null = null;
   let last: number | null = null;
   let halted = false;
+  let waitingForAssets = typeof render?.ready === "function";
   const halt = (view: BootErrorView): void => {
     halted = true;
+    waitingForAssets = false;
     if (handle !== null) options.scheduler.cancel(handle);
     handle = null;
     if (running.state === "playing") {
@@ -252,8 +322,14 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
     last = time;
     try {
       if (streaming && render?.streamingSources) streaming.update(render.streamingSources());
+      checkpoint?.restoreSpawned();
       running.tick(dt);
-      render?.frame(time);
+      render?.frame(time, running);
+      if (waitingForAssets && render?.ready?.()) {
+        waitingForAssets = false;
+        progress.markLoaded("assets");
+        screen.clear();
+      }
     } catch (error) {
       halt(bootErrorView("frame", error));
       return;
@@ -263,7 +339,8 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
   render?.onLost((message) => {
     if (!halted) halt({ ...bootErrorView("render", new Error(message)), title: "The graphics device was lost", reload: true });
   });
-  screen.clear();
+  if (waitingForAssets) update("Loading scene assets", "world");
+  else screen.clear();
   handle = options.scheduler.request(frame);
 
   return {
@@ -272,6 +349,7 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
       halted = true;
       if (handle !== null) options.scheduler.cancel(handle);
       handle = null;
+      if (waitingForAssets) screen.clear();
       streaming?.dispose();
       running.dispose();
       render?.dispose();

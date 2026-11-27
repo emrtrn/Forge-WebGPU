@@ -29,7 +29,7 @@
 // W5 refinement: `surface.wetSpread` / `snowSpread` / `patchSize`, how far the
 // wet and snow patches reach (look only; neutral at 1).
 
-import { bool, color, defineComponent, enumOf, num, object, WindFields, type ComponentData } from "../../core/index.ts";
+import { assetRef, bool, color, defineComponent, enumOf, num, object, WindFields, type ComponentData } from "../../core/index.ts";
 
 /** Forge's seasons and weather presets (engine/environment/worldEnvironment.ts). */
 export const SEASONS = ["spring", "summer", "autumn", "winter"] as const;
@@ -139,8 +139,10 @@ export const WorldEnvironment = defineComponent(
             opacity: num({ min: 0, max: 2, default: 1, step: 0.05, hint: "Damlaların görünürlüğü." }),
             speed: num({ min: 1, max: 20, default: 9, step: 0.1, label: "Speed (m/s)", hint: "Damlaların düşüş hızı, m/sn." }),
             length: num({ min: 0.1, max: 4, default: 1, step: 0.05, hint: "Damla çizgisinin uzunluk çarpanı." }),
+            sound: assetRef({ assetType: "forge.audio", hint: "Canlı yağmur şiddetini izleyen döngülü ortam sesi." }),
+            soundVolume: num({ min: 0, max: 1, default: 0.5, step: 0.05, hint: "Tam şiddetli yağmurda ses seviyesi." }),
           },
-          { hint: "Yağmurun görünüşü (hava Rain iken)." },
+          { hint: "Yağmurun görünüşü ve ortam sesi." },
         ),
         snow: object(
           {

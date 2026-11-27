@@ -16,10 +16,14 @@
 // - A change (splines edited, the ground under an aligned road sculpted)
 //   builds a new set; the drawn one stays until the new one is ready.
 // - Not picked: a click goes through a road to its terrain (Forge).
-// - The collider comes with the terrain's in phase 6, from the same generator.
+// - The World collider comes from the same generator and follows the visible set.
 
 import { BufferAttribute, BufferGeometry, Group, Matrix4, Quaternion, Sphere, Box3, Vector3, type Camera, type Material } from "three/webgpu";
-import type { ActorId } from "../../core/index.ts";
+import type { ActorId, Vec3 } from "../../core/index.ts";
+import { composeMat4 } from "../../engine/math/affine.ts";
+import type { ColliderPrimitive } from "../../engine/physics/colliderTypes.ts";
+import { StaticCollisionSourceKey } from "../../engine/physics/physicsService.ts";
+import { triangleMeshPrimitive } from "../../engine/physics/triangleMeshCollider.ts";
 import { landscapeSplineMeshAssetIds } from "../../engine/terrain/landscape.ts";
 import { buildRoadMeshes, type RoadMeshAttribute, type RoadMeshModel, type RoadMeshPart } from "../../engine/terrain/roadMesh.ts";
 import { prepareTerrainSplineMeshSource, terrainSplineMeshTileKeys } from "../../engine/terrain/terrainSplineMeshes.ts";
@@ -68,6 +72,7 @@ export interface RoadMeshes {
 export interface RoadMeshesOptions {
   readonly ctx: RenderBindingContext;
   readonly actor: ActorId;
+  readonly component?: string;
   readonly name: string;
   readonly input: () => RoadMeshInput;
 }
@@ -76,13 +81,15 @@ interface RoadSet {
   readonly batches: InstanceBatch[];
   readonly geometries: BufferGeometry[];
   readonly keys: string[];
+  readonly colliders: readonly ColliderPrimitive[];
+  readonly origin: Vec3;
   readonly stats: Omit<RoadMeshStats, "building">;
 }
 
 const NO_STATS: Omit<RoadMeshStats, "building"> = { chunks: 0, pieces: 0, triangles: 0, problems: [] };
 
 /** A template part in model root space, as the generator reads it. */
-export function roadMeshPart(part: Pick<InstancePart, "geometry" | "local">): RoadMeshPart {
+export function roadMeshPart(part: Pick<InstancePart, "geometry" | "local">): RoadMeshPart & { readonly indices: Uint32Array } {
   const { geometry, local } = part;
   const attributes: Record<string, RoadMeshAttribute> = {};
   for (const [name, attribute] of Object.entries(geometry.attributes)) {
@@ -103,6 +110,9 @@ export function roadMeshPart(part: Pick<InstancePart, "geometry" | "local">): Ro
 
 export function createRoadMeshes(options: RoadMeshesOptions): RoadMeshes {
   const { ctx, actor, name } = options;
+  const component = options.component ?? "terrain";
+  const physics = ctx.world.services.get(StaticCollisionSourceKey);
+  let registered: string[] = [];
   const group = new Group();
   group.name = `${name}/roads`;
   let drawn: RoadSet | null = null;
@@ -207,11 +217,24 @@ export function createRoadMeshes(options: RoadMeshesOptions): RoadMeshes {
         pieces.set(String(index), matrix, null, actor);
         for (const part of parts) triangles += (part.geometry.index?.count ?? part.geometry.attributes.position!.count) / 3;
       });
-      return { batches, geometries, keys, stats: { chunks: chunks.size, pieces: built.instances.length, triangles, problems } };
+      const colliders: ColliderPrimitive[] = [];
+      if (physics) {
+        const mixed = source.splines.some((spline) => spline.segments.some((segment) => segment.mesh?.collision === false));
+        const { chunks, instances } = mixed ? buildRoadMeshes(source, models, { cellSize: ROAD_CHUNK_CELL, collisionOnly: true }) : built;
+        for (const chunk of chunks) colliders.push(triangleMeshPrimitive(chunk.attributes.position!.values, chunk.indices));
+        for (const instance of instances) {
+          const world = composeMat4(instance.position, instance.orientation, instance.scale);
+          for (const part of models.get(instance.assetId)?.parts ?? []) {
+            if (part.indices) colliders.push(triangleMeshPrimitive(part.attributes.position!.values, part.indices, world));
+          }
+        }
+      }
+      return { batches, geometries, keys, colliders, origin: [x, y, z], stats: { chunks: chunks.size, pieces: built.instances.length, triangles, problems } };
     } catch (error) {
       for (const one of batches) one.dispose();
       for (const geometry of geometries) geometry.dispose();
-      return { batches: [], geometries: [], keys, stats: { ...NO_STATS, problems: [...problems, error instanceof Error ? error.message : String(error)] } };
+      return { batches: [], geometries: [], keys, colliders: [], origin: [0, 0, 0],
+        stats: { ...NO_STATS, problems: [...problems, error instanceof Error ? error.message : String(error)] } };
     }
   };
 
@@ -267,6 +290,14 @@ export function createRoadMeshes(options: RoadMeshesOptions): RoadMeshes {
         disposeSet(drawn);
         drawn = next;
         next = null;
+        if (physics) {
+          physics.remove(registered);
+          registered = drawn.colliders.map((primitive, index) => {
+            const id = `road:${actor}/${component}/${index}`;
+            physics.add(id, actor, component, drawn!.origin, primitive);
+            return id;
+          });
+        }
         if (drawn.batches.length === 0) group.removeFromParent();
       }
     },
@@ -275,6 +306,8 @@ export function createRoadMeshes(options: RoadMeshesOptions): RoadMeshes {
       generation += 1;
       disposeSet(drawn);
       disposeSet(next);
+      physics?.remove(registered);
+      registered = [];
       drawn = next = null;
       group.removeFromParent();
     },

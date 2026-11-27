@@ -102,6 +102,8 @@ export interface AddActorEntry {
   readonly lift?: number;
   /** Its base rests on the surface (Forge's meshes); otherwise its origin does. */
   readonly restOnSurface?: boolean;
+  /** False places the actor in the persistent layer. */
+  readonly spatiallyLoaded?: boolean;
 }
 
 /** What a component's Details extension works with. */

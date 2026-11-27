@@ -431,14 +431,20 @@ function splitIntoCells(
 export function buildRoadMeshes(
   source: TerrainSplineMeshSource,
   models: ReadonlyMap<string, RoadMeshModel>,
-  options: { readonly cellSize: number },
+  options: { readonly cellSize: number; readonly collisionOnly?: boolean },
 ): RoadMeshBuild {
   const chunks = new Map<string, ChunkBuffer>();
   const instances: LandscapeSplineMeshInstance[] = [];
   const problems: string[] = [];
   const meshForwardLengths = new Map(Array.from(models, ([assetId, model]) => [assetId, roadModelForwardLength(model)]));
-  for (const spline of source.splines) {
-    if (spline.hidden) continue;
+  for (const authored of source.splines) {
+    if (authored.hidden) continue;
+    const spline = options.collisionOnly ? {
+      ...authored,
+      segments: authored.segments.map((segment) => segment.mesh?.collision === false
+        ? { ...segment, mesh: { ...segment.mesh, enabled: false } }
+        : segment),
+    } : authored;
     const recordProblem = (error: unknown): void => {
       problems.push(`${spline.name || spline.id}: ${error instanceof Error ? error.message : String(error)}`);
     };

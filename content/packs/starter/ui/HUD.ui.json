@@ -1,0 +1,8 @@
+{
+  "schema": "forge.uiWidget/1",
+  "id": "ast_f522382762d743af8498b6221ec992d4",
+  "name": "Starter HUD",
+  "nodes": [
+    { "id": "speed", "kind": "Text", "anchor": "bottomLeft", "offset": [16, 16], "bind": "player.speedLabel" }
+  ]
+}

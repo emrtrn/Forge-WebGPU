@@ -15,7 +15,8 @@
  * `src/scene/assetUvwLoader.ts`: their three-free normalisers, copied below
  * as they were).
  */
-import type { AssetId, JsonObject } from "../../core/index.ts";
+import { isJsonObject, type AssetId, type JsonObject } from "../../core/index.ts";
+import { COLLISION_CHANNELS, isCollisionComplexity, isCollisionEnabled, isCollisionObjectChannel, isCollisionPresetId, isCollisionPrimitiveShape, isCollisionResponse } from "../physics/collision.ts";
 import { normalizeAssetVertexColors } from "./forgeVertexColors.ts";
 
 type Vec3 = [number, number, number];
@@ -67,6 +68,7 @@ export interface ModelSidecars {
   readonly materials?: unknown;
   readonly uvw?: unknown;
   readonly vertexColors?: unknown;
+  readonly collision?: unknown;
 }
 
 export interface ModelImportConversion {
@@ -100,6 +102,42 @@ export function convertModelSidecars(
   if (sidecars.vertexColors !== undefined) {
     const meshes = normalizeAssetVertexColors(sidecars.vertexColors).meshes;
     if (meshes.length > 0) settings.vertexColors = meshes.map((mesh) => ({ ...mesh }));
+  }
+  if (isJsonObject(sidecars.collision)) {
+    const { primitives, preset, complexity, physicalMaterialId, collisionEnabled, objectType, responses } = sidecars.collision;
+    const collision: JsonObject = {};
+    if (isCollisionComplexity(complexity)) collision.complexity = complexity;
+    if (typeof physicalMaterialId === "string") collision.physicalMaterial = physicalMaterialId;
+    if (isCollisionPresetId(preset)) {
+      const profile: JsonObject = { preset };
+      if (preset === "custom") {
+        if (isCollisionEnabled(collisionEnabled)) profile.collisionEnabled = collisionEnabled;
+        if (isCollisionObjectChannel(objectType)) profile.objectType = objectType;
+        if (isJsonObject(responses)) profile.responses = Object.fromEntries(COLLISION_CHANNELS.flatMap((channel) => {
+          const response = responses[channel];
+          return isCollisionResponse(response) ? [[channel, response]] : [];
+        }));
+      }
+      collision.profile = profile;
+    }
+    const simple: JsonObject[] = [];
+    const convex: JsonObject[] = [];
+    for (const part of Array.isArray(primitives) ? primitives : []) {
+      if (!isJsonObject(part) || !isCollisionPrimitiveShape(part.shape)) continue;
+      if (part.shape === "convex") {
+        if (Array.isArray(part.points) && part.points.length >= 4) {
+          convex.push({ points: part.points.flatMap((point) => normalizeVec3(point, [0, 0, 0])) });
+        }
+      } else {
+        simple.push({
+          shape: part.shape, size: normalizeVec3(part.size, [1, 1, 1]),
+          center: normalizeVec3(part.center, [0, 0, 0]), rotation: normalizeVec3(part.rotation, [0, 0, 0]),
+        });
+      }
+    }
+    if (simple.length > 0) collision.primitives = simple;
+    if (convex.length > 0) collision.convex = convex;
+    if (Object.keys(collision).length > 0) settings.collision = collision;
   }
   return { settings, missingMaterials };
 }

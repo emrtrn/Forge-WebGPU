@@ -5,7 +5,7 @@
 // ported (plan K12).
 import { type StaticSpatialEntry } from "./staticSpatialIndex.ts";
 import { HeightfieldStaticSource } from "./heightfieldStatic.ts";
-import { type ColliderComponent, type TransformComponent } from "../legacy/components.ts";
+import { type ColliderComponent, type TransformComponent } from "./colliderTypes.ts";
 import { type NavigationRole } from "./collision.ts";
 import { type PoseQuat } from "./fixedStep.ts";
 import { type VehicleDefinition, type VehicleDrivetrainState, type VehicleInput, type VehicleTelemetry } from "./vehicle/vehicleTypes.ts";

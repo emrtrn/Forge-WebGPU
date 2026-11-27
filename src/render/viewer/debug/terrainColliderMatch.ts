@@ -7,8 +7,8 @@
 // The first drawn terrain is read back from the GPU around the camera
 // (sync/terrainHeightProbe.ts: the main camera's LOD and morph, 1 px per m).
 // Each pixel's height is compared with
-// - a ray cast onto Rapier heightfields of the resident tiles
-//   (engine/physics/terrainCollider.ts), the G8 measure: at most 5 cm where the
+// - a ray cast onto the running World's Rapier heightfields of the resident tiles,
+//   the G8 measure: at most 5 cm where the
 //   terrain is drawn at full resolution (a leaf node from its tile slot, no
 //   morph; Phase 1 user decision 2026-11-11), the morph band and the coarser
 //   levels reported;
@@ -18,8 +18,7 @@
 //   the GPU too.
 
 import type { WebGPURenderer } from "three/webgpu";
-import { terrainTileHeightfieldShape } from "../../../engine/physics/terrainCollider.ts";
-import { terrainTileWorldBounds } from "../../../engine/terrain/terrainTypes.ts";
+import type { TerrainResidencyKey } from "../../../engine/terrain/terrainResidency.ts";
 import { terrainVisualSample } from "../../../engine/terrain/terrainVisualHeight.ts";
 import type { RenderHost } from "../../host/renderHost.ts";
 import { taggedTerrainViews } from "../../sync/debugTags.ts";
@@ -113,34 +112,21 @@ function band(values: number[]): ColliderMatchBand {
 }
 
 /** Measures the first drawn terrain in a `size` m square around the camera; null when the world draws none. */
-export async function measureTerrainColliderMatch(host: RenderHost, options: { size?: number } = {}): Promise<TerrainColliderMatch | null> {
+export async function measureTerrainColliderMatch(
+  host: RenderHost, residency: NonNullable<typeof TerrainResidencyKey.type>, options: { size?: number } = {},
+): Promise<TerrainColliderMatch | null> {
   const scene = host.world?.scene;
   const tagged = scene ? taggedTerrainViews(scene)[0] : undefined;
   if (!tagged) return null;
-  const { view, def } = tagged;
+  const { view, def, actor, component } = tagged;
   const camera = host.camera;
   camera.updateMatrixWorld();
   const centre: [number, number] = [Math.floor(camera.matrixWorld.elements[12]!), Math.floor(camera.matrixWorld.elements[14]!)];
   const readback = await readTerrainHeights(host.renderer as WebGPURenderer, view, camera, centre, options.size ?? 256);
   const side = Math.sqrt(readback.pixels);
 
-  const RAPIER = await import("@dimforge/rapier3d-compat");
-  await RAPIER.init();
-  const world = new RAPIER.World({ x: 0, y: 0, z: 0 });
-  let colliders = 0;
   const { surface, nodes } = readback.visual;
-  for (const { key } of def.tiles) {
-    const [x, z] = key.split("_").map(Number) as [number, number];
-    const tile = surface.tiles.tile(x, z);
-    if (!tile) continue;
-    const b = terrainTileWorldBounds(def, x, z);
-    if (b.maxX < centre[0] - side / 2 - 1 || b.minX > centre[0] + side / 2 + 1 || b.maxZ < centre[1] - side / 2 - 1 || b.minZ > centre[1] + side / 2 + 1) continue;
-    const shape = terrainTileHeightfieldShape(def, tile);
-    const body = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(shape.translation[0], shape.translation[1], shape.translation[2]));
-    world.createCollider(RAPIER.ColliderDesc.heightfield(shape.nrows, shape.ncols, shape.heights, { x: shape.scale[0], y: shape.scale[1], z: shape.scale[2] }), body);
-    colliders += 1;
-  }
-  world.step();
+  const colliders = residency.colliderCount(actor, component);
 
   const gaps = { full: [] as number[], morph: [] as number[], coarser: [] as number[] };
   const leaf = surface.patchQuads * surface.spacing;
@@ -157,16 +143,15 @@ export async function measureTerrainColliderMatch(host: RenderHost, options: { s
       continue;
     }
     twinMax = Math.max(twinMax, Math.abs(y - (oy + twin.height)));
-    const hit = world.castRay(new RAPIER.Ray({ x, y: 20000, z }, { x: 0, y: -1, z: 0 }), 40000, true);
-    if (!hit) {
+    const colliderHeight = residency.height(actor, component, x, z);
+    if (colliderHeight === null) {
       noCollider += 1;
       continue;
     }
-    const gap = Math.abs(y - (20000 - hit.timeOfImpact));
+    const gap = Math.abs(y - colliderHeight);
     const full = twin.node.size === leaf && twin.node.tile !== null;
     (full ? (twin.morph === 0 ? gaps.full : gaps.morph) : gaps.coarser).push(gap);
   }
-  world.free();
   const position = camera.matrixWorld.elements;
   return {
     terrain: def.name,

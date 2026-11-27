@@ -5,11 +5,12 @@
 //
 // - `tagTerrainStreaming`: a streamed terrain's stream and the sources its
 //   last update used (Forge's world streaming module kept both; here the
-//   terrain binding owns the stream until phase 6).
+//   stream lives in the World's terrain residency service).
 // - `tagTerrainView`: a drawn terrain's view and definition, for the G8
 //   collider match (render/viewer/debug/terrainColliderMatch.ts).
 
 import type { Object3D } from "three/webgpu";
+import type { ActorId } from "../../core/index.ts";
 import type { TerrainStreamingView } from "../../engine/terrain/terrainStreamingDebug.ts";
 import type { WorldTerrainDef } from "../../engine/terrain/terrainTypes.ts";
 import type { StreamingSource } from "../../engine/world/streamingPolicy.ts";
@@ -22,6 +23,8 @@ const TERRAIN_VIEW = "forgeDebugTerrainView";
 export interface TaggedTerrainView {
   readonly view: TerrainView;
   readonly def: WorldTerrainDef;
+  readonly actor: ActorId;
+  readonly component: string;
 }
 
 export function tagTerrainView(object: Object3D, tagged: TaggedTerrainView): void {

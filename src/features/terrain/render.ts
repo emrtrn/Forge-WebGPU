@@ -68,13 +68,14 @@ import { TerrainEditingKey, type EditableTerrain } from "../../engine/terrain/te
 import { TerrainEditSession } from "../../engine/terrain/terrainEditSession.ts";
 import { validateTerrainTile } from "../../engine/terrain/terrainLoader.ts";
 import { buildTerrainGlobalAttributes, worldTerrainRenderSource, type TerrainGlobalAttributes } from "../../engine/terrain/terrainRenderSource.ts";
-import { TerrainRuntimeStreaming } from "../../engine/terrain/terrainRuntimeStreaming.ts";
+import { TerrainResidencyKey, type TerrainResidencyHandle } from "../../engine/terrain/terrainResidency.ts";
+import type { TerrainRuntimeStreaming } from "../../engine/terrain/terrainRuntimeStreaming.ts";
 import { parseTileKey, terrainTileWorldSize, type TerrainTileData } from "../../engine/terrain/terrainTypes.ts";
 import { KeptRegionsKey } from "../../engine/world/keptRegions.ts";
 import type { StreamingSource } from "../../engine/world/streamingPolicy.ts";
 import { worldTerrainExtent } from "../../engine/terrain/worldTerrainActor.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
-import type { TerrainData as LoadedTerrain, TerrainLayerInput, TerrainTileReader } from "../../render/resources/terrains.ts";
+import type { TerrainData as LoadedTerrain, TerrainLayerInput } from "../../render/resources/terrains.ts";
 import { defineRenderBinding } from "../../render/sync/renderBinding.ts";
 import { tagTerrainStreaming, tagTerrainView } from "../../render/sync/debugTags.ts";
 import { createRoadMeshes, type RoadMeshes } from "../../render/sync/roadMeshes.ts";
@@ -116,7 +117,7 @@ interface Placed {
   view: TerrainView | null;
   roads: RoadMeshes | null;
   stream: TerrainRuntimeStreaming | null;
-  reader: TerrainTileReader | null;
+  residency: TerrainResidencyHandle | null;
   /** The sources of the stream's last update. */
   sources: readonly StreamingSource[];
   /** Ends the readiness hold; null while not held. */
@@ -153,6 +154,7 @@ function cloneGlobal(global: TerrainGlobalAttributes): TerrainGlobalAttributes {
 export default defineRenderBinding({
   feature: "forge.terrain",
   create(ctx) {
+    const residency = ctx.world.services.require(TerrainResidencyKey);
     const placed = new Map<string, Placed>();
     const camera = new Vector3();
     const terrainsOf = (actor: WorldActor) =>
@@ -192,7 +194,7 @@ export default defineRenderBinding({
       entry.placedAt = [...actor.transform.p] as [number, number, number];
       const def = session?.world.def ?? terrain.def;
       const global = session?.global ?? terrain.global;
-      const document = { def, tiles: session?.world.tiles ?? new Map<string, TerrainTileData>(), globalAttributes: global };
+      const document = { def, tiles: session?.world.tiles ?? new Map(terrain.tiles ?? []), globalAttributes: global };
       const quality = ctx.quality();
       const view = new TerrainView({
         def,
@@ -207,11 +209,11 @@ export default defineRenderBinding({
           snowShelter: (position, spacing) => ctx.precipitationCover!.snowCoverAt(position, spacing),
         } : {}),
       });
+      const reader = terrain.tiles === null && !session ? terrain.openTiles() : null;
+      let fetch: ((tile: string, signal: AbortSignal) => Promise<TerrainTileData>) | undefined;
       if (terrain.tiles === null) {
-        const reader = terrain.openTiles();
-        entry.reader = reader;
         // The editor reads a file with its revision and checks it against the session's definition; an edited tile comes back as edited.
-        const fetch = session
+        fetch = session
           ? (tile: string, signal: AbortSignal): Promise<TerrainTileData> => {
             const edited = session.edited.get(tile);
             if (edited) return Promise.resolve(edited);
@@ -221,28 +223,28 @@ export default defineRenderBinding({
               return decoded;
             }));
           }
-          : (tile: string, signal: AbortSignal): Promise<TerrainTileData> => ctx.resources.track(reader.read(tile, signal));
-        entry.stream = new TerrainRuntimeStreaming(document, { id: actor.id, name: actor.name, collision: false }, {
-          fetch,
-          changed: (tile) => view.refreshTile(tile),
-          addColliders: () => {},
-          removeColliders: () => {},
-          clock: () => performance.now(),
-          warn: (message) => console.warn(`forge render: terrain ${actor.name}: ${message}`),
-        });
+          : (tile, signal) => ctx.resources.track(reader!.read(tile, signal));
       }
+      entry.residency = residency.place({
+        actor: actor.id, component: key, document,
+        ...(fetch ? { fetch } : {}),
+        ...(reader ? { disposeReader: () => reader.dispose() } : {}),
+        changed: (tile) => view.refreshTile(tile),
+        warn: (message) => console.warn(`forge render: terrain ${actor.name}: ${message}`),
+      });
+      entry.stream = entry.residency.stream;
       view.mesh.name = `${actor.name}/${key}`;
       // Forge framed a level by its placements, never its terrain.
       view.mesh.userData.framing = false;
       tagSceneSource(view.mesh, "terrain");
       tagActorObject(view.mesh, actor.id);
       tagPickSurface(view.mesh, terrainPickSurface({ def }, view));
-      tagTerrainView(view.mesh, { view, def });
+      tagTerrainView(view.mesh, { view, def, actor: actor.id, component: key });
       if (entry.stream) tagTerrainStreaming(view.mesh, { stream: entry.stream, sources: () => entry.sources });
       entry.view = view;
       ctx.root.add(view.mesh);
       entry.roads = createRoadMeshes({
-        ctx, actor: actor.id, name: `${actor.name}/${key}`,
+        ctx, actor: actor.id, component: key, name: `${actor.name}/${key}`,
         input: () => ({
           def: session?.world.def ?? def,
           tiles: session ? session.world.tiles : (terrain.tiles ?? document.tiles),
@@ -324,20 +326,19 @@ export default defineRenderBinding({
       entry.unregister?.();
       entry.unregister = null;
       if (entry.view && terrainSurface(ctx.scene, entry.actor)?.tiles === entry.view.source) withdrawTerrainSurface(ctx.scene, entry.actor);
-      entry.stream?.dispose();
-      entry.reader?.dispose();
+      entry.residency?.dispose();
       entry.roads?.dispose();
       entry.view?.dispose();
       entry.roads = null;
       entry.stream = null;
-      entry.reader = null;
+      entry.residency = null;
       entry.view = null;
     };
 
     const add = (actor: WorldActor, key: string, data: TerrainData): void => {
       const id = `${actor.id}/${key}`;
       const entry: Placed = {
-        actor: actor.id, view: null, roads: null, stream: null, reader: null, sources: [], busy: null, settled: false, removed: false,
+        actor: actor.id, view: null, roads: null, stream: null, residency: null, sources: [], busy: null, settled: false, removed: false,
         key: data.data === null ? null : resourceKey.terrain(data.data),
         session: null, unregister: null, generation: 0, held: new Map(), demands: [],
         latest: actor, placedAt: [...actor.transform.p] as [number, number, number],
@@ -434,7 +435,7 @@ export default defineRenderBinding({
             }).map((tile) => tile.key) : [];
             // The editor's: tiles edited this session and the ones a stroke holds never stream out.
             if (entry.session) kept.push(...entry.session.edited.keys(), ...entry.held.keys());
-            stream.update(entry.sources, 1, kept);
+            entry.residency?.update(entry.sources, kept);
           }
           settleDemands(entry);
           casters ??= terrainShadowCasters(ctx.scene);

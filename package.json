@@ -46,6 +46,7 @@
     "measure:rock-material": "playwright test -c tests/smoke/rockMaterialMeasure.config.ts",
     "build": "vite build && node tools/build-content.ts",
     "verify:dist": "node tools/verify-dist.ts",
+    "verify:build": "node tools/project/buildRecord.ts",
     "gate": "npm run typecheck && npm run verify:layers && npm run verify:file-size && npm run verify:node-load && npm run verify:assets && npm run verify:sdk-api && npm run check:projects && npm run test && npm run build && npm run verify:dist -- --strict && npm run smoke:editor && npm run smoke:dist"
   },
   "dependencies": {

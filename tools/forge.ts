@@ -2,6 +2,7 @@
 //
 //   npm run forge -- check --project <path>
 //   npm run forge -- dev --project <path> [--port <port>]
+//   npm run forge -- build --project <path> [--out <folder>] [--base </path/>]
 //   npm run forge -- edit --project <path> --level <folder> [--json] <command …> | -
 //   npm run forge -- stats --project <path> --level <folder> [--json] [--top <n>]
 //   npm run forge -- zones --project <path> --level <folder> [--json] [--floor <y>] [--dry-run]
@@ -74,12 +75,26 @@ async function main(): Promise<void> {
     return;
   }
   const project = option(args, "project");
-  if ((command !== "check" && command !== "dev") || project === undefined) {
-    console.error("Usage: npm run forge -- <check|dev|edit|generate|hlod|stats|zones> --project <path> [--port <port>]");
+  if ((command !== "check" && command !== "dev" && command !== "build") || project === undefined) {
+    console.error("Usage: npm run forge -- <check|dev|build|edit|generate|hlod|stats|zones> --project <path>");
     process.exitCode = 1;
     return;
   }
   const root = resolve(project);
+
+  if (command === "build") {
+    const { buildProject } = await import("./project/buildProject.ts");
+    const outDir = option(args, "out"), base = option(args, "base");
+    try {
+      const output = await buildProject({ projectRoot: root, engineRoot,
+        ...(outDir ? { outDir } : {}), ...(base ? { base } : {}) });
+      console.log(`forge build: ${output}`);
+    } catch (error) {
+      console.error(`forge build: ${error instanceof Error ? error.message : String(error)}`);
+      process.exitCode = 1;
+    }
+    return;
+  }
 
   if (command === "check") {
     const result = await checkProject(root, engineRoot);

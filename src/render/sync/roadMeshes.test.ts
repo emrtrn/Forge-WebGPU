@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { BoxGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, PerspectiveCamera, Vector3 } from "three/webgpu";
-import type { ActorId } from "../../core/index.ts";
+import { createServices, type ActorId } from "../../core/index.ts";
 import { resolveQualitySettings } from "../../engine/perf/qualityProfiles.ts";
 import type { WorldTerrainSpline } from "../../engine/terrain/terrainTypes.ts";
 import { createFlatWorldTerrain } from "../../engine/terrain/worldTerrainCreate.ts";
@@ -45,7 +45,7 @@ function harness(model: () => Promise<ModelTemplate> = async () => roadModel()) 
     },
   } as unknown as WorldResources;
   const root = new Group();
-  const ctx = { root, resources, quality: () => resolveQualitySettings("high") } as unknown as RenderBindingContext;
+  const ctx = { root, resources, world: { services: createServices() }, quality: () => resolveQualitySettings("high") } as unknown as RenderBindingContext;
   const make = () => createRoadMeshes({ ctx, actor: "act_00000000000000000000000000000001" as ActorId, name: "Valley", input: () => ({ def, tiles, load: async (key) => tiles.get(key)! }) });
   const meshes = (): InstancedMesh[] => {
     const out: InstancedMesh[] = [];

@@ -25,6 +25,7 @@ import { effectiveViewDistance } from "../../engine/world/viewDistance.ts";
 import { createRenderHost, type RenderHost, type RenderHostOptions, type RenderQuality } from "../host/renderHost.ts";
 import { consumeCameraPose, type CameraPose } from "./cameraPose.ts";
 import { attachFlyCamera, createFlyCamera } from "./flyCamera.ts";
+import type { RuntimeCameraPose } from "../../engine/camera/worldCamera.ts";
 
 export const CAMERA_FOV = 44;
 export const CAMERA_NEAR = 0.1;
@@ -44,7 +45,7 @@ export interface LevelViewerOptions extends RenderHostOptions {
 export interface LevelViewer {
   init(): Promise<void>;
   feature(features: readonly FeatureDef[]): FeatureDef;
-  frame(now: number): void;
+  frame(now: number, controlled?: RuntimeCameraPose | null): void;
   onLost(listener: (message: string) => void): void;
   dispose(): void;
   readonly host: RenderHost | null;
@@ -130,11 +131,19 @@ export function createLevelViewer(options: LevelViewerOptions): LevelViewer {
       if (!host) throw new Error("The level viewer is not initialised.");
       return host.feature(features, "game", { buildingStreaming: options.buildingStreaming !== false });
     },
-    frame(now) {
+    frame(now, controlled) {
       if (!host || host.world === null) return;
       const dt = lastFrame === null ? 0 : Math.min(0.1, Math.max(0, (now - lastFrame) / 1000));
       lastFrame = now;
-      if (fly.update(dt)) framed = true;
+      if (controlled) {
+        applyCameraPose(camera, controlled);
+        framed = true;
+      } else if (fly.update(dt)) framed = true;
+      const fov = controlled?.fov ?? CAMERA_FOV;
+      if (camera.fov !== fov) {
+        camera.fov = fov;
+        camera.updateProjectionMatrix();
+      }
       const far = effectiveViewDistance(host.world.levelSettings?.()?.viewDistance, quality?.extensions?.viewDistanceMultiplier) ?? CAMERA_FAR;
       if (camera.far !== far) {
         camera.far = far;

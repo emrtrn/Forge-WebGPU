@@ -72,10 +72,11 @@ export class LocaleRegistry {
   private active: string | null = null;
   private readonly listeners = new Set<() => void>();
 
-  /** Registers (or replaces) a locale's table; the first one registered is the default active. */
+  /** Registers or replaces a table and refreshes mounted text when it is the active locale. */
   register(table: UiLocaleTable): void {
     this.tables.set(table.locale, table);
     if (this.active === null) this.active = table.locale;
+    if (this.active === table.locale) for (const listener of [...this.listeners]) listener();
   }
 
   /** The active locale, or null when no table has been registered. */

@@ -4,7 +4,8 @@
 // physicsBodies / physicsTypes with method bodies unchanged. The ragdoll is not
 // ported (plan K12).
 import { classifyStaticTriangle } from "./staticTriangles.ts";
-import { readColliderComponent, readTransformComponent, VEHICLE_COMPONENT, type ColliderComponent, type ColliderPrimitive, type TransformComponent } from "../legacy/components.ts";
+import { readColliderComponent, readTransformComponent, VEHICLE_COMPONENT } from "../legacy/components.ts";
+import type { ColliderComponent, ColliderPrimitive, TransformComponent } from "./colliderTypes.ts";
 import { type NavigationRole } from "./collision.ts";
 import { rotatePointAboutOrigin, rotatedBoxAabb, rotatedBoxFootprintXZ } from "./rotatedBox.ts";
 import { type ImpactVec3 } from "./impactEvents.ts";

@@ -27,6 +27,8 @@ const AUTO_LEVEL: QualityLevel = "ultra";
 const FLAGS: readonly MenuChoice[] = [
   ["grid", "Grid"],
   ["stats", "Stats (FPS)"],
+  ["collision", "Collision"],
+  ["navigation", "AI Navigation"],
 ];
 
 export interface ViewportControlsOptions {
@@ -102,10 +104,12 @@ export function createViewportControls(options: ViewportControlsOptions): Viewpo
       options.status(`Graphics quality: ${next === "auto" ? "Auto (Play calibrates)" : next}.`);
     },
     flags: FLAGS,
-    flag: (id) => (id === "grid" ? viewport.gridVisible : id === "stats" ? statsWanted : false),
+    flag: (id) => id === "grid" ? viewport.gridVisible : id === "stats" ? statsWanted
+      : (id === "collision" || id === "navigation") && viewport.helperVisible(id),
     setFlag(id, on) {
       if (id === "grid") viewport.setGridVisible(on);
       else if (id === "stats") setStats(on);
+      else if (id === "collision" || id === "navigation") viewport.setHelperVisible(id, on);
     },
   };
 }

@@ -42,14 +42,14 @@ export const FORGE_ASSET_TYPES: Readonly<Record<string, { readonly type: ImportT
 };
 
 /** Forge model sidecars converted into the model's import settings (`forge.model@2`, `modelSidecars.ts`). */
-export const CONVERTED_MODEL_SIDECARS: readonly string[] = [".materials.json", ".uvw.json", ".vertexcolors.json"];
+export const CONVERTED_MODEL_SIDECARS: readonly string[] = [".materials.json", ".uvw.json", ".vertexcolors.json", ".collision.json"];
 
 /** Forge model sidecars: the phase that converts each; `converted` for those converted now. */
 export const MODEL_SIDECAR_PHASES: Readonly<Record<string, string>> = {
   ".materials.json": "converted",
   ".uvw.json": "converted",
   ".vertexcolors.json": "converted",
-  ".collision.json": "6",
+  ".collision.json": "converted",
   ".fracture.json": "8",
   ".deformable.json": "8",
 };

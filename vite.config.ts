@@ -10,6 +10,8 @@ export const SMOKE_PORT = 5283;
 
 export default defineConfig({
   plugins: [forgeServerPlugin()],
+  // Recast loads its WASM implementation through a dynamic worker import.
+  worker: { format: "es" },
   resolve: {
     // The only engine imports a game project has (A8). Its generated
     // tsconfig knows these two names and nothing else.

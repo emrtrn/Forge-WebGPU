@@ -1,0 +1,8 @@
+{
+  "schema": "forge.uiWidget/1",
+  "id": "ast_0133bd930b714eb185c41ef3325d75c1",
+  "name": "Scout Label",
+  "nodes": [
+    { "id": "scout", "kind": "Text", "localeKey": "rts.scout", "foregroundToken": "color.label", "backgroundToken": "color.surface", "padding": 5 }
+  ]
+}

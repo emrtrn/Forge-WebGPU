@@ -9,6 +9,15 @@ const BOX = "font: 14px/1.5 system-ui, sans-serif; color: #e6e6e6; background: #
 const BUTTON = "font: 14px system-ui, sans-serif; margin: 0 0 12px; padding: 6px 14px; cursor: pointer;";
 
 export function createBootScreen(document: Document, root: HTMLElement): BootScreen {
+  const loading = document.createElement("section");
+  loading.setAttribute("data-testid", "boot-progress");
+  loading.setAttribute("role", "status");
+  loading.style.cssText = BOX;
+  const bar = document.createElement("progress");
+  bar.max = 1;
+  bar.setAttribute("aria-label", "Loading progress");
+  const stage = document.createElement("p");
+  loading.append(stage, bar);
   const text = (tag: string, content: string, css = ""): HTMLElement => {
     const element = document.createElement(tag);
     element.textContent = content;
@@ -36,6 +45,11 @@ export function createBootScreen(document: Document, root: HTMLElement): BootScr
   };
   return {
     info: (title, message) => show("info", title, message, []),
+    progress(message, fraction) {
+      stage.textContent = message;
+      bar.value = fraction;
+      if (loading.parentElement !== root) root.replaceChildren(loading);
+    },
     error: (view: BootErrorView) => show("error", view.title, view.message, view.details, view.reload === true),
     clear: () => root.replaceChildren(),
   };

@@ -1,10 +1,12 @@
 import { describe, expect, test } from "vitest";
-import { defineFeature, defineSubsystem, type FeatureDef } from "../core/index.ts";
+import { defineComponent, defineFeature, defineSaveState, defineSubsystem, num, type FeatureDef, type SaveGameDoc } from "../core/index.ts";
 import { actorId, assetId, Collider, Driver, Fog, levelId, StaticMesh } from "../core/level/testKit.ts";
 import { bootErrorView, bootGame, type BootErrorView, type BootOptions, type BootRender, type BootScreen } from "./boot.ts";
 import { createBootScreen } from "./bootScreen.ts";
 import { defineGameModule } from "./gameModule.ts";
 import { WorldError } from "./world.ts";
+import { CheckpointKey } from "../engine/persistence/checkpointService.ts";
+import { createMemoryStorageAdapter, SaveGameStore } from "../engine/persistence/saveGameStore.ts";
 
 const components = defineFeature({ id: "test.components", components: [Fog, Collider, StaticMesh, Driver] });
 const LEVEL = { schema: "forge.level/1", id: levelId("1"), actors: [{ id: actorId("1"), name: "Fog", components: { fog: { type: "test.fog@2" } } }] };
@@ -61,6 +63,48 @@ function ticker(log: string[]): FeatureDef {
 }
 
 describe("bootGame", () => {
+  test("a checkpoint restores the level's stamped actor state, destruction, spawned actor and game state", async () => {
+    const Counter = defineComponent("test.counter", 1, { value: num({ default: 0, persist: true }) }, {
+      persistTransform: true, state: { ticks: num({ default: 0 }) },
+    });
+    const Progress = defineSaveState("test.progress", 1, { wave: num({ default: 1 }) });
+    const feature = defineFeature({ id: "test.checkpoint", components: [Counter], saveStates: [Progress] });
+    const counter = {
+      id: actorId("c"), name: "Counter",
+      components: { counter: { type: "test.counter@1" } },
+    };
+    const target = { id: actorId("d"), name: "Removed target", components: {} };
+    const loadLevel = async () => ({ level: { ...LEVEL, actors: [counter, target] } });
+    const storage = createMemoryStorageAdapter();
+    const store = new SaveGameStore<SaveGameDoc>({ gameId: "checkpoint-fixture", storage, schema: 1 });
+    const first = await bootGame(harness({ features: [feature], loadLevel, checkpoint: { store } }).options);
+    expect(first).not.toBeNull();
+    const current = first!.world.context.actor(counter.id)!;
+    current.components.counter!.value = 3;
+    current.components.counter!.ticks = 7;
+    current.transform.p = [3, 2, 1];
+    first!.world.context.destroyActors([target.id]);
+    const [spawned] = first!.world.context.spawnActors([{ ...counter, id: actorId("e") }]);
+    spawned!.transform.p = [5, 4, 3];
+    const saves = first!.world.services.require(CheckpointKey);
+    saves.setState(Progress, { wave: 2 });
+    expect(saves.save("quick")).toBe(true);
+    first!.stop();
+
+    const second = await bootGame(harness({ features: [feature], loadLevel, checkpoint: { store, initialSlot: "quick" } }).options);
+    expect(second).not.toBeNull();
+    try {
+      expect(second!.world.context.actor(counter.id)).toMatchObject({
+        transform: { p: [3, 2, 1] }, components: { counter: { value: 3, ticks: 7 } },
+      });
+      expect(second!.world.context.actor(spawned!.id)).toMatchObject({ origin: "spawned", transform: { p: [5, 4, 3] } });
+      expect(second!.world.context.actor(target.id)).toBeUndefined();
+      expect(second!.world.services.require(CheckpointKey).state(Progress)).toEqual({ wave: 2 });
+    } finally {
+      second!.stop();
+    }
+  });
+
   test("nothing to open: an info screen, no world", async () => {
     const { options, shown } = harness({ loadLevel: async () => null });
     expect(await bootGame(options)).toBeNull();
@@ -200,6 +244,26 @@ describe("bootGame", () => {
       const shown = await harnessBoot({ render, loadLevel: async () => (log.push("load level"), { level: LEVEL }) });
       expect(shown).toMatchObject({ kind: "error", title: "The renderer could not be started", view: { message: "WebGPU is not available" } });
       expect(log).toEqual(["render init", "render dispose"]);
+    });
+
+    test("loading progress stays visible until the renderer settles its initial scene assets", async () => {
+      const { render } = fakeRender([]);
+      let ready = false;
+      const progress: [string, number][] = [];
+      const { options, shown, step } = harness({ render: { ...render, ready: () => ready } });
+      const game = await bootGame({ ...options, screen: { ...options.screen, progress: (message, value) => progress.push([message, value]) } });
+      expect(game).not.toBeNull();
+      try {
+        expect(progress.map(([, value]) => value)).toEqual([0, 0.2, 0.4, 0.6, 0.8]);
+        expect(progress.at(-1)?.[0]).toBe("Loading scene assets");
+        step(16);
+        expect(shown).toEqual([]);
+        ready = true;
+        step(32);
+        expect(shown).toEqual([{ kind: "clear", title: "" }]);
+      } finally {
+        game?.stop();
+      }
     });
 
     test("a lost device stops the loop for good, ends play and offers a reload", async () => {

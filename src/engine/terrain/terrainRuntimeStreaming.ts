@@ -1,15 +1,22 @@
 // Ported from Forge WebGL engine/terrain/terrainRuntimeStreaming.ts @ forge-webgl-final (04b5fb23); docs/PORT_LOG.md §2.
-import type { Entity } from "../legacy/entity.ts";
+import type { Vec3 } from "../../core/index.ts";
+import type { ColliderPrimitive } from "../physics/colliderTypes.ts";
 import { computeStreamingTargets, type GridStreamingSettings, type StreamingSource } from "../world/streamingPolicy.ts";
 import { WorldStreamingSubsystem } from "../world/worldStreamingSubsystem.ts";
 import type { WorldTerrainDocument } from "./terrainLoader.ts";
 import { createFlatTerrainTile, parseTileKey, terrainTileWorldSize, tileKey, type TerrainTileData } from "./terrainTypes.ts";
-import { worldTerrainColliderEntities, worldTerrainColliderEntityId } from "./worldTerrainActor.ts";
+import { terrainTileHeightfield, worldTerrainColliderEntityId } from "./worldTerrainActor.ts";
+
+export interface TerrainColliderTile {
+  readonly id: string;
+  readonly translation: Vec3;
+  readonly primitive: ColliderPrimitive;
+}
 
 export interface TerrainStreamingHooks {
   fetch(key: string, signal: AbortSignal): Promise<TerrainTileData>;
   changed(key: string): void;
-  addColliders(entities: Entity[]): void;
+  addColliders(tiles: readonly TerrainColliderTile[]): void;
   removeColliders(ids: string[]): void;
   clock(): number;
   warn(message: string): void;
@@ -32,7 +39,7 @@ export interface TerrainStreamingDebugGrid {
  * the document exposes only activated render data, and physics has a smaller ring. */
 export class TerrainRuntimeStreaming {
   readonly world: WorldStreamingSubsystem<TerrainTileData | null>;
-  readonly colliders = new Map<string, Entity>();
+  readonly colliders = new Map<string, TerrainColliderTile>();
   readonly residentTiles = new Set<TerrainTileData>();
   lastFrameMs = 0;
   private readonly declared: Set<string>;
@@ -101,13 +108,17 @@ export class TerrainRuntimeStreaming {
     });
   }
 
-  update(sources: readonly StreamingSource[], viewDistanceMultiplier = 1, keptTiles: readonly string[] = []): void {
+  update(sources: readonly StreamingSource[], viewDistanceMultiplier = 1, keptTiles: readonly string[] = [],
+    physicsSources: readonly StreamingSource[] = sources): void {
     const started = this.hooks.clock();
     this.activations = 0;
-    this.sources = sources;
+    this.sources = physicsSources;
     // Physics is never scaled below its safety ring by a graphics preference.
     this.settings.viewDistanceMultiplier = Math.max(0.5, viewDistanceMultiplier);
-    this.world.update(sources, 4, keptTiles);
+    this.world.update(sources, 4, [
+      ...keptTiles,
+      ...(physicsSources !== sources && this.actor.collision ? this.targetKeys(physicsSources, this.physicsRange) : []),
+    ]);
     const wanted = this.physicsTargets();
     const removed = [...this.colliders.keys()].filter((key) => !wanted.has(key));
     if (removed.length) {
@@ -130,10 +141,13 @@ export class TerrainRuntimeStreaming {
   /** Only declared terrain blocks motion: holes and positions outside it remain traversable. */
   canOccupy(position: readonly [number, number], radius = 1): boolean {
     if (!this.actor.collision) return true;
-    const needed = computeStreamingTargets({ loaded: new Set(), active: new Set() }, [{ position }], {
+    return this.targetKeys([{ position }], radius).every((key) => this.colliders.has(key));
+  }
+
+  private targetKeys(sources: readonly StreamingSource[], radius: number): string[] {
+    return computeStreamingTargets({ loaded: new Set(), active: new Set() }, sources, {
       ...this.settings, loadRange: radius, activateRange: radius, viewDistanceMultiplier: 1,
-    }, this.bounds).toLoad;
-    return needed.every((key) => !this.declared.has(key) || this.colliders.has(key));
+    }, this.bounds).toLoad.filter((key) => this.declared.has(key));
   }
 
   dispose(): void { this.world.dispose(); }
@@ -168,11 +182,9 @@ export class TerrainRuntimeStreaming {
 
   private addCollider(key: string, tile: TerrainTileData): void {
     if (this.colliders.has(key) || !this.actor.collision) return;
-    const entities = worldTerrainColliderEntities(this.actor, { def: { ...this.document.def, tiles: this.document.def.tiles.filter((entry) => entry.key === key) }, tiles: new Map([[key, tile]]) });
-    const entity = entities[0];
-    if (!entity) return;
-    this.hooks.addColliders(entities);
-    this.colliders.set(key, entity);
+    const collider = { id: worldTerrainColliderEntityId(this.actor.id, key), ...terrainTileHeightfield(this.document.def, tile) };
+    this.hooks.addColliders([collider]);
+    this.colliders.set(key, collider);
   }
 
   private removeCollider(key: string): void {

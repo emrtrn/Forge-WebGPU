@@ -56,7 +56,8 @@ describe("importForgeLevel", () => {
       "WB Valley", "Fog", "Sky Light", "directional#0", "Player Start", "building.house", "rock#0", "rock#1",
     ]);
     const [, , , , start, house, rock, bare] = level.actors;
-    expect(start).toMatchObject({ components: {}, transform: { p: [1, 2, 3], r: eulerXyzQuaternion(0, 90, 0) } });
+    expect(start).toMatchObject({ spatiallyLoaded: false, components: { playerStart: { type: "forge.playerStart@1" } },
+      transform: { p: [1, 2, 3], r: eulerXyzQuaternion(0, 90, 0) } });
     // The level does not say `staticObjectsCastShadow`: Forge's default (off) goes on every placement.
     expect(house!.class === null && house!.components).toEqual({
       shape: {

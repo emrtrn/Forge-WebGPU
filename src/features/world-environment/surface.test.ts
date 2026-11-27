@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import {
   applyActorState, captureActorState, createContext, createSaveGame, createSchemaRegistry, installFeatures,
   normalizeLevel, normalizeSaveGame, type ActorId,
@@ -8,7 +8,9 @@ import { SURFACE_RATES } from "../../engine/environment/surfaceAccumulation.ts";
 import { WEATHER_SKY_DEFAULTS } from "../../engine/environment/weatherPresets.ts";
 import { WorldEnvironmentKey, WorldEnvironmentServiceKey } from "../../engine/environment/worldEnvironmentRuntime.ts";
 import { resolveWorldWind } from "../../engine/environment/worldWind.ts";
+import { AudioServiceKey } from "../../engine/audio/worldAudio.ts";
 import { assembleLevel } from "../../runtime/assembler.ts";
+import { AudioSubsystem } from "../../runtime/audio/audioSubsystem.ts";
 import { createWorld } from "../../runtime/world.ts";
 import feature from "./feature.ts";
 import { WorldEnvironment } from "./schema.ts";
@@ -21,6 +23,40 @@ const level = (surface = {}) => normalizeLevel({ schema: "forge.level/1", id: "l
   settings: { wind: { directionDeg: 90, strength: .5, gust: .2 } },
   actors: [{ id: actor, spatiallyLoaded: false, components: { environment: { type: "forge.worldEnvironment@3", surface } } }],
 }, options).value!;
+
+test("the configured rain loop follows live precipitation and stops in clear weather", () => {
+  const clip = "ast_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+  const document = normalizeLevel({ schema: "forge.level/1", id: level().id,
+    actors: [{ id: actor, components: { environment: {
+      type: "forge.worldEnvironment@3", precipitation: { rain: { sound: clip, soundVolume: 0.6 } },
+    } } }],
+  }, options).value!;
+  const world = createWorld({ ...options, features: [feature] });
+  const audio = new AudioSubsystem();
+  const plays = vi.spyOn(audio, "play");
+  world.services.provide(AudioServiceKey, audio);
+  world.init();
+  try {
+    assembleLevel(world, document, options);
+    world.beginPlay();
+    const weather = world.services.require(WorldEnvironmentServiceKey);
+    world.tick(0.016);
+    expect(plays).not.toHaveBeenCalled();
+    weather.setWeather("rain", 0.5);
+    world.tick(0.016);
+    expect(plays).toHaveBeenCalledExactlyOnceWith(clip, { loop: true, bus: "ambience", volume: 0.3 });
+    const loop = plays.mock.results[0]!.value;
+    weather.setWeather("rain", 1);
+    world.tick(0.016);
+    expect(loop.volume).toBe(0.6);
+    weather.setWeather("clear");
+    world.tick(0.016);
+    expect(loop.stopped).toBe(true);
+  } finally {
+    world.dispose();
+    audio.dispose();
+  }
+});
 
 describe("WES simulation cover, PV-WES-06/07", () => {
   test("hour jumps and season/weather do not accumulate; a fixed hour accumulates, pause holds and targets clamp", async () => {

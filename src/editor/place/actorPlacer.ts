@@ -152,6 +152,7 @@ export function createActorPlacer(options: ActorPlacerOptions): ActorPlacer {
         id,
         label: entry.label,
         ...(entry.classId ? { classId: entry.classId } : { components: entry.components }),
+        ...(entry.spatiallyLoaded !== undefined ? { spatiallyLoaded: entry.spatiallyLoaded } : {}),
         position,
         rotation: entry.rotation ?? [0, 0, 0],
       },

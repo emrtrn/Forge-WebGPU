@@ -1,11 +1,10 @@
 // Ported from Forge WebGL tests/engine/terrainRuntimeStreaming.test.ts @ forge-webgl-final (04b5fb23): checks unchanged, run by
 // Vitest; 4 check(s) not yet portable left out. docs/PORT_LOG.md §2.
 import assert from "node:assert/strict";
-import { type Entity } from "../legacy/entity.ts";
 import { encodeTerrainGlobalMap } from "./terrainGlobalMapFile.ts";
 import { loadWorldTerrain, type WorldTerrainDocument } from "./terrainLoader.ts";
 import { buildTerrainGlobalAttributes, worldTerrainRenderSource } from "./terrainRenderSource.ts";
-import { TerrainRuntimeStreaming } from "./terrainRuntimeStreaming.ts";
+import { TerrainRuntimeStreaming, type TerrainColliderTile } from "./terrainRuntimeStreaming.ts";
 import { encodeTerrainTile } from "./terrainTileCodec.ts";
 import { createFlatTerrainTile, terrainGlobalMapPath, terrainTilePath, type TerrainTileData, type WorldTerrainDef } from "./terrainTypes.ts";
 import { test } from "vitest";
@@ -54,7 +53,7 @@ export async function registerTerrainRuntimeStreamingTests(check: Check, checkAs
   await checkAsync("terrain streaming activation owns render data and heightfields, physics ring is smaller, release evicts data and holes never block", async () => {
     const full = fixture();
     const doc: WorldTerrainDocument = { ...full, tiles: new Map() };
-    const added = new Map<string, Entity>();
+    const added = new Map<string, TerrainColliderTile>();
     const removed: string[] = [];
     const changed: string[] = [];
     const stream = new TerrainRuntimeStreaming(doc, { id: "actor", name: "World", collision: true }, {

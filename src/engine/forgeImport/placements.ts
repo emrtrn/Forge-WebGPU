@@ -14,8 +14,7 @@
  * - `castShadow` is the placement's own value, else the writer's default
  *   (the importer resolves Forge's level-wide `staticObjectsCastShadow`; user
  *   decision 2026-11-13). Receiving shadows is always on.
- * - A `marker:playerStart` placement is an actor named "Player Start" without
- *   components until the Player Start feature (Faz 6). Another marker is left
+ * - A `marker:playerStart` placement becomes a persistent Player Start. Another marker is left
  *   out and counted.
  * - The transform is the placement's: position, Euler XYZ degrees (or the
  *   legacy `rotationYDeg`) as a quaternion, uniform or per-axis scale.
@@ -182,9 +181,11 @@ export function placementGroupActors(groups: readonly PlacementGroup[], options:
   return { actors, counts, skipped, unresolvedMaterials };
 }
 
-/** The Player Start: an actor of that name without components until the Player Start feature (Faz 6). */
 export function playerStartActor(id: ActorId, transform: Transform): ActorDoc {
-  return { id, name: PLAYER_START_NAME, class: null, parent: null, spatiallyLoaded: true, transform, components: {} };
+  return {
+    id, name: PLAYER_START_NAME, class: null, parent: null, spatiallyLoaded: false, transform,
+    components: { playerStart: { type: "forge.playerStart@1", parent: null, local: structuredClone(IDENTITY_LOCAL) } },
+  };
 }
 
 /** A terrain actor in the persistent layer, at the centre of its tile grid; `material` is Forge's Landscape material. */

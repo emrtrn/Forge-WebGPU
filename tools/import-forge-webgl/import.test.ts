@@ -198,7 +198,7 @@ describe("import:forge", () => {
     expect(report).not.toContain("| `worldSettings` |");
     expect(report).toContain("| `instances[].materialSlot=m-gone` | 1 |");
     expect(report).toContain("Static shadow switch (`worldSettings.staticObjectsCastShadow`): off");
-    expect(report).toContain("converted into the model's import settings: .materials.json 1, .uvw.json 1, .vertexcolors.json 1; not converted: .collision.json → 6 1");
+    expect(report).toContain("converted into the model's import settings: .materials.json 1, .uvw.json 1, .vertexcolors.json 1, .collision.json 1");
     expect(report).toContain("rock materials → m-gone");
     expect(report).not.toContain("Valley.foliage.json → phase");
     expect(report).toContain("- Foliage: landscape rules 1 → `forge.landscapeFoliage`; painted instances 4 → `foliage.json` (on static meshes 1); "

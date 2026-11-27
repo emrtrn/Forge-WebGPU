@@ -45,7 +45,7 @@ import { createEditorCameraPoseStore, readEditorCameraPose, type PoseStorage } f
 import { createEditorCamera, type CameraView, type EditorCamera, type ViewportCamera } from "./editorCamera.ts";
 import { createEditorGrid, type EditorGrid, type GridPlane } from "./grid.ts";
 import { createActorIcons, type ActorIcons } from "./actorIcon.ts";
-import { createEditorHelpersFeature, type EditorRenderBindingDef } from "./editorBinding.ts";
+import { createEditorHelpersFeature, type EditorHelperFlag, type EditorRenderBindingDef } from "./editorBinding.ts";
 import { createViewportGizmo, type GizmoView, type ViewportGizmo } from "./gizmo.ts";
 import { createEditorOverlay, type EditorOverlay } from "./overlay.ts";
 import { createBrushCursor, type BrushCursor } from "./brushCursor.ts";
@@ -138,6 +138,8 @@ export interface EditorViewport {
   playPose(): { readonly position: [number, number, number]; readonly quaternion: [number, number, number, number] };
   readonly gridVisible: boolean;
   setGridVisible(visible: boolean): void;
+  helperVisible(flag: EditorHelperFlag): boolean;
+  setHelperVisible(flag: EditorHelperFlag, visible: boolean): void;
   setQuality(quality: RenderQuality): void;
   onLost(listener: (message: string) => void): void;
   dispose(): void;
@@ -263,6 +265,7 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
   };
   let grid: EditorGrid | null = null;
   let gridVisible = true;
+  const shownHelpers = new Set<EditorHelperFlag>();
   let quality: RenderQuality | null = null;
   let framed = false;
   let settledFrames = 0;
@@ -370,6 +373,11 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
         sceneVisibility: overlay.sceneVisibility,
         icons,
         camera: () => camera.active(),
+        show: (flag) => shownHelpers.has(flag),
+        modelCollision: (asset) => options.assetUrls.type(asset) === "forge.model" ? {
+          bounds: options.assetUrls.modelBounds?.(asset) ?? null,
+          settings: options.assetUrls.importSettings(asset)?.collision,
+        } : null,
       });
     },
     frame(now) {
@@ -535,6 +543,11 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
     },
     get gridVisible() {
       return gridVisible;
+    },
+    helperVisible: (flag) => shownHelpers.has(flag),
+    setHelperVisible(flag, visible) {
+      if (visible) shownHelpers.add(flag);
+      else shownHelpers.delete(flag);
     },
     setGridVisible(visible) {
       gridVisible = visible;

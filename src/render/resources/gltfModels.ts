@@ -88,7 +88,7 @@ export function createGltfModelSource(renderer: WebGPURenderer, urls: AssetUrls)
       applyDefaultModelTextureAnisotropy(gltf.scene, renderer.getMaxAnisotropy());
       applyUvwMapping(gltf.scene, uvwOf(settings));
       if (isJsonObject(settings) && Array.isArray(settings.vertexColors)) applyModelVertexColors(gltf.scene, settings.vertexColors as unknown as ModelVertexColors[]);
-      return { scene: gltf.scene, slots: modelMaterialSlots(gltf.scene), slotMaterials: slotMaterialsOf(settings) };
+      return { scene: gltf.scene, slots: modelMaterialSlots(gltf.scene), slotMaterials: slotMaterialsOf(settings), animations: gltf.animations };
     },
     ktx2,
     dispose: () => ktx2.dispose(),

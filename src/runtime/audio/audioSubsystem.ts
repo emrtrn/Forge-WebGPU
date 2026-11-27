@@ -118,6 +118,7 @@ export interface AudioSubsystemOptions {
    * Injected by the host so the engine layer stays manifest-agnostic.
    */
   resolveClipUrl?: (clipId: string) => string | null;
+  fetchHeaders?: Readonly<Record<string, string>>;
 }
 
 type BrowserAudioContext = AudioContext;
@@ -338,6 +339,7 @@ export class AudioSubsystem implements AudioBus {
   private readonly backend: AudioBackend;
   private readonly clips: AudioClipManifest;
   private readonly resolveClipUrl?: (clipId: string) => string | null;
+  private readonly fetchHeaders: Readonly<Record<string, string>> | undefined;
   private context: BrowserAudioContext | null = null;
   private pending: Array<{ request: AudioPlayRequest; handle: RuntimeAudioPlaybackHandle }> = [];
   private readonly active = new Set<RuntimeAudioPlaybackHandle>();
@@ -388,6 +390,7 @@ export class AudioSubsystem implements AudioBus {
     this.maxVoices = Math.max(1, Math.round(options.maxVoices ?? DEFAULT_MAX_VOICES));
     this.clips = options.clips ?? DEFAULT_AUDIO_CLIP_MANIFEST;
     if (options.resolveClipUrl) this.resolveClipUrl = options.resolveClipUrl;
+    this.fetchHeaders = options.fetchHeaders;
   }
 
   /**
@@ -785,8 +788,11 @@ export class AudioSubsystem implements AudioBus {
   private loadBuffer(context: BrowserAudioContext, url: string): Promise<AudioBuffer | null> {
     let pending = this.buffers.get(url);
     if (!pending) {
-      pending = fetch(url)
-        .then((response) => response.arrayBuffer())
+      pending = fetch(url, this.fetchHeaders ? { headers: this.fetchHeaders } : undefined)
+        .then((response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.arrayBuffer();
+        })
         .then((data) => context.decodeAudioData(data))
         .catch((error: unknown) => {
           // Reported, and the reason is a failure mode this used to hide

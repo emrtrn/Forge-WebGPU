@@ -6,7 +6,7 @@
 import { type NavigationObstacleVisitor, type NavigationRect, type NavigationTriangleVisitor } from "./navigationGeometry.ts";
 import { type GroundSurfaceSample } from "../movement/slopeSurface.ts";
 import type { EngineUpdateContext, Subsystem } from "../subsystem.ts";
-import { type TransformComponent } from "../legacy/components.ts";
+import { type TransformComponent } from "./colliderTypes.ts";
 import { interactionGroupsInteract } from "./collision.ts";
 import { FixedStepClock, lerpPosition, nlerpQuaternion } from "./fixedStep.ts";
 import { ImpactAccumulator, impulseToForceThreshold, manifoldNormal, type ImpactContactPoint, type ImpactVec3, type PhysicsImpact } from "./impactEvents.ts";
@@ -20,8 +20,23 @@ import { PHYSICS_SUBSYSTEM_ID, PASS_THROUGH_MARGIN, type PhysicsBackend, type Ph
 import { impactNormal, contactKey, isOutsideDynamicActiveArea, bodyAabb, aabbOverlaps, cloneTransform, bodyFromEntity, colliderDescsForBody, rigidBodyDescForBody, vectorFromTransform, vectorFromVec3, quaternionFromEulerDegrees, eulerDegreesFromQuaternion } from "./physicsBodies.ts";
 import { StaticWorld } from "./staticWorld.ts";
 import { VehiclePhysics } from "./vehiclePhysics.ts";
+import { PhysicsCasts } from "./physicsCasts.ts";
+
+let rapierPreparation: Promise<RapierModule> | undefined;
+
+export function loadRapier(): Promise<RapierModule> {
+  rapierPreparation ??= import("@dimforge/rapier3d-compat").then(async (rapier) => {
+    await rapier.init();
+    return rapier;
+  }).catch((error: unknown) => {
+    rapierPreparation = undefined;
+    throw error;
+  });
+  return rapierPreparation;
+}
 
 export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
+  readonly casts = new PhysicsCasts();
   readonly id = PHYSICS_SUBSYSTEM_ID;
   private readonly backend: PhysicsBackend;
   private bodies: PhysicsBody[] = [];
@@ -150,8 +165,13 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
    */
   async init(): Promise<void> {
     if (this.backend !== "rapier" || this.bodies.length === 0) return;
-    this.rapierModule = await import("@dimforge/rapier3d-compat");
-    await this.rapierModule.init();
+    this.startRapier(await loadRapier());
+  }
+
+  /** The host has prepared WASM. This World can now accept even its first collider during play. */
+  startRapier(rapier: RapierModule): void {
+    if (this.rapierWorld) return;
+    this.rapierModule = rapier;
     this.rebuildRapierWorld();
   }
 
@@ -225,12 +245,18 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
 
   /** Adds a batch in input order, invalidating legacy flat caches only once. */
   addEntities(entities: readonly Entity[]): number {
+    return this.addBodies(entities.flatMap((entity) => {
+      const body = bodyFromEntity(entity);
+      return body ? [body] : [];
+    }));
+  }
+
+  /** Adds resolved bodies from schema components or streamed physics geometry. */
+  addBodies(bodies: readonly PhysicsBody[]): number {
     let added = 0;
     let addedStatic = false;
-    for (const entity of entities) {
-      if (this.bodiesById.has(entity.id)) continue;
-      const body = bodyFromEntity(entity);
-      if (!body) continue;
+    for (const body of bodies) {
+      if (this.bodiesById.has(body.id)) continue;
       this.bodies.push(body);
       this.bodiesById.set(body.id, body);
       this.staticWorld.recordStaticBody(body);
@@ -269,6 +295,8 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
     } else {
       rapier.body.setTranslation(translation, true);
       rapier.body.setRotation(rotation, true);
+      this.rapierWorld?.propagateModifiedBodyPositionsToColliders();
+      for (const collider of rapier.colliders) this.casts.changed(collider);
     }
   }
 
@@ -300,7 +328,10 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
       this.vehiclePhysics.removeVehicle(entityId);
       const record = this.rapierBodies.get(entityId);
       if (record) {
-        for (const collider of record.colliders) this.rapierColliderToEntity.delete(collider.handle);
+        for (const collider of record.colliders) {
+          this.rapierColliderToEntity.delete(collider.handle);
+          this.casts.removed(collider);
+        }
         this.rapierWorld?.removeRigidBody(record.body);
         this.rapierBodies.delete(entityId);
       }
@@ -338,7 +369,10 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
     );
     const record = this.rapierBodies.get(entityId);
     if (record) {
-      for (const collider of record.colliders) collider.setEnabled(enabled);
+      for (const collider of record.colliders) {
+        collider.setEnabled(enabled);
+        this.casts.changed(collider);
+      }
     }
   }
 
@@ -349,6 +383,10 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
 
   contactsForEntity(entityId: EntityId): readonly PhysicsContact[] {
     return this.contacts.filter((contact) => contact.a === entityId || contact.b === entityId);
+  }
+
+  currentContacts(): readonly PhysicsContact[] {
+    return this.contacts;
   }
 
   /**
@@ -634,7 +672,12 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
     record.body.applyImpulse({ x: impulse[0], y: impulse[1], z: impulse[2] }, true);
   }
 
-  update(_context: EngineUpdateContext): void {
+  update(context: EngineUpdateContext): void {
+    this.step(context.deltaSeconds);
+  }
+
+  step(dt: number): void {
+    this.frameStepCount = 0;
     this.frameImpacts = [];
     this.frameImpactsOverBudget = 0;
     if (!this.enabled) {
@@ -645,7 +688,7 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
       // Fixed slices, not one frame-sized step: the result must not depend on
       // the frame rate. A frame shorter than a slice simulates nothing and only
       // advances the render blend below.
-      const steps = this.stepClock.advance(_context.deltaSeconds);
+      const steps = this.stepClock.advance(dt);
       this.frameStepCount = steps;
       if (steps > 0) {
         this.updateDynamicActiveArea();
@@ -665,6 +708,7 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
           } else {
             this.rapierWorld.step();
           }
+          this.casts.stepped();
           this.vehiclePhysics.applyVehicleGroundResistance(this.stepClock.step);
           for (const listener of this.fixedStepListeners) listener(this.stepClock.step);
         }
@@ -746,6 +790,7 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
 
   dispose(): void {
     this.clear();
+    this.casts.detach();
     this.rapierWorld?.free();
     this.rapierWorld = null;
     this.rapierEventQueue?.free();
@@ -763,6 +808,7 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
     for (const vehicle of this.vehiclePhysics.vehicles.values()) vehicle.controller = null;
     this.rapierWorld?.free();
     this.rapierWorld = new RAPIER.World(vectorFromVec3(this.gravity));
+    this.casts.attach(RAPIER, this.rapierWorld, (handle) => this.rapierColliderToEntity.get(handle));
     this.rapierWorld.timestep = this.stepClock.step;
     // Auto-drained before every step, so events nobody reads never pile up.
     this.rapierEventQueue ??= new RAPIER.EventQueue(true);
@@ -803,7 +849,10 @@ export class PhysicsSubsystem implements Subsystem, PhysicsQuery {
       colliders,
       isSensor: body.collider.isSensor,
     });
-    for (const collider of colliders) this.rapierColliderToEntity.set(collider.handle, body.id);
+    for (const collider of colliders) {
+      this.rapierColliderToEntity.set(collider.handle, body.id);
+      this.casts.changed(collider);
+    }
     const record = this.rapierBodies.get(body.id);
     if (record && this.impactThresholds.has(body.id)) this.applyImpactEvents(record);
     if (body.vehicle && !this.vehiclePhysics.vehicles.has(body.id)) {

@@ -169,7 +169,8 @@ async function targetCounts(projectRoot: string, folder: string): Promise<Target
       if (key !== null) counts.cellActors.set(key, [...(counts.cellActors.get(key) ?? []), String(actor.name)]);
       if (persistent) counts.persistent += 1;
       const components = isJsonObject(actor.components) ? Object.values(actor.components) : [];
-      if (components.length === 0 && actor.name === "Player Start") counts.playerStarts += 1;
+      if (components.some((component) => isJsonObject(component) && String(component.type).startsWith("forge.playerStart@")) ||
+          (components.length === 0 && actor.name === "Player Start")) counts.playerStarts += 1;
       for (const component of components) {
         const type = isJsonObject(component) && typeof component.type === "string" ? component.type.split("@")[0] : "";
         const data = isJsonObject(component) ? component : {};

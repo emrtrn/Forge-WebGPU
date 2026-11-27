@@ -2,7 +2,7 @@
 // Bindings ask for what they draw by asset GUID or procedural recipe; the
 // counts go to the world's owner, and `releaseAll` runs when the world goes.
 
-import type { BufferGeometry, Material, Object3D, Texture } from "three/webgpu";
+import type { AnimationClip, BufferGeometry, Material, Object3D, Texture } from "three/webgpu";
 import type { MaterialContributions } from "../materials/contributions.ts";
 import { createShapeMaterial } from "../materials/shapeMaterial.ts";
 import { resourceKey, type ResourceCache, type ResourceOwner } from "./resourceCache.ts";
@@ -18,6 +18,7 @@ export interface ModelTemplate {
   readonly slots: readonly Material[];
   /** The model's default material per slot (`forge.model` `materials`); null keeps the GLB's. */
   readonly slotMaterials: readonly (string | null)[];
+  readonly animations?: readonly AnimationClip[];
 }
 
 /** Loads a model asset by GUID (the host's glTF loader and asset URLs). */

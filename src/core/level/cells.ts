@@ -159,14 +159,14 @@ export function assignCells(
     return root;
   };
 
-  // A root is persistent when it is not spatially loaded or its tree holds a singleton.
-  const holdsSingleton = singletonTest(options);
+  // An ancestor of a singleton or Player Start stays in the persistent layer with it.
+  const holdsPersistent = persistentComponentTest(options);
   const persistent = new Uint8Array(count);
   for (let index = 0; index < count; index += 1) {
     if (repeated[index] === 1) continue;
     const root = findRoot(index);
     if (root === BROKEN) continue;
-    if (!actors[root]!.spatiallyLoaded || holdsSingleton(actors[index]!)) persistent[root] = 1;
+    if (!actors[root]!.spatiallyLoaded || holdsPersistent(actors[index]!)) persistent[root] = 1;
   }
 
   const keyOfRoot: (string | undefined)[] = [];
@@ -205,14 +205,15 @@ export function assignCells(
  * Whether an actor holds a singleton component. Answers are remembered per
  * type tag and per class: a level has few of either and many actors.
  */
-function singletonTest(options: CellAssignOptions): (actor: ActorDoc) => boolean {
+function persistentComponentTest(options: CellAssignOptions): (actor: ActorDoc) => boolean {
   const byTag = new Map<unknown, boolean>();
   const byClass = new Map<string, boolean>();
   const anySingleton = (components: ComponentMap): boolean => {
     for (const component of Object.values(components)) {
       let singleton = byTag.get(component.type);
       if (singleton === undefined) {
-        singleton = componentDefOf(options.registry, component)?.singleton === true;
+        const definition = componentDefOf(options.registry, component);
+        singleton = definition?.singleton === true || definition?.name === "forge.playerStart";
         byTag.set(component.type, singleton);
       }
       if (singleton) return true;

@@ -20,6 +20,23 @@ export interface UiMountContext {
 export function mountUiRenderNode(node: UiRenderNode, ctx: UiMountContext): HTMLElement {
   const element = document.createElement(node.tag);
   element.className = node.className;
+  if (node.widget === "Canvas") {
+    element.style.position = "relative";
+    element.style.width = "100%";
+    element.style.height = "100%";
+  } else if (node.widget === "Stack" || node.widget === "Panel") {
+    element.style.display = "flex";
+    element.style.flexDirection = node.className.includes("--row") ? "row" : "column";
+  } else if (node.widget === "Button") {
+    (element as HTMLButtonElement).type = "button";
+    if (node.action) element.style.pointerEvents = "auto";
+  } else if (node.widget === "ProgressFill") {
+    element.style.height = "100%";
+    element.style.background = "currentColor";
+  } else if (node.widget === "ProgressBar") {
+    element.style.minHeight = "6px";
+    element.style.background = "#ffffff24";
+  }
   for (const [css, value] of Object.entries(node.style)) {
     element.style.setProperty(css, value);
   }

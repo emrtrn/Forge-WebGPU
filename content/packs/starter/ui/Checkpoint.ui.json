@@ -1,0 +1,27 @@
+{
+  "schema": "forge.uiWidget/1",
+  "id": "ast_1d6a8c427b8343e180ba871cbed4a552",
+  "name": "Checkpoints",
+  "nodes": [
+    { "id": "panel", "kind": "Stack", "anchor": "center", "size": [320, 0], "gap": 10, "padding": 18, "background": "#222b38" },
+    { "id": "heading", "parent": "panel", "kind": "Text", "text": "Checkpoints", "fontSize": 24 },
+    { "id": "quickStatus", "parent": "panel", "kind": "Text", "bind": "save.slots.quick.status" },
+    { "id": "quickActions", "parent": "panel", "kind": "Stack", "direction": "row" },
+    { "id": "quickSave", "parent": "quickActions", "kind": "Button", "text": "Quick Save", "message": "save:write:quick" },
+    { "id": "quickLoad", "parent": "quickActions", "kind": "Button", "text": "Load Quick Save", "message": "save:load:quick" },
+    { "id": "quickDelete", "parent": "quickActions", "kind": "Button", "text": "Delete Quick Save", "message": "save:delete:quick" },
+    { "id": "oneStatus", "parent": "panel", "kind": "Text", "bind": "save.slots.slot-1.status" },
+    { "id": "oneLevel", "parent": "panel", "kind": "Text", "bind": "save.slots.slot-1.level" },
+    { "id": "oneActions", "parent": "panel", "kind": "Stack", "direction": "row" },
+    { "id": "oneSave", "parent": "oneActions", "kind": "Button", "text": "Save Slot 1", "message": "save:write:slot-1" },
+    { "id": "oneLoad", "parent": "oneActions", "kind": "Button", "text": "Load Slot 1", "message": "save:load:slot-1" },
+    { "id": "oneDelete", "parent": "oneActions", "kind": "Button", "text": "Delete Slot 1", "message": "save:delete:slot-1" },
+    { "id": "twoLabel", "parent": "panel", "kind": "Text", "bind": "save.slots.slot-2.label" },
+    { "id": "twoStatus", "parent": "panel", "kind": "Text", "bind": "save.slots.slot-2.status" },
+    { "id": "twoActions", "parent": "panel", "kind": "Stack", "direction": "row" },
+    { "id": "twoSave", "parent": "twoActions", "kind": "Button", "text": "Save Slot 2", "message": "save:write:slot-2" },
+    { "id": "twoLoad", "parent": "twoActions", "kind": "Button", "text": "Load Slot 2", "message": "save:load:slot-2" },
+    { "id": "twoDelete", "parent": "twoActions", "kind": "Button", "text": "Delete Slot 2", "message": "save:delete:slot-2" },
+    { "id": "back", "parent": "panel", "kind": "Button", "text": "Resume", "message": "menu:resume" }
+  ]
+}
