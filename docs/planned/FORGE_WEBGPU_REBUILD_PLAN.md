@@ -1,6 +1,8 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.37 · 2026-11-28 — Faz 6b Game Mode seçimi ve animasyonlu TPS pilotu, SDK 0.1.22.
+**Güncelleme:** v2.38 · 2026-11-28 — Faz 6b karakter hareketi planı: Play'in kapsül fırlatması yerine Forge'un taşınmış çözücüsü.
+
+**Önceki güncelleme:** v2.37 · 2026-11-28 — Faz 6b Game Mode seçimi ve animasyonlu TPS pilotu, SDK 0.1.22.
 
 **Önceki güncelleme:** v2.36 · 2026-11-28 — Faz 6b için kamera uzayında view model desteği, SDK 0.1.21.
 
@@ -1104,6 +1106,96 @@ Playwright Firefox 151 iki backend'de de canvas açtı ancak hazır sinyali
 ölçüm penceresinde gelmedi. Windows Playwright WebKit WebGL2 ile açıldı
 (17 / 20 ms). Safari macOS/iOS ve compute ağırlıklı sahnelerin maliyeti açık.
 
+#### 6b karakter hareketi: Forge çözücüsüne geçiş (plan, 2026-11-28)
+
+**Sorun.** FPS Sandbox'ta karakter düz zeminde takılıyor. Play'in hareket
+servisi (`src/gameplay/character/characterMovement.ts`) 6b'de yazılan
+`src/engine/movement/capsuleSweep.ts`'i kullanıyor. Bu dosya Rapier'e tek bir
+kapsül fırlatıyor ve ilk temasta duruyor; yer çekimini yatay hareketle aynı
+fırlatmaya katıyor, basamağı ve yere yapışması yok. Muhtemel neden, kodu
+okuyarak çıkarıldı (oyunda yeniden üretilmedi): kapsül zemin parçalarının
+birleşim kenarına çarpıp duruyor. Forge WebGL'in karakter çözücüsü 2b'de
+taşındı (`characterMovementSubsystem.ts`, `characterCollision.ts`,
+`verticalMotion.ts`, `planarMovement.ts`, `uphillSlowdown.ts`, `slopeSurface.ts`;
+67 Forge kontrolü yeşil, PORT_LOG), ama World'e bağlanmadı. Forge'da FPS ve TPS
+yürüyüşü bu çözücüyle sorunsuzdu.
+
+**Araştırma (2026-11-28).**
+
+- *FPS Sandbox referansı (Golden Hour):* fizik kütüphanesi yok. Oyuncu kutusu,
+  eksen hizalı kutulardan oluşan dünyada X, Y ve Z ayrı ayrı küçük adımlarla
+  çözülüyor (yatay 0,2 m, dikey 0,45 m). Basamakta kaldırılıp yeniden
+  deneniyor, sonra yere yapıştırılıyor. Eğim, döndürülmüş model ve terrain
+  yok; bu yüzden olduğu gibi bizim level'lara uymuyor. Forge'un çözücüsü aynı
+  yaklaşımın üçgen zemin, terrain ve eğim destekli biçimi.
+- *Açık kaynak:* sağlam FPS hareketi iki yaklaşımla kuruluyor. (1) Önce hareket
+  ettir, sonra kapsülü üçgenlerden dışarı it (three-mesh-bvh
+  `characterMovement`, `hh-hang/three-player-controller`, BVHEcctrl). (2) Çarp,
+  yüzey boyunca kay, basamağı çık, yere yapış (Rapier
+  `KinematicCharacterController`, Jolt `CharacterVirtual`, Quake III
+  `bg_slidemove`). Birinci gruptakiler three'ye bağlı; motorun hareket kodu
+  three'siz ve Rapier'li, bu yüzden motora olduğu gibi giremez.
+- *Rapier'in karakter denetleyicisi:* kurulu 0.19.3'te var (basamak, yere
+  yapışma, eğim). Önceki oturumun tek sahnelik denemesinde düz zeminde ve duvar
+  boyunca takılmadı; düz zeminde hız kaybı bildirimleri açık. Yedek olarak
+  tutuluyor.
+
+**Karar önerisi.** Forge çözücüsü `CharacterMovementService`'in arkasına
+bağlanır, `capsuleSweep.ts` silinir. Servisin yüzü (`move(actor, input, dt)` →
+`CharacterMotion`) değişmez; FPS Sandbox'ın `player.ts`'i ve Starter'ın
+`tps.ts`'i dokunulmadan yeni çözücüyle yürür. Algoritmalar olduğu gibi kalır
+(§2.11); yalnız giriş ve çıkış World'e uyarlanır. FPS'e özgü kipler oyunda
+kalır (Faz 6 kararı 3).
+
+**Adımlar.**
+
+1. **Hareket sorgusu.** Physics özelliği (`src/features/physics/runtime.ts`)
+   kendi `PhysicsSubsystem`'inin `PhysicsQuery`'sini motor içi bir servis
+   anahtarıyla sunar: yakındaki statik engelleyici AABB'leri, zemin üçgenleri,
+   collider yarı boyutları. SDK'ya girmez; yalnız `src/gameplay` okur.
+   Karakterin kendi collider'ı ve çarpışması kapalı aktörler sorgudan düşer.
+2. **Aktör başına adım.** `CharacterMovementSubsystem.update`'in tek karakterlik
+   gövdesi (`updateRuntime`, `updateVertical`, engelleyici ve zemin
+   yardımcıları) legacy `Entity` ve `ActionMap` olmadan çağrılabilir hâle
+   gelir. Giriş: dünya uzayında yön, hız, zıplama, yer çekimi, kapsül, şemalı
+   hareket değerleri. Çıkış: yeni ayak konumu, yerde mi, tavana çarptı mı, hız.
+   Gövdeler taşınır, değiştirilmez; Forge'un 67 kontrolü aynı kalır ve yeşil
+   kalır. Legacy okuyucular (`readCharacterMovementComponent`,
+   `resolveCharacterCapsule`) bu yolda şemalı `forge.characterMovement@1`
+   alanlarına bırakılır (6a kuralı: bağlanan alt sistemin legacy okuyucusu
+   şemaya geçer).
+3. **Servis bağlantısı.** `createCharacterMovement`, `sweepCapsule` ve
+   `capsuleGrounded` yerine 2. adımı çağırır. Hücre ve terrain hazır değilken
+   hareketi tutan mevcut kapı Forge'un `canOccupy` seçeneğine verilir.
+   Çömelmeden kalkma denetimi (`capsuleCanStand`, yukarı küre sorgusu) kalır,
+   `movement/`'ta küçük bir yardımcıya taşınır. Yazım yine `ActorMotionKey`
+   üzerinden. `capsuleSweep.ts` silinir.
+4. **Şema alanları.** `forge.characterMovement@1`'e Forge'un değerleri
+   varsayılanlarıyla eklenir: `maxStepHeight` (0,45 m), `maxStepDown`
+   (0,5 m), `maxSlopeAngleDeg`. FPS Sandbox kendi değerini verir (basamak
+   0,42 m). Ekleme şema sürüm kuralına göre yapılır. `CharacterMotion`'a
+   yalnız ekleme yapılırsa (ör. hız, duvara çarptı) `sdk:snapshot` ve
+   CHANGELOG girdisi aynı commit'te. Coyote süresi ve zıplama tamponu oyunun
+   işi olarak kalır; servis "zıplama kabul edildi" bilgisini döndürmezse
+   oyunda yazılamaz. Bu bilgi gerekirse çıktıya eklenir.
+5. **Doğrulama.** Forge'un hareket kontrolleri, servis testi ve şu yeni
+   regresyon testleri: iki ayrı collider'ın birleştiği düz zeminde 10 sn
+   yürüyüşte hız kaybı yok; 0,42 m basamak çıkılır, 0,6 m çıkılmaz; duvara 45°
+   yürürken duvar boyunca kayar; alçak tavan altında ayağa kalkılmaz.
+   `npm run check:projects`. Kabul oynanarak, başlıklı gerçek WebGPU'da
+   kullanıcıda: FPS Sandbox ve TPS pilotunda kesintisiz düz yürüyüş, duvar
+   boyunca kayma, basamak ve eğim, zıplama, alçak geçitte çömelme.
+
+**Bilinen sınır ve yedek.** Forge çözücüsü döndürülmüş statik nesneleri dünya
+AABB'leriyle engeller: çapraz bir duvar olduğundan geniş davranır (Forge'da da
+böyleydi). Kabulde çapraz duvar ya da rampada sorun görülürse servisin arkası
+Rapier'in `KinematicCharacterController`'ına çevrilir (aynı servis, oyun kodu
+değişmez); o zaman ayrı karar.
+
+**Oyun tarafı.** Taktik koşu ve dayanıklılık, kayma, dalış, tırmanma
+(mantle), yüzüstü ve su FPS Sandbox M3'te bu servisin üstüne yazılır. Golden
+Hour'un paketi örnek alınır (FPS Sandbox planı §2, §3.1).
+
 **Faz 6 dökümü (2026-11-19).** Fazı 6 olan 59 envanter satırı (`PORT_LOG` §1),
 ertelenen 5 A (`npm run port:forge-tests`, TSV `deferred` `6`). Mevcut durum: alt
 sistemlerin three'siz kodu 2b'de taşındı (`src/engine` altında, test dışı satır:
@@ -1508,6 +1600,7 @@ silinebilir.
 | 2026-11-27 | v2.34 | 6a: Collider, Blocking Volume ve model için ortak Ignore / Overlap / Block kuralları, aktör çarpışma durumu checkpoint'e bağlı. Fizik testleri eski döngüden çıktı. Temas, darbe ve davranışın tick aralığı, zamanlayıcısı ve ömrü World'de (SDK 0.1.20). |
 | 2026-11-27 | v2.35 | 6a tamamlandı. Eski test döngüsü ve bağlama köprüsü kaldırıldı (`0bf38e7`). Hücre yeniden yükleme ve kalıcı durum (`073d703`, `cd514d9`), çözülmüş fizik gövdeleri (`4bd4e49`), debug zaman kontrolleri (`e9b5f30`). Odaklı kapanış 70 test, katman denetimi ve Chrome/WebGL2 duraklatma ölçümü. Faz 6 ortak kapısı açık. |
 | 2026-11-28 | v2.36 | 6b: `forge.viewModel@1` ve kamera servisiyle etkin model seçimi (SDK 0.1.21). Modelin ayrı görüş açısı, kendi derinliği ve dünya görüntüsünün korunması odaklı Chrome WebGPU ve WebGL2 testlerinde geçti. FPS Sandbox görsel kabulü açık. |
+| 2026-11-28 | v2.38 | 6b karakter hareketi planı (Faz 6, "6b karakter hareketi"): düz zeminde takılan `capsuleSweep` yerine Forge'un taşınmış çözücüsü `CharacterMovementService`'in arkasına; beş adım, regresyon testleri ve oynanış kabulü. Golden Hour ve açık kaynak araştırması; yedek Rapier `KinematicCharacterController`. Kod değişmedi. |
 | 2026-11-26 | v2.28 | Faz W W6 halkalar ve birikintide rüzgâr (`95e0ae5`): ortak halka düğümü (CPU ikizi `rainRipples.ts`), sıklık anlık yağmurla, uzakta / siper altında yok, simülasyon saati; materyal birikintisi, ıslak yama (hafif) ve `forge.puddle` suyu; materyal birikintisinde prosedürel rüzgâr tepeleri; WES `rippleStrength`, `rippleSize`, `rippleDensity`, `windRippleStrength`; `puddleAccept` çizilir. Smoke'lar pipeline +0. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-26 | v2.27 | Faz W W5 sonrası (kullanıcı kararları; `4522d2d`, `d56944d`, `4c56ffa`, `38a80f2`, `8acbf1c`, `3581aad`): SSR roughness + Fresnel ağırlığıyla ve ortam yansımasının yerine (MRT `specular`), Post Process SSR ayarları, alfa kesimli yüzey SSR almaz; ıslaklık üç kademe (koyulaşma, ıslak yama, ayna birikinti; yalnız düz zeminde); `forge.puddle` `followWeather`. W6 yeniden kapsamlandı, çukur haritası Faz 7 sonrasına. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-26 | v2.24 | Faz W W4 kapandı (kullanıcı görsel kabulü). Sırada W5: yağışla ıslanma, karlanma, kuruma (yeni oturumda). |

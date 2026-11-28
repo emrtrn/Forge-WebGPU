@@ -1,6 +1,7 @@
 # Forge WebGPU — Prosedürel Bitki ve Çevre Prop'u Planı
 
-**Sürüm:** v0.25 · 2026-11-26 (orman zemini için görsel hedefler ve ilk uygulama, §9.9.1–9.9.2).
+**Sürüm:** v0.26 · 2026-11-28 (PG3b açıldı: impostor görünümü ve sıkı kart, §10).
+Önceki: v0.25 · 2026-11-26 (orman zemini için görsel hedefler ve ilk uygulama, §9.9.1–9.9.2).
 Önceki: v0.24 · 2026-11-26 (orman zemini çalışması başladı, §9.9).
 Önceki: v0.23 · 2026-11-26 (PG5b adım 6, karışık orman ve genç ağaçlar için kullanıcı görsel kabulü).
 Önceki: v0.22 · 2026-11-25 (PG5b adım 5: türler, tek üretici; kullanıcı görsel kabulü).
@@ -19,7 +20,7 @@ taş doku tarifi, triplanar + `variation`, A / C ölçümü).
 
 **Önceki sürüm:** v0.6 · 2026-11-14 (WES ile birleşik bitki ailesi, ortak çalışma
 zamanı davranışı ve 5c ile birlikte ilerleyen üretim dilimi; kullanıcı kararı).
-**Durum:** PG0–PG3 uygulandı (5c ile, 2026-11-17 – 2026-11-19). PG4, çok saplı Hazel ve şerit/demet MeadowGrass için WebGPU doğrulaması ve kullanıcı görsel onayıyla kapandı (2026-11-22, §9.5–9.6). PG5 ve PG5b kapandı (2026-11-26, §9.7–9.8). PG6–PG7 ileride.
+**Durum:** PG0–PG3 uygulandı (5c ile, 2026-11-17 – 2026-11-19). PG4, çok saplı Hazel ve şerit/demet MeadowGrass için WebGPU doğrulaması ve kullanıcı görsel onayıyla kapandı (2026-11-22, §9.5–9.6). PG5 ve PG5b kapandı (2026-11-26, §9.7–9.8). PG3b (impostor görünümü, 2026-11-28 açıldı) ve PG6–PG7 ileride.
 Başlama koşulu §2'de.
 **İlgili belgeler:** [yeniden inşa planı](FORGE_WEBGPU_REBUILD_PLAN.md) (faz
 sırası; küçük üretim dilimi 5c ile birlikte, tam araçlar 5d ile ilerler),
@@ -1745,6 +1746,50 @@ kullanıcıda).
         sürümleri (1–5) kalktı (`e1891dd`; kabul 2026-11-25).
   - [x] **6 World Builder.** Örtülerde karışık tür, orman yoğunluğu, genç ağaç, orman altı, kenar
         (`8710f0c`; kabul 2026-11-26).
+- [ ] **PG3b Impostor görünümü ve verimi (kullanıcı, 2026-11-28; sonra denenecek).** Bugünkü impostor'un
+      görünümü zayıf; önce o iyileşir, verim aynı değişiklikle gelir. Çıkış noktası, GTA 6 için paylaşılan
+      teknik: atlas bizimkiyle aynı (yarım küre 8 × 8, en yakın 3 görüş harmanı), fark karttadır. Tek kare
+      yerine siluete oturan 8 quad kullanılıyor; alfa testine giden alan küçülüyor. Atlasta ayrıca derinlik
+      ve specular var.
+      *Bilinen zayıflıklar (PG3, PG5b kayıtları):* 128 px karede bulanık; odun kalın ve kesintili; çapraz
+      gölge izi; derinlik kanalı yok. §6.4 "normal + derinlik" diyor, ama v6'da mavi kanal taç ışığını
+      taşıyor; `impostorMaterial.ts`'teki "b depth" yorumu bayat. Derinlik olmadan 3 görüş harmanı paralaksla
+      çift kontur bırakabilir (denetlenecek).
+      *Ölçüm (2026-11-28, starter ağaçları, tohum 1, Node'da bake; yer seviyesi uzak bakış: 0–15°, 256 yön,
+      harmanlanan 3 görüşün birleşimi, alfa ≥ 8/255).* Ağaç, sphere'i kaplayan karenin yalnız **%14–20**'sini
+      kaplıyor. Kalan piksellerde de 12 doku okuması yapılıyor, discard yüzünden erken derinlik testi yok,
+      gölge kaskadlarında da aynı kart çiziliyor. Aynı oran atlası da etkiliyor: 128 px'lik karede ağaç
+      ~50–60 px'lik bir alana düşüyor.
+
+      | Kart (karenin yüzdesi) | Conifer | Pine | Poplar | Broadleaf | Oak | Birch |
+      |---|---:|---:|---:|---:|---:|---:|
+      | Kaplanan | 18 | 14 | 15 | 20 | 19 | 17 |
+      | Görüş başına sıkı dikdörtgen | 33 | 35 | 23 | 35 | 30 | 34 |
+      | Görüş başına 4 bant | 29 | 31 | 23 | 38 | 32 | 29 |
+      | Görüş başına 8 bant | 26 | 22 | 21 | 30 | 27 | 25 |
+      | Tablosuz tek kart, 8 bant | 31 | 34 | 23 | 39 | 45 | 30 |
+
+      Bu, fragment sayısında ≈ %65–80 azalma demek. 8 bandın sıkı dikdörtgene katkısı az; uzakta 40–80 px'lik
+      ağaçta ince bantlar 2 × 2 quad kaybı getirir. Geniş taçta tablosuz kart şişiyor: tepeden bakışta taç
+      disk oluyor. Kare süresine etkisi impostor'ların GPU payına bağlı; bu pay henüz ölçülmedi.
+  - [ ] **1 Denetim.** Aynı pozda LOD2 ile impostor yan yana: yakın, geçiş eşiği (~250 m) ve uzak; yaz,
+        kış ve kar. Baskın zayıflık hangisi? Adaylar çözünürlük, harman hayaleti, ton / ışık farkı, odun.
+        `measure:forest`'te impostor payı: doğal eşikte ve impostor zorlanarak, gölge dahil.
+  - [ ] **2 Görüş başına sınır tablosu.** Bake, 64 görüşün her biri için bant başına [xmin, xmax] ve dikey
+        aralık yazar. Tablo tek doğruluk kaynağı: hem kartı hem kırpmayı belirler. Üretilmiş ağaçta impostor
+        yuvasında; içe aktarılan GLB'nin çalışma anı bake'i (`modelImpostor.ts`) pikselleri zaten elinde
+        tuttuğu için tabloyu kendisi çıkarır.
+  - [ ] **3 Sıkı kart.** 4 bant ya da sıkı dikdörtgen (denetime göre). Vertex shader, harmanlanan 3 görüşün
+        sınırlarının maksimumunu alır. Görüş koordinatları kart üzerinde doğrusal olduğu için köşe sayısı
+        örneklemeyi değiştirmez. Zemine eğilmiş örnekler için küçük pay: kart dünya-up'ıyla, görüşler yerel
+        eksenle kuruluyor. Gölge geçidi aynı kartı kullanır.
+  - [ ] **4 Kare kırpma.** Atlas kareleri tabloya göre kırpılarak bake edilir; aynı 128 px'te ≈ 2× doğrusal
+        çözünürlük. Bellek bütçesi (§8) değişmez. Üretici sürümü artar, starter ağaçları yeniden üretilir.
+  - [ ] **5 Derinlik (denetime göre).** Paralaks düzeltmeli harman ve / veya pixel depth offset (terrain
+        kesişimi). Kanalın yeri karar ister: mavi kanal taç ışığında. Specular, denetim gerektirirse burada.
+      *Kapı:* LOD2 ↔ impostor yan yana görsel kabul kullanıcıda; impostor fragment sayısı ve `measure:forest`
+      önce / sonra (G6 tutuyor, impostor ve gölge payı); PV-WES-03 (dökülme, kış, kar) impostor'da yeniden;
+      `impostors.smoke.ts` siluet IoU'su düşmüyor; §8 impostor belleği aşılmıyor.
 - [ ] **PG6 Ölü odun, döküntü, iğne yapraklı.** *Kapı:* kütük ve döküntü
       bağlı ağaç tarifinden türüyor; PG2'nin iğne yapraklı örneği daha geniş
       ön ayarlarla kart bütçesinde. İsteğe bağlı yakın çevre yaprak efekti
@@ -1890,6 +1935,7 @@ kurallarına göre yeniden yazılır.
 |---|---|---|
 | 2026-11-26 | v0.24 | Orman zemini, kenar bitkileri ve gövde temasını kapsayan çalışma açıldı (§9.9). |
 | 2026-11-26 | v0.25 | İkinci geçişin ardından yüzey cepleri, taç ışığı, kısa ot adaları, yaprak detayı ve kök çevresi planlandı. İlk oturumun kapsamı ve WebGPU karşılaştırması tanımlandı (§9.9.1–9.9.2). |
+| 2026-11-28 | v0.26 | PG3b açıldı (kullanıcı): impostor görünümü ve görüş başına sıkı kart. Ölçüm: ağaç, kartın %14–20'sini kaplıyor; görüş başına sıkı kart ile fragment ≈ %65–80 azalır, kırpılmış karede ≈ 2× çözünürlük. Kod yok |
 | 2026-11-26 | v0.23 | PG5b adım 6 (`8710f0c`): meşcere yerleşimi, genç ağaçlar, altı örtü; ölçüm §9.8; kullanıcı görsel kabulü. PG5b ve PG5 kapandı |
 | 2026-11-25 | v0.22 | PG5b adım 5 (`e1891dd`): sekiz tarif taç üreticisinde, meshopt, kabuklar, eski sürümler kalktı; kullanıcı görsel kabulü. Adım 6 yeni oturumda |
 | 2026-11-25 | v0.21 | PG5b adım 1–4 kullanıcı görsel kabulü; adım 5–6 yeni oturumda |
