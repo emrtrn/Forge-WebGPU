@@ -35,6 +35,9 @@ line, saved together. An id may be a unique prefix of the GUID.
 
 ## TPS Pilot
 
+An engine pilot: `create-project` does not copy it (its game mode is part of
+this sample's game module).
+
 From Forge-WebGPU, run `npm.cmd run forge -- dev --project samples/starter --port 5192`
 and open `http://127.0.0.1:5192/?editor&level=content/levels/tps-pilot`.
 World Settings shows **Game Mode → Third Person (TPS)**. Press **Play**

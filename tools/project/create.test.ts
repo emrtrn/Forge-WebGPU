@@ -39,6 +39,9 @@ describe("create-project", () => {
 
     // The pack is named, not copied: the project's index reads it from the engine (A9).
     expect(await readdir(join(target, "content"))).toEqual(["levels"]);
+    // The TPS pilot stays in the starter: its game mode lives in the starter's module.
+    expect(await readdir(join(target, "content/levels"))).toEqual(["main"]);
+    expect(await readdir(join(target, "src"))).toEqual(["game.ts"]);
     const scan = await scanRoots(projectIndexRoots(engineRoot, target, { contentRoots: ["content"], contentPacks: ["starter"] }));
     const index = buildAssetIndex(scan.files, { strict: true, registry: await loadEngineRegistry(engineRoot) });
     expect(index.issues).toEqual([]);

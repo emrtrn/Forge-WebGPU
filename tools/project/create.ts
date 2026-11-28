@@ -46,7 +46,10 @@ export interface CreateProjectOptions {
   readonly register?: boolean;
 }
 
-const gameModuleSource = (id: string, name: string): string => `// The ${name} game module. It imports nothing but @forge/sdk: a game adds its
+/** The starter's TPS pilot: it plays through a game mode of the starter's own module, which a new project does not get. */
+const PILOT_PATHS = ["content/characters", "content/levels/tps-pilot", "src/tps.ts"];
+
+const gameModuleSource =(id: string, name: string): string => `// The ${name} game module. It imports nothing but @forge/sdk: a game adds its
 // features (components, subsystems) to \`features\` and reacts to the start and
 // end of play.
 import { defineGameModule } from "@forge/sdk";
@@ -130,7 +133,10 @@ export async function createProject(options: CreateProjectOptions): Promise<{ re
   await cp(starter, target, {
     recursive: true,
     // What the dev server and forge check make in the starter (`.forge/`, `.forge-session/`, caches) stays there.
-    filter: (source) => !relative(starter, source).split(sep).some((part) => part === ".forge" || part.startsWith(".forge-")),
+    filter: (source) => {
+      const parts = relative(starter, source).split(sep);
+      return !PILOT_PATHS.includes(parts.join("/")) && !parts.some((part) => part === ".forge" || part.startsWith(".forge-"));
+    },
   });
 
   const manifest = normalizeProjectManifest(JSON.parse(await readFile(join(starter, PROJECT_FILE), "utf8")), { strict: true }).value!;
