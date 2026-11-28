@@ -31,6 +31,12 @@ function client(answer: (request: SaveRequestBody) => SaveResponseBody, saves: S
   } as unknown as SaveClient;
 }
 
+/** A `readFile` over the revisions a test puts on "disk". */
+const onDisk = (files: Map<string, string>) => async (path: string) => {
+  const revision = files.get(path);
+  return revision === undefined ? null : { bytes: new Uint8Array(), revision };
+};
+
 describe("saving edited terrains (plan 5d step 2)", () => {
   test("a stroke saves its tiles, the far map and the definition with the revisions they were read with", async () => {
     const edit = session();
@@ -97,16 +103,39 @@ describe("saving edited terrains (plan 5d step 2)", () => {
       round += 1;
       return { status: "saved", warnings: [], files: request.writes.map((write) => ({ path: write.path, revision: `${round}`.padEnd(16, "0") })) };
     };
-    const save = createLandscapeSave({ editing, client: client(saved, [], []), documentPath: () => DOCUMENT, writable: () => true, readFile: async () => null });
+    const disk = new Map<string, string>();
+    const save = createLandscapeSave({ editing, client: client(saved, [], []), documentPath: () => DOCUMENT, writable: () => true, readFile: onDisk(disk) });
     edit.markTiles(["0_0"]);
     await save.save();
     edit.markTiles(["0_0"]);
     await save.save();
     // The first save's document event arrives after the second save: still this editor's.
-    expect(save.diskChanged([{ path: DOCUMENT, revision: "1".padEnd(16, "0") }])).toEqual([]);
+    expect(await save.diskChanged([{ path: DOCUMENT, revision: "1".padEnd(16, "0") }])).toEqual([]);
     expect(editing.sessions().has(GUID)).toBe(true);
     // Another writer's revision drops it.
-    expect(save.diskChanged([{ path: DOCUMENT, revision: "x".padEnd(16, "0") }])).toEqual([GUID]);
+    disk.set(DOCUMENT, "x".padEnd(16, "0"));
+    expect(await save.diskChanged([{ path: DOCUMENT, revision: "x".padEnd(16, "0") }])).toEqual([GUID]);
+  });
+
+  test("a late event naming what the session read before its save does not drop it while the disk holds the save", async () => {
+    const edit = session();
+    const editing = createTerrainEditing();
+    editing.session(GUID, () => edit);
+    const tile = "content/terrain/hill.tiles/0_0.tile.bin";
+    const disk = new Map<string, string>();
+    const saved = (request: SaveRequestBody): SaveResponseBody => {
+      const files = request.writes.map((write) => ({ path: write.path, revision: "n".padEnd(16, "0") }));
+      for (const file of files) disk.set(file.path, file.revision);
+      return { status: "saved", warnings: [], files };
+    };
+    const save = createLandscapeSave({ editing, client: client(saved, [], []), documentPath: () => DOCUMENT, writable: () => true, readFile: onDisk(disk) });
+    edit.markTiles(["0_0"]);
+    await save.save();
+    expect(await save.diskChanged([{ path: tile, revision: "t0_0" }])).toEqual([]);
+    expect(editing.sessions().get(GUID)).toBe(edit);
+    // The same event when another writer did put those bytes back: the disk differs from the save.
+    disk.set(tile, "t0_0");
+    expect(await save.diskChanged([{ path: tile, revision: "t0_0" }])).toEqual([GUID]);
   });
 
   test("a conflict writes nothing and keeps the tiles dirty; a read-only terrain is refused", async () => {
@@ -124,22 +153,23 @@ describe("saving edited terrains (plan 5d step 2)", () => {
     expect(saves.length).toBe(1);
   });
 
-  test("a stand-in for a failed read is not readable; a clean session goes when its files change on disk, a dirty one stays", () => {
+  test("a stand-in for a failed read is not readable; a clean session goes when its files change on disk, a dirty one stays", async () => {
     const edit = session(true);
     expect([edit.readable("0_0"), edit.readable("1_0")]).toEqual([true, false]);
     const editing = createTerrainEditing();
     editing.session(GUID, () => edit);
     const save = createLandscapeSave({ editing, client: client(() => ({ status: "saved", warnings: [], files: [] }), [], []), documentPath: () => DOCUMENT, writable: () => true, readFile: async () => null });
     // Its own revisions coming back change nothing.
-    expect(save.diskChanged([{ path: DOCUMENT, revision: "d000000000000000" }])).toEqual([]);
+    expect(await save.diskChanged([{ path: DOCUMENT, revision: "d000000000000000" }])).toEqual([]);
     edit.markTiles(["0_0"]);
-    expect(save.diskChanged([{ path: DOCUMENT, revision: "f000000000000000" }])).toEqual([]);
+    expect(await save.diskChanged([{ path: DOCUMENT, revision: "f000000000000000" }])).toEqual([]);
     expect(editing.sessions().has(GUID)).toBe(true);
     const clean = session();
     const other = createTerrainEditing();
     other.session(GUID, () => clean);
-    const watcher = createLandscapeSave({ editing: other, client: client(() => ({ status: "saved", warnings: [], files: [] }), [], []), documentPath: () => DOCUMENT, writable: () => true, readFile: async () => null });
-    expect(watcher.diskChanged([{ path: "content/terrain/hill.tiles/0_0.tile.bin", revision: "f000000000000000" }])).toEqual([GUID]);
+    const changed = new Map([["content/terrain/hill.tiles/0_0.tile.bin", "f000000000000000"]]);
+    const watcher = createLandscapeSave({ editing: other, client: client(() => ({ status: "saved", warnings: [], files: [] }), [], []), documentPath: () => DOCUMENT, writable: () => true, readFile: onDisk(changed) });
+    expect(await watcher.diskChanged([{ path: "content/terrain/hill.tiles/0_0.tile.bin", revision: "f000000000000000" }])).toEqual([GUID]);
     expect(other.sessions().has(GUID)).toBe(false);
   });
 });

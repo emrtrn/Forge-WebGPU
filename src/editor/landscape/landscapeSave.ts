@@ -20,7 +20,11 @@
 // conflict. The editor's own writes come back with the revisions it already
 // holds and change nothing; so does a late event of an earlier own save (a
 // tile written, then deleted by the next save): every path and revision this
-// editor wrote or deleted is remembered.
+// editor wrote or deleted is remembered. An event can also arrive after a
+// later write and name what was there before it (the bytes the session read,
+// then saved over): an unknown revision is checked against the disk, and only
+// a disk that differs from what the session holds drops it. Dropping it
+// otherwise would leave the drawn terrain on a session Save no longer sees.
 
 import { dataDocument, stringifyDocument, TerrainAssetType, type AssetId, type ChangedFileBody, type SaveClient, type SaveRequestBody } from "../../core/index.ts";
 import type { TerrainEditing } from "../../engine/terrain/terrainEditing.ts";
@@ -46,7 +50,7 @@ export interface LandscapeSave extends SessionParticipant {
    * Files changed on disk: the GUIDs of terrains whose drawn data should be
    * read again (their clean sessions were dropped). Dirty ones are kept.
    */
-  diskChanged(files: readonly ChangedFileBody[]): string[];
+  diskChanged(files: readonly ChangedFileBody[]): Promise<string[]>;
 }
 
 /** A terrain document's part paths: `{stem}.global.bin`, `{stem}.tiles/<key>.tile.bin`. */
@@ -133,24 +137,33 @@ export function createLandscapeSave(options: LandscapeSaveOptions): LandscapeSav
       }
       return { ok: true, files, message: files > 0 ? `Saved ${files} terrain file${files === 1 ? "" : "s"}` : "Nothing to save" };
     },
-    diskChanged(files) {
+    async diskChanged(files) {
       const stale: string[] = [];
       for (const [guid, session] of editing.sessions()) {
         const path = options.documentPath(guid);
         if (path === null) continue;
         const parts = terrainPartPaths(path);
         // A file this session read and still holds at that revision (its own save included); a tile it never read does not matter.
-        const known = (file: ChangedFileBody): boolean => {
-          if (own.has(`${file.path}@${file.revision ?? ""}`)) return true;
+        const held = (file: ChangedFileBody): boolean => {
           if (file.path === path) return file.revision === session.documentRevision;
           if (file.path === parts.global) return file.revision === session.globalRevision;
           if (!file.path.startsWith(parts.tiles) || !file.path.endsWith(".tile.bin")) return true;
           const read = session.files.get(file.path.slice(parts.tiles.length, -".tile.bin".length));
           return read === undefined || file.revision === read.revision;
         };
-        const foreign = files.filter((file) => !known(file));
-        if (foreign.length === 0 || session.dirty) continue;
-        if (editing.drop(guid)) stale.push(guid);
+        const unknown = files.filter((file) => !own.has(`${file.path}@${file.revision ?? ""}`) && !held(file));
+        if (unknown.length === 0 || session.dirty) continue;
+        let changed = false;
+        for (const file of unknown) {
+          const now = (await options.readFile(file.path))?.revision ?? null;
+          // `held` after the read: a save that ran meanwhile has updated what the session holds.
+          if (!held({ path: file.path, revision: now })) {
+            changed = true;
+            break;
+          }
+        }
+        // `drop` refuses a session edited while the disk was read.
+        if (changed && editing.drop(guid)) stale.push(guid);
       }
       return stale;
     },

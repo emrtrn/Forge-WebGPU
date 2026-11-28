@@ -692,7 +692,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
       const others = files.filter((file) => !file.path.startsWith(`${options.level}/`));
       if (others.length === 0) return;
       // Terrains changed by someone else (5d): clean edit sessions go, the drawn terrain reads the disk again.
-      const staleTerrains = new Set(landscapeSave.diskChanged(others));
+      const staleTerrains = new Set(await landscapeSave.diskChanged(others));
       await content.refresh(true); await refreshAssetUrls(); await refreshClasses();
       updateHlodStatus();
       const changed = new Map<string, string>();
