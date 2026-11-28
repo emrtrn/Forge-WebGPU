@@ -10,6 +10,8 @@ export const SMOKE_PORT = 5283;
 
 export default defineConfig({
   plugins: [forgeServerPlugin()],
+  // `npm run dev`'s own dependency cache (tools/dev.ts); unset, Vite's default.
+  ...(process.env.FORGE_VITE_CACHE_DIR ? { cacheDir: process.env.FORGE_VITE_CACHE_DIR } : {}),
   // Recast loads its WASM implementation through a dynamic worker import.
   worker: { format: "es" },
   resolve: {
