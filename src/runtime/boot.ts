@@ -215,6 +215,11 @@ export async function bootGame(options: BootOptions): Promise<RunningGame | null
       throw new StageError("The level has errors.", level.issues);
     }
     const warnings = level.issues.filter((issue) => issue.severity === "warning");
+    const gameMode = level.value.settings.gameMode;
+    if (gameMode && !options.gameModule?.gameModes?.some(({ id }) => id === gameMode)) {
+      warnings.push({ code: "invalid-value", severity: "warning", path: "settings.gameMode",
+        message: `Game Mode "${gameMode}" is unavailable in this project. Using Project Default.` });
+    }
 
     stage = "world";
     update("Starting the world", "level");

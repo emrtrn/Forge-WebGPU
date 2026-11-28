@@ -1,0 +1,16 @@
+{
+  "schema": "forge.assetMeta/1",
+  "id": "ast_6f235223d51f49b490a5c62d17b874ae",
+  "type": "forge.model@2",
+  "license": "CC0-1.0",
+  "source": {
+    "origin": "external",
+    "author": "Quaternius",
+    "url": "https://quaternius.com/packs/universalanimationlibrary.html"
+  },
+  "import": {
+    "optimize": {
+      "enabled": false
+    }
+  }
+}

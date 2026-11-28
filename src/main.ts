@@ -55,6 +55,7 @@ import { createRuntimeQuality } from "./runtime/quality/runtimeQuality.ts";
 import { createSteppableScheduler } from "./runtime/steppableScheduler.ts";
 import { BrowserUiFrameKey } from "./runtime/ui/uiHost.ts";
 import gameModule from "virtual:forge/game-module";
+import type { GameModeDef } from "./runtime/gameModule.ts";
 
 const featureModules = import.meta.glob<{ default: FeatureDef }>("./features/*/feature.ts", { eager: true });
 const features = Object.keys(featureModules)
@@ -206,7 +207,8 @@ async function start(): Promise<void> {
     },
     feature: (installed) => viewer.feature(installed),
     frame: (time, world) => {
-      viewer.frame(time, world.services.get(CameraServiceKey)?.current());
+      const camera = world.services.get(CameraServiceKey);
+      viewer.frame(time, camera?.current(), camera?.currentViewModel());
       world.services.get(BrowserUiFrameKey)?.draw(projectWidget);
       if (lastFrame !== null) quality.tick((time - lastFrame) / 1000);
       lastFrame = time;
@@ -503,6 +505,7 @@ async function openEditor(): Promise<void> {
     await startEditor({
       document,
       features: [...features, ...(gameModule?.features ?? [])],
+      gameModes: gameModule?.gameModes?.map(({ id, label }: GameModeDef) => ({ id, label })) ?? [],
       bindings,
       client: createSaveClient({ fetch: pageFetch }),
       assetUrls: urls,

@@ -30,6 +30,7 @@ export const WindFields = {
 };
 
 export const LevelSettingsFields = {
+  gameMode: text({ label: "Game Mode", hint: "Oyunun bu level için seçilen oyun modu." }),
   cellSize: num({
     min: 16,
     max: 4096,
@@ -71,7 +72,7 @@ export const LevelSettingsFields = {
   }),
 };
 
-export type LevelSettings = FieldValues<typeof LevelSettingsFields>;
+export type LevelSettings = Omit<FieldValues<typeof LevelSettingsFields>, "gameMode"> & { gameMode?: string };
 /** The assembler/editor refresh the holder; consumers read live settings. */
 export const LevelSettingsKey = createServiceKey<{ current: LevelSettings }>("forge.levelSettings");
 

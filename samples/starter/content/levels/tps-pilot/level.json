@@ -1,0 +1,256 @@
+{
+  "schema": "forge.level/1",
+  "id": "lvl_e3231137ca8d4a238e362ab34e3ee7dd",
+  "settings": {
+    "cellSize": 128,
+    "gameMode": "starter.tps"
+  },
+  "actors": [
+    {
+      "id": "act_f013e046136d439d8e24129da7791000",
+      "name": "Pilot Floor",
+      "class": null,
+      "parent": null,
+      "spatiallyLoaded": false,
+      "transform": {
+        "p": [
+          0,
+          -0.25,
+          -3
+        ],
+        "r": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "s": [
+          26,
+          0.5,
+          25
+        ]
+      },
+      "components": {
+        "shape": {
+          "type": "forge.shape@2",
+          "primitive": "cube",
+          "color": "#697b83"
+        }
+      }
+    },
+    {
+      "id": "act_f013e046136d439d8e24129da7791001",
+      "name": "Player Start",
+      "class": null,
+      "parent": null,
+      "spatiallyLoaded": false,
+      "transform": {
+        "p": [
+          0,
+          0.03,
+          2
+        ],
+        "r": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "s": [
+          1,
+          1,
+          1
+        ]
+      },
+      "components": {
+        "start": {
+          "type": "forge.playerStart@1"
+        }
+      }
+    },
+    {
+      "id": "act_f013e046136d439d8e24129da7791002",
+      "name": "TPS Character",
+      "class": null,
+      "parent": null,
+      "spatiallyLoaded": false,
+      "transform": {
+        "p": [
+          0,
+          0.03,
+          2
+        ],
+        "r": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "s": [
+          1,
+          1,
+          1
+        ]
+      },
+      "components": {
+        "movement": {
+          "type": "forge.characterMovement@1",
+          "player": true,
+          "walkSpeed": 1.6,
+          "sprintSpeed": 5.5
+        },
+        "body": {
+          "type": "forge.skeletalMesh@1",
+          "model": "ast_6f235223d51f49b490a5c62d17b874ae",
+          "clip": "Idle_Loop",
+          "local": {
+            "p": [
+              0,
+              0,
+              0
+            ],
+            "r": [
+              0,
+              1,
+              0,
+              0
+            ],
+            "s": [
+              1,
+              1,
+              1
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "act_f013e046136d439d8e24129da7791003",
+      "name": "Camera Obstruction",
+      "class": null,
+      "parent": null,
+      "spatiallyLoaded": false,
+      "transform": {
+        "p": [
+          0,
+          1.4,
+          7
+        ],
+        "r": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "s": [
+          8,
+          2.8,
+          0.4
+        ]
+      },
+      "components": {
+        "shape": {
+          "type": "forge.shape@2",
+          "primitive": "cube",
+          "color": "#4d7585"
+        }
+      }
+    },
+    {
+      "id": "act_f013e046136d439d8e24129da7791004",
+      "name": "Jump Obstacle",
+      "class": null,
+      "parent": null,
+      "spatiallyLoaded": false,
+      "transform": {
+        "p": [
+          0,
+          0.35,
+          -2.5
+        ],
+        "r": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "s": [
+          2,
+          0.7,
+          1.1
+        ]
+      },
+      "components": {
+        "shape": {
+          "type": "forge.shape@2",
+          "primitive": "cube",
+          "color": "#ce8e4b"
+        }
+      }
+    },
+    {
+      "id": "act_f013e046136d439d8e24129da7791005",
+      "name": "Platform",
+      "class": null,
+      "parent": null,
+      "spatiallyLoaded": false,
+      "transform": {
+        "p": [
+          -5,
+          0.45,
+          -4
+        ],
+        "r": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "s": [
+          3,
+          0.9,
+          3
+        ]
+      },
+      "components": {
+        "shape": {
+          "type": "forge.shape@2",
+          "primitive": "cube",
+          "color": "#55786d"
+        }
+      }
+    },
+    {
+      "id": "act_f013e046136d439d8e24129da7791006",
+      "name": "Wall",
+      "class": null,
+      "parent": null,
+      "spatiallyLoaded": false,
+      "transform": {
+        "p": [
+          5,
+          1.25,
+          -4
+        ],
+        "r": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "s": [
+          0.4,
+          2.5,
+          6
+        ]
+      },
+      "components": {
+        "shape": {
+          "type": "forge.shape@2",
+          "primitive": "cube",
+          "color": "#4d7585"
+        }
+      }
+    }
+  ]
+}

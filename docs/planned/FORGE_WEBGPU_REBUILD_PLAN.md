@@ -1,6 +1,10 @@
 # Forge WebGPU — Yeniden İnşa Planı
 
-**Güncelleme:** v2.35 · 2026-11-27 — Faz 6a runtime temeli tamamlandı. World hücre yaşam döngüsü, fizik veri sınırı ve debug zaman kontrolleri doğrulandı.
+**Güncelleme:** v2.37 · 2026-11-28 — Faz 6b Game Mode seçimi ve animasyonlu TPS pilotu, SDK 0.1.22.
+
+**Önceki güncelleme:** v2.36 · 2026-11-28 — Faz 6b için kamera uzayında view model desteği, SDK 0.1.21.
+
+**Önceki güncelleme:** v2.35 · 2026-11-27 — Faz 6a runtime temeli tamamlandı. World hücre yaşam döngüsü, fizik veri sınırı ve debug zaman kontrolleri doğrulandı.
 
 **Önceki güncelleme:** v2.34 · 2026-11-27 — Faz 6a çarpışma profilleri, fizik kontrolleri ve davranış zamanlaması.
 
@@ -1054,14 +1058,14 @@ fiziği yağışla değişir (kapsam 9, tasarım 9).
 
 ### Faz 6 — Oyun runtime'ı ve araçlar
 
-**Uygulama durumu (2026-11-27).** Kullanıcı kararıyla 6a, W8–W9 sürerken
+**Uygulama durumu (2026-11-28).** Kullanıcı kararıyla 6a, W8–W9 sürerken
 başladı. Host Rapier WASM'i World kurulmadan önce hazırlar. W8 gelene kadar
 araç boyalı terrain katmanının mevcut yüzey örnekleyicisini okur.
 
 | Alt faz | Uygulanan ve doğrulanan | Açık |
 |---|---|---|
 | **6a ✓** | World'de şemalı collider, Blocking Volume, model sidecar, yol ve terrain çarpışması, ışın ve şekil sorguları, girdi, saat ve koddan davranış. Ortak Ignore / Overlap / Block profilleri, temas ve darbe olayları, checkpoint'e alınabilen aktör çarpışması, davranış zamanı ve hücre yaşam döngüsü doğrulandı. Fizik alt sistemi çözülmüş gövdeleri alıyor. `?debug` CPU kare yakalama ve zaman kontrolleri çalışıyor. Canlı G8 gerçek WebGPU'da üç referans sahnede geçti, en büyük fark 2,93 mm | — |
-| 6b | Kalıcı Player Start, kapsül hareketi, kamera/spring arm. FPS Sandbox gerçek WebGPU'da yürüme, bakış, zıplama, çömelme ve hitscan; ayrıca `/fps-pilot/` üretim açılışı | Birinci şahıs view model, TPS ve oynanış araçlarının kalan kabulü |
+| 6b | Kalıcı Player Start, kapsül hareketi, kamera/spring arm ve kamera uzayında view model (`forge.viewModel@1`). World Settings Game Mode seçimi Play'de uygulanır. Starter TPS pilotu Player Start, takip kamerası ve dört animasyon klibiyle açılır. FPS Sandbox'ta temel hareket, hitscan ve `/fps-pilot/` üretim açılışı doğrulandı | TPS görsel kabulü, view model'in FPS Sandbox'ta görsel kabulü ve oynanış araçlarının kalan kabulü |
 | 6c | World checkpoint ve Starter kayıt menüsü, şemalı widget ve HUD yerleşimi, tema, yerelleştirme, dünya widget'ı, açılış ilerlemesi, 3B ses, WES yağmur şiddetine bağlı ses, GLB klip oynatma, TSL billboard partikül. Starter üretim smoke'u kayıt, yükleme ve silmeyi doğruladı; RTS'de temalı Scout etiketi birimi izliyor | Animasyon blend space ve hız vektörü görsel kabulü, VFX editör/efekt kapsamı, seçilmiş yağmur klibiyle sesli sahne kabulü |
 | 6d | World araç bileşeni, sürüş girdisi, tekerlek çizimi ve motor sesi bağı. Node'da araç yüklenmiş gerçek terrain heightfield üzerinde yürüdü | Araç giriş/çıkış akışı, sözleşmenin kalan parametreleri, görsel ve sesli sürüş kabulü, W8 |
 | 6e | Collider tabanlı Recast/Detour, nav volume ve editör önizlemesi, algı servisi, `samples/rts` ve oyun projesi build'i. RTS birimi gerçek WebGPU'da duvarı dolaştı. FPS Sandbox build'i `verify:dist --strict` taraması ve `verify:build` doğrulamasından geçti | K4/K11 tarayıcı kapsamı ve fallback maliyeti, kalan nav/editör ve AI karakter kabulü |
@@ -1503,6 +1507,7 @@ silinebilir.
 | 2026-11-27 | v2.33 | Faz 6 başladı. Rapier World'e bağlandı ve G8 canlı collider'a geçti. FPS Sandbox karakteri, Starter checkpoint, araç ve Recast ilk uygulamaları; FPS pilotu için üretim build'i ve alt dizin açılışı. Kapı açık (mimari v1.98). |
 | 2026-11-27 | v2.34 | 6a: Collider, Blocking Volume ve model için ortak Ignore / Overlap / Block kuralları, aktör çarpışma durumu checkpoint'e bağlı. Fizik testleri eski döngüden çıktı. Temas, darbe ve davranışın tick aralığı, zamanlayıcısı ve ömrü World'de (SDK 0.1.20). |
 | 2026-11-27 | v2.35 | 6a tamamlandı. Eski test döngüsü ve bağlama köprüsü kaldırıldı (`0bf38e7`). Hücre yeniden yükleme ve kalıcı durum (`073d703`, `cd514d9`), çözülmüş fizik gövdeleri (`4bd4e49`), debug zaman kontrolleri (`e9b5f30`). Odaklı kapanış 70 test, katman denetimi ve Chrome/WebGL2 duraklatma ölçümü. Faz 6 ortak kapısı açık. |
+| 2026-11-28 | v2.36 | 6b: `forge.viewModel@1` ve kamera servisiyle etkin model seçimi (SDK 0.1.21). Modelin ayrı görüş açısı, kendi derinliği ve dünya görüntüsünün korunması odaklı Chrome WebGPU ve WebGL2 testlerinde geçti. FPS Sandbox görsel kabulü açık. |
 | 2026-11-26 | v2.28 | Faz W W6 halkalar ve birikintide rüzgâr (`95e0ae5`): ortak halka düğümü (CPU ikizi `rainRipples.ts`), sıklık anlık yağmurla, uzakta / siper altında yok, simülasyon saati; materyal birikintisi, ıslak yama (hafif) ve `forge.puddle` suyu; materyal birikintisinde prosedürel rüzgâr tepeleri; WES `rippleStrength`, `rippleSize`, `rippleDensity`, `windRippleStrength`; `puddleAccept` çizilir. Smoke'lar pipeline +0. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-26 | v2.27 | Faz W W5 sonrası (kullanıcı kararları; `4522d2d`, `d56944d`, `4c56ffa`, `38a80f2`, `8acbf1c`, `3581aad`): SSR roughness + Fresnel ağırlığıyla ve ortam yansımasının yerine (MRT `specular`), Post Process SSR ayarları, alfa kesimli yüzey SSR almaz; ıslaklık üç kademe (koyulaşma, ıslak yama, ayna birikinti; yalnız düz zeminde); `forge.puddle` `followWeather`. W6 yeniden kapsamlandı, çukur haritası Faz 7 sonrasına. Kullanıcı görsel kabulü bekleniyor. |
 | 2026-11-26 | v2.24 | Faz W W4 kapandı (kullanıcı görsel kabulü). Sırada W5: yağışla ıslanma, karlanma, kuruma (yeni oturumda). |

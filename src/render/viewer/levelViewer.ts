@@ -25,7 +25,8 @@ import { effectiveViewDistance } from "../../engine/world/viewDistance.ts";
 import { createRenderHost, type RenderHost, type RenderHostOptions, type RenderQuality } from "../host/renderHost.ts";
 import { consumeCameraPose, type CameraPose } from "./cameraPose.ts";
 import { attachFlyCamera, createFlyCamera } from "./flyCamera.ts";
-import type { RuntimeCameraPose } from "../../engine/camera/worldCamera.ts";
+import type { RuntimeCameraPose, RuntimeViewModel } from "../../engine/camera/worldCamera.ts";
+import { createViewModelLayer } from "./viewModel.ts";
 
 export const CAMERA_FOV = 44;
 export const CAMERA_NEAR = 0.1;
@@ -45,7 +46,7 @@ export interface LevelViewerOptions extends RenderHostOptions {
 export interface LevelViewer {
   init(): Promise<void>;
   feature(features: readonly FeatureDef[]): FeatureDef;
-  frame(now: number, controlled?: RuntimeCameraPose | null): void;
+  frame(now: number, controlled?: RuntimeCameraPose | null, viewModel?: RuntimeViewModel | null): void;
   onLost(listener: (message: string) => void): void;
   dispose(): void;
   readonly host: RenderHost | null;
@@ -101,6 +102,7 @@ export function createLevelViewer(options: LevelViewerOptions): LevelViewer {
   const camera = new PerspectiveCamera(CAMERA_FOV, 1, CAMERA_NEAR, CAMERA_FAR);
   const pendingListeners: ((message: string) => void)[] = [];
   let host: RenderHost | null = null;
+  let viewModelLayer: ReturnType<typeof createViewModelLayer> | null = null;
   let framed = false;
   let settledFrames = 0;
   let ready = false;
@@ -131,8 +133,12 @@ export function createLevelViewer(options: LevelViewerOptions): LevelViewer {
       if (!host) throw new Error("The level viewer is not initialised.");
       return host.feature(features, "game", { buildingStreaming: options.buildingStreaming !== false });
     },
-    frame(now, controlled) {
+    frame(now, controlled, viewModel) {
       if (!host || host.world === null) return;
+      if (viewModel && !viewModelLayer) {
+        viewModelLayer = createViewModelLayer(host.resources("view model"));
+        host.setOverlay(viewModelLayer);
+      }
       const dt = lastFrame === null ? 0 : Math.min(0.1, Math.max(0, (now - lastFrame) / 1000));
       lastFrame = now;
       if (controlled) {
@@ -154,6 +160,7 @@ export function createLevelViewer(options: LevelViewerOptions): LevelViewer {
         frameBounds(camera, sceneRoomBounds(host.world.root));
         framed = true;
       }
+      viewModelLayer?.update(viewModel ?? null);
       host.frame(now);
       if (ready) return;
       settledFrames = pending === 0 ? settledFrames + 1 : 0;
@@ -185,6 +192,8 @@ export function createLevelViewer(options: LevelViewerOptions): LevelViewer {
     dispose() {
       unwire?.();
       unwire = null;
+      viewModelLayer?.dispose();
+      viewModelLayer = null;
       host?.dispose();
       host = null;
     },

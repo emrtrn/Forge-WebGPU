@@ -7,11 +7,11 @@ import { CellStreamingKey } from "../../runtime/streaming/cellStreaming.ts";
 import { PhysicsServiceKey } from "../../engine/physics/physicsService.ts";
 import { add, decomposeMat4, rotate, scale } from "../../engine/math/affine.ts";
 import { actorMatrix, componentMatrix } from "../../engine/world/worldMatrices.ts";
-import { Camera, CharacterMovement, GameplaySpline, Interaction, PlayerStart, SpringArm, TargetPoint } from "./schema.ts";
+import { Camera, CharacterMovement, GameplaySpline, Interaction, PlayerStart, SpringArm, TargetPoint, ViewModel } from "./schema.ts";
 
 export default defineFeature({
   id: "forge.player",
-  components: [PlayerStart, CharacterMovement, TargetPoint, Interaction, Camera, SpringArm, GameplaySpline],
+  components: [PlayerStart, CharacterMovement, TargetPoint, Interaction, Camera, SpringArm, GameplaySpline, ViewModel],
   subsystems: [defineSubsystem({
     id: "forge.player",
     create(world) {
@@ -28,6 +28,7 @@ export default defineFeature({
       world.services.provide(CharacterMovementKey, movement);
       let pose: RuntimeCameraPose | null = null;
       let follow: { actor: ActorId; camera: string; arm: string | undefined } | null = null;
+      let viewModel: { actor: ActorId; key: string } | null = null;
       world.services.provide(CameraServiceKey, {
         set(next) {
           if (next && (!next.position.every(Number.isFinite) || !next.quaternion.every(Number.isFinite) ||
@@ -59,6 +60,24 @@ export default defineFeature({
           }, { ignore: [actor.id], channel: "camera" });
           return { position: add(p, scale(direction, hit ? Math.max(0, hit.distance - 0.015) : arm.length)),
             quaternion: r, fov: camera.fov as number };
+        },
+        setViewModel(actor: ActorId | null, key?: string) {
+          if (actor === null) { viewModel = null; return true; }
+          const component = key === undefined ? undefined : world.actor(actor)?.components[key];
+          if (key === undefined || parseComponentTypeTag(component?.type)?.name !== ViewModel.name) return false;
+          viewModel = { actor, key };
+          return true;
+        },
+        currentViewModel() {
+          if (!viewModel) return null;
+          const component = world.actor(viewModel.actor)?.components[viewModel.key];
+          if (parseComponentTypeTag(component?.type)?.name !== ViewModel.name ||
+              typeof component?.model !== "string" || typeof component.fov !== "number") return null;
+          return {
+            model: component.model,
+            fov: component.fov,
+            local: component.local ?? { p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] },
+          };
         },
       });
       return {

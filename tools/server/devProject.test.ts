@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { createServer, type ViteDevServer } from "vite";
 import { afterEach, describe, expect, test } from "vitest";
 import { stringifyDocument } from "../../src/core/index.ts";
+import { SDK_VERSION } from "../../src/core/project/sdkVersion.ts";
 import { DEFAULT_PROJECT, identityOf, isReadOnlyProject, resolveDevProject } from "./devProject.ts";
 import { forgeServerPlugin, gameModuleSource } from "./vitePlugin.ts";
 
@@ -100,7 +101,7 @@ describe("a real dev server on a project", () => {
     const project = await copyFixture("good");
     const { vite, base } = await serve(project);
     const identity: unknown = await (await fetch(`${base}/__forge/identity`, { headers })).json();
-    expect(identity).toMatchObject({ engine: { sdkVersion: "0.1.20" }, project: { id: "good", root: project, problems: [] } });
+    expect(identity).toMatchObject({ engine: { sdkVersion: SDK_VERSION }, project: { id: "good", root: project, problems: [] } });
 
     const loaded = (await vite.ssrLoadModule("virtual:forge/game-module")) as { default: { kind: string; id: string } };
     expect(loaded.default).toMatchObject({ kind: "gameModule", id: "good.main" });

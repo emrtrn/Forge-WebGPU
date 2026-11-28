@@ -186,6 +186,36 @@ describe("bootGame", () => {
     expect(log).toEqual(["feature beginPlay", "game beginPlay, 1 fog", "game endPlay stopped", "feature endPlay stopped"]);
   });
 
+  test.each(["test.tps", "test.unavailable", ""])("uses only the registered level mode (%s)", async (gameMode) => {
+    const log: string[] = [];
+    const warnings: string[] = [];
+    const gameModule = defineGameModule({
+      id: "test.game",
+      gameModes: [{
+        id: "test.tps",
+        label: "TPS",
+        create(ctx) {
+          log.push(`mode starts with ${ctx.componentsOf("test.fog").length} fog`);
+          return { tick: () => log.push("mode ticks"), dispose: () => log.push("mode stops") };
+        },
+      }],
+      onBeginPlay: () => log.push("module starts"),
+      onEndPlay: () => log.push("module stops"),
+    });
+    const { options, step } = harness({
+      gameModule,
+      loadLevel: async () => ({ level: { ...LEVEL, settings: { gameMode } } }),
+      warn: (issues) => warnings.push(...issues.map(({ path }) => path)),
+    });
+    const game = await bootGame(options);
+    step(16);
+    game!.stop();
+    expect(log).toEqual(gameMode === "test.tps"
+      ? ["module starts", "mode starts with 1 fog", "mode ticks", "mode stops", "module stops"]
+      : ["module starts", "module stops"]);
+    expect(warnings).toEqual(gameMode === "test.unavailable" ? ["settings.gameMode"] : []);
+  });
+
   describe("the render stage", () => {
     function fakeRender(log: string[], options: { initFails?: boolean } = {}) {
       let lost: ((message: string) => void) | null = null;

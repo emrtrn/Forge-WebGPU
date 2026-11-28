@@ -91,8 +91,10 @@ interface BinaryAssetTypeDef<M>
 
 interface CameraService
   current: () => RuntimeCameraPose | null
+  currentViewModel: () => RuntimeViewModel | null
   follow: (actor: ActorId, camera: string, springArm?: string) => boolean
   set: (pose: RuntimeCameraPose | null) => void
+  setViewModel: { (actor: ActorId, component: string): boolean; (actor: null): boolean; }
 
 const CameraServiceKey: import("src/core/index").ServiceKey<CameraService>
 
@@ -165,9 +167,15 @@ interface FieldMap
 
 type FieldValues<M extends FieldMap> = { -readonly [K in keyof M]: FieldValue<M[K]>; }
 
+interface GameModeDef
+  create: (ctx: SubsystemContext) => { tick?(dt: number): void; dispose?(): void; }
+  readonly id: string
+  readonly label: string
+
 interface GameModuleDef
   readonly behaviors: ReadonlyArray<BehaviorDefinition>
   readonly features: ReadonlyArray<FeatureDef>
+  readonly gameModes: ReadonlyArray<GameModeDef>
   readonly id: string
   readonly kind: "gameModule"
   readonly onBeginPlay?: ((ctx: SubsystemContext) => void) | undefined
@@ -284,7 +292,12 @@ interface RuntimeCameraPose
   readonly position: readonly [number, number, number]
   readonly quaternion: readonly [number, number, number, number]
 
-const SDK_VERSION: "0.1.20"
+interface RuntimeViewModel
+  readonly fov: number
+  readonly local: Transform
+  readonly model: string
+
+const SDK_VERSION: "0.1.22"
 
 type SaveStateData<S extends SaveStateDef> = S extends SaveStateDef<infer M extends FieldMap> ? FieldValues<M> : never
 
@@ -315,6 +328,12 @@ interface ShapeCast
   readonly origin: readonly [number, number, number]
   readonly rotation?: readonly [number, number, number, number] | undefined
   readonly shape: CastShape
+
+interface SkeletalClips
+  current: (actor: ActorId, component: string) => string | undefined
+  play: (actor: ActorId, component: string, clip: string | null) => void
+
+const SkeletalClipsKey: import("src/core/index").ServiceKey<SkeletalClips>
 
 interface SubsystemContext
   actor: (id: ActorId) => WorldActor | undefined
@@ -542,7 +561,7 @@ function defineComponent<M extends FieldMap>(name: string, version: number, fiel
 
 function defineFeature(feature: { readonly id: string; readonly components?: readonly ComponentDef[]; readonly assetTypes?: readonly FeatureAssetTypeDef[]; readonly saveStates?: readonly SaveStateDef[]; readonly subsystems?: readonly SubsystemDef[]; }): FeatureDef
 
-function defineGameModule(module: Omit<GameModuleDef, "kind" | "features" | "behaviors"> & { readonly features?: readonly FeatureDef[]; readonly behaviors?: readonly BehaviorDefinition[]; }): GameModuleDef
+function defineGameModule(module: Omit<GameModuleDef, "kind" | "features" | "behaviors" | "gameModes"> & { readonly features?: readonly FeatureDef[]; readonly behaviors?: readonly BehaviorDefinition[]; readonly gameModes?: readonly GameModeDef[]; }): GameModuleDef
 
 function defineJsonAssetType<M extends FieldMap>(name: string, version: number, definition: { readonly suffix: string; readonly fields: M; }, options?: JsonAssetTypeOptions): JsonAssetTypeDef<M>
 
@@ -686,7 +705,7 @@ const OUTLINER_TYPES: readonly [{ readonly type: "mesh"; readonly label: "Meshes
 
 type OutlinerType = "mesh" | "terrain" | "gameplay" | "light" | "character" | "environment" | "volume" | "widget"
 
-const SDK_VERSION: "0.1.20"
+const SDK_VERSION: "0.1.22"
 
 function defineFeatureEditor(options: FeatureEditorOptions): FeatureEditorDef
 

@@ -95,6 +95,7 @@ export interface ShellOptions {
 /** What the panels need besides the session. */
 export interface ShellContext {
   readonly catalog: EditorCatalog;
+  readonly gameModes?: readonly { readonly id: string; readonly label: string }[];
   readonly registry: SchemaRegistry;
   readonly resolveClass: ClassResolver;
   readonly assets: AssetCatalog;
@@ -501,7 +502,10 @@ export function createShell(options: ShellOptions): EditorShell {
       };
       save.addEventListener("click", () => void runSave());
       saveNow = () => void runSave();
-      const worldSettings = createWorldSettings({ document: doc, host: root, editor, registry: context.registry, resolveClass: context.resolveClass, placer: () => placerNow, modelBounds: () => modelBoundsNow });
+      const worldSettings = createWorldSettings({
+        document: doc, host: root, editor, registry: context.registry, resolveClass: context.resolveClass,
+        gameModes: context.gameModes ?? [], placer: () => placerNow, modelBounds: () => modelBoundsNow,
+      });
       mainMenu.addEventListener("click", () => {
         const rect = mainMenu.getBoundingClientRect();
         openContextMenu(

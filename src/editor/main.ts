@@ -166,6 +166,7 @@ export interface EditorStartOptions {
   readonly document: Document;
   /** Engine features, then the game module's. */
   readonly features: readonly FeatureDef[];
+  readonly gameModes?: readonly { readonly id: string; readonly label: string }[];
   readonly bindings: readonly RenderBindingDef[];
   readonly client: SaveClient;
   readonly assetUrls: AssetUrls;
@@ -378,6 +379,7 @@ export async function startEditor(options: EditorStartOptions): Promise<void> {
     let followDisk: (files: readonly ChangedFile[]) => Promise<void> = async () => undefined;
     shell.attach(session, {
       catalog,
+      gameModes: options.gameModes ?? [],
       registry,
       resolveClass,
       assets,

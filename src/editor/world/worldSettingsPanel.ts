@@ -23,6 +23,7 @@ export interface WorldSettingsOptions {
   readonly host: HTMLElement;
   readonly editor: EditorSession;
   readonly registry: SchemaRegistry;
+  readonly gameModes: readonly { readonly id: string; readonly label: string }[];
   readonly resolveClass: ClassResolver;
   /** Adds a missing actor; null before the viewport is up. */
   readonly placer: () => ActorPlacer | null;
@@ -112,6 +113,30 @@ export function createWorldSettings(options: WorldSettingsOptions): WorldSetting
       row("Cell Size (m)", cellSize),
       el("div", "detail-hint", "Akış ızgarasının hücre kenarı. Değiştirmek bütün hücre dosyalarını yeniden yazan dünya çapı bir işlemdir; editörden değiştirilmez."),
     );
+    const gameMode = el("select");
+    gameMode.setAttribute("aria-label", "Game Mode");
+    gameMode.dataset.testid = "world-settings-game-mode";
+    const modeOptions = [{ id: "", label: "Project Default" }, ...options.gameModes];
+    const selectedMode = level.settings.gameMode ?? "";
+    if (!modeOptions.some(({ id }) => id === selectedMode)) {
+      modeOptions.push({ id: selectedMode, label: `${selectedMode} (Unavailable)` });
+    }
+    for (const { id, label } of modeOptions) {
+      const item = el("option", "", label);
+      item.value = id;
+      gameMode.append(item);
+    }
+    gameMode.value = selectedMode;
+    const modeFeedback = el("div", "detail-hint");
+    modeFeedback.setAttribute("role", "status");
+    gameMode.addEventListener("change", () => {
+      const result = editor.edit("Set Game Mode", (tx) => tx.setSettings({ gameMode: gameMode.value }));
+      if (!result.ok) {
+        gameMode.value = selectedMode;
+        modeFeedback.textContent = result.issues.map((issue) => issue.message).join(" ");
+      }
+    });
+    levelPart.body.append(row("Game Mode", gameMode), modeFeedback);
     const streaming = createSection(doc, "Streaming", { testId: "world-settings-streaming" });
     streamingForm.update(streamingValue());
     streaming.body.append(

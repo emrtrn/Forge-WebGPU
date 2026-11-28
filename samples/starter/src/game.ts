@@ -2,6 +2,7 @@
 // nothing but @forge/sdk. A game adds its features (components, subsystems)
 // to `features` and reacts to the start and end of play.
 import { InputServiceKey, TimeControlKey, UiServiceKey, defineFeature, defineGameModule, defineSubsystem, type WidgetHandle } from "@forge/sdk";
+import { thirdPerson } from "./tps.ts";
 
 const CheckpointMenu = defineFeature({
   id: "starter.checkpoint",
@@ -54,6 +55,7 @@ const CheckpointMenu = defineFeature({
 export default defineGameModule({
   id: "starter.main",
   features: [CheckpointMenu],
+  gameModes: [thirdPerson],
   onBeginPlay: (ctx) => {
     console.info(`Starter: playing with ${[...ctx.actors()].length} actor(s).`);
   },

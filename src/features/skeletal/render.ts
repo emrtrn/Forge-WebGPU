@@ -1,6 +1,7 @@
-import { AnimationMixer, Group, LoopOnce, LoopRepeat, Mesh, SkinnedMesh, type Skeleton } from "three/webgpu";
+import { AnimationMixer, Group, LoopOnce, LoopRepeat, Mesh, SkinnedMesh, type AnimationAction, type AnimationClip, type Skeleton } from "three/webgpu";
 import { clone } from "three/addons/utils/SkeletonUtils.js";
 import { parseComponentTypeTag, type ActorId, type WorldActor } from "../../core/index.ts";
+import { SkeletalClipsKey } from "../../engine/animation/skeletalClips.ts";
 import { resourceKey } from "../../render/resources/resourceCache.ts";
 import { defineRenderBinding } from "../../render/sync/renderBinding.ts";
 import { tagActorObject } from "../../render/sync/pickTags.ts";
@@ -14,6 +15,10 @@ interface SkeletalView {
   readonly holder: Group;
   readonly skeletons: Set<Skeleton>;
   mixer: AnimationMixer | null;
+  clips: readonly AnimationClip[];
+  authoredClip: string;
+  loop: boolean;
+  active: AnimationAction | null;
   waiting: boolean;
 }
 
@@ -30,7 +35,11 @@ export default defineRenderBinding({
         holder.name = `${actor.name}/${key}`;
         holder.matrixAutoUpdate = false;
         tagActorObject(holder, actor.id);
-        const entry: SkeletalView = { actor: actor.id, key, guid, holder, skeletons: new Set(), mixer: null, waiting: true };
+        const entry: SkeletalView = {
+          actor: actor.id, key, guid, holder, skeletons: new Set(), mixer: null, clips: [],
+          authoredClip: typeof component.clip === "string" ? component.clip : "",
+          loop: component.loop === true, active: null, waiting: true,
+        };
         entries.set(id(actor.id, key), entry);
         ctx.root.add(holder);
         void ctx.resources.model(guid).then(({ scene, animations }) => {
@@ -47,15 +56,10 @@ export default defineRenderBinding({
             }
           });
           holder.add(rig);
-          const clip = (component.clip ? animations?.find(({ name }) => name === component.clip) : animations?.[0]);
-          if (clip) {
+          if (animations?.length) {
+            entry.clips = animations;
             entry.mixer = new AnimationMixer(rig);
             entry.mixer.timeScale = typeof component.speed === "number" ? component.speed : 1;
-            const action = entry.mixer.clipAction(clip);
-            const loop = component.loop === true;
-            action.setLoop(loop ? LoopRepeat : LoopOnce, loop ? Infinity : 1);
-            action.clampWhenFinished = !loop;
-            action.play();
           }
           entry.waiting = false;
         }, () => { entry.waiting = false; });
@@ -80,12 +84,26 @@ export default defineRenderBinding({
       },
       isActorReady(actor) { return ![...entries.values()].some((entry) => entry.actor === actor && entry.waiting); },
       sync({ dt }) {
+        const selection = ctx.world.services.get(SkeletalClipsKey);
         for (const entry of entries.values()) {
           const actor = ctx.world.actor(entry.actor);
           if (!actor) continue;
           componentWorldMatrix(ctx.world, actor, entry.key, entry.holder.matrix);
           entry.holder.matrixWorldNeedsUpdate = true;
-          entry.mixer?.update(dt);
+          const mixer = entry.mixer;
+          if (!mixer) continue;
+          const requested = selection?.current(entry.actor, entry.key) ?? entry.authoredClip;
+          const clip = requested ? entry.clips.find(({ name }) => name === requested) : entry.clips[0];
+          if (clip !== entry.active?.getClip()) {
+            entry.active?.stop();
+            entry.active = clip ? mixer.clipAction(clip) : null;
+            if (entry.active) {
+              entry.active.reset().setLoop(entry.loop ? LoopRepeat : LoopOnce, entry.loop ? Infinity : 1);
+              entry.active.clampWhenFinished = !entry.loop;
+              entry.active.play();
+            }
+          }
+          mixer.update(dt);
         }
       },
       dispose() { for (const { actor } of entries.values()) remove(actor); },

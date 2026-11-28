@@ -162,7 +162,9 @@ function normalizeLevelSettings(raw: unknown, ctx: NormalizeContext): LevelSetti
   } else if (raw !== undefined) {
     reportLoss(ctx, "invalid-value", "settings", "Expected an object of level settings; defaults used.");
   }
-  return normalizeFieldMap(LevelSettingsFields, source, "settings", ctx) as LevelSettings;
+  const settings = normalizeFieldMap(LevelSettingsFields, source, "settings", ctx) as LevelSettings;
+  if (!settings.gameMode) delete settings.gameMode;
+  return settings;
 }
 
 function normalizeActor(

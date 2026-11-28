@@ -1,6 +1,7 @@
 import { afterEach, expect, test as check } from "vitest";
-import { createSchemaRegistry, installFeatures, type ComponentMap } from "../../core/index.ts";
+import { createSchemaRegistry, installFeatures, type ComponentMap, type Transform } from "../../core/index.ts";
 import { actorId } from "../../core/level/testKit.ts";
+import { CameraServiceKey } from "../../engine/camera/worldCamera.ts";
 import { computePlayerStartSpawn, hasPlayerCharacter, PlayerServiceKey } from "../../gameplay/player/playerSpawn.ts";
 import { createWorld } from "../../runtime/world.ts";
 import behaviorFeature from "../behavior/feature.ts";
@@ -70,4 +71,20 @@ check("createDefaultPlayerCharacter: null yaw keeps a zero facing, defaults scal
   const pawn = scene.services.require(PlayerServiceKey).spawn();
   expect(pawn.transform).toEqual({ p: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1] });
   expect(pawn.components.movement).toMatchObject({ walkSpeed: 3 });
+});
+
+check("camera view model selection uses component-local placement and follows actor lifetime", () => {
+  const scene = openWorld();
+  const camera = scene.services.require(CameraServiceKey);
+  const model = `ast_${"b".repeat(32)}`;
+  const local: Transform = { p: [0.3, -0.2, -1], r: [0, 0, 0, 1], s: [1, 1, 1] };
+  const pawn = addPawn(scene, { camera: { type: "forge.camera@1" }, hands: { type: "forge.viewModel@1", model, local } });
+  expect(camera.setViewModel(pawn.id, "hands")).toBe(true);
+  expect(camera.setViewModel(pawn.id, "camera")).toBe(false);
+  expect(camera.currentViewModel()).toEqual({ model, local, fov: 60 });
+  camera.setViewModel(null);
+  expect(camera.currentViewModel()).toBeNull();
+  camera.setViewModel(pawn.id, "hands");
+  scene.context.destroyActors([pawn.id]);
+  expect(camera.currentViewModel()).toBeNull();
 });

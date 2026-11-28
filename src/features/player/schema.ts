@@ -1,4 +1,4 @@
-import { array, bool, defineComponent, num, text, vec3 } from "../../core/index.ts";
+import { array, assetRef, bool, defineComponent, num, text, vec3 } from "../../core/index.ts";
 
 export const PlayerStart = defineComponent("forge.playerStart", 1, {
   tag: text({ hint: "Oyunun doğuş noktası seçerken kullanabildiği etiket." }),
@@ -34,6 +34,11 @@ export const SpringArm = defineComponent("forge.springArm", 1, {
   length: num({ default: 4, min: 0, hint: "Kameranın geriye ayrıldığı mesafe, metre." }),
   probeRadius: num({ default: 0.15, min: 0.01, hint: "Duvarlardan kaçınmak için küre sorgusu yarıçapı." }),
 }, { label: "Spring Arm", spatial: true });
+
+export const ViewModel = defineComponent("forge.viewModel", 1, {
+  model: assetRef({ assetType: "forge.model", hint: "Etkin kameranın önünde çizilecek model." }),
+  fov: num({ default: 60, min: 10, max: 170, hint: "Modelin dikey görüş açısı, derece." }),
+}, { label: "View Model", spatial: true, hint: "Yerel Transform kamera uzayındadır. Kamera ileriye doğru -Z yönüne bakar." });
 
 export const GameplaySpline = defineComponent("forge.spline", 1, {
   points: array(vec3({ default: [0, 0, 0] }), { hint: "Oynanış yolunun bileşen uzayındaki noktaları." }),

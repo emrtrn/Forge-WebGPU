@@ -1,6 +1,10 @@
 # Forge WebGPU — Mimari Analiz ve Başlangıç Kararları
 
-**Güncelleme:** v1.100 · 2026-11-27 — §4.7 Faz 6a kapanışı, hücre boşaltma sırası, çözülmüş fizik gövdeleri ve debug zamanı.
+**Güncelleme:** v1.102 · 2026-11-28 — §4.7 Faz 6b level Game Mode seçimi, iskelet klibi seçimi ve SDK 0.1.22.
+
+**Önceki güncelleme:** v1.101 · 2026-11-28 — §4.7 Faz 6b kamera uzayında view model ve SDK 0.1.21.
+
+**Önceki güncelleme:** v1.100 · 2026-11-27 — §4.7 Faz 6a kapanışı, hücre boşaltma sırası, çözülmüş fizik gövdeleri ve debug zamanı.
 
 **Önceki güncelleme:** v1.99 · 2026-11-27 — §4.7 ortak çarpışma profili, temas/çözücü maskeleri ve davranışın simülasyon zamanı (SDK 0.1.20).
 
@@ -1641,6 +1645,17 @@ düşen alan uyarı değil, **hatadır**.
 - **Debug zamanı (6a):** `?debug`, World zaman ölçeğini ve panelin kendi
   duraklatma kaydını yönetir. CPU kare yakalama gerçek zamanı ölçer; simülasyon
   durduğunda çizim ve ölçüm devam eder.
+- **Kameraya bağlı model (6b):** Oyun, `CameraService.setViewModel(actor, key)`
+  ile etkin aktördeki `forge.viewModel@1` bileşenini seçer. Modelin yerel
+  dönüşümü kamera uzayındadır (ileri −Z). Renderer modeli bileşenin dikey
+  görüş açısıyla, ayrı bir derinlik tamponu ve sabit aydınlatma kullanarak
+  çizer ve dünya görüntüsünün üzerine birleştirir.
+- **Game Mode (6b):** `defineGameModule({ gameModes })` proje modlarını listeler.
+  World Settings seçim kimliğini `level.settings.gameMode` alanına yazar.
+  Play, kalıcı aktörler yüklenince seçilen modu başlatır. `Project Default`
+  projenin olağan açılışını çalıştırır. Mod, fizik öncesinde tick alır ve
+  Play sonunda kaynaklarını bırakır. Starter TPS pilotu etkin klibi
+  `SkeletalClipsKey` ile karakter hareketine göre seçer.
 - **Render senkronu:** oynanış kodu three nesnelerine dokunmaz; render katmanı
   bileşenleri render bağlamalarıyla izler. "engine three'siz" kuralı böylece
   kalıcı olur.

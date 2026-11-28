@@ -8,6 +8,24 @@ matches, so the surface cannot change without this file changing too.
 Before 1.0 every minor version may break: a project's `sdkVersion` must match
 the engine's major.minor (architecture §4.8, A8).
 
+## 0.1.22
+
+API: 11c5098566d88a9e
+
+`defineGameModule({ gameModes })` registers the modes offered in World Settings.
+Play activates the mode stored in `LevelSettings.gameMode`. A mode can tick
+before physics and clean up when Play ends.
+`SkeletalClipsKey` selects a clip on a skeletal mesh during Play.
+
+## 0.1.21
+
+API: 02b5a8d8c60f9c1d
+
+`CameraService.setViewModel(actor, component)` selects a `forge.viewModel@1`
+component on an active actor. Its model asset, local transform and vertical FOV
+define a separate camera-space draw. The camera looks along local −Z.
+`currentViewModel()` reads the current selection and `setViewModel(null)` clears it.
+
 ## 0.1.20
 
 API: a5c50aa596e2f3a7

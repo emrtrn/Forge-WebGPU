@@ -76,11 +76,13 @@ export type { ActorMotion, ActorTransformUpdate } from "../engine/world/actorMot
 export { defineBehavior } from "../engine/behavior/worldBehavior.ts";
 export type { BehaviorContext, BehaviorDefinition, BehaviorEvent, BehaviorMessage } from "../engine/behavior/worldBehavior.ts";
 export { CameraServiceKey } from "../engine/camera/worldCamera.ts";
-export type { CameraService, RuntimeCameraPose } from "../engine/camera/worldCamera.ts";
+export type { CameraService, RuntimeCameraPose, RuntimeViewModel } from "../engine/camera/worldCamera.ts";
 export { PlayerServiceKey } from "../gameplay/player/playerSpawn.ts";
 export type { PlayerService, PlayerStartOptions } from "../gameplay/player/playerSpawn.ts";
 export { CharacterMovementKey } from "../gameplay/character/characterMovement.ts";
 export type { CharacterMoveInput, CharacterMovementService, CharacterMotion } from "../gameplay/character/characterMovement.ts";
+export { SkeletalClipsKey } from "../engine/animation/skeletalClips.ts";
+export type { SkeletalClips } from "../engine/animation/skeletalClips.ts";
 export { CheckpointKey } from "../engine/persistence/checkpointService.ts";
 export type { CheckpointService } from "../engine/persistence/checkpointService.ts";
 export { AudioServiceKey } from "../engine/audio/worldAudio.ts";
@@ -111,4 +113,4 @@ export type { SurfaceAmount } from "../engine/environment/surfaceAccumulation.ts
 
 // The game module
 export { defineGameModule } from "../runtime/gameModule.ts";
-export type { GameModuleDef } from "../runtime/gameModule.ts";
+export type { GameModeDef, GameModuleDef } from "../runtime/gameModule.ts";
