@@ -15,6 +15,7 @@ describe("@forge/sdk", () => {
       "PhysicsServiceKey",
       "PlayerServiceKey",
       "SDK_VERSION",
+      "SkeletalClipsKey",
       "TICK_GROUPS",
       "TimeControlKey",
       "UiServiceKey",
