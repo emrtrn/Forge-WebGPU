@@ -56,6 +56,15 @@ describe("asset documents have their own edit/save session", () => {
       await session.reload(); expect(session.dirty()).toBe(false); expect(session.value().amount).toBe(1);
     }
   });
+  test("a disk event is taken only when the disk differs; a late one keeps the history", async () => {
+    const fix = fixture(), session = await fix.open(); session.edit("Amount", ["amount"], 4); session.undo();
+    expect(await session.refresh()).toBe("unchanged"); expect(session.canRedo()).toBe(true);
+    session.redo(); fix.change({ amount: 7 });
+    expect(await session.refresh()).toBe("dirty"); expect(session.value().amount).toBe(4);
+    session.undo();
+    expect(await session.refresh()).toBe("updated"); expect(session.value().amount).toBe(7);
+    expect(session.revision()).toBe("0000000000000003"); expect(session.canRedo()).toBe(false);
+  });
   test("after a 409, compare merges the draft with the disk field by field (step 8)", async () => {
     const fix = fixture(), session = await fix.open();
     session.edit("Amount", ["amount"], 4);

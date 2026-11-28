@@ -36,6 +36,13 @@ export interface AssetSession {
   redo(): void;
   save(publish?: AssetPublisher): Promise<{ readonly ok: boolean; readonly message: string }>;
   reload(): Promise<void>;
+  /**
+   * After a disk event: reads the file and takes it only when it differs from
+   * what the session holds. An event can arrive late and name a revision a
+   * later save or merge replaced; the draft and its history then stay as they
+   * are. `dirty`: the disk differs, and the draft is kept.
+   */
+  refresh(): Promise<"unchanged" | "updated" | "dirty">;
   compare(): Promise<AssetDiskCompare>;
   /** The draft over the disk's version read by `compare`, each conflict by `pick` (by its path). */
   merge(disk: AssetDiskCompare, pick: (path: readonly string[]) => MergeSide): { readonly ok: boolean; readonly message: string };
@@ -109,6 +116,18 @@ export async function openAssetSession(asset: EditableAsset, adapter: AssetDocum
       busy = true; notify();
       try { const loaded = await read(); current = baseline = loaded.doc; revision = loaded.revision; undo.length = redo.length = 0; lastResult = null; }
       finally { busy = false; notify(); }
+    },
+    async refresh() {
+      if (busy) return "unchanged";
+      const held = revision;
+      // Not `busy`: the buttons stay usable while a possibly unchanged file is read.
+      const loaded = await read();
+      // A save, merge or reload that ran during the read has the newer version.
+      if (busy || revision !== held || loaded.revision === held) return "unchanged";
+      if (session.dirty()) return "dirty";
+      current = baseline = loaded.doc; revision = loaded.revision; undo.length = redo.length = 0; lastResult = null;
+      notify();
+      return "updated";
     },
     async compare() {
       const disk = await read();

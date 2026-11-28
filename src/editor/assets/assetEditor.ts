@@ -280,9 +280,12 @@ export function createAssetEditor(options: AssetEditorOptions) {
     if (!opened || !overlay || opened.busy()) return;
     const change = files.find((file) => file.path === opened.adapter.path);
     if (!change || change.revision === opened.revision()) return;
-    // A save the disk refused (409) already says so.
-    if (opened.dirty()) { if (opened.result()?.status !== "conflict") status("Changed on disk while you edit: Compare… or Reload."); return; }
-    void opened.reload().then(() => status("Updated from disk."), (error: unknown) => status(`Changed on disk; reading it failed: ${String(error)}`));
+    void opened.refresh().then((outcome) => {
+      if (session !== opened) return;
+      if (outcome === "updated") status("Updated from disk.");
+      // A save the disk refused (409) already says so.
+      else if (outcome === "dirty" && opened.result()?.status !== "conflict") status("Changed on disk while you edit: Compare… or Reload.");
+    }, (error: unknown) => { if (session === opened) status(`Changed on disk; reading it failed: ${String(error)}`); });
   };
   return { open, close, diskChanged, isOpen: () => overlay !== null, active: () => session,
     dispose() { generation++; teardown(); doc.removeEventListener("keydown", keydown, true); doc.defaultView?.removeEventListener("beforeunload", unload); },
