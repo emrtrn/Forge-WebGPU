@@ -9,6 +9,11 @@
 // Smokes never write to an example project (D14): every run serves a fresh
 // copy of samples/starter in the OS temp folder, deleted afterwards. The copy
 // is made once, in the main process (workers inherit its path).
+//
+// On CI the software WebGL frames take seconds and hold the page's main thread:
+// a save of a few terrain tiles passes the 5 s expect default, and the longest
+// tests take 3-8 minutes. Only CI gets the longer limits. A spec with its own
+// limit sets it with `testBudget` (support.ts), which never goes below these.
 
 import { cpSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -29,7 +34,8 @@ if (!process.env.FORGE_EDITOR_SMOKE_PROJECT) {
 export default defineConfig({
   testDir: ".",
   testMatch: "*.spec.ts",
-  timeout: 120_000,
+  timeout: process.env.CI ? 600_000 : 120_000,
+  expect: { timeout: process.env.CI ? 90_000 : 5_000 },
   workers: 1,
   retries: 0,
   reporter: [["list"]],

@@ -9,7 +9,7 @@ import { createServer, type ViteDevServer } from "vite";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { forgeServerPlugin } from "../../tools/server/vitePlugin.ts";
 import { cubeGlb } from "./glb.ts";
-import { openEditor, WEBGL_QUERY, SAVE_CONFLICT } from "./support.ts";
+import { openEditor, testBudget, WEBGL_QUERY, SAVE_CONFLICT } from "./support.ts";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const LEVEL = "content/levels/assets", FOLDER = "content/asset-editors";
@@ -123,7 +123,7 @@ test("tree recipe edits the live variant, publishes a family and reopens the sav
 });
 
 test("tree recipe compares Source, LODs and impostor, shows every seed, the family's memory and the preview's weather", async ({ page }, info) => {
-  test.setTimeout(120000);
+  testBudget(120000);
   const errors = await open(page);
   await asset(page, "grove.treerecipe.json");
   const preview = page.getByTestId("asset-editor-preview"), labels = page.getByTestId("preview-labels").locator("span");
@@ -151,7 +151,7 @@ test("tree recipe compares Source, LODs and impostor, shows every seed, the fami
 });
 
 test("plant family previews prototypes, LODs and a single plant beside foliage in every season; its response edits follow live", async ({ page }, info) => {
-  test.setTimeout(120000);
+  testBudget(120000);
   const errors = await open(page);
   await asset(page, "family.plantfamily.json");
   const preview = page.getByTestId("asset-editor-preview"), labels = page.getByTestId("preview-labels").locator("span");
@@ -182,7 +182,7 @@ test("plant family previews prototypes, LODs and a single plant beside foliage i
 });
 
 test("family sheet lists generated recipes, shows their output, keeps an answer for that output and reads Changed after a new one", async ({ page }, info) => {
-  test.setTimeout(150000);
+  testBudget(150000);
   const errors = await open(page);
   await asset(page, "page.familysheet.json");
   await expect(page.getByTestId("family-sheet-list")).toContainText("No recipe is listed");
@@ -325,7 +325,7 @@ test("Species Preset gives a recipe a starter species in one undo and says Custo
 });
 
 test("tree growth compares crown and age at a fixed camera across two seeds", async ({ page }) => {
-  test.setTimeout(180000);
+  testBudget(180000);
   const errors = await open(page);
   await asset(page, "comparison.treerecipe.json");
   const preview = page.getByTestId("asset-editor-preview"), surface = preview.locator(".tree-preview-surface");

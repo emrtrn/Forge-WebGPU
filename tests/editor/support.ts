@@ -15,7 +15,12 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+
+/** A test's own time limit, never below the run's (CI's is longer, playwright.config.ts). */
+export function testBudget(ms: number): void {
+  test.setTimeout(Math.max(ms, test.info().timeout));
+}
 
 /** True when the run draws with WebGPU (no `forceWebGL`). */
 export const WEBGPU = process.env.FORGE_EDITOR_WEBGPU === "1";

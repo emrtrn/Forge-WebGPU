@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { createServer, type ViteDevServer } from "vite";
 import { expect, test, type Page } from "@playwright/test";
 import { forgeServerPlugin } from "../../tools/server/vitePlugin.ts";
-import { BACKEND, named, openEditor, row, writeLevel } from "./support.ts";
+import { BACKEND, named, openEditor, row, testBudget, writeLevel } from "./support.ts";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 /** What the page meets while the server restarts under it. */
@@ -84,7 +84,7 @@ async function openWindow(page: Page): Promise<void> {
 }
 
 test("World Builder: add the pack, preview, build into the open level keeping its sky, replace a world only after a question", async ({ page }) => {
-  test.setTimeout(360_000);
+  testBudget(360_000);
   await page.addInitScript((level) => localStorage.setItem(`forge.editor.hlod.auto:Starter/${level}`, "false"), LEVEL);
   const errors = await openEditor(page, { base, level: LEVEL, allow: RESTARTING });
   await openWindow(page);
